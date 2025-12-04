@@ -46,6 +46,13 @@ import AdminPlacements from "./pages/admin/AdminPlacements";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
+import AdminFraud from "./pages/admin/AdminFraud";
+
+// Onboarding
+import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
+
+// Public pages
+import SelectSlot from "./pages/interview/SelectSlot";
 
 // GDPR Components
 import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
@@ -256,6 +263,21 @@ function AppRoutes() {
           <AdminPayoutApproval />
         </ProtectedRoute>
       } />
+      <Route path="/admin/fraud" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminFraud />
+        </ProtectedRoute>
+      } />
+      
+      {/* Onboarding */}
+      <Route path="/onboarding" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientOnboarding />
+        </ProtectedRoute>
+      } />
+      
+      {/* Public Routes */}
+      <Route path="/interview/select/:token" element={<SelectSlot />} />
       
       {/* Settings */}
       <Route path="/settings" element={
