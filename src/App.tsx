@@ -8,15 +8,19 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
-// Dashboard pages
+// Client Dashboard pages
 import ClientDashboard from "./pages/dashboard/ClientDashboard";
 import JobsList from "./pages/dashboard/JobsList";
 import CreateJob from "./pages/dashboard/CreateJob";
+import ClientCandidates from "./pages/dashboard/ClientCandidates";
+import ClientInterviews from "./pages/dashboard/ClientInterviews";
+import ClientPlacements from "./pages/dashboard/ClientPlacements";
 
 // Recruiter pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import JobDetail from "./pages/recruiter/JobDetail";
+import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import RecruiterSubmissions from "./pages/recruiter/RecruiterSubmissions";
 import RecruiterEarnings from "./pages/recruiter/RecruiterEarnings";
 import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
@@ -25,6 +29,12 @@ import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminClients from "./pages/admin/AdminClients";
+import AdminRecruiters from "./pages/admin/AdminRecruiters";
+import AdminJobs from "./pages/admin/AdminJobs";
+import AdminPlacements from "./pages/admin/AdminPlacements";
+import AdminPayments from "./pages/admin/AdminPayments";
+import AdminActivity from "./pages/admin/AdminActivity";
 
 const queryClient = new QueryClient();
 
@@ -85,17 +95,17 @@ function AppRoutes() {
       } />
       <Route path="/dashboard/candidates" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <ClientDashboard />
+          <ClientCandidates />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/interviews" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <ClientDashboard />
+          <ClientInterviews />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/placements" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <ClientDashboard />
+          <ClientPlacements />
         </ProtectedRoute>
       } />
       
@@ -117,12 +127,7 @@ function AppRoutes() {
       } />
       <Route path="/recruiter/candidates" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterDashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/recruiter/candidates/new" element={
-        <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterDashboard />
+          <RecruiterCandidates />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/submissions" element={
@@ -159,32 +164,32 @@ function AppRoutes() {
       } />
       <Route path="/admin/clients" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminDashboard />
+          <AdminClients />
         </ProtectedRoute>
       } />
       <Route path="/admin/recruiters" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminDashboard />
+          <AdminRecruiters />
         </ProtectedRoute>
       } />
       <Route path="/admin/jobs" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminDashboard />
+          <AdminJobs />
         </ProtectedRoute>
       } />
       <Route path="/admin/placements" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminDashboard />
+          <AdminPlacements />
         </ProtectedRoute>
       } />
       <Route path="/admin/payments" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminDashboard />
+          <AdminPayments />
         </ProtectedRoute>
       } />
       <Route path="/admin/activity" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminDashboard />
+          <AdminActivity />
         </ProtectedRoute>
       } />
       
