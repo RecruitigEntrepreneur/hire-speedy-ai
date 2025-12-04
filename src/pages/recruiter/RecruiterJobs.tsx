@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,12 +18,12 @@ import {
   Briefcase, 
   MapPin, 
   Clock, 
-  DollarSign,
   ArrowUpRight,
   Loader2,
   Filter,
-  Users
+  Shield
 } from 'lucide-react';
+import { anonymizeCompanyName } from '@/lib/anonymization';
 
 interface Job {
   id: string;
@@ -39,6 +38,7 @@ interface Job {
   recruiter_fee_percentage: number;
   skills: string[];
   created_at: string;
+  industry: string | null;
 }
 
 export default function RecruiterJobs() {
@@ -71,7 +71,6 @@ export default function RecruiterJobs() {
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.skills?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesRemote = remoteFilter === 'all' || job.remote_type === remoteFilter;
     return matchesSearch && matchesRemote;
@@ -124,7 +123,7 @@ export default function RecruiterJobs() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by job title, company, or skills..."
+                placeholder="Suche nach Jobtitel oder Skills..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -175,8 +174,16 @@ export default function RecruiterJobs() {
                               <Briefcase className="h-6 w-6 text-primary-foreground" />
                             </div>
                             <div>
-                              <h3 className="text-lg font-semibold">{job.title}</h3>
-                              <p className="text-muted-foreground">{job.company_name}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-lg font-semibold">{job.title}</h3>
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  Job #{job.id.slice(0, 8).toUpperCase()}
+                                </Badge>
+                              </div>
+                              <p className="text-muted-foreground flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-amber-500" />
+                                {anonymizeCompanyName(job.industry)}
+                              </p>
                               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                                 {job.location && (
                                   <span className="flex items-center gap-1">
