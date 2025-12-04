@@ -14,8 +14,12 @@ import JobsList from "./pages/dashboard/JobsList";
 import CreateJob from "./pages/dashboard/CreateJob";
 import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
 import ClientCandidates from "./pages/dashboard/ClientCandidates";
+import CandidateDetail from "./pages/dashboard/CandidateDetail";
 import ClientInterviews from "./pages/dashboard/ClientInterviews";
 import ClientPlacements from "./pages/dashboard/ClientPlacements";
+import ClientMessages from "./pages/dashboard/ClientMessages";
+import ClientSettings from "./pages/dashboard/ClientSettings";
+import ClientBilling from "./pages/dashboard/ClientBilling";
 
 // Recruiter pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
@@ -99,6 +103,11 @@ function AppRoutes() {
           <ClientCandidates />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/candidates/:id" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <CandidateDetail />
+        </ProtectedRoute>
+      } />
       <Route path="/dashboard/interviews" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientInterviews />
@@ -107,6 +116,21 @@ function AppRoutes() {
       <Route path="/dashboard/placements" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientPlacements />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/messages" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientMessages />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/settings" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientSettings />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/billing" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientBilling />
         </ProtectedRoute>
       } />
       

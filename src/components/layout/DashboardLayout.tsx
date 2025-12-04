@@ -14,6 +14,8 @@ import {
   Building2,
   UserCheck,
   Activity,
+  MessageSquare,
+  CreditCard,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -31,32 +33,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
 
   const clientNavItems: NavItem[] = [
-    { label: 'Overview', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'My Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
-    { label: 'Candidates', href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
+    { label: 'Übersicht', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Meine Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: 'Kandidaten', href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
+    { label: 'Abrechnung', href: '/dashboard/billing', icon: <CreditCard className="h-4 w-4" /> },
   ];
 
   const recruiterNavItems: NavItem[] = [
-    { label: 'Overview', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'Open Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
-    { label: 'My Candidates', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
+    { label: 'Übersicht', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Offene Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
-    { label: 'Earnings', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
-    { label: 'Notifications', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
-    { label: 'Messages', href: '/recruiter/messages', icon: <Calendar className="h-4 w-4" /> },
-    { label: 'Profile', href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Verdienste', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
+    { label: 'Benachrichtigungen', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
+    { label: 'Nachrichten', href: '/recruiter/messages', icon: <MessageSquare className="h-4 w-4" /> },
+    { label: 'Profil', href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
   ];
 
   const adminNavItems: NavItem[] = [
-    { label: 'Overview', href: '/admin', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'Clients', href: '/admin/clients', icon: <Building2 className="h-4 w-4" /> },
-    { label: 'Recruiters', href: '/admin/recruiters', icon: <Users className="h-4 w-4" /> },
-    { label: 'All Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: 'Übersicht', href: '/admin', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Kunden', href: '/admin/clients', icon: <Building2 className="h-4 w-4" /> },
+    { label: 'Recruiter', href: '/admin/recruiters', icon: <Users className="h-4 w-4" /> },
+    { label: 'Alle Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
-    { label: 'Payments', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
-    { label: 'Activity', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
+    { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
+    { label: 'Aktivität', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
   ];
 
   const navItems = role === 'admin' 
@@ -64,6 +68,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     : role === 'recruiter' 
     ? recruiterNavItems 
     : clientNavItems;
+
+  const settingsHref = role === 'client' ? '/dashboard/settings' : '/settings';
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,16 +103,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div className="border-t border-border pt-4">
               <Link
-                to="/settings"
+                to={settingsHref}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                  location.pathname === '/settings'
+                  location.pathname === settingsHref
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
               >
                 <Settings className="h-4 w-4" />
-                Settings
+                Einstellungen
               </Link>
             </div>
           </div>

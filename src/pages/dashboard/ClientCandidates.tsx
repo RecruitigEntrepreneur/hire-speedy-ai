@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/layout/Navbar';
@@ -216,7 +217,9 @@ export default function ClientCandidates() {
                               </Avatar>
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold text-lg">{submission.candidate.full_name}</h3>
+                                  <Link to={`/dashboard/candidates/${submission.id}`}>
+                                    <h3 className="font-semibold text-lg hover:text-primary transition-colors">{submission.candidate.full_name}</h3>
+                                  </Link>
                                   {getStatusBadge(submission.status)}
                                   {submission.match_score && (
                                     <Badge variant="outline">{submission.match_score}% Match</Badge>
