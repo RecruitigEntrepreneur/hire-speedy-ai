@@ -41,3 +41,12 @@ verify_jwt = true
 
 [functions.escalation-engine]
 verify_jwt = false
+
+[functions.deal-health]
+verify_jwt = true
+
+[functions.schedule-interview]
+verify_jwt = true
+
+[functions.fraud-detection]
+verify_jwt = true
