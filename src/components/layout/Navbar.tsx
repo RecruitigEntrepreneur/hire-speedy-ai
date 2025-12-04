@@ -8,7 +8,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Settings, LayoutDashboard, Briefcase, Users } from 'lucide-react';
+import { User, LogOut, Settings, LayoutDashboard, Briefcase } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 
 export function Navbar() {
   const { user, role, signOut } = useAuth();
@@ -50,6 +51,8 @@ export function Navbar() {
                   Dashboard
                 </Link>
               </Button>
+              
+              <NotificationBell />
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

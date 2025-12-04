@@ -20,6 +20,7 @@ import ClientPlacements from "./pages/dashboard/ClientPlacements";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
 import ClientBilling from "./pages/dashboard/ClientBilling";
+import DataPrivacy from "./pages/dashboard/DataPrivacy";
 
 // Recruiter pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
@@ -32,6 +33,7 @@ import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
 import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
+import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -44,6 +46,9 @@ import AdminPlacements from "./pages/admin/AdminPlacements";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
+
+// GDPR Components
+import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +142,11 @@ function AppRoutes() {
           <ClientBilling />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/privacy" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <DataPrivacy />
+        </ProtectedRoute>
+      } />
       
       {/* Recruiter Routes */}
       <Route path="/recruiter" element={
@@ -187,6 +197,11 @@ function AppRoutes() {
       <Route path="/recruiter/payouts" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterPayouts />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/privacy" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterDataPrivacy />
         </ProtectedRoute>
       } />
       
@@ -262,6 +277,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />
+          <CookieConsentBanner />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

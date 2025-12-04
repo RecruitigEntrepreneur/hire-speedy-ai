@@ -16,6 +16,8 @@ import {
   Activity,
   MessageSquare,
   CreditCard,
+  Shield,
+  Wallet,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -40,6 +42,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
     { label: 'Abrechnung', href: '/dashboard/billing', icon: <CreditCard className="h-4 w-4" /> },
+    { label: 'Datenschutz', href: '/dashboard/privacy', icon: <Shield className="h-4 w-4" /> },
   ];
 
   const recruiterNavItems: NavItem[] = [
@@ -48,9 +51,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
     { label: 'Verdienste', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
+    { label: 'Auszahlungen', href: '/recruiter/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Benachrichtigungen', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/recruiter/messages', icon: <MessageSquare className="h-4 w-4" /> },
     { label: 'Profil', href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Datenschutz', href: '/recruiter/privacy', icon: <Shield className="h-4 w-4" /> },
   ];
 
   const adminNavItems: NavItem[] = [
@@ -62,6 +67,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
+    { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Aktivität', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
   ];
 
