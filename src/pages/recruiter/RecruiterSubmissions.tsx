@@ -170,6 +170,7 @@ export default function RecruiterSubmissions() {
   const [alertFilter, setAlertFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [selectedPlaybookSubmission, setSelectedPlaybookSubmission] = useState<string | null>(null);
+  const [selectedPlaybook, setSelectedPlaybook] = useState<any | null>(null);
   const [playbooks, setPlaybooks] = useState<any[]>([]);
 
   useEffect(() => {
@@ -583,15 +584,25 @@ export default function RecruiterSubmissions() {
           )}
         </div>
         
-        {/* Playbook Sheet */}
-        <Sheet open={!!selectedPlaybookSubmission} onOpenChange={() => setSelectedPlaybookSubmission(null)}>
+        {/* Playbook Selection Sheet */}
+        <Sheet open={!!selectedPlaybookSubmission && !selectedPlaybook} onOpenChange={() => setSelectedPlaybookSubmission(null)}>
           <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>Coaching Playbooks</SheetTitle>
+              <SheetTitle>Coaching Playbooks wählen</SheetTitle>
             </SheetHeader>
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-3">
               {playbooks.map((playbook) => (
-                <PlaybookViewer key={playbook.id} playbook={playbook} />
+                <Card 
+                  key={playbook.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => setSelectedPlaybook(playbook)}
+                >
+                  <CardContent className="p-4">
+                    <h4 className="font-medium">{playbook.title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">{playbook.description}</p>
+                    <Badge variant="outline" className="mt-2">{playbook.trigger_type}</Badge>
+                  </CardContent>
+                </Card>
               ))}
               {playbooks.length === 0 && (
                 <p className="text-muted-foreground text-center py-8">
@@ -601,6 +612,18 @@ export default function RecruiterSubmissions() {
             </div>
           </SheetContent>
         </Sheet>
+        
+        {/* Playbook Viewer */}
+        <PlaybookViewer 
+          playbook={selectedPlaybook}
+          open={!!selectedPlaybook}
+          onClose={() => {
+            setSelectedPlaybook(null);
+            setSelectedPlaybookSubmission(null);
+          }}
+          candidateName={selectedPlaybookSubmission ? submissions.find(s => s.id === selectedPlaybookSubmission)?.candidates?.full_name : undefined}
+          companyName={selectedPlaybookSubmission ? submissions.find(s => s.id === selectedPlaybookSubmission)?.jobs?.company_name : undefined}
+        />
       </DashboardLayout>
     </div>
   );
