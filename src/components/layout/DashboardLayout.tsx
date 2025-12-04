@@ -18,6 +18,7 @@ import {
   CreditCard,
   Shield,
   Wallet,
+  Target,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -47,6 +48,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const recruiterNavItems: NavItem[] = [
     { label: 'Übersicht', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Influence', href: '/recruiter/influence', icon: <Target className="h-4 w-4" /> },
     { label: 'Offene Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },

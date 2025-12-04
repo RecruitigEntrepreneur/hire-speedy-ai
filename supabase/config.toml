@@ -56,3 +56,9 @@ verify_jwt = true
 
 [functions.influence-engine]
 verify_jwt = false
+
+[functions.track-candidate-engagement]
+verify_jwt = false
+
+[functions.calculate-influence-score]
+verify_jwt = false

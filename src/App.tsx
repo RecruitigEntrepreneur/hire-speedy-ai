@@ -34,6 +34,7 @@ import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
+import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -209,6 +210,11 @@ function AppRoutes() {
       <Route path="/recruiter/privacy" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterDataPrivacy />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/influence" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterInfluence />
         </ProtectedRoute>
       } />
       
