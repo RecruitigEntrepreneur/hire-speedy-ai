@@ -13,7 +13,30 @@ interface EmailRequest {
   to: string;
   template: string;
   data: Record<string, string>;
+  submissionId?: string;
+  candidateId?: string;
 }
+
+// Generate tracking pixel URL
+const getTrackingPixelUrl = (emailEventId: string) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  return `${supabaseUrl}/functions/v1/track-candidate-engagement?type=email_open&event_id=${emailEventId}`;
+};
+
+// Wrap links for click tracking
+const wrapLinksForTracking = (html: string, emailEventId: string) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const trackingBaseUrl = `${supabaseUrl}/functions/v1/track-candidate-engagement`;
+  
+  // Replace href links with tracking redirects
+  return html.replace(
+    /href="(https?:\/\/[^"]+)"/g,
+    (match, url) => {
+      const encodedUrl = encodeURIComponent(url);
+      return `href="${trackingBaseUrl}?type=link_click&event_id=${emailEventId}&redirect=${encodedUrl}"`;
+    }
+  );
+};
 
 // Email templates
 const templates: Record<string, { subject: string; html: (data: Record<string, string>) => string }> = {
@@ -94,6 +117,42 @@ const templates: Record<string, { subject: string; html: (data: Record<string, s
       </div>
     `,
   },
+  candidate_support: {
+    subject: "Vorbereitungsmaterial: {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">${data.contentTitle}</h1>
+        <p>Sehr geehrte(r) ${data.candidateName},</p>
+        <p>Ihr Recruiter hat Ihnen folgendes Vorbereitungsmaterial für Ihre Bewerbung${data.jobTitle ? ` bei ${data.jobTitle}` : ''} zugesandt:</p>
+        <div style="background: #f4f4f5; padding: 16px; border-radius: 8px; margin: 16px 0; white-space: pre-wrap;">
+${data.content}
+        </div>
+        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+        <p>Viel Erfolg!<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  prep_material: {
+    subject: "Vorbereitung für Ihr Interview: {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Interview-Vorbereitung</h1>
+        <p>Sehr geehrte(r) ${data.candidateName},</p>
+        <p>Ihr Interview für die Position <strong>${data.jobTitle}</strong> steht bevor. Hier sind einige hilfreiche Ressourcen zur Vorbereitung:</p>
+        <div style="background: #f4f4f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <h3 style="margin-top: 0;">📋 Checkliste:</h3>
+          <ul>
+            <li>Recherchieren Sie das Unternehmen</li>
+            <li>Bereiten Sie Fragen vor</li>
+            <li>Überprüfen Sie die Stellenbeschreibung</li>
+            <li>Testen Sie Ihre Technik (bei Video-Interviews)</li>
+          </ul>
+        </div>
+        <a href="${data.prepLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Vollständiges Vorbereitungsmaterial ansehen</a>
+        <p>Viel Erfolg!<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -103,9 +162,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, template, data }: EmailRequest = await req.json();
+    const { to, template, data, submissionId, candidateId }: EmailRequest = await req.json();
 
-    console.log(`Sending email: template=${template}, to=${to}`);
+    console.log(`Sending email: template=${template}, to=${to}, submissionId=${submissionId}`);
 
     // Get template
     const emailTemplate = templates[template];
@@ -120,7 +179,41 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Generate HTML
-    const html = emailTemplate.html(data);
+    let html = emailTemplate.html(data);
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Create email event first to get ID for tracking
+    const { data: emailEvent, error: eventError } = await supabase
+      .from("email_events")
+      .insert({
+        to_email: to,
+        template_name: template,
+        subject,
+        status: "pending",
+        metadata: { data, submissionId, candidateId },
+      })
+      .select()
+      .single();
+
+    if (eventError) {
+      console.error("Error creating email event:", eventError);
+    }
+
+    const emailEventId = emailEvent?.id;
+
+    // Add tracking if we have an event ID and submission/candidate
+    if (emailEventId && (submissionId || candidateId)) {
+      // Wrap links for click tracking
+      html = wrapLinksForTracking(html, emailEventId);
+
+      // Add tracking pixel before closing body
+      const trackingPixel = `<img src="${getTrackingPixelUrl(emailEventId)}" width="1" height="1" style="display:none;" alt="" />`;
+      html = html.replace('</div>', `${trackingPixel}</div>`);
+    }
 
     // Send email
     const emailResponse = await resend.emails.send({
@@ -132,18 +225,35 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully:", emailResponse);
 
-    // Log to database
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Update email event with success
+    if (emailEventId) {
+      await supabase
+        .from("email_events")
+        .update({
+          status: "sent",
+          metadata: { resend_id: emailResponse.data?.id, data, submissionId, candidateId },
+        })
+        .eq("id", emailEventId);
+    }
 
-    await supabase.from("email_events").insert({
-      to_email: to,
-      template_name: template,
-      subject,
-      status: "sent",
-      metadata: { resend_id: emailResponse.data?.id, data },
-    });
+    // Update candidate_behavior emails_sent counter if submissionId provided
+    if (submissionId) {
+      const { data: behavior } = await supabase
+        .from("candidate_behavior")
+        .select("emails_sent")
+        .eq("submission_id", submissionId)
+        .single();
+
+      if (behavior) {
+        await supabase
+          .from("candidate_behavior")
+          .update({ 
+            emails_sent: (behavior.emails_sent || 0) + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq("submission_id", submissionId);
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, id: emailResponse.data?.id }), {
       status: 200,
