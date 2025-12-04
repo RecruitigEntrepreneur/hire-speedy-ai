@@ -35,3 +35,9 @@ verify_jwt = true
 
 [functions.parse-job-url]
 verify_jwt = true
+
+[functions.track-event]
+verify_jwt = true
+
+[functions.escalation-engine]
+verify_jwt = false

@@ -139,6 +139,66 @@ export type Database = {
         }
         Relationships: []
       }
+      client_verifications: {
+        Row: {
+          client_id: string
+          company_registration_number: string | null
+          contract_pdf_url: string | null
+          contract_signed: boolean | null
+          contract_signed_at: string | null
+          created_at: string | null
+          digital_signature: string | null
+          id: string
+          kyc_rejection_reason: string | null
+          kyc_status: string | null
+          kyc_verified_at: string | null
+          kyc_verified_by: string | null
+          terms_accepted: boolean | null
+          terms_accepted_at: string | null
+          terms_version: string | null
+          updated_at: string | null
+          vat_id: string | null
+        }
+        Insert: {
+          client_id: string
+          company_registration_number?: string | null
+          contract_pdf_url?: string | null
+          contract_signed?: boolean | null
+          contract_signed_at?: string | null
+          created_at?: string | null
+          digital_signature?: string | null
+          id?: string
+          kyc_rejection_reason?: string | null
+          kyc_status?: string | null
+          kyc_verified_at?: string | null
+          kyc_verified_by?: string | null
+          terms_accepted?: boolean | null
+          terms_accepted_at?: string | null
+          terms_version?: string | null
+          updated_at?: string | null
+          vat_id?: string | null
+        }
+        Update: {
+          client_id?: string
+          company_registration_number?: string | null
+          contract_pdf_url?: string | null
+          contract_signed?: boolean | null
+          contract_signed_at?: string | null
+          created_at?: string | null
+          digital_signature?: string | null
+          id?: string
+          kyc_rejection_reason?: string | null
+          kyc_status?: string | null
+          kyc_verified_at?: string | null
+          kyc_verified_by?: string | null
+          terms_accepted?: boolean | null
+          terms_accepted_at?: string | null
+          terms_version?: string | null
+          updated_at?: string | null
+          vat_id?: string | null
+        }
+        Relationships: []
+      }
       company_profiles: {
         Row: {
           address: string | null
@@ -800,6 +860,51 @@ export type Database = {
           },
         ]
       }
+      platform_events: {
+        Row: {
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          response_time_seconds: number | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string
+          user_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          response_time_seconds?: number | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id: string
+          user_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          response_time_seconds?: number | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+          user_type?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -929,6 +1034,113 @@ export type Database = {
         }
         Relationships: []
       }
+      sla_deadlines: {
+        Row: {
+          breached_at: string | null
+          completed_at: string | null
+          created_at: string | null
+          deadline_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          last_reminder_at: string | null
+          reminders_sent: number | null
+          responsible_user_id: string
+          sla_rule_id: string | null
+          started_at: string | null
+          status: string | null
+          warning_at: string | null
+        }
+        Insert: {
+          breached_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          deadline_at: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          last_reminder_at?: string | null
+          reminders_sent?: number | null
+          responsible_user_id: string
+          sla_rule_id?: string | null
+          started_at?: string | null
+          status?: string | null
+          warning_at?: string | null
+        }
+        Update: {
+          breached_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          deadline_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          last_reminder_at?: string | null
+          reminders_sent?: number | null
+          responsible_user_id?: string
+          sla_rule_id?: string | null
+          started_at?: string | null
+          status?: string | null
+          warning_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_deadlines_sla_rule_id_fkey"
+            columns: ["sla_rule_id"]
+            isOneToOne: false
+            referencedRelation: "sla_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_rules: {
+        Row: {
+          applicable_to: string | null
+          created_at: string | null
+          deadline_action: string | null
+          deadline_hours: number
+          entity_type: string
+          escalate_to: string | null
+          id: string
+          is_active: boolean | null
+          phase: string
+          priority: number | null
+          rule_name: string
+          warning_action: string | null
+          warning_hours: number | null
+        }
+        Insert: {
+          applicable_to?: string | null
+          created_at?: string | null
+          deadline_action?: string | null
+          deadline_hours: number
+          entity_type: string
+          escalate_to?: string | null
+          id?: string
+          is_active?: boolean | null
+          phase: string
+          priority?: number | null
+          rule_name: string
+          warning_action?: string | null
+          warning_hours?: number | null
+        }
+        Update: {
+          applicable_to?: string | null
+          created_at?: string | null
+          deadline_action?: string | null
+          deadline_hours?: number
+          entity_type?: string
+          escalate_to?: string | null
+          id?: string
+          is_active?: boolean | null
+          phase?: string
+          priority?: number | null
+          rule_name?: string
+          warning_action?: string | null
+          warning_hours?: number | null
+        }
+        Relationships: []
+      }
       stripe_accounts: {
         Row: {
           account_type: string | null
@@ -1051,6 +1263,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_behavior_scores: {
+        Row: {
+          avg_response_time_hours: number | null
+          behavior_class: string | null
+          calculated_at: string | null
+          created_at: string | null
+          ghost_rate: number | null
+          id: string
+          interview_show_rate: number | null
+          response_count: number | null
+          risk_score: number | null
+          sla_compliance_rate: number | null
+          updated_at: string | null
+          user_id: string
+          user_type: string
+        }
+        Insert: {
+          avg_response_time_hours?: number | null
+          behavior_class?: string | null
+          calculated_at?: string | null
+          created_at?: string | null
+          ghost_rate?: number | null
+          id?: string
+          interview_show_rate?: number | null
+          response_count?: number | null
+          risk_score?: number | null
+          sla_compliance_rate?: number | null
+          updated_at?: string | null
+          user_id: string
+          user_type: string
+        }
+        Update: {
+          avg_response_time_hours?: number | null
+          behavior_class?: string | null
+          calculated_at?: string | null
+          created_at?: string | null
+          ghost_rate?: number | null
+          id?: string
+          interview_show_rate?: number | null
+          response_count?: number | null
+          risk_score?: number | null
+          sla_compliance_rate?: number | null
+          updated_at?: string | null
+          user_id?: string
+          user_type?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
