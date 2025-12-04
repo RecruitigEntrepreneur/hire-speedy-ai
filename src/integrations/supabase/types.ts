@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_rules: {
+        Row: {
+          actions: Json | null
+          conditions: Json | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          trigger_event: string
+          updated_at: string | null
+        }
+        Insert: {
+          actions?: Json | null
+          conditions?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          trigger_event: string
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Json | null
+          conditions?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          trigger_event?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       candidate_behavior: {
         Row: {
           candidate_id: string
@@ -130,6 +166,13 @@ export type Database = {
             foreignKeyName: "candidate_behavior_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -161,6 +204,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "candidate_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
           {
             foreignKeyName: "candidate_comments_submission_id_fkey"
             columns: ["submission_id"]
@@ -226,8 +276,22 @@ export type Database = {
             foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
             columns: ["submission_a_id"]
             isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
+            columns: ["submission_a_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
+            columns: ["submission_b_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
           },
           {
             foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
@@ -537,6 +601,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
           },
           {
             foreignKeyName: "communication_log_submission_id_fkey"
@@ -913,6 +984,13 @@ export type Database = {
             foreignKeyName: "identity_unlock_logs_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "identity_unlock_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -973,6 +1051,89 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "influence_alerts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "influence_alerts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_intelligence: {
+        Row: {
+          ai_assessment: Json | null
+          candidate_prep: Json | null
+          candidate_summary: string | null
+          company_insights: Json | null
+          created_at: string | null
+          hiring_recommendation: string | null
+          id: string
+          interview_feedback: Json | null
+          interview_id: string
+          interviewer_guide: Json | null
+          recommendation_reasoning: string | null
+          recruiter_next_steps: Json | null
+          risk_assessment: Json | null
+          submission_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_assessment?: Json | null
+          candidate_prep?: Json | null
+          candidate_summary?: string | null
+          company_insights?: Json | null
+          created_at?: string | null
+          hiring_recommendation?: string | null
+          id?: string
+          interview_feedback?: Json | null
+          interview_id: string
+          interviewer_guide?: Json | null
+          recommendation_reasoning?: string | null
+          recruiter_next_steps?: Json | null
+          risk_assessment?: Json | null
+          submission_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_assessment?: Json | null
+          candidate_prep?: Json | null
+          candidate_summary?: string | null
+          company_insights?: Json | null
+          created_at?: string | null
+          hiring_recommendation?: string | null
+          id?: string
+          interview_feedback?: Json | null
+          interview_id?: string
+          interviewer_guide?: Json | null
+          recommendation_reasoning?: string | null
+          recruiter_next_steps?: Json | null
+          risk_assessment?: Json | null
+          submission_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_intelligence_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_intelligence_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_intelligence_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
@@ -1063,6 +1224,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
           {
             foreignKeyName: "interviews_submission_id_fkey"
             columns: ["submission_id"]
@@ -1514,6 +1682,13 @@ export type Database = {
             foreignKeyName: "offers_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -1646,6 +1821,13 @@ export type Database = {
           total_fee?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
           {
             foreignKeyName: "placements_submission_id_fkey"
             columns: ["submission_id"]
@@ -1963,6 +2145,13 @@ export type Database = {
           template_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "rejections_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
           {
             foreignKeyName: "rejections_submission_id_fkey"
             columns: ["submission_id"]
@@ -2314,6 +2503,45 @@ export type Database = {
           total_submissions: number | null
         }
         Relationships: []
+      }
+      candidate_rankings: {
+        Row: {
+          candidate_id: string | null
+          closing_probability: number | null
+          confidence_score: number | null
+          engagement_level: string | null
+          full_name: string | null
+          interview_readiness_score: number | null
+          job_id: string | null
+          match_score: number | null
+          overall_rank_score: number | null
+          rank_position: number | null
+          status: string | null
+          submission_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
