@@ -60,6 +60,7 @@ import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
 import AdminFraud from "./pages/admin/AdminFraud";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminDealHealth from "./pages/admin/AdminDealHealth";
 
 // Client Analytics
 import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
@@ -295,6 +296,11 @@ function AppRoutes() {
       <Route path="/admin/placements" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminPlacements />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/deal-health" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDealHealth />
         </ProtectedRoute>
       } />
       <Route path="/admin/payments" element={
