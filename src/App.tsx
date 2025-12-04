@@ -2,11 +2,178 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
+// Dashboard pages
+import ClientDashboard from "./pages/dashboard/ClientDashboard";
+import JobsList from "./pages/dashboard/JobsList";
+import CreateJob from "./pages/dashboard/CreateJob";
+
+// Recruiter pages
+import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
+import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
+
+// Admin pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
 const queryClient = new QueryClient();
+
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+  const { user, role, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (allowedRoles && role && !allowedRoles.includes(role)) {
+    // Redirect to appropriate dashboard based on role
+    const dashboardPath = role === 'admin' ? '/admin' : role === 'recruiter' ? '/recruiter' : '/dashboard';
+    return <Navigate to={dashboardPath} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/auth" element={<Auth />} />
+      
+      {/* Client Routes */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/jobs" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <JobsList />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/jobs/new" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <CreateJob />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/jobs/:id" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <JobsList />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/candidates" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/interviews" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/placements" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientDashboard />
+        </ProtectedRoute>
+      } />
+      
+      {/* Recruiter Routes */}
+      <Route path="/recruiter" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/jobs" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterJobs />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/jobs/:id" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterJobs />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/candidates" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/candidates/new" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/submissions" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/earnings" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterDashboard />
+        </ProtectedRoute>
+      } />
+      
+      {/* Admin Routes */}
+      <Route path="/admin" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/clients" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/recruiters" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/jobs" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/placements" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/payments" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/activity" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      
+      {/* Settings */}
+      <Route path="/settings" element={
+        <ProtectedRoute>
+          <ClientDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -14,11 +181,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
