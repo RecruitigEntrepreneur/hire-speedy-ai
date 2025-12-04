@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          submission_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          submission_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          submission_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           availability_date: string | null
@@ -104,6 +139,51 @@ export type Database = {
         }
         Relationships: []
       }
+      company_profiles: {
+        Row: {
+          address: string | null
+          billing_email: string | null
+          company_name: string
+          created_at: string
+          description: string | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          tax_id: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          billing_email?: string | null
+          company_name: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          billing_email?: string | null
+          company_name?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       interviews: {
         Row: {
           created_at: string
@@ -154,6 +234,62 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          due_date: string | null
+          id: string
+          invoice_number: string
+          paid_at: string | null
+          pdf_url: string | null
+          placement_id: string
+          status: string | null
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          paid_at?: string | null
+          pdf_url?: string | null
+          placement_id: string
+          status?: string | null
+          tax_amount?: number | null
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          paid_at?: string | null
+          pdf_url?: string | null
+          placement_id?: string
+          status?: string | null
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           client_id: string
@@ -169,6 +305,7 @@ export type Database = {
           location: string | null
           must_haves: string[] | null
           nice_to_haves: string[] | null
+          paused_at: string | null
           recruiter_fee_percentage: number | null
           remote_type: string | null
           requirements: string | null
@@ -195,6 +332,7 @@ export type Database = {
           location?: string | null
           must_haves?: string[] | null
           nice_to_haves?: string[] | null
+          paused_at?: string | null
           recruiter_fee_percentage?: number | null
           remote_type?: string | null
           requirements?: string | null
@@ -221,6 +359,7 @@ export type Database = {
           location?: string | null
           must_haves?: string[] | null
           nice_to_haves?: string[] | null
+          paused_at?: string | null
           recruiter_fee_percentage?: number | null
           remote_type?: string | null
           requirements?: string | null
@@ -445,6 +584,7 @@ export type Database = {
           recruiter_id: string
           recruiter_notes: string | null
           rejection_reason: string | null
+          stage: string | null
           status: string | null
           submitted_at: string
           updated_at: string
@@ -458,6 +598,7 @@ export type Database = {
           recruiter_id: string
           recruiter_notes?: string | null
           rejection_reason?: string | null
+          stage?: string | null
           status?: string | null
           submitted_at?: string
           updated_at?: string
@@ -471,6 +612,7 @@ export type Database = {
           recruiter_id?: string
           recruiter_notes?: string | null
           rejection_reason?: string | null
+          stage?: string | null
           status?: string | null
           submitted_at?: string
           updated_at?: string
