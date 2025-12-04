@@ -8,3 +8,12 @@ verify_jwt = true
 
 [functions.calculate-match]
 verify_jwt = true
+
+[functions.stripe-connect]
+verify_jwt = true
+
+[functions.stripe-webhooks]
+verify_jwt = false
+
+[functions.process-payout]
+verify_jwt = true

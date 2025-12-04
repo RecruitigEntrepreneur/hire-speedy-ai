@@ -382,6 +382,7 @@ export type Database = {
           amount: number
           client_id: string
           created_at: string
+          currency: string | null
           due_date: string | null
           id: string
           invoice_number: string
@@ -389,6 +390,8 @@ export type Database = {
           pdf_url: string | null
           placement_id: string
           status: string | null
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
           tax_amount: number | null
           total_amount: number
           updated_at: string
@@ -397,6 +400,7 @@ export type Database = {
           amount: number
           client_id: string
           created_at?: string
+          currency?: string | null
           due_date?: string | null
           id?: string
           invoice_number: string
@@ -404,6 +408,8 @@ export type Database = {
           pdf_url?: string | null
           placement_id: string
           status?: string | null
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
           tax_amount?: number | null
           total_amount: number
           updated_at?: string
@@ -412,6 +418,7 @@ export type Database = {
           amount?: number
           client_id?: string
           created_at?: string
+          currency?: string | null
           due_date?: string | null
           id?: string
           invoice_number?: string
@@ -419,6 +426,8 @@ export type Database = {
           pdf_url?: string | null
           placement_id?: string
           status?: string | null
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
           tax_amount?: number | null
           total_amount?: number
           updated_at?: string
@@ -589,10 +598,95 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_events: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          processed: boolean | null
+          stripe_event_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          stripe_event_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          stripe_event_id?: string | null
+        }
+        Relationships: []
+      }
+      payout_requests: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          currency: string | null
+          failure_reason: string | null
+          id: string
+          placement_id: string | null
+          processed_at: string | null
+          recruiter_id: string
+          status: string | null
+          stripe_transfer_id: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          currency?: string | null
+          failure_reason?: string | null
+          id?: string
+          placement_id?: string | null
+          processed_at?: string | null
+          recruiter_id: string
+          status?: string | null
+          stripe_transfer_id?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          currency?: string | null
+          failure_reason?: string | null
+          id?: string
+          placement_id?: string | null
+          processed_at?: string | null
+          recruiter_id?: string
+          status?: string | null
+          stripe_transfer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_requests_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       placements: {
         Row: {
           agreed_salary: number | null
           created_at: string
+          escrow_release_date: string | null
+          escrow_status: string | null
           id: string
           paid_at: string | null
           payment_status: string | null
@@ -605,6 +699,8 @@ export type Database = {
         Insert: {
           agreed_salary?: number | null
           created_at?: string
+          escrow_release_date?: string | null
+          escrow_status?: string | null
           id?: string
           paid_at?: string | null
           payment_status?: string | null
@@ -617,6 +713,8 @@ export type Database = {
         Update: {
           agreed_salary?: number | null
           created_at?: string
+          escrow_release_date?: string | null
+          escrow_status?: string | null
           id?: string
           paid_at?: string | null
           payment_status?: string | null
@@ -762,6 +860,45 @@ export type Database = {
           total_placements?: number | null
           total_submissions?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      stripe_accounts: {
+        Row: {
+          account_type: string | null
+          charges_enabled: boolean | null
+          created_at: string | null
+          details_submitted: boolean | null
+          id: string
+          onboarding_complete: boolean | null
+          payouts_enabled: boolean | null
+          stripe_account_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_type?: string | null
+          charges_enabled?: boolean | null
+          created_at?: string | null
+          details_submitted?: boolean | null
+          id?: string
+          onboarding_complete?: boolean | null
+          payouts_enabled?: boolean | null
+          stripe_account_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_type?: string | null
+          charges_enabled?: boolean | null
+          created_at?: string | null
+          details_submitted?: boolean | null
+          id?: string
+          onboarding_complete?: boolean | null
+          payouts_enabled?: boolean | null
+          stripe_account_id?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }

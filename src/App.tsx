@@ -31,6 +31,7 @@ import RecruiterEarnings from "./pages/recruiter/RecruiterEarnings";
 import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
 import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
+import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -42,6 +43,7 @@ import AdminInterviews from "./pages/admin/AdminInterviews";
 import AdminPlacements from "./pages/admin/AdminPlacements";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
 
 const queryClient = new QueryClient();
 
@@ -182,6 +184,11 @@ function AppRoutes() {
           <RecruiterProfile />
         </ProtectedRoute>
       } />
+      <Route path="/recruiter/payouts" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterPayouts />
+        </ProtectedRoute>
+      } />
       
       {/* Admin Routes */}
       <Route path="/admin" element={
@@ -227,6 +234,11 @@ function AppRoutes() {
       <Route path="/admin/activity" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminActivity />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/payouts" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminPayoutApproval />
         </ProtectedRoute>
       } />
       
