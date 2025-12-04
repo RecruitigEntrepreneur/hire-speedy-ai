@@ -36,8 +36,23 @@ serve(async (req) => {
       });
     }
 
+    // Get action from body or query params
+    let action: string | null = null;
     const url = new URL(req.url);
-    const action = url.searchParams.get("action");
+    action = url.searchParams.get("action");
+    
+    // Try to get action from body if not in query params
+    if (!action && req.method === "POST") {
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          const body = JSON.parse(bodyText);
+          action = body.action || null;
+        }
+      } catch {
+        // Body might not be JSON, ignore
+      }
+    }
 
     console.log(`Stripe Connect action: ${action} for user: ${user.id}`);
 
@@ -121,9 +136,14 @@ serve(async (req) => {
         });
       }
 
-      const body = await req.json();
-      const returnUrl = body.return_url || `${req.headers.get("origin")}/recruiter/payouts`;
-      const refreshUrl = body.refresh_url || `${req.headers.get("origin")}/recruiter/payouts`;
+      // Get URLs from body (body was already parsed above for action, re-parse here)
+      let returnUrl = `${req.headers.get("origin")}/recruiter/payouts`;
+      let refreshUrl = `${req.headers.get("origin")}/recruiter/payouts`;
+      
+      // Body needs to be re-read for this action
+      const linkBody = await req.clone().text().then(t => t ? JSON.parse(t) : {}).catch(() => ({}));
+      returnUrl = linkBody.return_url || returnUrl;
+      refreshUrl = linkBody.refresh_url || refreshUrl;
 
       const accountLink = await stripe.accountLinks.create({
         account: stripeAccount.stripe_account_id,
