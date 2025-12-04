@@ -30,19 +30,13 @@ export function useStripeConnect() {
 
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect", {
-        body: {},
-        headers: {},
+        body: { action: "account-status" },
       });
 
-      // Use query param approach
-      const response = await supabase.functions.invoke("stripe-connect?action=account-status", {
-        method: "GET",
-      });
-
-      if (response.error) {
-        console.error("Error fetching Stripe account:", response.error);
-      } else if (response.data?.account) {
-        setAccount(response.data.account);
+      if (error) {
+        console.error("Error fetching Stripe account:", error);
+      } else if (data?.account) {
+        setAccount(data.account);
       }
     } catch (error) {
       console.error("Error fetching Stripe account:", error);
@@ -60,19 +54,18 @@ export function useStripeConnect() {
 
     setCreating(true);
     try {
-      const response = await supabase.functions.invoke("stripe-connect?action=create-account", {
-        method: "POST",
-        body: {},
+      const { data, error } = await supabase.functions.invoke("stripe-connect", {
+        body: { action: "create-account" },
       });
 
-      if (response.error) {
-        throw response.error;
+      if (error) {
+        throw error;
       }
 
-      if (response.data?.account) {
-        setAccount(response.data.account);
+      if (data?.account) {
+        setAccount(data.account);
         toast.success("Stripe-Konto erstellt");
-        return response.data.account;
+        return data.account;
       }
     } catch (error: any) {
       console.error("Error creating Stripe account:", error);
@@ -87,19 +80,19 @@ export function useStripeConnect() {
     if (!user) return null;
 
     try {
-      const response = await supabase.functions.invoke("stripe-connect?action=create-account-link", {
-        method: "POST",
+      const { data, error } = await supabase.functions.invoke("stripe-connect", {
         body: {
+          action: "create-account-link",
           return_url: returnUrl || `${window.location.origin}/recruiter/payouts`,
           refresh_url: refreshUrl || `${window.location.origin}/recruiter/payouts`,
         },
       });
 
-      if (response.error) {
-        throw response.error;
+      if (error) {
+        throw error;
       }
 
-      return response.data?.url;
+      return data?.url;
     } catch (error: any) {
       console.error("Error getting onboarding link:", error);
       toast.error("Fehler beim Abrufen des Onboarding-Links");
