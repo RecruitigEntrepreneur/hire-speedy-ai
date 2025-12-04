@@ -34,12 +34,19 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
 
+  const [justSignedUp, setJustSignedUp] = useState(false);
+
   useEffect(() => {
     if (user && role) {
+      // Redirect new clients to onboarding
+      if (justSignedUp && role === 'client') {
+        navigate('/onboarding');
+        return;
+      }
       const dashboardPath = role === 'admin' ? '/admin' : role === 'recruiter' ? '/recruiter' : '/dashboard';
       navigate(dashboardPath);
     }
-  }, [user, role, navigate]);
+  }, [user, role, navigate, justSignedUp]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; fullName?: string } = {};
@@ -92,6 +99,9 @@ export default function Auth() {
           }
         } else {
           toast.success('Account created successfully!');
+          if (selectedRole === 'client') {
+            setJustSignedUp(true);
+          }
         }
       } else {
         const { error } = await signIn(email, password);

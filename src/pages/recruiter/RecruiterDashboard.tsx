@@ -16,8 +16,13 @@ import {
   CheckCircle2,
   Loader2,
   FileText,
-  MapPin
+  MapPin,
+  Activity,
+  AlertTriangle
 } from 'lucide-react';
+import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
+import { DealHealthBadge } from '@/components/health/DealHealthBadge';
+import { usePageViewTracking } from '@/hooks/useEventTracking';
 
 interface DashboardStats {
   openJobs: number;
@@ -36,6 +41,10 @@ export default function RecruiterDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
+  const [behaviorScore, setBehaviorScore] = useState<any>(null);
+  const [criticalDeals, setCriticalDeals] = useState<any[]>([]);
+  
+  usePageViewTracking('recruiter_dashboard');
 
   useEffect(() => {
     if (user) {
@@ -85,6 +94,36 @@ export default function RecruiterDashboard() {
           ...prev,
           submissions: submissionsCount,
         }));
+      }
+
+      // Fetch behavior score
+      const { data: scoreData } = await supabase
+        .from('user_behavior_scores')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (scoreData) {
+        setBehaviorScore(scoreData);
+      }
+
+      // Fetch critical deals for my submissions
+      const { data: mySubmissions } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('recruiter_id', user?.id);
+      
+      if (mySubmissions && mySubmissions.length > 0) {
+        const { data: healthData } = await supabase
+          .from('deal_health')
+          .select('*')
+          .in('submission_id', mySubmissions.map(s => s.id))
+          .in('risk_level', ['high', 'critical'])
+          .limit(3);
+        
+        if (healthData) {
+          setCriticalDeals(healthData);
+        }
       }
 
     } catch (error) {
@@ -159,6 +198,58 @@ export default function RecruiterDashboard() {
               </Link>
             </Button>
           </div>
+
+          {/* Behavior Score & Critical Deals */}
+          {(behaviorScore || criticalDeals.length > 0) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {behaviorScore && (
+                <Card className="border-border/50">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Dein Performance Score</p>
+                        <p className="text-2xl font-bold mt-1">
+                          {Math.round(100 - (behaviorScore.risk_score || 0))}%
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          SLA: {Math.round((behaviorScore.sla_compliance_rate || 0) * 100)}% | 
+                          Response: {behaviorScore.avg_response_time_hours?.toFixed(1) || '0'}h
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-emerald/10 text-emerald">
+                        <Activity className="h-6 w-6" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {criticalDeals.length > 0 && (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600" />
+                      <p className="font-medium">Deals brauchen Aufmerksamkeit</p>
+                    </div>
+                    <div className="space-y-2">
+                      {criticalDeals.map((deal) => (
+                        <div key={deal.id} className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            {deal.bottleneck || 'Überfällig'}
+                          </span>
+                          <DealHealthBadge 
+                            score={deal.health_score || 0} 
+                            riskLevel={deal.risk_level || 'medium'} 
+                            size="sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
 
           {/* Stats Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
