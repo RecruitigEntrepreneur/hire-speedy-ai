@@ -193,6 +193,7 @@ export type Database = {
           id: string
           ip_address: string | null
           revoked_at: string | null
+          scope: string | null
           subject_id: string
           subject_type: string
           user_agent: string | null
@@ -206,6 +207,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           revoked_at?: string | null
+          scope?: string | null
           subject_id: string
           subject_type: string
           user_agent?: string | null
@@ -219,10 +221,74 @@ export type Database = {
           id?: string
           ip_address?: string | null
           revoked_at?: string | null
+          scope?: string | null
           subject_id?: string
           subject_type?: string
           user_agent?: string | null
           version?: string
+        }
+        Relationships: []
+      }
+      data_deletion_requests: {
+        Row: {
+          completed_at: string | null
+          confirmation_token: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          id: string
+          reason: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_export_requests: {
+        Row: {
+          completed_at: string | null
+          expires_at: string | null
+          file_url: string | null
+          id: string
+          requested_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          expires_at?: string | null
+          file_url?: string | null
+          id?: string
+          requested_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          expires_at?: string | null
+          file_url?: string | null
+          id?: string
+          requested_at?: string | null
+          status?: string | null
+          user_id?: string
         }
         Relationships: []
       }
