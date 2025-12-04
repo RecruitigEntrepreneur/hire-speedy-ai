@@ -22,11 +22,13 @@ import {
   XCircle,
   UserPlus,
   Shield,
-  Sparkles
+  Sparkles,
+  Wand2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileUpload } from '@/components/files/FileUpload';
 import { useMatchScore } from '@/hooks/useMatchScore';
+import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
 
 interface CandidateSubmitFormProps {
   jobId: string;
@@ -46,6 +48,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   const { user } = useAuth();
   const { toast } = useToast();
   const { calculateMatch, loading: matchLoading } = useMatchScore();
+  const { parseCV, parsing: cvParsing } = useCvParsing();
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [existingCandidates, setExistingCandidates] = useState<ExistingCandidate[]>([]);
@@ -54,6 +57,8 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [skillsMatch, setSkillsMatch] = useState<{ matched: string[]; missing: string[] }>({ matched: [], missing: [] });
   const [calculatingScore, setCalculatingScore] = useState(false);
+  const [cvTextForParsing, setCvTextForParsing] = useState('');
+  const [showCvParser, setShowCvParser] = useState(false);
 
   // New candidate form
   const [formData, setFormData] = useState({
@@ -75,6 +80,54 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
 
   const handleCvUpload = (url: string) => {
     setFormData({ ...formData, cv_url: url });
+  };
+
+  const handleParseCv = async () => {
+    if (!cvTextForParsing.trim()) {
+      toast({
+        title: 'Kein Text',
+        description: 'Bitte füge den CV-Text ein oder lade einen CV hoch.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const parsedData = await parseCV(cvTextForParsing);
+    if (parsedData) {
+      applyParsedCvData(parsedData);
+      setShowCvParser(false);
+      setCvTextForParsing('');
+    }
+  };
+
+  const applyParsedCvData = (data: ParsedCVData) => {
+    setFormData(prev => ({
+      ...prev,
+      full_name: data.full_name || prev.full_name,
+      email: data.email || prev.email,
+      phone: data.phone || prev.phone,
+      linkedin_url: data.linkedin_url || prev.linkedin_url,
+      current_salary: data.current_salary?.toString() || prev.current_salary,
+      expected_salary: data.expected_salary?.toString() || prev.expected_salary,
+      notice_period: data.notice_period || prev.notice_period,
+      skills: data.skills?.join(', ') || prev.skills,
+      summary: data.summary || prev.summary
+    }));
+
+    // Update skills match
+    if (data.skills && data.skills.length > 0) {
+      checkSkillsMatch(data.skills);
+    }
+
+    // Check for duplicate
+    if (data.email) {
+      checkDuplicate(data.email);
+    }
+
+    toast({
+      title: 'CV analysiert',
+      description: `${data.skills?.length || 0} Skills erkannt, Daten übernommen.`
+    });
   };
 
   useEffect(() => {
@@ -310,7 +363,57 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
       {/* New Candidate Form */}
       {createNew && (
         <div className="space-y-4 border rounded-lg p-4">
-          <h4 className="font-medium">Neuer Kandidat</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">Neuer Kandidat</h4>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCvParser(!showCvParser)}
+              className="gap-2"
+            >
+              <Wand2 className="h-4 w-4" />
+              {showCvParser ? 'Parser schließen' : 'CV mit KI analysieren'}
+            </Button>
+          </div>
+
+          {/* CV Parser Section */}
+          {showCvParser && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <Sparkles className="h-4 w-4" />
+                KI CV-Analyse
+              </div>
+              <Textarea
+                placeholder="CV-Text hier einfügen (Name, Kontakt, Skills, Erfahrung, etc.)..."
+                value={cvTextForParsing}
+                onChange={(e) => setCvTextForParsing(e.target.value)}
+                rows={6}
+                className="text-sm"
+              />
+              <Button
+                type="button"
+                onClick={handleParseCv}
+                disabled={cvParsing || !cvTextForParsing.trim()}
+                className="w-full"
+              >
+                {cvParsing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analysiere CV...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    CV analysieren & Felder ausfüllen
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Die KI extrahiert automatisch: Name, Kontakt, Skills, Gehalt, Kündigungsfrist und mehr.
+              </p>
+            </div>
+          )}
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -499,11 +602,9 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
               onCheckedChange={(checked) => setGdprConsent(checked === true)}
               className="mt-0.5"
             />
-            <Label htmlFor="gdpr_consent" className="text-sm font-normal cursor-pointer">
-              Ich bestätige, dass ich eine <strong>GDPR-konforme Einwilligung</strong> des 
-              Kandidaten habe, sein anonymisiertes Profil über diese Plattform zu 
-              präsentieren. Der Kandidat wurde über den Triple-Blind-Prozess informiert.
-            </Label>
+            <label htmlFor="gdpr_consent" className="text-sm cursor-pointer">
+              Ich bestätige, dass ich die ausdrückliche Einwilligung des Kandidaten zur Weitergabe seiner Daten habe (DSGVO Art. 6).
+            </label>
           </div>
         </AlertDescription>
       </Alert>
@@ -512,31 +613,20 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
       <Button 
         type="submit" 
         className="w-full" 
-        variant="emerald"
-        disabled={loading || calculatingScore || !!duplicateWarning || (!selectedCandidate && !createNew) || !gdprConsent}
+        disabled={loading || checking || (!selectedCandidate && !createNew) || !gdprConsent}
       >
         {loading || calculatingScore ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            {calculatingScore ? (
-              <>
-                <Sparkles className="h-4 w-4 mr-2" />
-                AI berechnet Match-Score...
-              </>
-            ) : (
-              'Wird eingereicht...'
-            )}
+            {calculatingScore ? 'Match-Score wird berechnet...' : 'Wird eingereicht...'}
           </>
         ) : (
-          'Kandidat einreichen'
+          <>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Kandidat einreichen
+          </>
         )}
       </Button>
-
-      {!gdprConsent && (selectedCandidate || createNew) && (
-        <p className="text-xs text-muted-foreground text-center">
-          Bitte bestätigen Sie die GDPR-Einwilligung, um fortzufahren.
-        </p>
-      )}
     </form>
   );
 }
