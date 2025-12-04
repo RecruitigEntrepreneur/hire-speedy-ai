@@ -24,6 +24,7 @@ import {
   UsersRound,
   AlertTriangle,
   Database,
+  Plug,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -49,6 +50,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Team', href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
+    { label: 'Integrationen', href: '/dashboard/integrations', icon: <Plug className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
     { label: 'Abrechnung', href: '/dashboard/billing', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Datenschutz', href: '/dashboard/privacy', icon: <Shield className="h-4 w-4" /> },

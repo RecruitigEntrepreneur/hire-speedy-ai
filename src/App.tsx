@@ -37,6 +37,9 @@ import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
 import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
 
+// Integration pages
+import IntegrationSettings from "./pages/dashboard/IntegrationSettings";
+
 // Organization pages
 import TeamManagement from "./pages/organization/TeamManagement";
 import AcceptInvite from "./pages/organization/AcceptInvite";
@@ -183,6 +186,11 @@ function AppRoutes() {
       <Route path="/dashboard/team" element={
         <ProtectedRoute allowedRoles={['client']}>
           <TeamManagement />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/integrations" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <IntegrationSettings />
         </ProtectedRoute>
       } />
       
