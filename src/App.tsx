@@ -54,6 +54,9 @@ import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
+import ClientOffers from "./pages/dashboard/ClientOffers";
+import ViewOffer from "./pages/offer/ViewOffer";
+import OfferAccepted from "./pages/offer/OfferAccepted";
 
 // GDPR Components
 import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
@@ -153,6 +156,11 @@ function AppRoutes() {
       <Route path="/dashboard/privacy" element={
         <ProtectedRoute allowedRoles={['client']}>
           <DataPrivacy />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/offers" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientOffers />
         </ProtectedRoute>
       } />
       
@@ -284,6 +292,8 @@ function AppRoutes() {
       
       {/* Public Routes */}
       <Route path="/interview/select/:token" element={<SelectSlot />} />
+      <Route path="/offer/view/:token" element={<ViewOffer />} />
+      <Route path="/offer/accepted" element={<OfferAccepted />} />
       
       {/* Settings */}
       <Route path="/settings" element={

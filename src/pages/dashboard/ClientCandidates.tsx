@@ -9,18 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Loader2, User, Check, X, Calendar, FileText, Mail, Phone, Briefcase, Euro } from 'lucide-react';
+import { Loader2, User, Check, X, Calendar, FileText, Mail, Phone, Briefcase, Euro, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { usePageViewTracking, useEventTracking } from '@/hooks/useEventTracking';
+import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 
 interface Submission {
   id: string;
@@ -53,7 +46,6 @@ export default function ClientCandidates() {
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
   const [dealHealthMap, setDealHealthMap] = useState<Record<string, { health_score: number; risk_level: string }>>({});
   
@@ -116,29 +108,8 @@ export default function ClientCandidates() {
     setProcessing(false);
   };
 
-  const handleReject = async () => {
-    if (!selectedSubmission) return;
-    setProcessing(true);
-    
-    const { error } = await supabase
-      .from('submissions')
-      .update({ 
-        status: 'rejected',
-        rejection_reason: rejectionReason 
-      })
-      .eq('id', selectedSubmission.id);
-
-    if (error) {
-      toast.error('Fehler beim Ablehnen');
-    } else {
-      toast.success('Kandidat abgelehnt');
-      trackAction('reject_candidate', 'submission', selectedSubmission.id, { reason: rejectionReason });
-      setRejectDialogOpen(false);
-      setRejectionReason('');
-      setSelectedSubmission(null);
-      fetchSubmissions();
-    }
-    setProcessing(false);
+  const handleRejectSuccess = () => {
+    fetchSubmissions();
   };
 
   const handleScheduleInterview = async (submission: Submission) => {
@@ -325,14 +296,28 @@ export default function ClientCandidates() {
                                 </>
                               )}
                               {submission.status === 'accepted' && (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleScheduleInterview(submission)}
+                                    disabled={processing}
+                                  >
+                                    <Calendar className="h-4 w-4 mr-1" />
+                                    Interview planen
+                                  </Button>
+                                </>
+                              )}
+                              {submission.status === 'interview' && (
                                 <Button 
-                                  variant="outline" 
+                                  variant="default" 
                                   size="sm"
-                                  onClick={() => handleScheduleInterview(submission)}
-                                  disabled={processing}
+                                  asChild
                                 >
-                                  <Calendar className="h-4 w-4 mr-1" />
-                                  Interview planen
+                                  <Link to={`/dashboard/offers?submission=${submission.id}`}>
+                                    <Gift className="h-4 w-4 mr-1" />
+                                    Angebot erstellen
+                                  </Link>
                                 </Button>
                               )}
                             </div>
@@ -383,38 +368,13 @@ export default function ClientCandidates() {
           </Tabs>
         </div>
 
-        {/* Reject Dialog */}
-        <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Kandidat ablehnen</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Bitte geben Sie einen Grund für die Ablehnung an. Dies hilft dem Recruiter bei zukünftigen Einreichungen.
-              </p>
-              <Textarea
-                placeholder="Ablehnungsgrund..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                Abbrechen
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleReject}
-                disabled={processing || !rejectionReason.trim()}
-              >
-                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Ablehnen
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Rejection Dialog */}
+        <RejectionDialog
+          open={rejectDialogOpen}
+          onOpenChange={setRejectDialogOpen}
+          submission={selectedSubmission}
+          onSuccess={handleRejectSuccess}
+        />
       </DashboardLayout>
     </>
   );
