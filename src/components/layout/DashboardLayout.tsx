@@ -20,6 +20,7 @@ import {
   Wallet,
   Target,
   Gift,
+  BarChart3,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -43,6 +44,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Angebote', href: '/dashboard/offers', icon: <Gift className="h-4 w-4" /> },
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
     { label: 'Abrechnung', href: '/dashboard/billing', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Datenschutz', href: '/dashboard/privacy', icon: <Shield className="h-4 w-4" /> },
@@ -70,6 +72,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Kandidaten', href: '/admin/candidates', icon: <FileText className="h-4 w-4" /> },
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Aktivität', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
