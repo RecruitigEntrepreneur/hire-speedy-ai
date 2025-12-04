@@ -352,6 +352,60 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_health: {
+        Row: {
+          ai_assessment: string | null
+          bottleneck: string | null
+          bottleneck_days: number | null
+          bottleneck_user_id: string | null
+          calculated_at: string | null
+          created_at: string | null
+          days_since_last_activity: number | null
+          drop_off_probability: number | null
+          health_score: number | null
+          id: string
+          recommended_actions: Json | null
+          risk_factors: Json | null
+          risk_level: string | null
+          submission_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_assessment?: string | null
+          bottleneck?: string | null
+          bottleneck_days?: number | null
+          bottleneck_user_id?: string | null
+          calculated_at?: string | null
+          created_at?: string | null
+          days_since_last_activity?: number | null
+          drop_off_probability?: number | null
+          health_score?: number | null
+          id?: string
+          recommended_actions?: Json | null
+          risk_factors?: Json | null
+          risk_level?: string | null
+          submission_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_assessment?: string | null
+          bottleneck?: string | null
+          bottleneck_days?: number | null
+          bottleneck_user_id?: string | null
+          calculated_at?: string | null
+          created_at?: string | null
+          days_since_last_activity?: number | null
+          drop_off_probability?: number | null
+          health_score?: number | null
+          id?: string
+          recommended_actions?: Json | null
+          risk_factors?: Json | null
+          risk_level?: string | null
+          submission_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       email_events: {
         Row: {
           created_at: string
@@ -418,6 +472,69 @@ export type Database = {
         }
         Relationships: []
       }
+      fraud_signals: {
+        Row: {
+          action_taken: string | null
+          auto_action_taken: string | null
+          candidate_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          details: Json | null
+          evidence: Json | null
+          id: string
+          job_id: string | null
+          notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          severity: string | null
+          signal_type: string
+          status: string | null
+          submission_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          auto_action_taken?: string | null
+          candidate_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          details?: Json | null
+          evidence?: Json | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string | null
+          signal_type: string
+          status?: string | null
+          submission_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          auto_action_taken?: string | null
+          candidate_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          details?: Json | null
+          evidence?: Json | null
+          id?: string
+          job_id?: string | null
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string | null
+          signal_type?: string
+          status?: string | null
+          submission_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       identity_unlock_logs: {
         Row: {
           action: string
@@ -455,42 +572,84 @@ export type Database = {
       }
       interviews: {
         Row: {
+          calendar_event_id: string | null
+          candidate_confirmed: boolean | null
+          candidate_confirmed_at: string | null
+          client_confirmed: boolean | null
+          client_confirmed_at: string | null
           created_at: string
           duration_minutes: number | null
           feedback: string | null
           id: string
           meeting_link: string | null
           meeting_type: string | null
+          no_show_by: string | null
+          no_show_reported: boolean | null
           notes: string | null
+          proposed_slots: Json | null
+          reminder_1h_sent: boolean | null
+          reminder_24h_sent: boolean | null
           scheduled_at: string | null
+          selected_slot_index: number | null
+          selection_token: string | null
           status: string | null
           submission_id: string
+          teams_join_url: string | null
+          teams_meeting_id: string | null
           updated_at: string
         }
         Insert: {
+          calendar_event_id?: string | null
+          candidate_confirmed?: boolean | null
+          candidate_confirmed_at?: string | null
+          client_confirmed?: boolean | null
+          client_confirmed_at?: string | null
           created_at?: string
           duration_minutes?: number | null
           feedback?: string | null
           id?: string
           meeting_link?: string | null
           meeting_type?: string | null
+          no_show_by?: string | null
+          no_show_reported?: boolean | null
           notes?: string | null
+          proposed_slots?: Json | null
+          reminder_1h_sent?: boolean | null
+          reminder_24h_sent?: boolean | null
           scheduled_at?: string | null
+          selected_slot_index?: number | null
+          selection_token?: string | null
           status?: string | null
           submission_id: string
+          teams_join_url?: string | null
+          teams_meeting_id?: string | null
           updated_at?: string
         }
         Update: {
+          calendar_event_id?: string | null
+          candidate_confirmed?: boolean | null
+          candidate_confirmed_at?: string | null
+          client_confirmed?: boolean | null
+          client_confirmed_at?: string | null
           created_at?: string
           duration_minutes?: number | null
           feedback?: string | null
           id?: string
           meeting_link?: string | null
           meeting_type?: string | null
+          no_show_by?: string | null
+          no_show_reported?: boolean | null
           notes?: string | null
+          proposed_slots?: Json | null
+          reminder_1h_sent?: boolean | null
+          reminder_24h_sent?: boolean | null
           scheduled_at?: string | null
+          selected_slot_index?: number | null
+          selection_token?: string | null
           status?: string | null
           submission_id?: string
+          teams_join_url?: string | null
+          teams_meeting_id?: string | null
           updated_at?: string
         }
         Relationships: [
