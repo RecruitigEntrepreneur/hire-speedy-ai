@@ -180,28 +180,34 @@ export type Database = {
       }
       candidate_comments: {
         Row: {
+          activity_type: string | null
           content: string
           created_at: string
           id: string
           submission_id: string
           updated_at: string
           user_id: string
+          visibility: string | null
         }
         Insert: {
+          activity_type?: string | null
           content: string
           created_at?: string
           id?: string
           submission_id: string
           updated_at?: string
           user_id: string
+          visibility?: string | null
         }
         Update: {
+          activity_type?: string | null
           content?: string
           created_at?: string
           id?: string
           submission_id?: string
           updated_at?: string
           user_id?: string
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -351,6 +357,70 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      candidate_tag_assignments: {
+        Row: {
+          assigned_at: string | null
+          candidate_id: string
+          tag_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          candidate_id: string
+          tag_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          candidate_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_tag_assignments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_tag_assignments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          recruiter_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          recruiter_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          recruiter_id?: string
+        }
+        Relationships: []
       }
       candidates: {
         Row: {
@@ -621,47 +691,124 @@ export type Database = {
       company_profiles: {
         Row: {
           address: string | null
+          benefits: Json | null
           billing_email: string | null
+          brand_color_primary: string | null
+          brand_color_secondary: string | null
           company_name: string
           created_at: string
+          culture_values: Json | null
           description: string | null
           id: string
           industry: string | null
           logo_url: string | null
+          office_locations: Json | null
+          opt_in_message: string | null
+          perks: Json | null
+          remote_policy: string | null
+          show_benefits_in_opt_in: boolean | null
+          show_culture_in_opt_in: boolean | null
+          show_team_size_in_opt_in: boolean | null
+          tagline: string | null
           tax_id: string | null
+          team_size_range: string | null
           updated_at: string
           user_id: string
           website: string | null
+          work_style: string | null
         }
         Insert: {
           address?: string | null
+          benefits?: Json | null
           billing_email?: string | null
+          brand_color_primary?: string | null
+          brand_color_secondary?: string | null
           company_name: string
           created_at?: string
+          culture_values?: Json | null
           description?: string | null
           id?: string
           industry?: string | null
           logo_url?: string | null
+          office_locations?: Json | null
+          opt_in_message?: string | null
+          perks?: Json | null
+          remote_policy?: string | null
+          show_benefits_in_opt_in?: boolean | null
+          show_culture_in_opt_in?: boolean | null
+          show_team_size_in_opt_in?: boolean | null
+          tagline?: string | null
           tax_id?: string | null
+          team_size_range?: string | null
           updated_at?: string
           user_id: string
           website?: string | null
+          work_style?: string | null
         }
         Update: {
           address?: string | null
+          benefits?: Json | null
           billing_email?: string | null
+          brand_color_primary?: string | null
+          brand_color_secondary?: string | null
           company_name?: string
           created_at?: string
+          culture_values?: Json | null
           description?: string | null
           id?: string
           industry?: string | null
           logo_url?: string | null
+          office_locations?: Json | null
+          opt_in_message?: string | null
+          perks?: Json | null
+          remote_policy?: string | null
+          show_benefits_in_opt_in?: boolean | null
+          show_culture_in_opt_in?: boolean | null
+          show_team_size_in_opt_in?: boolean | null
+          tagline?: string | null
           tax_id?: string | null
+          team_size_range?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null
+          work_style?: string | null
         }
         Relationships: []
+      }
+      company_summaries: {
+        Row: {
+          company_profile_id: string
+          content: string
+          generated_at: string | null
+          id: string
+          is_approved: boolean | null
+          summary_type: string
+        }
+        Insert: {
+          company_profile_id: string
+          content: string
+          generated_at?: string | null
+          id?: string
+          is_approved?: boolean | null
+          summary_type: string
+        }
+        Update: {
+          company_profile_id?: string
+          content?: string
+          generated_at?: string | null
+          id?: string
+          is_approved?: boolean | null
+          summary_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_summaries_company_profile_id_fkey"
+            columns: ["company_profile_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       consents: {
         Row: {
@@ -891,6 +1038,132 @@ export type Database = {
         }
         Relationships: []
       }
+      employer_feedback: {
+        Row: {
+          candidate_id: string
+          client_id: string
+          communication_rating: number | null
+          created_at: string | null
+          id: string
+          improvement_areas: string[] | null
+          positive_aspects: string[] | null
+          process_rating: number | null
+          respect_rating: number | null
+          submission_id: string
+          transparency_rating: number | null
+          would_recommend: boolean | null
+        }
+        Insert: {
+          candidate_id: string
+          client_id: string
+          communication_rating?: number | null
+          created_at?: string | null
+          id?: string
+          improvement_areas?: string[] | null
+          positive_aspects?: string[] | null
+          process_rating?: number | null
+          respect_rating?: number | null
+          submission_id: string
+          transparency_rating?: number | null
+          would_recommend?: boolean | null
+        }
+        Update: {
+          candidate_id?: string
+          client_id?: string
+          communication_rating?: number | null
+          created_at?: string | null
+          id?: string
+          improvement_areas?: string[] | null
+          positive_aspects?: string[] | null
+          process_rating?: number | null
+          respect_rating?: number | null
+          submission_id?: string
+          transparency_rating?: number | null
+          would_recommend?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_feedback_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "employer_feedback_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_scores: {
+        Row: {
+          avg_response_time_hours: number | null
+          avg_salary_vs_market: number | null
+          calculated_at: string | null
+          candidate_satisfaction_avg: number | null
+          client_id: string
+          id: string
+          interview_feedback_speed_days: number | null
+          interview_quality_score: number | null
+          interview_scheduling_speed_days: number | null
+          no_show_rate: number | null
+          offer_acceptance_rate: number | null
+          offer_rate: number | null
+          overall_score: number | null
+          reliability_score: number | null
+          response_time_score: number | null
+          total_interviews: number | null
+          total_placements: number | null
+          total_submissions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_response_time_hours?: number | null
+          avg_salary_vs_market?: number | null
+          calculated_at?: string | null
+          candidate_satisfaction_avg?: number | null
+          client_id: string
+          id?: string
+          interview_feedback_speed_days?: number | null
+          interview_quality_score?: number | null
+          interview_scheduling_speed_days?: number | null
+          no_show_rate?: number | null
+          offer_acceptance_rate?: number | null
+          offer_rate?: number | null
+          overall_score?: number | null
+          reliability_score?: number | null
+          response_time_score?: number | null
+          total_interviews?: number | null
+          total_placements?: number | null
+          total_submissions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_response_time_hours?: number | null
+          avg_salary_vs_market?: number | null
+          calculated_at?: string | null
+          candidate_satisfaction_avg?: number | null
+          client_id?: string
+          id?: string
+          interview_feedback_speed_days?: number | null
+          interview_quality_score?: number | null
+          interview_scheduling_speed_days?: number | null
+          no_show_rate?: number | null
+          offer_acceptance_rate?: number | null
+          offer_rate?: number | null
+          overall_score?: number | null
+          reliability_score?: number | null
+          response_time_score?: number | null
+          total_interviews?: number | null
+          total_placements?: number | null
+          total_submissions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fraud_signals: {
         Row: {
           action_taken: string | null
@@ -951,6 +1224,84 @@ export type Database = {
           submission_id?: string | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      funnel_metrics: {
+        Row: {
+          acceptance_rate: number | null
+          avg_candidate_score: number | null
+          avg_match_score: number | null
+          avg_time_to_fill_days: number | null
+          avg_time_to_interview_days: number | null
+          avg_time_to_offer_days: number | null
+          avg_time_to_opt_in_hours: number | null
+          calculated_at: string | null
+          drop_off_reasons: Json | null
+          drop_offs_by_stage: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          interview_rate: number | null
+          interview_to_offer: number | null
+          offer_rate: number | null
+          offer_to_placement: number | null
+          opt_in_rate: number | null
+          opt_in_to_interview: number | null
+          period_end: string
+          period_start: string
+          submissions_to_opt_in: number | null
+          total_submissions: number | null
+        }
+        Insert: {
+          acceptance_rate?: number | null
+          avg_candidate_score?: number | null
+          avg_match_score?: number | null
+          avg_time_to_fill_days?: number | null
+          avg_time_to_interview_days?: number | null
+          avg_time_to_offer_days?: number | null
+          avg_time_to_opt_in_hours?: number | null
+          calculated_at?: string | null
+          drop_off_reasons?: Json | null
+          drop_offs_by_stage?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          interview_rate?: number | null
+          interview_to_offer?: number | null
+          offer_rate?: number | null
+          offer_to_placement?: number | null
+          opt_in_rate?: number | null
+          opt_in_to_interview?: number | null
+          period_end: string
+          period_start: string
+          submissions_to_opt_in?: number | null
+          total_submissions?: number | null
+        }
+        Update: {
+          acceptance_rate?: number | null
+          avg_candidate_score?: number | null
+          avg_match_score?: number | null
+          avg_time_to_fill_days?: number | null
+          avg_time_to_interview_days?: number | null
+          avg_time_to_offer_days?: number | null
+          avg_time_to_opt_in_hours?: number | null
+          calculated_at?: string | null
+          drop_off_reasons?: Json | null
+          drop_offs_by_stage?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          interview_rate?: number | null
+          interview_to_offer?: number | null
+          offer_rate?: number | null
+          offer_to_placement?: number | null
+          opt_in_rate?: number | null
+          opt_in_to_interview?: number | null
+          period_end?: string
+          period_start?: string
+          submissions_to_opt_in?: number | null
+          total_submissions?: number | null
         }
         Relationships: []
       }
@@ -2017,6 +2368,54 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_leaderboard: {
+        Row: {
+          avg_candidate_score: number | null
+          avg_time_to_fill: number | null
+          calculated_at: string | null
+          conversion_rate: number | null
+          id: string
+          period: string
+          period_start: string
+          placements: number | null
+          rank_change: number | null
+          rank_position: number | null
+          recruiter_id: string
+          submissions: number | null
+          total_revenue: number | null
+        }
+        Insert: {
+          avg_candidate_score?: number | null
+          avg_time_to_fill?: number | null
+          calculated_at?: string | null
+          conversion_rate?: number | null
+          id?: string
+          period: string
+          period_start: string
+          placements?: number | null
+          rank_change?: number | null
+          rank_position?: number | null
+          recruiter_id: string
+          submissions?: number | null
+          total_revenue?: number | null
+        }
+        Update: {
+          avg_candidate_score?: number | null
+          avg_time_to_fill?: number | null
+          calculated_at?: string | null
+          conversion_rate?: number | null
+          id?: string
+          period?: string
+          period_start?: string
+          placements?: number | null
+          rank_change?: number | null
+          rank_position?: number | null
+          recruiter_id?: string
+          submissions?: number | null
+          total_revenue?: number | null
+        }
+        Relationships: []
+      }
       recruiter_performance: {
         Row: {
           avg_response_time_hours: number | null
@@ -2061,6 +2460,114 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      recruiter_pipelines: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          filters: Json | null
+          id: string
+          is_default: boolean | null
+          name: string
+          recruiter_id: string
+          sort_by: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          filters?: Json | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          recruiter_id: string
+          sort_by?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          filters?: Json | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          recruiter_id?: string
+          sort_by?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_tasks: {
+        Row: {
+          candidate_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          job_id: string | null
+          priority: string | null
+          recruiter_id: string
+          reminder_at: string | null
+          reminder_sent: boolean | null
+          status: string | null
+          submission_id: string | null
+          task_type: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          job_id?: string | null
+          priority?: string | null
+          recruiter_id: string
+          reminder_at?: string | null
+          reminder_sent?: boolean | null
+          status?: string | null
+          submission_id?: string | null
+          task_type?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          job_id?: string | null
+          priority?: string | null
+          recruiter_id?: string
+          reminder_at?: string | null
+          reminder_sent?: boolean | null
+          status?: string | null
+          submission_id?: string | null
+          task_type?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_tasks_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_tasks_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rejection_templates: {
         Row: {
