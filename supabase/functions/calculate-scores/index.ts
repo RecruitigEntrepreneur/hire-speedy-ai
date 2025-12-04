@@ -16,8 +16,36 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, recruiter_id } = await req.json();
-    console.log(`[calculate-scores] Action: ${action}, Recruiter: ${recruiter_id || 'all'}`);
+    const { action, recruiter_id, submission_id } = await req.json();
+    console.log(`[calculate-scores] Action: ${action}, ID: ${recruiter_id || submission_id || 'all'}`);
+
+    // NEW: Calculate candidate behavior scores
+    if (action === 'calculate_candidate_behavior' && submission_id) {
+      const result = await calculateCandidateBehaviorScore(supabase, submission_id);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // NEW: Calculate all candidate behaviors for a job
+    if (action === 'calculate_job_candidates' && recruiter_id) {
+      // recruiter_id here is actually job_id
+      const { data: submissions } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('job_id', recruiter_id)
+        .not('status', 'in', '("rejected","withdrawn")');
+
+      const results = [];
+      for (const s of submissions || []) {
+        const result = await calculateCandidateBehaviorScore(supabase, s.id);
+        results.push(result);
+      }
+
+      return new Response(JSON.stringify({ updated: results.length, results }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (action === 'calculate_recruiter' && recruiter_id) {
       const result = await calculateRecruiterScore(supabase, recruiter_id);
@@ -276,5 +304,153 @@ async function calculateClientScore(supabase: any, clientId: string) {
     sla_compliance_rate: slaComplianceRate,
     risk_score: riskScore,
     behavior_class: behaviorClass,
+  };
+}
+
+// NEW: Calculate candidate behavior scores for ranking
+async function calculateCandidateBehaviorScore(supabase: any, submissionId: string) {
+  console.log(`[calculate-scores] Calculating behavior score for submission: ${submissionId}`);
+
+  // Get existing behavior data
+  const { data: behavior } = await supabase
+    .from('candidate_behavior')
+    .select('*')
+    .eq('submission_id', submissionId)
+    .maybeSingle();
+
+  // Get submission details
+  const { data: submission } = await supabase
+    .from('submissions')
+    .select('*, candidate:candidates(*)')
+    .eq('id', submissionId)
+    .single();
+
+  if (!submission) {
+    return { error: 'Submission not found' };
+  }
+
+  // Get communication logs for this submission
+  const { data: commLogs } = await supabase
+    .from('communication_log')
+    .select('*')
+    .eq('submission_id', submissionId);
+
+  // Calculate metrics
+  const emailsSent = commLogs?.filter((l: any) => l.channel === 'email').length || 0;
+  const emailsOpened = commLogs?.filter((l: any) => l.channel === 'email' && l.read_at).length || 0;
+  const linksClicked = commLogs?.reduce((sum: number, l: any) => sum + (l.links_clicked?.length || 0), 0) || 0;
+
+  // Calculate confidence score (0-100)
+  // Factors: opt-in response time, email engagement, activity
+  let confidenceScore = 50; // Base score
+
+  // Opt-in response time bonus (faster = better)
+  const optInTime = behavior?.opt_in_response_time_hours;
+  if (optInTime !== null && optInTime !== undefined) {
+    if (optInTime < 2) confidenceScore += 20;
+    else if (optInTime < 6) confidenceScore += 15;
+    else if (optInTime < 24) confidenceScore += 10;
+    else if (optInTime < 48) confidenceScore += 5;
+    else confidenceScore -= 5;
+  }
+
+  // Email engagement bonus
+  const openRate = emailsSent > 0 ? (emailsOpened / emailsSent) : 0;
+  if (openRate >= 0.8) confidenceScore += 15;
+  else if (openRate >= 0.5) confidenceScore += 10;
+  else if (openRate >= 0.3) confidenceScore += 5;
+
+  // Link clicks bonus
+  if (linksClicked >= 5) confidenceScore += 10;
+  else if (linksClicked >= 2) confidenceScore += 5;
+
+  // Prep materials bonus
+  const prepViewed = behavior?.prep_materials_viewed || 0;
+  if (prepViewed >= 3) confidenceScore += 10;
+  else if (prepViewed >= 1) confidenceScore += 5;
+
+  // Company profile viewed bonus
+  if (behavior?.company_profile_viewed) confidenceScore += 5;
+
+  // Salary tool used bonus (shows realistic expectations)
+  if (behavior?.salary_tool_used) confidenceScore += 5;
+
+  confidenceScore = Math.max(0, Math.min(100, confidenceScore));
+
+  // Calculate interview readiness score (0-100)
+  let readinessScore = 50;
+
+  if (prepViewed >= 3) readinessScore += 20;
+  else if (prepViewed >= 1) readinessScore += 10;
+
+  if (behavior?.company_profile_viewed) readinessScore += 15;
+
+  // Recent engagement is good
+  const daysSinceEngagement = behavior?.days_since_engagement || 999;
+  if (daysSinceEngagement <= 1) readinessScore += 15;
+  else if (daysSinceEngagement <= 3) readinessScore += 10;
+  else if (daysSinceEngagement <= 7) readinessScore += 5;
+  else if (daysSinceEngagement > 14) readinessScore -= 10;
+
+  readinessScore = Math.max(0, Math.min(100, readinessScore));
+
+  // Calculate closing probability (0-100)
+  let closingProb = 50;
+
+  // High confidence increases closing probability
+  closingProb += (confidenceScore - 50) * 0.3;
+
+  // High readiness increases closing probability
+  closingProb += (readinessScore - 50) * 0.2;
+
+  // Match score impact
+  const matchScore = submission.match_score || 50;
+  closingProb += (matchScore - 50) * 0.3;
+
+  // Stage progression bonus
+  const status = submission.status;
+  if (status === 'offer_extended') closingProb += 15;
+  else if (status === 'interview') closingProb += 10;
+  else if (status === 'shortlisted') closingProb += 5;
+
+  closingProb = Math.max(0, Math.min(100, Math.round(closingProb)));
+
+  // Determine engagement level
+  let engagementLevel = 'neutral';
+  const avgScore = (confidenceScore + readinessScore + closingProb) / 3;
+  if (avgScore >= 70) engagementLevel = 'high';
+  else if (avgScore >= 50) engagementLevel = 'medium';
+  else if (avgScore < 40) engagementLevel = 'low';
+
+  // Upsert to candidate_behavior
+  const updateData = {
+    submission_id: submissionId,
+    candidate_id: submission.candidate_id,
+    confidence_score: Math.round(confidenceScore),
+    interview_readiness_score: Math.round(readinessScore),
+    closing_probability: closingProb,
+    engagement_level: engagementLevel,
+    emails_sent: emailsSent,
+    emails_opened: emailsOpened,
+    links_clicked: linksClicked,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from('candidate_behavior')
+    .upsert(updateData, { onConflict: 'submission_id' });
+
+  if (error) {
+    console.error(`[calculate-scores] Error upserting candidate_behavior:`, error);
+  }
+
+  console.log(`[calculate-scores] Submission ${submissionId}: Confidence=${confidenceScore}, Readiness=${readinessScore}, Closing=${closingProb}`);
+
+  return {
+    submission_id: submissionId,
+    confidence_score: Math.round(confidenceScore),
+    interview_readiness_score: Math.round(readinessScore),
+    closing_probability: closingProb,
+    engagement_level: engagementLevel,
   };
 }

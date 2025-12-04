@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.detect-candidate-conflicts]
 verify_jwt = true
+
+[functions.generate-interview-prep]
+verify_jwt = true
