@@ -116,6 +116,13 @@ export type Database = {
             foreignKeyName: "candidate_behavior_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
@@ -157,6 +164,74 @@ export type Database = {
           {
             foreignKeyName: "candidate_comments_submission_id_fkey"
             columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_conflicts: {
+        Row: {
+          candidate_id: string
+          conflict_type: string
+          created_at: string | null
+          id: string
+          resolution_notes: string | null
+          resolved: boolean | null
+          resolved_by: string | null
+          severity: string | null
+          submission_a_id: string
+          submission_b_id: string
+        }
+        Insert: {
+          candidate_id: string
+          conflict_type: string
+          created_at?: string | null
+          id?: string
+          resolution_notes?: string | null
+          resolved?: boolean | null
+          resolved_by?: string | null
+          severity?: string | null
+          submission_a_id: string
+          submission_b_id: string
+        }
+        Update: {
+          candidate_id?: string
+          conflict_type?: string
+          created_at?: string | null
+          id?: string
+          resolution_notes?: string | null
+          resolved?: boolean | null
+          resolved_by?: string | null
+          severity?: string | null
+          submission_a_id?: string
+          submission_b_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_conflicts_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
+            columns: ["submission_a_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
+            columns: ["submission_b_id"]
             isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
@@ -227,11 +302,15 @@ export type Database = {
           linkedin_url: string | null
           notice_period: string | null
           phone: string | null
+          phone_verified: boolean | null
+          preferred_channel: string | null
           recruiter_id: string
           skills: string[] | null
+          sms_opt_in: boolean | null
           summary: string | null
           updated_at: string
           video_url: string | null
+          whatsapp_opt_in: boolean | null
         }
         Insert: {
           availability_date?: string | null
@@ -246,11 +325,15 @@ export type Database = {
           linkedin_url?: string | null
           notice_period?: string | null
           phone?: string | null
+          phone_verified?: boolean | null
+          preferred_channel?: string | null
           recruiter_id: string
           skills?: string[] | null
+          sms_opt_in?: boolean | null
           summary?: string | null
           updated_at?: string
           video_url?: string | null
+          whatsapp_opt_in?: boolean | null
         }
         Update: {
           availability_date?: string | null
@@ -265,11 +348,15 @@ export type Database = {
           linkedin_url?: string | null
           notice_period?: string | null
           phone?: string | null
+          phone_verified?: boolean | null
+          preferred_channel?: string | null
           recruiter_id?: string
           skills?: string[] | null
+          sms_opt_in?: boolean | null
           summary?: string | null
           updated_at?: string
           video_url?: string | null
+          whatsapp_opt_in?: boolean | null
         }
         Relationships: []
       }
@@ -377,6 +464,88 @@ export type Database = {
           whatsapp_template?: string | null
         }
         Relationships: []
+      }
+      communication_log: {
+        Row: {
+          body: string
+          candidate_id: string | null
+          channel: string
+          created_at: string | null
+          delivered_at: string | null
+          error_message: string | null
+          external_id: string | null
+          failed_at: string | null
+          id: string
+          links_clicked: Json | null
+          message_type: string
+          read_at: string | null
+          sent_at: string | null
+          status: string | null
+          subject: string | null
+          submission_id: string | null
+          template_id: string | null
+        }
+        Insert: {
+          body: string
+          candidate_id?: string | null
+          channel: string
+          created_at?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          external_id?: string | null
+          failed_at?: string | null
+          id?: string
+          links_clicked?: Json | null
+          message_type: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          submission_id?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          body?: string
+          candidate_id?: string | null
+          channel?: string
+          created_at?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
+          external_id?: string | null
+          failed_at?: string | null
+          id?: string
+          links_clicked?: Json | null
+          message_type?: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          submission_id?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "communication_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_profiles: {
         Row: {
@@ -1052,6 +1221,45 @@ export type Database = {
         }
         Relationships: []
       }
+      message_templates: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          message_type: string
+          name: string
+          subject: string | null
+          updated_at: string | null
+          variables: Json | null
+        }
+        Insert: {
+          body: string
+          channel: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message_type: string
+          name: string
+          subject?: string | null
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message_type?: string
+          name?: string
+          subject?: string | null
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           candidate_id: string | null
@@ -1123,6 +1331,193 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      offer_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: string | null
+          created_at: string | null
+          details: Json | null
+          event_type: string
+          id: string
+          offer_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string | null
+          details?: Json | null
+          event_type: string
+          id?: string
+          offer_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string | null
+          details?: Json | null
+          event_type?: string
+          id?: string
+          offer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_events_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          access_token: string | null
+          benefits: Json | null
+          bonus_amount: number | null
+          candidate_id: string
+          candidate_signature: string | null
+          candidate_signed_at: string | null
+          client_id: string
+          client_signature: string | null
+          client_signed_at: string | null
+          contract_type: string | null
+          counter_offer_at: string | null
+          counter_offer_notes: string | null
+          counter_offer_salary: number | null
+          created_at: string | null
+          custom_terms: string | null
+          decision_at: string | null
+          equity_percentage: number | null
+          expires_at: string | null
+          id: string
+          job_id: string
+          location: string | null
+          negotiation_rounds: number | null
+          offer_document_url: string | null
+          original_salary: number | null
+          position_title: string
+          probation_months: number | null
+          recruiter_id: string
+          rejection_reason: string | null
+          remote_policy: string | null
+          salary_currency: string | null
+          salary_offered: number
+          sent_at: string | null
+          start_date: string | null
+          status: string | null
+          submission_id: string
+          updated_at: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          benefits?: Json | null
+          bonus_amount?: number | null
+          candidate_id: string
+          candidate_signature?: string | null
+          candidate_signed_at?: string | null
+          client_id: string
+          client_signature?: string | null
+          client_signed_at?: string | null
+          contract_type?: string | null
+          counter_offer_at?: string | null
+          counter_offer_notes?: string | null
+          counter_offer_salary?: number | null
+          created_at?: string | null
+          custom_terms?: string | null
+          decision_at?: string | null
+          equity_percentage?: number | null
+          expires_at?: string | null
+          id?: string
+          job_id: string
+          location?: string | null
+          negotiation_rounds?: number | null
+          offer_document_url?: string | null
+          original_salary?: number | null
+          position_title: string
+          probation_months?: number | null
+          recruiter_id: string
+          rejection_reason?: string | null
+          remote_policy?: string | null
+          salary_currency?: string | null
+          salary_offered: number
+          sent_at?: string | null
+          start_date?: string | null
+          status?: string | null
+          submission_id: string
+          updated_at?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          benefits?: Json | null
+          bonus_amount?: number | null
+          candidate_id?: string
+          candidate_signature?: string | null
+          candidate_signed_at?: string | null
+          client_id?: string
+          client_signature?: string | null
+          client_signed_at?: string | null
+          contract_type?: string | null
+          counter_offer_at?: string | null
+          counter_offer_notes?: string | null
+          counter_offer_salary?: number | null
+          created_at?: string | null
+          custom_terms?: string | null
+          decision_at?: string | null
+          equity_percentage?: number | null
+          expires_at?: string | null
+          id?: string
+          job_id?: string
+          location?: string | null
+          negotiation_rounds?: number | null
+          offer_document_url?: string | null
+          original_salary?: number | null
+          position_title?: string
+          probation_months?: number | null
+          recruiter_id?: string
+          rejection_reason?: string | null
+          remote_policy?: string | null
+          salary_currency?: string | null
+          salary_offered?: number
+          sent_at?: string | null
+          start_date?: string | null
+          status?: string | null
+          submission_id?: string
+          updated_at?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "offers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_events: {
         Row: {
@@ -1485,6 +1880,105 @@ export type Database = {
         }
         Relationships: []
       }
+      rejection_templates: {
+        Row: {
+          body: string
+          created_at: string | null
+          id: string
+          include_alternatives: boolean | null
+          include_feedback: boolean | null
+          is_active: boolean | null
+          name: string
+          reason_category: string | null
+          stage: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          id?: string
+          include_alternatives?: boolean | null
+          include_feedback?: boolean | null
+          is_active?: boolean | null
+          name: string
+          reason_category?: string | null
+          stage: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          id?: string
+          include_alternatives?: boolean | null
+          include_feedback?: boolean | null
+          is_active?: boolean | null
+          name?: string
+          reason_category?: string | null
+          stage?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      rejections: {
+        Row: {
+          ai_improvement_suggestions: Json | null
+          created_at: string | null
+          custom_feedback: string | null
+          id: string
+          reason_category: string | null
+          rejected_by: string
+          rejection_reason: string | null
+          rejection_stage: string
+          sent_at: string | null
+          sent_via: string[] | null
+          submission_id: string
+          template_id: string | null
+        }
+        Insert: {
+          ai_improvement_suggestions?: Json | null
+          created_at?: string | null
+          custom_feedback?: string | null
+          id?: string
+          reason_category?: string | null
+          rejected_by: string
+          rejection_reason?: string | null
+          rejection_stage: string
+          sent_at?: string | null
+          sent_via?: string[] | null
+          submission_id: string
+          template_id?: string | null
+        }
+        Update: {
+          ai_improvement_suggestions?: Json | null
+          created_at?: string | null
+          custom_feedback?: string | null
+          id?: string
+          reason_category?: string | null
+          rejected_by?: string
+          rejection_reason?: string | null
+          rejection_stage?: string
+          sent_at?: string | null
+          sent_via?: string[] | null
+          submission_id?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rejections_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rejections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "rejection_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sla_deadlines: {
         Row: {
           breached_at: string | null
@@ -1703,6 +2197,13 @@ export type Database = {
             foreignKeyName: "submissions_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
@@ -1801,7 +2302,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      candidate_job_overview: {
+        Row: {
+          active_submissions: number | null
+          candidate_id: string | null
+          email: string | null
+          full_name: string | null
+          jobs: Json | null
+          preferred_channel: string | null
+          recruiter_id: string | null
+          total_submissions: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
