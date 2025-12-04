@@ -184,6 +184,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string
+          trigger_event: string
+          updated_at: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject: string
+          trigger_event: string
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          subject?: string
+          trigger_event?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       interviews: {
         Row: {
           created_at: string
@@ -504,6 +537,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          internal_notes: string | null
           phone: string | null
           tax_id: string | null
           updated_at: string
@@ -519,6 +553,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id?: string
+          internal_notes?: string | null
           phone?: string | null
           tax_id?: string | null
           updated_at?: string
@@ -534,6 +569,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          internal_notes?: string | null
           phone?: string | null
           tax_id?: string | null
           updated_at?: string
@@ -570,6 +606,51 @@ export type Database = {
           id?: string
           is_accepted?: boolean | null
           recruiter_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_performance: {
+        Row: {
+          avg_response_time_hours: number | null
+          calculated_at: string | null
+          created_at: string | null
+          id: string
+          interview_rate: number | null
+          placement_rate: number | null
+          quality_score: number | null
+          recruiter_id: string
+          total_interviews: number | null
+          total_placements: number | null
+          total_submissions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_response_time_hours?: number | null
+          calculated_at?: string | null
+          created_at?: string | null
+          id?: string
+          interview_rate?: number | null
+          placement_rate?: number | null
+          quality_score?: number | null
+          recruiter_id: string
+          total_interviews?: number | null
+          total_placements?: number | null
+          total_submissions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_response_time_hours?: number | null
+          calculated_at?: string | null
+          created_at?: string | null
+          id?: string
+          interview_rate?: number | null
+          placement_rate?: number | null
+          quality_score?: number | null
+          recruiter_id?: string
+          total_interviews?: number | null
+          total_placements?: number | null
+          total_submissions?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -637,22 +718,34 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          custom_fee_percentage: number | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          status: string | null
+          suspended_at: string | null
+          suspension_reason: string | null
           user_id: string
           verified: boolean | null
         }
         Insert: {
           created_at?: string
+          custom_fee_percentage?: number | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          status?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
           user_id: string
           verified?: boolean | null
         }
         Update: {
           created_at?: string
+          custom_fee_percentage?: number | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          status?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
           user_id?: string
           verified?: boolean | null
         }
