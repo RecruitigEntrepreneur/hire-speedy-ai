@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +25,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { 
   Loader2, Search, Users, FileText, MoreHorizontal, Eye, Trash2, 
-  AlertTriangle, Copy, StickyNote, RefreshCw, Mail, Phone, Briefcase
+  AlertTriangle, Copy, StickyNote, RefreshCw, Mail, Phone, Briefcase,
+  Lock, Unlock, Shield, Clock, History
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,6 +38,7 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { useIdentityUnlock } from '@/hooks/useIdentityUnlock';
 
 interface Candidate {
   id: string;
@@ -49,8 +54,20 @@ interface Candidate {
     job_title: string;
     status: string;
     company_name: string;
+    identity_unlocked: boolean;
+    opt_in_response: string | null;
+    unlocked_at: string | null;
   }[];
   isDuplicate: boolean;
+}
+
+interface UnlockLog {
+  id: string;
+  submission_id: string;
+  action: string;
+  performed_by: string | null;
+  details: Record<string, any> | null;
+  created_at: string;
 }
 
 const STATUS_OPTIONS = [
@@ -64,6 +81,8 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminCandidates() {
+  const { user } = useAuth();
+  const { adminOverride, fetchUnlockLogs } = useIdentityUnlock();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +91,10 @@ export default function AdminCandidates() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [unlockLogs, setUnlockLogs] = useState<UnlockLog[]>([]);
   const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
@@ -106,7 +129,7 @@ export default function AdminCandidates() {
     const candidateIds = candidatesData.map(c => c.id);
     const { data: submissionsData } = await supabase
       .from('submissions')
-      .select('id, candidate_id, status, job:jobs(title, company_name)')
+      .select('id, candidate_id, status, identity_unlocked, opt_in_response, unlocked_at, job:jobs(title, company_name)')
       .in('candidate_id', candidateIds);
 
     const submissionMap: Record<string, any[]> = {};
@@ -119,6 +142,9 @@ export default function AdminCandidates() {
         job_title: s.job?.title || 'Unbekannt',
         company_name: s.job?.company_name || 'Unbekannt',
         status: s.status,
+        identity_unlocked: s.identity_unlocked || false,
+        opt_in_response: s.opt_in_response,
+        unlocked_at: s.unlocked_at,
       });
     });
 
@@ -183,6 +209,61 @@ export default function AdminCandidates() {
       toast.success('Status aktualisiert');
       fetchCandidates();
     }
+  };
+
+  const handleAdminOverride = async () => {
+    if (!selectedSubmissionId || !overrideReason.trim()) {
+      toast.error('Bitte geben Sie einen Grund ein');
+      return;
+    }
+    
+    setProcessing('override');
+    const success = await adminOverride(selectedSubmissionId, overrideReason);
+    if (success) {
+      fetchCandidates();
+      setOverrideDialogOpen(false);
+      setSelectedSubmissionId(null);
+      setOverrideReason('');
+    }
+    setProcessing(null);
+  };
+
+  const loadUnlockLogs = async (submissionId: string) => {
+    const logs = await fetchUnlockLogs(submissionId);
+    setUnlockLogs(logs);
+  };
+
+  const getIdentityStatusBadge = (sub: { identity_unlocked: boolean; opt_in_response: string | null }) => {
+    if (sub.identity_unlocked) {
+      return (
+        <Badge variant="outline" className="text-emerald border-emerald/30">
+          <Unlock className="h-3 w-3 mr-1" />
+          Freigegeben
+        </Badge>
+      );
+    }
+    if (sub.opt_in_response === 'pending') {
+      return (
+        <Badge variant="outline" className="text-amber-500 border-amber-500/30">
+          <Clock className="h-3 w-3 mr-1" />
+          Anfrage offen
+        </Badge>
+      );
+    }
+    if (sub.opt_in_response === 'denied') {
+      return (
+        <Badge variant="outline" className="text-destructive border-destructive/30">
+          <Lock className="h-3 w-3 mr-1" />
+          Abgelehnt
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary">
+        <Lock className="h-3 w-3 mr-1" />
+        Geschützt
+      </Badge>
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -462,40 +543,176 @@ export default function AdminCandidates() {
                   </div>
                 )}
 
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Submissions ({selectedCandidate.submissions.length})</p>
-                  {selectedCandidate.submissions.length === 0 ? (
-                    <p className="text-muted-foreground">Keine Submissions</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {selectedCandidate.submissions.map(sub => (
-                        <div key={sub.id} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{sub.job_title}</p>
-                              <p className="text-sm text-muted-foreground">{sub.company_name}</p>
+                <Tabs defaultValue="submissions" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="submissions">Submissions</TabsTrigger>
+                    <TabsTrigger value="audit">Audit Trail</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="submissions" className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Submissions ({selectedCandidate.submissions.length})
+                    </p>
+                    {selectedCandidate.submissions.length === 0 ? (
+                      <p className="text-muted-foreground">Keine Submissions</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedCandidate.submissions.map(sub => (
+                          <div key={sub.id} className="p-3 border rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="font-medium">{sub.job_title}</p>
+                                <p className="text-sm text-muted-foreground">{sub.company_name}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {getIdentityStatusBadge(sub)}
+                                <Select 
+                                  value={sub.status} 
+                                  onValueChange={(val) => handleUpdateSubmissionStatus(sub.id, val)}
+                                >
+                                  <SelectTrigger className="w-[130px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {STATUS_OPTIONS.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
-                            <Select 
-                              value={sub.status} 
-                              onValueChange={(val) => handleUpdateSubmissionStatus(sub.id, val)}
-                            >
-                              <SelectTrigger className="w-[150px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STATUS_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            
+                            {/* Admin Override Button */}
+                            {!sub.identity_unlocked && (
+                              <div className="mt-2 pt-2 border-t flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Shield className="h-3 w-3" />
+                                  Admin-Ansicht: Vollständige Daten sichtbar
+                                </span>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedSubmissionId(sub.id);
+                                    setOverrideDialogOpen(true);
+                                  }}
+                                >
+                                  <Unlock className="h-3 w-3 mr-1" />
+                                  Override
+                                </Button>
+                              </div>
+                            )}
+                            
+                            {sub.unlocked_at && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Freigegeben am: {format(new Date(sub.unlocked_at), 'Pp', { locale: de })}
+                              </p>
+                            )}
                           </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="audit" className="mt-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">Audit Trail</p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            if (selectedCandidate.submissions[0]) {
+                              loadUnlockLogs(selectedCandidate.submissions[0].id);
+                            }
+                          }}
+                        >
+                          <History className="h-4 w-4 mr-1" />
+                          Laden
+                        </Button>
+                      </div>
+                      {unlockLogs.length === 0 ? (
+                        <p className="text-muted-foreground text-sm py-4 text-center">
+                          Klicken Sie auf "Laden" um die Audit-Logs zu sehen
+                        </p>
+                      ) : (
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {unlockLogs.map(log => (
+                            <div key={log.id} className="p-2 border rounded text-sm">
+                              <div className="flex items-center justify-between">
+                                <Badge variant={
+                                  log.action === 'opt_in_approved' ? 'default' :
+                                  log.action === 'admin_override' ? 'secondary' :
+                                  log.action === 'opt_in_denied' ? 'destructive' : 'outline'
+                                }>
+                                  {log.action === 'opt_in_requested' && 'Anfrage gesendet'}
+                                  {log.action === 'opt_in_approved' && 'Genehmigt'}
+                                  {log.action === 'opt_in_denied' && 'Abgelehnt'}
+                                  {log.action === 'admin_override' && 'Admin Override'}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(log.created_at), 'Pp', { locale: de })}
+                                </span>
+                              </div>
+                              {log.details && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {JSON.stringify(log.details)}
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Admin Override Dialog */}
+        <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-amber-500" />
+                Admin Override - Identität freigeben
+              </DialogTitle>
+              <DialogDescription>
+                Sie sind dabei, die Identität dieses Kandidaten manuell freizugeben.
+                Dies umgeht den normalen Opt-In-Prozess und wird protokolliert.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="override-reason">Begründung (Pflichtfeld)</Label>
+                <Textarea
+                  id="override-reason"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Warum wird diese Override-Aktion durchgeführt?"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button 
+                onClick={handleAdminOverride}
+                disabled={!overrideReason.trim() || processing === 'override'}
+                className="bg-amber-500 hover:bg-amber-600"
+              >
+                {processing === 'override' ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Unlock className="h-4 w-4 mr-2" />
+                )}
+                Override bestätigen
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
