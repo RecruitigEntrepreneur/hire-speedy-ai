@@ -35,6 +35,14 @@ import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
+import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
+
+// Organization pages
+import TeamManagement from "./pages/organization/TeamManagement";
+import AcceptInvite from "./pages/organization/AcceptInvite";
+
+// Reference pages
+import ProvideReference from "./pages/reference/ProvideReference";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -172,6 +180,11 @@ function AppRoutes() {
           <ClientAnalytics />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/team" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <TeamManagement />
+        </ProtectedRoute>
+      } />
       
       {/* Recruiter Routes */}
       <Route path="/recruiter" element={
@@ -232,6 +245,11 @@ function AppRoutes() {
       <Route path="/recruiter/influence" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterInfluence />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/talent-pool" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterTalentPool />
         </ProtectedRoute>
       } />
       
@@ -307,6 +325,8 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />
+      <Route path="/invite/:token" element={<AcceptInvite />} />
+      <Route path="/reference/:token" element={<ProvideReference />} />
       <Route path="/offer/accepted" element={<OfferAccepted />} />
       
       {/* Settings */}

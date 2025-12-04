@@ -83,3 +83,18 @@ verify_jwt = true
 
 [functions.calculate-analytics]
 verify_jwt = false
+
+[functions.organization-invite]
+verify_jwt = true
+
+[functions.accept-invite]
+verify_jwt = false
+
+[functions.talent-pool-match]
+verify_jwt = false
+
+[functions.request-reference]
+verify_jwt = true
+
+[functions.analyze-reference]
+verify_jwt = false
