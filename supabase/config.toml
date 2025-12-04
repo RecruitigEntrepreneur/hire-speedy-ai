@@ -1,5 +1,8 @@
 project_id = "dngycrrhbnwdohbftpzq"
 
+[functions.calculate-scores]
+verify_jwt = false
+
 [functions.candidate-summary]
 verify_jwt = true
 
