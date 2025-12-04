@@ -42,8 +42,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Overview', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Open Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'My Candidates', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
-    { label: 'Submissions', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
+    { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
     { label: 'Earnings', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
+    { label: 'Notifications', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
+    { label: 'Messages', href: '/recruiter/messages', icon: <Calendar className="h-4 w-4" /> },
+    { label: 'Profile', href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
   ];
 
   const adminNavItems: NavItem[] = [
