@@ -165,6 +165,7 @@ export type Database = {
           experience_level: string | null
           fee_percentage: number | null
           id: string
+          industry: string | null
           location: string | null
           must_haves: string[] | null
           nice_to_haves: string[] | null
@@ -178,6 +179,7 @@ export type Database = {
           status: string | null
           title: string
           updated_at: string
+          urgency: string | null
         }
         Insert: {
           client_id: string
@@ -189,6 +191,7 @@ export type Database = {
           experience_level?: string | null
           fee_percentage?: number | null
           id?: string
+          industry?: string | null
           location?: string | null
           must_haves?: string[] | null
           nice_to_haves?: string[] | null
@@ -202,6 +205,7 @@ export type Database = {
           status?: string | null
           title: string
           updated_at?: string
+          urgency?: string | null
         }
         Update: {
           client_id?: string
@@ -213,6 +217,7 @@ export type Database = {
           experience_level?: string | null
           fee_percentage?: number | null
           id?: string
+          industry?: string | null
           location?: string | null
           must_haves?: string[] | null
           nice_to_haves?: string[] | null
@@ -226,6 +231,79 @@ export type Database = {
           status?: string | null
           title?: string
           updated_at?: string
+          urgency?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          candidate_id: string | null
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          job_id: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          candidate_id?: string | null
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          job_id?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          candidate_id?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          job_id?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string | null
+          related_id: string | null
+          related_type: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          related_id?: string | null
+          related_type?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          related_id?: string | null
+          related_type?: string | null
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -279,36 +357,81 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bank_bic: string | null
+          bank_iban: string | null
+          company_address: string | null
           company_name: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
           phone: string | null
+          tax_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          bank_bic?: string | null
+          bank_iban?: string | null
+          company_address?: string | null
           company_name?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id?: string
           phone?: string | null
+          tax_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          bank_bic?: string | null
+          bank_iban?: string | null
+          company_address?: string | null
           company_name?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
           phone?: string | null
+          tax_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      recruiter_documents: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          document_type: string
+          document_url: string | null
+          id: string
+          is_accepted: boolean | null
+          recruiter_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          document_type: string
+          document_url?: string | null
+          id?: string
+          is_accepted?: boolean | null
+          recruiter_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          document_type?: string
+          document_url?: string | null
+          id?: string
+          is_accepted?: boolean | null
+          recruiter_id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

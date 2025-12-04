@@ -16,6 +16,12 @@ import CreateJob from "./pages/dashboard/CreateJob";
 // Recruiter pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
+import JobDetail from "./pages/recruiter/JobDetail";
+import RecruiterSubmissions from "./pages/recruiter/RecruiterSubmissions";
+import RecruiterEarnings from "./pages/recruiter/RecruiterEarnings";
+import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
+import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
+import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -102,7 +108,7 @@ function AppRoutes() {
       } />
       <Route path="/recruiter/jobs/:id" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterJobs />
+          <JobDetail />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/candidates" element={
@@ -117,12 +123,27 @@ function AppRoutes() {
       } />
       <Route path="/recruiter/submissions" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterDashboard />
+          <RecruiterSubmissions />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/earnings" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterDashboard />
+          <RecruiterEarnings />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/notifications" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterNotifications />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/messages" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterMessages />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/profile" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterProfile />
         </ProtectedRoute>
       } />
       
