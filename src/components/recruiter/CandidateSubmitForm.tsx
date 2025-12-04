@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -20,7 +21,8 @@ import {
   CheckCircle2, 
   XCircle,
   UserPlus,
-  Search
+  Search,
+  Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,6 +67,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   });
 
   const [recruiterNotes, setRecruiterNotes] = useState('');
+  const [gdprConsent, setGdprConsent] = useState(false);
 
   useEffect(() => {
     fetchExistingCandidates();
@@ -207,7 +210,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
         return;
       }
 
-      // Create submission
+      // Create submission with GDPR consent
       const { error: submissionError } = await supabase
         .from('submissions')
         .insert({
@@ -215,7 +218,9 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
           candidate_id: candidateId,
           recruiter_id: user.id,
           recruiter_notes: recruiterNotes || null,
-          status: 'submitted'
+          status: 'submitted',
+          consent_confirmed: gdprConsent,
+          consent_confirmed_at: gdprConsent ? new Date().toISOString() : null,
         });
 
       if (submissionError) throw submissionError;
@@ -447,12 +452,32 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
         />
       </div>
 
+      {/* GDPR Consent - Required for Triple-Blind Mode */}
+      <Alert className="border-primary/30 bg-primary/5">
+        <Shield className="h-4 w-4 text-primary" />
+        <AlertDescription>
+          <div className="flex items-start gap-3 mt-1">
+            <Checkbox 
+              id="gdpr_consent"
+              checked={gdprConsent}
+              onCheckedChange={(checked) => setGdprConsent(checked === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="gdpr_consent" className="text-sm font-normal cursor-pointer">
+              Ich bestätige, dass ich eine <strong>GDPR-konforme Einwilligung</strong> des 
+              Kandidaten habe, sein anonymisiertes Profil über diese Plattform zu 
+              präsentieren. Der Kandidat wurde über den Triple-Blind-Prozess informiert.
+            </Label>
+          </div>
+        </AlertDescription>
+      </Alert>
+
       {/* Submit Button */}
       <Button 
         type="submit" 
         className="w-full" 
         variant="emerald"
-        disabled={loading || !!duplicateWarning || (!selectedCandidate && !createNew)}
+        disabled={loading || !!duplicateWarning || (!selectedCandidate && !createNew) || !gdprConsent}
       >
         {loading ? (
           <>
@@ -463,6 +488,12 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
           'Kandidat einreichen'
         )}
       </Button>
+
+      {!gdprConsent && (selectedCandidate || createNew) && (
+        <p className="text-xs text-muted-foreground text-center">
+          Bitte bestätigen Sie die GDPR-Einwilligung, um fortzufahren.
+        </p>
+      )}
     </form>
   );
 }

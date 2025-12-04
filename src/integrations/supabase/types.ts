@@ -217,6 +217,41 @@ export type Database = {
         }
         Relationships: []
       }
+      identity_unlock_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          performed_by: string | null
+          submission_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          performed_by?: string | null
+          submission_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          performed_by?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_unlock_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interviews: {
         Row: {
           created_at: string
@@ -659,43 +694,67 @@ export type Database = {
         Row: {
           candidate_id: string
           client_notes: string | null
+          consent_confirmed: boolean | null
+          consent_confirmed_at: string | null
+          consent_document_url: string | null
           id: string
+          identity_unlocked: boolean | null
           job_id: string
           match_score: number | null
+          opt_in_requested_at: string | null
+          opt_in_response: string | null
           recruiter_id: string
           recruiter_notes: string | null
           rejection_reason: string | null
           stage: string | null
           status: string | null
           submitted_at: string
+          unlocked_at: string | null
+          unlocked_by: string | null
           updated_at: string
         }
         Insert: {
           candidate_id: string
           client_notes?: string | null
+          consent_confirmed?: boolean | null
+          consent_confirmed_at?: string | null
+          consent_document_url?: string | null
           id?: string
+          identity_unlocked?: boolean | null
           job_id: string
           match_score?: number | null
+          opt_in_requested_at?: string | null
+          opt_in_response?: string | null
           recruiter_id: string
           recruiter_notes?: string | null
           rejection_reason?: string | null
           stage?: string | null
           status?: string | null
           submitted_at?: string
+          unlocked_at?: string | null
+          unlocked_by?: string | null
           updated_at?: string
         }
         Update: {
           candidate_id?: string
           client_notes?: string | null
+          consent_confirmed?: boolean | null
+          consent_confirmed_at?: string | null
+          consent_document_url?: string | null
           id?: string
+          identity_unlocked?: boolean | null
           job_id?: string
           match_score?: number | null
+          opt_in_requested_at?: string | null
+          opt_in_response?: string | null
           recruiter_id?: string
           recruiter_notes?: string | null
           rejection_reason?: string | null
           stage?: string | null
           status?: string | null
           submitted_at?: string
+          unlocked_at?: string | null
+          unlocked_by?: string | null
           updated_at?: string
         }
         Relationships: [

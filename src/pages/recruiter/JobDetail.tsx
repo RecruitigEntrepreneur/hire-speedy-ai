@@ -57,6 +57,12 @@ interface Job {
   created_at: string;
 }
 
+// Triple-Blind: Anonymize company name for recruiters
+const getAnonymizedCompanyName = (industry: string | null): string => {
+  if (!industry) return 'Unternehmen';
+  return `[${industry}] Unternehmen`;
+};
+
 interface Submission {
   id: string;
   candidate_id: string;
@@ -213,7 +219,7 @@ export default function JobDetail() {
             </Button>
           </Link>
 
-          {/* Header */}
+          {/* Header - Triple-Blind: Company name is anonymized */}
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="h-16 w-16 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0">
@@ -223,8 +229,14 @@ export default function JobDetail() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl font-bold">{job.title}</h1>
                   {getUrgencyBadge(job.urgency || 'standard')}
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Job #{job.id.slice(0, 8)}
+                  </Badge>
                 </div>
-                <p className="text-lg text-muted-foreground">{job.company_name}</p>
+                {/* Triple-Blind: Show anonymized company name */}
+                <p className="text-lg text-muted-foreground">
+                  {getAnonymizedCompanyName(job.industry)}
+                </p>
                 <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                   {job.location && (
                     <span className="flex items-center gap-1">

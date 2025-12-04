@@ -18,9 +18,14 @@ import {
   DollarSign,
   UserCheck,
   Check,
-  Trash2
+  Trash2,
+  Shield,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIdentityUnlock } from '@/hooks/useIdentityUnlock';
+import { OptInResponseDialog } from '@/components/dialogs/OptInResponseDialog';
 
 interface Notification {
   id: string;
@@ -40,6 +45,9 @@ const NOTIFICATION_ICONS: Record<string, any> = {
   feedback_required: MessageSquare,
   placement_confirmed: DollarSign,
   payout_processed: DollarSign,
+  opt_in_request: Shield,
+  opt_in_approved: Unlock,
+  opt_in_denied: Lock,
   default: Bell
 };
 
@@ -50,15 +58,21 @@ const NOTIFICATION_COLORS: Record<string, string> = {
   feedback_required: 'text-amber-500 bg-amber-500/10',
   placement_confirmed: 'text-emerald bg-emerald/10',
   payout_processed: 'text-blue-500 bg-blue-500/10',
+  opt_in_request: 'text-primary bg-primary/10',
+  opt_in_approved: 'text-emerald bg-emerald/10',
+  opt_in_denied: 'text-destructive bg-destructive/10',
   default: 'text-muted-foreground bg-muted'
 };
 
 export default function RecruiterNotifications() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { respondToOptIn, loading: optInLoading } = useIdentityUnlock();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [optInDialogOpen, setOptInDialogOpen] = useState(false);
+  const [selectedOptInNotification, setSelectedOptInNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -129,6 +143,9 @@ export default function RecruiterNotifications() {
   const getNotificationLink = (notification: Notification) => {
     if (!notification.related_id) return null;
     
+    // Don't link opt_in_request - handle with dialog instead
+    if (notification.type === 'opt_in_request') return null;
+    
     switch (notification.related_type) {
       case 'job':
         return `/recruiter/jobs/${notification.related_id}`;
@@ -139,6 +156,25 @@ export default function RecruiterNotifications() {
       default:
         return null;
     }
+  };
+
+  const handleOptInClick = (notification: Notification) => {
+    setSelectedOptInNotification(notification);
+    setOptInDialogOpen(true);
+  };
+
+  const handleOptInApprove = async (submissionId: string) => {
+    await respondToOptIn(submissionId, true);
+    setOptInDialogOpen(false);
+    setSelectedOptInNotification(null);
+    fetchNotifications();
+  };
+
+  const handleOptInDeny = async (submissionId: string, reason: string) => {
+    await respondToOptIn(submissionId, false, reason);
+    setOptInDialogOpen(false);
+    setSelectedOptInNotification(null);
+    fetchNotifications();
   };
 
   const filteredNotifications = notifications.filter(n => 
@@ -243,11 +279,29 @@ export default function RecruiterNotifications() {
                               <span className="text-xs text-muted-foreground">
                                 {formatTime(notification.created_at)}
                               </span>
-                              {!notification.is_read && (
+                                {!notification.is_read && (
                                 <div className="h-2 w-2 rounded-full bg-primary" />
                               )}
                             </div>
                           </div>
+                          
+                          {/* Opt-In Action Buttons */}
+                          {notification.type === 'opt_in_request' && (
+                            <div className="mt-3 flex gap-2">
+                              <Button 
+                                size="sm" 
+                                className="bg-emerald hover:bg-emerald/90"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOptInClick(notification);
+                                }}
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                Bearbeiten
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -267,6 +321,19 @@ export default function RecruiterNotifications() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Opt-In Response Dialog */}
+        {selectedOptInNotification && (
+          <OptInResponseDialog
+            open={optInDialogOpen}
+            onOpenChange={setOptInDialogOpen}
+            submissionId={selectedOptInNotification.related_id || ''}
+            candidateName="Kandidat"
+            jobIndustry="Branche"
+            onApprove={handleOptInApprove}
+            onDeny={handleOptInDeny}
+          />
+        )}
       </DashboardLayout>
     </div>
   );
