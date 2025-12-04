@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.generate-interview-prep]
 verify_jwt = true
+
+[functions.calculate-analytics]
+verify_jwt = false

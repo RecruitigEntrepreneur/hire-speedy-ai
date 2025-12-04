@@ -48,6 +48,10 @@ import AdminPayments from "./pages/admin/AdminPayments";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
 import AdminFraud from "./pages/admin/AdminFraud";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+
+// Client Analytics
+import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 
 // Onboarding
 import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
@@ -161,6 +165,11 @@ function AppRoutes() {
       <Route path="/dashboard/offers" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientOffers />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/analytics" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientAnalytics />
         </ProtectedRoute>
       } />
       
@@ -280,6 +289,11 @@ function AppRoutes() {
       <Route path="/admin/fraud" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminFraud />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/analytics" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminAnalytics />
         </ProtectedRoute>
       } />
       
