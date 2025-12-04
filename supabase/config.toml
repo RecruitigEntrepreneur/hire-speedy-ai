@@ -2,3 +2,9 @@ project_id = "dngycrrhbnwdohbftpzq"
 
 [functions.candidate-summary]
 verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.calculate-match]
+verify_jwt = true

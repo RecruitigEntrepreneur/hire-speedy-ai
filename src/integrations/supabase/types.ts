@@ -184,6 +184,81 @@ export type Database = {
         }
         Relationships: []
       }
+      consents: {
+        Row: {
+          consent_type: string
+          created_at: string
+          granted: boolean
+          granted_at: string | null
+          id: string
+          ip_address: string | null
+          revoked_at: string | null
+          subject_id: string
+          subject_type: string
+          user_agent: string | null
+          version: string
+        }
+        Insert: {
+          consent_type: string
+          created_at?: string
+          granted?: boolean
+          granted_at?: string | null
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          subject_id: string
+          subject_type: string
+          user_agent?: string | null
+          version?: string
+        }
+        Update: {
+          consent_type?: string
+          created_at?: string
+          granted?: boolean
+          granted_at?: string | null
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          subject_id?: string
+          subject_type?: string
+          user_agent?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
+      email_events: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          subject: string | null
+          template_name: string
+          to_email: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          subject?: string | null
+          template_name: string
+          to_email: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          subject?: string | null
+          template_name?: string
+          to_email?: string
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body: string

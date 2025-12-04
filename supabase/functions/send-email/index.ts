@@ -1,0 +1,181 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "https://esm.sh/resend@4.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface EmailRequest {
+  to: string;
+  template: string;
+  data: Record<string, string>;
+}
+
+// Email templates
+const templates: Record<string, { subject: string; html: (data: Record<string, string>) => string }> = {
+  interview_invitation: {
+    subject: "Interview-Einladung: {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Interview-Einladung</h1>
+        <p>Sehr geehrte(r) ${data.candidateName},</p>
+        <p>wir freuen uns, Ihnen mitteilen zu können, dass Sie für ein Interview für die Position <strong>${data.jobTitle}</strong> ausgewählt wurden.</p>
+        <p><strong>Details:</strong></p>
+        <ul>
+          <li>Datum: ${data.date}</li>
+          <li>Uhrzeit: ${data.time}</li>
+          <li>Format: ${data.meetingType || 'Video-Call'}</li>
+          ${data.meetingLink ? `<li>Link: <a href="${data.meetingLink}">${data.meetingLink}</a></li>` : ''}
+        </ul>
+        <p>Bei Fragen wenden Sie sich bitte an Ihren Recruiter.</p>
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  opt_in_request: {
+    subject: "Identitätsfreigabe angefordert für {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Identitätsfreigabe angefordert</h1>
+        <p>Sehr geehrte(r) Recruiter,</p>
+        <p>Ein Unternehmen hat die Freigabe der Kandidatenidentität für die Position <strong>${data.jobTitle}</strong> angefordert.</p>
+        <p><strong>Kandidat:</strong> ${data.candidateName}</p>
+        <p><strong>Unternehmen:</strong> ${data.companyName}</p>
+        <p>Bitte bestätigen Sie die Freigabe in Ihrem Dashboard.</p>
+        <a href="${data.dashboardUrl}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Zum Dashboard</a>
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  submission_received: {
+    subject: "Neuer Kandidat eingereicht für {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Neuer Kandidatenvorschlag</h1>
+        <p>Sehr geehrte(r) ${data.clientName},</p>
+        <p>Ein neuer Kandidat wurde für Ihre Stelle <strong>${data.jobTitle}</strong> vorgeschlagen.</p>
+        <p><strong>Match-Score:</strong> ${data.matchScore}%</p>
+        <p><strong>Erfahrung:</strong> ${data.experienceYears} Jahre</p>
+        <p>Sehen Sie sich den Kandidaten in Ihrem Dashboard an.</p>
+        <a href="${data.dashboardUrl}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Kandidat ansehen</a>
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  rejection_notice: {
+    subject: "Absage: {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Statusupdate zu Ihrer Bewerbung</h1>
+        <p>Sehr geehrte(r) Recruiter,</p>
+        <p>Leider müssen wir Ihnen mitteilen, dass der Kandidat <strong>${data.candidateName}</strong> für die Position <strong>${data.jobTitle}</strong> nicht weiter berücksichtigt werden konnte.</p>
+        ${data.reason ? `<p><strong>Begründung:</strong> ${data.reason}</p>` : ''}
+        <p>Vielen Dank für Ihre Bemühungen.</p>
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  interview_reminder: {
+    subject: "Erinnerung: Interview morgen - {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Interview-Erinnerung</h1>
+        <p>Sehr geehrte(r) ${data.recipientName},</p>
+        <p>Dies ist eine freundliche Erinnerung an Ihr bevorstehendes Interview:</p>
+        <p><strong>Position:</strong> ${data.jobTitle}</p>
+        <p><strong>Datum:</strong> ${data.date}</p>
+        <p><strong>Uhrzeit:</strong> ${data.time}</p>
+        ${data.meetingLink ? `<p><strong>Meeting-Link:</strong> <a href="${data.meetingLink}">${data.meetingLink}</a></p>` : ''}
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+};
+
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { to, template, data }: EmailRequest = await req.json();
+
+    console.log(`Sending email: template=${template}, to=${to}`);
+
+    // Get template
+    const emailTemplate = templates[template];
+    if (!emailTemplate) {
+      throw new Error(`Unknown template: ${template}`);
+    }
+
+    // Replace placeholders in subject
+    let subject = emailTemplate.subject;
+    Object.entries(data).forEach(([key, value]) => {
+      subject = subject.replace(`{${key}}`, value);
+    });
+
+    // Generate HTML
+    const html = emailTemplate.html(data);
+
+    // Send email
+    const emailResponse = await resend.emails.send({
+      from: "Recruiting Platform <onboarding@resend.dev>",
+      to: [to],
+      subject,
+      html,
+    });
+
+    console.log("Email sent successfully:", emailResponse);
+
+    // Log to database
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    await supabase.from("email_events").insert({
+      to_email: to,
+      template_name: template,
+      subject,
+      status: "sent",
+      metadata: { resend_id: emailResponse.data?.id, data },
+    });
+
+    return new Response(JSON.stringify({ success: true, id: emailResponse.data?.id }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  } catch (error: unknown) {
+    console.error("Error in send-email function:", error);
+    
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    // Log error to database
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const body = await req.clone().json().catch(() => ({}));
+      await supabase.from("email_events").insert({
+        to_email: body.to || "unknown",
+        template_name: body.template || "unknown",
+        status: "failed",
+        error_message: errorMessage,
+      });
+    } catch (logError) {
+      console.error("Failed to log email error:", logError);
+    }
+
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+};
+
+serve(handler);

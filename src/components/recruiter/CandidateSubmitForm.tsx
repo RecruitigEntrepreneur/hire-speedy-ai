@@ -21,10 +21,12 @@ import {
   CheckCircle2, 
   XCircle,
   UserPlus,
-  Search,
-  Shield
+  Shield,
+  Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FileUpload } from '@/components/files/FileUpload';
+import { useMatchScore } from '@/hooks/useMatchScore';
 
 interface CandidateSubmitFormProps {
   jobId: string;
@@ -43,6 +45,7 @@ interface ExistingCandidate {
 export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess }: CandidateSubmitFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { calculateMatch, loading: matchLoading } = useMatchScore();
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [existingCandidates, setExistingCandidates] = useState<ExistingCandidate[]>([]);
@@ -50,6 +53,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   const [createNew, setCreateNew] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [skillsMatch, setSkillsMatch] = useState<{ matched: string[]; missing: string[] }>({ matched: [], missing: [] });
+  const [calculatingScore, setCalculatingScore] = useState(false);
 
   // New candidate form
   const [formData, setFormData] = useState({
@@ -68,6 +72,10 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
 
   const [recruiterNotes, setRecruiterNotes] = useState('');
   const [gdprConsent, setGdprConsent] = useState(false);
+
+  const handleCvUpload = (url: string) => {
+    setFormData({ ...formData, cv_url: url });
+  };
 
   useEffect(() => {
     fetchExistingCandidates();
@@ -225,10 +233,29 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
 
       if (submissionError) throw submissionError;
 
-      toast({
-        title: 'Erfolgreich eingereicht!',
-        description: `Der Kandidat wurde für "${jobTitle}" eingereicht.`
-      });
+      // Calculate AI match score in background
+      setCalculatingScore(true);
+      try {
+        const matchResult = await calculateMatch(candidateId, jobId);
+        if (matchResult) {
+          toast({
+            title: 'Erfolgreich eingereicht!',
+            description: `Der Kandidat wurde mit ${matchResult.overallScore}% Match-Score für "${jobTitle}" eingereicht.`
+          });
+        } else {
+          toast({
+            title: 'Erfolgreich eingereicht!',
+            description: `Der Kandidat wurde für "${jobTitle}" eingereicht. Match-Score wird berechnet...`
+          });
+        }
+      } catch {
+        toast({
+          title: 'Erfolgreich eingereicht!',
+          description: `Der Kandidat wurde für "${jobTitle}" eingereicht.`
+        });
+      } finally {
+        setCalculatingScore(false);
+      }
 
       onSuccess();
     } catch (error: any) {
@@ -328,8 +355,17 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
             </div>
           </div>
 
+          <FileUpload
+            label="Lebenslauf (CV)"
+            folder="candidates"
+            accept=".pdf,.doc,.docx"
+            maxSize={10}
+            onUploadComplete={handleCvUpload}
+            existingUrl={formData.cv_url || undefined}
+          />
+
           <div className="space-y-2">
-            <Label htmlFor="cv_url">CV URL / Link</Label>
+            <Label htmlFor="cv_url">Oder CV URL / Link</Label>
             <Input
               id="cv_url"
               value={formData.cv_url}
@@ -477,12 +513,19 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
         type="submit" 
         className="w-full" 
         variant="emerald"
-        disabled={loading || !!duplicateWarning || (!selectedCandidate && !createNew) || !gdprConsent}
+        disabled={loading || calculatingScore || !!duplicateWarning || (!selectedCandidate && !createNew) || !gdprConsent}
       >
-        {loading ? (
+        {loading || calculatingScore ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Wird eingereicht...
+            {calculatingScore ? (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI berechnet Match-Score...
+              </>
+            ) : (
+              'Wird eingereicht...'
+            )}
           </>
         ) : (
           'Kandidat einreichen'
