@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import ClientDashboard from "./pages/dashboard/ClientDashboard";
 import JobsList from "./pages/dashboard/JobsList";
 import CreateJob from "./pages/dashboard/CreateJob";
+import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
 import ClientCandidates from "./pages/dashboard/ClientCandidates";
 import ClientInterviews from "./pages/dashboard/ClientInterviews";
 import ClientPlacements from "./pages/dashboard/ClientPlacements";
@@ -90,7 +91,7 @@ function AppRoutes() {
       } />
       <Route path="/dashboard/jobs/:id" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <JobsList />
+          <ClientJobDetail />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/candidates" element={
