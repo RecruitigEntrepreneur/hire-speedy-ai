@@ -6,6 +6,8 @@ import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
+import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { 
   Briefcase, 
   Users, 
@@ -45,6 +47,8 @@ export default function ClientDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
+  
+  usePageViewTracking('client_dashboard');
 
   useEffect(() => {
     if (user) {
@@ -136,6 +140,9 @@ export default function ClientDashboard() {
       <Navbar />
       <DashboardLayout>
         <div className="space-y-8">
+          {/* Verification Banner */}
+          <VerificationStatusBanner />
+
           {/* Header */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>

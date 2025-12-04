@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { useClientVerification } from '@/hooks/useClientVerification';
 import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -34,11 +35,14 @@ import {
 import { useJobParsing, ParsedJobData } from '@/hooks/useJobParsing';
 import { Badge } from '@/components/ui/badge';
 import { FileUpload } from '@/components/files/FileUpload';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ShieldAlert } from 'lucide-react';
 
 export default function CreateJob() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { parseJobUrl, parseJobText, parsing } = useJobParsing();
+  const { canPublishJobs, isFullyVerified, loading: verificationLoading } = useClientVerification();
   const [activeTab, setActiveTab] = useState('quick');
   const [loading, setLoading] = useState(false);
   const [jobUrl, setJobUrl] = useState('');
@@ -117,6 +121,13 @@ export default function CreateJob() {
       return;
     }
 
+    // Check verification before publishing
+    if (publish && !canPublishJobs) {
+      toast.error('Bitte schließe zuerst die Verifizierung ab, um Jobs zu veröffentlichen');
+      navigate('/onboarding');
+      return;
+    }
+
     setLoading(true);
     try {
       const skillsArray = formData.skills
@@ -177,6 +188,22 @@ export default function CreateJob() {
             <h1 className="text-3xl font-bold tracking-tight">Neue Stelle erstellen</h1>
             <p className="text-muted-foreground">Erstelle eine Stellenanzeige in unter 60 Sekunden</p>
           </div>
+
+          {/* Verification Warning */}
+          {!verificationLoading && !canPublishJobs && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Verifizierung erforderlich</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                <span>
+                  Um Jobs zu veröffentlichen, musst du zuerst die Unternehmensverifizierung abschließen.
+                </span>
+                <Button variant="outline" size="sm" asChild className="ml-4">
+                  <Link to="/onboarding">Jetzt verifizieren</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Import Success Banner */}
           {importedData && (

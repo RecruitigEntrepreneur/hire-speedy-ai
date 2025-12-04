@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, User, Check, X, Calendar, FileText, Mail, Phone, Briefcase, Euro } from 'lucide-react';
 import { toast } from 'sonner';
+import { DealHealthBadge } from '@/components/health/DealHealthBadge';
+import { usePageViewTracking, useEventTracking } from '@/hooks/useEventTracking';
 
 interface Submission {
   id: string;
@@ -53,6 +55,10 @@ export default function ClientCandidates() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [dealHealthMap, setDealHealthMap] = useState<Record<string, { health_score: number; risk_level: string }>>({});
+  
+  const { trackAction } = useEventTracking();
+  usePageViewTracking('client_candidates');
 
   useEffect(() => {
     if (user) {
@@ -72,6 +78,23 @@ export default function ClientCandidates() {
 
     if (!error && data) {
       setSubmissions(data as unknown as Submission[]);
+      
+      // Fetch deal health for all submissions
+      const { data: healthData } = await supabase
+        .from('deal_health')
+        .select('submission_id, health_score, risk_level')
+        .in('submission_id', data.map(s => s.id));
+      
+      if (healthData) {
+        const healthMap: Record<string, { health_score: number; risk_level: string }> = {};
+        healthData.forEach(h => {
+          healthMap[h.submission_id] = { 
+            health_score: h.health_score || 0, 
+            risk_level: h.risk_level || 'low' 
+          };
+        });
+        setDealHealthMap(healthMap);
+      }
     }
     setLoading(false);
   };
@@ -87,6 +110,7 @@ export default function ClientCandidates() {
       toast.error('Fehler beim Akzeptieren');
     } else {
       toast.success('Kandidat akzeptiert');
+      trackAction('accept_candidate', 'submission', submission.id);
       fetchSubmissions();
     }
     setProcessing(false);
@@ -108,6 +132,7 @@ export default function ClientCandidates() {
       toast.error('Fehler beim Ablehnen');
     } else {
       toast.success('Kandidat abgelehnt');
+      trackAction('reject_candidate', 'submission', selectedSubmission.id, { reason: rejectionReason });
       setRejectDialogOpen(false);
       setRejectionReason('');
       setSelectedSubmission(null);
@@ -223,6 +248,13 @@ export default function ClientCandidates() {
                                   {getStatusBadge(submission.status)}
                                   {submission.match_score && (
                                     <Badge variant="outline">{submission.match_score}% Match</Badge>
+                                  )}
+                                  {dealHealthMap[submission.id] && (
+                                    <DealHealthBadge 
+                                      score={dealHealthMap[submission.id].health_score}
+                                      riskLevel={dealHealthMap[submission.id].risk_level as any}
+                                      size="sm"
+                                    />
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
