@@ -44,6 +44,90 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_behavior: {
+        Row: {
+          candidate_id: string
+          closing_probability: number | null
+          company_profile_viewed: boolean | null
+          confidence_score: number | null
+          created_at: string | null
+          days_since_engagement: number | null
+          emails_opened: number | null
+          emails_sent: number | null
+          engagement_level: string | null
+          hesitation_signals: Json | null
+          id: string
+          interview_readiness_score: number | null
+          last_engagement_at: string | null
+          links_clicked: number | null
+          motivation_indicators: Json | null
+          opt_in_response_time_hours: number | null
+          prep_materials_viewed: number | null
+          salary_tool_used: boolean | null
+          submission_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          closing_probability?: number | null
+          company_profile_viewed?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          days_since_engagement?: number | null
+          emails_opened?: number | null
+          emails_sent?: number | null
+          engagement_level?: string | null
+          hesitation_signals?: Json | null
+          id?: string
+          interview_readiness_score?: number | null
+          last_engagement_at?: string | null
+          links_clicked?: number | null
+          motivation_indicators?: Json | null
+          opt_in_response_time_hours?: number | null
+          prep_materials_viewed?: number | null
+          salary_tool_used?: boolean | null
+          submission_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          closing_probability?: number | null
+          company_profile_viewed?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          days_since_engagement?: number | null
+          emails_opened?: number | null
+          emails_sent?: number | null
+          engagement_level?: string | null
+          hesitation_signals?: Json | null
+          id?: string
+          interview_readiness_score?: number | null
+          last_engagement_at?: string | null
+          links_clicked?: number | null
+          motivation_indicators?: Json | null
+          opt_in_response_time_hours?: number | null
+          prep_materials_viewed?: number | null
+          salary_tool_used?: boolean | null
+          submission_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_behavior_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_comments: {
         Row: {
           content: string
@@ -75,6 +159,56 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_support_content: {
+        Row: {
+          content: string
+          content_type: string
+          created_at: string | null
+          id: string
+          industry: string | null
+          is_active: boolean | null
+          job_id: string | null
+          media_url: string | null
+          title: string
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          content: string
+          content_type: string
+          created_at?: string | null
+          id?: string
+          industry?: string | null
+          is_active?: boolean | null
+          job_id?: string | null
+          media_url?: string | null
+          title: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          content?: string
+          content_type?: string
+          created_at?: string | null
+          id?: string
+          industry?: string | null
+          is_active?: boolean | null
+          job_id?: string | null
+          media_url?: string | null
+          title?: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_support_content_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -196,6 +330,51 @@ export type Database = {
           terms_version?: string | null
           updated_at?: string | null
           vat_id?: string | null
+        }
+        Relationships: []
+      }
+      coaching_playbooks: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          email_template: string | null
+          id: string
+          is_active: boolean | null
+          objection_handlers: Json | null
+          phone_script: string | null
+          talking_points: Json | null
+          title: string
+          trigger_type: string
+          updated_at: string | null
+          whatsapp_template: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          email_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          objection_handlers?: Json | null
+          phone_script?: string | null
+          talking_points?: Json | null
+          title: string
+          trigger_type: string
+          updated_at?: string | null
+          whatsapp_template?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          email_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          objection_handlers?: Json | null
+          phone_script?: string | null
+          talking_points?: Json | null
+          title?: string
+          trigger_type?: string
+          updated_at?: string | null
+          whatsapp_template?: string | null
         }
         Relationships: []
       }
@@ -563,6 +742,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "identity_unlock_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influence_alerts: {
+        Row: {
+          action_taken: string | null
+          action_taken_at: string | null
+          alert_type: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_dismissed: boolean | null
+          is_read: boolean | null
+          message: string
+          playbook_id: string | null
+          priority: string | null
+          recommended_action: string
+          recruiter_id: string
+          submission_id: string
+          title: string
+        }
+        Insert: {
+          action_taken?: string | null
+          action_taken_at?: string | null
+          alert_type: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_dismissed?: boolean | null
+          is_read?: boolean | null
+          message: string
+          playbook_id?: string | null
+          priority?: string | null
+          recommended_action: string
+          recruiter_id: string
+          submission_id: string
+          title: string
+        }
+        Update: {
+          action_taken?: string | null
+          action_taken_at?: string | null
+          alert_type?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_dismissed?: boolean | null
+          is_read?: boolean | null
+          message?: string
+          playbook_id?: string | null
+          priority?: string | null
+          recommended_action?: string
+          recruiter_id?: string
+          submission_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influence_alerts_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
@@ -1144,6 +1385,57 @@ export type Database = {
           id?: string
           is_accepted?: boolean | null
           recruiter_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_influence_scores: {
+        Row: {
+          alerts_actioned: number | null
+          alerts_ignored: number | null
+          calculated_at: string | null
+          candidate_satisfaction_score: number | null
+          closing_speed_improvement: number | null
+          created_at: string | null
+          id: string
+          influence_score: number | null
+          opt_in_acceleration_rate: number | null
+          playbooks_used: number | null
+          recruiter_id: string
+          show_rate_improvement: number | null
+          total_influenced_placements: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          alerts_actioned?: number | null
+          alerts_ignored?: number | null
+          calculated_at?: string | null
+          candidate_satisfaction_score?: number | null
+          closing_speed_improvement?: number | null
+          created_at?: string | null
+          id?: string
+          influence_score?: number | null
+          opt_in_acceleration_rate?: number | null
+          playbooks_used?: number | null
+          recruiter_id: string
+          show_rate_improvement?: number | null
+          total_influenced_placements?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          alerts_actioned?: number | null
+          alerts_ignored?: number | null
+          calculated_at?: string | null
+          candidate_satisfaction_score?: number | null
+          closing_speed_improvement?: number | null
+          created_at?: string | null
+          id?: string
+          influence_score?: number | null
+          opt_in_acceleration_rate?: number | null
+          playbooks_used?: number | null
+          recruiter_id?: string
+          show_rate_improvement?: number | null
+          total_influenced_placements?: number | null
           updated_at?: string | null
         }
         Relationships: []

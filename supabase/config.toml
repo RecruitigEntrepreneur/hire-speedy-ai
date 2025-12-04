@@ -53,3 +53,6 @@ verify_jwt = true
 
 [functions.fraud-detection]
 verify_jwt = true
+
+[functions.influence-engine]
+verify_jwt = false
