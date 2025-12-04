@@ -292,31 +292,44 @@ export default function AdminDashboard() {
 
           {/* Critical Deals Widget */}
           {criticalDeals.filter(d => d.risk_level === 'critical' || d.risk_level === 'high').length > 0 && (
-            <Card className="border-amber-500/50 bg-amber-500/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                  Kritische Deals ({criticalDeals.filter(d => d.risk_level === 'critical' || d.risk_level === 'high').length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {criticalDeals
-                    .filter(d => d.risk_level === 'critical' || d.risk_level === 'high')
-                    .slice(0, 3)
-                    .map((deal) => (
-                      <div key={deal.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
-                        <span className="text-sm truncate">Submission: {deal.submission_id.slice(0, 8)}...</span>
-                        <DealHealthBadge 
-                          score={deal.health_score} 
-                          riskLevel={deal.risk_level} 
-                          size="sm"
-                        />
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
+            <Link to="/admin/deal-health">
+              <Card className="border-amber-500/50 bg-amber-500/5 hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    Kritische Deals ({criticalDeals.filter(d => d.risk_level === 'critical' || d.risk_level === 'high').length})
+                    <ArrowUpRight className="h-4 w-4 ml-auto text-muted-foreground" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {criticalDeals
+                      .filter(d => d.risk_level === 'critical' || d.risk_level === 'high')
+                      .slice(0, 5)
+                      .map((deal) => (
+                        <div key={deal.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium truncate max-w-[200px]">
+                              {deal.bottleneck ? deal.bottleneck.replace(/_/g, ' ') : 'Kein Bottleneck'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {deal.days_since_last_activity} Tage inaktiv
+                            </span>
+                          </div>
+                          <DealHealthBadge 
+                            score={deal.health_score} 
+                            riskLevel={deal.risk_level} 
+                            size="sm"
+                          />
+                        </div>
+                      ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    Klicken für vollständige Übersicht →
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           )}
 
           {/* Warnings */}
