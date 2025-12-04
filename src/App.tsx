@@ -43,9 +43,13 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to="/auth" replace />;
   }
 
+  // Admins haben Zugriff auf alle Bereiche
+  if (role === 'admin') {
+    return <>{children}</>;
+  }
+
   if (allowedRoles && role && !allowedRoles.includes(role)) {
-    // Redirect to appropriate dashboard based on role
-    const dashboardPath = role === 'admin' ? '/admin' : role === 'recruiter' ? '/recruiter' : '/dashboard';
+    const dashboardPath = role === 'recruiter' ? '/recruiter' : '/dashboard';
     return <Navigate to={dashboardPath} replace />;
   }
 
