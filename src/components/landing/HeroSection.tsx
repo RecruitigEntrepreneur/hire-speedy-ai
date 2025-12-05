@@ -84,7 +84,7 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-primary pt-20">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[hsl(222,55%,10%)] pt-20">
       {/* Background Effects */}
       <div className="absolute inset-0">
         {/* Grid Pattern */}
