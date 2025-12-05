@@ -84,69 +84,70 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[hsl(222,55%,10%)] pt-20">
-      {/* Background Effects */}
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white pt-20">
+      {/* Modern Animated Background */}
       <div className="absolute inset-0">
-        {/* Grid Pattern */}
+        {/* Subtle Grid Pattern */}
         <div 
-          className="absolute inset-0 opacity-[0.02]"
+          className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `linear-gradient(hsl(var(--emerald) / 0.3) 1px, transparent 1px),
-                              linear-gradient(90deg, hsl(var(--emerald) / 0.3) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
+            backgroundImage: `linear-gradient(hsl(222 47% 11% / 0.3) 1px, transparent 1px),
+                              linear-gradient(90deg, hsl(222 47% 11% / 0.3) 1px, transparent 1px)`,
+            backgroundSize: '80px 80px'
           }}
         />
         
-        {/* Aurora Orb 1 - Emerald */}
+        {/* Floating Gradient Blob 1 - Top Right */}
         <div 
-          className="absolute top-1/4 left-1/4 w-[600px] h-[600px] rounded-full opacity-15 blur-[120px]"
+          className="absolute -top-20 -right-20 w-[600px] h-[600px] rounded-full opacity-[0.04] blur-[100px]"
           style={{
             background: 'radial-gradient(circle, hsl(var(--emerald)) 0%, transparent 70%)',
-            animation: 'aurora1 15s ease-in-out infinite'
+            animation: 'floatBlob1 20s ease-in-out infinite'
           }}
         />
         
-        {/* Aurora Orb 2 - Emerald secondary */}
+        {/* Floating Gradient Blob 2 - Bottom Left */}
         <div 
-          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full opacity-8 blur-[100px]"
+          className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-[0.03] blur-[80px]"
           style={{
-            background: 'radial-gradient(circle, hsl(var(--emerald)) 0%, transparent 70%)',
-            animation: 'aurora2 18s ease-in-out infinite'
+            background: 'radial-gradient(circle, hsl(200 100% 50%) 0%, transparent 70%)',
+            animation: 'floatBlob2 25s ease-in-out infinite'
           }}
         />
 
-        {/* Floating Particles */}
-        {[...Array(6)].map((_, i) => (
+        {/* Floating Dots */}
+        {[...Array(5)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-1 h-1 bg-emerald/30 rounded-full"
+            className="absolute w-2 h-2 bg-emerald/20 rounded-full"
             style={{
-              left: `${15 + i * 15}%`,
-              top: `${20 + (i % 3) * 25}%`,
-              animation: `floatParticle ${8 + i * 2}s ease-in-out infinite`,
-              animationDelay: `${i * 0.5}s`
+              left: `${20 + i * 15}%`,
+              top: `${30 + (i % 3) * 20}%`,
+              animation: `floatDot ${10 + i * 2}s ease-in-out infinite`,
+              animationDelay: `${i * 0.8}s`
             }}
           />
         ))}
-      </div>
 
-      {/* Bottom gradient fade / Soft Divider */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/50 to-transparent" />
+        {/* Geometric Accent Lines */}
+        <div className="absolute top-1/4 right-0 w-32 h-px bg-gradient-to-l from-emerald/20 to-transparent" />
+        <div className="absolute bottom-1/3 left-0 w-24 h-px bg-gradient-to-r from-emerald/20 to-transparent" />
+      </div>
 
       {/* Main Content */}
       <div className="relative z-10 container mx-auto px-4 text-center">
         <div className="max-w-3xl mx-auto space-y-6">
           
           {/* (1) Eyebrow Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-white/10">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 border border-slate-200">
             <Sparkles className="w-3.5 h-3.5 text-emerald" />
-            <span className="text-xs tracking-wide text-primary-foreground/70">
+            <span className="text-xs tracking-wide text-slate-600">
               Powered by AI. Delivered by Experts. Designed for Speed.
             </span>
           </div>
 
           {/* (2) Main Headline */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-primary-foreground leading-[1.1] tracking-tight">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight">
             Your next hire is{" "}
             <span className="bg-gradient-to-r from-emerald via-emerald-light to-emerald bg-clip-text text-transparent">
               one prompt away.
@@ -154,15 +155,15 @@ export const HeroSection = () => {
           </h1>
 
           {/* (3) Subheadline */}
-          <p className="text-lg md:text-xl text-primary-foreground/60 max-w-xl mx-auto">
+          <p className="text-lg md:text-xl text-slate-600 max-w-xl mx-auto">
             Die schnellste Art, Top-Talente zu finden.
             <br />
-            <span className="text-primary-foreground/40">KI-gestützt. Recruiter-geliefert. Erfolgsbasiert.</span>
+            <span className="text-slate-400">KI-gestützt. Recruiter-geliefert. Erfolgsbasiert.</span>
           </p>
 
           {/* (4) AI Input Bar */}
           <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto mt-10">
-            <div className="relative glass-card-dark p-2 rounded-2xl border border-emerald/20 shadow-2xl shadow-emerald/5 hover:border-emerald/40 hover:shadow-emerald/10 transition-all duration-500">
+            <div className="relative p-2 rounded-2xl bg-white border border-slate-200 shadow-lg shadow-slate-200/50 hover:border-emerald/40 hover:shadow-emerald/10 transition-all duration-500">
               <div className="flex items-center gap-3">
                 <div className="pl-4">
                   <Sparkles className="w-5 h-5 text-emerald" />
@@ -172,23 +173,23 @@ export const HeroSection = () => {
                     type="text"
                     value={position}
                     onChange={handleInputChange}
-                    className="w-full bg-transparent text-primary-foreground text-lg py-4 px-2 
-                               placeholder:text-primary-foreground/30 focus:outline-none"
+                    className="w-full bg-transparent text-slate-900 text-lg py-4 px-2 
+                               placeholder:text-slate-400 focus:outline-none"
                     placeholder=""
                   />
                   {/* Typing animation overlay */}
                   {!position && (
                     <div className="absolute inset-0 flex items-center px-2 pointer-events-none">
-                      <span className="text-primary-foreground/40 text-lg">
+                      <span className="text-slate-400 text-lg">
                         {displayText}
-                        <span className="animate-pulse">|</span>
+                        <span className="animate-pulse text-emerald">|</span>
                       </span>
                     </div>
                   )}
                 </div>
                 <Button 
                   type="submit"
-                  className="bg-emerald hover:bg-emerald-light text-primary px-5 py-5 rounded-xl transition-all duration-300"
+                  className="bg-emerald hover:bg-emerald-light text-white px-5 py-5 rounded-xl transition-all duration-300"
                 >
                   <ArrowRight className="w-5 h-5" />
                 </Button>
@@ -202,8 +203,8 @@ export const HeroSection = () => {
                   key={suggestion}
                   type="button"
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="px-4 py-2 rounded-full bg-white/5 text-sm text-primary-foreground/50 
-                             border border-white/5 hover:text-emerald hover:border-emerald/30 hover:bg-emerald/5
+                  className="px-4 py-2 rounded-full bg-slate-50 text-sm text-slate-500 
+                             border border-slate-200 hover:text-emerald hover:border-emerald/30 hover:bg-emerald/5
                              transition-all duration-300"
                 >
                   {suggestion}
@@ -216,38 +217,59 @@ export const HeroSection = () => {
           <div className="flex items-center justify-center gap-4 mt-6">
             <Button 
               onClick={handleSubmit}
-              className="bg-emerald hover:bg-emerald-light text-primary px-6 py-2 rounded-full text-sm font-medium"
+              className="bg-emerald hover:bg-emerald-light text-white px-6 py-2 rounded-full text-sm font-medium"
             >
               Job starten
             </Button>
             <Button 
               variant="ghost"
               onClick={() => navigate('/auth?role=recruiter')}
-              className="text-primary-foreground/50 hover:text-emerald hover:bg-transparent text-sm"
+              className="text-slate-500 hover:text-emerald hover:bg-transparent text-sm"
             >
               Ich bin Recruiter
             </Button>
           </div>
 
           {/* (6) Trust Line */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mt-10 text-xs text-primary-foreground/40">
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mt-10 text-xs text-slate-400">
             <div className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-emerald/70" />
+              <Shield className="w-3.5 h-3.5 text-emerald" />
               <span>DSGVO-konform</span>
             </div>
-            <span className="text-white/10">·</span>
+            <span className="text-slate-200">·</span>
             <div className="flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-emerald/70" />
+              <Lock className="w-3.5 h-3.5 text-emerald" />
               <span>Escrow-gesichert</span>
             </div>
-            <span className="text-white/10">·</span>
+            <span className="text-slate-200">·</span>
             <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-emerald/70" />
+              <Clock className="w-3.5 h-3.5 text-emerald" />
               <span>3,8 Tage bis zum ersten Interview</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Bottom gradient fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent" />
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes floatBlob1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -30px) scale(1.05); }
+          66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+        @keyframes floatBlob2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-40px, 20px) scale(1.1); }
+          66% { transform: translate(30px, -30px) scale(0.9); }
+        }
+        @keyframes floatDot {
+          0%, 100% { transform: translateY(0) opacity(0.2); }
+          50% { transform: translateY(-20px) opacity(0.4); }
+        }
+      `}</style>
     </section>
   );
 };
