@@ -15,7 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Space Grotesk',
+  				'Inter',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
@@ -37,6 +37,15 @@ export default {
   				'Liberation Mono',
   				'Courier New',
   				'monospace'
+  			],
+  			serif: [
+  				'Lora',
+  				'ui-serif',
+  				'Georgia',
+  				'Cambria',
+  				'Times New Roman',
+  				'Times',
+  				'serif'
   			]
   		},
   		colors: {
