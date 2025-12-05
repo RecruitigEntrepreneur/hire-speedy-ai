@@ -24,7 +24,7 @@ export const PricingSection = () => {
             <p className="text-emerald font-semibold uppercase tracking-wider mb-4">Pricing</p>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
               Simple, Fair,{" "}
-              <span className="bg-gradient-to-r from-emerald to-blue-500 bg-clip-text text-transparent">
+              <span className="text-emerald">
                 Aligned with You
               </span>
             </h2>

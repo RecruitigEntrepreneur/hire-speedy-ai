@@ -31,7 +31,7 @@ export const ForCompaniesSection = () => {
       {/* Background Decoration */}
       <div className="absolute top-0 right-0 w-1/2 h-full opacity-10">
         <div className="absolute top-20 right-20 w-64 h-64 bg-emerald rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-40 w-48 h-48 bg-blue-500 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-40 w-48 h-48 bg-emerald/50 rounded-full blur-3xl" />
       </div>
 
       <div className="container mx-auto px-4 relative z-10">

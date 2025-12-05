@@ -16,7 +16,7 @@ export const ForRecruitersSection = () => {
       {/* Background Decoration */}
       <div className="absolute top-0 left-0 w-1/2 h-full opacity-5">
         <div className="absolute top-20 left-20 w-64 h-64 bg-emerald rounded-full blur-3xl" />
-        <div className="absolute bottom-20 left-40 w-48 h-48 bg-purple-500 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-40 w-48 h-48 bg-emerald/50 rounded-full blur-3xl" />
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
@@ -26,7 +26,7 @@ export const ForRecruitersSection = () => {
             <p className="text-emerald font-semibold uppercase tracking-wider mb-4">Für Recruiter</p>
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
               Earn More.{" "}
-              <span className="bg-gradient-to-r from-emerald to-blue-500 bg-clip-text text-transparent">
+              <span className="text-emerald">
                 Work Smarter.
               </span>{" "}
               Close Faster.
@@ -87,13 +87,13 @@ export const ForRecruitersSection = () => {
                   <span className="font-medium">Neues Mandat verfügbar</span>
                   <CheckCircle2 className="w-5 h-5 text-emerald" />
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-emerald/10 border border-emerald/20">
                   <span className="font-medium">Interview bestätigt</span>
-                  <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald" />
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-emerald/10 border border-emerald/20">
                   <span className="font-medium">Payout bereit: €4.200</span>
-                  <CheckCircle2 className="w-5 h-5 text-purple-500" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald" />
                 </div>
               </div>
             </div>

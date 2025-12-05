@@ -106,11 +106,11 @@ export const HeroSection = () => {
           }}
         />
         
-        {/* Aurora Orb 2 - Blue/Purple */}
+        {/* Aurora Orb 2 - Emerald secondary */}
         <div 
-          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full opacity-10 blur-[100px]"
+          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full opacity-8 blur-[100px]"
           style={{
-            background: 'radial-gradient(circle, hsl(250, 80%, 60%) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(var(--emerald)) 0%, transparent 70%)',
             animation: 'aurora2 18s ease-in-out infinite'
           }}
         />
