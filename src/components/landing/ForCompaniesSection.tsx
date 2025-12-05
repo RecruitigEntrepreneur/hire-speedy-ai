@@ -27,7 +27,7 @@ const benefits = [
 
 export const ForCompaniesSection = () => {
   return (
-    <section className="py-24 bg-gradient-to-br from-primary via-primary to-navy-dark text-primary-foreground relative overflow-hidden">
+    <section id="for-companies" className="py-24 bg-gradient-to-br from-primary via-primary to-navy-dark text-primary-foreground relative overflow-hidden">
       {/* Background Decoration */}
       <div className="absolute top-0 right-0 w-1/2 h-full opacity-10">
         <div className="absolute top-20 right-20 w-64 h-64 bg-emerald rounded-full blur-3xl" />

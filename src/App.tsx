@@ -74,6 +74,16 @@ import ClientOffers from "./pages/dashboard/ClientOffers";
 import ViewOffer from "./pages/offer/ViewOffer";
 import OfferAccepted from "./pages/offer/OfferAccepted";
 
+// New Public pages
+import About from "./pages/public/About";
+import Contact from "./pages/public/Contact";
+import Blog from "./pages/public/Blog";
+import Guides from "./pages/public/Guides";
+import Docs from "./pages/public/Docs";
+import Help from "./pages/public/Help";
+import Careers from "./pages/public/Careers";
+import Press from "./pages/public/Press";
+
 // GDPR Components
 import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 
@@ -337,6 +347,14 @@ function AppRoutes() {
       } />
       
       {/* Public Routes */}
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/guides" element={<Guides />} />
+      <Route path="/docs" element={<Docs />} />
+      <Route path="/help" element={<Help />} />
+      <Route path="/careers" element={<Careers />} />
+      <Route path="/press" element={<Press />} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
