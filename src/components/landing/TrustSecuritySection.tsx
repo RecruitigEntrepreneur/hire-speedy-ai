@@ -12,7 +12,7 @@ const securityFeatures = [
 
 export const TrustSecuritySection = () => {
   return (
-    <section className="py-24 bg-primary text-primary-foreground">
+    <section id="security" className="py-24 bg-primary text-primary-foreground">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto text-center mb-16">
           <p className="text-emerald font-semibold uppercase tracking-wider mb-4">Trust & Security</p>

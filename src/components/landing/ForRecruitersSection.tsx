@@ -12,7 +12,7 @@ const benefits = [
 
 export const ForRecruitersSection = () => {
   return (
-    <section className="py-24 bg-background relative overflow-hidden">
+    <section id="for-recruiters" className="py-24 bg-background relative overflow-hidden">
       {/* Background Decoration */}
       <div className="absolute top-0 left-0 w-1/2 h-full opacity-5">
         <div className="absolute top-20 left-20 w-64 h-64 bg-emerald rounded-full blur-3xl" />

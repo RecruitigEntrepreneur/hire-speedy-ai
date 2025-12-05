@@ -3,7 +3,7 @@ import { ArrowRight, TrendingUp, Clock, Users, BarChart3 } from "lucide-react";
 
 export const AnalyticsSection = () => {
   return (
-    <section className="py-24 bg-muted/30 relative overflow-hidden">
+    <section id="analytics" className="py-24 bg-muted/30 relative overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Content */}

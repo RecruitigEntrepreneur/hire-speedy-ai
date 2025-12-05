@@ -31,7 +31,7 @@ const steps = [
 
 export const HowItWorksSection = () => {
   return (
-    <section className="py-24 bg-muted/30 relative overflow-hidden">
+    <section id="how-it-works" className="py-24 bg-muted/30 relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-50">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-emerald/5 to-transparent" />
