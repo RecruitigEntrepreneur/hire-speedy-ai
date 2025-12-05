@@ -216,8 +216,77 @@
     animation: float 6s ease-in-out infinite;
   }
 
+  .animate-float-slow {
+    animation: floatSlow 8s ease-in-out infinite;
+  }
+
   .animate-scroll-x {
     animation: scrollX 30s linear infinite;
+  }
+
+  /* Aurora Animations */
+  .animate-aurora-1 {
+    animation: aurora1 15s ease-in-out infinite;
+  }
+
+  .animate-aurora-2 {
+    animation: aurora2 18s ease-in-out infinite;
+  }
+
+  .animate-aurora-3 {
+    animation: aurora3 20s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glowPulse 4s ease-in-out infinite;
+  }
+
+  .animate-particle {
+    animation: particle 10s linear infinite;
+  }
+
+  .animate-beam {
+    animation: beam 8s ease-in-out infinite;
+  }
+
+  .animate-draw-line {
+    animation: drawLine 3s ease-out infinite;
+  }
+
+  .animate-gradient-x {
+    animation: gradientX 3s ease infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 60s linear infinite;
+  }
+
+  .animate-spin-reverse {
+    animation: spinReverse 45s linear infinite;
+  }
+
+  .animate-twinkle {
+    animation: twinkle 3s ease-in-out infinite;
+  }
+
+  .animate-shooting-star {
+    animation: shootingStar 6s ease-in-out infinite;
+  }
+
+  .animate-shooting-star-reverse {
+    animation: shootingStarReverse 8s ease-in-out infinite;
+  }
+
+  .animate-float-particle {
+    animation: floatParticle 10s ease-in-out infinite;
+  }
+
+  .animate-glitch-line {
+    animation: glitchLine 4s ease-in-out infinite;
+  }
+
+  .animate-dash {
+    animation: dash 2s linear infinite;
   }
 
   @keyframes fadeIn {
@@ -271,12 +340,238 @@
     }
   }
 
+  @keyframes floatSlow {
+    0%, 100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    25% {
+      transform: translateY(-15px) rotate(1deg);
+    }
+    50% {
+      transform: translateY(-25px) rotate(0deg);
+    }
+    75% {
+      transform: translateY(-10px) rotate(-1deg);
+    }
+  }
+
   @keyframes scrollX {
     0% {
       transform: translateX(0);
     }
     100% {
       transform: translateX(-50%);
+    }
+  }
+
+  /* Aurora/Gradient Animations */
+  @keyframes aurora1 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.2;
+    }
+    33% {
+      transform: translate(50px, -30px) scale(1.1);
+      opacity: 0.3;
+    }
+    66% {
+      transform: translate(-30px, 20px) scale(0.9);
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes aurora2 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.15;
+    }
+    33% {
+      transform: translate(-40px, 40px) scale(1.15);
+      opacity: 0.25;
+    }
+    66% {
+      transform: translate(60px, -20px) scale(0.95);
+      opacity: 0.1;
+    }
+  }
+
+  @keyframes aurora3 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.1;
+    }
+    50% {
+      transform: translate(30px, 30px) scale(1.2);
+      opacity: 0.2;
+    }
+  }
+
+  @keyframes glowPulse {
+    0%, 100% {
+      opacity: 0.3;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+  }
+
+  @keyframes particle {
+    0% {
+      transform: translateY(0) translateX(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.5;
+    }
+    90% {
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateY(-100vh) translateX(20px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes beam {
+    0%, 100% {
+      opacity: 0.1;
+      transform: scaleY(0.8);
+    }
+    50% {
+      opacity: 0.3;
+      transform: scaleY(1);
+    }
+  }
+
+  @keyframes drawLine {
+    0% {
+      stroke-dashoffset: 200;
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes gradientX {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+  }
+
+  @keyframes spinReverse {
+    from {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+    to {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+  }
+
+  @keyframes twinkle {
+    0%, 100% {
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+
+  @keyframes shootingStar {
+    0% {
+      transform: translateX(-100%) translateY(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    30% {
+      transform: translateX(200vw) translateY(100px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(200vw) translateY(100px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes shootingStarReverse {
+    0% {
+      transform: translateX(100%) translateY(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    30% {
+      transform: translateX(-200vw) translateY(80px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(-200vw) translateY(80px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes floatParticle {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.3;
+    }
+    25% {
+      transform: translate(20px, -30px) scale(1.2);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translate(-10px, -50px) scale(0.8);
+      opacity: 0.4;
+    }
+    75% {
+      transform: translate(-30px, -20px) scale(1.1);
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes glitchLine {
+    0%, 100% {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    50% {
+      transform: translateX(100%);
+      opacity: 1;
+    }
+    60% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -20;
     }
   }
 }
