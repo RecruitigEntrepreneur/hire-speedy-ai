@@ -58,7 +58,7 @@ export const FeaturesSection = () => {
           <p className="text-emerald font-semibold uppercase tracking-wider mb-4">Deep Features</p>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
             The Tools that Make You{" "}
-            <span className="bg-gradient-to-r from-emerald to-blue-500 bg-clip-text text-transparent">
+            <span className="text-emerald">
               Faster than Your Competition
             </span>
           </h2>
@@ -124,12 +124,12 @@ export const FeaturesSection = () => {
                         <p className="text-xs text-muted-foreground">anonymisiert</p>
                       </div>
                       <div className="text-center p-4 rounded-xl bg-muted/50">
-                        <EyeOff className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                        <EyeOff className="w-8 h-8 mx-auto mb-2 text-emerald" />
                         <p className="text-sm font-medium">Recruiter</p>
                         <p className="text-xs text-muted-foreground">blind</p>
                       </div>
                       <div className="text-center p-4 rounded-xl bg-muted/50">
-                        <EyeOff className="w-8 h-8 mx-auto mb-2 text-purple-500" />
+                        <EyeOff className="w-8 h-8 mx-auto mb-2 text-emerald" />
                         <p className="text-sm font-medium">Unternehmen</p>
                         <p className="text-xs text-muted-foreground">geschützt</p>
                       </div>
@@ -157,7 +157,7 @@ export const FeaturesSection = () => {
                       ))}
                     </div>
                     <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-                      <Zap className="w-4 h-4 text-amber-500" />
+                      <Zap className="w-4 h-4 text-emerald" />
                       <span>Vollautomatisch – Zero Admin Work</span>
                     </div>
                   </div>
