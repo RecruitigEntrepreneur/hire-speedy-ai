@@ -8,7 +8,6 @@ const caseStudies = [
     title: "Engineering Lead eingestellt",
     description: "Von der Jobbeschreibung bis zum unterschriebenen Vertrag in unter einer Woche.",
     industry: "Tech Scale-Up",
-    color: "from-emerald to-teal-500",
   },
   {
     icon: TrendingUp,
@@ -16,7 +15,6 @@ const caseStudies = [
     title: "Offer Rate gesteigert",
     description: "Nach 3 Wochen Plattformnutzung signifikant bessere Annahmequoten.",
     industry: "Enterprise",
-    color: "from-blue-500 to-indigo-500",
   },
   {
     icon: BadgeDollarSign,
@@ -24,21 +22,18 @@ const caseStudies = [
     title: "Cost Reduction vs. Agency",
     description: "Deutlich geringere Kosten bei gleichzeitig besserer Qualität der Kandidaten.",
     industry: "Mittelstand",
-    color: "from-purple-500 to-pink-500",
   },
 ];
 
 export const CaseStudiesSection = () => {
   return (
-    <section className="py-24 bg-background">
+    <section className="py-24 bg-white">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto text-center mb-16">
           <p className="text-emerald font-semibold uppercase tracking-wider mb-4">Case Studies</p>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6">
             Proof that the System{" "}
-            <span className="bg-gradient-to-r from-emerald to-blue-500 bg-clip-text text-transparent">
-              Works
-            </span>
+            <span className="text-emerald">Works</span>
           </h2>
         </div>
 
@@ -46,27 +41,27 @@ export const CaseStudiesSection = () => {
           {caseStudies.map((study, index) => (
             <div 
               key={index}
-              className="group bg-card rounded-2xl p-8 border border-border/50 hover:border-emerald/30 hover:shadow-xl transition-all duration-300"
+              className="group bg-white rounded-2xl p-8 border border-slate-200 hover:border-emerald/30 hover:shadow-xl transition-all duration-300"
             >
-              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${study.color} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald to-emerald-light flex items-center justify-center mb-6 shadow-lg shadow-emerald/20 group-hover:scale-110 transition-transform">
                 <study.icon className="w-7 h-7 text-white" />
               </div>
               
-              <p className="text-4xl font-bold mb-2">{study.metric}</p>
-              <h3 className="text-xl font-bold mb-3">{study.title}</h3>
-              <p className="text-muted-foreground mb-4 leading-relaxed">
+              <p className="text-4xl font-bold text-slate-900 mb-2">{study.metric}</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">{study.title}</h3>
+              <p className="text-slate-600 mb-4 leading-relaxed">
                 {study.description}
               </p>
               
-              <div className="pt-4 border-t border-border/50">
-                <span className="text-sm text-muted-foreground">{study.industry}</span>
+              <div className="pt-4 border-t border-slate-100">
+                <span className="text-sm text-slate-500">{study.industry}</span>
               </div>
             </div>
           ))}
         </div>
 
         <div className="text-center">
-          <Button variant="outline" size="lg" className="group">
+          <Button variant="outline" size="lg" className="group border-slate-300 hover:border-emerald/50">
             Mehr Erfolge ansehen
             <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Button>
