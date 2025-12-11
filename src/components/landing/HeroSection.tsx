@@ -1,273 +1,352 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Shield, Clock, Lock } from "lucide-react";
+import { ArrowRight, Building2, Users, Shield, Lock, Clock, Zap, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
-const typingExamples = [
-  "Senior Software Engineer Berlin",
-  "Head of Sales DACH",
-  "HR Business Partner Remote",
-  "Finance Manager Scale-up",
-  "Product Manager SaaS",
+// Mock data for floating cards
+const jobCards = [
+  { id: 1, title: "Senior Software Engineer", company: "Tech Scale GmbH", salary: "80-100k€", location: "Berlin" },
+  { id: 2, title: "Product Manager", company: "AI Startup", salary: "70-90k€", location: "Remote" },
+  { id: 3, title: "Head of Sales DACH", company: "SaaS Corp", salary: "90-120k€", location: "München" },
 ];
+
+const candidateCards = [
+  { id: 1, initials: "M.S.", role: "Full-Stack Developer", experience: "8 Jahre", matchScore: 94 },
+  { id: 2, initials: "A.K.", role: "Product Lead", experience: "6 Jahre", matchScore: 87 },
+  { id: 3, initials: "L.W.", role: "Sales Director", experience: "10 Jahre", matchScore: 91 },
+];
+
+// Floating Job Card Component
+const FloatingJobCard = ({ job, style, isMatching }: { job: typeof jobCards[0]; style: React.CSSProperties; isMatching: boolean }) => (
+  <div 
+    className={`absolute w-56 p-4 rounded-xl backdrop-blur-md border transition-all duration-700
+                ${isMatching 
+                  ? 'bg-emerald/20 border-emerald/50 shadow-lg shadow-emerald/20' 
+                  : 'bg-white/80 border-border/40 shadow-lg shadow-black/5'
+                }`}
+    style={style}
+  >
+    <div className="flex items-start gap-3">
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-500 ${isMatching ? 'bg-emerald' : 'bg-primary/10'}`}>
+        <Building2 className={`w-5 h-5 ${isMatching ? 'text-white' : 'text-primary'}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-foreground text-sm truncate">{job.title}</p>
+        <p className="text-xs text-muted-foreground truncate">{job.company}</p>
+      </div>
+    </div>
+    <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+      <span className="px-2 py-0.5 rounded-full bg-secondary">{job.salary}</span>
+      <span>{job.location}</span>
+    </div>
+    {isMatching && (
+      <div className="absolute -right-2 -top-2 w-6 h-6 rounded-full bg-emerald flex items-center justify-center animate-pulse">
+        <Zap className="w-3 h-3 text-white" />
+      </div>
+    )}
+  </div>
+);
+
+// Floating Candidate Card Component
+const FloatingCandidateCard = ({ candidate, style, isMatching }: { candidate: typeof candidateCards[0]; style: React.CSSProperties; isMatching: boolean }) => (
+  <div 
+    className={`absolute w-52 p-4 rounded-xl backdrop-blur-md border transition-all duration-700
+                ${isMatching 
+                  ? 'bg-emerald/20 border-emerald/50 shadow-lg shadow-emerald/20' 
+                  : 'bg-white/80 border-border/40 shadow-lg shadow-black/5'
+                }`}
+    style={style}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors duration-500
+                      ${isMatching ? 'bg-emerald text-white' : 'bg-primary/10 text-primary'}`}>
+        {candidate.initials}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-foreground text-sm">{candidate.role}</p>
+        <p className="text-xs text-muted-foreground">{candidate.experience}</p>
+      </div>
+    </div>
+    <div className="mt-3 flex items-center gap-2">
+      <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isMatching ? 'bg-emerald/30' : 'bg-secondary'}`}>
+        <div 
+          className={`h-full rounded-full transition-all duration-500 ${isMatching ? 'bg-emerald' : 'bg-primary/60'}`}
+          style={{ width: `${candidate.matchScore}%` }}
+        />
+      </div>
+      <span className={`text-xs font-semibold ${isMatching ? 'text-emerald' : 'text-muted-foreground'}`}>
+        {candidate.matchScore}%
+      </span>
+    </div>
+    {isMatching && (
+      <div className="absolute -left-2 -top-2 w-6 h-6 rounded-full bg-emerald flex items-center justify-center animate-pulse">
+        <CheckCircle2 className="w-3 h-3 text-white" />
+      </div>
+    )}
+  </div>
+);
+
+// Connecting Line SVG
+const ConnectingLine = ({ isActive }: { isActive: boolean }) => (
+  <svg 
+    className="absolute inset-0 w-full h-full pointer-events-none z-0"
+    style={{ opacity: isActive ? 1 : 0, transition: 'opacity 0.5s ease' }}
+  >
+    <defs>
+      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="hsl(var(--emerald))" stopOpacity="0.3" />
+        <stop offset="50%" stopColor="hsl(var(--emerald))" stopOpacity="0.8" />
+        <stop offset="100%" stopColor="hsl(var(--emerald))" stopOpacity="0.3" />
+      </linearGradient>
+    </defs>
+    <line 
+      x1="25%" y1="50%" x2="75%" y2="50%" 
+      stroke="url(#lineGradient)" 
+      strokeWidth="2"
+      strokeDasharray="8 4"
+      className={isActive ? 'animate-dash' : ''}
+    />
+  </svg>
+);
 
 export const HeroSection = () => {
   const navigate = useNavigate();
-  const [position, setPosition] = useState("");
-  const [displayText, setDisplayText] = useState("");
-  const [currentExample, setCurrentExample] = useState(0);
-  const [userHasTyped, setUserHasTyped] = useState(false);
+  const [matchingPair, setMatchingPair] = useState<number | null>(null);
 
-  const suggestions = [
-    "Senior Software Engineer",
-    "Product Manager",
-    "Sales Lead DACH",
-    "Data Scientist",
+  // Animate matching every 4 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMatchingPair(prev => {
+        if (prev === null) return 0;
+        if (prev >= 2) return null;
+        return prev + 1;
+      });
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const jobPositions = [
+    { top: '15%', left: '8%', animationDelay: '0s' },
+    { top: '45%', left: '5%', animationDelay: '1s' },
+    { top: '70%', left: '10%', animationDelay: '2s' },
   ];
 
-  // Typing animation effect
-  useEffect(() => {
-    if (userHasTyped || position) return;
-
-    const example = typingExamples[currentExample];
-    let charIndex = 0;
-    let isDeleting = false;
-    let pauseTimeout: NodeJS.Timeout;
-
-    const typeInterval = setInterval(() => {
-      if (!isDeleting) {
-        if (charIndex <= example.length) {
-          setDisplayText(example.slice(0, charIndex));
-          charIndex++;
-        } else {
-          isDeleting = true;
-          pauseTimeout = setTimeout(() => {}, 1500);
-        }
-      } else {
-        if (charIndex > 0) {
-          charIndex--;
-          setDisplayText(example.slice(0, charIndex));
-        } else {
-          isDeleting = false;
-          setCurrentExample((prev) => (prev + 1) % typingExamples.length);
-        }
-      }
-    }, isDeleting ? 40 : 80);
-
-    return () => {
-      clearInterval(typeInterval);
-      clearTimeout(pauseTimeout);
-    };
-  }, [currentExample, userHasTyped, position]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPosition(e.target.value);
-    if (!userHasTyped && e.target.value) {
-      setUserHasTyped(true);
-    }
-    if (!e.target.value) {
-      setUserHasTyped(false);
-    }
-  };
-
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (position.trim()) {
-      navigate(`/dashboard/create-job?position=${encodeURIComponent(position.trim())}`);
-    }
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setPosition(suggestion);
-    setUserHasTyped(true);
-    navigate(`/dashboard/create-job?position=${encodeURIComponent(suggestion)}`);
-  };
+  const candidatePositions = [
+    { top: '12%', right: '8%', animationDelay: '0.5s' },
+    { top: '42%', right: '5%', animationDelay: '1.5s' },
+    { top: '68%', right: '10%', animationDelay: '2.5s' },
+  ];
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white pt-20">
-      {/* Modern Animated Background */}
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background pt-20">
+      {/* Animated Background */}
       <div className="absolute inset-0">
-        {/* Subtle Grid Pattern */}
+        {/* Subtle Grid */}
         <div 
-          className="absolute inset-0 opacity-[0.03]"
+          className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: `linear-gradient(hsl(222 47% 11% / 0.3) 1px, transparent 1px),
-                              linear-gradient(90deg, hsl(222 47% 11% / 0.3) 1px, transparent 1px)`,
-            backgroundSize: '80px 80px'
+            backgroundImage: `linear-gradient(hsl(var(--foreground) / 0.3) 1px, transparent 1px),
+                              linear-gradient(90deg, hsl(var(--foreground) / 0.3) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
           }}
         />
         
-        {/* Floating Gradient Blob 1 - Top Right */}
-        <div 
-          className="absolute -top-20 -right-20 w-[600px] h-[600px] rounded-full opacity-[0.04] blur-[100px]"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--emerald)) 0%, transparent 70%)',
-            animation: 'floatBlob1 20s ease-in-out infinite'
-          }}
-        />
-        
-        {/* Floating Gradient Blob 2 - Bottom Left */}
-        <div 
-          className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-[0.03] blur-[80px]"
-          style={{
-            background: 'radial-gradient(circle, hsl(200 100% 50%) 0%, transparent 70%)',
-            animation: 'floatBlob2 25s ease-in-out infinite'
-          }}
-        />
+        {/* Gradient Orbs */}
+        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-[0.06] blur-[100px] bg-emerald animate-float-slow" />
+        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-[0.04] blur-[80px] bg-primary animate-float-slow-reverse" />
+      </div>
 
-        {/* Floating Dots */}
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 bg-emerald/20 rounded-full"
+      {/* Floating Job Cards - Left Side (Hidden on mobile) */}
+      <div className="hidden lg:block">
+        {jobCards.map((job, index) => (
+          <FloatingJobCard
+            key={job.id}
+            job={job}
+            isMatching={matchingPair === index}
             style={{
-              left: `${20 + i * 15}%`,
-              top: `${30 + (i % 3) * 20}%`,
-              animation: `floatDot ${10 + i * 2}s ease-in-out infinite`,
-              animationDelay: `${i * 0.8}s`
+              ...jobPositions[index],
+              animation: `floatCard 8s ease-in-out infinite`,
+              animationDelay: jobPositions[index].animationDelay,
             }}
           />
         ))}
+      </div>
 
-        {/* Geometric Accent Lines */}
-        <div className="absolute top-1/4 right-0 w-32 h-px bg-gradient-to-l from-emerald/20 to-transparent" />
-        <div className="absolute bottom-1/3 left-0 w-24 h-px bg-gradient-to-r from-emerald/20 to-transparent" />
+      {/* Floating Candidate Cards - Right Side (Hidden on mobile) */}
+      <div className="hidden lg:block">
+        {candidateCards.map((candidate, index) => (
+          <FloatingCandidateCard
+            key={candidate.id}
+            candidate={candidate}
+            isMatching={matchingPair === index}
+            style={{
+              ...candidatePositions[index],
+              animation: `floatCard 8s ease-in-out infinite`,
+              animationDelay: candidatePositions[index].animationDelay,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Connecting Line (Hidden on mobile) */}
+      <div className="hidden lg:block">
+        <ConnectingLine isActive={matchingPair !== null} />
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 container mx-auto px-4 text-center">
-        <div className="max-w-3xl mx-auto space-y-6">
+      <div className="relative z-10 container mx-auto px-4">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
           
-          {/* (1) Eyebrow Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 border border-slate-200">
-            <Sparkles className="w-3.5 h-3.5 text-emerald" />
-            <span className="text-xs tracking-wide text-slate-600">
-              Powered by AI. Delivered by Experts. Designed for Speed.
-            </span>
+          {/* Minimal Headline */}
+          <div className="space-y-4">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground leading-[1.1] tracking-tight">
+              Perfect Match.{" "}
+              <span className="bg-gradient-to-r from-emerald via-emerald-light to-emerald bg-clip-text text-transparent">
+                Perfect Hire.
+              </span>
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-md mx-auto">
+              KI-gestütztes Recruiting. Erfolgsbasiert.
+            </p>
           </div>
 
-          {/* (2) Main Headline */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight">
-            Your next hire is{" "}
-            <span className="bg-gradient-to-r from-emerald via-emerald-light to-emerald bg-clip-text text-transparent">
-              one prompt away.
-            </span>
-          </h1>
-
-          {/* (3) Subheadline */}
-          <p className="text-lg md:text-xl text-slate-600 max-w-xl mx-auto">
-            Die schnellste Art, Top-Talente zu finden.
-            <br />
-            <span className="text-slate-400">KI-gestützt. Recruiter-geliefert. Erfolgsbasiert.</span>
-          </p>
-
-          {/* (4) AI Input Bar */}
-          <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto mt-10">
-            <div className="relative p-2 rounded-2xl bg-white border border-slate-200 shadow-lg shadow-slate-200/50 hover:border-emerald/40 hover:shadow-emerald/10 transition-all duration-500">
-              <div className="flex items-center gap-3">
-                <div className="pl-4">
-                  <Sparkles className="w-5 h-5 text-emerald" />
+          {/* Dual CTA Cards */}
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-3xl mx-auto mt-12">
+            
+            {/* Client CTA Card */}
+            <div className="group relative p-6 md:p-8 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 
+                          hover:border-emerald/30 hover:shadow-xl hover:shadow-emerald/5 transition-all duration-500">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <div className="relative space-y-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-primary" />
                 </div>
-                <div className="flex-1 relative">
-                  <input 
-                    type="text"
-                    value={position}
-                    onChange={handleInputChange}
-                    className="w-full bg-transparent text-slate-900 text-lg py-4 px-2 
-                               placeholder:text-slate-400 focus:outline-none"
-                    placeholder=""
-                  />
-                  {/* Typing animation overlay */}
-                  {!position && (
-                    <div className="absolute inset-0 flex items-center px-2 pointer-events-none">
-                      <span className="text-slate-400 text-lg">
-                        {displayText}
-                        <span className="animate-pulse text-emerald">|</span>
-                      </span>
-                    </div>
-                  )}
+                
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground">Für Unternehmen</h3>
+                  <p className="text-muted-foreground text-sm mt-1">Top-Talente in Rekordzeit</p>
                 </div>
+
+                {/* Key Stat */}
+                <div className="flex items-center gap-2 py-3 px-4 rounded-lg bg-emerald/10 border border-emerald/20">
+                  <Clock className="w-5 h-5 text-emerald" />
+                  <span className="text-emerald font-semibold">Ø 3,8 Tage</span>
+                  <span className="text-muted-foreground text-sm">bis zum Interview</span>
+                </div>
+
+                {/* Benefits */}
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald" />
+                    <span>Nur bei erfolgreicher Einstellung zahlen</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald" />
+                    <span>KI-vorselektierte Kandidaten</span>
+                  </li>
+                </ul>
+
                 <Button 
-                  type="submit"
-                  className="bg-emerald hover:bg-emerald-light text-white px-5 py-5 rounded-xl transition-all duration-300"
+                  onClick={() => navigate('/auth?role=client')}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl py-6 text-base font-medium group/btn"
                 >
-                  <ArrowRight className="w-5 h-5" />
+                  Job starten
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                 </Button>
               </div>
             </div>
-            
-            {/* Suggestion Chips */}
-            <div className="flex flex-wrap justify-center gap-2 mt-5">
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="px-4 py-2 rounded-full bg-slate-50 text-sm text-slate-500 
-                             border border-slate-200 hover:text-emerald hover:border-emerald/30 hover:bg-emerald/5
-                             transition-all duration-300"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          </form>
 
-          {/* (5) Micro-CTA Row */}
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <Button 
-              onClick={handleSubmit}
-              className="bg-emerald hover:bg-emerald-light text-white px-6 py-2 rounded-full text-sm font-medium"
-            >
-              Job starten
-            </Button>
-            <Button 
-              variant="ghost"
-              onClick={() => navigate('/auth?role=recruiter')}
-              className="text-slate-500 hover:text-emerald hover:bg-transparent text-sm"
-            >
-              Ich bin Recruiter
-            </Button>
+            {/* Recruiter CTA Card */}
+            <div className="group relative p-6 md:p-8 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 
+                          hover:border-emerald/30 hover:shadow-xl hover:shadow-emerald/5 transition-all duration-500">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <div className="relative space-y-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald/10 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-emerald" />
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground">Für Recruiter</h3>
+                  <p className="text-muted-foreground text-sm mt-1">Verdiene mit jedem Placement</p>
+                </div>
+
+                {/* Key Stat */}
+                <div className="flex items-center gap-2 py-3 px-4 rounded-lg bg-emerald/10 border border-emerald/20">
+                  <TrendingUp className="w-5 h-5 text-emerald" />
+                  <span className="text-emerald font-semibold">Bis zu 15%</span>
+                  <span className="text-muted-foreground text-sm">Provision</span>
+                </div>
+
+                {/* Benefits */}
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald" />
+                    <span>Exklusive Job-Aufträge</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald" />
+                    <span>Sichere Escrow-Zahlung</span>
+                  </li>
+                </ul>
+
+                <Button 
+                  onClick={() => navigate('/auth?role=recruiter')}
+                  variant="outline"
+                  className="w-full border-emerald/30 text-emerald hover:bg-emerald hover:text-white rounded-xl py-6 text-base font-medium group/btn"
+                >
+                  Als Recruiter starten
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                </Button>
+              </div>
+            </div>
           </div>
 
-          {/* (6) Trust Line */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mt-10 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-emerald" />
-              <span>DSGVO-konform</span>
+          {/* Trust Stats */}
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 mt-12 pt-8 border-t border-border/30">
+            <div className="flex items-center gap-2 text-sm">
+              <Shield className="w-5 h-5 text-emerald" />
+              <span className="text-muted-foreground">DSGVO-konform</span>
             </div>
-            <span className="text-slate-200">·</span>
-            <div className="flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-emerald" />
-              <span>Escrow-gesichert</span>
+            <div className="flex items-center gap-2 text-sm">
+              <Lock className="w-5 h-5 text-emerald" />
+              <span className="text-muted-foreground">Escrow-gesichert</span>
             </div>
-            <span className="text-slate-200">·</span>
-            <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-emerald" />
-              <span>3,8 Tage bis zum ersten Interview</span>
+            <div className="flex items-center gap-2 text-sm">
+              <Zap className="w-5 h-5 text-emerald" />
+              <span className="text-muted-foreground">92% Match-Quote</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="w-5 h-5 text-emerald" />
+              <span className="text-muted-foreground">3,8 Tage Ø</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom gradient fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent" />
-
       {/* CSS Animations */}
       <style>{`
-        @keyframes floatBlob1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -30px) scale(1.05); }
-          66% { transform: translate(-20px, 20px) scale(0.95); }
+        @keyframes floatCard {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(1deg); }
         }
-        @keyframes floatBlob2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-40px, 20px) scale(1.1); }
-          66% { transform: translate(30px, -30px) scale(0.9); }
+        
+        @keyframes animate-dash {
+          to { stroke-dashoffset: -24; }
         }
-        @keyframes floatDot {
-          0%, 100% { transform: translateY(0) opacity(0.2); }
-          50% { transform: translateY(-20px) opacity(0.4); }
+        
+        .animate-dash {
+          animation: animate-dash 1s linear infinite;
+        }
+        
+        .animate-float-slow {
+          animation: floatCard 20s ease-in-out infinite;
+        }
+        
+        .animate-float-slow-reverse {
+          animation: floatCard 25s ease-in-out infinite reverse;
         }
       `}</style>
     </section>
