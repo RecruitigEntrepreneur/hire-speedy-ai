@@ -117,7 +117,7 @@ export const FooterSection = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-slate-500 text-sm">
-            © {new Date().getFullYear()} TalentBridge. Alle Rechte vorbehalten.
+            © {new Date().getFullYear()} TalentBridge - eine Marke der bluewater & Bridge GmbH. Alle Rechte vorbehalten.
           </p>
           <div className="flex items-center gap-6">
             <Link to="/auth" className="text-slate-500 hover:text-slate-300 transition-colors text-sm">
@@ -126,7 +126,7 @@ export const FooterSection = () => {
             <Link to="/auth" className="text-slate-500 hover:text-slate-300 transition-colors text-sm">
               AGB
             </Link>
-            <Link to="/auth" className="text-slate-500 hover:text-slate-300 transition-colors text-sm">
+            <Link to="/impressum" className="text-slate-500 hover:text-slate-300 transition-colors text-sm">
               Impressum
             </Link>
           </div>
