@@ -27,6 +27,7 @@ import {
   Clock,
   Briefcase,
   StickyNote,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,6 +39,7 @@ import { CandidateNotes } from './CandidateNotes';
 import { CandidateOverviewTab } from './CandidateOverviewTab';
 import { CandidateStatusDropdown } from './CandidateStatusDropdown';
 import { AddActivityDialog } from './AddActivityDialog';
+import { CvUploadDialog } from './CvUploadDialog';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
 
 interface CandidateDetailSheetProps {
@@ -46,6 +48,7 @@ interface CandidateDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit: (candidate: Candidate) => void;
+  onCandidateUpdated?: () => void;
 }
 
 export function CandidateDetailSheet({
@@ -54,9 +57,11 @@ export function CandidateDetailSheet({
   open,
   onOpenChange,
   onEdit,
+  onCandidateUpdated,
 }: CandidateDetailSheetProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [addActivityOpen, setAddActivityOpen] = useState(false);
+  const [cvUploadOpen, setCvUploadOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(candidate?.candidate_status || 'new');
   const queryClient = useQueryClient();
   
@@ -198,9 +203,9 @@ export function CandidateDetailSheet({
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDuplicate}>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplizieren
+              <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                CV parsen
               </Button>
             </div>
           </SheetHeader>
@@ -266,6 +271,18 @@ export function CandidateDetailSheet({
         open={addActivityOpen}
         onOpenChange={setAddActivityOpen}
         onSubmit={handleAddActivity}
+      />
+
+      {/* CV Upload Dialog */}
+      <CvUploadDialog
+        open={cvUploadOpen}
+        onOpenChange={setCvUploadOpen}
+        existingCandidateId={candidate?.id}
+        onCandidateCreated={() => {
+          setCvUploadOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['candidates'] });
+          onCandidateUpdated?.();
+        }}
       />
     </>
   );
