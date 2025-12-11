@@ -159,7 +159,7 @@ const DashboardMockup = () => {
 // Floating Job Card Component
 const FloatingJobCard = ({ job, style, isMatching }: { job: typeof jobCards[0]; style: React.CSSProperties; isMatching: boolean }) => (
   <div 
-    className={`absolute w-56 p-4 rounded-xl backdrop-blur-md border transition-all duration-700
+    className={`absolute lg:w-44 xl:w-56 p-3 xl:p-4 rounded-xl backdrop-blur-md border transition-all duration-700
                 ${isMatching 
                   ? 'bg-emerald/20 border-emerald/50 shadow-xl shadow-emerald/30' 
                   : 'bg-card/90 border-border/50 shadow-lg shadow-navy/10'
@@ -190,7 +190,7 @@ const FloatingJobCard = ({ job, style, isMatching }: { job: typeof jobCards[0]; 
 // Floating Candidate Card Component
 const FloatingCandidateCard = ({ candidate, style, isMatching }: { candidate: typeof candidateCards[0]; style: React.CSSProperties; isMatching: boolean }) => (
   <div 
-    className={`absolute w-52 p-4 rounded-xl backdrop-blur-md border transition-all duration-700
+    className={`absolute lg:w-40 xl:w-52 p-3 xl:p-4 rounded-xl backdrop-blur-md border transition-all duration-700
                 ${isMatching 
                   ? 'bg-emerald/20 border-emerald/50 shadow-xl shadow-emerald/30' 
                   : 'bg-card/90 border-border/50 shadow-lg shadow-navy/10'
@@ -312,15 +312,15 @@ export const HeroSection = () => {
   }, []);
 
   const jobPositions = [
-    { top: '15%', left: '8%', animationDelay: '0s' },
-    { top: '45%', left: '5%', animationDelay: '1s' },
-    { top: '70%', left: '10%', animationDelay: '2s' },
+    { top: '18%', left: '2%', animationDelay: '0s' },
+    { top: '45%', left: '1%', animationDelay: '1s' },
+    { top: '68%', left: '3%', animationDelay: '2s' },
   ];
 
   const candidatePositions = [
-    { top: '12%', right: '8%', animationDelay: '0.5s' },
-    { top: '42%', right: '5%', animationDelay: '1.5s' },
-    { top: '68%', right: '10%', animationDelay: '2.5s' },
+    { top: '15%', right: '2%', animationDelay: '0.5s' },
+    { top: '42%', right: '1%', animationDelay: '1.5s' },
+    { top: '66%', right: '3%', animationDelay: '2.5s' },
   ];
 
   return (
@@ -359,7 +359,7 @@ export const HeroSection = () => {
       </div>
 
       {/* Floating Job Cards - Left Side (Hidden on mobile/tablet) */}
-      <div className="hidden xl:block">
+      <div className="hidden lg:block">
         {jobCards.map((job, index) => (
           <FloatingJobCard
             key={job.id}
@@ -375,7 +375,7 @@ export const HeroSection = () => {
       </div>
 
       {/* Floating Candidate Cards - Right Side (Hidden on mobile/tablet) */}
-      <div className="hidden xl:block">
+      <div className="hidden lg:block">
         {candidateCards.map((candidate, index) => (
           <FloatingCandidateCard
             key={candidate.id}
@@ -391,7 +391,7 @@ export const HeroSection = () => {
       </div>
 
       {/* Connecting Line (Hidden on mobile/tablet) */}
-      <div className="hidden xl:block">
+      <div className="hidden lg:block">
         <ConnectingLine isActive={matchingPair !== null} />
       </div>
 
