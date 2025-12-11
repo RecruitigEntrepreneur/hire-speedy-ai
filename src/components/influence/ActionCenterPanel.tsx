@@ -19,6 +19,7 @@ interface ActionCenterPanelProps {
   onMarkDone: (alertId: string) => void;
   onDismiss: (alertId: string) => void;
   onOpenPlaybook: (playbookId: string) => void;
+  onViewCandidate?: (submissionId: string) => void;
   maxAlerts?: number;
   candidateMap?: Record<string, { name: string; email: string; phone?: string }>;
 }
@@ -29,6 +30,7 @@ export function ActionCenterPanel({
   onMarkDone,
   onDismiss,
   onOpenPlaybook,
+  onViewCandidate,
   maxAlerts = 3,
   candidateMap = {},
 }: ActionCenterPanelProps) {
@@ -81,7 +83,7 @@ export function ActionCenterPanel({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-amber-500" />
+            <Zap className="h-5 w-5 text-primary" />
             Action Center
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -92,7 +94,7 @@ export function ActionCenterPanel({
               </Badge>
             )}
             {highCount > 0 && (
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <Badge variant="secondary" className="flex items-center gap-1 bg-amber-100 text-amber-700">
                 <AlertTriangle className="h-3 w-3" />
                 {highCount} hoch
               </Badge>
@@ -113,6 +115,7 @@ export function ActionCenterPanel({
               onMarkDone={onMarkDone}
               onDismiss={onDismiss}
               onOpenPlaybook={onOpenPlaybook}
+              onViewCandidate={onViewCandidate}
               candidateName={candidate?.name}
               candidateEmail={candidate?.email}
               candidatePhone={candidate?.phone}

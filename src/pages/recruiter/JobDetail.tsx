@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
+import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import {
   Briefcase,
   MapPin,
@@ -22,7 +23,8 @@ import {
   CheckCircle2,
   XCircle,
   Building2,
-  Loader2
+  Loader2,
+  Upload
 } from 'lucide-react';
 import {
   Dialog,
@@ -81,6 +83,7 @@ export default function JobDetail() {
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -249,28 +252,37 @@ export default function JobDetail() {
               </div>
             </div>
 
-            <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
-              <DialogTrigger asChild>
-                <Button size="lg" variant="emerald">
-                  <Users className="h-4 w-4 mr-2" />
-                  Kandidat einreichen
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Kandidat für {job.title} einreichen</DialogTitle>
-                </DialogHeader>
-                <CandidateSubmitForm 
-                  jobId={job.id} 
-                  jobTitle={job.title}
-                  mustHaves={job.must_haves}
-                  onSuccess={() => {
-                    setShowSubmitForm(false);
-                    fetchJobDetails();
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setHubspotDialogOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Aus HubSpot
+              </Button>
+              <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="emerald">
+                    <Users className="h-4 w-4 mr-2" />
+                    Kandidat einreichen
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Kandidat für {job.title} einreichen</DialogTitle>
+                  </DialogHeader>
+                  <CandidateSubmitForm 
+                    jobId={job.id} 
+                    jobTitle={job.title}
+                    mustHaves={job.must_haves}
+                    onSuccess={() => {
+                      setShowSubmitForm(false);
+                      fetchJobDetails();
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">
@@ -459,6 +471,15 @@ export default function JobDetail() {
             </div>
           </div>
         </div>
+
+        {/* HubSpot Import Dialog */}
+        <HubSpotImportDialog
+          open={hubspotDialogOpen}
+          onOpenChange={setHubspotDialogOpen}
+          onImportComplete={() => {
+            fetchJobDetails();
+          }}
+        />
       </DashboardLayout>
   );
 }

@@ -229,7 +229,7 @@ export default function RecruiterCandidates() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/dashboard/integrations" className="flex items-center">
+                  <Link to="/recruiter/integrations" className="flex items-center">
                     <LinkIcon className="h-4 w-4 mr-2" />
                     CRM verbinden
                   </Link>
