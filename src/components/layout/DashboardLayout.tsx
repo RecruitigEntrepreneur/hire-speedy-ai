@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import {
@@ -25,7 +25,19 @@ import {
   AlertTriangle,
   Database,
   Plug,
+  LogOut,
+  User,
+  Bell,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { NotificationBell } from './NotificationBell';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -38,8 +50,26 @@ interface NavItem {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { role } = useAuth();
+  const { user, role, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const getDashboardHome = () => {
+    switch (role) {
+      case 'admin':
+        return '/admin';
+      case 'recruiter':
+        return '/recruiter';
+      case 'client':
+      default:
+        return '/dashboard';
+    }
+  };
 
   const clientNavItems: NavItem[] = [
     { label: 'Übersicht', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -96,6 +126,50 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Dashboard Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card">
+        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+          {/* Logo */}
+          <Link to={getDashboardHome()} className="flex items-center space-x-2 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <Briefcase className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">TalentBridge</span>
+          </Link>
+
+          {/* Right Side */}
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-full">
+                  <User className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user?.email}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to={settingsHref} className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Einstellungen
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Abmelden
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
       <div className="flex">
         {/* Sidebar */}
         <aside className="fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r border-border/40 bg-card md:block">

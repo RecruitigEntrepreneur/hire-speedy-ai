@@ -33,7 +33,6 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
-import { QuickActionsButton } from './QuickActionsButton';
 import { scrollToSection } from '@/lib/scroll';
 import { cn } from '@/lib/utils';
 
@@ -222,11 +221,6 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              {role === 'recruiter' && (
-                <div className="hidden md:block">
-                  <QuickActionsButton />
-                </div>
-              )}
               
               <Button variant="ghost" asChild className="hidden md:flex text-slate-600 hover:text-slate-900">
                 <Link to={getDashboardLink()}>

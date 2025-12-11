@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,11 +22,9 @@ import {
   Loader2,
   Filter,
   Shield,
-  UserPlus,
   Users
 } from 'lucide-react';
 import { anonymizeCompanyName } from '@/lib/anonymization';
-import { QuickActionsButton } from '@/components/layout/QuickActionsButton';
 
 interface Job {
   id: string;
@@ -101,38 +98,30 @@ export default function RecruiterJobs() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </DashboardLayout>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <DashboardLayout>
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Open Jobs</h1>
-              <p className="text-muted-foreground">Find opportunities for your candidates</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <QuickActionsButton onCandidateImported={() => navigate('/recruiter/candidates')} />
-              <Button asChild variant="default" className="gap-2">
-                <Link to="/recruiter/candidates">
-                  <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Meine Kandidaten</span>
-                </Link>
-              </Button>
-            </div>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Open Jobs</h1>
+            <p className="text-muted-foreground">Find opportunities for your candidates</p>
           </div>
+          <Button asChild variant="default" className="gap-2">
+            <Link to="/recruiter/candidates">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Meine Kandidaten</span>
+            </Link>
+          </Button>
+        </div>
 
           {/* Filters */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -254,8 +243,7 @@ export default function RecruiterJobs() {
               ))}
             </div>
           )}
-        </div>
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

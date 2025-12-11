@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Plus, User } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Loader2, Plus, User, ChevronDown, Upload, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { CandidateStatsBar } from '@/components/candidates/CandidateStatsBar';
@@ -22,7 +28,8 @@ import { CandidateDetailSheet } from '@/components/candidates/CandidateDetailShe
 import { TagManagerDialog } from '@/components/candidates/TagManagerDialog';
 import { BulkActionsBar } from '@/components/candidates/BulkActionsBar';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
-
+import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
+import { Link } from 'react-router-dom';
 const initialFormData = {
   full_name: '', email: '', phone: '', experience_years: '', current_salary: '',
   expected_salary: '', skills: '', summary: '', cv_url: '', linkedin_url: '',
@@ -49,6 +56,7 @@ export default function RecruiterCandidates() {
   const [detailCandidate, setDetailCandidate] = useState<Candidate | null>(null);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [tagManagerCandidateId, setTagManagerCandidateId] = useState<string | null>(null);
+  const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
 
   const { tags, getCandidateTags, createTag, deleteTag, assignTag, removeTag, assignments } = useCandidateTags();
 
@@ -178,67 +186,243 @@ export default function RecruiterCandidates() {
     toast.success('Tag entfernt');
   };
 
-  if (loading) return (<><Navbar /><DashboardLayout><div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></DashboardLayout></>);
+  if (loading) return (
+    <DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    </DashboardLayout>
+  );
 
   return (
-    <>
-      <Navbar />
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div><h1 className="text-3xl font-bold">Meine Kandidaten</h1><p className="text-muted-foreground mt-1">Verwalten Sie Ihre Kandidaten-Datenbank</p></div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => { setTagManagerCandidateId(null); setTagManagerOpen(true); }}>Tags verwalten</Button>
-              <Button onClick={() => handleOpenDialog()}><Plus className="h-4 w-4 mr-2" />Kandidat hinzufügen</Button>
-            </div>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Meine Kandidaten</h1>
+            <p className="text-muted-foreground mt-1">Verwalten Sie Ihre Kandidaten-Datenbank</p>
           </div>
-
-          <CandidateStatsBar totalCandidates={stats.total} addedThisWeek={stats.thisWeek} availableSoon={stats.availableSoon} activeAssignments={stats.activeJobs} />
-
-          <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between">
-            <CandidateFilters filters={filters} onFilterChange={setFilters} tags={tags} allSkills={[]} />
-            <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => { setTagManagerCandidateId(null); setTagManagerOpen(true); }}>
+              Tags verwalten
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Kandidat hinzufügen
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => handleOpenDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Manuell hinzufügen
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Aus HubSpot importieren
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <Upload className="h-4 w-4 mr-2" />
+                  CSV importieren (bald)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/integrations" className="flex items-center">
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    CRM verbinden
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-
-          {viewMode === 'cards' && (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredCandidates.length === 0 ? (
-                <Card className="col-span-full"><CardContent className="flex flex-col items-center justify-center py-12"><User className="h-12 w-12 text-muted-foreground mb-4" /><p className="text-muted-foreground">Keine Kandidaten gefunden</p>{!filters.search && <Button className="mt-4" onClick={() => handleOpenDialog()}><Plus className="h-4 w-4 mr-2" />Kandidat hinzufügen</Button>}</CardContent></Card>
-              ) : filteredCandidates.map(c => (
-                <CandidateCard key={c.id} candidate={c} tags={getCandidateTags(c.id)} isSelected={selectedIds.includes(c.id)}
-                  onSelect={handleSelect} onEdit={handleOpenDialog} onDelete={handleDelete} onView={setDetailCandidate}
-                  onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} onAddToPool={() => toast.info('Talent Pool Feature')} />
-              ))}
-            </div>
-          )}
-
-          {viewMode === 'list' && <CandidateListView candidates={filteredCandidates} selectedIds={selectedIds} onSelect={handleSelect} onSelectAll={handleSelectAll} getCandidateTags={getCandidateTags} onEdit={handleOpenDialog} onDelete={handleDelete} onView={setDetailCandidate} onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} onAddToPool={() => toast.info('Talent Pool Feature')} />}
-
-          {viewMode === 'table' && <CandidateTableView candidates={filteredCandidates} selectedIds={selectedIds} onSelect={handleSelect} onSelectAll={handleSelectAll} getCandidateTags={getCandidateTags} onEdit={handleOpenDialog} onDelete={handleDelete} onView={setDetailCandidate} onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} onAddToPool={() => toast.info('Talent Pool Feature')} />}
         </div>
 
-        <BulkActionsBar selectedCount={selectedIds.length} tags={tags} onClearSelection={() => setSelectedIds([])} onAssignTag={handleBulkAssignTag} onRemoveTag={handleBulkRemoveTag} onExport={handleBulkExport} onDelete={handleBulkDelete} onAddToPool={() => toast.info('Talent Pool Feature')} />
+        <CandidateStatsBar totalCandidates={stats.total} addedThisWeek={stats.thisWeek} availableSoon={stats.availableSoon} activeAssignments={stats.activeJobs} />
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingCandidate ? 'Kandidat bearbeiten' : 'Neuen Kandidaten hinzufügen'}</DialogTitle></DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4"><div><Label>Name *</Label><Input value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} placeholder="Max Mustermann" /></div><div><Label>E-Mail *</Label><Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="max@beispiel.de" /></div></div>
-              <div className="grid grid-cols-2 gap-4"><div><Label>Telefon</Label><Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+49 123 456789" /></div><div><Label>Berufserfahrung (Jahre)</Label><Input type="number" value={formData.experience_years} onChange={e => setFormData({...formData, experience_years: e.target.value})} placeholder="5" /></div></div>
-              <div className="grid grid-cols-2 gap-4"><div><Label>Aktuelles Gehalt (€)</Label><Input type="number" value={formData.current_salary} onChange={e => setFormData({...formData, current_salary: e.target.value})} placeholder="60000" /></div><div><Label>Gehaltsvorstellung (€)</Label><Input type="number" value={formData.expected_salary} onChange={e => setFormData({...formData, expected_salary: e.target.value})} placeholder="70000" /></div></div>
-              <div><Label>Skills (kommagetrennt)</Label><Input value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} placeholder="React, TypeScript, Node.js" /></div>
-              <div className="grid grid-cols-2 gap-4"><div><Label>Verfügbar ab</Label><Input type="date" value={formData.availability_date} onChange={e => setFormData({...formData, availability_date: e.target.value})} /></div><div><Label>Kündigungsfrist</Label><Input value={formData.notice_period} onChange={e => setFormData({...formData, notice_period: e.target.value})} placeholder="3 Monate" /></div></div>
-              <div className="grid grid-cols-2 gap-4"><div><Label>CV URL</Label><Input value={formData.cv_url} onChange={e => setFormData({...formData, cv_url: e.target.value})} placeholder="https://..." /></div><div><Label>LinkedIn URL</Label><Input value={formData.linkedin_url} onChange={e => setFormData({...formData, linkedin_url: e.target.value})} placeholder="https://linkedin.com/in/..." /></div></div>
-              <div><Label>Zusammenfassung</Label><Textarea value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} placeholder="Kurze Beschreibung..." rows={3} /></div>
+        <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between">
+          <CandidateFilters filters={filters} onFilterChange={setFilters} tags={tags} allSkills={[]} />
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+        </div>
+
+        {viewMode === 'cards' && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredCandidates.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <User className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Keine Kandidaten gefunden</p>
+                  {!filters.search && (
+                    <Button className="mt-4" onClick={() => handleOpenDialog()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Kandidat hinzufügen
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : filteredCandidates.map(c => (
+              <CandidateCard 
+                key={c.id} 
+                candidate={c} 
+                tags={getCandidateTags(c.id)} 
+                isSelected={selectedIds.includes(c.id)}
+                onSelect={handleSelect} 
+                onEdit={handleOpenDialog} 
+                onDelete={handleDelete} 
+                onView={setDetailCandidate}
+                onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
+                onAddToPool={() => toast.info('Talent Pool Feature')} 
+              />
+            ))}
+          </div>
+        )}
+
+        {viewMode === 'list' && (
+          <CandidateListView 
+            candidates={filteredCandidates} 
+            selectedIds={selectedIds} 
+            onSelect={handleSelect} 
+            onSelectAll={handleSelectAll} 
+            getCandidateTags={getCandidateTags} 
+            onEdit={handleOpenDialog} 
+            onDelete={handleDelete} 
+            onView={setDetailCandidate} 
+            onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
+            onAddToPool={() => toast.info('Talent Pool Feature')} 
+          />
+        )}
+
+        {viewMode === 'table' && (
+          <CandidateTableView 
+            candidates={filteredCandidates} 
+            selectedIds={selectedIds} 
+            onSelect={handleSelect} 
+            onSelectAll={handleSelectAll} 
+            getCandidateTags={getCandidateTags} 
+            onEdit={handleOpenDialog} 
+            onDelete={handleDelete} 
+            onView={setDetailCandidate} 
+            onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
+            onAddToPool={() => toast.info('Talent Pool Feature')} 
+          />
+        )}
+      </div>
+
+      <BulkActionsBar 
+        selectedCount={selectedIds.length} 
+        tags={tags} 
+        onClearSelection={() => setSelectedIds([])} 
+        onAssignTag={handleBulkAssignTag} 
+        onRemoveTag={handleBulkRemoveTag} 
+        onExport={handleBulkExport} 
+        onDelete={handleBulkDelete} 
+        onAddToPool={() => toast.info('Talent Pool Feature')} 
+      />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingCandidate ? 'Kandidat bearbeiten' : 'Neuen Kandidaten hinzufügen'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Name *</Label>
+                <Input value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} placeholder="Max Mustermann" />
+              </div>
+              <div>
+                <Label>E-Mail *</Label>
+                <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="max@beispiel.de" />
+              </div>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button><Button onClick={handleSave} disabled={processing}>{processing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}{editingCandidate ? 'Aktualisieren' : 'Hinzufügen'}</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Telefon</Label>
+                <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+49 123 456789" />
+              </div>
+              <div>
+                <Label>Berufserfahrung (Jahre)</Label>
+                <Input type="number" value={formData.experience_years} onChange={e => setFormData({...formData, experience_years: e.target.value})} placeholder="5" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Aktuelles Gehalt (€)</Label>
+                <Input type="number" value={formData.current_salary} onChange={e => setFormData({...formData, current_salary: e.target.value})} placeholder="60000" />
+              </div>
+              <div>
+                <Label>Gehaltsvorstellung (€)</Label>
+                <Input type="number" value={formData.expected_salary} onChange={e => setFormData({...formData, expected_salary: e.target.value})} placeholder="70000" />
+              </div>
+            </div>
+            <div>
+              <Label>Skills (kommagetrennt)</Label>
+              <Input value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} placeholder="React, TypeScript, Node.js" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Verfügbar ab</Label>
+                <Input type="date" value={formData.availability_date} onChange={e => setFormData({...formData, availability_date: e.target.value})} />
+              </div>
+              <div>
+                <Label>Kündigungsfrist</Label>
+                <Input value={formData.notice_period} onChange={e => setFormData({...formData, notice_period: e.target.value})} placeholder="3 Monate" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>CV URL</Label>
+                <Input value={formData.cv_url} onChange={e => setFormData({...formData, cv_url: e.target.value})} placeholder="https://..." />
+              </div>
+              <div>
+                <Label>LinkedIn URL</Label>
+                <Input value={formData.linkedin_url} onChange={e => setFormData({...formData, linkedin_url: e.target.value})} placeholder="https://linkedin.com/in/..." />
+              </div>
+            </div>
+            <div>
+              <Label>Zusammenfassung</Label>
+              <Textarea value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} placeholder="Kurze Beschreibung..." rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
+            <Button onClick={handleSave} disabled={processing}>
+              {processing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {editingCandidate ? 'Aktualisieren' : 'Hinzufügen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <CandidateDetailSheet candidate={detailCandidate} tags={detailCandidate ? getCandidateTags(detailCandidate.id) : []} open={!!detailCandidate} onOpenChange={open => !open && setDetailCandidate(null)} onEdit={c => { setDetailCandidate(null); handleOpenDialog(c); }} />
+      <CandidateDetailSheet 
+        candidate={detailCandidate} 
+        tags={detailCandidate ? getCandidateTags(detailCandidate.id) : []} 
+        open={!!detailCandidate} 
+        onOpenChange={open => !open && setDetailCandidate(null)} 
+        onEdit={c => { setDetailCandidate(null); handleOpenDialog(c); }} 
+      />
 
-        <TagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} candidateId={tagManagerCandidateId} tags={tags} candidateTags={tagManagerCandidateId ? getCandidateTags(tagManagerCandidateId) : []} onCreateTag={createTag} onDeleteTag={deleteTag} onAssignTag={assignTag} onRemoveTag={removeTag} />
-      </DashboardLayout>
-    </>
+      <TagManagerDialog 
+        open={tagManagerOpen} 
+        onOpenChange={setTagManagerOpen} 
+        candidateId={tagManagerCandidateId} 
+        tags={tags} 
+        candidateTags={tagManagerCandidateId ? getCandidateTags(tagManagerCandidateId) : []} 
+        onCreateTag={createTag} 
+        onDeleteTag={deleteTag} 
+        onAssignTag={assignTag} 
+        onRemoveTag={removeTag} 
+      />
+
+      <HubSpotImportDialog 
+        open={hubspotDialogOpen} 
+        onOpenChange={setHubspotDialogOpen} 
+        onImportComplete={() => {
+          fetchCandidates();
+          toast.success('Kandidaten importiert');
+        }} 
+      />
+    </DashboardLayout>
   );
 }
