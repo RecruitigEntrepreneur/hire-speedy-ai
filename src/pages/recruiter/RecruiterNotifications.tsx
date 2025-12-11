@@ -328,7 +328,7 @@ export default function RecruiterNotifications() {
             onDeny={handleOptInDeny}
           />
         )}
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

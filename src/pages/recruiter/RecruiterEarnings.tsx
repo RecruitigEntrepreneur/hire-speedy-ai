@@ -324,7 +324,7 @@ export default function RecruiterEarnings() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

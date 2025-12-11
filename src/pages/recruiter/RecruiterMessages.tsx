@@ -372,7 +372,7 @@ export default function RecruiterMessages() {
             </Card>
           </div>
         </div>
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
