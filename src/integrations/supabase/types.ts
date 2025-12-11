@@ -2893,6 +2893,90 @@ export type Database = {
           },
         ]
       }
+      recruiter_verifications: {
+        Row: {
+          company_name: string | null
+          contract_signed: boolean | null
+          contract_signed_at: string | null
+          contract_version: string | null
+          created_at: string | null
+          digital_signature: string | null
+          iban: string | null
+          id: string
+          info_acknowledged: boolean | null
+          info_acknowledged_at: string | null
+          nda_accepted: boolean | null
+          nda_accepted_at: string | null
+          nda_version: string | null
+          profile_complete: boolean | null
+          profile_completed_at: string | null
+          recruiter_id: string
+          rejection_reason: string | null
+          tax_id: string | null
+          terms_accepted: boolean | null
+          terms_accepted_at: string | null
+          terms_version: string | null
+          updated_at: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          contract_signed?: boolean | null
+          contract_signed_at?: string | null
+          contract_version?: string | null
+          created_at?: string | null
+          digital_signature?: string | null
+          iban?: string | null
+          id?: string
+          info_acknowledged?: boolean | null
+          info_acknowledged_at?: string | null
+          nda_accepted?: boolean | null
+          nda_accepted_at?: string | null
+          nda_version?: string | null
+          profile_complete?: boolean | null
+          profile_completed_at?: string | null
+          recruiter_id: string
+          rejection_reason?: string | null
+          tax_id?: string | null
+          terms_accepted?: boolean | null
+          terms_accepted_at?: string | null
+          terms_version?: string | null
+          updated_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          contract_signed?: boolean | null
+          contract_signed_at?: string | null
+          contract_version?: string | null
+          created_at?: string | null
+          digital_signature?: string | null
+          iban?: string | null
+          id?: string
+          info_acknowledged?: boolean | null
+          info_acknowledged_at?: string | null
+          nda_accepted?: boolean | null
+          nda_accepted_at?: string | null
+          nda_version?: string | null
+          profile_complete?: boolean | null
+          profile_completed_at?: string | null
+          recruiter_id?: string
+          rejection_reason?: string | null
+          tax_id?: string | null
+          terms_accepted?: boolean | null
+          terms_accepted_at?: string | null
+          terms_version?: string | null
+          updated_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       reference_requests: {
         Row: {
           access_token: string

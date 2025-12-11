@@ -67,6 +67,7 @@ import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 
 // Onboarding
 import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
+import RecruiterOnboarding from "./pages/onboarding/RecruiterOnboarding";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
@@ -343,6 +344,11 @@ function AppRoutes() {
       <Route path="/onboarding" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientOnboarding />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/onboarding" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterOnboarding />
         </ProtectedRoute>
       } />
       
