@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Building2, Users, Zap, CheckCircle2, Eye, FileText, Target, TrendingUp, Clock, Star, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 
 // Mock data for floating cards
 const jobCards = [
@@ -29,7 +29,7 @@ const useCountUp = (target: number, duration: number = 2000, startOnMount: boole
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
       setCount(Math.floor(target * eased));
       
       if (progress < 1) {
@@ -42,7 +42,7 @@ const useCountUp = (target: number, duration: number = 2000, startOnMount: boole
   return count;
 };
 
-// KPI Box Component - Compact
+// KPI Box Component - Enhanced with gradient
 const KPIBox = ({ icon: Icon, value, suffix = "", label }: { 
   icon: React.ElementType; 
   value: number; 
@@ -52,100 +52,106 @@ const KPIBox = ({ icon: Icon, value, suffix = "", label }: {
   const animatedValue = useCountUp(value, 2000);
   
   return (
-    <div className="flex flex-col items-center p-2 md:p-3 rounded-lg bg-card/60 backdrop-blur-sm border border-border/40 hover:border-emerald/30 transition-all duration-300">
-      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald/10 flex items-center justify-center mb-1.5">
-        <Icon className="w-3 h-3 md:w-4 md:h-4 text-emerald" />
+    <div className="flex flex-col items-center py-3 px-4">
+      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-emerald to-emerald-light flex items-center justify-center mb-2 shadow-lg shadow-emerald/30">
+        <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
       </div>
-      <span className="text-lg md:text-xl font-bold text-foreground">
+      <span className="text-xl md:text-2xl font-bold text-foreground">
         {animatedValue.toLocaleString('de-DE')}{suffix}
       </span>
-      <span className="text-[10px] md:text-xs text-muted-foreground mt-0.5 text-center">{label}</span>
+      <span className="text-xs text-muted-foreground mt-0.5 text-center">{label}</span>
     </div>
   );
 };
 
-// Dashboard Mockup Component - Compact
+// Dashboard Mockup Component - Enhanced with glow
 const DashboardMockup = () => {
   return (
-    <div className="relative w-full max-w-md mx-auto mt-4 rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 overflow-hidden shadow-xl shadow-black/10">
-      {/* Browser-like header */}
-      <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/50 border-b border-border/40">
-        <div className="flex gap-1">
-          <div className="w-2 h-2 rounded-full bg-destructive/60" />
-          <div className="w-2 h-2 rounded-full bg-warning/60" />
-          <div className="w-2 h-2 rounded-full bg-emerald/60" />
-        </div>
-        <div className="flex-1 mx-3">
-          <div className="h-4 w-32 rounded bg-background/80 mx-auto" />
-        </div>
-      </div>
+    <div className="relative w-full max-w-xl mx-auto mt-6 group">
+      {/* Glow effect */}
+      <div className="absolute -inset-4 bg-gradient-to-r from-emerald/20 via-primary/10 to-emerald/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
       
-      {/* Dashboard Content */}
-      <div className="p-2 md:p-3 space-y-2">
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-1.5">
-          <div className="p-1.5 rounded bg-muted/30 border border-border/30">
-            <div className="flex items-center gap-1 mb-0.5">
-              <BarChart3 className="w-3 h-3 text-emerald" />
-              <span className="text-[9px] text-muted-foreground">Jobs</span>
-            </div>
-            <span className="text-sm font-bold text-foreground">12</span>
+      <div className="relative rounded-2xl bg-card/90 backdrop-blur-md border border-border/60 overflow-hidden shadow-2xl shadow-navy/20">
+        {/* Browser-like header */}
+        <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-muted/60 to-muted/40 border-b border-border/50">
+          <div className="flex gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-destructive/70" />
+            <div className="w-2.5 h-2.5 rounded-full bg-warning/70" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald/70" />
           </div>
-          <div className="p-1.5 rounded bg-muted/30 border border-border/30">
-            <div className="flex items-center gap-1 mb-0.5">
-              <Users className="w-3 h-3 text-primary" />
-              <span className="text-[9px] text-muted-foreground">Kandidaten</span>
+          <div className="flex-1 mx-4">
+            <div className="h-5 w-40 rounded-md bg-background/80 mx-auto flex items-center justify-center">
+              <span className="text-[10px] text-muted-foreground">app.talen.to/dashboard</span>
             </div>
-            <span className="text-sm font-bold text-foreground">47</span>
-          </div>
-          <div className="p-1.5 rounded bg-muted/30 border border-border/30">
-            <div className="flex items-center gap-1 mb-0.5">
-              <Star className="w-3 h-3 text-warning" />
-              <span className="text-[9px] text-muted-foreground">Matches</span>
-            </div>
-            <span className="text-sm font-bold text-foreground">8</span>
           </div>
         </div>
+        
+        {/* Dashboard Content */}
+        <div className="p-4 space-y-3">
+          {/* Stats Row */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border border-border/40">
+              <div className="flex items-center gap-1.5 mb-1">
+                <BarChart3 className="w-3.5 h-3.5 text-emerald" />
+                <span className="text-[10px] text-muted-foreground">Jobs</span>
+              </div>
+              <span className="text-lg font-bold text-foreground">12</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border border-border/40">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Users className="w-3.5 h-3.5 text-primary" />
+                <span className="text-[10px] text-muted-foreground">Kandidaten</span>
+              </div>
+              <span className="text-lg font-bold text-foreground">47</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border border-border/40">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Star className="w-3.5 h-3.5 text-warning" />
+                <span className="text-[10px] text-muted-foreground">Matches</span>
+              </div>
+              <span className="text-lg font-bold text-foreground">8</span>
+            </div>
+          </div>
 
-        {/* Candidate List Preview - Compact */}
-        <div className="space-y-1">
-          {[
-            { name: "M. Schmidt", role: "Senior Dev", score: 96, status: "Interview" },
-            { name: "A. Koch", role: "Product Lead", score: 91, status: "Opt-In" },
-          ].map((candidate, i) => (
-            <div 
-              key={i} 
-              className="flex items-center gap-2 p-1.5 rounded bg-background/50 border border-border/30"
-            >
-              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-medium text-primary">
-                {candidate.name.split(' ').map(n => n[0]).join('')}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-medium text-foreground truncate">{candidate.name}</p>
-                <p className="text-[8px] text-muted-foreground">{candidate.role}</p>
-              </div>
-              <div className="hidden sm:flex items-center gap-1">
-                <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
-                  <div 
-                    className="h-full rounded-full bg-emerald"
-                    style={{ width: `${candidate.score}%` }}
-                  />
+          {/* Candidate List Preview */}
+          <div className="space-y-2">
+            {[
+              { name: "M. Schmidt", role: "Senior Dev", score: 96, status: "Interview" },
+              { name: "A. Koch", role: "Product Lead", score: 91, status: "Opt-In" },
+              { name: "L. Weber", role: "Sales Dir.", score: 88, status: "Review" },
+            ].map((candidate, i) => (
+              <div 
+                key={i} 
+                className="flex items-center gap-3 p-2.5 rounded-lg bg-background/60 border border-border/40 hover:border-emerald/30 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary">
+                  {candidate.name.split(' ').map(n => n[0]).join('')}
                 </div>
-                <span className="text-[9px] font-semibold text-emerald">{candidate.score}%</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{candidate.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{candidate.role}</p>
+                </div>
+                <div className="hidden sm:flex items-center gap-2">
+                  <div className="w-14 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full bg-gradient-to-r from-emerald to-emerald-light"
+                      style={{ width: `${candidate.score}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-emerald">{candidate.score}%</span>
+                </div>
+                <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${
+                  candidate.status === 'Interview' ? 'bg-emerald/15 text-emerald' :
+                  candidate.status === 'Opt-In' ? 'bg-primary/15 text-primary' :
+                  'bg-warning/15 text-warning'
+                }`}>
+                  {candidate.status}
+                </span>
               </div>
-              <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${
-                candidate.status === 'Interview' ? 'bg-emerald/10 text-emerald' :
-                'bg-primary/10 text-primary'
-              }`}>
-                {candidate.status}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-      
-      {/* Subtle animation overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
     </div>
   );
 };
@@ -155,13 +161,13 @@ const FloatingJobCard = ({ job, style, isMatching }: { job: typeof jobCards[0]; 
   <div 
     className={`absolute w-56 p-4 rounded-xl backdrop-blur-md border transition-all duration-700
                 ${isMatching 
-                  ? 'bg-emerald/20 border-emerald/50 shadow-lg shadow-emerald/20' 
-                  : 'bg-white/80 border-border/40 shadow-lg shadow-black/5'
+                  ? 'bg-emerald/20 border-emerald/50 shadow-xl shadow-emerald/30' 
+                  : 'bg-card/90 border-border/50 shadow-lg shadow-navy/10'
                 }`}
     style={style}
   >
     <div className="flex items-start gap-3">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors duration-500 ${isMatching ? 'bg-emerald' : 'bg-primary/10'}`}>
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-500 ${isMatching ? 'bg-gradient-to-br from-emerald to-emerald-light shadow-lg shadow-emerald/30' : 'bg-primary/10'}`}>
         <Building2 className={`w-5 h-5 ${isMatching ? 'text-white' : 'text-primary'}`} />
       </div>
       <div className="flex-1 min-w-0">
@@ -170,11 +176,11 @@ const FloatingJobCard = ({ job, style, isMatching }: { job: typeof jobCards[0]; 
       </div>
     </div>
     <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-      <span className="px-2 py-0.5 rounded-full bg-secondary">{job.salary}</span>
+      <span className="px-2 py-0.5 rounded-full bg-secondary/50">{job.salary}</span>
       <span>{job.location}</span>
     </div>
     {isMatching && (
-      <div className="absolute -right-2 -top-2 w-6 h-6 rounded-full bg-emerald flex items-center justify-center animate-pulse">
+      <div className="absolute -right-2 -top-2 w-6 h-6 rounded-full bg-gradient-to-br from-emerald to-emerald-light flex items-center justify-center animate-pulse shadow-lg shadow-emerald/40">
         <Zap className="w-3 h-3 text-white" />
       </div>
     )}
@@ -186,14 +192,14 @@ const FloatingCandidateCard = ({ candidate, style, isMatching }: { candidate: ty
   <div 
     className={`absolute w-52 p-4 rounded-xl backdrop-blur-md border transition-all duration-700
                 ${isMatching 
-                  ? 'bg-emerald/20 border-emerald/50 shadow-lg shadow-emerald/20' 
-                  : 'bg-white/80 border-border/40 shadow-lg shadow-black/5'
+                  ? 'bg-emerald/20 border-emerald/50 shadow-xl shadow-emerald/30' 
+                  : 'bg-card/90 border-border/50 shadow-lg shadow-navy/10'
                 }`}
     style={style}
   >
     <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors duration-500
-                      ${isMatching ? 'bg-emerald text-white' : 'bg-primary/10 text-primary'}`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-500
+                      ${isMatching ? 'bg-gradient-to-br from-emerald to-emerald-light text-white shadow-lg shadow-emerald/30' : 'bg-primary/10 text-primary'}`}>
         {candidate.initials}
       </div>
       <div className="flex-1 min-w-0">
@@ -202,9 +208,9 @@ const FloatingCandidateCard = ({ candidate, style, isMatching }: { candidate: ty
       </div>
     </div>
     <div className="mt-3 flex items-center gap-2">
-      <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isMatching ? 'bg-emerald/30' : 'bg-secondary'}`}>
+      <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isMatching ? 'bg-emerald/30' : 'bg-secondary/50'}`}>
         <div 
-          className={`h-full rounded-full transition-all duration-500 ${isMatching ? 'bg-emerald' : 'bg-primary/60'}`}
+          className={`h-full rounded-full transition-all duration-500 ${isMatching ? 'bg-gradient-to-r from-emerald to-emerald-light' : 'bg-primary/60'}`}
           style={{ width: `${candidate.matchScore}%` }}
         />
       </div>
@@ -213,7 +219,7 @@ const FloatingCandidateCard = ({ candidate, style, isMatching }: { candidate: ty
       </span>
     </div>
     {isMatching && (
-      <div className="absolute -left-2 -top-2 w-6 h-6 rounded-full bg-emerald flex items-center justify-center animate-pulse">
+      <div className="absolute -left-2 -top-2 w-6 h-6 rounded-full bg-gradient-to-br from-emerald to-emerald-light flex items-center justify-center animate-pulse shadow-lg shadow-emerald/40">
         <CheckCircle2 className="w-3 h-3 text-white" />
       </div>
     )}
@@ -240,6 +246,51 @@ const ConnectingLine = ({ isActive }: { isActive: boolean }) => (
       strokeDasharray="8 4"
       className={isActive ? 'animate-dash' : ''}
     />
+  </svg>
+);
+
+// Radar Ping Animation Component
+const RadarPing = () => (
+  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+    {/* Outer ring */}
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-emerald/5 animate-ping-slow opacity-30" />
+    {/* Middle ring */}
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-emerald/10 animate-ping-medium opacity-50" />
+    {/* Inner ring */}
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-full border-2 border-emerald/20 animate-ping-fast opacity-70" />
+    {/* Center dot */}
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald animate-pulse shadow-lg shadow-emerald/50" />
+  </div>
+);
+
+// Network Lines Background
+const NetworkLines = () => (
+  <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.15]">
+    <defs>
+      <linearGradient id="networkGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="hsl(var(--emerald))" stopOpacity="0" />
+        <stop offset="50%" stopColor="hsl(var(--emerald))" stopOpacity="0.5" />
+        <stop offset="100%" stopColor="hsl(var(--emerald))" stopOpacity="0" />
+      </linearGradient>
+      <linearGradient id="networkGradient2" x1="100%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+      </linearGradient>
+    </defs>
+    
+    {/* Diagonal lines from corners */}
+    <line x1="0" y1="0" x2="50%" y2="60%" stroke="url(#networkGradient1)" strokeWidth="1" className="animate-draw-line" />
+    <line x1="100%" y1="0" x2="50%" y2="60%" stroke="url(#networkGradient2)" strokeWidth="1" className="animate-draw-line" style={{ animationDelay: '0.5s' }} />
+    <line x1="0" y1="100%" x2="50%" y2="60%" stroke="url(#networkGradient1)" strokeWidth="1" className="animate-draw-line" style={{ animationDelay: '1s' }} />
+    <line x1="100%" y1="100%" x2="50%" y2="60%" stroke="url(#networkGradient2)" strokeWidth="1" className="animate-draw-line" style={{ animationDelay: '1.5s' }} />
+    
+    {/* Nodes */}
+    <circle cx="15%" cy="20%" r="3" fill="hsl(var(--emerald))" className="animate-pulse" style={{ animationDelay: '0s' }} />
+    <circle cx="85%" cy="25%" r="3" fill="hsl(var(--primary))" className="animate-pulse" style={{ animationDelay: '0.3s' }} />
+    <circle cx="10%" cy="70%" r="3" fill="hsl(var(--emerald))" className="animate-pulse" style={{ animationDelay: '0.6s' }} />
+    <circle cx="90%" cy="75%" r="3" fill="hsl(var(--primary))" className="animate-pulse" style={{ animationDelay: '0.9s' }} />
+    <circle cx="50%" cy="60%" r="5" fill="hsl(var(--emerald))" className="animate-glow-pulse" />
   </svg>
 );
 
@@ -278,17 +329,33 @@ export const HeroSection = () => {
       <div className="absolute inset-0">
         {/* Subtle Grid */}
         <div 
-          className="absolute inset-0 opacity-[0.02]"
+          className="absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage: `linear-gradient(hsl(var(--foreground) / 0.3) 1px, transparent 1px),
                               linear-gradient(90deg, hsl(var(--foreground) / 0.3) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
+            backgroundSize: '80px 80px'
           }}
         />
         
-        {/* Gradient Orbs */}
-        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-[0.06] blur-[100px] bg-emerald animate-float-slow" />
-        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-[0.04] blur-[80px] bg-primary animate-float-slow-reverse" />
+        {/* Emerald Gradient Stripe - Top Right */}
+        <div className="absolute -top-20 -right-20 w-[600px] h-[600px] rotate-12 opacity-[0.08]">
+          <div className="w-full h-full bg-gradient-to-br from-emerald via-emerald-light to-transparent rounded-full blur-3xl" />
+        </div>
+        
+        {/* Navy Gradient Stripe - Bottom Left */}
+        <div className="absolute -bottom-20 -left-20 w-[500px] h-[500px] -rotate-12 opacity-[0.06]">
+          <div className="w-full h-full bg-gradient-to-tr from-primary via-navy to-transparent rounded-full blur-3xl" />
+        </div>
+        
+        {/* Gradient Orbs - More vivid */}
+        <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full opacity-[0.08] blur-[80px] bg-emerald animate-aurora-1" />
+        <div className="absolute bottom-1/4 left-1/4 w-[350px] h-[350px] rounded-full opacity-[0.05] blur-[60px] bg-primary animate-aurora-2" />
+        
+        {/* Network Lines */}
+        <NetworkLines />
+        
+        {/* Radar Ping Effect */}
+        <RadarPing />
       </div>
 
       {/* Floating Job Cards - Left Side (Hidden on mobile/tablet) */}
@@ -345,11 +412,24 @@ export const HeroSection = () => {
             </p>
           </div>
 
-          {/* KPI Bar - Rule of 3 - Compact */}
-          <div className="grid grid-cols-3 gap-2 md:gap-3 max-w-sm mx-auto">
-            <KPIBox icon={Eye} value={2847} label="Recruiter-Views" />
-            <KPIBox icon={FileText} value={142} label="Profile" />
-            <KPIBox icon={Target} value={96} suffix="%" label="Match-Score" />
+          {/* KPI Bar in Glassy Container */}
+          <div className="max-w-md mx-auto">
+            <div className="relative group">
+              {/* Glow effect behind */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald/20 via-primary/10 to-emerald/20 rounded-2xl blur-lg opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
+              
+              {/* Glass container */}
+              <div className="relative bg-gradient-to-r from-card/80 via-card/90 to-card/80 backdrop-blur-xl rounded-2xl border border-emerald/20 shadow-xl shadow-navy/10 overflow-hidden">
+                {/* Top shine */}
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald/30 to-transparent" />
+                
+                <div className="grid grid-cols-3 divide-x divide-emerald/10">
+                  <KPIBox icon={Eye} value={2847} label="Recruiter-Views" />
+                  <KPIBox icon={FileText} value={142} label="Profile" />
+                  <KPIBox icon={Target} value={96} suffix="%" label="Match-Score" />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Dashboard Mockup */}
@@ -360,21 +440,24 @@ export const HeroSection = () => {
           {/* Simplified Dual CTA Cards */}
           <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto mt-8">
             
-            {/* Client CTA Card - Minimal */}
-            <div className="group relative p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 
-                          hover:border-emerald/30 hover:shadow-xl hover:shadow-emerald/5 transition-all duration-500">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {/* Client CTA Card */}
+            <div className="group relative p-6 rounded-2xl bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-md border border-border/50 
+                          hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 overflow-hidden">
+              {/* Background gradient on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              {/* Top shine */}
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
               <div className="relative space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-primary/20 transition-shadow duration-500">
                     <Building2 className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">Für Unternehmen</h3>
                 </div>
 
                 {/* Single Key Stat */}
-                <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-emerald/10 border border-emerald/20">
+                <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald/10 to-emerald/5 border border-emerald/20">
                   <Clock className="w-5 h-5 text-emerald" />
                   <span className="text-emerald font-semibold">Ø 3,8 Tage</span>
                   <span className="text-muted-foreground text-sm">bis Interview</span>
@@ -382,7 +465,7 @@ export const HeroSection = () => {
 
                 <Button 
                   onClick={() => navigate('/auth?role=client')}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl py-5 text-base font-medium group/btn"
+                  className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground rounded-xl py-5 text-base font-medium group/btn shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
                 >
                   Job starten
                   <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
@@ -390,21 +473,24 @@ export const HeroSection = () => {
               </div>
             </div>
 
-            {/* Recruiter CTA Card - Minimal */}
-            <div className="group relative p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 
-                          hover:border-emerald/30 hover:shadow-xl hover:shadow-emerald/5 transition-all duration-500">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {/* Recruiter CTA Card */}
+            <div className="group relative p-6 rounded-2xl bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-md border border-border/50 
+                          hover:border-emerald/40 hover:shadow-2xl hover:shadow-emerald/10 transition-all duration-500 overflow-hidden">
+              {/* Background gradient on hover */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              {/* Top shine */}
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
               <div className="relative space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald/10 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald/20 to-emerald/10 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-emerald/20 transition-shadow duration-500">
                     <Users className="w-5 h-5 text-emerald" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">Für Recruiter</h3>
                 </div>
 
                 {/* Single Key Stat */}
-                <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-emerald/10 border border-emerald/20">
+                <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald/10 to-emerald/5 border border-emerald/20">
                   <TrendingUp className="w-5 h-5 text-emerald" />
                   <span className="text-emerald font-semibold">Bis zu €15.000</span>
                   <span className="text-muted-foreground text-sm">pro Placement</span>
@@ -412,8 +498,7 @@ export const HeroSection = () => {
 
                 <Button 
                   onClick={() => navigate('/auth?role=recruiter')}
-                  variant="outline"
-                  className="w-full border-emerald/30 text-emerald hover:bg-emerald hover:text-white rounded-xl py-5 text-base font-medium group/btn"
+                  className="w-full bg-gradient-to-r from-emerald to-emerald-light hover:from-emerald-light hover:to-emerald text-white rounded-xl py-5 text-base font-medium group/btn shadow-lg shadow-emerald/20 hover:shadow-xl hover:shadow-emerald/30 transition-all duration-300"
                 >
                   Recruiter werden
                   <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
@@ -439,12 +524,33 @@ export const HeroSection = () => {
           animation: animate-dash 1s linear infinite;
         }
         
-        .animate-float-slow {
-          animation: floatCard 20s ease-in-out infinite;
+        @keyframes ping-slow {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          100% { transform: scale(1.5); opacity: 0; }
         }
         
-        .animate-float-slow-reverse {
-          animation: floatCard 25s ease-in-out infinite reverse;
+        @keyframes ping-medium {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          100% { transform: scale(1.4); opacity: 0; }
+        }
+        
+        @keyframes ping-fast {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          100% { transform: scale(1.3); opacity: 0; }
+        }
+        
+        .animate-ping-slow {
+          animation: ping-slow 4s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        
+        .animate-ping-medium {
+          animation: ping-medium 3s cubic-bezier(0, 0, 0.2, 1) infinite;
+          animation-delay: 0.5s;
+        }
+        
+        .animate-ping-fast {
+          animation: ping-fast 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+          animation-delay: 1s;
         }
       `}</style>
     </section>
