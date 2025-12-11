@@ -274,7 +274,7 @@ export default function RecruiterSubmissions() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-          {/* Header */}
+        {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Meine Pipeline</h1>
@@ -576,7 +576,6 @@ export default function RecruiterSubmissions() {
               </CardContent>
             </Card>
           )}
-        </div>
         
         {/* Playbook Selection Sheet */}
         <Sheet open={!!selectedPlaybookSubmission && !selectedPlaybook} onOpenChange={() => setSelectedPlaybookSubmission(null)}>
