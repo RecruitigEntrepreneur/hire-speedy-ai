@@ -101,6 +101,8 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   };
 
   const applyParsedCvData = (data: ParsedCVData) => {
+    const skillNames = data.skills?.map(s => s.name) || [];
+    
     setFormData(prev => ({
       ...prev,
       full_name: data.full_name || prev.full_name,
@@ -108,15 +110,15 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
       phone: data.phone || prev.phone,
       linkedin_url: data.linkedin_url || prev.linkedin_url,
       current_salary: data.current_salary?.toString() || prev.current_salary,
-      expected_salary: data.expected_salary?.toString() || prev.expected_salary,
+      expected_salary: data.salary_expectation_max?.toString() || prev.expected_salary,
       notice_period: data.notice_period || prev.notice_period,
-      skills: data.skills?.join(', ') || prev.skills,
-      summary: data.summary || prev.summary
+      skills: skillNames.join(', ') || prev.skills,
+      summary: data.cv_ai_summary || prev.summary
     }));
 
     // Update skills match
-    if (data.skills && data.skills.length > 0) {
-      checkSkillsMatch(data.skills);
+    if (skillNames.length > 0) {
+      checkSkillsMatch(skillNames);
     }
 
     // Check for duplicate

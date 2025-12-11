@@ -383,6 +383,153 @@ export type Database = {
           },
         ]
       }
+      candidate_educations: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          degree: string | null
+          field_of_study: string | null
+          grade: string | null
+          graduation_year: number | null
+          id: string
+          institution: string
+          sort_order: number | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          degree?: string | null
+          field_of_study?: string | null
+          grade?: string | null
+          graduation_year?: number | null
+          id?: string
+          institution: string
+          sort_order?: number | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          degree?: string | null
+          field_of_study?: string | null
+          grade?: string | null
+          graduation_year?: number | null
+          id?: string
+          institution?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_educations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_educations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_experiences: {
+        Row: {
+          candidate_id: string
+          company_name: string
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_current: boolean | null
+          job_title: string
+          location: string | null
+          sort_order: number | null
+          start_date: string | null
+        }
+        Insert: {
+          candidate_id: string
+          company_name: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          job_title: string
+          location?: string | null
+          sort_order?: number | null
+          start_date?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          company_name?: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          job_title?: string
+          location?: string | null
+          sort_order?: number | null
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_experiences_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_experiences_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_languages: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          id: string
+          language: string
+          proficiency: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          id?: string
+          language: string
+          proficiency?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          id?: string
+          language?: string
+          proficiency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_languages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_languages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_notes: {
         Row: {
           candidate_id: string
@@ -427,6 +574,48 @@ export type Database = {
           },
           {
             foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_skills: {
+        Row: {
+          candidate_id: string
+          category: string | null
+          created_at: string | null
+          id: string
+          level: string | null
+          skill_name: string
+        }
+        Insert: {
+          candidate_id: string
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          level?: string | null
+          skill_name: string
+        }
+        Update: {
+          candidate_id?: string
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          level?: string | null
+          skill_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidates"
@@ -557,6 +746,11 @@ export type Database = {
           company: string | null
           created_at: string
           current_salary: number | null
+          cv_ai_bullets: Json | null
+          cv_ai_summary: string | null
+          cv_parsed_at: string | null
+          cv_parser_version: string | null
+          cv_raw_text: string | null
           cv_url: string | null
           email: string
           expected_salary: number | null
@@ -576,12 +770,19 @@ export type Database = {
           recruiter_id: string
           relocation_willing: boolean | null
           remote_possible: boolean | null
+          remote_preference: string | null
           salary_bonus: number | null
+          salary_expectation_max: number | null
+          salary_expectation_min: number | null
           salary_fix: number | null
           seniority: string | null
           skills: string[] | null
           sms_opt_in: boolean | null
           summary: string | null
+          target_employment_type: string | null
+          target_industries: Json | null
+          target_locations: Json | null
+          target_roles: Json | null
           updated_at: string
           video_url: string | null
           visa_required: boolean | null
@@ -598,6 +799,11 @@ export type Database = {
           company?: string | null
           created_at?: string
           current_salary?: number | null
+          cv_ai_bullets?: Json | null
+          cv_ai_summary?: string | null
+          cv_parsed_at?: string | null
+          cv_parser_version?: string | null
+          cv_raw_text?: string | null
           cv_url?: string | null
           email: string
           expected_salary?: number | null
@@ -617,12 +823,19 @@ export type Database = {
           recruiter_id: string
           relocation_willing?: boolean | null
           remote_possible?: boolean | null
+          remote_preference?: string | null
           salary_bonus?: number | null
+          salary_expectation_max?: number | null
+          salary_expectation_min?: number | null
           salary_fix?: number | null
           seniority?: string | null
           skills?: string[] | null
           sms_opt_in?: boolean | null
           summary?: string | null
+          target_employment_type?: string | null
+          target_industries?: Json | null
+          target_locations?: Json | null
+          target_roles?: Json | null
           updated_at?: string
           video_url?: string | null
           visa_required?: boolean | null
@@ -639,6 +852,11 @@ export type Database = {
           company?: string | null
           created_at?: string
           current_salary?: number | null
+          cv_ai_bullets?: Json | null
+          cv_ai_summary?: string | null
+          cv_parsed_at?: string | null
+          cv_parser_version?: string | null
+          cv_raw_text?: string | null
           cv_url?: string | null
           email?: string
           expected_salary?: number | null
@@ -658,12 +876,19 @@ export type Database = {
           recruiter_id?: string
           relocation_willing?: boolean | null
           remote_possible?: boolean | null
+          remote_preference?: string | null
           salary_bonus?: number | null
+          salary_expectation_max?: number | null
+          salary_expectation_min?: number | null
           salary_fix?: number | null
           seniority?: string | null
           skills?: string[] | null
           sms_opt_in?: boolean | null
           summary?: string | null
+          target_employment_type?: string | null
+          target_industries?: Json | null
+          target_locations?: Json | null
+          target_roles?: Json | null
           updated_at?: string
           video_url?: string | null
           visa_required?: boolean | null
