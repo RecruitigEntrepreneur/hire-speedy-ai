@@ -337,8 +337,10 @@ export default function AdminFraud() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Beweise</p>
                   <ul className="list-disc list-inside space-y-1 text-sm">
-                    {selectedSignal.evidence.map((e, i) => (
-                      <li key={i}>{e}</li>
+                    {(selectedSignal.evidence || []).map((e, i) => (
+                      <li key={i}>
+                        {typeof e === 'string' ? e : JSON.stringify(e)}
+                      </li>
                     ))}
                   </ul>
                 </div>
