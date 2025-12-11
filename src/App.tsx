@@ -84,6 +84,7 @@ import Docs from "./pages/public/Docs";
 import Help from "./pages/public/Help";
 import Careers from "./pages/public/Careers";
 import Press from "./pages/public/Press";
+import Impressum from "./pages/public/Impressum";
 
 // GDPR Components
 import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
@@ -361,6 +362,7 @@ function AppRoutes() {
       <Route path="/help" element={<Help />} />
       <Route path="/careers" element={<Careers />} />
       <Route path="/press" element={<Press />} />
+      <Route path="/impressum" element={<Impressum />} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
