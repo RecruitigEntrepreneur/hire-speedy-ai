@@ -101,3 +101,6 @@ verify_jwt = true
 
 [functions.analyze-reference]
 verify_jwt = false
+
+[functions.hubspot-sync]
+verify_jwt = true

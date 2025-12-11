@@ -18,12 +18,18 @@ import {
   FileText,
   MapPin,
   Activity,
-  AlertTriangle
+  AlertTriangle,
+  Upload
 } from 'lucide-react';
 import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
+import { ActionCenterPanel } from '@/components/influence/ActionCenterPanel';
+import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
+import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
+import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
+import { toast } from 'sonner';
 
 interface DashboardStats {
   openJobs: number;
@@ -44,14 +50,20 @@ export default function RecruiterDashboard() {
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
   const [criticalDeals, setCriticalDeals] = useState<any[]>([]);
+  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string }>>({});
+  const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
+  
+  const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
+  const { logActivity } = useActivityLogger();
   
   usePageViewTracking('recruiter_dashboard');
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchCandidateMapForAlerts();
     }
-  }, [user]);
+  }, [user, alerts]);
 
   const fetchDashboardData = async () => {
     try {
@@ -132,6 +144,66 @@ export default function RecruiterDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCandidateMapForAlerts = async () => {
+    if (!alerts.length) return;
+    
+    // Get submission IDs from alerts
+    const submissionIds = alerts.map(a => a.submission_id);
+    
+    // Fetch submissions with candidates
+    const { data: submissions } = await supabase
+      .from('submissions')
+      .select('id, candidate_id, candidates(id, full_name, email, phone)')
+      .in('id', submissionIds);
+    
+    if (submissions) {
+      const map: Record<string, { name: string; email: string; phone?: string }> = {};
+      submissions.forEach((s: any) => {
+        if (s.candidates) {
+          map[s.id] = {
+            name: s.candidates.full_name,
+            email: s.candidates.email,
+            phone: s.candidates.phone || undefined,
+          };
+        }
+      });
+      setCandidateMap(map);
+    }
+  };
+
+  const handleMarkDone = async (alertId: string) => {
+    const alert = alerts.find(a => a.id === alertId);
+    if (alert) {
+      await takeAction(alertId, 'marked_done');
+      
+      // Get candidate from submission
+      const { data: submission } = await supabase
+        .from('submissions')
+        .select('candidate_id')
+        .eq('id', alert.submission_id)
+        .single();
+      
+      if (submission?.candidate_id) {
+        await logActivity(
+          submission.candidate_id,
+          'alert_actioned',
+          `Alert erledigt: ${alert.title}`,
+          alert.message,
+          { alert_type: alert.alert_type, priority: alert.priority },
+          alert.submission_id,
+          alert.id
+        );
+      }
+      
+      toast.success('Alert als erledigt markiert');
+    }
+  };
+
+  const handleOpenPlaybook = (id: string) => {
+    toast.info('Playbook wird geöffnet...');
+    // Playbook viewing can be implemented with a dedicated page/dialog
   };
 
   const statCards = [
@@ -255,6 +327,17 @@ export default function RecruiterDashboard() {
             </div>
           )}
 
+          {/* Action Center */}
+          <ActionCenterPanel
+            alerts={alerts}
+            loading={alertsLoading}
+            onMarkDone={handleMarkDone}
+            onDismiss={dismiss}
+            onOpenPlaybook={handleOpenPlaybook}
+            maxAlerts={3}
+            candidateMap={candidateMap}
+          />
+
           {/* Stats Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {statCards.map((stat) => (
@@ -357,6 +440,18 @@ export default function RecruiterDashboard() {
               </Link>
             </Card>
 
+            <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group" onClick={() => setHubspotDialogOpen(true)}>
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-primary-foreground transition-colors">
+                  <Upload className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">HubSpot Import</h3>
+                  <p className="text-sm text-muted-foreground">Kontakte importieren</p>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group">
               <Link to="/recruiter/submissions">
                 <CardContent className="p-6 flex items-center gap-4">
@@ -387,6 +482,16 @@ export default function RecruiterDashboard() {
           </div>
         </div>
       </DashboardLayout>
+
+      {/* Dialogs */}
+      <HubSpotImportDialog
+        open={hubspotDialogOpen}
+        onOpenChange={setHubspotDialogOpen}
+        onImportComplete={() => {
+          toast.success('Kandidaten erfolgreich importiert');
+        }}
+      />
+
     </div>
   );
 }

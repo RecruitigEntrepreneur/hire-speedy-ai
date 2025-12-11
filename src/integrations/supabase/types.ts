@@ -80,6 +80,81 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_activity_log: {
+        Row: {
+          activity_type: string
+          candidate_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          recruiter_id: string
+          related_alert_id: string | null
+          related_submission_id: string | null
+          title: string
+        }
+        Insert: {
+          activity_type: string
+          candidate_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          recruiter_id: string
+          related_alert_id?: string | null
+          related_submission_id?: string | null
+          title: string
+        }
+        Update: {
+          activity_type?: string
+          candidate_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          recruiter_id?: string
+          related_alert_id?: string | null
+          related_submission_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_activity_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_related_alert_id_fkey"
+            columns: ["related_alert_id"]
+            isOneToOne: false
+            referencedRelation: "influence_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
+            columns: ["related_submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
+            columns: ["related_submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_behavior: {
         Row: {
           candidate_id: string

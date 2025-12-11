@@ -26,6 +26,8 @@ interface Provider {
 }
 
 const availableProviders: Provider[] = [
+  { id: 'hubspot', name: 'HubSpot', logo: '🟠', description: 'CRM & Marketing Platform', authType: 'api_key', docsUrl: 'https://developers.hubspot.com/' },
+  { id: 'salesforce', name: 'Salesforce', logo: '☁️', description: 'Enterprise CRM Platform', authType: 'oauth', docsUrl: 'https://developer.salesforce.com/' },
   { id: 'greenhouse', name: 'Greenhouse', logo: '🌱', description: 'Enterprise Recruiting Software', authType: 'api_key', docsUrl: 'https://developers.greenhouse.io/' },
   { id: 'lever', name: 'Lever', logo: '⚙️', description: 'Modern Talent Acquisition Suite', authType: 'oauth' },
   { id: 'workday', name: 'Workday', logo: '📊', description: 'HR Management Platform', authType: 'oauth' },
