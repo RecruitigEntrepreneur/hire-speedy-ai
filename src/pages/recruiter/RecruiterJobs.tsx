@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -21,9 +22,12 @@ import {
   ArrowUpRight,
   Loader2,
   Filter,
-  Shield
+  Shield,
+  UserPlus,
+  Users
 } from 'lucide-react';
 import { anonymizeCompanyName } from '@/lib/anonymization';
+import { QuickActionsButton } from '@/components/layout/QuickActionsButton';
 
 interface Job {
   id: string;
@@ -42,6 +46,7 @@ interface Job {
 }
 
 export default function RecruiterJobs() {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,9 +118,20 @@ export default function RecruiterJobs() {
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Open Jobs</h1>
-            <p className="text-muted-foreground">Find opportunities for your candidates</p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Open Jobs</h1>
+              <p className="text-muted-foreground">Find opportunities for your candidates</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <QuickActionsButton onCandidateImported={() => navigate('/recruiter/candidates')} />
+              <Button asChild variant="default" className="gap-2">
+                <Link to="/recruiter/candidates">
+                  <Users className="h-4 w-4" />
+                  <span className="hidden sm:inline">Meine Kandidaten</span>
+                </Link>
+              </Button>
+            </div>
           </div>
 
           {/* Filters */}
