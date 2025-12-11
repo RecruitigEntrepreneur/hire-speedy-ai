@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/Navbar";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -131,22 +130,17 @@ export default function RecruiterPayouts() {
 
   if (loading) {
     return (
-      <>
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </DashboardLayout>
-      </>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <>
-      <Navbar />
-      <DashboardLayout>
-        <div className="space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold">Auszahlungen</h1>
             <p className="text-muted-foreground">
