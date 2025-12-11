@@ -42,7 +42,7 @@ const useCountUp = (target: number, duration: number = 2000, startOnMount: boole
   return count;
 };
 
-// KPI Box Component
+// KPI Box Component - Compact
 const KPIBox = ({ icon: Icon, value, suffix = "", label }: { 
   icon: React.ElementType; 
   value: number; 
@@ -52,92 +52,90 @@ const KPIBox = ({ icon: Icon, value, suffix = "", label }: {
   const animatedValue = useCountUp(value, 2000);
   
   return (
-    <div className="flex flex-col items-center p-4 md:p-6 rounded-xl bg-card/60 backdrop-blur-sm border border-border/40 hover:border-emerald/30 transition-all duration-300">
-      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald/10 flex items-center justify-center mb-3">
-        <Icon className="w-5 h-5 md:w-6 md:h-6 text-emerald" />
+    <div className="flex flex-col items-center p-2 md:p-3 rounded-lg bg-card/60 backdrop-blur-sm border border-border/40 hover:border-emerald/30 transition-all duration-300">
+      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald/10 flex items-center justify-center mb-1.5">
+        <Icon className="w-3 h-3 md:w-4 md:h-4 text-emerald" />
       </div>
-      <span className="text-2xl md:text-3xl font-bold text-foreground">
+      <span className="text-lg md:text-xl font-bold text-foreground">
         {animatedValue.toLocaleString('de-DE')}{suffix}
       </span>
-      <span className="text-xs md:text-sm text-muted-foreground mt-1 text-center">{label}</span>
+      <span className="text-[10px] md:text-xs text-muted-foreground mt-0.5 text-center">{label}</span>
     </div>
   );
 };
 
-// Dashboard Mockup Component
+// Dashboard Mockup Component - Compact
 const DashboardMockup = () => {
   return (
-    <div className="relative w-full max-w-3xl mx-auto mt-8 rounded-2xl bg-card/80 backdrop-blur-sm border border-border/50 overflow-hidden shadow-2xl shadow-black/10">
+    <div className="relative w-full max-w-md mx-auto mt-4 rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 overflow-hidden shadow-xl shadow-black/10">
       {/* Browser-like header */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b border-border/40">
-        <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-destructive/60" />
-          <div className="w-3 h-3 rounded-full bg-warning/60" />
-          <div className="w-3 h-3 rounded-full bg-emerald/60" />
+      <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/50 border-b border-border/40">
+        <div className="flex gap-1">
+          <div className="w-2 h-2 rounded-full bg-destructive/60" />
+          <div className="w-2 h-2 rounded-full bg-warning/60" />
+          <div className="w-2 h-2 rounded-full bg-emerald/60" />
         </div>
-        <div className="flex-1 mx-4">
-          <div className="h-6 w-48 rounded-md bg-background/80 mx-auto" />
+        <div className="flex-1 mx-3">
+          <div className="h-4 w-32 rounded bg-background/80 mx-auto" />
         </div>
       </div>
       
       {/* Dashboard Content */}
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="p-2 md:p-3 space-y-2">
         {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="w-4 h-4 text-emerald" />
-              <span className="text-xs text-muted-foreground">Aktive Jobs</span>
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="p-1.5 rounded bg-muted/30 border border-border/30">
+            <div className="flex items-center gap-1 mb-0.5">
+              <BarChart3 className="w-3 h-3 text-emerald" />
+              <span className="text-[9px] text-muted-foreground">Jobs</span>
             </div>
-            <span className="text-lg font-bold text-foreground">12</span>
+            <span className="text-sm font-bold text-foreground">12</span>
           </div>
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Kandidaten</span>
+          <div className="p-1.5 rounded bg-muted/30 border border-border/30">
+            <div className="flex items-center gap-1 mb-0.5">
+              <Users className="w-3 h-3 text-primary" />
+              <span className="text-[9px] text-muted-foreground">Kandidaten</span>
             </div>
-            <span className="text-lg font-bold text-foreground">47</span>
+            <span className="text-sm font-bold text-foreground">47</span>
           </div>
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="w-4 h-4 text-warning" />
-              <span className="text-xs text-muted-foreground">Matches</span>
+          <div className="p-1.5 rounded bg-muted/30 border border-border/30">
+            <div className="flex items-center gap-1 mb-0.5">
+              <Star className="w-3 h-3 text-warning" />
+              <span className="text-[9px] text-muted-foreground">Matches</span>
             </div>
-            <span className="text-lg font-bold text-foreground">8</span>
+            <span className="text-sm font-bold text-foreground">8</span>
           </div>
         </div>
 
-        {/* Candidate List Preview */}
-        <div className="space-y-2">
+        {/* Candidate List Preview - Compact */}
+        <div className="space-y-1">
           {[
             { name: "M. Schmidt", role: "Senior Dev", score: 96, status: "Interview" },
             { name: "A. Koch", role: "Product Lead", score: 91, status: "Opt-In" },
-            { name: "L. Weber", role: "Sales Dir.", score: 88, status: "Neu" },
           ].map((candidate, i) => (
             <div 
               key={i} 
-              className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/30 hover:border-emerald/30 transition-colors"
+              className="flex items-center gap-2 p-1.5 rounded bg-background/50 border border-border/30"
             >
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-medium text-primary">
                 {candidate.name.split(' ').map(n => n[0]).join('')}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{candidate.name}</p>
-                <p className="text-xs text-muted-foreground">{candidate.role}</p>
+                <p className="text-[10px] font-medium text-foreground truncate">{candidate.name}</p>
+                <p className="text-[8px] text-muted-foreground">{candidate.role}</p>
               </div>
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="hidden sm:flex items-center gap-1">
+                <div className="w-10 h-1 rounded-full bg-muted overflow-hidden">
                   <div 
                     className="h-full rounded-full bg-emerald"
                     style={{ width: `${candidate.score}%` }}
                   />
                 </div>
-                <span className="text-xs font-semibold text-emerald w-8">{candidate.score}%</span>
+                <span className="text-[9px] font-semibold text-emerald">{candidate.score}%</span>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full ${
+              <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${
                 candidate.status === 'Interview' ? 'bg-emerald/10 text-emerald' :
-                candidate.status === 'Opt-In' ? 'bg-primary/10 text-primary' :
-                'bg-muted text-muted-foreground'
+                'bg-primary/10 text-primary'
               }`}>
                 {candidate.status}
               </span>
@@ -347,11 +345,11 @@ export const HeroSection = () => {
             </p>
           </div>
 
-          {/* KPI Bar - Rule of 3 */}
-          <div className="grid grid-cols-3 gap-3 md:gap-4 max-w-2xl mx-auto">
+          {/* KPI Bar - Rule of 3 - Compact */}
+          <div className="grid grid-cols-3 gap-2 md:gap-3 max-w-sm mx-auto">
             <KPIBox icon={Eye} value={2847} label="Recruiter-Views" />
-            <KPIBox icon={FileText} value={142} label="Eingereichte Profile" />
-            <KPIBox icon={Target} value={96} suffix="%" label="Top-Match-Score" />
+            <KPIBox icon={FileText} value={142} label="Profile" />
+            <KPIBox icon={Target} value={96} suffix="%" label="Match-Score" />
           </div>
 
           {/* Dashboard Mockup */}
