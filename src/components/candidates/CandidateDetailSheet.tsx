@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Sheet,
   SheetContent,
@@ -9,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,17 +19,25 @@ import {
   Phone,
   Linkedin,
   FileText,
-  Calendar,
-  Briefcase,
-  Euro,
-  Clock,
   Edit,
-  ExternalLink,
+  Download,
+  Copy,
+  Plus,
+  User,
+  Clock,
+  Briefcase,
+  StickyNote,
 } from 'lucide-react';
+import { toast } from 'sonner';
+
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
 import { CandidateActivityTimeline } from './CandidateActivityTimeline';
 import { CandidateJobsOverview } from './CandidateJobsOverview';
+import { CandidateNotes } from './CandidateNotes';
+import { CandidateOverviewTab } from './CandidateOverviewTab';
+import { CandidateStatusDropdown } from './CandidateStatusDropdown';
+import { AddActivityDialog } from './AddActivityDialog';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
 
 interface CandidateDetailSheetProps {
@@ -45,214 +55,230 @@ export function CandidateDetailSheet({
   onOpenChange,
   onEdit,
 }: CandidateDetailSheetProps) {
-  const { activities, loading: activitiesLoading } = useCandidateActivityLog(candidate?.id);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [addActivityOpen, setAddActivityOpen] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(candidate?.candidate_status || 'new');
+  const queryClient = useQueryClient();
+  
+  const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
+
+  // Update status mutation
+  const statusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      if (!candidate) return;
+      const { error } = await supabase
+        .from('candidates')
+        .update({ candidate_status: newStatus })
+        .eq('id', candidate.id);
+      if (error) throw error;
+      return newStatus;
+    },
+    onSuccess: async (newStatus) => {
+      if (!candidate || !newStatus) return;
+      setCurrentStatus(newStatus);
+      await logActivity(
+        candidate.id,
+        'status_change',
+        `Status geändert zu "${getStatusLabel(newStatus)}"`,
+        undefined,
+        { oldStatus: currentStatus, newStatus }
+      );
+      toast.success('Status aktualisiert');
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+    },
+    onError: () => {
+      toast.error('Fehler beim Aktualisieren des Status');
+    },
+  });
+
+  const handleAddActivity = async (activityType: string, title: string, description: string) => {
+    if (!candidate) return;
+    await logActivity(
+      candidate.id,
+      activityType as 'call' | 'email' | 'note' | 'status_change' | 'playbook_used' | 'alert_actioned' | 'hubspot_import',
+      title,
+      description
+    );
+    setAddActivityOpen(false);
+    toast.success('Aktivität hinzugefügt');
+  };
+
+  const handleExport = () => {
+    if (!candidate) return;
+    const exportData = {
+      ...candidate,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${candidate.full_name.replace(/\s+/g, '_')}_profile.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Profil exportiert');
+  };
+
+  const handleDuplicate = async () => {
+    if (!candidate) return;
+    toast.info('Kandidat duplizieren ist noch nicht implementiert');
+  };
 
   if (!candidate) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl">
-        <SheetHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-14 w-14">
-                <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                  {candidate.full_name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <SheetTitle className="text-xl">{candidate.full_name}</SheetTitle>
-                <p className="text-sm text-muted-foreground">{candidate.email}</p>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+          {/* Header */}
+          <SheetHeader className="p-6 pb-4 border-b shrink-0">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                    {candidate.full_name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <SheetTitle className="text-xl mb-1">{candidate.full_name}</SheetTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {candidate.job_title 
+                      ? `${candidate.job_title}${candidate.company ? ` bei ${candidate.company}` : ''}`
+                      : candidate.email}
+                  </p>
+                  <div className="mt-2">
+                    <CandidateStatusDropdown
+                      value={currentStatus}
+                      onChange={(val) => statusMutation.mutate(val)}
+                      disabled={statusMutation.isPending}
+                    />
+                  </div>
+                </div>
               </div>
+              <Button variant="outline" size="sm" onClick={() => onEdit(candidate)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Bearbeiten
+              </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={() => onEdit(candidate)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Bearbeiten
-            </Button>
-          </div>
-        </SheetHeader>
 
-        <ScrollArea className="h-[calc(100vh-120px)] mt-6 pr-4">
-          {/* Quick Actions */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            {candidate.phone && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = `tel:${candidate.phone}`}
-              >
-                <Phone className="h-4 w-4 mr-2" />
-                Anrufen
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = `mailto:${candidate.email}`}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              E-Mail
-            </Button>
-            {candidate.linkedin_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(candidate.linkedin_url!, '_blank')}
-              >
-                <Linkedin className="h-4 w-4 mr-2" />
-                LinkedIn
-              </Button>
-            )}
-            {candidate.cv_url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(candidate.cv_url!, '_blank')}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                CV öffnen
-              </Button>
-            )}
-          </div>
-
-          {/* Tags */}
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-6">
-              {tags.map((tag) => (
-                <Badge
-                  key={tag.id}
-                  variant="secondary"
-                  style={{
-                    backgroundColor: tag.color + '30',
-                    color: tag.color,
-                    borderColor: tag.color,
-                  }}
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {candidate.phone && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = `tel:${candidate.phone}`}
                 >
-                  {tag.name}
-                </Badge>
-              ))}
+                  <Phone className="h-4 w-4 mr-2" />
+                  Anrufen
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = `mailto:${candidate.email}`}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                E-Mail
+              </Button>
+              {candidate.linkedin_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(candidate.linkedin_url!, '_blank')}
+                >
+                  <Linkedin className="h-4 w-4 mr-2" />
+                  LinkedIn
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDuplicate}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplizieren
+              </Button>
             </div>
-          )}
+          </SheetHeader>
 
-          <Separator className="my-4" />
-
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Briefcase className="h-3 w-3" />
-                Erfahrung
-              </p>
-              <p className="font-medium">
-                {candidate.experience_years !== null
-                  ? `${candidate.experience_years} Jahre`
-                  : 'Nicht angegeben'}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Euro className="h-3 w-3" />
-                Gehaltsvorstellung
-              </p>
-              <p className="font-medium">
-                {candidate.expected_salary
-                  ? `${candidate.expected_salary.toLocaleString('de-DE')} €`
-                  : 'Nicht angegeben'}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Euro className="h-3 w-3" />
-                Aktuelles Gehalt
-              </p>
-              <p className="font-medium">
-                {candidate.current_salary
-                  ? `${candidate.current_salary.toLocaleString('de-DE')} €`
-                  : 'Nicht angegeben'}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Verfügbar ab
-              </p>
-              <p className="font-medium">
-                {candidate.availability_date
-                  ? format(new Date(candidate.availability_date), 'dd.MM.yyyy', { locale: de })
-                  : 'Nicht angegeben'}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Kündigungsfrist
-              </p>
-              <p className="font-medium">{candidate.notice_period || 'Nicht angegeben'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                Telefon
-              </p>
-              <p className="font-medium">{candidate.phone || 'Nicht angegeben'}</p>
-            </div>
-          </div>
-
-          {/* Skills */}
-          {candidate.skills && candidate.skills.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-sm font-medium mb-2">Skills</h4>
-              <div className="flex flex-wrap gap-2">
-                {candidate.skills.map((skill, i) => (
-                  <Badge key={i} variant="outline">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Summary */}
-          {candidate.summary && (
-            <div className="mb-6">
-              <h4 className="text-sm font-medium mb-2">Zusammenfassung</h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {candidate.summary}
-              </p>
-            </div>
-          )}
-
-          <Separator className="my-4" />
-
-          {/* Tabs for Activities and Jobs */}
-          <Tabs defaultValue="activities" className="mt-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="activities">Aktivitäten</TabsTrigger>
-              <TabsTrigger value="jobs">Jobs</TabsTrigger>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <TabsList className="grid w-full grid-cols-4 shrink-0 mx-6 mt-4" style={{ width: 'calc(100% - 48px)' }}>
+              <TabsTrigger value="overview" className="flex items-center gap-1">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Übersicht</span>
+              </TabsTrigger>
+              <TabsTrigger value="activities" className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">Aktivitäten</span>
+              </TabsTrigger>
+              <TabsTrigger value="submissions" className="flex items-center gap-1">
+                <Briefcase className="h-4 w-4" />
+                <span className="hidden sm:inline">Submissions</span>
+              </TabsTrigger>
+              <TabsTrigger value="notes" className="flex items-center gap-1">
+                <StickyNote className="h-4 w-4" />
+                <span className="hidden sm:inline">Notizen</span>
+              </TabsTrigger>
             </TabsList>
-            <TabsContent value="activities" className="mt-4">
-              <CandidateActivityTimeline
-                activities={activities}
-                loading={activitiesLoading}
-              />
-            </TabsContent>
-            <TabsContent value="jobs" className="mt-4">
-              <CandidateJobsOverview candidateId={candidate.id} />
-            </TabsContent>
-          </Tabs>
 
-          {/* Meta Info */}
-          <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
-            Hinzugefügt am{' '}
-            {format(new Date(candidate.created_at), "dd. MMMM yyyy 'um' HH:mm", {
-              locale: de,
-            })}
-          </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+            <ScrollArea className="flex-1 px-6 pb-6">
+              {/* Tab 1: Overview */}
+              <TabsContent value="overview" className="mt-4 focus-visible:ring-0">
+                <CandidateOverviewTab candidate={candidate} tags={tags} />
+              </TabsContent>
+
+              {/* Tab 2: Activities */}
+              <TabsContent value="activities" className="mt-4 focus-visible:ring-0">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Aktivitäten-Timeline</h3>
+                  <Button size="sm" onClick={() => setAddActivityOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aktivität hinzufügen
+                  </Button>
+                </div>
+                <CandidateActivityTimeline
+                  activities={activities}
+                  loading={activitiesLoading}
+                />
+              </TabsContent>
+
+              {/* Tab 3: Submissions */}
+              <TabsContent value="submissions" className="mt-4 focus-visible:ring-0">
+                <CandidateJobsOverview candidateId={candidate.id} />
+              </TabsContent>
+
+              {/* Tab 4: Notes */}
+              <TabsContent value="notes" className="mt-4 focus-visible:ring-0">
+                <CandidateNotes candidateId={candidate.id} />
+              </TabsContent>
+            </ScrollArea>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
+
+      {/* Add Activity Dialog */}
+      <AddActivityDialog
+        open={addActivityOpen}
+        onOpenChange={setAddActivityOpen}
+        onSubmit={handleAddActivity}
+      />
+    </>
   );
+}
+
+function getStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    new: 'Neu',
+    contacted: 'Kontaktiert',
+    interview: 'Interview',
+    offer: 'Angebot',
+    placed: 'Platziert',
+    rejected: 'Absage',
+  };
+  return labels[status] || status;
 }
