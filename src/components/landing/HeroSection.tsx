@@ -226,27 +226,85 @@ const FloatingCandidateCard = ({ candidate, style, isMatching }: { candidate: ty
   </div>
 );
 
-// Connecting Line SVG
-const ConnectingLine = ({ isActive }: { isActive: boolean }) => (
-  <svg 
-    className="absolute inset-0 w-full h-full pointer-events-none z-0"
-    style={{ opacity: isActive ? 1 : 0, transition: 'opacity 0.5s ease' }}
+// Connecting Line SVG - Dynamic based on matching pair
+const ConnectingLine = ({ isActive, matchIndex }: { isActive: boolean; matchIndex: number | null }) => {
+  // Calculate Y positions based on which pair is matching
+  const yPositions = ['25%', '50%', '72%'];
+  const yPos = matchIndex !== null ? yPositions[matchIndex] : '50%';
+  
+  return (
+    <svg 
+      className="absolute inset-0 w-full h-full pointer-events-none z-20"
+      style={{ opacity: isActive ? 1 : 0, transition: 'opacity 0.5s ease' }}
+    >
+      <defs>
+        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="hsl(var(--emerald))" stopOpacity="0.2" />
+          <stop offset="30%" stopColor="hsl(var(--emerald))" stopOpacity="0.8" />
+          <stop offset="50%" stopColor="hsl(var(--emerald-light))" stopOpacity="1" />
+          <stop offset="70%" stopColor="hsl(var(--emerald))" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="hsl(var(--emerald))" stopOpacity="0.2" />
+        </linearGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      {/* Background glow line */}
+      <line 
+        x1="18%" y1={yPos} x2="82%" y2={yPos}
+        stroke="hsl(var(--emerald))"
+        strokeWidth="6"
+        strokeOpacity="0.2"
+        filter="url(#glow)"
+        className="transition-all duration-700"
+      />
+      {/* Main animated line */}
+      <line 
+        x1="18%" y1={yPos} x2="82%" y2={yPos}
+        stroke="url(#lineGradient)" 
+        strokeWidth="3"
+        strokeDasharray="12 6"
+        strokeLinecap="round"
+        filter="url(#glow)"
+        className={`transition-all duration-700 ${isActive ? 'animate-dash' : ''}`}
+      />
+      {/* Particle dots along the line */}
+      {isActive && (
+        <>
+          <circle cx="35%" cy={yPos} r="4" fill="hsl(var(--emerald))" className="animate-pulse" filter="url(#glow)" />
+          <circle cx="50%" cy={yPos} r="5" fill="hsl(var(--emerald-light))" className="animate-pulse" style={{ animationDelay: '0.3s' }} filter="url(#glow)" />
+          <circle cx="65%" cy={yPos} r="4" fill="hsl(var(--emerald))" className="animate-pulse" style={{ animationDelay: '0.6s' }} filter="url(#glow)" />
+        </>
+      )}
+    </svg>
+  );
+};
+
+// Match Badge Component
+const MatchBadge = ({ isActive }: { isActive: boolean }) => (
+  <div 
+    className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 transition-all duration-500
+                ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
   >
-    <defs>
-      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="hsl(var(--emerald))" stopOpacity="0.3" />
-        <stop offset="50%" stopColor="hsl(var(--emerald))" stopOpacity="0.8" />
-        <stop offset="100%" stopColor="hsl(var(--emerald))" stopOpacity="0.3" />
-      </linearGradient>
-    </defs>
-    <line 
-      x1="25%" y1="50%" x2="75%" y2="50%" 
-      stroke="url(#lineGradient)" 
-      strokeWidth="2"
-      strokeDasharray="8 4"
-      className={isActive ? 'animate-dash' : ''}
-    />
-  </svg>
+    <div className="relative">
+      {/* Outer glow ring */}
+      <div className="absolute -inset-4 rounded-full bg-emerald/30 blur-xl animate-pulse" />
+      {/* Badge */}
+      <div className="relative px-6 py-3 rounded-full bg-gradient-to-r from-emerald to-emerald-light shadow-2xl shadow-emerald/50 border-2 border-white/20">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-white animate-pulse" />
+          <span className="text-white font-bold text-lg tracking-wide">MATCH!</span>
+        </div>
+      </div>
+      {/* Sparkle effects */}
+      <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-white animate-ping" />
+      <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-emerald-light animate-ping" style={{ animationDelay: '0.5s' }} />
+    </div>
+  </div>
 );
 
 // Radar Ping Animation Component
@@ -312,15 +370,15 @@ export const HeroSection = () => {
   }, []);
 
   const jobPositions = [
-    { top: '18%', left: '2%', animationDelay: '0s' },
-    { top: '45%', left: '1%', animationDelay: '1s' },
-    { top: '68%', left: '3%', animationDelay: '2s' },
+    { top: '18%', left: '5%', animationDelay: '0s' },
+    { top: '44%', left: '3%', animationDelay: '1s' },
+    { top: '66%', left: '6%', animationDelay: '2s' },
   ];
 
   const candidatePositions = [
-    { top: '15%', right: '2%', animationDelay: '0.5s' },
-    { top: '42%', right: '1%', animationDelay: '1.5s' },
-    { top: '66%', right: '3%', animationDelay: '2.5s' },
+    { top: '16%', right: '5%', animationDelay: '0.5s' },
+    { top: '42%', right: '3%', animationDelay: '1.5s' },
+    { top: '64%', right: '6%', animationDelay: '2.5s' },
   ];
 
   return (
@@ -392,7 +450,12 @@ export const HeroSection = () => {
 
       {/* Connecting Line (Hidden on mobile/tablet) */}
       <div className="hidden lg:block">
-        <ConnectingLine isActive={matchingPair !== null} />
+        <ConnectingLine isActive={matchingPair !== null} matchIndex={matchingPair} />
+      </div>
+
+      {/* Match Badge (Hidden on mobile/tablet) */}
+      <div className="hidden lg:block">
+        <MatchBadge isActive={matchingPair !== null} />
       </div>
 
       {/* Main Content */}
