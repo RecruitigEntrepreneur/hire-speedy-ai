@@ -206,265 +206,264 @@ export default function RecruiterProfile() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Profil & Compliance</h1>
-              <p className="text-muted-foreground">Verwalte deine Daten und Dokumente</p>
-            </div>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Speichern
-            </Button>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Profil & Compliance</h1>
+            <p className="text-muted-foreground">Verwalte deine Daten und Dokumente</p>
+          </div>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Speichern
+          </Button>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Personal Data */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Persönliche Daten
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Vollständiger Name</Label>
+                    <Input
+                      id="full_name"
+                      value={profile?.full_name || ''}
+                      onChange={(e) => setProfile(prev => prev ? { ...prev, full_name: e.target.value } : null)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-Mail</Label>
+                    <Input
+                      id="email"
+                      value={profile?.email || ''}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefon</Label>
+                  <Input
+                    id="phone"
+                    value={profile?.phone || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Company Data */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Firmendaten
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company_name">Firmenname</Label>
+                  <Input
+                    id="company_name"
+                    value={profile?.company_name || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, company_name: e.target.value } : null)}
+                    placeholder="Optional: Falls du als Agentur arbeitest"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company_address">Firmenadresse</Label>
+                  <Input
+                    id="company_address"
+                    value={profile?.company_address || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, company_address: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tax_id">Steuernummer / USt-IdNr.</Label>
+                  <Input
+                    id="tax_id"
+                    value={profile?.tax_id || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, tax_id: e.target.value } : null)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bank Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Bankverbindung
+                </CardTitle>
+                <CardDescription>Für Auszahlungen deiner Vermittlungsgebühren</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bank_iban">IBAN</Label>
+                  <Input
+                    id="bank_iban"
+                    value={profile?.bank_iban || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, bank_iban: e.target.value } : null)}
+                    placeholder="DE89 3704 0044 0532 0130 00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bank_bic">BIC</Label>
+                  <Input
+                    id="bank_bic"
+                    value={profile?.bank_bic || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, bank_bic: e.target.value } : null)}
+                    placeholder="COBADEFFXXX"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Documents */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Dokumente & Compliance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Allgemeine Geschäftsbedingungen</p>
+                      <p className="text-sm text-muted-foreground">Nutzungsbedingungen der Plattform</p>
+                    </div>
+                  </div>
+                  {isDocumentAccepted('agb') ? (
+                    <Badge className="bg-emerald/10 text-emerald">
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Akzeptiert
+                    </Badge>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => handleAcceptDocument('agb')}>
+                      Akzeptieren
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">NDA / Vertraulichkeitsvereinbarung</p>
+                      <p className="text-sm text-muted-foreground">Schutz von Kandidaten- und Kundendaten</p>
+                    </div>
+                  </div>
+                  {isDocumentAccepted('nda') ? (
+                    <Badge className="bg-emerald/10 text-emerald">
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Akzeptiert
+                    </Badge>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => handleAcceptDocument('nda')}>
+                      Akzeptieren
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Rahmenvertrag</p>
+                      <p className="text-sm text-muted-foreground">Vertrag über Vermittlungsleistungen</p>
+                    </div>
+                  </div>
+                  {isDocumentAccepted('contract') ? (
+                    <Badge className="bg-emerald/10 text-emerald">
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Akzeptiert
+                    </Badge>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => handleAcceptDocument('contract')}>
+                      Akzeptieren
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Personal Data */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Persönliche Daten
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Vollständiger Name</Label>
-                      <Input
-                        id="full_name"
-                        value={profile?.full_name || ''}
-                        onChange={(e) => setProfile(prev => prev ? { ...prev, full_name: e.target.value } : null)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">E-Mail</Label>
-                      <Input
-                        id="email"
-                        value={profile?.email || ''}
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
+          {/* Sidebar - Quality Scores */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Award className="h-5 w-5" />
+                  Qualitäts-Scores
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-muted-foreground" />
+                      Platzierungsquote
+                    </span>
+                    <span className="font-semibold">{stats.placementRate}%</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefon</Label>
-                    <Input
-                      id="phone"
-                      value={profile?.phone || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  <Progress value={stats.placementRate} className="h-2" />
+                </div>
 
-              {/* Company Data */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    Firmendaten
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="company_name">Firmenname</Label>
-                    <Input
-                      id="company_name"
-                      value={profile?.company_name || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, company_name: e.target.value } : null)}
-                      placeholder="Optional: Falls du als Agentur arbeitest"
-                    />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      Interview-Quote
+                    </span>
+                    <span className="font-semibold">{stats.interviewRate}%</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company_address">Firmenadresse</Label>
-                    <Input
-                      id="company_address"
-                      value={profile?.company_address || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, company_address: e.target.value } : null)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tax_id">Steuernummer / USt-IdNr.</Label>
-                    <Input
-                      id="tax_id"
-                      value={profile?.tax_id || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, tax_id: e.target.value } : null)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  <Progress value={stats.interviewRate} className="h-2" />
+                </div>
 
-              {/* Bank Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Bankverbindung
-                  </CardTitle>
-                  <CardDescription>Für Auszahlungen deiner Vermittlungsgebühren</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_iban">IBAN</Label>
-                    <Input
-                      id="bank_iban"
-                      value={profile?.bank_iban || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, bank_iban: e.target.value } : null)}
-                      placeholder="DE89 3704 0044 0532 0130 00"
-                    />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      Ø Response-Zeit
+                    </span>
+                    <span className="font-semibold">{stats.avgResponseTime}h</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_bic">BIC</Label>
-                    <Input
-                      id="bank_bic"
-                      value={profile?.bank_bic || ''}
-                      onChange={(e) => setProfile(prev => prev ? { ...prev, bank_bic: e.target.value } : null)}
-                      placeholder="COBADEFFXXX"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  <Progress value={100 - (stats.avgResponseTime * 10)} className="h-2" />
+                </div>
 
-              {/* Documents */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Dokumente & Compliance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Allgemeine Geschäftsbedingungen</p>
-                        <p className="text-sm text-muted-foreground">Nutzungsbedingungen der Plattform</p>
-                      </div>
-                    </div>
-                    {isDocumentAccepted('agb') ? (
-                      <Badge className="bg-emerald/10 text-emerald">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Akzeptiert
-                      </Badge>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => handleAcceptDocument('agb')}>
-                        Akzeptieren
-                      </Button>
-                    )}
-                  </div>
+                <Separator />
 
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">NDA / Vertraulichkeitsvereinbarung</p>
-                        <p className="text-sm text-muted-foreground">Schutz von Kandidaten- und Kundendaten</p>
-                      </div>
-                    </div>
-                    {isDocumentAccepted('nda') ? (
-                      <Badge className="bg-emerald/10 text-emerald">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Akzeptiert
-                      </Badge>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => handleAcceptDocument('nda')}>
-                        Akzeptieren
-                      </Button>
-                    )}
-                  </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Einreichungen gesamt</p>
+                  <p className="text-3xl font-bold">{stats.totalSubmissions}</p>
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Rahmenvertrag</p>
-                        <p className="text-sm text-muted-foreground">Vertrag über Vermittlungsleistungen</p>
-                      </div>
-                    </div>
-                    {isDocumentAccepted('contract') ? (
-                      <Badge className="bg-emerald/10 text-emerald">
-                        <CheckCircle2 className="h-3 w-3 mr-1" /> Akzeptiert
-                      </Badge>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => handleAcceptDocument('contract')}>
-                        Akzeptieren
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar - Quality Scores */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Award className="h-5 w-5" />
-                    Qualitäts-Scores
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Target className="h-4 w-4 text-muted-foreground" />
-                        Platzierungsquote
-                      </span>
-                      <span className="font-semibold">{stats.placementRate}%</span>
-                    </div>
-                    <Progress value={stats.placementRate} className="h-2" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        Interview-Quote
-                      </span>
-                      <span className="font-semibold">{stats.interviewRate}%</span>
-                    </div>
-                    <Progress value={stats.interviewRate} className="h-2" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        Ø Response-Zeit
-                      </span>
-                      <span className="font-semibold">{stats.avgResponseTime}h</span>
-                    </div>
-                    <Progress value={100 - (stats.avgResponseTime * 10)} className="h-2" />
-                  </div>
-
-                  <Separator />
-
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Einreichungen gesamt</p>
-                    <p className="text-3xl font-bold">{stats.totalSubmissions}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-emerald/30 bg-emerald/5">
-                <CardContent className="pt-6">
-                  <div className="text-center space-y-2">
-                    <Award className="h-8 w-8 mx-auto text-emerald" />
-                    <p className="font-semibold">Verifizierter Recruiter</p>
-                    <p className="text-sm text-muted-foreground">
-                      Du hast alle erforderlichen Dokumente akzeptiert und bist als aktiver Recruiter freigeschaltet.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="border-emerald/30 bg-emerald/5">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-2">
+                  <Award className="h-8 w-8 mx-auto text-emerald" />
+                  <p className="font-semibold">Verifizierter Recruiter</p>
+                  <p className="text-sm text-muted-foreground">
+                    Du hast alle erforderlichen Dokumente akzeptiert und bist als aktiver Recruiter freigeschaltet.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
