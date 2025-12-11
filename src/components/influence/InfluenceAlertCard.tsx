@@ -11,7 +11,8 @@ import {
   Clock, 
   AlertTriangle,
   AlertCircle,
-  Info
+  Info,
+  User
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -22,43 +23,49 @@ interface InfluenceAlertCardProps {
   onMarkDone: (alertId: string) => void;
   onDismiss: (alertId: string) => void;
   onOpenPlaybook: (playbookId: string) => void;
+  onViewCandidate?: (submissionId: string) => void;
   candidateName?: string;
   candidateEmail?: string;
   candidatePhone?: string;
 }
 
+// Dezentere Farben für bessere UX
 const priorityConfig = {
   critical: {
     icon: AlertCircle,
     label: 'Kritisch',
-    bgColor: 'bg-red-500/10',
-    textColor: 'text-red-600',
-    borderColor: 'border-red-500/30',
+    bgColor: 'bg-destructive/5',
+    textColor: 'text-destructive',
+    borderColor: 'border-destructive/20',
     badgeVariant: 'destructive' as const,
+    accentColor: 'bg-destructive',
   },
   high: {
     icon: AlertTriangle,
     label: 'Hoch',
-    bgColor: 'bg-amber-500/10',
+    bgColor: 'bg-muted/50',
     textColor: 'text-amber-600',
-    borderColor: 'border-amber-500/30',
+    borderColor: 'border-amber-500/20',
     badgeVariant: 'secondary' as const,
+    accentColor: 'bg-amber-500',
   },
   medium: {
     icon: Info,
     label: 'Mittel',
-    bgColor: 'bg-blue-500/10',
+    bgColor: 'bg-muted/30',
     textColor: 'text-blue-600',
-    borderColor: 'border-blue-500/30',
+    borderColor: 'border-border',
     badgeVariant: 'secondary' as const,
+    accentColor: 'bg-blue-500',
   },
   low: {
     icon: Info,
     label: 'Niedrig',
-    bgColor: 'bg-muted',
+    bgColor: 'bg-background',
     textColor: 'text-muted-foreground',
     borderColor: 'border-border',
     badgeVariant: 'outline' as const,
+    accentColor: 'bg-muted-foreground',
   },
 };
 
@@ -67,6 +74,7 @@ export function InfluenceAlertCard({
   onMarkDone,
   onDismiss,
   onOpenPlaybook,
+  onViewCandidate,
   candidateName,
   candidateEmail,
   candidatePhone,
@@ -95,9 +103,18 @@ export function InfluenceAlertCard({
     setIsActioning(false);
   };
 
+  const handleViewCandidate = () => {
+    if (onViewCandidate) {
+      onViewCandidate(alert.submission_id);
+    }
+  };
+
   return (
-    <Card className={`${config.bgColor} ${config.borderColor} border transition-all hover:shadow-md`}>
-      <CardContent className="p-4">
+    <Card className={`${config.bgColor} ${config.borderColor} border transition-all hover:shadow-md relative overflow-hidden`}>
+      {/* Farbiger Akzent-Streifen links */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${config.accentColor}`} />
+      
+      <CardContent className="p-4 pl-5">
         <div className="space-y-3">
           {/* Header */}
           <div className="flex items-start justify-between gap-2">
@@ -117,13 +134,19 @@ export function InfluenceAlertCard({
           <div>
             <h4 className="font-semibold text-sm">{alert.title}</h4>
             {candidateName && (
-              <p className="text-sm text-muted-foreground mt-0.5">{candidateName}</p>
+              <button 
+                onClick={handleViewCandidate}
+                className="text-sm text-primary hover:underline mt-0.5 flex items-center gap-1 font-medium"
+              >
+                <User className="h-3 w-3" />
+                {candidateName}
+              </button>
             )}
             <p className="text-sm text-muted-foreground mt-1">{alert.message}</p>
           </div>
 
-          {/* Recommended Action */}
-          <div className={`text-xs ${config.textColor} ${config.bgColor} p-2 rounded-md`}>
+          {/* Recommended Action - dezenter */}
+          <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md border border-border/50">
             💡 <span className="font-medium">Empfohlen:</span> {alert.recommended_action}
           </div>
 

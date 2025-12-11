@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -18,7 +18,8 @@ import {
   MapPin,
   Activity,
   AlertTriangle,
-  Upload
+  Upload,
+  User
 } from 'lucide-react';
 import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
@@ -28,6 +29,9 @@ import { ActionCenterPanel } from '@/components/influence/ActionCenterPanel';
 import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
+import { CandidateDetailSheet } from '@/components/candidates/CandidateDetailSheet';
+import { Candidate } from '@/components/candidates/CandidateCard';
+import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { toast } from 'sonner';
 
 interface DashboardStats {
@@ -39,6 +43,7 @@ interface DashboardStats {
 
 export default function RecruiterDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     openJobs: 0,
     myCandidates: 0,
@@ -49,11 +54,16 @@ export default function RecruiterDashboard() {
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
   const [criticalDeals, setCriticalDeals] = useState<any[]>([]);
-  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string }>>({});
+  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
+  
+  // Candidate Detail Sheet state
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
+  const { getCandidateTags } = useCandidateTags();
   
   usePageViewTracking('recruiter_dashboard');
 
@@ -154,17 +164,19 @@ export default function RecruiterDashboard() {
     // Fetch submissions with candidates
     const { data: submissions } = await supabase
       .from('submissions')
-      .select('id, candidate_id, candidates(id, full_name, email, phone)')
+      .select('id, candidate_id, candidates(id, full_name, email, phone, experience_years, expected_salary, current_salary, skills, summary, cv_url, linkedin_url, availability_date, notice_period, created_at, recruiter_id)')
       .in('id', submissionIds);
     
     if (submissions) {
-      const map: Record<string, { name: string; email: string; phone?: string }> = {};
+      const map: Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate }> = {};
       submissions.forEach((s: any) => {
         if (s.candidates) {
           map[s.id] = {
             name: s.candidates.full_name,
             email: s.candidates.email,
             phone: s.candidates.phone || undefined,
+            candidateId: s.candidates.id,
+            candidateData: s.candidates as Candidate,
           };
         }
       });
@@ -203,6 +215,45 @@ export default function RecruiterDashboard() {
   const handleOpenPlaybook = (id: string) => {
     toast.info('Playbook wird geöffnet...');
     // Playbook viewing can be implemented with a dedicated page/dialog
+  };
+
+  const handleViewCandidate = async (submissionId: string) => {
+    const candidateInfo = candidateMap[submissionId];
+    if (candidateInfo?.candidateData) {
+      setSelectedCandidate(candidateInfo.candidateData);
+      setCandidateSheetOpen(true);
+    } else if (candidateInfo?.candidateId) {
+      // Fetch full candidate data if not in map
+      const { data: candidate } = await supabase
+        .from('candidates')
+        .select('*')
+        .eq('id', candidateInfo.candidateId)
+        .single();
+      
+      if (candidate) {
+        setSelectedCandidate(candidate as Candidate);
+        setCandidateSheetOpen(true);
+      }
+    }
+  };
+
+  const handleViewDealCandidate = async (submissionId: string) => {
+    // Fetch candidate for this submission
+    const { data: submission } = await supabase
+      .from('submissions')
+      .select('candidate_id, candidates(*)')
+      .eq('id', submissionId)
+      .single();
+    
+    if (submission?.candidates) {
+      setSelectedCandidate(submission.candidates as unknown as Candidate);
+      setCandidateSheetOpen(true);
+    }
+  };
+
+  const handleEditCandidate = (candidate: Candidate) => {
+    // Navigate to candidates page with edit mode
+    navigate('/recruiter/candidates');
   };
 
   const statCards = [
@@ -295,24 +346,31 @@ export default function RecruiterDashboard() {
               )}
               
               {criticalDeals.length > 0 && (
-                <Card className="border-amber-500/50 bg-amber-500/5">
+                <Card className="border-destructive/30 bg-destructive/5">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-600" />
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
                       <p className="font-medium">Deals brauchen Aufmerksamkeit</p>
                     </div>
                     <div className="space-y-2">
                       {criticalDeals.map((deal) => (
-                        <div key={deal.id} className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            {deal.bottleneck || 'Überfällig'}
-                          </span>
+                        <button
+                          key={deal.id}
+                          onClick={() => handleViewDealCandidate(deal.submission_id)}
+                          className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">
+                              {deal.bottleneck || 'Überfällig'}
+                            </span>
+                          </div>
                           <DealHealthBadge 
                             score={deal.health_score || 0} 
                             riskLevel={deal.risk_level || 'medium'} 
                             size="sm"
                           />
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </CardContent>
@@ -328,6 +386,7 @@ export default function RecruiterDashboard() {
             onMarkDone={handleMarkDone}
             onDismiss={dismiss}
             onOpenPlaybook={handleOpenPlaybook}
+            onViewCandidate={handleViewCandidate}
             maxAlerts={3}
             candidateMap={candidateMap}
           />
@@ -482,6 +541,15 @@ export default function RecruiterDashboard() {
           onImportComplete={() => {
             toast.success('Kandidaten erfolgreich importiert');
           }}
+        />
+
+        {/* Candidate Detail Sheet */}
+        <CandidateDetailSheet
+          candidate={selectedCandidate}
+          tags={selectedCandidate ? getCandidateTags(selectedCandidate.id) : []}
+          open={candidateSheetOpen}
+          onOpenChange={setCandidateSheetOpen}
+          onEdit={handleEditCandidate}
         />
       </div>
     </DashboardLayout>
