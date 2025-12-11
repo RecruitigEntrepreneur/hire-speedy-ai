@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,10 +21,13 @@ import {
   Sparkles,
   Edit2,
   X,
-  AlertCircle
+  AlertCircle,
+  File
 } from 'lucide-react';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface CvUploadDialogProps {
   open: boolean;
@@ -33,7 +36,8 @@ interface CvUploadDialogProps {
   existingCandidateId?: string;
 }
 
-type Step = 'upload' | 'parsing' | 'review' | 'saving';
+type Step = 'upload' | 'extracting' | 'parsing' | 'review' | 'saving';
+type UploadMode = 'pdf' | 'text';
 
 export function CvUploadDialog({ 
   open, 
@@ -42,15 +46,85 @@ export function CvUploadDialog({
   existingCandidateId 
 }: CvUploadDialogProps) {
   const { user } = useAuth();
-  const { parseCV, saveParsedCandidate, parsing, saving } = useCvParsing();
+  const { parseCV, extractTextFromPdf, saveParsedCandidate, parsing, extractingPdf, saving } = useCvParsing();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState<Step>('upload');
+  const [uploadMode, setUploadMode] = useState<UploadMode>('pdf');
   const [cvText, setCvText] = useState('');
   const [rawText, setRawText] = useState('');
   const [parsedData, setParsedData] = useState<ParsedCVData | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const handleParse = async () => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      toast.error('Nur PDF-Dateien werden unterstützt');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Die Datei darf maximal 10MB groß sein');
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handlePdfUploadAndParse = async () => {
+    if (!selectedFile || !user?.id) return;
+
+    try {
+      setUploading(true);
+      setStep('extracting');
+
+      // Upload PDF to storage
+      const fileName = `${user.id}/${Date.now()}-${selectedFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('cv-documents')
+        .upload(fileName, selectedFile);
+
+      if (uploadError) {
+        throw new Error(`Upload fehlgeschlagen: ${uploadError.message}`);
+      }
+
+      console.log('PDF uploaded to:', fileName);
+
+      // Extract text from PDF
+      const extractedText = await extractTextFromPdf(fileName);
+      
+      if (!extractedText) {
+        throw new Error('Text-Extraktion fehlgeschlagen');
+      }
+
+      setRawText(extractedText);
+      setStep('parsing');
+
+      // Parse the extracted text
+      const result = await parseCV(extractedText);
+      
+      if (result) {
+        setParsedData(result);
+        setStep('review');
+      } else {
+        setStep('upload');
+      }
+    } catch (error) {
+      console.error('PDF processing error:', error);
+      toast.error(error instanceof Error ? error.message : 'Fehler bei der PDF-Verarbeitung');
+      setStep('upload');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleTextParse = async () => {
     if (!cvText.trim()) return;
     
     setStep('parsing');
@@ -88,10 +162,15 @@ export function CvUploadDialog({
 
   const handleClose = () => {
     setStep('upload');
+    setUploadMode('pdf');
     setCvText('');
     setRawText('');
     setParsedData(null);
     setEditMode(false);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     onOpenChange(false);
   };
 
@@ -125,7 +204,8 @@ export function CvUploadDialog({
             {existingCandidateId ? 'CV aktualisieren' : 'Kandidat aus CV erstellen'}
           </DialogTitle>
           <DialogDescription>
-            {step === 'upload' && 'Fügen Sie den CV-Text ein oder laden Sie eine Datei hoch.'}
+            {step === 'upload' && 'Laden Sie eine PDF-Datei hoch oder fügen Sie den CV-Text ein.'}
+            {step === 'extracting' && 'PDF wird verarbeitet...'}
             {step === 'parsing' && 'CV wird analysiert...'}
             {step === 'review' && 'Überprüfen und bearbeiten Sie die extrahierten Daten.'}
             {step === 'saving' && 'Kandidat wird gespeichert...'}
@@ -134,24 +214,24 @@ export function CvUploadDialog({
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-2 py-4">
-          {['upload', 'parsing', 'review', 'saving'].map((s, i) => (
+          {['upload', 'extracting', 'parsing', 'review', 'saving'].map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                 step === s 
                   ? 'bg-primary text-primary-foreground' 
-                  : ['parsing', 'review', 'saving'].indexOf(step) > i - 1
+                  : ['extracting', 'parsing', 'review', 'saving'].indexOf(step) > ['extracting', 'parsing', 'review', 'saving'].indexOf(s as Step)
                     ? 'bg-primary/20 text-primary'
                     : 'bg-muted text-muted-foreground'
               }`}>
-                {step === s && (s === 'parsing' || s === 'saving') ? (
+                {step === s && (s === 'extracting' || s === 'parsing' || s === 'saving') ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : ['parsing', 'review', 'saving'].indexOf(step) > i ? (
+                ) : ['extracting', 'parsing', 'review', 'saving'].indexOf(step) > ['extracting', 'parsing', 'review', 'saving'].indexOf(s as Step) ? (
                   <CheckCircle2 className="h-4 w-4" />
                 ) : (
                   i + 1
                 )}
               </div>
-              {i < 3 && <div className="w-12 h-0.5 bg-muted" />}
+              {i < 4 && <div className="w-8 h-0.5 bg-muted" />}
             </div>
           ))}
         </div>
@@ -159,32 +239,113 @@ export function CvUploadDialog({
         {/* Step Content */}
         {step === 'upload' && (
           <div className="space-y-4">
-            <div className="border-2 border-dashed rounded-lg p-8 text-center bg-muted/50">
-              <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-sm text-muted-foreground mb-2">
-                PDF-Upload kommt bald. Bitte fügen Sie den CV-Text unten ein.
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>CV-Text einfügen</Label>
-              <Textarea
-                placeholder="Fügen Sie hier den vollständigen Lebenslauf-Text ein..."
-                value={cvText}
-                onChange={(e) => setCvText(e.target.value)}
-                className="min-h-[300px] font-mono text-sm"
-              />
-            </div>
+            {/* Upload Mode Tabs */}
+            <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as UploadMode)}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pdf" className="flex items-center gap-2">
+                  <File className="h-4 w-4" />
+                  PDF hochladen
+                </TabsTrigger>
+                <TabsTrigger value="text" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Text einfügen
+                </TabsTrigger>
+              </TabsList>
 
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleClose}>
-                Abbrechen
-              </Button>
-              <Button onClick={handleParse} disabled={!cvText.trim()}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                CV analysieren
-              </Button>
-            </div>
+              <TabsContent value="pdf" className="space-y-4 mt-4">
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                    selectedFile ? 'border-primary bg-primary/5' : 'bg-muted/50 hover:border-primary/50'
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {selectedFile ? (
+                    <>
+                      <CheckCircle2 className="h-12 w-12 mx-auto text-primary mb-4" />
+                      <p className="font-medium">{selectedFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Entfernen
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="font-medium">PDF-Datei auswählen</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Klicken oder per Drag & Drop (max. 10MB)
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={handleClose}>
+                    Abbrechen
+                  </Button>
+                  <Button 
+                    onClick={handlePdfUploadAndParse} 
+                    disabled={!selectedFile || uploading}
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    PDF analysieren
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="text" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>CV-Text einfügen</Label>
+                  <Textarea
+                    placeholder="Fügen Sie hier den vollständigen Lebenslauf-Text ein..."
+                    value={cvText}
+                    onChange={(e) => setCvText(e.target.value)}
+                    className="min-h-[250px] font-mono text-sm"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={handleClose}>
+                    Abbrechen
+                  </Button>
+                  <Button onClick={handleTextParse} disabled={!cvText.trim()}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    CV analysieren
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+
+        {step === 'extracting' && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+            <p className="text-lg font-medium">PDF wird verarbeitet...</p>
+            <p className="text-sm text-muted-foreground">Text wird aus der PDF extrahiert.</p>
           </div>
         )}
 

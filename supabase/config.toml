@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.hubspot-sync]
 verify_jwt = true
+
+[functions.parse-pdf]
+verify_jwt = true

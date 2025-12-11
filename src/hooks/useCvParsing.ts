@@ -76,7 +76,40 @@ export interface ParsedCVData {
 export function useCvParsing() {
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [extractingPdf, setExtractingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const extractTextFromPdf = async (pdfPath: string): Promise<string | null> => {
+    setExtractingPdf(true);
+    setError(null);
+
+    try {
+      console.log('Extracting text from PDF:', pdfPath);
+      
+      const { data, error: fnError } = await supabase.functions.invoke('parse-pdf', {
+        body: { pdfPath },
+      });
+
+      if (fnError) {
+        throw new Error(fnError.message);
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast.success('PDF-Text extrahiert');
+      return data.text as string;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der PDF-Verarbeitung';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error('PDF extraction error:', err);
+      return null;
+    } finally {
+      setExtractingPdf(false);
+    }
+  };
 
   const parseCV = async (cvText: string, cvUrl?: string): Promise<ParsedCVData | null> => {
     setParsing(true);
@@ -272,8 +305,10 @@ export function useCvParsing() {
 
   return {
     parseCV,
+    extractTextFromPdf,
     saveParsedCandidate,
     parsing,
+    extractingPdf,
     saving,
     error,
   };
