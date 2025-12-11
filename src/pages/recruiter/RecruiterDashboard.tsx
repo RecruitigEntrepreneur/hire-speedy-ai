@@ -23,6 +23,7 @@ import {
 import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
+import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
 
 interface DashboardStats {
   openJobs: number;
@@ -185,6 +186,9 @@ export default function RecruiterDashboard() {
       <Navbar />
       <DashboardLayout>
         <div className="space-y-8">
+          {/* Verification Banner */}
+          <RecruiterVerificationBanner />
+          
           {/* Header */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
