@@ -252,7 +252,7 @@ export default function RecruiterDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-          {/* Verification Banner */}
+        {/* Verification Banner */}
           <RecruiterVerificationBanner />
           
           {/* Header */}
@@ -474,7 +474,6 @@ export default function RecruiterDashboard() {
               </Link>
             </Card>
           </div>
-        </div>
 
         {/* Dialogs */}
         <HubSpotImportDialog

@@ -175,42 +175,34 @@ export default function JobDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </DashboardLayout>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (!job) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <DashboardLayout>
-          <div className="text-center py-16">
-            <h2 className="text-xl font-semibold">Job not found</h2>
-            <Link to="/recruiter/jobs">
-              <Button variant="outline" className="mt-4">
-                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Jobs
-              </Button>
-            </Link>
-          </div>
-        </DashboardLayout>
-      </div>
+      <DashboardLayout>
+        <div className="text-center py-16">
+          <h2 className="text-xl font-semibold">Job not found</h2>
+          <Link to="/recruiter/jobs">
+            <Button variant="outline" className="mt-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Jobs
+            </Button>
+          </Link>
+        </div>
+      </DashboardLayout>
     );
   }
 
   const potentialEarning = calculatePotentialEarning();
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <DashboardLayout>
-        <div className="space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
           {/* Back Button */}
           <Link to="/recruiter/jobs">
             <Button variant="ghost" size="sm">
@@ -468,6 +460,5 @@ export default function JobDetail() {
           </div>
         </div>
       </DashboardLayout>
-    </div>
   );
 }
