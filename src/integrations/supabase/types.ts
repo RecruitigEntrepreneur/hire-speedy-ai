@@ -383,6 +383,57 @@ export type Database = {
           },
         ]
       }
+      candidate_notes: {
+        Row: {
+          candidate_id: string
+          category: string | null
+          content: string
+          created_at: string | null
+          id: string
+          is_pinned: boolean | null
+          is_private: boolean | null
+          recruiter_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          category?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          is_private?: boolean | null
+          recruiter_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          is_private?: boolean | null
+          recruiter_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_support_content: {
         Row: {
           content: string
@@ -500,6 +551,10 @@ export type Database = {
       candidates: {
         Row: {
           availability_date: string | null
+          candidate_status: string | null
+          certificates: Json | null
+          city: string | null
+          company: string | null
           created_at: string
           current_salary: number | null
           cv_url: string | null
@@ -507,22 +562,40 @@ export type Database = {
           expected_salary: number | null
           experience_years: number | null
           full_name: string
+          github_url: string | null
+          hubspot_contact_id: string | null
           id: string
+          import_source: string | null
+          job_title: string | null
           linkedin_url: string | null
           notice_period: string | null
           phone: string | null
           phone_verified: boolean | null
+          portfolio_url: string | null
           preferred_channel: string | null
           recruiter_id: string
+          relocation_willing: boolean | null
+          remote_possible: boolean | null
+          salary_bonus: number | null
+          salary_fix: number | null
+          seniority: string | null
           skills: string[] | null
           sms_opt_in: boolean | null
           summary: string | null
           updated_at: string
           video_url: string | null
+          visa_required: boolean | null
+          website_url: string | null
           whatsapp_opt_in: boolean | null
+          work_model: string | null
+          work_permit_notes: string | null
         }
         Insert: {
           availability_date?: string | null
+          candidate_status?: string | null
+          certificates?: Json | null
+          city?: string | null
+          company?: string | null
           created_at?: string
           current_salary?: number | null
           cv_url?: string | null
@@ -530,22 +603,40 @@ export type Database = {
           expected_salary?: number | null
           experience_years?: number | null
           full_name: string
+          github_url?: string | null
+          hubspot_contact_id?: string | null
           id?: string
+          import_source?: string | null
+          job_title?: string | null
           linkedin_url?: string | null
           notice_period?: string | null
           phone?: string | null
           phone_verified?: boolean | null
+          portfolio_url?: string | null
           preferred_channel?: string | null
           recruiter_id: string
+          relocation_willing?: boolean | null
+          remote_possible?: boolean | null
+          salary_bonus?: number | null
+          salary_fix?: number | null
+          seniority?: string | null
           skills?: string[] | null
           sms_opt_in?: boolean | null
           summary?: string | null
           updated_at?: string
           video_url?: string | null
+          visa_required?: boolean | null
+          website_url?: string | null
           whatsapp_opt_in?: boolean | null
+          work_model?: string | null
+          work_permit_notes?: string | null
         }
         Update: {
           availability_date?: string | null
+          candidate_status?: string | null
+          certificates?: Json | null
+          city?: string | null
+          company?: string | null
           created_at?: string
           current_salary?: number | null
           cv_url?: string | null
@@ -553,19 +644,33 @@ export type Database = {
           expected_salary?: number | null
           experience_years?: number | null
           full_name?: string
+          github_url?: string | null
+          hubspot_contact_id?: string | null
           id?: string
+          import_source?: string | null
+          job_title?: string | null
           linkedin_url?: string | null
           notice_period?: string | null
           phone?: string | null
           phone_verified?: boolean | null
+          portfolio_url?: string | null
           preferred_channel?: string | null
           recruiter_id?: string
+          relocation_willing?: boolean | null
+          remote_possible?: boolean | null
+          salary_bonus?: number | null
+          salary_fix?: number | null
+          seniority?: string | null
           skills?: string[] | null
           sms_opt_in?: boolean | null
           summary?: string | null
           updated_at?: string
           video_url?: string | null
+          visa_required?: boolean | null
+          website_url?: string | null
           whatsapp_opt_in?: boolean | null
+          work_model?: string | null
+          work_permit_notes?: string | null
         }
         Relationships: []
       }

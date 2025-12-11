@@ -40,6 +40,25 @@ export interface Candidate {
   availability_date: string | null;
   notice_period: string | null;
   created_at: string;
+  // New fields
+  job_title?: string | null;
+  company?: string | null;
+  seniority?: string | null;
+  work_model?: string | null;
+  city?: string | null;
+  remote_possible?: boolean | null;
+  relocation_willing?: boolean | null;
+  salary_fix?: number | null;
+  salary_bonus?: number | null;
+  visa_required?: boolean | null;
+  work_permit_notes?: string | null;
+  portfolio_url?: string | null;
+  github_url?: string | null;
+  website_url?: string | null;
+  certificates?: unknown;
+  hubspot_contact_id?: string | null;
+  import_source?: string | null;
+  candidate_status?: string | null;
 }
 
 interface CandidateCardProps {
@@ -54,6 +73,15 @@ interface CandidateCardProps {
   onAddToPool: (candidate: Candidate) => void;
 }
 
+const statusLabels: Record<string, string> = {
+  new: 'Neu',
+  contacted: 'Kontaktiert',
+  interview: 'Interview',
+  offer: 'Angebot',
+  placed: 'Platziert',
+  rejected: 'Absage',
+};
+
 export function CandidateCard({
   candidate,
   tags,
@@ -65,6 +93,8 @@ export function CandidateCard({
   onAssignTag,
   onAddToPool,
 }: CandidateCardProps) {
+  const statusLabel = statusLabels[candidate.candidate_status || 'new'] || candidate.candidate_status;
+
   return (
     <Card
       className={`transition-all hover:shadow-md cursor-pointer ${
@@ -89,7 +119,14 @@ export function CandidateCard({
             </Avatar>
             <div onClick={() => onView(candidate)}>
               <h3 className="font-semibold">{candidate.full_name}</h3>
-              <p className="text-sm text-muted-foreground">{candidate.email}</p>
+              <p className="text-sm text-muted-foreground">
+                {candidate.job_title ? `${candidate.job_title}${candidate.company ? ` bei ${candidate.company}` : ''}` : candidate.email}
+              </p>
+              {candidate.candidate_status && (
+                <Badge variant="outline" className="mt-1 text-xs">
+                  {statusLabel}
+                </Badge>
+              )}
             </div>
           </div>
           <DropdownMenu>
