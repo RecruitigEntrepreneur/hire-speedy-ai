@@ -475,17 +475,16 @@ export default function RecruiterDashboard() {
             </Card>
           </div>
         </div>
-      </DashboardLayout>
 
-      {/* Dialogs */}
-      <HubSpotImportDialog
-        open={hubspotDialogOpen}
-        onOpenChange={setHubspotDialogOpen}
-        onImportComplete={() => {
-          toast.success('Kandidaten erfolgreich importiert');
-        }}
-      />
-
-    </div>
+        {/* Dialogs */}
+        <HubSpotImportDialog
+          open={hubspotDialogOpen}
+          onOpenChange={setHubspotDialogOpen}
+          onImportComplete={() => {
+            toast.success('Kandidaten erfolgreich importiert');
+          }}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

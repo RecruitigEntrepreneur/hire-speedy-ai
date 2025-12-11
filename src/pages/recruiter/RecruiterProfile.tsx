@@ -467,7 +467,7 @@ export default function RecruiterProfile() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

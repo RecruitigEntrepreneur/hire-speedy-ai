@@ -278,7 +278,7 @@ export default function RecruiterPayouts() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
-    </>
+      </div>
+    </DashboardLayout>
   );
 }

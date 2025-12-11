@@ -326,7 +326,7 @@ export default function RecruiterInfluence() {
           candidateName={selectedCandidate?.name}
           companyName={selectedCandidate?.company}
         />
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

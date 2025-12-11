@@ -618,7 +618,7 @@ export default function RecruiterSubmissions() {
           candidateName={selectedPlaybookSubmission ? submissions.find(s => s.id === selectedPlaybookSubmission)?.candidates?.full_name : undefined}
           companyName={selectedPlaybookSubmission ? submissions.find(s => s.id === selectedPlaybookSubmission)?.jobs?.company_name : undefined}
         />
-      </DashboardLayout>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
