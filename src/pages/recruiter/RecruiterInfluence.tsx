@@ -126,194 +126,192 @@ export default function RecruiterInfluence() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                <Target className="h-8 w-8 text-primary" />
-                Influence Dashboard
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Führe deine Kandidaten zum Erfolg
-              </p>
-            </div>
-            {!scoreLoading && score && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Dein Influence Score:</span>
-                <InfluenceScoreBadge score={score.influence_score} size="lg" />
-              </div>
-            )}
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              <Target className="h-8 w-8 text-primary" />
+              Influence Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Führe deine Kandidaten zum Erfolg
+            </p>
           </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-pink-500/10 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-pink-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{avgConfidence}%</p>
-                    <p className="text-xs text-muted-foreground">Ø Confidence</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/10 rounded-lg">
-                    <Calendar className="h-5 w-5 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{avgReadiness}%</p>
-                    <p className="text-xs text-muted-foreground">Ø Readiness</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{avgClosing}%</p>
-                    <p className="text-xs text-muted-foreground">Ø Closing</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500/10 rounded-lg">
-                    <Zap className="h-5 w-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{alerts.length}</p>
-                    <p className="text-xs text-muted-foreground">Offene Aktionen</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Action Center - Takes 2 columns */}
-            <div className="lg:col-span-2">
-              <ActionCenterPanel
-                alerts={alerts}
-                loading={alertsLoading}
-                onMarkDone={handleMarkDone}
-                onDismiss={dismiss}
-                onOpenPlaybook={handleOpenPlaybook}
-                maxAlerts={5}
-                candidateMap={candidateMap}
-              />
+          {!scoreLoading && score && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Dein Influence Score:</span>
+              <InfluenceScoreBadge score={score.influence_score} size="lg" />
             </div>
+          )}
+        </div>
 
-            {/* Influence Score Details */}
-            <div>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary" />
-                    Deine Performance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {scoreLoading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  ) : score ? (
-                    <>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Alerts bearbeitet</span>
-                        <span className="font-medium">{score.alerts_actioned}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Playbooks genutzt</span>
-                        <span className="font-medium">{score.playbooks_used}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Placements beeinflusst</span>
-                        <span className="font-medium">{score.total_influenced_placements}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Opt-In Beschleunigung</span>
-                        <Badge variant={score.opt_in_acceleration_rate > 0 ? 'default' : 'secondary'}>
-                          {score.opt_in_acceleration_rate > 0 ? '+' : ''}{score.opt_in_acceleration_rate}%
-                        </Badge>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Noch keine Daten vorhanden
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Candidate Pipeline */}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Kandidaten-Pipeline
-                </CardTitle>
-                <Badge variant="outline">{submissions.length} aktiv</Badge>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-pink-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-pink-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{avgConfidence}%</p>
+                  <p className="text-xs text-muted-foreground">Ø Confidence</p>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loadingSubmissions ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <Skeleton key={i} className="h-48" />
-                  ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <Calendar className="h-5 w-5 text-purple-500" />
                 </div>
-              ) : submissions.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Keine aktiven Kandidaten in der Pipeline</p>
+                <div>
+                  <p className="text-2xl font-bold">{avgReadiness}%</p>
+                  <p className="text-xs text-muted-foreground">Ø Readiness</p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {submissions.map(sub => (
-                    <CandidatePipelineCard
-                      key={sub.id}
-                      submissionId={sub.id}
-                      candidateName={sub.candidates?.full_name || 'Unbekannt'}
-                      candidateEmail={sub.candidates?.email}
-                      candidatePhone={sub.candidates?.phone || undefined}
-                      jobTitle={sub.jobs?.title || 'Unbekannt'}
-                      behavior={behaviors[sub.id]}
-                      hasAlerts={alertSubmissionIds.has(sub.id)}
-                      onOpenPlaybook={() => {
-                        // Find first playbook for this submission's alerts
-                        const alert = alerts.find(a => a.submission_id === sub.id && a.playbook_id);
-                        if (alert?.playbook_id) {
-                          handleOpenPlaybook(alert.playbook_id);
-                        }
-                      }}
-                    />
-                  ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-emerald-500" />
                 </div>
-              )}
+                <div>
+                  <p className="text-2xl font-bold">{avgClosing}%</p>
+                  <p className="text-xs text-muted-foreground">Ø Closing</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/10 rounded-lg">
+                  <Zap className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{alerts.length}</p>
+                  <p className="text-xs text-muted-foreground">Offene Aktionen</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Action Center - Takes 2 columns */}
+          <div className="lg:col-span-2">
+            <ActionCenterPanel
+              alerts={alerts}
+              loading={alertsLoading}
+              onMarkDone={handleMarkDone}
+              onDismiss={dismiss}
+              onOpenPlaybook={handleOpenPlaybook}
+              maxAlerts={5}
+              candidateMap={candidateMap}
+            />
+          </div>
+
+          {/* Influence Score Details */}
+          <div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Deine Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {scoreLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ) : score ? (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Alerts bearbeitet</span>
+                      <span className="font-medium">{score.alerts_actioned}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Playbooks genutzt</span>
+                      <span className="font-medium">{score.playbooks_used}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Placements beeinflusst</span>
+                      <span className="font-medium">{score.total_influenced_placements}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Opt-In Beschleunigung</span>
+                      <Badge variant={score.opt_in_acceleration_rate > 0 ? 'default' : 'secondary'}>
+                        {score.opt_in_acceleration_rate > 0 ? '+' : ''}{score.opt_in_acceleration_rate}%
+                      </Badge>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Noch keine Daten vorhanden
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Candidate Pipeline */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Kandidaten-Pipeline
+              </CardTitle>
+              <Badge variant="outline">{submissions.length} aktiv</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loadingSubmissions ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Skeleton key={i} className="h-48" />
+                ))}
+              </div>
+            ) : submissions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Keine aktiven Kandidaten in der Pipeline</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {submissions.map(sub => (
+                  <CandidatePipelineCard
+                    key={sub.id}
+                    submissionId={sub.id}
+                    candidateName={sub.candidates?.full_name || 'Unbekannt'}
+                    candidateEmail={sub.candidates?.email}
+                    candidatePhone={sub.candidates?.phone || undefined}
+                    jobTitle={sub.jobs?.title || 'Unbekannt'}
+                    behavior={behaviors[sub.id]}
+                    hasAlerts={alertSubmissionIds.has(sub.id)}
+                    onOpenPlaybook={() => {
+                      const alert = alerts.find(a => a.submission_id === sub.id && a.playbook_id);
+                      if (alert?.playbook_id) {
+                        handleOpenPlaybook(alert.playbook_id);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Playbook Viewer */}
         <PlaybookViewer

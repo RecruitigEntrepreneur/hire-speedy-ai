@@ -195,126 +195,125 @@ export default function RecruiterNotifications() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Benachrichtigungen</h1>
-              <p className="text-muted-foreground">
-                {unreadCount > 0 ? `${unreadCount} ungelesene Nachrichten` : 'Alle Nachrichten gelesen'}
-              </p>
-            </div>
-            {unreadCount > 0 && (
-              <Button variant="outline" onClick={markAllAsRead}>
-                <Check className="h-4 w-4 mr-2" />
-                Alle als gelesen markieren
-              </Button>
-            )}
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Benachrichtigungen</h1>
+            <p className="text-muted-foreground">
+              {unreadCount > 0 ? `${unreadCount} ungelesene Nachrichten` : 'Alle Nachrichten gelesen'}
+            </p>
           </div>
-
-          {/* Filter Tabs */}
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
-            <TabsList>
-              <TabsTrigger value="all">
-                Alle
-                <Badge variant="secondary" className="ml-2">{notifications.length}</Badge>
-              </TabsTrigger>
-              <TabsTrigger value="unread">
-                Ungelesen
-                {unreadCount > 0 && (
-                  <Badge className="ml-2 bg-destructive">{unreadCount}</Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* Notifications List */}
-          <Card>
-            <CardContent className="p-0">
-              {filteredNotifications.length === 0 ? (
-                <div className="text-center py-16">
-                  <Bell className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">Keine Benachrichtigungen</h3>
-                  <p className="text-muted-foreground">
-                    {filter === 'unread' 
-                      ? 'Alle Nachrichten wurden gelesen'
-                      : 'Du hast noch keine Benachrichtigungen erhalten'}
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {filteredNotifications.map((notification) => {
-                    const Icon = NOTIFICATION_ICONS[notification.type] || NOTIFICATION_ICONS.default;
-                    const colorClass = NOTIFICATION_COLORS[notification.type] || NOTIFICATION_COLORS.default;
-                    const link = getNotificationLink(notification);
-
-                    const content = (
-                      <div 
-                        className={`p-4 flex items-start gap-4 transition-colors ${
-                          !notification.is_read ? 'bg-primary/5' : 'hover:bg-muted/30'
-                        }`}
-                        onClick={() => !notification.is_read && markAsRead(notification.id)}
-                      >
-                        <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className={`font-medium ${!notification.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                {notification.title}
-                              </p>
-                              {notification.message && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {notification.message}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className="text-xs text-muted-foreground">
-                                {formatTime(notification.created_at)}
-                              </span>
-                                {!notification.is_read && (
-                                <div className="h-2 w-2 rounded-full bg-primary" />
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Opt-In Action Buttons */}
-                          {notification.type === 'opt_in_request' && (
-                            <div className="mt-3 flex gap-2">
-                              <Button 
-                                size="sm" 
-                                className="bg-emerald hover:bg-emerald/90"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleOptInClick(notification);
-                                }}
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Bearbeiten
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-
-                    return link ? (
-                      <Link key={notification.id} to={link}>
-                        {content}
-                      </Link>
-                    ) : (
-                      <div key={notification.id} className="cursor-pointer">
-                        {content}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {unreadCount > 0 && (
+            <Button variant="outline" onClick={markAllAsRead}>
+              <Check className="h-4 w-4 mr-2" />
+              Alle als gelesen markieren
+            </Button>
+          )}
         </div>
+
+        {/* Filter Tabs */}
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
+          <TabsList>
+            <TabsTrigger value="all">
+              Alle
+              <Badge variant="secondary" className="ml-2">{notifications.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="unread">
+              Ungelesen
+              {unreadCount > 0 && (
+                <Badge className="ml-2 bg-destructive">{unreadCount}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Notifications List */}
+        <Card>
+          <CardContent className="p-0">
+            {filteredNotifications.length === 0 ? (
+              <div className="text-center py-16">
+                <Bell className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold">Keine Benachrichtigungen</h3>
+                <p className="text-muted-foreground">
+                  {filter === 'unread' 
+                    ? 'Alle Nachrichten wurden gelesen'
+                    : 'Du hast noch keine Benachrichtigungen erhalten'}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredNotifications.map((notification) => {
+                  const Icon = NOTIFICATION_ICONS[notification.type] || NOTIFICATION_ICONS.default;
+                  const colorClass = NOTIFICATION_COLORS[notification.type] || NOTIFICATION_COLORS.default;
+                  const link = getNotificationLink(notification);
+
+                  const content = (
+                    <div 
+                      className={`p-4 flex items-start gap-4 transition-colors ${
+                        !notification.is_read ? 'bg-primary/5' : 'hover:bg-muted/30'
+                      }`}
+                      onClick={() => !notification.is_read && markAsRead(notification.id)}
+                    >
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className={`font-medium ${!notification.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                              {notification.title}
+                            </p>
+                            {notification.message && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {notification.message}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-muted-foreground">
+                              {formatTime(notification.created_at)}
+                            </span>
+                            {!notification.is_read && (
+                              <div className="h-2 w-2 rounded-full bg-primary" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Opt-In Action Buttons */}
+                        {notification.type === 'opt_in_request' && (
+                          <div className="mt-3 flex gap-2">
+                            <Button 
+                              size="sm" 
+                              className="bg-emerald hover:bg-emerald/90"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleOptInClick(notification);
+                              }}
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Bearbeiten
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+
+                  return link ? (
+                    <Link key={notification.id} to={link}>
+                      {content}
+                    </Link>
+                  ) : (
+                    <div key={notification.id} className="cursor-pointer">
+                      {content}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Opt-In Response Dialog */}
         {selectedOptInNotification && (

@@ -219,158 +219,157 @@ export default function RecruiterMessages() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Nachrichten</h1>
-            <p className="text-muted-foreground">
-              {totalUnread > 0 ? `${totalUnread} ungelesene Nachrichten` : 'Kommunikation mit Kunden'}
-            </p>
-          </div>
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Nachrichten</h1>
+          <p className="text-muted-foreground">
+            {totalUnread > 0 ? `${totalUnread} ungelesene Nachrichten` : 'Kommunikation mit Kunden'}
+          </p>
+        </div>
 
-          {/* Messages Layout */}
-          <div className="grid md:grid-cols-3 gap-6 h-[calc(100vh-280px)] min-h-[500px]">
-            {/* Conversations List */}
-            <Card className="md:col-span-1">
-              <CardHeader className="pb-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Suchen..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-[calc(100vh-400px)] min-h-[350px]">
-                  {filteredConversations.length === 0 ? (
-                    <div className="text-center py-8 px-4">
-                      <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/50" />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Keine Konversationen
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="divide-y">
-                      {filteredConversations.map((conv) => (
-                        <div
-                          key={conv.id}
-                          className={`p-4 cursor-pointer transition-colors ${
-                            selectedConversation === conv.id
-                              ? 'bg-primary/10'
-                              : 'hover:bg-muted/50'
-                          }`}
-                          onClick={() => setSelectedConversation(conv.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarFallback>
-                                {conv.otherUserName.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium truncate">{conv.otherUserName}</p>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatTime(conv.lastMessageAt)}
-                                </span>
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {conv.lastMessage}
-                              </p>
+        {/* Messages Layout */}
+        <div className="grid md:grid-cols-3 gap-6 h-[calc(100vh-280px)] min-h-[500px]">
+          {/* Conversations List */}
+          <Card className="md:col-span-1">
+            <CardHeader className="pb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Suchen..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[calc(100vh-400px)] min-h-[350px]">
+                {filteredConversations.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Keine Konversationen
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredConversations.map((conv) => (
+                      <div
+                        key={conv.id}
+                        className={`p-4 cursor-pointer transition-colors ${
+                          selectedConversation === conv.id
+                            ? 'bg-primary/10'
+                            : 'hover:bg-muted/50'
+                        }`}
+                        onClick={() => setSelectedConversation(conv.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback>
+                              {conv.otherUserName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium truncate">{conv.otherUserName}</p>
+                              <span className="text-xs text-muted-foreground">
+                                {formatTime(conv.lastMessageAt)}
+                              </span>
                             </div>
-                            {conv.unreadCount > 0 && (
-                              <Badge className="bg-primary">{conv.unreadCount}</Badge>
-                            )}
+                            <p className="text-sm text-muted-foreground truncate">
+                              {conv.lastMessage}
+                            </p>
+                          </div>
+                          {conv.unreadCount > 0 && (
+                            <Badge className="bg-primary">{conv.unreadCount}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Messages Area */}
+          <Card className="md:col-span-2 flex flex-col">
+            {selectedConversation ? (
+              <>
+                <CardHeader className="border-b pb-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback>
+                        {conversations.find(c => c.id === selectedConversation)?.otherUserName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-base">
+                        {conversations.find(c => c.id === selectedConversation)?.otherUserName}
+                      </CardTitle>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 p-0 flex flex-col">
+                  <ScrollArea className="flex-1 p-4">
+                    <div className="space-y-4">
+                      {messages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-[70%] rounded-lg p-3 ${
+                              msg.sender_id === user?.id
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            }`}
+                          >
+                            <p className="text-sm">{msg.content}</p>
+                            <p className={`text-xs mt-1 ${
+                              msg.sender_id === user?.id
+                                ? 'text-primary-foreground/70'
+                                : 'text-muted-foreground'
+                            }`}>
+                              {formatTime(msg.created_at)}
+                            </p>
                           </div>
                         </div>
                       ))}
+                      <div ref={messagesEndRef} />
                     </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-
-            {/* Messages Area */}
-            <Card className="md:col-span-2 flex flex-col">
-              {selectedConversation ? (
-                <>
-                  <CardHeader className="border-b pb-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>
-                          {conversations.find(c => c.id === selectedConversation)?.otherUserName.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-base">
-                          {conversations.find(c => c.id === selectedConversation)?.otherUserName}
-                        </CardTitle>
-                      </div>
+                  </ScrollArea>
+                  <div className="border-t p-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nachricht schreiben..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                      />
+                      <Button onClick={sendMessage} disabled={sending || !newMessage.trim()}>
+                        {sending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 p-0 flex flex-col">
-                    <ScrollArea className="flex-1 p-4">
-                      <div className="space-y-4">
-                        {messages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`max-w-[70%] rounded-lg p-3 ${
-                                msg.sender_id === user?.id
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted'
-                              }`}
-                            >
-                              <p className="text-sm">{msg.content}</p>
-                              <p className={`text-xs mt-1 ${
-                                msg.sender_id === user?.id
-                                  ? 'text-primary-foreground/70'
-                                  : 'text-muted-foreground'
-                              }`}>
-                                {formatTime(msg.created_at)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                        <div ref={messagesEndRef} />
-                      </div>
-                    </ScrollArea>
-                    <div className="border-t p-4">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nachricht schreiben..."
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                        />
-                        <Button onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-                          {sending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </>
-              ) : (
-                <CardContent className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                    <h3 className="mt-4 text-lg font-semibold">Wähle eine Konversation</h3>
-                    <p className="text-muted-foreground">
-                      Klicke links auf eine Konversation, um Nachrichten anzuzeigen
-                    </p>
                   </div>
                 </CardContent>
-              )}
-            </Card>
-          </div>
+              </>
+            ) : (
+              <CardContent className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <h3 className="mt-4 text-lg font-semibold">Wähle eine Konversation</h3>
+                  <p className="text-muted-foreground">
+                    Klicke links auf eine Konversation, um Nachrichten anzuzeigen
+                  </p>
+                </div>
+              </CardContent>
+            )}
+          </Card>
         </div>
       </div>
     </DashboardLayout>
