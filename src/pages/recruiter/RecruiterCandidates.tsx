@@ -29,7 +29,9 @@ import { TagManagerDialog } from '@/components/candidates/TagManagerDialog';
 import { BulkActionsBar } from '@/components/candidates/BulkActionsBar';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
+import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { Link } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 const initialFormData = {
   full_name: '', email: '', phone: '', experience_years: '', current_salary: '',
   expected_salary: '', skills: '', summary: '', cv_url: '', linkedin_url: '',
@@ -57,6 +59,7 @@ export default function RecruiterCandidates() {
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [tagManagerCandidateId, setTagManagerCandidateId] = useState<string | null>(null);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
+  const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
 
   const { tags, getCandidateTags, createTag, deleteTag, assignTag, removeTag, assignments } = useCandidateTags();
 
@@ -218,6 +221,10 @@ export default function RecruiterCandidates() {
                 <DropdownMenuItem onClick={() => handleOpenDialog()}>
                   <Plus className="h-4 w-4 mr-2" />
                   Manuell hinzufügen
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCvUploadDialogOpen(true)}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  CV hochladen
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
                   <Upload className="h-4 w-4 mr-2" />
@@ -422,6 +429,15 @@ export default function RecruiterCandidates() {
           fetchCandidates();
           toast.success('Kandidaten importiert');
         }} 
+      />
+
+      <CvUploadDialog
+        open={cvUploadDialogOpen}
+        onOpenChange={setCvUploadDialogOpen}
+        onCandidateCreated={() => {
+          fetchCandidates();
+          toast.success('Kandidat aus CV erstellt');
+        }}
       />
     </DashboardLayout>
   );
