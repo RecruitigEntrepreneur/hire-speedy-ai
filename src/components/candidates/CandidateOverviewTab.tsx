@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -36,11 +36,19 @@ import {
   Mail,
   Linkedin,
   ExternalLink,
+  ClipboardList,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
 import { CandidateJobMatching } from './CandidateJobMatching';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
+import { useAIAssessment } from '@/hooks/useAIAssessment';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CandidateOverviewTabProps {
   candidate: Candidate;
@@ -75,6 +83,23 @@ const sourceLabels: Record<string, string> = {
 export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabProps) {
   const extCandidate = candidate as any;
   const [expandedSummary, setExpandedSummary] = useState(false);
+  const [interviewNotes, setInterviewNotes] = useState<any>(null);
+  const { assessment, loading: assessmentLoading, refetch: refetchAssessment } = useAIAssessment(candidate.id);
+
+  // Fetch interview notes for customer summary
+  useEffect(() => {
+    const fetchNotes = async () => {
+      const { data } = await supabase
+        .from('candidate_interview_notes')
+        .select('*')
+        .eq('candidate_id', candidate.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setInterviewNotes(data);
+    };
+    fetchNotes();
+  }, [candidate.id]);
 
   // Format salary display
   const formatSalary = (value: number | null | undefined) => {
@@ -91,6 +116,18 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
     : candidate.availability_date
       ? format(new Date(candidate.availability_date), 'dd.MM.yyyy', { locale: de })
       : null;
+
+  // Get recommendation styling
+  const getRecommendationStyle = (rec: string | null) => {
+    switch (rec) {
+      case 'strong_yes': return { color: 'text-green-600', bg: 'bg-green-100', label: 'Starke Empfehlung' };
+      case 'yes': return { color: 'text-green-500', bg: 'bg-green-50', label: 'Empfohlen' };
+      case 'maybe': return { color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Vielleicht' };
+      case 'no': return { color: 'text-red-500', bg: 'bg-red-50', label: 'Nicht empfohlen' };
+      case 'strong_no': return { color: 'text-red-600', bg: 'bg-red-100', label: 'Ablehnung' };
+      default: return { color: 'text-muted-foreground', bg: 'bg-muted', label: 'Keine Bewertung' };
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -172,13 +209,124 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
         }}
       />
 
-      {/* BLOCK 3: AI Summary - Always Visible (collapsible) */}
+      {/* BLOCK 3: Customer Summary from AI Assessment - Always Visible */}
+      {(assessment || interviewNotes) && (
+        <Card className="border-green-500/30 bg-green-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-green-600" />
+                <span className="text-green-700">Zusammenfassung für Kunden</span>
+              </div>
+              {assessment && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ${getRecommendationStyle(assessment.recommendation).color} ${getRecommendationStyle(assessment.recommendation).bg}`}
+                >
+                  {getRecommendationStyle(assessment.recommendation).label}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* AI Generated Summary */}
+            {assessment?.reasoning && (
+              <p className="text-sm">{assessment.reasoning}</p>
+            )}
+
+            {/* Key Highlights */}
+            {assessment?.key_highlights && assessment.key_highlights.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  Key Highlights
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {assessment.key_highlights.slice(0, 5).map((h: string, i: number) => (
+                    <Badge key={i} variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
+                      {h}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Interview Summary Fields */}
+            {interviewNotes && (
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                {interviewNotes.summary_motivation && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Motivation</p>
+                    <p className="text-sm">{interviewNotes.summary_motivation}</p>
+                  </div>
+                )}
+                {interviewNotes.summary_salary && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Gehalt</p>
+                    <p className="text-sm font-medium">{interviewNotes.summary_salary}</p>
+                  </div>
+                )}
+                {interviewNotes.summary_notice && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Kündigungsfrist</p>
+                    <p className="text-sm">{interviewNotes.summary_notice}</p>
+                  </div>
+                )}
+                {interviewNotes.summary_key_requirements && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Key Requirements</p>
+                    <p className="text-sm">{interviewNotes.summary_key_requirements}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Scores */}
+            {assessment && (
+              <div className="flex items-center gap-4 pt-2 border-t text-xs">
+                {assessment.placement_probability && (
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <span className="text-muted-foreground">Vermittlungschance:</span>
+                    <span className="font-medium text-green-600">{assessment.placement_probability}%</span>
+                  </div>
+                )}
+                {assessment.overall_score && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Score:</span>
+                    <span className="font-medium">{assessment.overall_score}/100</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Risk Factors */}
+            {assessment?.risk_factors && assessment.risk_factors.length > 0 && (
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-yellow-600" />
+                  Risikofaktoren
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {assessment.risk_factors.map((r: string, i: number) => (
+                    <Badge key={i} variant="outline" className="text-xs border-yellow-300 text-yellow-700 bg-yellow-50">
+                      {r}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* BLOCK 4: AI CV Summary - Always Visible (collapsible) */}
       {extCandidate.cv_ai_summary && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              AI-Zusammenfassung
+              AI-Zusammenfassung (CV)
             </CardTitle>
           </CardHeader>
           <CardContent>
