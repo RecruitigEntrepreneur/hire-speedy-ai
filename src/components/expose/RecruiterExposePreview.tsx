@@ -54,8 +54,10 @@ export function RecruiterExposePreview({ submissionId, candidateName }: Recruite
           ) : data ? (
             <CandidateExpose
               candidateId={data.candidateId}
+              submissionId={data.submissionId}
               candidateName={data.candidateName}
               isAnonymized={data.isAnonymized}
+              identityUnlocked={data.identityUnlocked}
               currentRole={data.currentRole}
               matchScore={data.matchScore}
               dealProbability={data.dealProbability}
@@ -65,6 +67,7 @@ export function RecruiterExposePreview({ submissionId, candidateName }: Recruite
               status={data.status}
               executiveSummary={data.executiveSummary}
               hardFacts={data.hardFacts}
+              experienceYears={data.experienceYears}
               onRequestInterview={() => {}}
               onReject={() => {}}
               onAskQuestion={() => {}}

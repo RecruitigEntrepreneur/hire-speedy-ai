@@ -282,7 +282,9 @@ export default function ClientCandidates() {
                         <CandidateExpose
                           key={submission.id}
                           candidateId={submission.candidateId}
+                          submissionId={submission.id}
                           candidateName={submission.candidateName}
+                          isAnonymized={true}
                           currentRole={submission.currentRole}
                           matchScore={submission.match_score || 0}
                           dealProbability={submission.dealProbability}
