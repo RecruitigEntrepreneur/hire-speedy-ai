@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PowerThreeActions } from '@/components/influence/PowerThreeActions';
-import { PipelineFlow } from '@/components/influence/PipelineFlow';
 import { PerformanceIntel } from '@/components/influence/PerformanceIntel';
 import { TeamLeaderboard } from '@/components/influence/TeamLeaderboard';
 import { PlaybookViewer } from '@/components/influence/PlaybookViewer';
@@ -140,6 +139,7 @@ export default function RecruiterInfluence() {
               loading={isLoading}
               onOpenPlaybook={handleOpenPlaybook}
               onMarkDone={handleMarkDone}
+              onSelectCandidate={handleSelectCandidate}
             />
           </div>
           
@@ -149,15 +149,7 @@ export default function RecruiterInfluence() {
           </div>
         </div>
 
-        {/* Zone 2: PIPELINE FLOW */}
-        <PipelineFlow
-          submissions={submissions}
-          behaviors={behaviors}
-          loading={loadingSubmissions}
-          onSelectCandidate={handleSelectCandidate}
-        />
-
-        {/* Zone 4: LEADERBOARD */}
+        {/* Zone 3: LEADERBOARD */}
         <TeamLeaderboard limit={5} />
 
         {/* Playbook Viewer */}
