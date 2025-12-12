@@ -22,6 +22,7 @@ import ClientSettings from "./pages/dashboard/ClientSettings";
 import ClientBilling from "./pages/dashboard/ClientBilling";
 import DataPrivacy from "./pages/dashboard/DataPrivacy";
 import HiringPipeline from "./pages/dashboard/HiringPipeline";
+import JobCommandCenter from "./pages/dashboard/JobCommandCenter";
 
 // Recruiter pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
@@ -136,6 +137,11 @@ function AppRoutes() {
       <Route path="/dashboard/jobs" element={
         <ProtectedRoute allowedRoles={['client']}>
           <JobsList />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/command-center" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <JobCommandCenter />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/jobs/new" element={
