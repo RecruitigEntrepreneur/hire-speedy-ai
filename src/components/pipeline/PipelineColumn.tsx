@@ -18,25 +18,28 @@ export function PipelineColumn({
   onReject,
   isProcessing 
 }: PipelineColumnProps) {
+  const hasNoCandidates = candidates.length === 0;
+  
   return (
-    <div className="flex-1 min-w-[200px] max-w-[240px]">
-      <div className={`border-t-2 ${stage.color} bg-muted/30 rounded-b-lg`}>
+    <div className="flex-1 min-w-[180px] max-w-[220px]">
+      <div className={`border-t-2 ${stage.color} bg-muted/20 rounded-b-lg`}>
         {/* Slim Header */}
-        <div className="flex items-center justify-between px-2.5 py-2">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <div className="flex items-center justify-between px-2 py-1.5">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
             {stage.label}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className={`text-xs tabular-nums font-medium ${candidates.length > 0 ? 'text-foreground' : 'text-muted-foreground/50'}`}>
             {candidates.length}
           </span>
         </div>
         
-        {/* Candidates */}
-        <ScrollArea className="h-[calc(100vh-200px)]">
-          <div className="space-y-1.5 px-1.5 pb-2">
-            {candidates.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground text-xs">
-                Keine Kandidaten
+        {/* Candidates - Dynamic Height */}
+        <ScrollArea className={hasNoCandidates ? 'h-[120px]' : 'h-[calc(100vh-280px)] min-h-[200px]'}>
+          <div className="space-y-1 px-1 pb-1.5">
+            {hasNoCandidates ? (
+              <div className="flex flex-col items-center justify-center py-4 text-center">
+                <div className="text-muted-foreground/40 text-xs">—</div>
+                <p className="text-[10px] text-muted-foreground/50 mt-1">Leer</p>
               </div>
             ) : (
               candidates.map((candidate) => (

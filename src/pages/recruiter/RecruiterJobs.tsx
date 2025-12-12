@@ -108,141 +108,122 @@ export default function RecruiterJobs() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-4">
+        {/* Compact Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Open Jobs</h1>
-            <p className="text-muted-foreground">Find opportunities for your candidates</p>
+            <h1 className="text-2xl font-bold tracking-tight">Open Jobs</h1>
+            <p className="text-sm text-muted-foreground">{filteredJobs.length} Opportunities</p>
           </div>
-          <Button asChild variant="default" className="gap-2">
+          <Button asChild size="sm" className="gap-2">
             <Link to="/recruiter/candidates">
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Meine Kandidaten</span>
+              Meine Kandidaten
             </Link>
           </Button>
         </div>
 
-          {/* Filters */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Suche nach Jobtitel oder Skills..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={remoteFilter} onValueChange={setRemoteFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Remote type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="remote">Remote</SelectItem>
-                <SelectItem value="hybrid">Hybrid</SelectItem>
-                <SelectItem value="onsite">On-site</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Compact Filters */}
+        <div className="flex gap-3">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Jobtitel oder Skills..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-9"
+            />
           </div>
+          <Select value={remoteFilter} onValueChange={setRemoteFilter}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Remote" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle</SelectItem>
+              <SelectItem value="remote">Remote</SelectItem>
+              <SelectItem value="hybrid">Hybrid</SelectItem>
+              <SelectItem value="onsite">Vor Ort</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          {/* Results count */}
-          <p className="text-sm text-muted-foreground">
-            {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} available
-          </p>
-
-          {/* Jobs List */}
-          {filteredJobs.length === 0 ? (
-            <Card className="border-border/50">
-              <CardContent className="py-16 text-center">
-                <Briefcase className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">No jobs found</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery || remoteFilter !== 'all' 
-                    ? 'Try adjusting your filters'
-                    : 'Check back later for new opportunities'}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {filteredJobs.map((job) => (
-                <Link key={job.id} to={`/recruiter/jobs/${job.id}`}>
-                  <Card className="border-border/50 hover:border-emerald/30 hover:shadow-md transition-all cursor-pointer">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col gap-4">
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0">
-                              <Briefcase className="h-6 w-6 text-primary-foreground" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-lg font-semibold">{job.title}</h3>
-                                <Badge variant="outline" className="text-xs font-mono">
-                                  Job #{job.id.slice(0, 8).toUpperCase()}
-                                </Badge>
-                              </div>
-                              <p className="text-muted-foreground flex items-center gap-2">
-                                <Shield className="h-4 w-4 text-amber-500" />
-                                {anonymizeCompanyName(job.industry)}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
-                                {job.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-4 w-4" />
-                                    {job.location}
-                                  </span>
-                                )}
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  {job.employment_type}
-                                </span>
-                                <Badge variant="secondary" className="capitalize">
-                                  {job.remote_type}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 md:text-right">
-                            <div>
-                              <p className="text-lg font-bold text-emerald">
-                                {job.recruiter_fee_percentage}% Fee
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {formatSalary(job.salary_min, job.salary_max)}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Posted {formatDate(job.created_at)}
-                              </p>
-                            </div>
-                            <ArrowUpRight className="h-5 w-5 text-muted-foreground hidden md:block" />
-                          </div>
+        {/* Compact Jobs Grid */}
+        {filteredJobs.length === 0 ? (
+          <Card className="border-border/50">
+            <CardContent className="py-12 text-center">
+              <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/50" />
+              <h3 className="mt-3 font-semibold">Keine Jobs gefunden</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery || remoteFilter !== 'all' 
+                  ? 'Passe deine Filter an'
+                  : 'Bald verfügbar'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-2">
+            {filteredJobs.map((job) => (
+              <Link key={job.id} to={`/recruiter/jobs/${job.id}`}>
+                <Card className="border-border/50 hover:border-emerald/40 hover:bg-accent/30 transition-all cursor-pointer group">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-3">
+                      {/* Icon */}
+                      <div className="h-10 w-10 rounded-lg bg-gradient-navy flex items-center justify-center flex-shrink-0">
+                        <Briefcase className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      
+                      {/* Main Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{job.title}</h3>
+                          <Badge variant="secondary" className="capitalize text-xs shrink-0">
+                            {job.remote_type}
+                          </Badge>
                         </div>
-                        
-                        {job.skills && job.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {job.skills.slice(0, 5).map((skill) => (
-                              <Badge key={skill} variant="outline" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
-                            {job.skills.length > 5 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{job.skills.length - 5} more
-                              </Badge>
-                            )}
-                          </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Shield className="h-3 w-3 text-amber-500" />
+                            {anonymizeCompanyName(job.industry)}
+                          </span>
+                          {job.location && (
+                            <span className="flex items-center gap-1 truncate">
+                              <MapPin className="h-3 w-3" />
+                              {job.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Skills - Compact */}
+                      <div className="hidden md:flex items-center gap-1.5 max-w-[250px]">
+                        {job.skills?.slice(0, 3).map((skill) => (
+                          <Badge key={skill} variant="outline" className="text-xs py-0">
+                            {skill}
+                          </Badge>
+                        ))}
+                        {job.skills && job.skills.length > 3 && (
+                          <Badge variant="outline" className="text-xs py-0 text-muted-foreground">
+                            +{job.skills.length - 3}
+                          </Badge>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
+
+                      {/* Fee & Date */}
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-emerald">{job.recruiter_fee_percentage}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatSalary(job.salary_min, job.salary_max).replace('€', '').replace(' - ', '-')}
+                        </p>
+                      </div>
+
+                      <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -141,20 +141,24 @@ export default function HiringPipeline() {
           )}
         </div>
 
-        {/* No Job Selected */}
+        {/* No Job Selected - Compact */}
         {!selectedJobId && !loading && (
-          <Card className="border-border/50">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Briefcase className="h-10 w-10 text-muted-foreground/50 mb-3" />
-              <h3 className="font-medium text-muted-foreground text-sm">Kein Job ausgewählt</h3>
-              <p className="text-xs text-muted-foreground/70 mb-3">
-                Wählen Sie einen Job, um die Pipeline anzuzeigen
-              </p>
+          <Card className="border-dashed border-border/50">
+            <CardContent className="flex items-center justify-center py-8 gap-4">
+              <Briefcase className="h-8 w-8 text-muted-foreground/40" />
+              <div>
+                <h3 className="font-medium text-sm">
+                  {jobs.length === 0 ? 'Noch keine Jobs vorhanden' : 'Job auswählen'}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {jobs.length === 0 
+                    ? 'Erstelle deinen ersten Job, um die Pipeline zu nutzen'
+                    : 'Wähle einen Job aus dem Dropdown oben'}
+                </p>
+              </div>
               {jobs.length === 0 && (
                 <Button variant="hero" size="sm" asChild>
-                  <Link to="/dashboard/jobs/new">
-                    Ersten Job erstellen
-                  </Link>
+                  <Link to="/dashboard/jobs/new">Job erstellen</Link>
                 </Button>
               )}
             </CardContent>
@@ -166,11 +170,11 @@ export default function HiringPipeline() {
           <BottleneckSummary candidates={candidates} />
         )}
 
-        {/* Pipeline Board */}
+        {/* Pipeline Board - Dynamic Height */}
         {selectedJobId && (
           <TooltipProvider>
             <ScrollArea className="w-full">
-              <div className="flex gap-3 pb-4 min-h-[calc(100vh-200px)]">
+              <div className={`flex gap-3 pb-4 ${candidates.length === 0 ? 'min-h-[200px]' : 'min-h-[400px]'}`}>
                 {loading ? (
                   PIPELINE_STAGES.map((stage) => (
                     <PipelineColumnSkeleton key={stage.key} />
