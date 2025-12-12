@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   Car, MapPin, Clock, Building2, AlertTriangle, 
-  MessageSquare, Mail, Phone, CheckCircle2, XCircle, HelpCircle
+  MessageSquare, Mail, Phone, CheckCircle2, XCircle, HelpCircle, Send, Loader2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -65,6 +65,7 @@ export function CommuteConfirmationDialog({
   const [selectedResponse, setSelectedResponse] = useState<'yes' | 'conditional' | 'no' | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const overrunPercent = candidate.max_commute_minutes 
     ? Math.round(((travelTime - candidate.max_commute_minutes) / candidate.max_commute_minutes) * 100)
@@ -86,6 +87,56 @@ Wäre diese Distanz für Sie dennoch akzeptabel?
 Bitte lassen Sie mich wissen, wie Sie dazu stehen.
 
 Beste Grüße`;
+  };
+
+  const handleSendEmail = async () => {
+    if (!candidate.email) {
+      toast.error('Keine E-Mail-Adresse vorhanden');
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: candidate.email,
+          subject: `Pendeldistanz-Rückfrage: ${job.title}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px;">
+              <h2>Pendeldistanz-Rückfrage</h2>
+              <p>Hallo ${candidate.full_name.split(' ')[0]},</p>
+              <p>für die Position <strong>"${job.title}"</strong>${job.company_name ? ` bei <strong>${job.company_name}</strong>` : ''} 
+              beträgt die geschätzte Fahrtzeit etwa <strong>${travelTime} Minuten</strong> pro Strecke
+              ${job.onsite_days_required ? `(${job.onsite_days_required} Tag${job.onsite_days_required > 1 ? 'e' : ''} vor Ort pro Woche)` : ''}.</p>
+              ${candidate.max_commute_minutes ? `<p>Sie hatten in unserem Gespräch ca. <strong>${candidate.max_commute_minutes} Minuten</strong> als Ihre bevorzugte maximale Pendelzeit genannt.</p>` : ''}
+              <p>Wäre diese Distanz für Sie dennoch akzeptabel?</p>
+              <p>Bitte antworten Sie auf diese E-Mail und lassen Sie mich wissen, wie Sie dazu stehen.</p>
+              <p>Beste Grüße</p>
+            </div>
+          `,
+          text: generateMessage(),
+        },
+      });
+
+      if (error) throw error;
+
+      // Log the inquiry
+      await supabase.from('commute_overrides').upsert({
+        candidate_id: candidate.id,
+        job_id: job.id,
+        asked_at: new Date().toISOString(),
+        response: null,
+      }, {
+        onConflict: 'candidate_id,job_id',
+      });
+
+      toast.success('E-Mail erfolgreich gesendet');
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast.error('Fehler beim Senden der E-Mail');
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const handleSaveResponse = async () => {
@@ -243,15 +294,31 @@ Beste Grüße`;
             
             <div className="flex gap-2">
               {candidate.email && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => window.open(`mailto:${candidate.email}?subject=Pendeldistanz für ${job.title}&body=${encodeURIComponent(generateMessage())}`)}
-                >
-                  <Mail className="h-4 w-4 mr-1" />
-                  E-Mail
-                </Button>
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => window.open(`mailto:${candidate.email}?subject=Pendeldistanz für ${job.title}&body=${encodeURIComponent(generateMessage())}`)}
+                  >
+                    <Mail className="h-4 w-4 mr-1" />
+                    Mail-Client
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail}
+                  >
+                    {sendingEmail ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-1" />
+                    )}
+                    Direkt senden
+                  </Button>
+                </>
               )}
               {candidate.phone && (
                 <Button 
