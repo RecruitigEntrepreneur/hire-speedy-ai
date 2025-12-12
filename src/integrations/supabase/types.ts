@@ -1179,10 +1179,15 @@ export type Database = {
       }
       candidates: {
         Row: {
+          address_lat: number | null
+          address_lng: number | null
+          address_street: string | null
+          address_zip: string | null
           availability_date: string | null
           candidate_status: string | null
           certificates: Json | null
           city: string | null
+          commute_mode: string | null
           company: string | null
           created_at: string
           current_salary: number | null
@@ -1208,6 +1213,7 @@ export type Database = {
           industry_experience: Json | null
           job_title: string | null
           linkedin_url: string | null
+          max_commute_minutes: number | null
           nationality: string | null
           notice_period: string | null
           phone: string | null
@@ -1217,6 +1223,8 @@ export type Database = {
           project_metrics: Json | null
           recruiter_id: string
           relocation_willing: boolean | null
+          remote_days_preferred: number | null
+          remote_flexibility: string | null
           remote_possible: boolean | null
           remote_preference: string | null
           residence_status: string | null
@@ -1243,10 +1251,15 @@ export type Database = {
           work_permit_notes: string | null
         }
         Insert: {
+          address_lat?: number | null
+          address_lng?: number | null
+          address_street?: string | null
+          address_zip?: string | null
           availability_date?: string | null
           candidate_status?: string | null
           certificates?: Json | null
           city?: string | null
+          commute_mode?: string | null
           company?: string | null
           created_at?: string
           current_salary?: number | null
@@ -1272,6 +1285,7 @@ export type Database = {
           industry_experience?: Json | null
           job_title?: string | null
           linkedin_url?: string | null
+          max_commute_minutes?: number | null
           nationality?: string | null
           notice_period?: string | null
           phone?: string | null
@@ -1281,6 +1295,8 @@ export type Database = {
           project_metrics?: Json | null
           recruiter_id: string
           relocation_willing?: boolean | null
+          remote_days_preferred?: number | null
+          remote_flexibility?: string | null
           remote_possible?: boolean | null
           remote_preference?: string | null
           residence_status?: string | null
@@ -1307,10 +1323,15 @@ export type Database = {
           work_permit_notes?: string | null
         }
         Update: {
+          address_lat?: number | null
+          address_lng?: number | null
+          address_street?: string | null
+          address_zip?: string | null
           availability_date?: string | null
           candidate_status?: string | null
           certificates?: Json | null
           city?: string | null
+          commute_mode?: string | null
           company?: string | null
           created_at?: string
           current_salary?: number | null
@@ -1336,6 +1357,7 @@ export type Database = {
           industry_experience?: Json | null
           job_title?: string | null
           linkedin_url?: string | null
+          max_commute_minutes?: number | null
           nationality?: string | null
           notice_period?: string | null
           phone?: string | null
@@ -1345,6 +1367,8 @@ export type Database = {
           project_metrics?: Json | null
           recruiter_id?: string
           relocation_willing?: boolean | null
+          remote_days_preferred?: number | null
+          remote_flexibility?: string | null
           remote_possible?: boolean | null
           remote_preference?: string | null
           residence_status?: string | null
@@ -1562,6 +1586,64 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commute_overrides: {
+        Row: {
+          accepted_commute_minutes: number | null
+          asked_at: string | null
+          candidate_id: string
+          created_at: string | null
+          id: string
+          job_id: string
+          responded_at: string | null
+          response: string | null
+          response_notes: string | null
+        }
+        Insert: {
+          accepted_commute_minutes?: number | null
+          asked_at?: string | null
+          candidate_id: string
+          created_at?: string | null
+          id?: string
+          job_id: string
+          responded_at?: string | null
+          response?: string | null
+          response_notes?: string | null
+        }
+        Update: {
+          accepted_commute_minutes?: number | null
+          asked_at?: string | null
+          candidate_id?: string
+          created_at?: string | null
+          id?: string
+          job_id?: string
+          responded_at?: string | null
+          response?: string | null
+          response_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commute_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "commute_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commute_overrides_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -2696,6 +2778,7 @@ export type Database = {
       jobs: {
         Row: {
           client_id: string
+          commute_flexibility: string | null
           company_name: string
           created_at: string
           deadline: string | null
@@ -2708,9 +2791,14 @@ export type Database = {
           location: string | null
           must_haves: string[] | null
           nice_to_haves: string[] | null
+          office_address: string | null
+          office_lat: number | null
+          office_lng: number | null
+          onsite_days_required: number | null
           organization_id: string | null
           paused_at: string | null
           recruiter_fee_percentage: number | null
+          remote_policy: string | null
           remote_type: string | null
           requirements: string | null
           salary_max: number | null
@@ -2724,6 +2812,7 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          commute_flexibility?: string | null
           company_name: string
           created_at?: string
           deadline?: string | null
@@ -2736,9 +2825,14 @@ export type Database = {
           location?: string | null
           must_haves?: string[] | null
           nice_to_haves?: string[] | null
+          office_address?: string | null
+          office_lat?: number | null
+          office_lng?: number | null
+          onsite_days_required?: number | null
           organization_id?: string | null
           paused_at?: string | null
           recruiter_fee_percentage?: number | null
+          remote_policy?: string | null
           remote_type?: string | null
           requirements?: string | null
           salary_max?: number | null
@@ -2752,6 +2846,7 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          commute_flexibility?: string | null
           company_name?: string
           created_at?: string
           deadline?: string | null
@@ -2764,9 +2859,14 @@ export type Database = {
           location?: string | null
           must_haves?: string[] | null
           nice_to_haves?: string[] | null
+          office_address?: string | null
+          office_lat?: number | null
+          office_lng?: number | null
+          onsite_days_required?: number | null
           organization_id?: string | null
           paused_at?: string | null
           recruiter_fee_percentage?: number | null
+          remote_policy?: string | null
           remote_type?: string | null
           requirements?: string | null
           salary_max?: number | null
@@ -4121,6 +4221,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      routing_cache: {
+        Row: {
+          cached_at: string | null
+          dest_lat: number
+          dest_lng: number
+          distance_km: number | null
+          duration_minutes: number
+          expires_at: string | null
+          id: string
+          mode: string
+          origin_lat: number
+          origin_lng: number
+        }
+        Insert: {
+          cached_at?: string | null
+          dest_lat: number
+          dest_lng: number
+          distance_km?: number | null
+          duration_minutes: number
+          expires_at?: string | null
+          id?: string
+          mode?: string
+          origin_lat: number
+          origin_lng: number
+        }
+        Update: {
+          cached_at?: string | null
+          dest_lat?: number
+          dest_lng?: number
+          distance_km?: number | null
+          duration_minutes?: number
+          expires_at?: string | null
+          id?: string
+          mode?: string
+          origin_lat?: number
+          origin_lng?: number
+        }
+        Relationships: []
       }
       sla_deadlines: {
         Row: {
