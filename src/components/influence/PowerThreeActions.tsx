@@ -30,6 +30,7 @@ interface PowerThreeActionsProps {
   loading?: boolean;
   onOpenPlaybook: (playbookId: string) => void;
   onMarkDone: (alertId: string) => void;
+  onSelectCandidate?: (submissionId: string) => void;
 }
 
 interface PowerAction {
@@ -52,6 +53,7 @@ export function PowerThreeActions({
   loading = false,
   onOpenPlaybook,
   onMarkDone,
+  onSelectCandidate,
 }: PowerThreeActionsProps) {
   
   // Calculate Power-3 Score and get top 3 actions
@@ -172,7 +174,8 @@ export function PowerThreeActions({
         {powerActions.map((action, index) => (
           <div
             key={action.submissionId}
-            className="p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-all"
+            onClick={() => onSelectCandidate?.(action.submissionId)}
+            className="p-4 rounded-lg bg-card border border-border hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -205,7 +208,7 @@ export function PowerThreeActions({
                       size="sm"
                       variant="outline"
                       className="h-8"
-                      onClick={() => window.open(`tel:${action.phone}`, '_blank')}
+                      onClick={(e) => { e.stopPropagation(); window.open(`tel:${action.phone}`, '_blank'); }}
                     >
                       <Phone className="h-3 w-3 mr-1" />
                       Anrufen
@@ -216,7 +219,7 @@ export function PowerThreeActions({
                       size="sm"
                       variant="outline"
                       className="h-8"
-                      onClick={() => window.open(`mailto:${action.email}`, '_blank')}
+                      onClick={(e) => { e.stopPropagation(); window.open(`mailto:${action.email}`, '_blank'); }}
                     >
                       <Mail className="h-3 w-3 mr-1" />
                       Email
@@ -227,7 +230,7 @@ export function PowerThreeActions({
                       size="sm"
                       variant="outline"
                       className="h-8"
-                      onClick={() => onOpenPlaybook(action.alert!.playbook_id!)}
+                      onClick={(e) => { e.stopPropagation(); onOpenPlaybook(action.alert!.playbook_id!); }}
                     >
                       <BookOpen className="h-3 w-3 mr-1" />
                       Playbook
@@ -238,7 +241,7 @@ export function PowerThreeActions({
                       size="sm"
                       variant="ghost"
                       className="h-8 text-xs"
-                      onClick={() => onMarkDone(action.alert!.id)}
+                      onClick={(e) => { e.stopPropagation(); onMarkDone(action.alert!.id); }}
                     >
                       Erledigt
                     </Button>
