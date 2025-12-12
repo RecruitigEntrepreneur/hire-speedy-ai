@@ -139,6 +139,23 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
     if (success) {
       toast.success(markComplete ? 'Interview abgeschlossen' : 'Notizen gespeichert');
       onNotesUpdated?.();
+      
+      // Auto-trigger AI analysis when interview is completed
+      if (markComplete && !assessment) {
+        toast.info('Starte automatische AI-Analyse...');
+        const extCandidate = candidate as any;
+        await processInterviewNotes(
+          formData as unknown as Record<string, unknown>,
+          formData.additional_notes || '',
+          {
+            full_name: candidate.full_name,
+            job_title: candidate.job_title,
+            skills: candidate.skills,
+            experience_years: candidate.experience_years,
+            cv_ai_summary: extCandidate.cv_ai_summary,
+          }
+        );
+      }
     } else {
       toast.error('Fehler beim Speichern');
     }
