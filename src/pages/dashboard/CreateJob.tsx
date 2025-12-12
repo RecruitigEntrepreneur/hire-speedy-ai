@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { useClientVerification } from '@/hooks/useClientVerification';
-import { Navbar } from '@/components/layout/Navbar';
+
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,9 +186,7 @@ export default function CreateJob() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <DashboardLayout>
+    <DashboardLayout>
         <div className="max-w-3xl mx-auto space-y-6">
           {/* Header */}
           <div>
@@ -632,6 +630,5 @@ export default function CreateJob() {
           </Tabs>
         </div>
       </DashboardLayout>
-    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/layout/Navbar';
+
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -181,14 +181,11 @@ export default function ClientInterviews() {
 
   if (loading) {
     return (
-      <>
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </DashboardLayout>
-      </>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -200,9 +197,7 @@ export default function ClientInterviews() {
   );
 
   return (
-    <>
-      <Navbar />
-      <DashboardLayout>
+    <DashboardLayout>
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold">Interviews</h1>
@@ -402,6 +397,5 @@ export default function ClientInterviews() {
           </DialogContent>
         </Dialog>
       </DashboardLayout>
-    </>
   );
 }
