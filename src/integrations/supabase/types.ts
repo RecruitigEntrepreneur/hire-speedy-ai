@@ -336,8 +336,10 @@ export type Database = {
           candidate_id: string
           change_motivation_summary: string | null
           created_at: string | null
+          deal_probability: number | null
           executive_summary: string | null
           generated_at: string | null
+          hard_facts: Json | null
           id: string
           job_hopper_analysis: Json | null
           key_selling_points: Json | null
@@ -353,8 +355,10 @@ export type Database = {
           candidate_id: string
           change_motivation_summary?: string | null
           created_at?: string | null
+          deal_probability?: number | null
           executive_summary?: string | null
           generated_at?: string | null
+          hard_facts?: Json | null
           id?: string
           job_hopper_analysis?: Json | null
           key_selling_points?: Json | null
@@ -370,8 +374,10 @@ export type Database = {
           candidate_id?: string
           change_motivation_summary?: string | null
           created_at?: string | null
+          deal_probability?: number | null
           executive_summary?: string | null
           generated_at?: string | null
+          hard_facts?: Json | null
           id?: string
           job_hopper_analysis?: Json | null
           key_selling_points?: Json | null
@@ -455,6 +461,68 @@ export type Database = {
           },
           {
             foreignKeyName: "candidate_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_commitment_updates: {
+        Row: {
+          candidate_id: string
+          commitment_level: string
+          created_at: string
+          id: string
+          previous_level: string | null
+          reason: string | null
+          recruiter_id: string
+          submission_id: string | null
+        }
+        Insert: {
+          candidate_id: string
+          commitment_level: string
+          created_at?: string
+          id?: string
+          previous_level?: string | null
+          reason?: string | null
+          recruiter_id: string
+          submission_id?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          commitment_level?: string
+          created_at?: string
+          id?: string
+          previous_level?: string | null
+          reason?: string | null
+          recruiter_id?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_commitment_updates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
@@ -1021,6 +1089,74 @@ export type Database = {
           },
         ]
       }
+      candidate_risk_reports: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          description: string | null
+          id: string
+          recruiter_id: string
+          resolved: boolean | null
+          resolved_at: string | null
+          risk_type: string
+          severity: string
+          submission_id: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          recruiter_id: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          risk_type: string
+          severity: string
+          submission_id?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          recruiter_id?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          risk_type?: string
+          severity?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_risk_reports_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_skills: {
         Row: {
           candidate_id: string
@@ -1395,6 +1531,60 @@ export type Database = {
           work_permit_notes?: string | null
         }
         Relationships: []
+      }
+      client_notifications: {
+        Row: {
+          action_url: string | null
+          client_id: string
+          created_at: string
+          id: string
+          is_dismissed: boolean | null
+          is_read: boolean | null
+          message: string
+          notification_type: string
+          submission_id: string | null
+          title: string
+        }
+        Insert: {
+          action_url?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean | null
+          is_read?: boolean | null
+          message: string
+          notification_type: string
+          submission_id?: string | null
+          title: string
+        }
+        Update: {
+          action_url?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean | null
+          is_read?: boolean | null
+          message?: string
+          notification_type?: string
+          submission_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notifications_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_notifications_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_verifications: {
         Row: {

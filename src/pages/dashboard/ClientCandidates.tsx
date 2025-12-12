@@ -4,50 +4,50 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, User, Check, X, Calendar, FileText, Mail, Phone, Briefcase, Euro, Gift } from 'lucide-react';
+import { Loader2, User } from 'lucide-react';
 import { toast } from 'sonner';
-import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { usePageViewTracking, useEventTracking } from '@/hooks/useEventTracking';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
+import { CandidateExpose } from '@/components/expose/CandidateExpose';
+import { SlaWarningBanner } from '@/components/sla/SlaWarningBanner';
+import { ClientNotificationCenter } from '@/components/notifications/ClientNotificationCenter';
 
-interface Submission {
+interface HardFacts {
+  role_seniority: string;
+  top_skills: string[];
+  location_commute: string;
+  work_model: string;
+  salary_range: string;
+  availability: string;
+}
+
+interface ExposeSubmission {
   id: string;
   status: string;
   submitted_at: string;
-  recruiter_notes: string | null;
   match_score: number | null;
-  candidate: {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-    experience_years: number | null;
-    current_salary: number | null;
-    expected_salary: number | null;
-    skills: string[] | null;
-    summary: string | null;
-    cv_url: string | null;
-  };
-  job: {
-    id: string;
-    title: string;
-    company_name: string;
-  };
+  candidateId: string;
+  candidateName: string;
+  currentRole: string;
+  dealProbability: number;
+  dealHealthScore: number;
+  dealHealthRisk: string;
+  dealHealthReason: string;
+  executiveSummary: string[];
+  hardFacts: HardFacts;
+  jobId: string;
+  jobTitle: string;
 }
 
 export default function ClientCandidates() {
   const { user } = useAuth();
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissions, setSubmissions] = useState<ExposeSubmission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [dealHealthMap, setDealHealthMap] = useState<Record<string, { health_score: number; risk_level: string }>>({});
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   
   const { trackAction } = useEventTracking();
   usePageViewTracking('client_candidates');
@@ -59,93 +59,169 @@ export default function ClientCandidates() {
   }, [user]);
 
   const fetchSubmissions = async () => {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select(`
-        *,
-        candidate:candidates(*),
-        job:jobs(id, title, company_name)
-      `)
-      .order('submitted_at', { ascending: false });
+    try {
+      // Fetch submissions with candidates and jobs
+      const { data: submissionsData, error: subError } = await supabase
+        .from('submissions')
+        .select(`
+          id,
+          status,
+          submitted_at,
+          match_score,
+          candidates!inner (
+            id,
+            full_name,
+            job_title,
+            city,
+            experience_years,
+            skills,
+            expected_salary,
+            notice_period,
+            remote_preference,
+            availability_date,
+            seniority
+          ),
+          jobs!inner (
+            id,
+            title
+          )
+        `)
+        .order('submitted_at', { ascending: false });
 
-    if (!error && data) {
-      setSubmissions(data as unknown as Submission[]);
-      
-      // Fetch deal health for all submissions
+      if (subError) throw subError;
+
+      // Fetch client summaries
+      const submissionIds = (submissionsData || []).map(s => s.id);
+      const { data: summaries } = await supabase
+        .from('candidate_client_summary')
+        .select('*')
+        .in('submission_id', submissionIds);
+
+      const summaryMap = new Map(summaries?.map(s => [s.submission_id, s]) || []);
+
+      // Fetch deal health data
       const { data: healthData } = await supabase
         .from('deal_health')
-        .select('submission_id, health_score, risk_level')
-        .in('submission_id', data.map(s => s.id));
-      
-      if (healthData) {
-        const healthMap: Record<string, { health_score: number; risk_level: string }> = {};
-        healthData.forEach(h => {
-          healthMap[h.submission_id] = { 
-            health_score: h.health_score || 0, 
-            risk_level: h.risk_level || 'low' 
-          };
-        });
-        setDealHealthMap(healthMap);
-      }
+        .select('*')
+        .in('submission_id', submissionIds);
+
+      const healthMap = new Map(healthData?.map(h => [h.submission_id, h]) || []);
+
+      // Transform to ExposeSubmission format
+      const exposeSubmissions: ExposeSubmission[] = (submissionsData || []).map((sub: any) => {
+        const candidate = sub.candidates;
+        const job = sub.jobs;
+        const summary = summaryMap.get(sub.id);
+        const health = healthMap.get(sub.id);
+
+        // Build hard facts
+        const hardFacts: HardFacts = {
+          role_seniority: `${candidate.seniority || ''} ${candidate.job_title || ''}`.trim() || 'Nicht angegeben',
+          top_skills: (candidate.skills || []).slice(0, 5),
+          location_commute: candidate.city || 'Nicht angegeben',
+          work_model: getWorkModelLabel(candidate.remote_preference),
+          salary_range: formatSalaryRange(candidate.expected_salary),
+          availability: formatAvailability(candidate.notice_period, candidate.availability_date)
+        };
+
+        // Parse executive summary
+        let executiveSummary: string[] = [];
+        if (summary?.key_selling_points && Array.isArray(summary.key_selling_points)) {
+          executiveSummary = summary.key_selling_points as string[];
+        } else if (summary?.executive_summary) {
+          executiveSummary = (summary.executive_summary as string).split('\n').filter(Boolean);
+        }
+
+        // Fallback summary points
+        if (executiveSummary.length === 0) {
+          executiveSummary = [
+            `${candidate.experience_years || 0}+ Jahre Berufserfahrung`,
+            `Aktuelle Rolle: ${candidate.job_title || 'Nicht angegeben'}`,
+            `Standort: ${candidate.city || 'Nicht angegeben'}`,
+            formatAvailability(candidate.notice_period, candidate.availability_date)
+          ].filter(Boolean);
+        }
+
+        return {
+          id: sub.id,
+          status: sub.status,
+          submitted_at: sub.submitted_at,
+          match_score: sub.match_score,
+          candidateId: candidate.id,
+          candidateName: candidate.full_name,
+          currentRole: candidate.job_title || 'Nicht angegeben',
+          dealProbability: summary?.deal_probability || (health?.drop_off_probability ? 100 - health.drop_off_probability : 50),
+          dealHealthScore: health?.health_score || 50,
+          dealHealthRisk: health?.risk_level || 'medium',
+          dealHealthReason: health?.ai_assessment || '',
+          executiveSummary,
+          hardFacts,
+          jobId: job.id,
+          jobTitle: job.title
+        };
+      });
+
+      setSubmissions(exposeSubmissions);
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+      toast.error('Fehler beim Laden der Kandidaten');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleAccept = async (submission: Submission) => {
-    setProcessing(true);
+  const handleRequestInterview = async (submissionId: string) => {
     const { error } = await supabase
       .from('submissions')
-      .update({ status: 'accepted' })
-      .eq('id', submission.id);
+      .update({ status: 'interview' })
+      .eq('id', submissionId);
 
-    if (error) {
-      toast.error('Fehler beim Akzeptieren');
-    } else {
-      toast.success('Kandidat akzeptiert');
-      trackAction('accept_candidate', 'submission', submission.id);
+    if (!error) {
+      await supabase.from('interviews').insert({
+        submission_id: submissionId,
+        status: 'pending',
+      });
+      toast.success('Interview angefragt');
+      trackAction('request_interview', 'submission', submissionId);
       fetchSubmissions();
+    } else {
+      toast.error('Fehler beim Anfragen');
     }
-    setProcessing(false);
+  };
+
+  const handleReject = (submissionId: string) => {
+    setSelectedSubmissionId(submissionId);
+    setRejectDialogOpen(true);
+  };
+
+  const handleAskQuestion = async (submissionId: string) => {
+    toast.info('Rückfrage-Feature wird noch implementiert');
+    trackAction('ask_question', 'submission', submissionId);
+  };
+
+  const handleBookmark = (submissionId: string) => {
+    setBookmarkedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(submissionId)) {
+        newSet.delete(submissionId);
+        toast.success('Lesezeichen entfernt');
+      } else {
+        newSet.add(submissionId);
+        toast.success('Kandidat gemerkt');
+      }
+      return newSet;
+    });
+    trackAction('bookmark_candidate', 'submission', submissionId);
   };
 
   const handleRejectSuccess = () => {
     fetchSubmissions();
   };
 
-  const handleScheduleInterview = async (submission: Submission) => {
-    setProcessing(true);
-    const { error } = await supabase
-      .from('submissions')
-      .update({ status: 'interview' })
-      .eq('id', submission.id);
-
-    if (!error) {
-      // Create interview record
-      await supabase.from('interviews').insert({
-        submission_id: submission.id,
-        status: 'pending',
-      });
-      toast.success('Interview geplant - Details können in der Interview-Übersicht eingetragen werden');
-      fetchSubmissions();
-    }
-    setProcessing(false);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      submitted: { label: 'Neu', variant: 'default' },
-      accepted: { label: 'Akzeptiert', variant: 'secondary' },
-      rejected: { label: 'Abgelehnt', variant: 'destructive' },
-      interview: { label: 'Interview', variant: 'outline' },
-      hired: { label: 'Eingestellt', variant: 'secondary' },
-    };
-    const config = statusConfig[status] || { label: status, variant: 'default' as const };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
   const filterSubmissions = (status: string) => {
     if (status === 'all') return submissions;
     if (status === 'new') return submissions.filter(s => s.status === 'submitted');
+    if (status === 'bookmarked') return submissions.filter(s => bookmarkedIds.has(s.id));
     return submissions.filter(s => s.status === status);
   };
 
@@ -161,215 +237,119 @@ export default function ClientCandidates() {
 
   return (
     <DashboardLayout>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Eingereichte Kandidaten</h1>
-            <p className="text-muted-foreground mt-1">
-              Prüfen Sie die von Recruitern eingereichten Kandidaten
-            </p>
-          </div>
+      <div className="space-y-6">
+        {/* SLA Warnings */}
+        <SlaWarningBanner />
 
-          <Tabs defaultValue="new" className="w-full">
-            <TabsList>
-              <TabsTrigger value="new">
-                Neu ({filterSubmissions('new').length})
-              </TabsTrigger>
-              <TabsTrigger value="accepted">
-                Akzeptiert ({filterSubmissions('accepted').length})
-              </TabsTrigger>
-              <TabsTrigger value="interview">
-                Interview ({filterSubmissions('interview').length})
-              </TabsTrigger>
-              <TabsTrigger value="all">
-                Alle ({submissions.length})
-              </TabsTrigger>
-            </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold">Kandidaten-Exposés</h1>
+              <p className="text-muted-foreground mt-1">
+                Vergleichen Sie Kandidaten und treffen Sie Entscheidungen
+              </p>
+            </div>
 
-            {['new', 'accepted', 'interview', 'all'].map((tab) => (
-              <TabsContent key={tab} value={tab} className="mt-6">
-                <div className="grid gap-4">
-                  {filterSubmissions(tab).length === 0 ? (
-                    <Card>
-                      <CardContent className="flex flex-col items-center justify-center py-12">
-                        <User className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">Keine Kandidaten in dieser Kategorie</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    filterSubmissions(tab).map((submission) => (
-                      <Card key={submission.id}>
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-4">
-                              <Avatar className="h-12 w-12">
-                                <AvatarFallback>
-                                  {submission.candidate.full_name.split(' ').map(n => n[0]).join('')}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <Link to={`/dashboard/candidates/${submission.id}`}>
-                                    <h3 className="font-semibold text-lg hover:text-primary transition-colors">{submission.candidate.full_name}</h3>
-                                  </Link>
-                                  {getStatusBadge(submission.status)}
-                                  {submission.match_score && (
-                                    <Badge variant="outline">{submission.match_score}% Match</Badge>
-                                  )}
-                                  {dealHealthMap[submission.id] && (
-                                    <DealHealthBadge 
-                                      score={dealHealthMap[submission.id].health_score}
-                                      riskLevel={dealHealthMap[submission.id].risk_level as any}
-                                      size="sm"
-                                    />
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  für <span className="font-medium">{submission.job.title}</span> bei {submission.job.company_name}
-                                </p>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="h-3 w-3" />
-                                    {submission.candidate.email}
-                                  </span>
-                                  {submission.candidate.phone && (
-                                    <span className="flex items-center gap-1">
-                                      <Phone className="h-3 w-3" />
-                                      {submission.candidate.phone}
-                                    </span>
-                                  )}
-                                  {submission.candidate.experience_years && (
-                                    <span className="flex items-center gap-1">
-                                      <Briefcase className="h-3 w-3" />
-                                      {submission.candidate.experience_years} Jahre Erfahrung
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+            <Tabs defaultValue="new" className="w-full">
+              <TabsList>
+                <TabsTrigger value="new">
+                  Neu ({filterSubmissions('new').length})
+                </TabsTrigger>
+                <TabsTrigger value="interview">
+                  Interview ({filterSubmissions('interview').length})
+                </TabsTrigger>
+                <TabsTrigger value="bookmarked">
+                  Gemerkt ({filterSubmissions('bookmarked').length})
+                </TabsTrigger>
+                <TabsTrigger value="all">
+                  Alle ({submissions.length})
+                </TabsTrigger>
+              </TabsList>
 
-                            <div className="flex items-center gap-2">
-                              {submission.candidate.cv_url && (
-                                <Button variant="outline" size="sm" asChild>
-                                  <a href={submission.candidate.cv_url} target="_blank" rel="noopener noreferrer">
-                                    <FileText className="h-4 w-4 mr-1" />
-                                    CV
-                                  </a>
-                                </Button>
-                              )}
-                              {submission.status === 'submitted' && (
-                                <>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleScheduleInterview(submission)}
-                                    disabled={processing}
-                                  >
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    Interview
-                                  </Button>
-                                  <Button 
-                                    variant="default" 
-                                    size="sm"
-                                    onClick={() => handleAccept(submission)}
-                                    disabled={processing}
-                                  >
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Akzeptieren
-                                  </Button>
-                                  <Button 
-                                    variant="destructive" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedSubmission(submission);
-                                      setRejectDialogOpen(true);
-                                    }}
-                                    disabled={processing}
-                                  >
-                                    <X className="h-4 w-4 mr-1" />
-                                    Ablehnen
-                                  </Button>
-                                </>
-                              )}
-                              {submission.status === 'accepted' && (
-                                <>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleScheduleInterview(submission)}
-                                    disabled={processing}
-                                  >
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    Interview planen
-                                  </Button>
-                                </>
-                              )}
-                              {submission.status === 'interview' && (
-                                <Button 
-                                  variant="default" 
-                                  size="sm"
-                                  asChild
-                                >
-                                  <Link to={`/dashboard/offers?submission=${submission.id}`}>
-                                    <Gift className="h-4 w-4 mr-1" />
-                                    Angebot erstellen
-                                  </Link>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Candidate Details */}
-                          <div className="mt-4 pt-4 border-t">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              {submission.candidate.expected_salary && (
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Gehaltsvorstellung</p>
-                                  <p className="font-medium flex items-center gap-1">
-                                    <Euro className="h-3 w-3" />
-                                    {submission.candidate.expected_salary.toLocaleString()}
-                                  </p>
-                                </div>
-                              )}
-                              {submission.candidate.skills && submission.candidate.skills.length > 0 && (
-                                <div className="col-span-2">
-                                  <p className="text-xs text-muted-foreground mb-1">Skills</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {submission.candidate.skills.slice(0, 5).map((skill, i) => (
-                                      <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
-                                    ))}
-                                    {submission.candidate.skills.length > 5 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        +{submission.candidate.skills.length - 5}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {submission.recruiter_notes && (
-                              <div className="mt-3">
-                                <p className="text-xs text-muted-foreground">Recruiter Notizen</p>
-                                <p className="text-sm mt-1">{submission.recruiter_notes}</p>
-                              </div>
-                            )}
-                          </div>
+              {['new', 'interview', 'bookmarked', 'all'].map((tab) => (
+                <TabsContent key={tab} value={tab} className="mt-6">
+                  <div className="grid gap-4">
+                    {filterSubmissions(tab).length === 0 ? (
+                      <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-12">
+                          <User className="h-12 w-12 text-muted-foreground mb-4" />
+                          <p className="text-muted-foreground">Keine Kandidaten in dieser Kategorie</p>
                         </CardContent>
                       </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </div>
+                    ) : (
+                      filterSubmissions(tab).map((submission) => (
+                        <CandidateExpose
+                          key={submission.id}
+                          candidateId={submission.candidateId}
+                          candidateName={submission.candidateName}
+                          currentRole={submission.currentRole}
+                          matchScore={submission.match_score || 0}
+                          dealProbability={submission.dealProbability}
+                          dealHealthScore={submission.dealHealthScore}
+                          dealHealthRisk={submission.dealHealthRisk}
+                          dealHealthReason={submission.dealHealthReason}
+                          status={submission.status}
+                          executiveSummary={submission.executiveSummary}
+                          hardFacts={submission.hardFacts}
+                          onRequestInterview={() => handleRequestInterview(submission.id)}
+                          onReject={() => handleReject(submission.id)}
+                          onAskQuestion={() => handleAskQuestion(submission.id)}
+                          onBookmark={() => handleBookmark(submission.id)}
+                          isBookmarked={bookmarkedIds.has(submission.id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
+          </div>
 
-        {/* Rejection Dialog */}
-        <RejectionDialog
-          open={rejectDialogOpen}
-          onOpenChange={setRejectDialogOpen}
-          submission={selectedSubmission}
-          onSuccess={handleRejectSuccess}
-        />
-      </DashboardLayout>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            <ClientNotificationCenter />
+          </div>
+        </div>
+      </div>
+
+      {/* Rejection Dialog */}
+      <RejectionDialog
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+        submission={selectedSubmissionId ? { id: selectedSubmissionId } as any : null}
+        onSuccess={handleRejectSuccess}
+      />
+    </DashboardLayout>
   );
+}
+
+// Helper functions
+function getWorkModelLabel(preference: string | null): string {
+  if (!preference) return 'Nicht angegeben';
+  const labels: Record<string, string> = {
+    'remote': 'Full Remote',
+    'hybrid': 'Hybrid',
+    'onsite': 'Vor Ort',
+    'flexible': 'Flexibel'
+  };
+  return labels[preference] || preference;
+}
+
+function formatSalaryRange(salary: number | null): string {
+  if (!salary) return 'Nicht angegeben';
+  const min = Math.round(salary * 0.9 / 1000) * 1000;
+  const max = Math.round(salary * 1.1 / 1000) * 1000;
+  return `€${(min / 1000).toFixed(0)}k - €${(max / 1000).toFixed(0)}k`;
+}
+
+function formatAvailability(noticePeriod: string | null, availabilityDate: string | null): string {
+  if (availabilityDate) {
+    const date = new Date(availabilityDate);
+    return `Ab ${date.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' })}`;
+  }
+  if (noticePeriod) {
+    return `${noticePeriod} Kündigungsfrist`;
+  }
+  return 'Nicht angegeben';
 }
