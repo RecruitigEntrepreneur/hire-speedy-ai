@@ -24,9 +24,23 @@ import {
   FileText,
   Calendar,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  ShieldX
 } from 'lucide-react';
 import { format, startOfWeek, startOfMonth, startOfYear, isAfter, subDays } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { useAuth } from '@/lib/auth';
+import { toast } from 'sonner';
+
+interface PendingKycClient {
+  client_id: string;
+  company_name: string | null;
+  full_name: string | null;
+  created_at: string;
+  company_registration_number: string | null;
+  vat_id: string | null;
+}
 
 interface AdminStats {
   totalClients: number;
@@ -55,6 +69,7 @@ interface Warning {
 }
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<AdminStats>({
     totalClients: 0,
     totalRecruiters: 0,
@@ -75,13 +90,66 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [pendingKycClients, setPendingKycClients] = useState<PendingKycClient[]>([]);
+  const [processingKyc, setProcessingKyc] = useState<string | null>(null);
   
   const { pendingCount, criticalCount } = useFraudSignals();
   const { healthData: criticalDeals } = useDealHealthList();
 
   useEffect(() => {
     fetchAdminData();
+    fetchPendingKyc();
   }, []);
+
+  const fetchPendingKyc = async () => {
+    const { data: verifications } = await supabase
+      .from('client_verifications')
+      .select('client_id, company_registration_number, vat_id, created_at')
+      .eq('kyc_status', 'in_review');
+
+    if (verifications && verifications.length > 0) {
+      const clientIds = verifications.map(v => v.client_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, company_name')
+        .in('user_id', clientIds);
+
+      const profileMap = profiles?.reduce((acc, p) => {
+        acc[p.user_id] = p;
+        return acc;
+      }, {} as Record<string, any>) || {};
+
+      const pendingClients = verifications.map(v => ({
+        ...v,
+        full_name: profileMap[v.client_id]?.full_name,
+        company_name: profileMap[v.client_id]?.company_name,
+      }));
+
+      setPendingKycClients(pendingClients);
+    }
+  };
+
+  const handleQuickApproveKyc = async (clientId: string) => {
+    if (!user) return;
+    setProcessingKyc(clientId);
+    
+    const { error } = await supabase
+      .from('client_verifications')
+      .update({
+        kyc_status: 'verified',
+        kyc_verified_at: new Date().toISOString(),
+        kyc_verified_by: user.id,
+      })
+      .eq('client_id', clientId);
+
+    if (error) {
+      toast.error('Fehler beim Genehmigen');
+    } else {
+      toast.success('KYC genehmigt');
+      fetchPendingKyc();
+    }
+    setProcessingKyc(null);
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -324,6 +392,63 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </Link>
+          )}
+
+          {/* Pending KYC Widget */}
+          {pendingKycClients.length > 0 && (
+            <Card className="border-blue-500/50 bg-blue-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ShieldCheck className="h-5 w-5 text-blue-600" />
+                  Offene KYC-Anträge ({pendingKycClients.length})
+                  <Link to="/admin/clients" className="ml-auto">
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </Link>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {pendingKycClients.slice(0, 5).map((client) => (
+                    <div key={client.client_id} className="flex items-center justify-between p-3 rounded-lg bg-background border">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{client.company_name || client.full_name || 'Unbekannt'}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {client.company_registration_number && `HRB: ${client.company_registration_number}`}
+                          {client.company_registration_number && client.vat_id && ' | '}
+                          {client.vat_id && `USt-ID: ${client.vat_id}`}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Eingereicht: {format(new Date(client.created_at), 'PPp', { locale: de })}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleQuickApproveKyc(client.client_id)}
+                          disabled={processingKyc === client.client_id}
+                        >
+                          {processingKyc === client.client_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Link to="/admin/clients">
+                          <Button size="sm" variant="outline">
+                            Details
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {pendingKycClients.length > 5 && (
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    + {pendingKycClients.length - 5} weitere Anträge
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Warnings */}
