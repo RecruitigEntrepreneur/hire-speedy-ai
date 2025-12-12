@@ -85,6 +85,16 @@ export default function RecruiterCandidates() {
   }, [candidates]);
 
   const filteredCandidates = useMemo(() => {
+    console.log('[RecruiterCandidates] Filtering candidates. Total:', candidates.length);
+    console.log('[RecruiterCandidates] Active filters:', {
+      search: filters.search,
+      experienceMin: filters.experienceMin,
+      experienceMax: filters.experienceMax,
+      salaryMin: filters.salaryMin,
+      salaryMax: filters.salaryMax,
+      selectedTags: filters.selectedTags,
+    });
+    
     let result = candidates.filter(c => {
       if (filters.search) {
         const q = filters.search.toLowerCase();
@@ -107,6 +117,10 @@ export default function RecruiterCandidates() {
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
       return filters.sortOrder === 'asc' ? cmp : -cmp;
     });
+    
+    console.log('[RecruiterCandidates] Filtered candidates:', result.length);
+    console.log('[RecruiterCandidates] Filtered names:', result.map(c => c.full_name));
+    
     return result;
   }, [candidates, filters, assignments]);
 
@@ -236,6 +250,16 @@ export default function RecruiterCandidates() {
         </div>
 
         <CandidateStatsBar totalCandidates={stats.total} addedThisWeek={stats.thisWeek} availableSoon={stats.availableSoon} activeAssignments={stats.activeJobs} />
+
+        {/* Debug info - temporary */}
+        <div className="bg-muted/50 border rounded-lg p-3 text-sm">
+          <strong>Debug:</strong> {candidates.length} Kandidaten geladen, {filteredCandidates.length} nach Filter angezeigt
+          {candidates.length !== filteredCandidates.length && (
+            <Button variant="link" size="sm" className="ml-2 h-auto p-0" onClick={() => setFilters(defaultFilters)}>
+              Filter zurücksetzen
+            </Button>
+          )}
+        </div>
 
         <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between">
           <CandidateFilters filters={filters} onFilterChange={setFilters} tags={tags} allSkills={[]} />
