@@ -246,7 +246,12 @@ export function ClientTaskWidget({ maxTasks = 5 }: ClientTaskWidgetProps) {
                   {getTaskIcon(task.type)}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{task.title}</p>
+                  <button
+                    onClick={() => handleViewDetails(task)}
+                    className="font-medium text-sm truncate hover:text-primary hover:underline text-left block max-w-full"
+                  >
+                    {task.title}
+                  </button>
                   <p className="text-xs text-muted-foreground truncate">{task.description}</p>
                 </div>
               </div>
