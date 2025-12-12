@@ -39,6 +39,8 @@ interface CandidateJobMatchingV2Props {
     commute_mode: string | null;
     address_lat: number | null;
     address_lng: number | null;
+    email?: string;
+    phone?: string;
   };
   onSubmissionCreated?: () => void;
 }
@@ -307,7 +309,8 @@ export function CandidateJobMatchingV2({ candidate, onSubmissionCreated }: Candi
             id: candidate.id,
             full_name: candidate.full_name,
             max_commute_minutes: candidate.max_commute_minutes || 30,
-            email: '', // Will be filled if needed
+            email: candidate.email,
+            phone: candidate.phone,
           }}
           job={{
             id: commuteDialog.job.id,

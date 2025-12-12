@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
-import { CandidateJobMatching } from './CandidateJobMatching';
+import { CandidateJobMatchingV2 } from './CandidateJobMatchingV2';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { useAIAssessment } from '@/hooks/useAIAssessment';
 import { supabase } from '@/integrations/supabase/client';
@@ -193,8 +193,8 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
         </CardContent>
       </Card>
 
-      {/* BLOCK 2: Job Matching - Always Visible */}
-      <CandidateJobMatching 
+      {/* BLOCK 2: Job Matching V2 - With AI Match Scoring */}
+      <CandidateJobMatchingV2 
         candidate={{
           id: candidate.id,
           skills: candidate.skills,
@@ -207,6 +207,12 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
           target_roles: extCandidate.target_roles,
           job_title: candidate.job_title,
           full_name: candidate.full_name,
+          max_commute_minutes: extCandidate.max_commute_minutes,
+          commute_mode: extCandidate.commute_mode,
+          address_lat: extCandidate.address_lat,
+          address_lng: extCandidate.address_lng,
+          email: candidate.email,
+          phone: candidate.phone,
         }}
       />
 

@@ -1,10 +1,13 @@
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { Car, Train, Bike, MapPin, Home, Building2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Car, Train, Bike, MapPin, Home, Building2, Loader2, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CommutePreferencesData {
   max_commute_minutes: number;
@@ -12,6 +15,8 @@ interface CommutePreferencesData {
   address_street: string;
   address_city: string;
   address_zip: string;
+  address_lat?: number | null;
+  address_lng?: number | null;
   remote_days_preferred: number;
   remote_flexibility: string;
 }
@@ -40,6 +45,9 @@ export function CommutePreferencesCard({
   onChange,
   showAddress = true 
 }: CommutePreferencesCardProps) {
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocoded, setGeocoded] = useState(false);
+
   const getCommuteLabel = (minutes: number) => {
     if (minutes <= 15) return 'Sehr kurz';
     if (minutes <= 30) return 'Kurz';
@@ -53,6 +61,51 @@ export function CommutePreferencesCard({
     if (days === 5) return 'Vollständig Remote';
     return `${days} Tag${days > 1 ? 'e' : ''} Remote`;
   };
+
+  const handleGeocode = useCallback(async () => {
+    if (!data.address_street || !data.address_city) {
+      toast.error('Bitte Straße und Stadt eingeben');
+      return;
+    }
+
+    setGeocoding(true);
+    setGeocoded(false);
+    
+    try {
+      // Use Nominatim (OpenStreetMap) for geocoding - free and no API key needed
+      const query = encodeURIComponent(
+        `${data.address_street}, ${data.address_zip} ${data.address_city}, Germany`
+      );
+      
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'RecruitingApp/1.0',
+          },
+        }
+      );
+      
+      const results = await response.json();
+      
+      if (results && results.length > 0) {
+        const { lat, lon } = results[0];
+        onChange({
+          address_lat: parseFloat(lat),
+          address_lng: parseFloat(lon),
+        });
+        setGeocoded(true);
+        toast.success('Koordinaten erfolgreich ermittelt');
+      } else {
+        toast.error('Adresse nicht gefunden');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      toast.error('Fehler bei der Adresssuche');
+    } finally {
+      setGeocoding(false);
+    }
+  }, [data.address_street, data.address_zip, data.address_city, onChange]);
 
   return (
     <Card>
@@ -173,30 +226,72 @@ export function CommutePreferencesCard({
         {/* Address Fields */}
         {showAddress && (
           <div className="space-y-4 pt-2 border-t">
-            <Label className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-3 w-3" />
-              Wohnadresse (für Routenberechnung)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="h-3 w-3" />
+                Wohnadresse (für Routenberechnung)
+              </Label>
+              {data.address_lat && data.address_lng && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Koordinaten vorhanden
+                </span>
+              )}
+            </div>
             <div className="space-y-3">
               <Input
                 value={data.address_street}
-                onChange={(e) => onChange({ address_street: e.target.value })}
+                onChange={(e) => {
+                  onChange({ address_street: e.target.value });
+                  setGeocoded(false);
+                }}
                 placeholder="Straße und Hausnummer"
               />
               <div className="grid grid-cols-3 gap-2">
                 <Input
                   value={data.address_zip}
-                  onChange={(e) => onChange({ address_zip: e.target.value })}
+                  onChange={(e) => {
+                    onChange({ address_zip: e.target.value });
+                    setGeocoded(false);
+                  }}
                   placeholder="PLZ"
                   className="col-span-1"
                 />
                 <Input
                   value={data.address_city}
-                  onChange={(e) => onChange({ address_city: e.target.value })}
+                  onChange={(e) => {
+                    onChange({ address_city: e.target.value });
+                    setGeocoded(false);
+                  }}
                   placeholder="Stadt"
                   className="col-span-2"
                 />
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={handleGeocode}
+                disabled={geocoding || !data.address_street || !data.address_city}
+              >
+                {geocoding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Suche Koordinaten...
+                  </>
+                ) : geocoded ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2 text-green-600" />
+                    Koordinaten ermittelt
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Koordinaten ermitteln
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         )}

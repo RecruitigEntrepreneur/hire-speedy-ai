@@ -116,3 +116,6 @@ verify_jwt = true
 
 [functions.client-candidate-summary]
 verify_jwt = true
+
+[functions.geocode-address]
+verify_jwt = false
