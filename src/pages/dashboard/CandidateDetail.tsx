@@ -156,8 +156,7 @@ export default function CandidateDetail() {
         .select(`
           *,
           candidate:candidates(*),
-          job:jobs(id, title, company_name, requirements, salary_min, salary_max, must_haves, nice_to_haves),
-          recruiter:profiles!submissions_recruiter_id_fkey(full_name, email)
+          job:jobs(id, title, company_name, requirements, salary_min, salary_max, must_haves, nice_to_haves)
         `)
         .eq('id', id)
         .maybeSingle();
@@ -168,7 +167,18 @@ export default function CandidateDetail() {
         return;
       }
       
-      setSubmission(data as unknown as Submission);
+      // Recruiter-Daten separat laden (kein Foreign Key vorhanden)
+      let recruiterData = null;
+      if (data.recruiter_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('user_id', data.recruiter_id)
+          .maybeSingle();
+        recruiterData = profile;
+      }
+      
+      setSubmission({ ...data, recruiter: recruiterData } as unknown as Submission);
     } catch (error) {
       console.error('Error fetching submission:', error);
       toast({ title: 'Fehler beim Laden', variant: 'destructive' });
