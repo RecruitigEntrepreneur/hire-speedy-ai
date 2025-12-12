@@ -44,7 +44,19 @@ export function useClientVerification() {
 
       if (fetchError) throw fetchError;
       
-      setVerification(data as ClientVerification | null);
+      // Auto-create verification record if it doesn't exist
+      if (!data) {
+        const { data: newData, error: createError } = await supabase
+          .from('client_verifications')
+          .insert({ client_id: user.id })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        setVerification(newData as ClientVerification);
+      } else {
+        setVerification(data as ClientVerification);
+      }
     } catch (err) {
       console.error('Error fetching verification:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
