@@ -15,6 +15,8 @@ interface ParsedCVData {
   portfolio_url: string | null;
   github_url: string | null;
   website_url: string | null;
+  nationality: string | null;
+  residence_status: string | null;
   
   // Beruflicher Hintergrund
   current_title: string | null;
@@ -72,6 +74,27 @@ interface ParsedCVData {
   target_roles: string[];
   target_industries: string[];
   target_employment_type: string | null;
+  
+  // NEU: Spezialisierungen & Soft Skills
+  specializations: string[];
+  soft_skills: string[];
+  industry_experience: string[];
+  certificates: string[];
+  
+  // NEU: Projektmetriken
+  project_metrics: {
+    max_team_size: number | null;
+    max_budget: string | null;
+    locations_managed: number | null;
+    units_delivered: string | null;
+  };
+  
+  // NEU: Exposé-Bausteine
+  expose_title: string | null;
+  expose_summary: string | null;
+  expose_highlights: string[];
+  expose_project_highlights: string[];
+  expose_certifications: string[];
 }
 
 serve(async (req) => {
@@ -114,11 +137,25 @@ REGELN:
 - Skills kategorisieren: "programming" (Sprachen/Frameworks), "tool" (Software/Tools), "soft_skill", "process" (Methoden), "domain" (Fachkenntnisse)
 - remote_preference: "remote", "hybrid", "onsite", "flexible"
 - notice_period: z.B. "immediate", "2_weeks", "1_month", "3_months"
+- residence_status: "citizen", "permanent", "work_visa", "student_visa", "pending"
 
 cv_ai_summary: Schreibe eine prägnante Zusammenfassung (max 150 Wörter) für Recruiter.
 cv_ai_bullets: Erstelle 4-6 Bullet Points, die die wichtigsten Stärken und Erfahrungen hervorheben.
 
-Extrahiere auch Wunschrolle/Präferenzen falls im CV erwähnt (target_roles, target_industries).`;
+EXPOSÉ-BAUSTEINE (wichtig für Kundenexport):
+- expose_title: Erstelle einen prägnanten Titel wie "Senior IT-Projektmanager | PMI-zertifiziert | 12+ Jahre Erfahrung"
+- expose_summary: Schreibe ein Kurzprofil (max 100 Wörter) für externe Kunden
+- expose_highlights: 3-5 wichtigste Qualifikations-Highlights
+- expose_project_highlights: 2-4 beeindruckendste Projektbeispiele mit Metriken
+- expose_certifications: Wichtigste Zertifizierungen für das Exposé
+
+PROJEKTMETRIKEN: Extrahiere aus den Erfahrungen:
+- max_team_size: Größte Teamgröße die gemanagt wurde
+- max_budget: Größtes verwaltetes Budget
+- locations_managed: Anzahl verwalteter Standorte
+- units_delivered: Anzahl betroffener Einheiten/Nutzer
+
+Extrahiere auch: specializations, soft_skills, industry_experience, certificates, nationality.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -217,9 +254,29 @@ Extrahiere auch Wunschrolle/Präferenzen falls im CV erwähnt (target_roles, tar
                   remote_preference: { type: "string", nullable: true },
                   target_roles: { type: "array", items: { type: "string" } },
                   target_industries: { type: "array", items: { type: "string" } },
-                  target_employment_type: { type: "string", nullable: true }
+                  target_employment_type: { type: "string", nullable: true },
+                  nationality: { type: "string", nullable: true },
+                  residence_status: { type: "string", nullable: true },
+                  specializations: { type: "array", items: { type: "string" } },
+                  soft_skills: { type: "array", items: { type: "string" } },
+                  industry_experience: { type: "array", items: { type: "string" } },
+                  certificates: { type: "array", items: { type: "string" } },
+                  project_metrics: {
+                    type: "object",
+                    properties: {
+                      max_team_size: { type: "number", nullable: true },
+                      max_budget: { type: "string", nullable: true },
+                      locations_managed: { type: "number", nullable: true },
+                      units_delivered: { type: "string", nullable: true }
+                    }
+                  },
+                  expose_title: { type: "string", nullable: true },
+                  expose_summary: { type: "string", nullable: true },
+                  expose_highlights: { type: "array", items: { type: "string" } },
+                  expose_project_highlights: { type: "array", items: { type: "string" } },
+                  expose_certifications: { type: "array", items: { type: "string" } }
                 },
-                required: ["experiences", "educations", "skills", "languages", "cv_ai_bullets"]
+                required: ["experiences", "educations", "skills", "languages", "cv_ai_bullets", "expose_highlights", "expose_project_highlights"]
               }
             }
           }
