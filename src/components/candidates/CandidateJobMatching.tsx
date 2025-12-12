@@ -80,6 +80,7 @@ export function CandidateJobMatching({ candidate, onSubmissionCreated }: Candida
       if (error) throw error;
 
       toast.success(`${candidate.full_name} wurde für "${job.title}" eingereicht`);
+      await refetch(); // Refresh list to remove submitted job
       onSubmissionCreated?.();
     } catch (error) {
       console.error('Error creating submission:', error);

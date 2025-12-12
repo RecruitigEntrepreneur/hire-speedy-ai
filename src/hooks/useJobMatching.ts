@@ -20,6 +20,7 @@ export interface MatchedJob {
 }
 
 interface CandidateForMatching {
+  id: string;
   skills: string[] | null;
   experience_years: number | null;
   expected_salary: number | null;
@@ -114,9 +115,19 @@ export function useJobMatching(candidate: CandidateForMatching | null) {
   const fetchMatchingJobs = useCallback(async () => {
     if (!candidate || !user) return;
 
+    const candidateId = candidate.id;
+
     setLoading(true);
     try {
-      // Fetch all open jobs
+      // Fetch existing submissions for this candidate
+      const { data: existingSubmissions } = await supabase
+        .from('submissions')
+        .select('job_id')
+        .eq('candidate_id', candidateId);
+
+      const submittedJobIds = new Set((existingSubmissions || []).map(s => s.job_id));
+
+      // Fetch all published jobs
       const { data: jobs, error } = await supabase
         .from('jobs')
         .select('id, title, company_name, location, salary_min, salary_max, urgency, skills, must_haves, nice_to_haves, experience_level, remote_type, status')
@@ -125,8 +136,9 @@ export function useJobMatching(candidate: CandidateForMatching | null) {
 
       if (error) throw error;
 
-      // Calculate match scores for each job
+      // Calculate match scores for each job and filter out already submitted
       const jobsWithScores: MatchedJob[] = (jobs || [])
+        .filter(job => !submittedJobIds.has(job.id)) // Exclude already submitted jobs
         .map(job => {
           const { score, details } = calculateMatchScore(job, candidate);
           return {
