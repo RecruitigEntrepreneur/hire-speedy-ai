@@ -72,7 +72,7 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
         `)
         .eq('jobs.client_id', user?.id)
         .eq('status', 'submitted')
-        .order('created_at', { ascending: false })
+        .order('submitted_at', { ascending: false })
         .limit(maxCandidates);
 
       if (error) throw error;
