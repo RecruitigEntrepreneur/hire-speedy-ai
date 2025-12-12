@@ -32,12 +32,13 @@ export interface PipelineJob {
   status: string;
 }
 
+// Professional muted color palette for pipeline stages
 export const PIPELINE_STAGES = [
-  { key: 'submitted', label: 'Neu', color: 'bg-primary', textColor: 'text-primary' },
-  { key: 'accepted', label: 'Shortlist', color: 'bg-warning', textColor: 'text-warning' },
-  { key: 'interview', label: 'Interview', color: 'bg-chart-2', textColor: 'text-chart-2' },
-  { key: 'offer', label: 'Angebot', color: 'bg-success', textColor: 'text-success' },
-  { key: 'hired', label: 'Eingestellt', color: 'bg-emerald', textColor: 'text-emerald' },
+  { key: 'submitted', label: 'Neu', color: 'border-slate-400', dotColor: 'bg-slate-400', textColor: 'text-slate-600' },
+  { key: 'accepted', label: 'Shortlist', color: 'border-blue-400', dotColor: 'bg-blue-400', textColor: 'text-blue-600' },
+  { key: 'interview', label: 'Interview', color: 'border-indigo-400', dotColor: 'bg-indigo-400', textColor: 'text-indigo-600' },
+  { key: 'offer', label: 'Angebot', color: 'border-violet-400', dotColor: 'bg-violet-400', textColor: 'text-violet-600' },
+  { key: 'hired', label: 'Eingestellt', color: 'border-emerald-500', dotColor: 'bg-emerald-500', textColor: 'text-emerald-600' },
 ] as const;
 
 export function useHiringPipeline(jobId?: string) {
