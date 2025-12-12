@@ -19,7 +19,7 @@ interface CompactTaskListProps {
   loading: boolean;
   onMarkDone: (alertId: string) => void;
   onViewCandidate?: (submissionId: string) => void;
-  candidateMap?: Record<string, { name: string; email: string; phone?: string }>;
+  candidateMap?: Record<string, { name: string; email: string; phone?: string; jobTitle?: string; companyName?: string }>;
   maxItems?: number;
   showViewAll?: boolean;
   onViewAll?: () => void;
@@ -99,20 +99,30 @@ export function CompactTaskList({
     const PriorityIcon = config.icon;
     
     // Extract action from alert
-    const getShortAction = (alertType: string, message: string): string => {
+    const getShortAction = (alertType: string): string => {
       const actionMap: Record<string, string> = {
-        'opt_in_pending_48h': 'Nachfassen',
-        'opt_in_pending_24h': 'Erinnern',
-        'interview_prep_missing': 'Vorbereiten',
-        'interview_reminder': 'Bestätigen',
-        'salary_mismatch': 'Erwartung klären',
+        'opt_in_pending': 'Nachfassen',
+        'opt_in_pending_48h': 'Dringend nachfassen',
+        'opt_in_pending_24h': 'Sofort nachfassen',
+        'interview_prep_missing': 'Vorbereitung senden',
+        'interview_reminder': 'Interview bestätigen',
+        'salary_mismatch': 'Gehalt klären',
         'ghosting_risk': 'Kontaktieren',
         'engagement_drop': 'Reaktivieren',
         'high_closing_probability': 'Closing nutzen',
+        'closing_opportunity': 'Closing vorbereiten',
         'candidate_response': 'Antworten',
+        'no_activity': 'Aktivität prüfen',
+        'sla_warning': 'SLA beachten',
+        'follow_up_needed': 'Follow-up',
       };
       return actionMap[alertType] || 'Bearbeiten';
     };
+
+    // Build job context string
+    const jobContext = candidate?.jobTitle && candidate?.companyName 
+      ? `${candidate.jobTitle} @ ${candidate.companyName}`
+      : candidate?.jobTitle || candidate?.companyName || null;
 
     return (
       <div 
@@ -130,10 +140,17 @@ export function CompactTaskList({
           >
             {candidate?.name || 'Kandidat'}
           </button>
-          <span className="text-muted-foreground text-sm hidden sm:inline">·</span>
-          <span className="text-sm text-muted-foreground truncate hidden sm:inline">
-            {getShortAction(alert.alert_type, alert.message)}
-          </span>
+          {jobContext && (
+            <>
+              <span className="text-muted-foreground text-sm hidden sm:inline">·</span>
+              <span className="text-xs text-muted-foreground truncate hidden sm:inline max-w-[150px]">
+                {jobContext}
+              </span>
+            </>
+          )}
+          <Badge variant="outline" className="text-xs shrink-0 ml-auto sm:ml-0">
+            {getShortAction(alert.alert_type)}
+          </Badge>
         </div>
         
         <div className="flex items-center gap-1 shrink-0">

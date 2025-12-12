@@ -49,7 +49,7 @@ export default function RecruiterDashboard() {
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
-  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate }>>({});
+  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate; jobTitle?: string; companyName?: string }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   
   // Candidate Detail Sheet state
@@ -138,14 +138,14 @@ export default function RecruiterDashboard() {
     // Get submission IDs from alerts
     const submissionIds = alerts.map(a => a.submission_id);
     
-    // Fetch submissions with candidates
+    // Fetch submissions with candidates and jobs
     const { data: submissions } = await supabase
       .from('submissions')
-      .select('id, candidate_id, candidates(id, full_name, email, phone, experience_years, expected_salary, current_salary, skills, summary, cv_url, linkedin_url, availability_date, notice_period, created_at, recruiter_id)')
+      .select('id, candidate_id, job_id, candidates(id, full_name, email, phone, experience_years, expected_salary, current_salary, skills, summary, cv_url, linkedin_url, availability_date, notice_period, created_at, recruiter_id), jobs(title, company_name)')
       .in('id', submissionIds);
     
     if (submissions) {
-      const map: Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate }> = {};
+      const map: Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate; jobTitle?: string; companyName?: string }> = {};
       submissions.forEach((s: any) => {
         if (s.candidates) {
           map[s.id] = {
@@ -154,6 +154,8 @@ export default function RecruiterDashboard() {
             phone: s.candidates.phone || undefined,
             candidateId: s.candidates.id,
             candidateData: s.candidates as Candidate,
+            jobTitle: s.jobs?.title || undefined,
+            companyName: s.jobs?.company_name || undefined,
           };
         }
       });
