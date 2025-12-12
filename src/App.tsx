@@ -131,7 +131,7 @@ function AppRoutes() {
       {/* Client Routes */}
       <Route path="/dashboard" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <ClientDashboard />
+          <JobCommandCenter />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/jobs" element={

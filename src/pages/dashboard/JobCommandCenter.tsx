@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Plus, 
@@ -27,6 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { RecruitingHealthScore } from '@/components/dashboard/RecruitingHealthScore';
+import { ClientTaskWidget } from '@/components/dashboard/ClientTaskWidget';
+import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
 
 export default function JobCommandCenter() {
   const navigate = useNavigate();
@@ -43,7 +45,8 @@ export default function JobCommandCenter() {
     interviewsThisWeek: acc.interviewsThisWeek + job.upcomingInterviews.length,
     pendingActions: acc.pendingActions + job.pendingActions,
     offers: acc.offers + job.stats.offer,
-  }), { activeJobs: 0, totalCandidates: 0, interviewsThisWeek: 0, pendingActions: 0, offers: 0 });
+    newCandidates: acc.newCandidates + job.stats.new,
+  }), { activeJobs: 0, totalCandidates: 0, interviewsThisWeek: 0, pendingActions: 0, offers: 0, newCandidates: 0 });
 
   const handleRequestInterview = (submissionId: string) => {
     // Navigate to interview scheduling
@@ -77,12 +80,15 @@ export default function JobCommandCenter() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Verification Banner */}
+        <VerificationStatusBanner />
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Target className="h-6 w-6 text-primary" />
-              Job Command Center
+              Command Center
             </h1>
             <p className="text-muted-foreground mt-1">
               Alle Jobs und Kandidaten zentral steuern
@@ -92,6 +98,18 @@ export default function JobCommandCenter() {
             <Plus className="h-4 w-4" />
             Neuen Job erstellen
           </Button>
+        </div>
+
+        {/* Health Score & Tasks Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <RecruitingHealthScore
+            activeJobs={totals.activeJobs}
+            totalCandidates={totals.totalCandidates}
+            pendingInterviews={totals.interviewsThisWeek}
+            placements={totals.offers}
+            newCandidatesLast7Days={totals.newCandidates}
+          />
+          <ClientTaskWidget maxTasks={3} />
         </div>
 
         {/* Overview Stats */}
