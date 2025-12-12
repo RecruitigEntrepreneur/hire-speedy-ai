@@ -49,6 +49,7 @@ import { CandidateJobMatching } from './CandidateJobMatching';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { useAIAssessment } from '@/hooks/useAIAssessment';
 import { supabase } from '@/integrations/supabase/client';
+import { ClientCandidateSummaryCard } from './ClientCandidateSummaryCard';
 
 interface CandidateOverviewTabProps {
   candidate: Candidate;
@@ -209,116 +210,8 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
         }}
       />
 
-      {/* BLOCK 3: Customer Summary from AI Assessment - Always Visible */}
-      {(assessment || interviewNotes) && (
-        <Card className="border-green-500/30 bg-green-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ClipboardList className="h-4 w-4 text-green-600" />
-                <span className="text-green-700">Zusammenfassung für Kunden</span>
-              </div>
-              {assessment && (
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs ${getRecommendationStyle(assessment.recommendation).color} ${getRecommendationStyle(assessment.recommendation).bg}`}
-                >
-                  {getRecommendationStyle(assessment.recommendation).label}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* AI Generated Summary */}
-            {assessment?.reasoning && (
-              <p className="text-sm">{assessment.reasoning}</p>
-            )}
-
-            {/* Key Highlights */}
-            {assessment?.key_highlights && assessment.key_highlights.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  Key Highlights
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {assessment.key_highlights.slice(0, 5).map((h: string, i: number) => (
-                    <Badge key={i} variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
-                      {h}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Interview Summary Fields */}
-            {interviewNotes && (
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                {interviewNotes.summary_motivation && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Motivation</p>
-                    <p className="text-sm">{interviewNotes.summary_motivation}</p>
-                  </div>
-                )}
-                {interviewNotes.summary_salary && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Gehalt</p>
-                    <p className="text-sm font-medium">{interviewNotes.summary_salary}</p>
-                  </div>
-                )}
-                {interviewNotes.summary_notice && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Kündigungsfrist</p>
-                    <p className="text-sm">{interviewNotes.summary_notice}</p>
-                  </div>
-                )}
-                {interviewNotes.summary_key_requirements && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Key Requirements</p>
-                    <p className="text-sm">{interviewNotes.summary_key_requirements}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Scores */}
-            {assessment && (
-              <div className="flex items-center gap-4 pt-2 border-t text-xs">
-                {assessment.placement_probability && (
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" />
-                    <span className="text-muted-foreground">Vermittlungschance:</span>
-                    <span className="font-medium text-green-600">{assessment.placement_probability}%</span>
-                  </div>
-                )}
-                {assessment.overall_score && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Score:</span>
-                    <span className="font-medium">{assessment.overall_score}/100</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Risk Factors */}
-            {assessment?.risk_factors && assessment.risk_factors.length > 0 && (
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3 text-yellow-600" />
-                  Risikofaktoren
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {assessment.risk_factors.map((r: string, i: number) => (
-                    <Badge key={i} variant="outline" className="text-xs border-yellow-300 text-yellow-700 bg-yellow-50">
-                      {r}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* BLOCK 3: NEW Client Candidate Summary Card */}
+      <ClientCandidateSummaryCard candidateId={candidate.id} />
 
       {/* BLOCK 4: AI CV Summary - Always Visible (collapsible) */}
       {extCandidate.cv_ai_summary && (

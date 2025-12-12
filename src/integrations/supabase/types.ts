@@ -331,6 +331,89 @@ export type Database = {
           },
         ]
       }
+      candidate_client_summary: {
+        Row: {
+          candidate_id: string
+          change_motivation_summary: string | null
+          created_at: string | null
+          executive_summary: string | null
+          generated_at: string | null
+          id: string
+          job_hopper_analysis: Json | null
+          key_selling_points: Json | null
+          model_version: string | null
+          positive_factors: Json | null
+          recommendation: string | null
+          recommendation_score: number | null
+          risk_factors: Json | null
+          submission_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          change_motivation_summary?: string | null
+          created_at?: string | null
+          executive_summary?: string | null
+          generated_at?: string | null
+          id?: string
+          job_hopper_analysis?: Json | null
+          key_selling_points?: Json | null
+          model_version?: string | null
+          positive_factors?: Json | null
+          recommendation?: string | null
+          recommendation_score?: number | null
+          risk_factors?: Json | null
+          submission_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          change_motivation_summary?: string | null
+          created_at?: string | null
+          executive_summary?: string | null
+          generated_at?: string | null
+          id?: string
+          job_hopper_analysis?: Json | null
+          key_selling_points?: Json | null
+          model_version?: string | null
+          positive_factors?: Json | null
+          recommendation?: string | null
+          recommendation_score?: number | null
+          risk_factors?: Json | null
+          submission_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_client_summary_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_comments: {
         Row: {
           activity_type: string | null

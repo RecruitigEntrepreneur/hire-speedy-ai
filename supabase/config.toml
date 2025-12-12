@@ -107,3 +107,9 @@ verify_jwt = true
 
 [functions.parse-pdf]
 verify_jwt = true
+
+[functions.process-interview-notes]
+verify_jwt = true
+
+[functions.client-candidate-summary]
+verify_jwt = true
