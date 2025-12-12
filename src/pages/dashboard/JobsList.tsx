@@ -270,39 +270,38 @@ export default function JobsList() {
 
   return (
     <DashboardLayout>
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-4">
+          {/* Compact Header */}
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Meine Jobs</h1>
-              <p className="text-muted-foreground">Verwalte deine Stellenanzeigen</p>
+              <h1 className="text-2xl font-bold tracking-tight">Meine Jobs</h1>
+              <p className="text-sm text-muted-foreground">{filteredJobs.length} Stellenanzeigen</p>
             </div>
-            <Button variant="hero" asChild>
+            <Button variant="hero" size="sm" asChild>
               <Link to="/dashboard/jobs/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Neuen Job erstellen
+                Neuer Job
               </Link>
             </Button>
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          {/* Compact Filters */}
+          <div className="flex gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Jobs durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-8 h-9"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Status filtern" />
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle Status</SelectItem>
+                <SelectItem value="all">Alle</SelectItem>
                 <SelectItem value="draft">Entwurf</SelectItem>
                 <SelectItem value="published">Aktiv</SelectItem>
                 <SelectItem value="paused">Pausiert</SelectItem>
@@ -311,124 +310,108 @@ export default function JobsList() {
             </Select>
           </div>
 
-          {/* Jobs List */}
+          {/* Empty State */}
           {filteredJobs.length === 0 ? (
-            <Card className="border-border/50">
-              <CardContent className="py-16 text-center">
-                <Briefcase className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">
-                  {searchQuery || statusFilter !== 'all' ? 'Keine passenden Jobs' : 'Noch keine Jobs'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {searchQuery || statusFilter !== 'all' 
-                    ? 'Passe deine Filter an'
-                    : 'Erstelle deinen ersten Job, um Kandidaten zu erhalten'}
-                </p>
+            <Card className="border-dashed border-border/50">
+              <CardContent className="flex items-center justify-center py-8 gap-4">
+                <Briefcase className="h-8 w-8 text-muted-foreground/40" />
+                <div>
+                  <h3 className="font-medium text-sm">
+                    {searchQuery || statusFilter !== 'all' ? 'Keine passenden Jobs' : 'Noch keine Jobs'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {searchQuery || statusFilter !== 'all' 
+                      ? 'Passe deine Filter an'
+                      : 'Erstelle deinen ersten Job'}
+                  </p>
+                </div>
                 {!searchQuery && statusFilter === 'all' && (
-                  <Button variant="hero" className="mt-4" asChild>
-                    <Link to="/dashboard/jobs/new">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Ersten Job erstellen
-                    </Link>
+                  <Button variant="hero" size="sm" asChild>
+                    <Link to="/dashboard/jobs/new">Job erstellen</Link>
                   </Button>
                 )}
               </CardContent>
             </Card>
           ) : (
             <TooltipProvider>
-              <div className="grid gap-4">
+              <div className="grid gap-2">
                 {filteredJobs.map((job) => (
                   <Card 
                     key={job.id} 
-                    className="border-border/50 hover:border-primary/30 hover:shadow-md transition-all"
+                    className="border-border/50 hover:border-primary/30 hover:bg-accent/30 transition-all group"
                   >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        {/* Left side - Job Info */}
-                        <Link to={`/dashboard/jobs/${job.id}`} className="flex items-start gap-4 flex-1 min-w-0">
-                          <div className="h-12 w-12 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0">
-                            <Briefcase className="h-6 w-6 text-primary-foreground" />
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        {/* Icon */}
+                        <Link to={`/dashboard/jobs/${job.id}`} className="shrink-0">
+                          <div className="h-10 w-10 rounded-lg bg-gradient-navy flex items-center justify-center">
+                            <Briefcase className="h-5 w-5 text-primary-foreground" />
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-lg font-semibold truncate">{job.title}</h3>
-                              {getStatusBadge(job)}
-                              <JobHealthIndicator 
-                                candidatesCount={job.submissions_count}
-                                interviewsCount={job.interviews_count}
-                                activeRecruiters={job.active_recruiters}
-                                daysOpen={job.days_open}
-                                status={job.status}
-                              />
-                            </div>
-                            <p className="text-muted-foreground">{job.company_name}</p>
-                            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                              {job.location && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-4 w-4" />
-                                  {job.location}
-                                </span>
-                              )}
+                        </Link>
+                        
+                        {/* Main Content */}
+                        <Link to={`/dashboard/jobs/${job.id}`} className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold truncate">{job.title}</h3>
+                            {getStatusBadge(job)}
+                            <JobHealthIndicator 
+                              candidatesCount={job.submissions_count}
+                              interviewsCount={job.interviews_count}
+                              activeRecruiters={job.active_recruiters}
+                              daysOpen={job.days_open}
+                              status={job.status}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                            <span>{job.company_name}</span>
+                            {job.location && (
                               <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                {job.employment_type || 'Vollzeit'}
+                                <MapPin className="h-3 w-3" />
+                                {job.location}
                               </span>
-                              {job.briefing_notes && (
-                                <span className="flex items-center gap-1 text-primary">
-                                  <FileText className="h-4 w-4" />
-                                  Briefing vorhanden
-                                </span>
-                              )}
-                            </div>
+                            )}
+                            {job.briefing_notes && (
+                              <span className="flex items-center gap-1 text-primary">
+                                <FileText className="h-3 w-3" />
+                                Briefing
+                              </span>
+                            )}
                           </div>
                         </Link>
 
-                        {/* Middle - Stats */}
-                        <div className="flex flex-wrap gap-4 lg:gap-6">
-                          <div className="text-center min-w-[70px]">
-                            <div className="flex items-center justify-center gap-1">
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">{job.submissions_count}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Kandidaten</p>
+                        {/* Compact Stats */}
+                        <div className="hidden lg:flex items-center gap-4 text-xs shrink-0">
+                          <div className="text-center">
+                            <span className="font-bold text-sm">{job.submissions_count}</span>
+                            <p className="text-muted-foreground">Kandidaten</p>
                           </div>
-                          <div className="text-center min-w-[70px]">
-                            <div className="flex items-center justify-center gap-1">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">{job.interviews_count}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Interviews</p>
+                          <div className="text-center">
+                            <span className="font-bold text-sm">{job.interviews_count}</span>
+                            <p className="text-muted-foreground">Interviews</p>
                           </div>
-                          <div className="text-center min-w-[70px]">
-                            <div className="flex items-center justify-center gap-1">
-                              <UserCheck className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">{job.active_recruiters}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Recruiter</p>
-                          </div>
-                          <div className="text-center min-w-[70px]">
-                            <div className="flex items-center justify-center gap-1">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">{job.days_open}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Tage offen</p>
+                          <div className="text-center">
+                            <span className="font-bold text-sm">{job.days_open}d</span>
+                            <p className="text-muted-foreground">Offen</p>
                           </div>
                         </div>
 
-                        {/* Right side - Actions */}
-                        <div className="flex items-center gap-2">
-                          <div className="text-right hidden sm:block">
-                            <p className="font-medium">{formatSalary(job.salary_min, job.salary_max)}</p>
-                            <p className="text-sm text-muted-foreground">{formatDate(job.created_at)}</p>
-                          </div>
+                        {/* Salary & Date */}
+                        <div className="text-right shrink-0 hidden sm:block">
+                          <p className="font-medium text-sm">{formatSalary(job.salary_min, job.salary_max)}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(job.created_at)}</p>
+                        </div>
 
-                          {/* Boost Button */}
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 shrink-0">
                           {job.status === 'published' && !job.paused_at && (
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              onClick={() => setBoostDialog({ open: true, jobId: job.id, jobTitle: job.title })}
-                              className="text-amber-500 hover:text-amber-600 hover:bg-amber-50"
+                              className="h-8 w-8 text-amber-500 hover:text-amber-600"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setBoostDialog({ open: true, jobId: job.id, jobTitle: job.title });
+                              }}
                             >
                               <Zap className="h-4 w-4" />
                             </Button>
@@ -436,11 +419,17 @@ export default function JobsList() {
                           
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link to={`/dashboard/pipeline?job=${job.id}`}>
+                                  <Users className="mr-2 h-4 w-4" />
+                                  Pipeline öffnen
+                                </Link>
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => setBriefingDialog({ 
                                   open: true, 
@@ -481,7 +470,7 @@ export default function JobsList() {
                           </DropdownMenu>
 
                           <Link to={`/dashboard/jobs/${job.id}`}>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                               <ArrowUpRight className="h-4 w-4" />
                             </Button>
                           </Link>
