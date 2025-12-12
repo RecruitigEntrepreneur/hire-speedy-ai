@@ -29,6 +29,7 @@ import {
 import { RecruitingHealthScore } from '@/components/dashboard/RecruitingHealthScore';
 import { ClientTaskWidget } from '@/components/dashboard/ClientTaskWidget';
 import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
+import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
 
 export default function JobCommandCenter() {
   const navigate = useNavigate();
@@ -37,6 +38,15 @@ export default function JobCommandCenter() {
     open: false,
     submissionId: null,
   });
+  
+  // Interview dialog state
+  const [interviewDialog, setInterviewDialog] = useState<{
+    open: boolean;
+    submissionId: string;
+    candidateAnonymousId: string;
+    jobTitle: string;
+    jobIndustry: string;
+  } | null>(null);
 
   // Calculate totals
   const totals = jobs.reduce((acc, job) => ({
@@ -49,8 +59,22 @@ export default function JobCommandCenter() {
   }), { activeJobs: 0, totalCandidates: 0, interviewsThisWeek: 0, pendingActions: 0, offers: 0, newCandidates: 0 });
 
   const handleRequestInterview = (submissionId: string) => {
-    // Navigate to interview scheduling
-    navigate(`/dashboard/candidates/${submissionId}?action=schedule`);
+    // Find the job data for this submission
+    const jobData = jobs.find(j => 
+      j.submissions.some(s => s.id === submissionId)
+    );
+    const submission = jobData?.submissions.find(s => s.id === submissionId);
+    
+    // Generate anonymous ID
+    const anonymousId = `${jobData?.job.title?.slice(0, 2).toUpperCase() || 'XX'}-${submissionId.slice(0, 6).toUpperCase()}`;
+    
+    setInterviewDialog({
+      open: true,
+      submissionId,
+      candidateAnonymousId: anonymousId,
+      jobTitle: jobData?.job.title || 'Position',
+      jobIndustry: 'IT', // Default as industry not in current job select
+    });
   };
 
   const handleReject = (submissionId: string) => {
@@ -205,6 +229,19 @@ export default function JobCommandCenter() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Interview Request Dialog */}
+      {interviewDialog && (
+        <InterviewRequestWithOptInDialog
+          open={interviewDialog.open}
+          onOpenChange={(open) => !open && setInterviewDialog(null)}
+          submissionId={interviewDialog.submissionId}
+          candidateAnonymousId={interviewDialog.candidateAnonymousId}
+          jobTitle={interviewDialog.jobTitle}
+          jobIndustry={interviewDialog.jobIndustry}
+          onSuccess={refetch}
+        />
+      )}
     </DashboardLayout>
   );
 }
