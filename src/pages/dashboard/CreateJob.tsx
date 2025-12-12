@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,19 +25,19 @@ import {
   Zap, 
   ArrowLeft, 
   Loader2,
-  Briefcase,
   MapPin,
-  DollarSign,
   Building2,
   Sparkles,
   CheckCircle2,
   Home,
-  Calendar
+  Calendar,
+  Upload,
+  FileUp
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useJobParsing, ParsedJobData } from '@/hooks/useJobParsing';
+import { useJobPdfParsing, ParsedJobProfile } from '@/hooks/useJobPdfParsing';
 import { Badge } from '@/components/ui/badge';
-import { FileUpload } from '@/components/files/FileUpload';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
 
@@ -45,12 +45,14 @@ export default function CreateJob() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { parseJobUrl, parseJobText, parsing } = useJobParsing();
+  const { uploadAndParsePdf, parseJobText: parseJobPdfText, isLoading: pdfParsing } = useJobPdfParsing();
   const { canPublishJobs, isFullyVerified, loading: verificationLoading } = useClientVerification();
   const [activeTab, setActiveTab] = useState('quick');
   const [loading, setLoading] = useState(false);
   const [jobUrl, setJobUrl] = useState('');
-  const [jobPdfText, setJobPdfText] = useState('');
+  const [jobTextInput, setJobTextInput] = useState('');
   const [importedData, setImportedData] = useState<ParsedJobData | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -110,18 +112,86 @@ export default function CreateJob() {
     }
   };
 
-  const handleImportFromPdf = async () => {
-    if (!jobPdfText.trim()) {
+  const handleImportFromText = async () => {
+    if (!jobTextInput.trim()) {
       toast.error('Bitte füge den Stellentext ein');
       return;
     }
 
-    const data = await parseJobText(jobPdfText);
+    const data = await parseJobPdfText(jobTextInput);
     if (data) {
-      applyParsedData(data);
+      applyParsedJobProfile(data);
       toast.success('Job erfolgreich analysiert!');
     }
   };
+
+  const handleFileUpload = async (file: File) => {
+    const data = await uploadAndParsePdf(file);
+    if (data) {
+      applyParsedJobProfile(data);
+      toast.success('PDF erfolgreich analysiert!');
+    }
+  };
+
+  const applyParsedJobProfile = (data: ParsedJobProfile) => {
+    setFormData(prev => ({
+      ...prev,
+      title: data.title || '',
+      company_name: data.company || '',
+      description: data.description || '',
+      requirements: data.requirements?.join('\n') || '',
+      location: data.location || '',
+      remote_type: data.remote_policy === 'remote' ? 'remote' : data.remote_policy === 'onsite' ? 'onsite' : 'hybrid',
+      employment_type: data.employment_type || 'full-time',
+      experience_level: data.seniority_level === 'junior' ? 'junior' : data.seniority_level === 'senior' ? 'senior' : data.seniority_level === 'lead' || data.seniority_level === 'principal' || data.seniority_level === 'director' ? 'lead' : 'mid',
+      salary_min: data.salary_min?.toString() || '',
+      salary_max: data.salary_max?.toString() || '',
+      skills: data.technical_skills?.join(', ') || '',
+      must_haves: data.requirements?.join(', ') || '',
+      nice_to_haves: data.nice_to_have?.join(', ') || '',
+    }));
+    setImportedData({
+      title: data.title,
+      company_name: data.company,
+      description: data.description,
+      requirements: data.requirements?.join('\n') || '',
+      location: data.location,
+      remote_type: data.remote_policy,
+      employment_type: data.employment_type,
+      experience_level: data.seniority_level,
+      salary_min: data.salary_min,
+      salary_max: data.salary_max,
+      skills: data.technical_skills,
+      must_haves: data.requirements,
+      nice_to_haves: data.nice_to_have,
+    });
+    setActiveTab('quick');
+  };
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        handleFileUpload(file);
+      } else {
+        toast.error('Bitte nur PDF-Dateien hochladen');
+      }
+    }
+  }, []);
 
   const handleSubmit = async (publish: boolean = false) => {
     if (!formData.title || !formData.company_name) {
@@ -452,7 +522,7 @@ export default function CreateJob() {
               <Card className="border-border/50">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
+                    <Sparkles className="h-5 w-5" />
                     Gehalt & Skills
                   </CardTitle>
                 </CardHeader>
@@ -583,33 +653,101 @@ export default function CreateJob() {
             </TabsContent>
 
             {/* PDF Upload / Text Paste */}
-            <TabsContent value="upload" className="mt-6">
+            <TabsContent value="upload" className="mt-6 space-y-6">
+              {/* PDF Upload Card */}
               <Card className="border-border/50">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    KI-Analyse von Stellentext
+                    <FileUp className="h-5 w-5 text-primary" />
+                    PDF hochladen
                   </CardTitle>
-                  <CardDescription>Füge den Stellentext ein oder lade ein Dokument hoch</CardDescription>
+                  <CardDescription>
+                    Lade eine Stellenanzeige als PDF hoch (z.B. Export aus SAP, Personio, Workday)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      dragActive 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50 hover:bg-muted/30'
+                    }`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                  >
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                      disabled={pdfParsing}
+                    />
+                    <div className="flex flex-col items-center gap-3">
+                      {pdfParsing ? (
+                        <>
+                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                          <div>
+                            <p className="font-medium">Analysiere PDF...</p>
+                            <p className="text-sm text-muted-foreground">Die KI extrahiert alle Stelleninformationen</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-10 w-10 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">PDF hier ablegen oder klicken</p>
+                            <p className="text-sm text-muted-foreground">PDF • Max 20MB</p>
+                          </div>
+                          <Badge variant="secondary" className="mt-2">
+                            HR-System Export? Wird unterstützt!
+                          </Badge>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">oder Text einfügen</span>
+                </div>
+              </div>
+
+              {/* Text Input Card */}
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Stellentext eingeben
+                  </CardTitle>
+                  <CardDescription>
+                    Kopiere den Stellentext direkt hier ein
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="jobText">Stellenbeschreibung (Text)</Label>
-                    <Textarea
-                      id="jobText"
-                      placeholder="Kopiere hier den vollständigen Stellentext ein..."
-                      rows={10}
-                      value={jobPdfText}
-                      onChange={(e) => setJobPdfText(e.target.value)}
-                    />
-                  </div>
+                  <Textarea
+                    placeholder="Füge hier den vollständigen Stellentext ein..."
+                    rows={8}
+                    value={jobTextInput}
+                    onChange={(e) => setJobTextInput(e.target.value)}
+                  />
                   <Button 
                     variant="hero" 
-                    onClick={handleImportFromPdf}
-                    disabled={parsing || !jobPdfText.trim()}
+                    onClick={handleImportFromText}
+                    disabled={pdfParsing || !jobTextInput.trim()}
                     className="w-full"
                   >
-                    {parsing ? (
+                    {pdfParsing ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Analysiere Text...
@@ -617,13 +755,10 @@ export default function CreateJob() {
                     ) : (
                       <>
                         <Sparkles className="mr-2 h-4 w-4" />
-                        Text analysieren & Felder ausfüllen
+                        Mit KI analysieren
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Die KI extrahiert automatisch alle relevanten Informationen aus dem Text.
-                  </p>
                 </CardContent>
               </Card>
             </TabsContent>

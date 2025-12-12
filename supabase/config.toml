@@ -119,3 +119,6 @@ verify_jwt = true
 
 [functions.geocode-address]
 verify_jwt = false
+
+[functions.parse-job-pdf]
+verify_jwt = true
