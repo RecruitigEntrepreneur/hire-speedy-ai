@@ -25,7 +25,7 @@ import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
-import { ActionCenterPanel } from '@/components/influence/ActionCenterPanel';
+import { CompactTaskList } from '@/components/influence/CompactTaskList';
 import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
@@ -54,6 +54,7 @@ export default function RecruiterDashboard() {
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
   const [criticalDeals, setCriticalDeals] = useState<any[]>([]);
+  const [dealCandidateMap, setDealCandidateMap] = useState<Record<string, { name: string; jobTitle: string; company: string }>>({});
   const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   
@@ -129,10 +130,10 @@ export default function RecruiterDashboard() {
         setBehaviorScore(scoreData);
       }
 
-      // Fetch critical deals for my submissions
+      // Fetch critical deals for my submissions with candidate info
       const { data: mySubmissions } = await supabase
         .from('submissions')
-        .select('id')
+        .select('id, candidate_id, job_id')
         .eq('recruiter_id', user?.id);
       
       if (mySubmissions && mySubmissions.length > 0) {
@@ -143,8 +144,27 @@ export default function RecruiterDashboard() {
           .in('risk_level', ['high', 'critical'])
           .limit(3);
         
-        if (healthData) {
+        if (healthData && healthData.length > 0) {
           setCriticalDeals(healthData);
+          
+          // Fetch candidate and job info for these deals
+          const submissionIds = healthData.map(d => d.submission_id);
+          const { data: submissionsWithDetails } = await supabase
+            .from('submissions')
+            .select('id, candidates(full_name), jobs(title, company_name)')
+            .in('id', submissionIds);
+          
+          if (submissionsWithDetails) {
+            const dealMap: Record<string, { name: string; jobTitle: string; company: string }> = {};
+            submissionsWithDetails.forEach((s: any) => {
+              dealMap[s.id] = {
+                name: s.candidates?.full_name || 'Kandidat',
+                jobTitle: s.jobs?.title || 'Position',
+                company: s.jobs?.company_name || '',
+              };
+            });
+            setDealCandidateMap(dealMap);
+          }
         }
       }
 
@@ -353,25 +373,38 @@ export default function RecruiterDashboard() {
                       <p className="font-medium">Deals brauchen Aufmerksamkeit</p>
                     </div>
                     <div className="space-y-2">
-                      {criticalDeals.map((deal) => (
-                        <button
-                          key={deal.id}
-                          onClick={() => handleViewDealCandidate(deal.submission_id)}
-                          className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">
-                              {deal.bottleneck || 'Überfällig'}
-                            </span>
-                          </div>
-                          <DealHealthBadge 
-                            score={deal.health_score || 0} 
-                            riskLevel={deal.risk_level || 'medium'} 
-                            size="sm"
-                          />
-                        </button>
-                      ))}
+                      {criticalDeals.map((deal) => {
+                        const dealInfo = dealCandidateMap[deal.submission_id];
+                        return (
+                          <button
+                            key={deal.id}
+                            onClick={() => handleViewDealCandidate(deal.submission_id)}
+                            className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors text-left"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="text-sm font-medium truncate">
+                                  {dealInfo?.name || 'Kandidat'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground ml-6 truncate">
+                                {dealInfo?.jobTitle}{dealInfo?.company ? ` @ ${dealInfo.company}` : ''}
+                              </p>
+                              {deal.bottleneck && (
+                                <p className="text-xs text-destructive ml-6 mt-0.5">
+                                  {deal.bottleneck}
+                                </p>
+                              )}
+                            </div>
+                            <DealHealthBadge 
+                              score={deal.health_score || 0} 
+                              riskLevel={deal.risk_level || 'medium'} 
+                              size="sm"
+                            />
+                          </button>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -379,17 +412,23 @@ export default function RecruiterDashboard() {
             </div>
           )}
 
-          {/* Action Center */}
-          <ActionCenterPanel
-            alerts={alerts}
-            loading={alertsLoading}
-            onMarkDone={handleMarkDone}
-            onDismiss={dismiss}
-            onOpenPlaybook={handleOpenPlaybook}
-            onViewCandidate={handleViewCandidate}
-            maxAlerts={3}
-            candidateMap={candidateMap}
-          />
+          {/* Compact Task List */}
+          {alerts.length > 0 && (
+            <Card className="border-border/50">
+              <CardContent className="p-4">
+                <CompactTaskList
+                  alerts={alerts}
+                  loading={alertsLoading}
+                  onMarkDone={handleMarkDone}
+                  onViewCandidate={handleViewCandidate}
+                  candidateMap={candidateMap}
+                  maxItems={5}
+                  showViewAll={true}
+                  onViewAll={() => navigate('/recruiter/influence')}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Stats Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
