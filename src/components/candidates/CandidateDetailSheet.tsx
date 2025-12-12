@@ -42,6 +42,7 @@ import { CandidateInterviewTab } from './CandidateInterviewTab';
 import { CandidateStatusDropdown } from './CandidateStatusDropdown';
 import { AddActivityDialog } from './AddActivityDialog';
 import { CvUploadDialog } from './CvUploadDialog';
+import { CandidateTasksSection } from './CandidateTasksSection';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
 
 interface CandidateDetailSheetProps {
@@ -169,6 +170,11 @@ export function CandidateDetailSheet({
                 <Edit className="h-4 w-4 mr-2" />
                 Bearbeiten
               </Button>
+            </div>
+
+            {/* Open Tasks */}
+            <div className="mt-4">
+              <CandidateTasksSection candidateId={candidate.id} />
             </div>
 
             {/* Quick Actions */}
