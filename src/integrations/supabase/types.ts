@@ -755,22 +755,31 @@ export type Database = {
           email: string
           expected_salary: number | null
           experience_years: number | null
+          expose_certifications: Json | null
+          expose_highlights: Json | null
+          expose_project_highlights: Json | null
+          expose_summary: string | null
+          expose_title: string | null
           full_name: string
           github_url: string | null
           hubspot_contact_id: string | null
           id: string
           import_source: string | null
+          industry_experience: Json | null
           job_title: string | null
           linkedin_url: string | null
+          nationality: string | null
           notice_period: string | null
           phone: string | null
           phone_verified: boolean | null
           portfolio_url: string | null
           preferred_channel: string | null
+          project_metrics: Json | null
           recruiter_id: string
           relocation_willing: boolean | null
           remote_possible: boolean | null
           remote_preference: string | null
+          residence_status: string | null
           salary_bonus: number | null
           salary_expectation_max: number | null
           salary_expectation_min: number | null
@@ -778,6 +787,8 @@ export type Database = {
           seniority: string | null
           skills: string[] | null
           sms_opt_in: boolean | null
+          soft_skills: Json | null
+          specializations: Json | null
           summary: string | null
           target_employment_type: string | null
           target_industries: Json | null
@@ -808,22 +819,31 @@ export type Database = {
           email: string
           expected_salary?: number | null
           experience_years?: number | null
+          expose_certifications?: Json | null
+          expose_highlights?: Json | null
+          expose_project_highlights?: Json | null
+          expose_summary?: string | null
+          expose_title?: string | null
           full_name: string
           github_url?: string | null
           hubspot_contact_id?: string | null
           id?: string
           import_source?: string | null
+          industry_experience?: Json | null
           job_title?: string | null
           linkedin_url?: string | null
+          nationality?: string | null
           notice_period?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           portfolio_url?: string | null
           preferred_channel?: string | null
+          project_metrics?: Json | null
           recruiter_id: string
           relocation_willing?: boolean | null
           remote_possible?: boolean | null
           remote_preference?: string | null
+          residence_status?: string | null
           salary_bonus?: number | null
           salary_expectation_max?: number | null
           salary_expectation_min?: number | null
@@ -831,6 +851,8 @@ export type Database = {
           seniority?: string | null
           skills?: string[] | null
           sms_opt_in?: boolean | null
+          soft_skills?: Json | null
+          specializations?: Json | null
           summary?: string | null
           target_employment_type?: string | null
           target_industries?: Json | null
@@ -861,22 +883,31 @@ export type Database = {
           email?: string
           expected_salary?: number | null
           experience_years?: number | null
+          expose_certifications?: Json | null
+          expose_highlights?: Json | null
+          expose_project_highlights?: Json | null
+          expose_summary?: string | null
+          expose_title?: string | null
           full_name?: string
           github_url?: string | null
           hubspot_contact_id?: string | null
           id?: string
           import_source?: string | null
+          industry_experience?: Json | null
           job_title?: string | null
           linkedin_url?: string | null
+          nationality?: string | null
           notice_period?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           portfolio_url?: string | null
           preferred_channel?: string | null
+          project_metrics?: Json | null
           recruiter_id?: string
           relocation_willing?: boolean | null
           remote_possible?: boolean | null
           remote_preference?: string | null
+          residence_status?: string | null
           salary_bonus?: number | null
           salary_expectation_max?: number | null
           salary_expectation_min?: number | null
@@ -884,6 +915,8 @@ export type Database = {
           seniority?: string | null
           skills?: string[] | null
           sms_opt_in?: boolean | null
+          soft_skills?: Json | null
+          specializations?: Json | null
           summary?: string | null
           target_employment_type?: string | null
           target_industries?: Json | null
