@@ -109,6 +109,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Deal Health', href: '/admin/deal-health', icon: <Activity className="h-4 w-4" /> },
     { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
+    { label: 'Activity', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
     { label: 'Fraud', href: '/admin/fraud', icon: <AlertTriangle className="h-4 w-4" /> },
     { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
@@ -120,7 +121,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     ? recruiterNavItems 
     : clientNavItems;
 
-  const settingsHref = role === 'client' ? '/dashboard/settings' : '/settings';
+  const settingsHref = role === 'admin' ? '/admin/settings' : role === 'client' ? '/dashboard/settings' : '/recruiter/settings';
 
   return (
     <div className="min-h-screen bg-background">
