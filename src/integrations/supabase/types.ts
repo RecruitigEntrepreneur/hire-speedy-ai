@@ -491,6 +491,138 @@ export type Database = {
           },
         ]
       }
+      candidate_interview_notes: {
+        Row: {
+          additional_notes: string | null
+          candidate_id: string
+          career_3_5_year_plan: string | null
+          career_actions_taken: string | null
+          career_ultimate_goal: string | null
+          career_what_didnt_work: string | null
+          career_what_worked: string | null
+          change_motivation: string | null
+          change_motivation_tags: string[] | null
+          created_at: string | null
+          current_negative: string | null
+          current_positive: string | null
+          discussed_internally: string | null
+          earliest_start_date: string | null
+          frequency_of_issues: string | null
+          id: string
+          interview_date: string | null
+          notice_period: string | null
+          offer_requirements: string[] | null
+          previous_process_issues: string | null
+          recommendation_notes: string | null
+          recruiter_id: string
+          salary_current: string | null
+          salary_desired: string | null
+          salary_minimum: string | null
+          specific_incident: string | null
+          status: string | null
+          summary_cultural_fit: string | null
+          summary_key_requirements: string | null
+          summary_motivation: string | null
+          summary_notice: string | null
+          summary_salary: string | null
+          updated_at: string | null
+          why_now: string | null
+          would_recommend: boolean | null
+          would_stay_if_matched: boolean | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          candidate_id: string
+          career_3_5_year_plan?: string | null
+          career_actions_taken?: string | null
+          career_ultimate_goal?: string | null
+          career_what_didnt_work?: string | null
+          career_what_worked?: string | null
+          change_motivation?: string | null
+          change_motivation_tags?: string[] | null
+          created_at?: string | null
+          current_negative?: string | null
+          current_positive?: string | null
+          discussed_internally?: string | null
+          earliest_start_date?: string | null
+          frequency_of_issues?: string | null
+          id?: string
+          interview_date?: string | null
+          notice_period?: string | null
+          offer_requirements?: string[] | null
+          previous_process_issues?: string | null
+          recommendation_notes?: string | null
+          recruiter_id: string
+          salary_current?: string | null
+          salary_desired?: string | null
+          salary_minimum?: string | null
+          specific_incident?: string | null
+          status?: string | null
+          summary_cultural_fit?: string | null
+          summary_key_requirements?: string | null
+          summary_motivation?: string | null
+          summary_notice?: string | null
+          summary_salary?: string | null
+          updated_at?: string | null
+          why_now?: string | null
+          would_recommend?: boolean | null
+          would_stay_if_matched?: boolean | null
+        }
+        Update: {
+          additional_notes?: string | null
+          candidate_id?: string
+          career_3_5_year_plan?: string | null
+          career_actions_taken?: string | null
+          career_ultimate_goal?: string | null
+          career_what_didnt_work?: string | null
+          career_what_worked?: string | null
+          change_motivation?: string | null
+          change_motivation_tags?: string[] | null
+          created_at?: string | null
+          current_negative?: string | null
+          current_positive?: string | null
+          discussed_internally?: string | null
+          earliest_start_date?: string | null
+          frequency_of_issues?: string | null
+          id?: string
+          interview_date?: string | null
+          notice_period?: string | null
+          offer_requirements?: string[] | null
+          previous_process_issues?: string | null
+          recommendation_notes?: string | null
+          recruiter_id?: string
+          salary_current?: string | null
+          salary_desired?: string | null
+          salary_minimum?: string | null
+          specific_incident?: string | null
+          status?: string | null
+          summary_cultural_fit?: string | null
+          summary_key_requirements?: string | null
+          summary_motivation?: string | null
+          summary_notice?: string | null
+          summary_salary?: string | null
+          updated_at?: string | null
+          why_now?: string | null
+          would_recommend?: boolean | null
+          would_stay_if_matched?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_interview_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_interview_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_languages: {
         Row: {
           candidate_id: string
