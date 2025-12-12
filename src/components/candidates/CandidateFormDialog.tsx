@@ -209,8 +209,8 @@ export function CandidateFormDialog({
         email: candidate.email || '',
         phone: candidate.phone || '',
         city: candidate.city || '',
-        nationality: (candidate as any).nationality || '',
-        residence_status: (candidate as any).residence_status || '',
+        nationality: candidate.nationality || '',
+        residence_status: candidate.residence_status || '',
         linkedin_url: candidate.linkedin_url || '',
         github_url: candidate.github_url || '',
         portfolio_url: candidate.portfolio_url || '',
@@ -223,47 +223,34 @@ export function CandidateFormDialog({
         work_model: candidate.work_model || '',
         experience_years: candidate.experience_years?.toString() || '',
         skills: candidate.skills?.join(', ') || '',
-        specializations: ((candidate as any).specializations as string[]) || [],
-        industry_experience: ((candidate as any).industry_experience as string[]) || [],
-        soft_skills: ((candidate as any).soft_skills as string[]) || [],
-        certificates: Array.isArray(candidate.certificates) 
-          ? (candidate.certificates as string[]) 
-          : [],
+        specializations: candidate.specializations || [],
+        industry_experience: candidate.industry_experience || [],
+        soft_skills: candidate.soft_skills || [],
+        certificates: (candidate.certificates || []).map(c => typeof c === 'string' ? c : c.name),
         project_metrics: {
-          max_team_size: ((candidate as any).project_metrics as any)?.max_team_size?.toString() || '',
-          max_budget: ((candidate as any).project_metrics as any)?.max_budget || '',
-          locations_managed: ((candidate as any).project_metrics as any)?.locations_managed?.toString() || '',
-          units_delivered: ((candidate as any).project_metrics as any)?.units_delivered || '',
+          max_team_size: candidate.project_metrics?.max_team_size?.toString() || '',
+          max_budget: candidate.project_metrics?.max_budget || '',
+          locations_managed: candidate.project_metrics?.locations_managed?.toString() || '',
+          units_delivered: candidate.project_metrics?.units_delivered || '',
         },
         availability_date: candidate.availability_date || '',
         notice_period: candidate.notice_period || '',
-        remote_preference: (candidate as any).remote_preference || '',
+        remote_preference: candidate.remote_preference || '',
         relocation_willing: candidate.relocation_willing || false,
         salary_fix: candidate.salary_fix?.toString() || '',
         salary_bonus: candidate.salary_bonus?.toString() || '',
+        salary_expectation_min: candidate.salary_expectation_min?.toString() || '',
+        salary_expectation_max: candidate.salary_expectation_max?.toString() || '',
         current_salary: candidate.current_salary?.toString() || '',
-        target_locations: Array.isArray((candidate as any).target_locations) 
-          ? ((candidate as any).target_locations as string[]) 
-          : [],
-        target_industries: Array.isArray((candidate as any).target_industries) 
-          ? ((candidate as any).target_industries as string[]) 
-          : [],
-        target_roles: Array.isArray((candidate as any).target_roles) 
-          ? ((candidate as any).target_roles as string[]) 
-          : [],
-        target_employment_type: (candidate as any).target_employment_type || '',
-        target_industries: Array.isArray(candidate.target_industries) 
-          ? (candidate.target_industries as string[]) 
-          : [],
-        target_roles: Array.isArray(candidate.target_roles) 
-          ? (candidate.target_roles as string[]) 
-          : [],
-        target_employment_type: (candidate as any).target_employment_type || '',
-        expose_title: (candidate as any).expose_title || '',
-        expose_summary: (candidate as any).expose_summary || '',
-        expose_highlights: ((candidate as any).expose_highlights as string[]) || [],
-        expose_project_highlights: ((candidate as any).expose_project_highlights as string[]) || [],
-        expose_certifications: ((candidate as any).expose_certifications as string[]) || [],
+        target_locations: candidate.target_locations || [],
+        target_industries: candidate.target_industries || [],
+        target_roles: candidate.target_roles || [],
+        target_employment_type: candidate.target_employment_type || '',
+        expose_title: candidate.expose_title || '',
+        expose_summary: candidate.expose_summary || '',
+        expose_highlights: candidate.expose_highlights || [],
+        expose_project_highlights: candidate.expose_project_highlights || [],
+        expose_certifications: candidate.expose_certifications || [],
         summary: candidate.summary || '',
       });
     } else {

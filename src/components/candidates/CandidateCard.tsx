@@ -40,7 +40,7 @@ export interface Candidate {
   availability_date: string | null;
   notice_period: string | null;
   created_at: string;
-  // New fields
+  // Profile fields
   job_title?: string | null;
   company?: string | null;
   seniority?: string | null;
@@ -55,10 +55,36 @@ export interface Candidate {
   portfolio_url?: string | null;
   github_url?: string | null;
   website_url?: string | null;
-  certificates?: unknown;
+  certificates?: (string | { name: string; url?: string })[] | null;
   hubspot_contact_id?: string | null;
   import_source?: string | null;
   candidate_status?: string | null;
+  // Extended fields
+  nationality?: string | null;
+  residence_status?: string | null;
+  specializations?: string[] | null;
+  industry_experience?: string[] | null;
+  soft_skills?: string[] | null;
+  project_metrics?: {
+    max_team_size?: number | string;
+    max_budget?: string;
+    locations_managed?: number | string;
+    units_delivered?: string;
+  } | null;
+  expose_title?: string | null;
+  expose_summary?: string | null;
+  expose_highlights?: string[] | null;
+  expose_project_highlights?: string[] | null;
+  expose_certifications?: string[] | null;
+  target_locations?: string[] | null;
+  target_industries?: string[] | null;
+  target_roles?: string[] | null;
+  target_employment_type?: string | null;
+  remote_preference?: string | null;
+  salary_expectation_min?: number | null;
+  salary_expectation_max?: number | null;
+  cv_ai_summary?: string | null;
+  cv_ai_bullets?: string[] | null;
 }
 
 interface CandidateCardProps {
