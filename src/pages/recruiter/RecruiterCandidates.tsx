@@ -56,11 +56,16 @@ export default function RecruiterCandidates() {
   useEffect(() => { if (user) fetchCandidates(); }, [user]);
 
   const fetchCandidates = async () => {
+    console.log('[RecruiterCandidates] Fetching candidates for user:', user?.id);
     const { data, error } = await supabase
       .from('candidates')
       .select('*')
       .eq('recruiter_id', user?.id)
       .order('created_at', { ascending: false });
+    console.log('[RecruiterCandidates] Fetched candidates:', data?.length, 'Error:', error);
+    if (data) {
+      console.log('[RecruiterCandidates] Candidate names:', data.map((c: any) => c.full_name));
+    }
     if (!error && data) {
       setCandidates(data as unknown as Candidate[]);
     }
