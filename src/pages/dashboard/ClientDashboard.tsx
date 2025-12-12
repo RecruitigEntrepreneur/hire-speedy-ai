@@ -10,6 +10,7 @@ import { VerificationStatusBanner } from '@/components/verification/Verification
 import { ClientTaskWidget } from '@/components/dashboard/ClientTaskWidget';
 import { LiveJobCard } from '@/components/dashboard/LiveJobCard';
 import { NewCandidateFeed } from '@/components/dashboard/NewCandidateFeed';
+import { RecruitingHealthScore } from '@/components/dashboard/RecruitingHealthScore';
 import { useJobStats } from '@/hooks/useJobStats';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -166,6 +167,14 @@ export default function ClientDashboard() {
             </Link>
           </Button>
         </div>
+
+        {/* Recruiting Health Score - Ampellogik */}
+        <RecruitingHealthScore 
+          activeJobs={stats.activeJobs}
+          totalCandidates={stats.totalCandidates}
+          pendingInterviews={stats.pendingInterviews}
+          placements={stats.placements}
+        />
 
         {/* Task Widget - "Was ist heute zu tun?" */}
         <ClientTaskWidget maxTasks={5} />

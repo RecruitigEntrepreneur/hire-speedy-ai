@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { RecruiterActivityIndicator } from '@/components/dashboard/RecruiterActivityIndicator';
 import { JobStats } from '@/hooks/useJobStats';
 import { 
-  Users, 
   UserCheck, 
   Calendar, 
   Gift,
@@ -47,13 +47,13 @@ export function LiveJobCard({ job, onBoost }: LiveJobCardProps) {
           )}
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">{job.activeRecruiters}</span>
-            <span className="text-muted-foreground text-xs">Recruiter</span>
-          </div>
+        {/* Live Recruiter Activity */}
+        <div className="mb-3">
+          <RecruiterActivityIndicator activeRecruiters={job.activeRecruiters} />
+        </div>
+
+        {/* Stats Grid - Compact */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="flex items-center gap-2 text-sm">
             <UserCheck className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{job.totalCandidates}</span>
@@ -71,15 +71,15 @@ export function LiveJobCard({ job, onBoost }: LiveJobCardProps) {
           </div>
         </div>
 
-        {/* Pipeline Mini-View */}
+        {/* Pipeline Mini-View - Professional muted colors */}
         <div className="flex items-center gap-1 mb-4">
-          <PipelineStep label="Neu" count={job.newCandidates} color="bg-primary" />
+          <PipelineStep label="Neu" count={job.newCandidates} color="bg-slate-400" />
           <PipelineConnector />
-          <PipelineStep label="Shortlist" count={job.shortlisted} color="bg-warning" />
+          <PipelineStep label="Shortlist" count={job.shortlisted} color="bg-blue-400" />
           <PipelineConnector />
-          <PipelineStep label="Interview" count={job.interviews} color="bg-chart-2" />
+          <PipelineStep label="Interview" count={job.interviews} color="bg-indigo-400" />
           <PipelineConnector />
-          <PipelineStep label="Angebot" count={job.offers} color="bg-success" />
+          <PipelineStep label="Angebot" count={job.offers} color="bg-violet-400" />
         </div>
 
         {/* Actions */}
