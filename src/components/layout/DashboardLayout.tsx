@@ -28,6 +28,7 @@ import {
   LogOut,
   User,
   Bell,
+  LayoutGrid,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,18 +73,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const clientNavItems: NavItem[] = [
-    { label: 'Übersicht', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Command Center', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Meine Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: 'Pipeline', href: '/dashboard/pipeline', icon: <LayoutGrid className="h-4 w-4" /> },
     { label: 'Kandidaten', href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Angebote', href: '/dashboard/offers', icon: <Gift className="h-4 w-4" /> },
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
-    { label: 'Team', href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
-    { label: 'Integrationen', href: '/dashboard/integrations', icon: <Plug className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
-    { label: 'Abrechnung', href: '/dashboard/billing', icon: <CreditCard className="h-4 w-4" /> },
-    { label: 'Datenschutz', href: '/dashboard/privacy', icon: <Shield className="h-4 w-4" /> },
   ];
 
   const recruiterNavItems: NavItem[] = [
