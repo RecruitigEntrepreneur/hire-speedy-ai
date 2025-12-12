@@ -4,10 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, User, ChevronDown, Upload, Link as LinkIcon } from 'lucide-react';
+import { Loader2, Plus, User, ChevronDown, Upload, Link as LinkIcon, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { CandidateStatsBar } from '@/components/candidates/CandidateStatsBar';
@@ -30,13 +26,8 @@ import { BulkActionsBar } from '@/components/candidates/BulkActionsBar';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
+import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
 import { Link } from 'react-router-dom';
-import { FileText } from 'lucide-react';
-const initialFormData = {
-  full_name: '', email: '', phone: '', experience_years: '', current_salary: '',
-  expected_salary: '', skills: '', summary: '', cv_url: '', linkedin_url: '',
-  availability_date: '', notice_period: '',
-};
 
 const defaultFilters: FilterState = {
   search: '', experienceMin: 0, experienceMax: 30, salaryMin: 0, salaryMax: 200000,
@@ -47,9 +38,8 @@ export default function RecruiterCandidates() {
   const { user } = useAuth();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
-  const [formData, setFormData] = useState(initialFormData);
   const [processing, setProcessing] = useState(false);
   
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
@@ -71,7 +61,9 @@ export default function RecruiterCandidates() {
       .select('*')
       .eq('recruiter_id', user?.id)
       .order('created_at', { ascending: false });
-    if (!error && data) setCandidates(data);
+    if (!error && data) {
+      setCandidates(data as unknown as Candidate[]);
+    }
     setLoading(false);
   };
 
@@ -114,37 +106,29 @@ export default function RecruiterCandidates() {
   }, [candidates, filters, assignments]);
 
   const handleOpenDialog = (candidate?: Candidate) => {
-    if (candidate) {
-      setEditingCandidate(candidate);
-      setFormData({
-        full_name: candidate.full_name, email: candidate.email, phone: candidate.phone || '',
-        experience_years: candidate.experience_years?.toString() || '', current_salary: candidate.current_salary?.toString() || '',
-        expected_salary: candidate.expected_salary?.toString() || '', skills: candidate.skills?.join(', ') || '',
-        summary: candidate.summary || '', cv_url: candidate.cv_url || '', linkedin_url: candidate.linkedin_url || '',
-        availability_date: candidate.availability_date || '', notice_period: candidate.notice_period || '',
-      });
-    } else { setEditingCandidate(null); setFormData(initialFormData); }
-    setDialogOpen(true);
+    setEditingCandidate(candidate || null);
+    setFormDialogOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!formData.full_name || !formData.email) { toast.error('Name und E-Mail sind erforderlich'); return; }
+  const handleSaveCandidate = async (candidateData: Partial<Candidate>) => {
     setProcessing(true);
-    const candidateData = {
-      full_name: formData.full_name, email: formData.email, phone: formData.phone || null,
-      experience_years: formData.experience_years ? parseInt(formData.experience_years) : null,
-      current_salary: formData.current_salary ? parseInt(formData.current_salary) : null,
-      expected_salary: formData.expected_salary ? parseInt(formData.expected_salary) : null,
-      skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : null,
-      summary: formData.summary || null, cv_url: formData.cv_url || null, linkedin_url: formData.linkedin_url || null,
-      availability_date: formData.availability_date || null, notice_period: formData.notice_period || null, recruiter_id: user?.id,
-    };
-    let error;
-    if (editingCandidate) { ({ error } = await supabase.from('candidates').update(candidateData).eq('id', editingCandidate.id)); }
-    else { ({ error } = await supabase.from('candidates').insert(candidateData)); }
-    if (error) toast.error('Fehler beim Speichern');
-    else { toast.success(editingCandidate ? 'Kandidat aktualisiert' : 'Kandidat hinzugefügt'); setDialogOpen(false); fetchCandidates(); }
-    setProcessing(false);
+    try {
+      let error;
+      if (editingCandidate) {
+        ({ error } = await supabase.from('candidates').update(candidateData as never).eq('id', editingCandidate.id));
+      } else {
+        const insertData = { ...candidateData, recruiter_id: user?.id };
+        ({ error } = await supabase.from('candidates').insert(insertData as never));
+      }
+      if (error) throw error;
+      toast.success(editingCandidate ? 'Kandidat aktualisiert' : 'Kandidat hinzugefügt');
+      setFormDialogOpen(false);
+      fetchCandidates();
+    } catch (error) {
+      toast.error('Fehler beim Speichern');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleDelete = async (candidate: Candidate) => {
@@ -327,87 +311,22 @@ export default function RecruiterCandidates() {
         onAddToPool={() => toast.info('Talent Pool Feature')} 
       />
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingCandidate ? 'Kandidat bearbeiten' : 'Neuen Kandidaten hinzufügen'}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Name *</Label>
-                <Input value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} placeholder="Max Mustermann" />
-              </div>
-              <div>
-                <Label>E-Mail *</Label>
-                <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="max@beispiel.de" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Telefon</Label>
-                <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+49 123 456789" />
-              </div>
-              <div>
-                <Label>Berufserfahrung (Jahre)</Label>
-                <Input type="number" value={formData.experience_years} onChange={e => setFormData({...formData, experience_years: e.target.value})} placeholder="5" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Aktuelles Gehalt (€)</Label>
-                <Input type="number" value={formData.current_salary} onChange={e => setFormData({...formData, current_salary: e.target.value})} placeholder="60000" />
-              </div>
-              <div>
-                <Label>Gehaltsvorstellung (€)</Label>
-                <Input type="number" value={formData.expected_salary} onChange={e => setFormData({...formData, expected_salary: e.target.value})} placeholder="70000" />
-              </div>
-            </div>
-            <div>
-              <Label>Skills (kommagetrennt)</Label>
-              <Input value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} placeholder="React, TypeScript, Node.js" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Verfügbar ab</Label>
-                <Input type="date" value={formData.availability_date} onChange={e => setFormData({...formData, availability_date: e.target.value})} />
-              </div>
-              <div>
-                <Label>Kündigungsfrist</Label>
-                <Input value={formData.notice_period} onChange={e => setFormData({...formData, notice_period: e.target.value})} placeholder="3 Monate" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>CV URL</Label>
-                <Input value={formData.cv_url} onChange={e => setFormData({...formData, cv_url: e.target.value})} placeholder="https://..." />
-              </div>
-              <div>
-                <Label>LinkedIn URL</Label>
-                <Input value={formData.linkedin_url} onChange={e => setFormData({...formData, linkedin_url: e.target.value})} placeholder="https://linkedin.com/in/..." />
-              </div>
-            </div>
-            <div>
-              <Label>Zusammenfassung</Label>
-              <Textarea value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} placeholder="Kurze Beschreibung..." rows={3} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleSave} disabled={processing}>
-              {processing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {editingCandidate ? 'Aktualisieren' : 'Hinzufügen'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* New Tab-Based Form Dialog */}
+      <CandidateFormDialog
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        candidate={editingCandidate}
+        onSave={handleSaveCandidate}
+        processing={processing}
+      />
 
       <CandidateDetailSheet 
         candidate={detailCandidate} 
         tags={detailCandidate ? getCandidateTags(detailCandidate.id) : []} 
         open={!!detailCandidate} 
         onOpenChange={open => !open && setDetailCandidate(null)} 
-        onEdit={c => { setDetailCandidate(null); handleOpenDialog(c); }} 
+        onEdit={c => { setDetailCandidate(null); handleOpenDialog(c); }}
+        onCandidateUpdated={fetchCandidates}
       />
 
       <TagManagerDialog 

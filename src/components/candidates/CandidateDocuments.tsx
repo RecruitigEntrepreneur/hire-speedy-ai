@@ -20,7 +20,7 @@ interface CandidateDocumentsProps {
 export function CandidateDocuments({ candidate }: CandidateDocumentsProps) {
   const hasLinks = candidate.cv_url || candidate.linkedin_url || candidate.portfolio_url || candidate.github_url || candidate.website_url;
   const rawCerts = Array.isArray(candidate.certificates) ? candidate.certificates : [];
-  const certificates = rawCerts as { name: string; url?: string }[];
+  const certificates = rawCerts.map(c => typeof c === 'string' ? { name: c } : c) as { name: string; url?: string }[];
 
   return (
     <Card>
