@@ -155,6 +155,84 @@ export type Database = {
           },
         ]
       }
+      candidate_ai_assessment: {
+        Row: {
+          candidate_id: string
+          communication_score: number | null
+          created_at: string | null
+          culture_fit: number | null
+          generated_at: string | null
+          id: string
+          key_highlights: Json | null
+          model_version: string | null
+          opportunity_factors: Json | null
+          opportunity_level: string | null
+          overall_score: number | null
+          placement_probability: number | null
+          reasoning: string | null
+          recommendation: string | null
+          risk_factors: Json | null
+          risk_level: string | null
+          technical_fit: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          communication_score?: number | null
+          created_at?: string | null
+          culture_fit?: number | null
+          generated_at?: string | null
+          id?: string
+          key_highlights?: Json | null
+          model_version?: string | null
+          opportunity_factors?: Json | null
+          opportunity_level?: string | null
+          overall_score?: number | null
+          placement_probability?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          risk_factors?: Json | null
+          risk_level?: string | null
+          technical_fit?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          communication_score?: number | null
+          created_at?: string | null
+          culture_fit?: number | null
+          generated_at?: string | null
+          id?: string
+          key_highlights?: Json | null
+          model_version?: string | null
+          opportunity_factors?: Json | null
+          opportunity_level?: string | null
+          overall_score?: number | null
+          placement_probability?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          risk_factors?: Json | null
+          risk_level?: string | null
+          technical_fit?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_ai_assessment_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_ai_assessment_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_behavior: {
         Row: {
           candidate_id: string
@@ -379,6 +457,66 @@ export type Database = {
             columns: ["submission_b_id"]
             isOneToOne: false
             referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_documents: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          document_type: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          is_current: boolean | null
+          mime_type: string | null
+          notes: string | null
+          uploaded_by: string | null
+          version: number | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          document_type: string
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          is_current?: boolean | null
+          mime_type?: string | null
+          notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          document_type?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          is_current?: boolean | null
+          mime_type?: string | null
+          notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
         ]
@@ -706,6 +844,93 @@ export type Database = {
           },
           {
             foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_projects: {
+        Row: {
+          achievements: Json | null
+          budget_range: string | null
+          candidate_id: string
+          client_industry: string | null
+          client_name: string | null
+          created_at: string | null
+          devices_count: number | null
+          duration_months: number | null
+          end_date: string | null
+          id: string
+          is_current: boolean | null
+          is_highlight: boolean | null
+          locations_count: number | null
+          project_name: string
+          project_type: string | null
+          responsibilities: Json | null
+          sort_order: number | null
+          start_date: string | null
+          team_size: number | null
+          technologies: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          achievements?: Json | null
+          budget_range?: string | null
+          candidate_id: string
+          client_industry?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          devices_count?: number | null
+          duration_months?: number | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          is_highlight?: boolean | null
+          locations_count?: number | null
+          project_name: string
+          project_type?: string | null
+          responsibilities?: Json | null
+          sort_order?: number | null
+          start_date?: string | null
+          team_size?: number | null
+          technologies?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          achievements?: Json | null
+          budget_range?: string | null
+          candidate_id?: string
+          client_industry?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          devices_count?: number | null
+          duration_months?: number | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          is_highlight?: boolean | null
+          locations_count?: number | null
+          project_name?: string
+          project_type?: string | null
+          responsibilities?: Json | null
+          sort_order?: number | null
+          start_date?: string | null
+          team_size?: number | null
+          technologies?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_projects_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_projects_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidates"
@@ -3134,15 +3359,20 @@ export type Database = {
           bank_iban: string | null
           company_address: string | null
           company_name: string | null
+          company_voice: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
           internal_notes: string | null
           phone: string | null
+          placements_count: number | null
+          professional_tone: string | null
+          role_title: string | null
           tax_id: string | null
           updated_at: string
           user_id: string
+          years_experience: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -3150,15 +3380,20 @@ export type Database = {
           bank_iban?: string | null
           company_address?: string | null
           company_name?: string | null
+          company_voice?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id?: string
           internal_notes?: string | null
           phone?: string | null
+          placements_count?: number | null
+          professional_tone?: string | null
+          role_title?: string | null
           tax_id?: string | null
           updated_at?: string
           user_id: string
+          years_experience?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -3166,15 +3401,20 @@ export type Database = {
           bank_iban?: string | null
           company_address?: string | null
           company_name?: string | null
+          company_voice?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
           internal_notes?: string | null
           phone?: string | null
+          placements_count?: number | null
+          professional_tone?: string | null
+          role_title?: string | null
           tax_id?: string | null
           updated_at?: string
           user_id?: string
+          years_experience?: number | null
         }
         Relationships: []
       }
