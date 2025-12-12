@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/layout/Navbar';
+
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -322,37 +322,29 @@ export default function ClientJobDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </DashboardLayout>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (!job) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <DashboardLayout>
-          <div className="text-center py-12">
-            <h2 className="text-xl font-semibold">Job nicht gefunden</h2>
-            <Button asChild className="mt-4">
-              <Link to="/dashboard/jobs">Zurück zur Übersicht</Link>
-            </Button>
-          </div>
-        </DashboardLayout>
-      </div>
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <h2 className="text-xl font-semibold">Job nicht gefunden</h2>
+          <Button asChild className="mt-4">
+            <Link to="/dashboard/jobs">Zurück zur Übersicht</Link>
+          </Button>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <DashboardLayout>
+    <DashboardLayout>
         <div className="space-y-6">
           {/* Back Link */}
           <Link 
@@ -714,6 +706,5 @@ export default function ClientJobDetail() {
           </DialogContent>
         </Dialog>
       </DashboardLayout>
-    </div>
   );
 }

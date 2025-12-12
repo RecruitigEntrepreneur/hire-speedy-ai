@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/layout/Navbar';
+
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -96,21 +96,16 @@ export default function ClientPlacements() {
 
   if (loading) {
     return (
-      <>
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </DashboardLayout>
-      </>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <>
-      <Navbar />
-      <DashboardLayout>
+    <DashboardLayout>
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold">Placements</h1>
@@ -236,6 +231,5 @@ export default function ClientPlacements() {
           </Card>
         </div>
       </DashboardLayout>
-    </>
   );
 }
