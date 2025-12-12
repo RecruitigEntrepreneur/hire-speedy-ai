@@ -64,6 +64,7 @@ import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
 import AdminFraud from "./pages/admin/AdminFraud";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminDealHealth from "./pages/admin/AdminDealHealth";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 // Client Analytics
 import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
@@ -361,6 +362,11 @@ function AppRoutes() {
       <Route path="/admin/analytics" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminAnalytics />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/settings" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminSettings />
         </ProtectedRoute>
       } />
       

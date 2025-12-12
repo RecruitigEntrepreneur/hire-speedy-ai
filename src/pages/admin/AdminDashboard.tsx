@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/layout/Navbar';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -259,22 +258,17 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <DashboardLayout>
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </DashboardLayout>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <DashboardLayout>
-        <div className="space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Control Center</h1>
@@ -586,6 +580,5 @@ export default function AdminDashboard() {
           </div>
         </div>
       </DashboardLayout>
-    </div>
   );
 }
