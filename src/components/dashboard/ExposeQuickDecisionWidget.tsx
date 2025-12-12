@@ -232,8 +232,23 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
         <RejectionDialog
           open={rejectionDialogOpen}
           onOpenChange={setRejectionDialogOpen}
-          submission={{ id: selectedSubmission.id, candidate_name: generateAnonymousId(selectedSubmission.id) }}
-          onReject={handleRejectionSubmit}
+          submission={{
+            id: selectedSubmission.id,
+            candidate: {
+              id: selectedSubmission.candidate.id,
+              full_name: generateAnonymousId(selectedSubmission.id),
+              email: ''
+            },
+            job: {
+              id: selectedSubmission.job.id,
+              title: selectedSubmission.job.title,
+              company_name: ''
+            }
+          }}
+          onSuccess={() => {
+            fetchNewSubmissions();
+            setRejectionDialogOpen(false);
+          }}
         />
       )}
     </>

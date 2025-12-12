@@ -137,16 +137,18 @@ export function InterviewRequestWithOptInDialog({
         return dateTime.toISOString();
       });
 
-      // Save pending interview request to submission
+      // Save pending interview request to submission using client_notes field
       const { error: updateError } = await supabase
         .from('submissions')
         .update({
-          pending_interview_request: {
-            client_time_slots: proposedSlots,
-            client_message: clientMessage,
-            requested_at: new Date().toISOString(),
-            status: 'pending_opt_in'
-          }
+          client_notes: JSON.stringify({
+            pending_interview_request: {
+              client_time_slots: proposedSlots,
+              client_message: clientMessage,
+              requested_at: new Date().toISOString(),
+              status: 'pending_opt_in'
+            }
+          })
         })
         .eq('id', submissionId);
 
