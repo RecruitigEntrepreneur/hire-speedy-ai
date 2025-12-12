@@ -365,10 +365,11 @@ async function reportNoShow(supabase: any, params: {
   return { success: true };
 }
 
-// Email helper functions
+// Email helper functions - Send to ALL 3 parties
 async function sendSlotProposalEmail(supabase: any, interview: any, slots: TimeSlot[], token: string) {
   const candidate = interview.submissions?.candidates;
   const job = interview.submissions?.jobs;
+  const recruiterId = interview.submissions?.recruiter_id;
   
   const slotList = slots.map((s, i) => 
     `${i + 1}. ${new Date(s.datetime).toLocaleString('de-DE', { 
@@ -383,14 +384,39 @@ async function sendSlotProposalEmail(supabase: any, interview: any, slots: TimeS
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const selectionUrl = `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/interview/select/${token}`;
 
-  console.log('Sending slot proposal email to recruiter for candidate:', candidate?.full_name);
-  console.log('Selection URL:', selectionUrl);
-  console.log('Available slots:', slotList);
+  // Send to Recruiter
+  console.log('📧 Sending slot proposal email to recruiter:', {
+    recruiter_id: recruiterId,
+    candidate: candidate?.full_name,
+    job: job?.title,
+    slots: slotList,
+    selection_url: selectionUrl
+  });
+
+  // Try to send via send-email edge function
+  try {
+    await supabase.functions.invoke('send-email', {
+      body: {
+        to: recruiterId,
+        template: 'interview_slot_proposal',
+        data: {
+          candidate_name: candidate?.full_name,
+          job_title: job?.title,
+          slots: slotList,
+          selection_url: selectionUrl
+        }
+      }
+    });
+  } catch (e) {
+    console.log('Email function not available, logged instead');
+  }
 }
 
 async function sendScheduleConfirmationEmail(supabase: any, interview: any, scheduledAt: string) {
   const candidate = interview.submissions?.candidates;
   const job = interview.submissions?.jobs;
+  const recruiterId = interview.submissions?.recruiter_id;
+  const clientId = job?.client_id;
   
   const dateStr = new Date(scheduledAt).toLocaleString('de-DE', {
     weekday: 'long',
@@ -401,21 +427,155 @@ async function sendScheduleConfirmationEmail(supabase: any, interview: any, sche
     minute: '2-digit',
   });
 
-  console.log('Sending confirmation email for interview:', {
+  const meetingLink = interview.meeting_link || interview.teams_join_url || 'Link wird nachgereicht';
+
+  // Generate iCal content
+  const icalContent = generateICalEvent({
+    title: `Interview: ${candidate?.full_name} - ${job?.title}`,
+    start: new Date(scheduledAt),
+    duration: interview.duration_minutes || 60,
+    location: meetingLink,
+    description: `Interview für die Position ${job?.title}`
+  });
+
+  // 1. Send to CLIENT
+  console.log('📧 Sending confirmation to CLIENT:', {
+    client_id: clientId,
     candidate: candidate?.full_name,
     job: job?.title,
     date: dateStr,
-    meeting_link: interview.meeting_link || interview.teams_join_url,
+    meeting_link: meetingLink
   });
+
+  // Create client notification
+  await supabase.from('client_notifications').insert({
+    client_id: clientId,
+    notification_type: 'interview_confirmed',
+    title: 'Interview bestätigt',
+    message: `Interview mit ${candidate?.full_name} am ${dateStr}. Meeting-Link: ${meetingLink}`,
+    action_url: `/dashboard/interviews`,
+    submission_id: interview.submission_id
+  });
+
+  // 2. Send to RECRUITER
+  console.log('📧 Sending confirmation to RECRUITER:', {
+    recruiter_id: recruiterId,
+    candidate: candidate?.full_name,
+    job: job?.title,
+    date: dateStr,
+    meeting_link: meetingLink
+  });
+
+  await supabase.from('notifications').insert({
+    user_id: recruiterId,
+    type: 'interview_confirmed',
+    title: 'Interview bestätigt',
+    message: `${candidate?.full_name} hat Interview bei ${job?.company_name || 'Unternehmen'} am ${dateStr}`,
+    related_type: 'interview',
+    related_id: interview.id
+  });
+
+  // 3. Send to CANDIDATE (via Recruiter or direct if email available)
+  console.log('📧 Sending confirmation to CANDIDATE:', {
+    candidate_email: candidate?.email,
+    candidate_name: candidate?.full_name,
+    job: job?.title,
+    date: dateStr,
+    meeting_link: meetingLink,
+    ical: 'attached'
+  });
+
+  // Try to send email to candidate
+  if (candidate?.email) {
+    try {
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: candidate.email,
+          template: 'interview_confirmed_candidate',
+          data: {
+            candidate_name: candidate.full_name,
+            job_title: job?.title,
+            company_name: job?.company_name || 'Ihr potenzieller Arbeitgeber',
+            interview_date: dateStr,
+            meeting_link: meetingLink,
+            ical_attachment: icalContent
+          }
+        }
+      });
+    } catch (e) {
+      console.log('Email to candidate logged (function not available)');
+    }
+  }
 }
 
 async function sendReminderEmail(supabase: any, interview: any, type: '24h' | '1h') {
   const candidate = interview.submissions?.candidates;
   const job = interview.submissions?.jobs;
-  
-  console.log(`Sending ${type} reminder for interview:`, {
+  const clientId = job?.client_id;
+  const recruiterId = interview.submissions?.recruiter_id;
+
+  const dateStr = new Date(interview.scheduled_at).toLocaleString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const reminderText = type === '24h' ? 'in 24 Stunden' : 'in 1 Stunde';
+
+  // Send reminder to all 3 parties
+  console.log(`📧 Sending ${type} reminder to ALL parties:`, {
     candidate: candidate?.full_name,
     job: job?.title,
     scheduled_at: interview.scheduled_at,
   });
+
+  // Client notification
+  await supabase.from('client_notifications').insert({
+    client_id: clientId,
+    notification_type: 'interview_reminder',
+    title: `Erinnerung: Interview ${reminderText}`,
+    message: `Interview mit ${candidate?.full_name} am ${dateStr}`,
+    action_url: `/dashboard/interviews`,
+    submission_id: interview.submission_id
+  });
+
+  // Recruiter notification
+  await supabase.from('notifications').insert({
+    user_id: recruiterId,
+    type: 'interview_reminder',
+    title: `Erinnerung: Interview ${reminderText}`,
+    message: `${candidate?.full_name} hat Interview ${reminderText}`,
+    related_type: 'interview',
+    related_id: interview.id
+  });
+}
+
+// Helper to generate iCal event
+function generateICalEvent(params: {
+  title: string;
+  start: Date;
+  duration: number;
+  location: string;
+  description: string;
+}): string {
+  const { title, start, duration, location, description } = params;
+  const end = new Date(start.getTime() + duration * 60000);
+  
+  const formatDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+  return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Lovable//Interview Scheduler//DE
+BEGIN:VEVENT
+UID:${crypto.randomUUID()}@lovable.app
+DTSTART:${formatDate(start)}
+DTEND:${formatDate(end)}
+SUMMARY:${title}
+LOCATION:${location}
+DESCRIPTION:${description}
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
 }

@@ -11,6 +11,7 @@ import { ClientTaskWidget } from '@/components/dashboard/ClientTaskWidget';
 import { LiveJobCard } from '@/components/dashboard/LiveJobCard';
 import { NewCandidateFeed } from '@/components/dashboard/NewCandidateFeed';
 import { RecruitingHealthScore } from '@/components/dashboard/RecruitingHealthScore';
+import { ExposeQuickDecisionWidget } from '@/components/dashboard/ExposeQuickDecisionWidget';
 import { useJobStats } from '@/hooks/useJobStats';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -175,6 +176,9 @@ export default function ClientDashboard() {
           pendingInterviews={stats.pendingInterviews}
           placements={stats.placements}
         />
+
+        {/* NEW: Quick Decision Widget - Exposé Cards für schnelle Entscheidungen */}
+        <ExposeQuickDecisionWidget maxCandidates={4} />
 
         {/* Task Widget - "Was ist heute zu tun?" */}
         <ClientTaskWidget maxTasks={5} />

@@ -12,8 +12,10 @@ interface HardFacts {
 
 interface ExposeData {
   candidateId: string;
+  submissionId: string;
   candidateName: string;
   isAnonymized: boolean;
+  identityUnlocked: boolean;
   currentRole: string;
   matchScore: number;
   dealProbability: number;
@@ -23,6 +25,7 @@ interface ExposeData {
   status: string;
   executiveSummary: string[];
   hardFacts: HardFacts;
+  experienceYears: number;
 }
 
 export function useExposeData(submissionId: string | undefined) {
@@ -53,6 +56,7 @@ export function useExposeData(submissionId: string | undefined) {
           id,
           status,
           match_score,
+          identity_unlocked,
           candidates!inner (
             id,
             full_name,
@@ -126,10 +130,15 @@ export function useExposeData(submissionId: string | undefined) {
         ];
       }
 
+      // Triple-Blind: Check if identity is unlocked
+      const identityUnlocked = submission.identity_unlocked === true;
+
       const exposeData: ExposeData = {
         candidateId: candidate.id,
+        submissionId: submission.id,
         candidateName: candidate.full_name,
-        isAnonymized: false, // Could be based on identity_unlocked status
+        isAnonymized: !identityUnlocked, // Triple-Blind by default
+        identityUnlocked,
         currentRole: candidate.job_title || 'Nicht angegeben',
         matchScore: submission.match_score || 0,
         dealProbability: summary?.deal_probability || health?.drop_off_probability ? 100 - (health?.drop_off_probability || 50) : 50,
@@ -138,7 +147,8 @@ export function useExposeData(submissionId: string | undefined) {
         dealHealthReason: health?.ai_assessment || '',
         status: submission.status,
         executiveSummary,
-        hardFacts
+        hardFacts,
+        experienceYears: candidate.experience_years || 0
       };
 
       setData(exposeData);
