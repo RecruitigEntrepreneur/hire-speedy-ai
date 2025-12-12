@@ -28,6 +28,7 @@ import {
   Briefcase,
   StickyNote,
   RefreshCw,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,6 +38,7 @@ import { CandidateActivityTimeline } from './CandidateActivityTimeline';
 import { CandidateJobsOverview } from './CandidateJobsOverview';
 import { CandidateNotes } from './CandidateNotes';
 import { CandidateOverviewTab } from './CandidateOverviewTab';
+import { CandidateInterviewTab } from './CandidateInterviewTab';
 import { CandidateStatusDropdown } from './CandidateStatusDropdown';
 import { AddActivityDialog } from './AddActivityDialog';
 import { CvUploadDialog } from './CvUploadDialog';
@@ -212,10 +214,14 @@ export function CandidateDetailSheet({
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid w-full grid-cols-4 shrink-0 mx-6 mt-4" style={{ width: 'calc(100% - 48px)' }}>
+            <TabsList className="grid w-full grid-cols-5 shrink-0 mx-6 mt-4" style={{ width: 'calc(100% - 48px)' }}>
               <TabsTrigger value="overview" className="flex items-center gap-1">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Übersicht</span>
+              </TabsTrigger>
+              <TabsTrigger value="interview" className="flex items-center gap-1">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Interview</span>
               </TabsTrigger>
               <TabsTrigger value="activities" className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
@@ -237,7 +243,15 @@ export function CandidateDetailSheet({
                 <CandidateOverviewTab candidate={candidate} tags={tags} />
               </TabsContent>
 
-              {/* Tab 2: Activities */}
+              {/* Tab 2: Interview */}
+              <TabsContent value="interview" className="mt-4 focus-visible:ring-0">
+                <CandidateInterviewTab 
+                  candidate={candidate} 
+                  onNotesUpdated={() => refetchActivities()}
+                />
+              </TabsContent>
+
+              {/* Tab 3: Activities */}
               <TabsContent value="activities" className="mt-4 focus-visible:ring-0">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Aktivitäten-Timeline</h3>
@@ -252,12 +266,12 @@ export function CandidateDetailSheet({
                 />
               </TabsContent>
 
-              {/* Tab 3: Submissions */}
+              {/* Tab 4: Submissions */}
               <TabsContent value="submissions" className="mt-4 focus-visible:ring-0">
                 <CandidateJobsOverview candidateId={candidate.id} />
               </TabsContent>
 
-              {/* Tab 4: Notes */}
+              {/* Tab 5: Notes */}
               <TabsContent value="notes" className="mt-4 focus-visible:ring-0">
                 <CandidateNotes candidateId={candidate.id} />
               </TabsContent>
