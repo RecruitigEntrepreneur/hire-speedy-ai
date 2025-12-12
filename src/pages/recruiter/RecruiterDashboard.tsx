@@ -9,20 +9,16 @@ import {
   Briefcase, 
   Users, 
   DollarSign, 
-  TrendingUp, 
-  ArrowUpRight,
-  Clock,
-  CheckCircle2,
-  Loader2,
   FileText,
   MapPin,
   Activity,
-  AlertTriangle,
   Upload,
-  User
+  ArrowUpRight,
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
-import { DealHealthBadge } from '@/components/health/DealHealthBadge';
+
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
 import { CompactTaskList } from '@/components/influence/CompactTaskList';
@@ -53,8 +49,6 @@ export default function RecruiterDashboard() {
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
-  const [criticalDeals, setCriticalDeals] = useState<any[]>([]);
-  const [dealCandidateMap, setDealCandidateMap] = useState<Record<string, { name: string; jobTitle: string; company: string }>>({});
   const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   
@@ -130,43 +124,6 @@ export default function RecruiterDashboard() {
         setBehaviorScore(scoreData);
       }
 
-      // Fetch critical deals for my submissions with candidate info
-      const { data: mySubmissions } = await supabase
-        .from('submissions')
-        .select('id, candidate_id, job_id')
-        .eq('recruiter_id', user?.id);
-      
-      if (mySubmissions && mySubmissions.length > 0) {
-        const { data: healthData } = await supabase
-          .from('deal_health')
-          .select('*')
-          .in('submission_id', mySubmissions.map(s => s.id))
-          .in('risk_level', ['high', 'critical'])
-          .limit(3);
-        
-        if (healthData && healthData.length > 0) {
-          setCriticalDeals(healthData);
-          
-          // Fetch candidate and job info for these deals
-          const submissionIds = healthData.map(d => d.submission_id);
-          const { data: submissionsWithDetails } = await supabase
-            .from('submissions')
-            .select('id, candidates(full_name), jobs(title, company_name)')
-            .in('id', submissionIds);
-          
-          if (submissionsWithDetails) {
-            const dealMap: Record<string, { name: string; jobTitle: string; company: string }> = {};
-            submissionsWithDetails.forEach((s: any) => {
-              dealMap[s.id] = {
-                name: s.candidates?.full_name || 'Kandidat',
-                jobTitle: s.jobs?.title || 'Position',
-                company: s.jobs?.company_name || '',
-              };
-            });
-            setDealCandidateMap(dealMap);
-          }
-        }
-      }
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -257,19 +214,6 @@ export default function RecruiterDashboard() {
     }
   };
 
-  const handleViewDealCandidate = async (submissionId: string) => {
-    // Fetch candidate for this submission
-    const { data: submission } = await supabase
-      .from('submissions')
-      .select('candidate_id, candidates(*)')
-      .eq('id', submissionId)
-      .single();
-    
-    if (submission?.candidates) {
-      setSelectedCandidate(submission.candidates as unknown as Candidate);
-      setCandidateSheetOpen(true);
-    }
-  };
 
   const handleEditCandidate = (candidate: Candidate) => {
     // Navigate to candidates page with edit mode
@@ -340,76 +284,27 @@ export default function RecruiterDashboard() {
             </Button>
           </div>
 
-          {/* Behavior Score & Critical Deals */}
-          {(behaviorScore || criticalDeals.length > 0) && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {behaviorScore && (
-                <Card className="border-border/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Dein Performance Score</p>
-                        <p className="text-2xl font-bold mt-1">
-                          {Math.round(100 - (behaviorScore.risk_score || 0))}%
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          SLA: {Math.round((behaviorScore.sla_compliance_rate || 0) * 100)}% | 
-                          Response: {behaviorScore.avg_response_time_hours?.toFixed(1) || '0'}h
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-emerald/10 text-emerald">
-                        <Activity className="h-6 w-6" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {criticalDeals.length > 0 && (
-                <Card className="border-destructive/30 bg-destructive/5">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                      <p className="font-medium">Deals brauchen Aufmerksamkeit</p>
-                    </div>
-                    <div className="space-y-2">
-                      {criticalDeals.map((deal) => {
-                        const dealInfo = dealCandidateMap[deal.submission_id];
-                        return (
-                          <button
-                            key={deal.id}
-                            onClick={() => handleViewDealCandidate(deal.submission_id)}
-                            className="w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors text-left"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <span className="text-sm font-medium truncate">
-                                  {dealInfo?.name || 'Kandidat'}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground ml-6 truncate">
-                                {dealInfo?.jobTitle}{dealInfo?.company ? ` @ ${dealInfo.company}` : ''}
-                              </p>
-                              {deal.bottleneck && (
-                                <p className="text-xs text-destructive ml-6 mt-0.5">
-                                  {deal.bottleneck}
-                                </p>
-                              )}
-                            </div>
-                            <DealHealthBadge 
-                              score={deal.health_score || 0} 
-                              riskLevel={deal.risk_level || 'medium'} 
-                              size="sm"
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+          {/* Behavior Score */}
+          {behaviorScore && (
+            <Card className="border-border/50 max-w-md">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dein Performance Score</p>
+                    <p className="text-2xl font-bold mt-1">
+                      {Math.round(100 - (behaviorScore.risk_score || 0))}%
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      SLA: {Math.round((behaviorScore.sla_compliance_rate || 0) * 100)}% | 
+                      Response: {behaviorScore.avg_response_time_hours?.toFixed(1) || '0'}h
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-emerald/10 text-emerald">
+                    <Activity className="h-6 w-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Compact Task List */}
