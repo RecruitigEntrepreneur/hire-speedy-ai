@@ -26,6 +26,7 @@ interface CommuteConfirmationDialogProps {
     id: string;
     title: string;
     company_name?: string;
+    location?: string;
     onsite_days_required?: number;
   };
   travelTime: number;
