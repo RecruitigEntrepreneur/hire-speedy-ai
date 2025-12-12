@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Calendar, Video, Phone, MapPin, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { InterviewCalendarView } from '@/components/interview/InterviewCalendarView';
+import { Loader2, Calendar, Video, Phone, MapPin, Clock, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -57,6 +59,7 @@ export default function ClientInterviews() {
   const [editingInterview, setEditingInterview] = useState<Interview | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   
   const [formData, setFormData] = useState({
     scheduled_at: '',
@@ -199,132 +202,168 @@ export default function ClientInterviews() {
   return (
     <DashboardLayout>
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold">Interviews</h1>
-            <p className="text-muted-foreground mt-1">
-              Verwalten Sie Ihre geplanten Interviews
-            </p>
-          </div>
-
-          {/* Upcoming Interviews */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Anstehende Interviews ({upcomingInterviews.length})</h2>
-            <div className="grid gap-4">
-              {upcomingInterviews.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Keine anstehenden Interviews</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                upcomingInterviews.map((interview) => (
-                  <Card key={interview.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">
-                              {interview.submission.candidate.full_name}
-                            </h3>
-                            {getStatusBadge(interview.status)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {interview.submission.job.title} bei {interview.submission.job.company_name}
-                          </p>
-                          
-                          {interview.scheduled_at && (
-                            <div className="flex items-center gap-4 text-sm mt-3">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                {format(new Date(interview.scheduled_at), 'HH:mm')} Uhr
-                              </span>
-                              <span className="flex items-center gap-1">
-                                {getMeetingIcon(interview.meeting_type)}
-                                {interview.meeting_type === 'video' ? 'Video' : 
-                                 interview.meeting_type === 'phone' ? 'Telefon' : 'Vor Ort'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {interview.meeting_link && (
-                            <Button variant="outline" size="sm" asChild>
-                              <a href={interview.meeting_link} target="_blank" rel="noopener noreferrer">
-                                Meeting beitreten
-                              </a>
-                            </Button>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEdit(interview)}
-                          >
-                            Bearbeiten
-                          </Button>
-                          <Button 
-                            variant="default" 
-                            size="sm"
-                            onClick={() => handleComplete(interview, true)}
-                            disabled={processing}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Einstellen
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => handleComplete(interview, false)}
-                            disabled={processing}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Absagen
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Past Interviews */}
-          {pastInterviews.length > 0 && (
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold mb-4">Vergangene Interviews ({pastInterviews.length})</h2>
-              <div className="grid gap-4">
-                {pastInterviews.map((interview) => (
-                  <Card key={interview.id} className="opacity-75">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">
-                              {interview.submission.candidate.full_name}
-                            </h3>
-                            {getStatusBadge(interview.status)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {interview.submission.job.title}
-                          </p>
-                          {interview.scheduled_at && (
-                            <p className="text-sm text-muted-foreground">
-                              {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <h1 className="text-3xl font-bold">Interviews</h1>
+              <p className="text-muted-foreground mt-1">
+                Verwalten Sie Ihre geplanten Interviews
+              </p>
             </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4 mr-1" />
+                Liste
+              </Button>
+              <Button 
+                variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} 
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+              >
+                <LayoutGrid className="h-4 w-4 mr-1" />
+                Kalender
+              </Button>
+            </div>
+          </div>
+
+          {/* Calendar View */}
+          {viewMode === 'calendar' && (
+            <InterviewCalendarView 
+              interviews={interviews}
+              onSelectInterview={(interview) => handleEdit(interview)}
+            />
+          )}
+
+          {/* List View */}
+          {viewMode === 'list' && (
+            <Tabs defaultValue="upcoming">
+              <TabsList>
+                <TabsTrigger value="upcoming">
+                  Anstehend ({upcomingInterviews.length})
+                </TabsTrigger>
+                <TabsTrigger value="past">
+                  Vergangen ({pastInterviews.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="upcoming" className="mt-6">
+                <div className="grid gap-4">
+                  {upcomingInterviews.length === 0 ? (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">Keine anstehenden Interviews</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    upcomingInterviews.map((interview) => (
+                      <Card key={interview.id}>
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-lg">
+                                  {interview.submission.candidate.full_name}
+                                </h3>
+                                {getStatusBadge(interview.status)}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {interview.submission.job.title} bei {interview.submission.job.company_name}
+                              </p>
+                              
+                              {interview.scheduled_at && (
+                                <div className="flex items-center gap-4 text-sm mt-3">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                    {format(new Date(interview.scheduled_at), 'HH:mm')} Uhr
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    {getMeetingIcon(interview.meeting_type)}
+                                    {interview.meeting_type === 'video' ? 'Video' : 
+                                     interview.meeting_type === 'phone' ? 'Telefon' : 'Vor Ort'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {interview.meeting_link && (
+                                <Button variant="outline" size="sm" asChild>
+                                  <a href={interview.meeting_link} target="_blank" rel="noopener noreferrer">
+                                    Meeting beitreten
+                                  </a>
+                                </Button>
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEdit(interview)}
+                              >
+                                Bearbeiten
+                              </Button>
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={() => handleComplete(interview, true)}
+                                disabled={processing}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Einstellen
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleComplete(interview, false)}
+                                disabled={processing}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Absagen
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="past" className="mt-6">
+                <div className="grid gap-4">
+                  {pastInterviews.map((interview) => (
+                    <Card key={interview.id} className="opacity-75">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold">
+                                {interview.submission.candidate.full_name}
+                              </h3>
+                              {getStatusBadge(interview.status)}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {interview.submission.job.title}
+                            </p>
+                            {interview.scheduled_at && (
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
         </div>
 

@@ -9,7 +9,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { PipelineColumn, PipelineColumnSkeleton } from '@/components/pipeline/PipelineColumn';
+import { BottleneckSummary } from '@/components/pipeline/BottleneckSummary';
 import { useHiringPipeline, PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -159,29 +161,36 @@ export default function HiringPipeline() {
           </Card>
         )}
 
+        {/* Bottleneck Summary */}
+        {selectedJobId && !loading && candidates.length > 0 && (
+          <BottleneckSummary candidates={candidates} />
+        )}
+
         {/* Pipeline Board */}
         {selectedJobId && (
-          <ScrollArea className="w-full">
-            <div className="flex gap-3 pb-4 min-h-[calc(100vh-160px)]">
-              {loading ? (
-                PIPELINE_STAGES.map((stage) => (
-                  <PipelineColumnSkeleton key={stage.key} />
-                ))
-              ) : (
-                PIPELINE_STAGES.map((stage) => (
-                  <PipelineColumn
-                    key={stage.key}
-                    stage={stage}
-                    candidates={getCandidatesByStage(stage.key)}
-                    onMove={handleMove}
-                    onReject={handleReject}
-                    isProcessing={processing}
-                  />
-                ))
-              )}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <TooltipProvider>
+            <ScrollArea className="w-full">
+              <div className="flex gap-3 pb-4 min-h-[calc(100vh-200px)]">
+                {loading ? (
+                  PIPELINE_STAGES.map((stage) => (
+                    <PipelineColumnSkeleton key={stage.key} />
+                  ))
+                ) : (
+                  PIPELINE_STAGES.map((stage) => (
+                    <PipelineColumn
+                      key={stage.key}
+                      stage={stage}
+                      candidates={getCandidatesByStage(stage.key)}
+                      onMove={handleMove}
+                      onReject={handleReject}
+                      isProcessing={processing}
+                    />
+                  ))
+                )}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </TooltipProvider>
         )}
       </div>
     </DashboardLayout>

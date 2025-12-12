@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { PipelineCandidate } from '@/hooks/useHiringPipeline';
+import { BottleneckWarning } from './BottleneckWarning';
+import { CandidateJobHistory } from '@/components/candidates/CandidateJobHistory';
+import { PipelineCandidate, PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 import { 
   X, 
   ChevronRight,
@@ -97,7 +99,16 @@ export function PipelineCandidateCard({
           {candidate.matchScore && (
             <span className="text-xs font-medium text-primary">{candidate.matchScore}%</span>
           )}
-          {(isUrgent || isWarning) && (
+          <CandidateJobHistory 
+            candidateId={candidate.candidate.id} 
+            currentSubmissionId={candidate.id}
+          />
+          <BottleneckWarning 
+            hoursInStage={candidate.hoursInStage}
+            stageName={PIPELINE_STAGES.find(s => s.key === stage)?.label || stage}
+            candidateName={candidate.candidate.fullName}
+          />
+          {(isUrgent || isWarning) && candidate.hoursInStage < 72 && (
             <Tooltip>
               <TooltipTrigger>
                 <AlertTriangle className={`h-3.5 w-3.5 ${isUrgent ? 'text-destructive' : 'text-warning'}`} />

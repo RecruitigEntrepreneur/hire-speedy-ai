@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PaymentStatusBadge } from '@/components/placements/PaymentStatusBadge';
 import { Loader2, UserCheck, Euro, Calendar, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -220,7 +221,10 @@ export default function ClientPlacements() {
                           }
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(placement.payment_status)}
+                          <PaymentStatusBadge 
+                            status={placement.payment_status} 
+                            totalFee={placement.total_fee}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
