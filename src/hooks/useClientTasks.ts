@@ -79,12 +79,13 @@ export function useClientTasks() {
         });
       }
 
-      // 2. Pending interviews (status 'pending' or not scheduled)
+      // 2. Pending interviews (status 'pending' or unscheduled)
       const { data: pendingInterviews } = await supabase
         .from('interviews')
         .select(`
           id,
           status,
+          scheduled_at,
           created_at,
           submission:submissions!inner(
             id,
@@ -93,7 +94,7 @@ export function useClientTasks() {
           )
         `)
         .eq('submission.job.client_id', user.id)
-        .eq('status', 'pending');
+        .or('status.eq.pending,scheduled_at.is.null');
 
       if (pendingInterviews) {
         pendingInterviews.forEach((interview: any) => {
@@ -104,10 +105,16 @@ export function useClientTasks() {
           if (hoursWaiting >= 48) urgency = 'critical';
           else if (hoursWaiting >= 24) urgency = 'warning';
 
+          // Different message based on whether scheduled or not
+          const needsScheduling = !interview.scheduled_at;
+          const title = needsScheduling 
+            ? `Interview terminieren: ${interview.submission?.candidate?.full_name || 'Kandidat'}`
+            : `Interview bestätigen: ${interview.submission?.candidate?.full_name || 'Kandidat'}`;
+
           taskList.push({
             id: `interview-${interview.id}`,
             type: 'interview',
-            title: `Interview terminieren: ${interview.submission?.candidate?.full_name || 'Kandidat'}`,
+            title,
             description: `Für ${interview.submission?.job?.title || 'Job'}`,
             urgency,
             submissionId: interview.submission?.id,
