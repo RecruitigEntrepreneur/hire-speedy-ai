@@ -57,6 +57,12 @@ export function CvUploadDialog({
   const [editMode, setEditMode] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedFileInfo, setUploadedFileInfo] = useState<{
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    mimeType: string;
+  } | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,6 +101,19 @@ export function CvUploadDialog({
       }
 
       console.log('PDF uploaded to:', fileName);
+
+      // Get the public URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('cv-documents')
+        .getPublicUrl(fileName);
+
+      // Store file info for later saving to candidate_documents
+      setUploadedFileInfo({
+        fileName: selectedFile.name,
+        fileUrl: publicUrl,
+        fileSize: selectedFile.size,
+        mimeType: selectedFile.type,
+      });
 
       // Extract text from PDF
       const extractedText = await extractTextFromPdf(fileName);
@@ -149,7 +168,8 @@ export function CvUploadDialog({
       parsedData,
       rawText,
       user.id,
-      existingCandidateId
+      existingCandidateId,
+      uploadedFileInfo || undefined
     );
     
     if (candidateId) {
@@ -168,6 +188,7 @@ export function CvUploadDialog({
     setParsedData(null);
     setEditMode(false);
     setSelectedFile(null);
+    setUploadedFileInfo(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
