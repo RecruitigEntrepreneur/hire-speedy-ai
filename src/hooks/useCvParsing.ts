@@ -145,7 +145,8 @@ export function useCvParsing() {
     parsedData: ParsedCVData,
     cvRawText: string,
     recruiterId: string,
-    existingCandidateId?: string
+    existingCandidateId?: string,
+    cvFileInfo?: { fileName: string; fileUrl: string; fileSize: number; mimeType: string }
   ): Promise<string | null> => {
     setSaving(true);
     setError(null);
@@ -288,6 +289,44 @@ export function useCvParsing() {
           .insert(skillsData);
 
         if (skillError) console.error('Error inserting skills:', skillError);
+      }
+
+      // Save CV document to candidate_documents table
+      if (cvFileInfo) {
+        // Mark previous versions as not current
+        await supabase
+          .from('candidate_documents')
+          .update({ is_current: false })
+          .eq('candidate_id', candidateId)
+          .eq('document_type', 'cv');
+
+        // Get current max version
+        const { data: existingDocs } = await supabase
+          .from('candidate_documents')
+          .select('version')
+          .eq('candidate_id', candidateId)
+          .eq('document_type', 'cv')
+          .order('version', { ascending: false })
+          .limit(1);
+
+        const newVersion = (existingDocs?.[0]?.version || 0) + 1;
+
+        // Insert new CV document
+        const { error: docError } = await supabase
+          .from('candidate_documents')
+          .insert({
+            candidate_id: candidateId,
+            document_type: 'cv',
+            version: newVersion,
+            file_name: cvFileInfo.fileName,
+            file_url: cvFileInfo.fileUrl,
+            file_size: cvFileInfo.fileSize,
+            mime_type: cvFileInfo.mimeType,
+            is_current: true,
+            uploaded_by: recruiterId,
+          });
+
+        if (docError) console.error('Error inserting document:', docError);
       }
 
       toast.success(existingCandidateId ? 'Kandidat aktualisiert' : 'Kandidat erstellt');
