@@ -101,6 +101,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const adminNavItems: NavItem[] = [
     { label: 'Übersicht', href: '/admin', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Benutzer', href: '/admin/users', icon: <UsersRound className="h-4 w-4" /> },
     { label: 'Kunden', href: '/admin/clients', icon: <Building2 className="h-4 w-4" /> },
     { label: 'Recruiter', href: '/admin/recruiters', icon: <Users className="h-4 w-4" /> },
     { label: 'Alle Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
@@ -111,6 +112,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Activity', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
     { label: 'Fraud', href: '/admin/fraud', icon: <AlertTriangle className="h-4 w-4" /> },
+    { label: 'Rechnungen', href: '/admin/invoices', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
   ];
