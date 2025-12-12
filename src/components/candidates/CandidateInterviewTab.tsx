@@ -27,12 +27,17 @@ import {
   Users,
   Plus,
   X,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Candidate } from './CandidateCard';
 import { useInterviewNotes, InterviewNotesFormData } from '@/hooks/useInterviewNotes';
 import { useAuth } from '@/lib/auth';
+import { useAIAssessment } from '@/hooks/useAIAssessment';
+import { AIAssessmentCard } from '@/components/interview-intelligence/AIAssessmentCard';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CandidateInterviewTabProps {
   candidate: Candidate;
@@ -57,18 +62,33 @@ const MOTIVATION_TAGS = [
 export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateInterviewTabProps) {
   const { user } = useAuth();
   const { notes, loading, saving, saveNotes, getFormData, emptyFormData } = useInterviewNotes(candidate.id);
+  const { assessment, processing, processInterviewNotes } = useAIAssessment(candidate.id);
   const [formData, setFormData] = useState<InterviewNotesFormData>(emptyFormData);
   const [newRequirement, setNewRequirement] = useState('');
+  const [recruiterProfile, setRecruiterProfile] = useState<any>(null);
 
-  // Template variables
+  // Fetch recruiter profile for dynamic template variables
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+      if (data) setRecruiterProfile(data);
+    };
+    fetchProfile();
+  }, [user?.id]);
+
+  // Template variables - now dynamically from recruiter profile
   const candidateParts = candidate.full_name.split(' ');
   const templateVars = {
     anrede: candidateParts[0]?.toLowerCase().includes('frau') ? 'Frau' : 'Herr',
     kandidat_vorname: candidateParts[0] || '',
     kandidat_nachname: candidateParts.slice(1).join(' ') || '',
-    recruiter_name: user?.user_metadata?.full_name || 'Recruiter',
-    recruiter_title: 'Talent Acquisition Manager',
-    firma_name: 'B&B',
+    recruiter_firstname: recruiterProfile?.full_name?.split(' ')[0] || 'Recruiter',
+    recruiter_lastname: recruiterProfile?.full_name?.split(' ').slice(1).join(' ') || '',
+    recruiter_fullname: recruiterProfile?.full_name || user?.user_metadata?.full_name || 'Recruiter',
+    recruiter_role: recruiterProfile?.role_title || 'Talent Acquisition Manager',
+    company_name: recruiterProfile?.company_name || 'TrustBridge',
+    interview_date: format(new Date(), 'dd.MM.yyyy', { locale: de }),
   };
 
   useEffect(() => {
@@ -170,10 +190,10 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
           <div className="p-4 bg-background rounded-lg border">
             <p className="font-medium mb-2">Begrüßung:</p>
             <p className="text-muted-foreground italic">
-              „Hallo {templateVars.anrede} {templateVars.kandidat_nachname}, ich bin {templateVars.recruiter_name} von {templateVars.firma_name}. Wie geht es Ihnen heute?"
+              „Hallo {templateVars.anrede} {templateVars.kandidat_nachname}, ich bin {templateVars.recruiter_fullname} von {templateVars.company_name}. Wie geht es Ihnen heute?"
             </p>
             <p className="text-muted-foreground italic mt-2">
-              „Bitte erlauben Sie, dass ich mich kurz vorstelle: Ich bin {templateVars.recruiter_name}, {templateVars.recruiter_title} bei {templateVars.firma_name}. In den letzten 6 Jahren habe ich über 400 Menschen erfolgreich vermittelt."
+              „Bitte erlauben Sie, dass ich mich kurz vorstelle: Ich bin {templateVars.recruiter_fullname}, {templateVars.recruiter_role} bei {templateVars.company_name}. In den letzten 6 Jahren habe ich über 400 Menschen erfolgreich vermittelt."
             </p>
             <p className="text-muted-foreground italic mt-2">
               „Ich sage immer: Es gibt weder den perfekten Bewerber noch das perfekte Unternehmen, sondern nur Menschen mit eigenen Werten und Zielen. Und nur wenn diese im Einklang sind, entsteht eine langfristige Zusammenarbeit."
