@@ -30,8 +30,11 @@ import {
   DollarSign,
   Building2,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Home,
+  Calendar
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { useJobParsing, ParsedJobData } from '@/hooks/useJobParsing';
 import { Badge } from '@/components/ui/badge';
 import { FileUpload } from '@/components/files/FileUpload';
@@ -63,6 +66,10 @@ export default function CreateJob() {
     skills: '',
     must_haves: '',
     nice_to_haves: '',
+    // Remote-Policy Felder
+    office_address: '',
+    remote_policy: 'hybrid',
+    onsite_days_required: '3',
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -70,7 +77,8 @@ export default function CreateJob() {
   };
 
   const applyParsedData = (data: ParsedJobData) => {
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       title: data.title || '',
       company_name: data.company_name || '',
       description: data.description || '',
@@ -84,7 +92,7 @@ export default function CreateJob() {
       skills: data.skills?.join(', ') || '',
       must_haves: data.must_haves?.join(', ') || '',
       nice_to_haves: data.nice_to_haves?.join(', ') || '',
-    });
+    }));
     setImportedData(data);
     setActiveTab('quick');
   };
@@ -158,6 +166,9 @@ export default function CreateJob() {
           must_haves: mustHavesArray,
           nice_to_haves: niceToHavesArray,
           status: publish ? 'published' : 'draft',
+          office_address: formData.office_address || null,
+          remote_policy: formData.remote_policy || null,
+          onsite_days_required: formData.remote_policy === 'hybrid' ? parseInt(formData.onsite_days_required) : null,
         })
         .select()
         .single();
@@ -370,6 +381,73 @@ export default function CreateJob() {
                       </Select>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Remote-Policy Section */}
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Home className="h-5 w-5" />
+                    Remote-Policy & Büro
+                  </CardTitle>
+                  <CardDescription>Legen Sie fest, wie viele Tage vor Ort gearbeitet werden müssen</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Remote-Policy</Label>
+                      <Select
+                        value={formData.remote_policy}
+                        onValueChange={(value) => handleInputChange('remote_policy', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="full_remote">Vollständig Remote</SelectItem>
+                          <SelectItem value="hybrid">Hybrid</SelectItem>
+                          <SelectItem value="onsite_only">Nur vor Ort</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="office_address">Büro-Adresse</Label>
+                      <Input
+                        id="office_address"
+                        placeholder="z.B. Friedrichstraße 123, 10117 Berlin"
+                        value={formData.office_address}
+                        onChange={(e) => handleInputChange('office_address', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {formData.remote_policy === 'hybrid' && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <Label className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Pflicht-Tage vor Ort pro Woche
+                        </Label>
+                        <span className="text-sm font-medium">
+                          {formData.onsite_days_required} Tag{parseInt(formData.onsite_days_required) !== 1 ? 'e' : ''}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[parseInt(formData.onsite_days_required) || 0]}
+                        onValueChange={([value]) => handleInputChange('onsite_days_required', value.toString())}
+                        min={0}
+                        max={5}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>0 (sehr flexibel)</span>
+                        <span>3 (Standard)</span>
+                        <span>5 (täglich)</span>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

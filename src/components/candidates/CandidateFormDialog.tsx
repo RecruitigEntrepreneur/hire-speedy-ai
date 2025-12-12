@@ -14,9 +14,10 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Loader2, User, Briefcase, Euro, FileText, Plus, X, 
   MapPin, Globe, Phone, Mail, Linkedin, Github, ExternalLink,
-  Award, Target, Building2, Calendar, Clock, Sparkles
+  Award, Target, Building2, Calendar, Clock, Sparkles, Car
 } from 'lucide-react';
 import { Candidate } from './CandidateCard';
+import { CommutePreferencesCard } from './CommutePreferencesCard';
 
 interface CandidateFormDialogProps {
   open: boolean;
@@ -40,6 +41,14 @@ interface FormData {
   website_url: string;
   visa_required: boolean;
   work_permit_notes: string;
+  
+  // Pendel & Remote-Präferenzen
+  max_commute_minutes: number;
+  commute_mode: string;
+  address_street: string;
+  address_zip: string;
+  remote_days_preferred: number;
+  remote_flexibility: string;
   
   // Beruf & Skills
   job_title: string;
@@ -89,6 +98,8 @@ const initialFormData: FormData = {
   full_name: '', email: '', phone: '', city: '', nationality: '', residence_status: '',
   linkedin_url: '', github_url: '', portfolio_url: '', website_url: '',
   visa_required: false, work_permit_notes: '',
+  max_commute_minutes: 30, commute_mode: 'car', address_street: '', address_zip: '',
+  remote_days_preferred: 2, remote_flexibility: 'flexible',
   job_title: '', company: '', seniority: '', work_model: '', experience_years: '',
   skills: '', specializations: [], industry_experience: [], soft_skills: [], certificates: [],
   project_metrics: { max_team_size: '', max_budget: '', locations_managed: '', units_delivered: '' },
@@ -217,6 +228,12 @@ export function CandidateFormDialog({
         website_url: candidate.website_url || '',
         visa_required: candidate.visa_required || false,
         work_permit_notes: candidate.work_permit_notes || '',
+        max_commute_minutes: candidate.max_commute_minutes || 30,
+        commute_mode: candidate.commute_mode || 'car',
+        address_street: candidate.address_street || '',
+        address_zip: candidate.address_zip || '',
+        remote_days_preferred: candidate.remote_days_preferred || 2,
+        remote_flexibility: candidate.remote_flexibility || 'flexible',
         job_title: candidate.job_title || '',
         company: candidate.company || '',
         seniority: candidate.seniority || '',
@@ -271,6 +288,14 @@ export function CandidateFormDialog({
       website_url: formData.website_url || null,
       visa_required: formData.visa_required,
       work_permit_notes: formData.work_permit_notes || null,
+      // Pendel & Remote
+      max_commute_minutes: formData.max_commute_minutes,
+      commute_mode: formData.commute_mode || null,
+      address_street: formData.address_street || null,
+      address_zip: formData.address_zip || null,
+      remote_days_preferred: formData.remote_days_preferred,
+      remote_flexibility: formData.remote_flexibility || null,
+      // Beruf
       job_title: formData.job_title || null,
       company: formData.company || null,
       seniority: formData.seniority || null,
@@ -411,6 +436,29 @@ export function CandidateFormDialog({
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Pendel & Remote Card */}
+              <CommutePreferencesCard
+                data={{
+                  max_commute_minutes: formData.max_commute_minutes,
+                  commute_mode: formData.commute_mode,
+                  address_street: formData.address_street,
+                  address_city: formData.city,
+                  address_zip: formData.address_zip,
+                  remote_days_preferred: formData.remote_days_preferred,
+                  remote_flexibility: formData.remote_flexibility,
+                }}
+                onChange={(updates) => {
+                  if (updates.max_commute_minutes !== undefined) updateField('max_commute_minutes', updates.max_commute_minutes);
+                  if (updates.commute_mode !== undefined) updateField('commute_mode', updates.commute_mode);
+                  if (updates.address_street !== undefined) updateField('address_street', updates.address_street);
+                  if (updates.address_city !== undefined) updateField('city', updates.address_city);
+                  if (updates.address_zip !== undefined) updateField('address_zip', updates.address_zip);
+                  if (updates.remote_days_preferred !== undefined) updateField('remote_days_preferred', updates.remote_days_preferred);
+                  if (updates.remote_flexibility !== undefined) updateField('remote_flexibility', updates.remote_flexibility);
+                }}
+                showAddress={true}
+              />
               
               <Card>
                 <CardHeader className="pb-3">

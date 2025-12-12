@@ -192,6 +192,32 @@ async function getRoutingTime(
     }
   }
 
+  // OSRM - Free routing API (no API key required!)
+  try {
+    const osrmProfile = mode === "bike" ? "bike" : mode === "foot" ? "foot" : "car";
+    console.log(`Trying OSRM with profile: ${osrmProfile}`);
+    
+    const osrmResponse = await fetch(
+      `https://router.project-osrm.org/route/v1/${osrmProfile}/` +
+      `${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false`,
+      { headers: { "User-Agent": "RecruitingPlatform/1.0" } }
+    );
+
+    const osrmData = await osrmResponse.json();
+    
+    if (osrmData.code === "Ok" && osrmData.routes?.[0]) {
+      const route = osrmData.routes[0];
+      const durationMinutes = Math.ceil(route.duration / 60);
+      const distanceKm = route.distance / 1000;
+
+      await cacheRoute(supabase, origin.lat, origin.lng, destination.lat, destination.lng, mode, durationMinutes, distanceKm);
+      console.log(`OSRM route: ${durationMinutes} min, ${distanceKm.toFixed(1)} km`);
+      return { duration: durationMinutes, distance: distanceKm };
+    }
+  } catch (osrmError) {
+    console.error("OSRM API error:", osrmError);
+  }
+
   // Fallback: Estimate based on Haversine distance
   const R = 6371; // Earth's radius in km
   const dLat = (destination.lat - origin.lat) * Math.PI / 180;
@@ -209,7 +235,7 @@ async function getRoutingTime(
   const durationMinutes = Math.ceil((roadDistance / speed) * 60);
 
   await cacheRoute(supabase, origin.lat, origin.lng, destination.lat, destination.lng, mode, durationMinutes, roadDistance);
-  console.log(`Estimated route (no API): ${durationMinutes} min, ${roadDistance.toFixed(1)} km`);
+  console.log(`Estimated route (Haversine fallback): ${durationMinutes} min, ${roadDistance.toFixed(1)} km`);
   
   return { duration: durationMinutes, distance: roadDistance };
 }

@@ -85,6 +85,15 @@ export interface Candidate {
   salary_expectation_max?: number | null;
   cv_ai_summary?: string | null;
   cv_ai_bullets?: string[] | null;
+  // Pendel & Remote-Präferenzen
+  max_commute_minutes?: number | null;
+  commute_mode?: string | null;
+  address_street?: string | null;
+  address_zip?: string | null;
+  address_lat?: number | null;
+  address_lng?: number | null;
+  remote_days_preferred?: number | null;
+  remote_flexibility?: string | null;
 }
 
 interface CandidateCardProps {
