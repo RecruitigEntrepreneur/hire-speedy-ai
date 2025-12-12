@@ -10,8 +10,13 @@ export interface ClientTask {
   urgency: 'critical' | 'warning' | 'normal';
   submissionId?: string;
   jobId?: string;
+  candidateId?: string;
   candidateName?: string;
+  candidateAnonymousId?: string;
   jobTitle?: string;
+  jobIndustry?: string;
+  interviewId?: string;
+  offerId?: string;
   hoursWaiting?: number;
   createdAt: string;
 }
@@ -48,7 +53,7 @@ export function useClientTasks() {
           id,
           submitted_at,
           candidate:candidates(id, full_name),
-          job:jobs!inner(id, title, client_id)
+          job:jobs!inner(id, title, industry, client_id)
         `)
         .eq('jobs.client_id', user.id)
         .eq('status', 'submitted')
@@ -63,6 +68,9 @@ export function useClientTasks() {
           if (hoursWaiting >= 24) urgency = 'critical';
           else if (hoursWaiting >= 12) urgency = 'warning';
 
+          // Generate anonymous ID for triple-blind
+          const anonymousId = `${sub.job?.title?.slice(0, 2).toUpperCase() || 'XX'}-${sub.id.slice(0, 6).toUpperCase()}`;
+
           taskList.push({
             id: `decision-${sub.id}`,
             type: 'decision',
@@ -71,8 +79,11 @@ export function useClientTasks() {
             urgency,
             submissionId: sub.id,
             jobId: sub.job?.id,
+            candidateId: sub.candidate?.id,
             candidateName: sub.candidate?.full_name,
+            candidateAnonymousId: anonymousId,
             jobTitle: sub.job?.title,
+            jobIndustry: sub.job?.industry || 'IT',
             hoursWaiting,
             createdAt: sub.submitted_at,
           });
@@ -90,7 +101,7 @@ export function useClientTasks() {
           submission:submissions!inner(
             id,
             candidate:candidates(id, full_name),
-            job:jobs!inner(id, title, client_id)
+            job:jobs!inner(id, title, industry, client_id)
           )
         `)
         .eq('submission.job.client_id', user.id)
@@ -111,6 +122,8 @@ export function useClientTasks() {
             ? `Interview terminieren: ${interview.submission?.candidate?.full_name || 'Kandidat'}`
             : `Interview bestätigen: ${interview.submission?.candidate?.full_name || 'Kandidat'}`;
 
+          const anonymousId = `${interview.submission?.job?.title?.slice(0, 2).toUpperCase() || 'XX'}-${interview.submission?.id?.slice(0, 6).toUpperCase() || '000000'}`;
+
           taskList.push({
             id: `interview-${interview.id}`,
             type: 'interview',
@@ -119,8 +132,12 @@ export function useClientTasks() {
             urgency,
             submissionId: interview.submission?.id,
             jobId: interview.submission?.job?.id,
+            candidateId: interview.submission?.candidate?.id,
             candidateName: interview.submission?.candidate?.full_name,
+            candidateAnonymousId: anonymousId,
             jobTitle: interview.submission?.job?.title,
+            jobIndustry: interview.submission?.job?.industry || 'IT',
+            interviewId: interview.id,
             hoursWaiting,
             createdAt: interview.created_at,
           });
@@ -137,7 +154,7 @@ export function useClientTasks() {
           submission:submissions!inner(
             id,
             candidate:candidates(id, full_name),
-            job:jobs!inner(id, title, client_id)
+            job:jobs!inner(id, title, industry, client_id)
           )
         `)
         .eq('submission.job.client_id', user.id)
@@ -160,8 +177,11 @@ export function useClientTasks() {
             urgency,
             submissionId: offer.submission?.id,
             jobId: offer.submission?.job?.id,
+            candidateId: offer.submission?.candidate?.id,
             candidateName: offer.submission?.candidate?.full_name,
             jobTitle: offer.submission?.job?.title,
+            jobIndustry: offer.submission?.job?.industry || 'IT',
+            offerId: offer.id,
             hoursWaiting,
             createdAt: offer.created_at,
           });
