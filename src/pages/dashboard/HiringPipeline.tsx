@@ -4,12 +4,10 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { PipelineColumn, PipelineColumnSkeleton } from '@/components/pipeline/PipelineColumn';
 import { useHiringPipeline, PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
@@ -18,15 +16,15 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft,
   Briefcase,
-  Users,
-  Loader2,
-  LayoutGrid
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 export default function HiringPipeline() {
   const { jobId } = useParams<{ jobId?: string }>();
   const [searchParams] = useSearchParams();
   const initialJobId = jobId || searchParams.get('job') || undefined;
+  const [jobSelectorOpen, setJobSelectorOpen] = useState(false);
   
   const {
     jobs,
@@ -70,8 +68,12 @@ export default function HiringPipeline() {
     }
   };
 
+  const handleSelectJob = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setJobSelectorOpen(false);
+  };
+
   // Stats for the selected job
-  const totalCandidates = candidates.length;
   const stageCounts = PIPELINE_STAGES.reduce((acc, stage) => {
     acc[stage.key] = getCandidatesByStage(stage.key).length;
     return acc;
@@ -79,73 +81,71 @@ export default function HiringPipeline() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Back Link */}
-        <Link 
-          to="/dashboard" 
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Zurück zum Dashboard
-        </Link>
-
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-              <LayoutGrid className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Hiring Pipeline</h1>
-              <p className="text-muted-foreground">
-                {selectedJob ? selectedJob.title : 'Wählen Sie einen Job'}
-              </p>
-            </div>
-          </div>
-
-          {/* Job Selector */}
-          <div className="flex items-center gap-3">
-            <Select value={selectedJobId} onValueChange={setSelectedJobId}>
-              <SelectTrigger className="w-[280px]">
-                <Briefcase className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Job auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {jobs.map((job) => (
-                  <SelectItem key={job.id} value={job.id}>
-                    {job.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Stats Row */}
-        {selectedJobId && !loading && (
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{totalCandidates}</span>
-              <span className="text-muted-foreground">Kandidaten gesamt</span>
-            </div>
-            {PIPELINE_STAGES.slice(0, 4).map((stage) => (
-              <div key={stage.key} className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${stage.color}`} />
-                <span className="font-medium">{stageCounts[stage.key] || 0}</span>
-                <span className="text-muted-foreground">{stage.label}</span>
+      <div className="space-y-4">
+        {/* Compact Header */}
+        <div className="flex items-center gap-3">
+          <Link 
+            to="/dashboard" 
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          
+          <Popover open={jobSelectorOpen} onOpenChange={setJobSelectorOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="text-lg font-semibold gap-2 px-2 h-auto py-1"
+              >
+                {selectedJob?.title || 'Job auswählen'}
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-1" align="start">
+              <div className="space-y-0.5">
+                {jobs.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                    Keine Jobs vorhanden
+                  </div>
+                ) : (
+                  jobs.map((job) => (
+                    <button
+                      key={job.id}
+                      onClick={() => handleSelectJob(job.id)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent text-left transition-colors"
+                    >
+                      <span className="flex-1 truncate">{job.title}</span>
+                      {job.id === selectedJobId && (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                    </button>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
-        )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Inline Stats */}
+          {selectedJobId && !loading && (
+            <div className="hidden md:flex items-center gap-4 ml-4 text-xs text-muted-foreground">
+              {PIPELINE_STAGES.map((stage) => (
+                <span key={stage.key} className="flex items-center gap-1.5">
+                  <span className={`h-1.5 w-1.5 rounded-full ${stage.color}`} />
+                  <span className="font-medium text-foreground">{stageCounts[stage.key] || 0}</span>
+                  <span>{stage.label}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* No Job Selected */}
         {!selectedJobId && !loading && (
           <Card className="border-border/50">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Briefcase className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="font-medium text-muted-foreground">Kein Job ausgewählt</h3>
-              <p className="text-sm text-muted-foreground/70 mb-4">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Briefcase className="h-10 w-10 text-muted-foreground/50 mb-3" />
+              <h3 className="font-medium text-muted-foreground text-sm">Kein Job ausgewählt</h3>
+              <p className="text-xs text-muted-foreground/70 mb-3">
                 Wählen Sie einen Job, um die Pipeline anzuzeigen
               </p>
               {jobs.length === 0 && (
@@ -162,7 +162,7 @@ export default function HiringPipeline() {
         {/* Pipeline Board */}
         {selectedJobId && (
           <ScrollArea className="w-full">
-            <div className="flex gap-4 pb-4 min-h-[calc(100vh-280px)]">
+            <div className="flex gap-3 pb-4 min-h-[calc(100vh-160px)]">
               {loading ? (
                 PIPELINE_STAGES.map((stage) => (
                   <PipelineColumnSkeleton key={stage.key} />
