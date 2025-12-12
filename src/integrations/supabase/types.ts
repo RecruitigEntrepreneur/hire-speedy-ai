@@ -2777,6 +2777,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          briefing_notes: string | null
           client_id: string
           commute_flexibility: string | null
           company_name: string
@@ -2811,6 +2812,7 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
+          briefing_notes?: string | null
           client_id: string
           commute_flexibility?: string | null
           company_name: string
@@ -2845,6 +2847,7 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
+          briefing_notes?: string | null
           client_id?: string
           commute_flexibility?: string | null
           company_name?: string
