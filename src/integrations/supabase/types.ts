@@ -3081,6 +3081,138 @@ export type Database = {
           },
         ]
       }
+      match_outcomes: {
+        Row: {
+          actual_outcome: string | null
+          candidate_id: string | null
+          created_at: string | null
+          days_to_outcome: number | null
+          gate_results: Json | null
+          id: string
+          job_id: string | null
+          match_version: string
+          outcome_recorded_at: string | null
+          outcome_stage: string | null
+          predicted_constraint_score: number | null
+          predicted_deal_probability: number | null
+          predicted_fit_score: number | null
+          predicted_overall_score: number | null
+          rejection_category: string | null
+          rejection_reason: string | null
+          submission_id: string | null
+        }
+        Insert: {
+          actual_outcome?: string | null
+          candidate_id?: string | null
+          created_at?: string | null
+          days_to_outcome?: number | null
+          gate_results?: Json | null
+          id?: string
+          job_id?: string | null
+          match_version?: string
+          outcome_recorded_at?: string | null
+          outcome_stage?: string | null
+          predicted_constraint_score?: number | null
+          predicted_deal_probability?: number | null
+          predicted_fit_score?: number | null
+          predicted_overall_score?: number | null
+          rejection_category?: string | null
+          rejection_reason?: string | null
+          submission_id?: string | null
+        }
+        Update: {
+          actual_outcome?: string | null
+          candidate_id?: string | null
+          created_at?: string | null
+          days_to_outcome?: number | null
+          gate_results?: Json | null
+          id?: string
+          job_id?: string | null
+          match_version?: string
+          outcome_recorded_at?: string | null
+          outcome_stage?: string | null
+          predicted_constraint_score?: number | null
+          predicted_deal_probability?: number | null
+          predicted_fit_score?: number | null
+          predicted_overall_score?: number | null
+          rejection_category?: string | null
+          rejection_reason?: string | null
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_outcomes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matching_config: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string | null
+          gate_thresholds: Json
+          id: string
+          name: string | null
+          updated_at: string | null
+          version: string
+          weights: Json
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          gate_thresholds?: Json
+          id?: string
+          name?: string | null
+          updated_at?: string | null
+          version: string
+          weights?: Json
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          gate_thresholds?: Json
+          id?: string
+          name?: string | null
+          updated_at?: string | null
+          version?: string
+          weights?: Json
+        }
+        Relationships: []
+      }
       message_templates: {
         Row: {
           body: string
@@ -4453,6 +4585,53 @@ export type Database = {
           origin_lng?: number
         }
         Relationships: []
+      }
+      skill_taxonomy: {
+        Row: {
+          aliases: string[] | null
+          canonical_name: string
+          category: string | null
+          created_at: string | null
+          id: string
+          parent_skill_id: string | null
+          related_skills: string[] | null
+          seniority_weight: number | null
+          transferability_from: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          aliases?: string[] | null
+          canonical_name: string
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          parent_skill_id?: string | null
+          related_skills?: string[] | null
+          seniority_weight?: number | null
+          transferability_from?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          aliases?: string[] | null
+          canonical_name?: string
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          parent_skill_id?: string | null
+          related_skills?: string[] | null
+          seniority_weight?: number | null
+          transferability_from?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_taxonomy_parent_skill_id_fkey"
+            columns: ["parent_skill_id"]
+            isOneToOne: false
+            referencedRelation: "skill_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sla_deadlines: {
         Row: {

@@ -3,10 +3,22 @@ project_id = "dngycrrhbnwdohbftpzq"
 [functions.calculate-match-v2]
 verify_jwt = true
 
+[functions.calculate-match-v3]
+verify_jwt = true
+
 [functions.calculate-scores]
 verify_jwt = false
 
 [functions.candidate-summary]
+verify_jwt = true
+
+[functions.candidate-retrieval]
+verify_jwt = true
+
+[functions.normalize-skills]
+verify_jwt = true
+
+[functions.track-match-outcome]
 verify_jwt = true
 
 [functions.send-email]
