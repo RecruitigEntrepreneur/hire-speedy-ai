@@ -333,282 +333,241 @@ export function CandidateDetailPanel({
         </div>
 
         {/* Content Tabs - flex-1 with proper height calculation */}
-        <Tabs defaultValue="match" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-2 mb-0 grid w-auto grid-cols-4 shrink-0">
-            <TabsTrigger value="match" className="text-xs">Passung</TabsTrigger>
-            <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
+        <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mx-4 mt-2 mb-0 grid w-auto grid-cols-3 shrink-0">
+            <TabsTrigger value="overview" className="text-xs">Übersicht</TabsTrigger>
             <TabsTrigger value="timeline" className="text-xs">Timeline</TabsTrigger>
             <TabsTrigger value="notes" className="text-xs">Notizen</TabsTrigger>
           </TabsList>
 
-          {/* PASSUNG TAB */}
-          <TabsContent value="match" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+          {/* ÜBERSICHT TAB - Kombiniert Passung + Profil */}
+          <TabsContent value="overview" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
             <ScrollArea className="h-full">
-              <div className="p-4 space-y-4">
-                {matchLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <div key={i} className="space-y-2">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-2 w-full" />
-                      </div>
-                    ))}
-                  </div>
-                ) : matchResult ? (
-                  <>
-                    {/* Deal Probability */}
-                    <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">Deal-Wahrscheinlichkeit</span>
-                        <span className="font-bold">{matchResult.dealProbability}%</span>
-                      </div>
-                      <Progress value={matchResult.dealProbability} className="h-2" />
+              <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {/* LINKE SPALTE (3/5) - Profil-Infos */}
+                  <div className="md:col-span-3 space-y-4">
+                    {/* Job Info */}
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5" />
+                        Bewirbt sich für
+                      </p>
+                      <p className="font-medium text-sm">{candidate.jobTitle}</p>
                     </div>
 
-                    {/* Factor Breakdown */}
-                    <div className="space-y-3">
-                      <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                        <TrendingUp className="h-3.5 w-3.5" />
-                        Faktor-Breakdown
-                      </div>
-                      
-                      {Object.entries(matchResult.factors).map(([key, factor]) => {
-                        const config = factorConfig[key as keyof typeof factorConfig];
-                        if (!config) return null;
-                        
-                        const Icon = config.icon;
-                        
-                        return (
-                          <div key={key} className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Icon className={cn("h-4 w-4", config.color)} />
-                                <span className="text-sm">{config.label}</span>
-                                {factor.warning && (
-                                  <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                )}
-                                {factor.isBlocker && (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Blocker</Badge>
-                                )}
-                              </div>
-                              <span className={cn("text-sm font-medium", 
-                                factor.score >= 70 ? 'text-green-600' : 
-                                factor.score >= 50 ? 'text-amber-600' : 'text-red-600'
-                              )}>
-                                {factor.score}%
-                              </span>
-                            </div>
-                            
-                            <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className={cn("absolute h-full rounded-full transition-all", getProgressColor(factor.score))}
-                                style={{ width: `${factor.score}%` }}
-                              />
-                            </div>
-                            
-                            {factor.aiReasoning && (
-                              <p className="text-xs text-muted-foreground pl-6">
-                                {factor.aiReasoning}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Blockers */}
-                    {matchResult.blockers.length > 0 && (
-                      <div className="space-y-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                        <div className="flex items-center gap-2 text-destructive font-medium text-sm">
-                          <XCircle className="h-4 w-4" />
-                          Kritische Blocker
-                        </div>
-                        {matchResult.blockers.map((blocker, i) => (
-                          <div key={i} className="text-xs text-destructive/80 pl-6">
-                            <strong>{factorConfig[blocker.factor as keyof typeof factorConfig]?.label || blocker.factor}:</strong> {blocker.reason}
-                          </div>
-                        ))}
+                    {/* AI Short Profile */}
+                    {(candidate.cvAiBullets?.length || candidate.cvAiSummary) && (
+                      <div className="rounded-lg border p-3 space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Brain className="h-3.5 w-3.5" />
+                          Kurzprofil (KI-generiert)
+                        </p>
+                        {candidate.cvAiBullets?.length ? (
+                          <ul className="space-y-1">
+                            {candidate.cvAiBullets.slice(0, 4).map((bullet, i) => (
+                              <li key={i} className="text-sm flex items-start gap-2">
+                                <span className="text-primary mt-0.5">•</span>
+                                {bullet}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : candidate.cvAiSummary ? (
+                          <p className="text-sm text-muted-foreground">{candidate.cvAiSummary}</p>
+                        ) : null}
                       </div>
                     )}
 
-                    {/* Warnings */}
-                    {matchResult.warnings.length > 0 && (
-                      <div className="space-y-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium text-sm">
-                          <AlertTriangle className="h-4 w-4" />
-                          Hinweise
+                    {/* Skills */}
+                    {candidate.skills?.length ? (
+                      <div className="rounded-lg border p-3 space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Target className="h-3.5 w-3.5" />
+                          Top-Skills
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {candidate.skills.slice(0, 10).map((skill, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {candidate.skills.length > 10 && (
+                            <Badge variant="outline" className="text-xs text-muted-foreground">
+                              +{candidate.skills.length - 10}
+                            </Badge>
+                          )}
                         </div>
-                        {matchResult.warnings.map((warning, i) => (
-                          <div key={i} className="text-xs text-amber-700 dark:text-amber-400 pl-6">
-                            • {warning.message}
-                          </div>
-                        ))}
                       </div>
-                    )}
+                    ) : null}
 
-                    {/* Recommendations */}
-                    {matchResult.recommendations.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    {/* Professional Context + Availability combined */}
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5" />
+                        Kontext & Verfügbarkeit
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                        {candidate.company && (
+                          <>
+                            <span className="text-muted-foreground">Aktuell bei</span>
+                            <span className="font-medium">{candidate.company}</span>
+                          </>
+                        )}
+                        {candidate.currentSalary && (
+                          <>
+                            <span className="text-muted-foreground">Gehalt aktuell</span>
+                            <span>{formatSalary(candidate.currentSalary)}</span>
+                          </>
+                        )}
+                        {candidate.expectedSalary && (
+                          <>
+                            <span className="text-muted-foreground">Erwartung</span>
+                            <span className="font-medium">{formatSalary(candidate.expectedSalary)}</span>
+                          </>
+                        )}
+                        {candidate.noticePeriod && (
+                          <>
+                            <span className="text-muted-foreground">Kündigungsfrist</span>
+                            <span>{candidate.noticePeriod}</span>
+                          </>
+                        )}
+                        {candidate.availabilityDate && (
+                          <>
+                            <span className="text-muted-foreground">Verfügbar ab</span>
+                            <span>{format(new Date(candidate.availabilityDate), 'dd.MM.yyyy', { locale: de })}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Interview Highlights */}
+                    {candidate.exposeHighlights?.length ? (
+                      <div className="rounded-lg border p-3 space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Empfehlungen
-                        </div>
-                        <ul className="space-y-1 pl-6">
-                          {matchResult.recommendations.map((rec, i) => (
-                            <li key={i} className="text-xs text-muted-foreground list-disc">
-                              {rec}
+                          Interview-Highlights
+                        </p>
+                        <ul className="space-y-1">
+                          {candidate.exposeHighlights.slice(0, 3).map((highlight, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-green-500 mt-0.5">✓</span>
+                              {highlight}
                             </li>
                           ))}
                         </ul>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    Keine Match-Analyse verfügbar
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          {/* PROFIL TAB */}
-          <TabsContent value="profile" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-4">
-                {/* Job Info */}
-                <div className="rounded-lg border p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <Briefcase className="h-3.5 w-3.5" />
-                    Bewirbt sich für
-                  </p>
-                  <p className="font-medium text-sm">{candidate.jobTitle}</p>
-                </div>
-
-                {/* AI Short Profile */}
-                {(candidate.cvAiBullets?.length || candidate.cvAiSummary) && (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Brain className="h-3.5 w-3.5" />
-                      Kurzprofil (KI-generiert)
-                    </p>
-                    {candidate.cvAiBullets?.length ? (
-                      <ul className="space-y-1.5">
-                        {candidate.cvAiBullets.slice(0, 5).map((bullet, i) => (
-                          <li key={i} className="text-sm flex items-start gap-2">
-                            <span className="text-primary mt-1">•</span>
-                            {bullet}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : candidate.cvAiSummary ? (
-                      <p className="text-sm text-muted-foreground">{candidate.cvAiSummary}</p>
                     ) : null}
                   </div>
-                )}
 
-                {/* Skills */}
-                {candidate.skills?.length ? (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Target className="h-3.5 w-3.5" />
-                      Top-Skills
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {candidate.skills.slice(0, 8).map((skill, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                      {candidate.skills.length > 8 && (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          +{candidate.skills.length - 8} weitere
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
+                  {/* RECHTE SPALTE (2/5) - Match-Analyse */}
+                  <div className="md:col-span-2 space-y-4">
+                    {matchLoading ? (
+                      <div className="space-y-3 p-3 rounded-lg border">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Skeleton className="h-4 w-4 rounded" />
+                            <Skeleton className="h-3 w-16" />
+                            <Skeleton className="h-2 w-20" />
+                            <Skeleton className="h-3 w-8" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : matchResult ? (
+                      <>
+                        {/* Compact Factor Breakdown */}
+                        <div className="rounded-lg border p-3 space-y-2.5">
+                          <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            Faktor-Breakdown
+                          </div>
+                          
+                          {Object.entries(matchResult.factors).map(([key, factor]) => {
+                            const config = factorConfig[key as keyof typeof factorConfig];
+                            if (!config) return null;
+                            
+                            const Icon = config.icon;
+                            
+                            return (
+                              <div key={key} className="flex items-center gap-2">
+                                <Icon className={cn("h-3.5 w-3.5 shrink-0", config.color)} />
+                                <span className="text-xs w-16 shrink-0">{config.label}</span>
+                                {factor.isBlocker && (
+                                  <XCircle className="h-3 w-3 text-destructive shrink-0" />
+                                )}
+                                {factor.warning && !factor.isBlocker && (
+                                  <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
+                                )}
+                                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-24">
+                                  <div 
+                                    className={cn("h-full rounded-full", getProgressColor(factor.score))}
+                                    style={{ width: `${factor.score}%` }}
+                                  />
+                                </div>
+                                <span className={cn(
+                                  "text-xs font-medium w-8 text-right",
+                                  factor.score >= 70 ? 'text-green-600' : 
+                                  factor.score >= 50 ? 'text-amber-600' : 'text-red-600'
+                                )}>
+                                  {factor.score}%
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
 
-                {/* Professional Context */}
-                <div className="rounded-lg border p-3 space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Briefcase className="h-3.5 w-3.5" />
-                    Beruflicher Kontext
-                  </p>
-                  <div className="grid gap-2 text-sm">
-                    {candidate.company && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Aktuell bei</span>
-                        <span className="font-medium">{candidate.company}</span>
-                      </div>
-                    )}
-                    {candidate.currentSalary && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Aktuelles Gehalt</span>
-                        <span>{formatSalary(candidate.currentSalary)}</span>
-                      </div>
-                    )}
-                    {candidate.expectedSalary && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Erwartung</span>
-                        <span className="font-medium">{formatSalary(candidate.expectedSalary)}</span>
-                      </div>
-                    )}
-                    {candidate.city && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          Standort
-                        </span>
-                        <span>{candidate.city}</span>
+                        {/* Blockers */}
+                        {matchResult.blockers.length > 0 && (
+                          <div className="space-y-1.5 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                            <div className="flex items-center gap-1.5 text-destructive font-medium text-xs">
+                              <XCircle className="h-3.5 w-3.5" />
+                              Blocker
+                            </div>
+                            {matchResult.blockers.map((blocker, i) => (
+                              <p key={i} className="text-[11px] text-destructive/80 pl-5">
+                                • {blocker.reason}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Warnings */}
+                        {matchResult.warnings.length > 0 && (
+                          <div className="space-y-1.5 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-medium text-xs">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              Hinweise
+                            </div>
+                            {matchResult.warnings.map((warning, i) => (
+                              <p key={i} className="text-[11px] text-amber-700 dark:text-amber-400 pl-5">
+                                • {warning.message}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Recommendations */}
+                        {matchResult.recommendations.length > 0 && (
+                          <div className="rounded-lg border p-3 space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Empfehlungen
+                            </div>
+                            {matchResult.recommendations.slice(0, 3).map((rec, i) => (
+                              <p key={i} className="text-[11px] text-muted-foreground pl-5">
+                                • {rec}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-6 text-sm text-muted-foreground rounded-lg border">
+                        <Target className="h-6 w-6 mx-auto mb-1.5 opacity-50" />
+                        Keine Match-Analyse
                       </div>
                     )}
                   </div>
                 </div>
-
-                {/* Availability */}
-                <div className="rounded-lg border p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Verfügbarkeit
-                  </p>
-                  <div className="grid gap-2 text-sm">
-                    {candidate.noticePeriod && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Kündigungsfrist</span>
-                        <span>{candidate.noticePeriod}</span>
-                      </div>
-                    )}
-                    {candidate.availabilityDate && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Verfügbar ab</span>
-                        <span>{format(new Date(candidate.availabilityDate), 'dd.MM.yyyy', { locale: de })}</span>
-                      </div>
-                    )}
-                    {!candidate.noticePeriod && !candidate.availabilityDate && (
-                      <span className="text-muted-foreground text-xs">Keine Angaben zur Verfügbarkeit</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Interview Highlights */}
-                {candidate.exposeHighlights?.length ? (
-                  <div className="rounded-lg border p-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Interview-Highlights
-                    </p>
-                    <ul className="space-y-1.5">
-                      {candidate.exposeHighlights.slice(0, 3).map((highlight, i) => (
-                        <li key={i} className="text-sm flex items-start gap-2">
-                          <span className="text-green-500 mt-1">✓</span>
-                          {highlight}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
               </div>
             </ScrollArea>
           </TabsContent>
