@@ -9,9 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
 import { ClientTaskWidget } from '@/components/dashboard/ClientTaskWidget';
 import { LiveJobCard } from '@/components/dashboard/LiveJobCard';
-import { NewCandidateFeed } from '@/components/dashboard/NewCandidateFeed';
 import { RecruitingHealthScore } from '@/components/dashboard/RecruitingHealthScore';
-import { ExposeQuickDecisionWidget } from '@/components/dashboard/ExposeQuickDecisionWidget';
+import { PendingDecisionsWidget } from '@/components/dashboard/PendingDecisionsWidget';
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { useJobStats } from '@/hooks/useJobStats';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -158,7 +158,7 @@ export default function ClientDashboard() {
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">Ihr Recruiting auf einen Blick.</p>
           </div>
           <Button variant="hero" asChild>
@@ -177,10 +177,10 @@ export default function ClientDashboard() {
           placements={stats.placements}
         />
 
-        {/* NEW: Quick Decision Widget - Exposé Cards für schnelle Entscheidungen */}
-        <ExposeQuickDecisionWidget maxCandidates={4} />
+        {/* Consolidated Pending Decisions Widget */}
+        <PendingDecisionsWidget maxItems={6} />
 
-        {/* Task Widget - "Was ist heute zu tun?" */}
+        {/* Task Widget */}
         <ClientTaskWidget maxTasks={5} />
 
         {/* Stats Grid */}
@@ -254,8 +254,8 @@ export default function ClientDashboard() {
             )}
           </div>
 
-          {/* New Candidates Feed */}
-          <NewCandidateFeed limit={5} />
+          {/* Activity Feed */}
+          <ActivityFeed limit={8} />
         </div>
 
         {/* Quick Actions */}

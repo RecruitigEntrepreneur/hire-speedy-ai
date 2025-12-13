@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 
 // Client Dashboard pages
 import ClientDashboard from "./pages/dashboard/ClientDashboard";
+import ClientInterviews from "./pages/dashboard/ClientInterviews";
 import JobsList from "./pages/dashboard/JobsList";
 import CreateJob from "./pages/dashboard/CreateJob";
 import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
@@ -132,7 +133,7 @@ function AppRoutes() {
       {/* Client Routes */}
       <Route path="/dashboard" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <JobCommandCenter />
+          <ClientDashboard />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/jobs" element={
@@ -140,7 +141,7 @@ function AppRoutes() {
           <JobsList />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/command-center" element={
+      <Route path="/dashboard/command/:jobId" element={
         <ProtectedRoute allowedRoles={['client']}>
           <JobCommandCenter />
         </ProtectedRoute>
@@ -160,11 +161,16 @@ function AppRoutes() {
           <TalentHub />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/interviews" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientInterviews />
+        </ProtectedRoute>
+      } />
       {/* Redirects for old routes */}
       <Route path="/dashboard/pipeline" element={<Navigate to="/dashboard/talent?view=kanban" replace />} />
       <Route path="/dashboard/pipeline/:jobId" element={<Navigate to="/dashboard/talent?view=kanban" replace />} />
-      <Route path="/dashboard/candidates" element={<Navigate to="/dashboard/talent?view=cards" replace />} />
-      <Route path="/dashboard/interviews" element={<Navigate to="/dashboard/talent?view=calendar" replace />} />
+      <Route path="/dashboard/candidates" element={<Navigate to="/dashboard/talent" replace />} />
+      <Route path="/dashboard/command-center" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/candidates/:id" element={
         <ProtectedRoute allowedRoles={['client']}>
           <CandidateDetail />

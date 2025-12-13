@@ -24,11 +24,8 @@ import {
   UsersRound,
   AlertTriangle,
   Database,
-  Plug,
   LogOut,
   User,
-  Bell,
-  LayoutGrid,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from './NotificationBell';
+import { GlobalSearch } from './GlobalSearch';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -73,9 +71,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const clientNavItems: NavItem[] = [
-    { label: 'Command Center', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Meine Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Talent Hub', href: '/dashboard/talent', icon: <Users className="h-4 w-4" /> },
+    { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Angebote', href: '/dashboard/offers', icon: <Gift className="h-4 w-4" /> },
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
@@ -136,8 +135,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <span className="text-xl font-bold tracking-tight">TalentBridge</span>
           </Link>
 
-          {/* Right Side */}
+          {/* Search */}
           <div className="flex items-center gap-3">
+            <GlobalSearch />
             <NotificationBell />
             
             <DropdownMenu>
