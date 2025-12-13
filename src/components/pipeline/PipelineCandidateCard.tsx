@@ -33,15 +33,15 @@ export function PipelineCandidateCard({
   };
 
   const getNextStage = (currentStage: string) => {
-    const stages = ['submitted', 'accepted', 'interview', 'offer', 'hired'];
+    const stages = ['submitted', 'interview_1', 'interview_2', 'offer', 'hired'];
     const currentIndex = stages.indexOf(currentStage);
     return currentIndex < stages.length - 1 ? stages[currentIndex + 1] : null;
   };
 
   const getNextStageLabel = (nextStage: string | null) => {
     const labels: Record<string, string> = {
-      accepted: 'Shortlist',
-      interview: 'Interview',
+      interview_1: 'Interview 1',
+      interview_2: 'Interview 2',
       offer: 'Angebot',
       hired: 'Eingestellt',
     };

@@ -13,15 +13,13 @@ import ClientDashboard from "./pages/dashboard/ClientDashboard";
 import JobsList from "./pages/dashboard/JobsList";
 import CreateJob from "./pages/dashboard/CreateJob";
 import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
-import ClientCandidates from "./pages/dashboard/ClientCandidates";
 import CandidateDetail from "./pages/dashboard/CandidateDetail";
-import ClientInterviews from "./pages/dashboard/ClientInterviews";
+import TalentHub from "./pages/dashboard/TalentHub";
 import ClientPlacements from "./pages/dashboard/ClientPlacements";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
 import ClientBilling from "./pages/dashboard/ClientBilling";
 import DataPrivacy from "./pages/dashboard/DataPrivacy";
-import HiringPipeline from "./pages/dashboard/HiringPipeline";
 import JobCommandCenter from "./pages/dashboard/JobCommandCenter";
 
 // Recruiter pages
@@ -157,29 +155,19 @@ function AppRoutes() {
           <ClientJobDetail />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/pipeline" element={
+      <Route path="/dashboard/talent" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <HiringPipeline />
+          <TalentHub />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/pipeline/:jobId" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <HiringPipeline />
-        </ProtectedRoute>
-      } />
-      <Route path="/dashboard/candidates" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <ClientCandidates />
-        </ProtectedRoute>
-      } />
+      {/* Redirects for old routes */}
+      <Route path="/dashboard/pipeline" element={<Navigate to="/dashboard/talent?view=kanban" replace />} />
+      <Route path="/dashboard/pipeline/:jobId" element={<Navigate to="/dashboard/talent?view=kanban" replace />} />
+      <Route path="/dashboard/candidates" element={<Navigate to="/dashboard/talent?view=cards" replace />} />
+      <Route path="/dashboard/interviews" element={<Navigate to="/dashboard/talent?view=calendar" replace />} />
       <Route path="/dashboard/candidates/:id" element={
         <ProtectedRoute allowedRoles={['client']}>
           <CandidateDetail />
-        </ProtectedRoute>
-      } />
-      <Route path="/dashboard/interviews" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <ClientInterviews />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/placements" element={
