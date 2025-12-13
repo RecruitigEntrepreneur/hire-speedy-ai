@@ -5,98 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface ParsedCVData {
-  // Stammdaten
-  full_name: string | null;
-  email: string | null;
-  phone: string | null;
-  linkedin_url: string | null;
-  location: string | null;
-  portfolio_url: string | null;
-  github_url: string | null;
-  website_url: string | null;
-  nationality: string | null;
-  residence_status: string | null;
-  
-  // Beruflicher Hintergrund
-  current_title: string | null;
-  current_company: string | null;
-  experience_years: number | null;
-  seniority: string | null;
-  
-  // AI-Zusammenfassung
-  cv_ai_summary: string | null;
-  cv_ai_bullets: string[];
-  
-  // Strukturierte Berufserfahrung
-  experiences: Array<{
-    company_name: string;
-    job_title: string;
-    location: string | null;
-    start_date: string | null;
-    end_date: string | null;
-    is_current: boolean;
-    description: string;
-  }>;
-  
-  // Strukturierte Ausbildung
-  educations: Array<{
-    institution: string;
-    degree: string | null;
-    field_of_study: string | null;
-    graduation_year: number | null;
-    grade: string | null;
-  }>;
-  
-  // Strukturierte Skills
-  skills: Array<{
-    name: string;
-    category: string | null;
-    level: string | null;
-  }>;
-  
-  // Strukturierte Sprachen
-  languages: Array<{
-    language: string;
-    proficiency: string;
-  }>;
-  
-  // Gehalt & Verfügbarkeit
-  salary_expectation_min: number | null;
-  salary_expectation_max: number | null;
-  current_salary: number | null;
-  notice_period: string | null;
-  availability_from: string | null;
-  relocation_ready: boolean;
-  remote_preference: string | null;
-  
-  // Präferenzen
-  target_roles: string[];
-  target_industries: string[];
-  target_employment_type: string | null;
-  
-  // NEU: Spezialisierungen & Soft Skills
-  specializations: string[];
-  soft_skills: string[];
-  industry_experience: string[];
-  certificates: string[];
-  
-  // NEU: Projektmetriken
-  project_metrics: {
-    max_team_size: number | null;
-    max_budget: string | null;
-    locations_managed: number | null;
-    units_delivered: string | null;
-  };
-  
-  // NEU: Exposé-Bausteine
-  expose_title: string | null;
-  expose_summary: string | null;
-  expose_highlights: string[];
-  expose_project_highlights: string[];
-  expose_certifications: string[];
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -119,43 +27,26 @@ serve(async (req) => {
 
     let textToAnalyze = cvText;
 
-    // If URL provided, we'll use it as context (actual PDF parsing would require additional setup)
     if (cvUrl && !cvText) {
       textToAnalyze = `CV URL provided: ${cvUrl}. Please analyze based on typical CV structure.`;
     }
 
     console.log("Parsing CV with Lovable AI...");
 
-    const systemPrompt = `Du bist ein erfahrener HR-Experte und CV-Parser. Analysiere den Lebenslauf und extrahiere ALLE strukturierten Daten.
+    const systemPrompt = `Du bist ein erfahrener HR-Experte und CV-Parser. Analysiere den Lebenslauf und extrahiere strukturierte Daten.
 
-WICHTIG: Extrahiere möglichst vollständig und präzise. Leite fehlende Informationen wenn möglich ab (z.B. Seniority aus Berufsjahren).
+WICHTIG: Extrahiere möglichst vollständig und präzise.
 
 REGELN:
 - Datumsformate: YYYY-MM-DD oder YYYY-MM oder YYYY
-- Seniority: "junior" (0-2 Jahre), "mid" (3-5 Jahre), "senior" (6-10 Jahre), "lead" (10+ Jahre oder Führungsrolle), "director" (C-Level/Director)
-- Sprach-Proficiency: "native" (Muttersprache), "fluent" (Fließend), "advanced" (Fortgeschritten), "intermediate" (Gut), "basic" (Grundkenntnisse)
-- Skills kategorisieren: "programming" (Sprachen/Frameworks), "tool" (Software/Tools), "soft_skill", "process" (Methoden), "domain" (Fachkenntnisse)
-- remote_preference: "remote", "hybrid", "onsite", "flexible"
-- notice_period: z.B. "immediate", "2_weeks", "1_month", "3_months"
-- residence_status: "citizen", "permanent", "work_visa", "student_visa", "pending"
+- Seniority: "junior", "mid", "senior", "lead", "director"
+- Sprach-Proficiency: "native", "fluent", "advanced", "intermediate", "basic"
+- Skills kategorisieren: "programming", "tool", "soft_skill", "process", "domain"
 
 cv_ai_summary: Schreibe eine prägnante Zusammenfassung (max 150 Wörter) für Recruiter.
-cv_ai_bullets: Erstelle 4-6 Bullet Points, die die wichtigsten Stärken und Erfahrungen hervorheben.
-
-EXPOSÉ-BAUSTEINE (wichtig für Kundenexport):
-- expose_title: Erstelle einen prägnanten Titel wie "Senior IT-Projektmanager | PMI-zertifiziert | 12+ Jahre Erfahrung"
-- expose_summary: Schreibe ein Kurzprofil (max 100 Wörter) für externe Kunden
-- expose_highlights: 3-5 wichtigste Qualifikations-Highlights
-- expose_project_highlights: 2-4 beeindruckendste Projektbeispiele mit Metriken
-- expose_certifications: Wichtigste Zertifizierungen für das Exposé
-
-PROJEKTMETRIKEN: Extrahiere aus den Erfahrungen:
-- max_team_size: Größte Teamgröße die gemanagt wurde
-- max_budget: Größtes verwaltetes Budget
-- locations_managed: Anzahl verwalteter Standorte
-- units_delivered: Anzahl betroffener Einheiten/Nutzer
-
-Extrahiere auch: specializations, soft_skills, industry_experience, certificates, nationality.`;
+cv_ai_bullets: Erstelle 4-6 Bullet Points für die wichtigsten Stärken.
+expose_title: Erstelle einen prägnanten Titel wie "Senior IT-Projektmanager | PMI-zertifiziert | 12+ Jahre"
+expose_summary: Schreibe ein Kurzprofil (max 100 Wörter) für externe Kunden`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -174,23 +65,20 @@ Extrahiere auch: specializations, soft_skills, industry_experience, certificates
             type: "function",
             function: {
               name: "extract_cv_data",
-              description: "Extrahiert vollständige strukturierte Daten aus einem Lebenslauf",
+              description: "Extrahiert strukturierte Daten aus einem Lebenslauf",
               parameters: {
                 type: "object",
                 properties: {
-                  full_name: { type: "string", nullable: true },
-                  email: { type: "string", nullable: true },
-                  phone: { type: "string", nullable: true },
-                  linkedin_url: { type: "string", nullable: true },
-                  location: { type: "string", nullable: true },
-                  portfolio_url: { type: "string", nullable: true },
-                  github_url: { type: "string", nullable: true },
-                  website_url: { type: "string", nullable: true },
-                  current_title: { type: "string", nullable: true },
-                  current_company: { type: "string", nullable: true },
-                  experience_years: { type: "number", nullable: true },
-                  seniority: { type: "string", nullable: true },
-                  cv_ai_summary: { type: "string", nullable: true },
+                  full_name: { type: "string" },
+                  email: { type: "string" },
+                  phone: { type: "string" },
+                  linkedin_url: { type: "string" },
+                  location: { type: "string" },
+                  current_title: { type: "string" },
+                  current_company: { type: "string" },
+                  experience_years: { type: "number" },
+                  seniority: { type: "string" },
+                  cv_ai_summary: { type: "string" },
                   cv_ai_bullets: { type: "array", items: { type: "string" } },
                   experiences: {
                     type: "array",
@@ -199,9 +87,8 @@ Extrahiere auch: specializations, soft_skills, industry_experience, certificates
                       properties: {
                         company_name: { type: "string" },
                         job_title: { type: "string" },
-                        location: { type: "string", nullable: true },
-                        start_date: { type: "string", nullable: true },
-                        end_date: { type: "string", nullable: true },
+                        start_date: { type: "string" },
+                        end_date: { type: "string" },
                         is_current: { type: "boolean" },
                         description: { type: "string" }
                       },
@@ -214,10 +101,9 @@ Extrahiere auch: specializations, soft_skills, industry_experience, certificates
                       type: "object",
                       properties: {
                         institution: { type: "string" },
-                        degree: { type: "string", nullable: true },
-                        field_of_study: { type: "string", nullable: true },
-                        graduation_year: { type: "number", nullable: true },
-                        grade: { type: "string", nullable: true }
+                        degree: { type: "string" },
+                        field_of_study: { type: "string" },
+                        graduation_year: { type: "number" }
                       },
                       required: ["institution"]
                     }
@@ -228,8 +114,8 @@ Extrahiere auch: specializations, soft_skills, industry_experience, certificates
                       type: "object",
                       properties: {
                         name: { type: "string" },
-                        category: { type: "string", nullable: true },
-                        level: { type: "string", nullable: true }
+                        category: { type: "string" },
+                        level: { type: "string" }
                       },
                       required: ["name"]
                     }
@@ -245,38 +131,12 @@ Extrahiere auch: specializations, soft_skills, industry_experience, certificates
                       required: ["language", "proficiency"]
                     }
                   },
-                  salary_expectation_min: { type: "number", nullable: true },
-                  salary_expectation_max: { type: "number", nullable: true },
-                  current_salary: { type: "number", nullable: true },
-                  notice_period: { type: "string", nullable: true },
-                  availability_from: { type: "string", nullable: true },
-                  relocation_ready: { type: "boolean" },
-                  remote_preference: { type: "string", nullable: true },
-                  target_roles: { type: "array", items: { type: "string" } },
-                  target_industries: { type: "array", items: { type: "string" } },
-                  target_employment_type: { type: "string", nullable: true },
-                  nationality: { type: "string", nullable: true },
-                  residence_status: { type: "string", nullable: true },
-                  specializations: { type: "array", items: { type: "string" } },
-                  soft_skills: { type: "array", items: { type: "string" } },
-                  industry_experience: { type: "array", items: { type: "string" } },
                   certificates: { type: "array", items: { type: "string" } },
-                  project_metrics: {
-                    type: "object",
-                    properties: {
-                      max_team_size: { type: "number", nullable: true },
-                      max_budget: { type: "string", nullable: true },
-                      locations_managed: { type: "number", nullable: true },
-                      units_delivered: { type: "string", nullable: true }
-                    }
-                  },
-                  expose_title: { type: "string", nullable: true },
-                  expose_summary: { type: "string", nullable: true },
-                  expose_highlights: { type: "array", items: { type: "string" } },
-                  expose_project_highlights: { type: "array", items: { type: "string" } },
-                  expose_certifications: { type: "array", items: { type: "string" } }
+                  expose_title: { type: "string" },
+                  expose_summary: { type: "string" },
+                  expose_highlights: { type: "array", items: { type: "string" } }
                 },
-                required: ["experiences", "educations", "skills", "languages", "cv_ai_bullets", "expose_highlights", "expose_project_highlights"]
+                required: ["full_name", "experiences", "skills", "cv_ai_summary", "cv_ai_bullets"]
               }
             }
           }
@@ -308,28 +168,62 @@ Extrahiere auch: specializations, soft_skills, industry_experience, certificates
     const data = await response.json();
     console.log("AI response received");
 
-    // Extract the tool call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
       throw new Error("No tool call in response");
     }
 
-    const parsedCV: ParsedCVData = JSON.parse(toolCall.function.arguments);
+    const parsedCV = JSON.parse(toolCall.function.arguments);
+
+    // Add default values for optional fields
+    const result = {
+      ...parsedCV,
+      portfolio_url: parsedCV.portfolio_url || null,
+      github_url: parsedCV.github_url || null,
+      website_url: parsedCV.website_url || null,
+      nationality: parsedCV.nationality || null,
+      residence_status: parsedCV.residence_status || null,
+      salary_expectation_min: parsedCV.salary_expectation_min || null,
+      salary_expectation_max: parsedCV.salary_expectation_max || null,
+      current_salary: parsedCV.current_salary || null,
+      notice_period: parsedCV.notice_period || null,
+      availability_from: parsedCV.availability_from || null,
+      relocation_ready: parsedCV.relocation_ready || false,
+      remote_preference: parsedCV.remote_preference || null,
+      target_roles: parsedCV.target_roles || [],
+      target_industries: parsedCV.target_industries || [],
+      target_employment_type: parsedCV.target_employment_type || null,
+      specializations: parsedCV.specializations || [],
+      soft_skills: parsedCV.soft_skills || [],
+      industry_experience: parsedCV.industry_experience || [],
+      certificates: parsedCV.certificates || [],
+      project_metrics: parsedCV.project_metrics || {
+        max_team_size: null,
+        max_budget: null,
+        locations_managed: null,
+        units_delivered: null
+      },
+      expose_title: parsedCV.expose_title || null,
+      expose_summary: parsedCV.expose_summary || null,
+      expose_highlights: parsedCV.expose_highlights || [],
+      expose_project_highlights: parsedCV.expose_project_highlights || [],
+      expose_certifications: parsedCV.expose_certifications || []
+    };
 
     console.log("CV parsed successfully:", {
-      name: parsedCV.full_name,
-      experiences_count: parsedCV.experiences?.length,
-      skills_count: parsedCV.skills?.length,
-      languages_count: parsedCV.languages?.length,
-      experience_years: parsedCV.experience_years,
-      seniority: parsedCV.seniority
+      name: result.full_name,
+      experiences_count: result.experiences?.length,
+      skills_count: result.skills?.length,
+      languages_count: result.languages?.length,
+      experience_years: result.experience_years,
+      seniority: result.seniority
     });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        data: parsedCV,
-        parser_version: "v2"
+        data: result,
+        parser_version: "v3"
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
