@@ -27,7 +27,8 @@ import {
   CheckCircle2,
   Calendar,
   MapPin,
-  TrendingUp
+  TrendingUp,
+  Check
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -177,14 +178,53 @@ export function CandidateDetailPanel({
             </div>
           </div>
 
-          {/* Quick badges */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Badge variant="secondary" className="gap-1">
-              {getStageLabel(candidate.stage)}
-            </Badge>
+          {/* Stage Progress Pipeline */}
+          <div className="flex items-center gap-1 mt-4 overflow-x-auto pb-1">
+            {PIPELINE_STAGES.map((stage, index) => {
+              const currentStageIndex = PIPELINE_STAGES.findIndex(s => s.key === candidate.stage);
+              const isActive = candidate.stage === stage.key;
+              const isPast = currentStageIndex > index;
+              
+              return (
+                <div key={stage.key} className="flex items-center shrink-0">
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs whitespace-nowrap transition-colors",
+                    isActive && "bg-primary text-primary-foreground font-medium",
+                    isPast && "bg-muted text-muted-foreground",
+                    !isActive && !isPast && "text-muted-foreground/60"
+                  )}>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full flex items-center justify-center text-[10px]",
+                      isActive && "bg-primary-foreground/20",
+                      isPast && "bg-primary/20",
+                      !isActive && !isPast && "border border-muted-foreground/30"
+                    )}>
+                      {isPast ? (
+                        <Check className="h-2.5 w-2.5 text-primary" />
+                      ) : isActive ? (
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                      ) : (
+                        <span className="text-muted-foreground/50">{index + 1}</span>
+                      )}
+                    </div>
+                    {stage.label}
+                  </div>
+                  {index < PIPELINE_STAGES.length - 1 && (
+                    <ChevronRight className={cn(
+                      "h-3 w-3 mx-0.5 shrink-0",
+                      isPast ? "text-primary/50" : "text-muted-foreground/30"
+                    )} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Submitted time */}
+          <div className="flex items-center gap-2 mt-2">
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {formatDistanceToNow(new Date(candidate.submittedAt), { locale: de, addSuffix: true })}
+              Eingereicht {formatDistanceToNow(new Date(candidate.submittedAt), { locale: de, addSuffix: true })}
             </span>
           </div>
 
@@ -329,273 +369,281 @@ export function CandidateDetailPanel({
         )}
 
         {/* Content Tabs */}
-        <Tabs defaultValue="match" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4">
+        <Tabs defaultValue="match" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4 shrink-0">
             <TabsTrigger value="match" className="text-xs">Passung</TabsTrigger>
             <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
             <TabsTrigger value="timeline" className="text-xs">Timeline</TabsTrigger>
             <TabsTrigger value="notes" className="text-xs">Notizen</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1">
-            {/* PASSUNG TAB */}
-            <TabsContent value="match" className="p-4 mt-0 space-y-4">
-              {matchLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="space-y-2">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-2 w-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : matchResult ? (
-                <>
-                  {/* Factor Breakdown */}
+          {/* PASSUNG TAB */}
+          <TabsContent value="match" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-4">
+                {matchLoading ? (
                   <div className="space-y-3">
-                    <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5" />
-                      Faktor-Breakdown
-                    </div>
-                    
-                    {Object.entries(matchResult.factors).map(([key, factor]) => {
-                      const config = factorConfig[key as keyof typeof factorConfig];
-                      if (!config) return null;
-                      
-                      const Icon = config.icon;
-                      
-                      return (
-                        <div key={key} className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Icon className={cn("h-4 w-4", config.color)} />
-                              <span className="text-sm">{config.label}</span>
-                              {factor.warning && (
-                                <AlertTriangle className="h-3 w-3 text-amber-500" />
-                              )}
-                              {factor.isBlocker && (
-                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Blocker</Badge>
-                              )}
-                            </div>
-                            <span className={cn("text-sm font-medium", 
-                              factor.score >= 70 ? 'text-green-600' : 
-                              factor.score >= 50 ? 'text-amber-600' : 'text-red-600'
-                            )}>
-                              {factor.score}%
-                            </span>
-                          </div>
-                          
-                          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={cn("absolute h-full rounded-full transition-all", getProgressColor(factor.score))}
-                              style={{ width: `${factor.score}%` }}
-                            />
-                          </div>
-                          
-                          {factor.aiReasoning && (
-                            <p className="text-xs text-muted-foreground pl-6">
-                              {factor.aiReasoning}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="space-y-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-2 w-full" />
+                      </div>
+                    ))}
                   </div>
-
-                  {/* Blockers */}
-                  {matchResult.blockers.length > 0 && (
-                    <div className="space-y-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                      <div className="flex items-center gap-2 text-destructive font-medium text-sm">
-                        <XCircle className="h-4 w-4" />
-                        Kritische Blocker
+                ) : matchResult ? (
+                  <>
+                    {/* Factor Breakdown */}
+                    <div className="space-y-3">
+                      <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5" />
+                        Faktor-Breakdown
                       </div>
-                      {matchResult.blockers.map((blocker, i) => (
-                        <div key={i} className="text-xs text-destructive/80 pl-6">
-                          <strong>{factorConfig[blocker.factor as keyof typeof factorConfig]?.label || blocker.factor}:</strong> {blocker.reason}
-                        </div>
-                      ))}
+                      
+                      {Object.entries(matchResult.factors).map(([key, factor]) => {
+                        const config = factorConfig[key as keyof typeof factorConfig];
+                        if (!config) return null;
+                        
+                        const Icon = config.icon;
+                        
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Icon className={cn("h-4 w-4", config.color)} />
+                                <span className="text-sm">{config.label}</span>
+                                {factor.warning && (
+                                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                )}
+                                {factor.isBlocker && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Blocker</Badge>
+                                )}
+                              </div>
+                              <span className={cn("text-sm font-medium", 
+                                factor.score >= 70 ? 'text-green-600' : 
+                                factor.score >= 50 ? 'text-amber-600' : 'text-red-600'
+                              )}>
+                                {factor.score}%
+                              </span>
+                            </div>
+                            
+                            <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className={cn("absolute h-full rounded-full transition-all", getProgressColor(factor.score))}
+                                style={{ width: `${factor.score}%` }}
+                              />
+                            </div>
+                            
+                            {factor.aiReasoning && (
+                              <p className="text-xs text-muted-foreground pl-6">
+                                {factor.aiReasoning}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
 
-                  {/* Warnings */}
-                  {matchResult.warnings.length > 0 && (
-                    <div className="space-y-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium text-sm">
-                        <AlertTriangle className="h-4 w-4" />
-                        Hinweise
-                      </div>
-                      {matchResult.warnings.map((warning, i) => (
-                        <div key={i} className="text-xs text-amber-700 dark:text-amber-400 pl-6">
-                          • {warning.message}
+                    {/* Blockers */}
+                    {matchResult.blockers.length > 0 && (
+                      <div className="space-y-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                        <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+                          <XCircle className="h-4 w-4" />
+                          Kritische Blocker
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Recommendations */}
-                  {matchResult.recommendations.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Empfehlungen
+                        {matchResult.blockers.map((blocker, i) => (
+                          <div key={i} className="text-xs text-destructive/80 pl-6">
+                            <strong>{factorConfig[blocker.factor as keyof typeof factorConfig]?.label || blocker.factor}:</strong> {blocker.reason}
+                          </div>
+                        ))}
                       </div>
-                      <ul className="space-y-1 pl-6">
-                        {matchResult.recommendations.map((rec, i) => (
-                          <li key={i} className="text-xs text-muted-foreground list-disc">
-                            {rec}
+                    )}
+
+                    {/* Warnings */}
+                    {matchResult.warnings.length > 0 && (
+                      <div className="space-y-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium text-sm">
+                          <AlertTriangle className="h-4 w-4" />
+                          Hinweise
+                        </div>
+                        {matchResult.warnings.map((warning, i) => (
+                          <div key={i} className="text-xs text-amber-700 dark:text-amber-400 pl-6">
+                            • {warning.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Recommendations */}
+                    {matchResult.recommendations.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Empfehlungen
+                        </div>
+                        <ul className="space-y-1 pl-6">
+                          {matchResult.recommendations.map((rec, i) => (
+                            <li key={i} className="text-xs text-muted-foreground list-disc">
+                              {rec}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    Keine Match-Analyse verfügbar
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* PROFIL TAB */}
+          <TabsContent value="profile" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-4">
+                {/* Job Info */}
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <Briefcase className="h-3.5 w-3.5" />
+                    Bewirbt sich für
+                  </p>
+                  <p className="font-medium text-sm">{candidate.jobTitle}</p>
+                </div>
+
+                {/* AI Short Profile */}
+                {(candidate.cvAiBullets?.length || candidate.cvAiSummary) && (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <Brain className="h-3.5 w-3.5" />
+                      Kurzprofil (KI-generiert)
+                    </p>
+                    {candidate.cvAiBullets?.length ? (
+                      <ul className="space-y-1.5">
+                        {candidate.cvAiBullets.slice(0, 5).map((bullet, i) => (
+                          <li key={i} className="text-sm flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            {bullet}
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-8 text-sm text-muted-foreground">
-                  <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  Keine Match-Analyse verfügbar
-                </div>
-              )}
-            </TabsContent>
+                    ) : candidate.cvAiSummary ? (
+                      <p className="text-sm text-muted-foreground">{candidate.cvAiSummary}</p>
+                    ) : null}
+                  </div>
+                )}
 
-            {/* PROFIL TAB */}
-            <TabsContent value="profile" className="p-4 mt-0 space-y-4">
-              {/* Job Info */}
-              <div className="rounded-lg border p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  Bewirbt sich für
-                </p>
-                <p className="font-medium text-sm">{candidate.jobTitle}</p>
-              </div>
-
-              {/* AI Short Profile */}
-              {(candidate.cvAiBullets?.length || candidate.cvAiSummary) && (
-                <div className="rounded-lg border p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Brain className="h-3.5 w-3.5" />
-                    Kurzprofil (KI-generiert)
-                  </p>
-                  {candidate.cvAiBullets?.length ? (
-                    <ul className="space-y-1.5">
-                      {candidate.cvAiBullets.slice(0, 5).map((bullet, i) => (
-                        <li key={i} className="text-sm flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          {bullet}
-                        </li>
+                {/* Skills */}
+                {candidate.skills?.length ? (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <Target className="h-3.5 w-3.5" />
+                      Top-Skills
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {candidate.skills.slice(0, 8).map((skill, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {skill}
+                        </Badge>
                       ))}
-                    </ul>
-                  ) : candidate.cvAiSummary ? (
-                    <p className="text-sm text-muted-foreground">{candidate.cvAiSummary}</p>
-                  ) : null}
-                </div>
-              )}
+                      {candidate.skills.length > 8 && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          +{candidate.skills.length - 8} weitere
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
 
-              {/* Skills */}
-              {candidate.skills?.length ? (
-                <div className="rounded-lg border p-3 space-y-2">
+                {/* Professional Context */}
+                <div className="rounded-lg border p-3 space-y-3">
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Target className="h-3.5 w-3.5" />
-                    Top-Skills
+                    <Briefcase className="h-3.5 w-3.5" />
+                    Beruflicher Kontext
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {candidate.skills.slice(0, 8).map((skill, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {candidate.skills.length > 8 && (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
-                        +{candidate.skills.length - 8} weitere
-                      </Badge>
+                  <div className="grid gap-2 text-sm">
+                    {candidate.company && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Aktuell bei</span>
+                        <span className="font-medium">{candidate.company}</span>
+                      </div>
+                    )}
+                    {candidate.currentSalary && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Aktuelles Gehalt</span>
+                        <span>{formatSalary(candidate.currentSalary)}</span>
+                      </div>
+                    )}
+                    {candidate.expectedSalary && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Erwartung</span>
+                        <span className="font-medium">{formatSalary(candidate.expectedSalary)}</span>
+                      </div>
+                    )}
+                    {candidate.city && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          Standort
+                        </span>
+                        <span>{candidate.city}</span>
+                      </div>
                     )}
                   </div>
                 </div>
-              ) : null}
 
-              {/* Professional Context */}
-              <div className="rounded-lg border p-3 space-y-3">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  Beruflicher Kontext
-                </p>
-                <div className="grid gap-2 text-sm">
-                  {candidate.company && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Aktuell bei</span>
-                      <span className="font-medium">{candidate.company}</span>
-                    </div>
-                  )}
-                  {candidate.currentSalary && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Aktuelles Gehalt</span>
-                      <span>{formatSalary(candidate.currentSalary)}</span>
-                    </div>
-                  )}
-                  {candidate.expectedSalary && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Erwartung</span>
-                      <span className="font-medium">{formatSalary(candidate.expectedSalary)}</span>
-                    </div>
-                  )}
-                  {candidate.city && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        Standort
-                      </span>
-                      <span>{candidate.city}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Availability */}
-              <div className="rounded-lg border p-3 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  Verfügbarkeit
-                </p>
-                <div className="grid gap-2 text-sm">
-                  {candidate.noticePeriod && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Kündigungsfrist</span>
-                      <span>{candidate.noticePeriod}</span>
-                    </div>
-                  )}
-                  {candidate.availabilityDate && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Verfügbar ab</span>
-                      <span>{format(new Date(candidate.availabilityDate), 'dd.MM.yyyy', { locale: de })}</span>
-                    </div>
-                  )}
-                  {!candidate.noticePeriod && !candidate.availabilityDate && (
-                    <span className="text-muted-foreground text-xs">Keine Angaben zur Verfügbarkeit</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Interview Highlights */}
-              {candidate.exposeHighlights?.length ? (
+                {/* Availability */}
                 <div className="rounded-lg border p-3 space-y-2">
                   <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Interview-Highlights
+                    <Calendar className="h-3.5 w-3.5" />
+                    Verfügbarkeit
                   </p>
-                  <ul className="space-y-1.5">
-                    {candidate.exposeHighlights.slice(0, 3).map((highlight, i) => (
-                      <li key={i} className="text-sm flex items-start gap-2">
-                        <span className="text-green-500 mt-1">✓</span>
-                        {highlight}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="grid gap-2 text-sm">
+                    {candidate.noticePeriod && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Kündigungsfrist</span>
+                        <span>{candidate.noticePeriod}</span>
+                      </div>
+                    )}
+                    {candidate.availabilityDate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Verfügbar ab</span>
+                        <span>{format(new Date(candidate.availabilityDate), 'dd.MM.yyyy', { locale: de })}</span>
+                      </div>
+                    )}
+                    {!candidate.noticePeriod && !candidate.availabilityDate && (
+                      <span className="text-muted-foreground text-xs">Keine Angaben zur Verfügbarkeit</span>
+                    )}
+                  </div>
                 </div>
-              ) : null}
-            </TabsContent>
 
-            {/* TIMELINE TAB */}
-            <TabsContent value="timeline" className="p-4 mt-0">
-              <div className="space-y-4">
+                {/* Interview Highlights */}
+                {candidate.exposeHighlights?.length ? (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Interview-Highlights
+                    </p>
+                    <ul className="space-y-1.5">
+                      {candidate.exposeHighlights.slice(0, 3).map((highlight, i) => (
+                        <li key={i} className="text-sm flex items-start gap-2">
+                          <span className="text-green-500 mt-1">✓</span>
+                          {highlight}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* TIMELINE TAB */}
+          <TabsContent value="timeline" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-4">
                 <div className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className="w-2 h-2 rounded-full bg-primary" />
@@ -612,19 +660,23 @@ export function CandidateDetailPanel({
                   Weitere Aktivitäten laden...
                 </p>
               </div>
-            </TabsContent>
+            </ScrollArea>
+          </TabsContent>
 
-            {/* NOTES TAB */}
-            <TabsContent value="notes" className="p-4 mt-0">
-              <div className="text-center py-8">
-                <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Keine Notizen vorhanden</p>
-                <Button variant="outline" size="sm" className="mt-3">
-                  Notiz hinzufügen
-                </Button>
+          {/* NOTES TAB */}
+          <TabsContent value="notes" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <ScrollArea className="flex-1">
+              <div className="p-4">
+                <div className="text-center py-8">
+                  <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Keine Notizen vorhanden</p>
+                  <Button variant="outline" size="sm" className="mt-3">
+                    Notiz hinzufügen
+                  </Button>
+                </div>
               </div>
-            </TabsContent>
-          </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
