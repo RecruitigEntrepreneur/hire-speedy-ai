@@ -7,7 +7,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 import { PipelineBar } from '@/components/talent/PipelineBar';
 import { UrgentBanner } from '@/components/talent/UrgentBanner';
-import { CandidateTable, TableCandidate } from '@/components/talent/CandidateTable';
+import { CandidateGrid } from '@/components/talent/CandidateGrid';
 import { CandidateDetailPanel } from '@/components/talent/CandidateDetailPanel';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { SlaWarningBanner } from '@/components/sla/SlaWarningBanner';
@@ -37,8 +37,21 @@ interface Job {
   title: string;
 }
 
-// Extended TableCandidate type for detail panel
-interface ExtendedTableCandidate extends TableCandidate {
+// Extended candidate type for grid and detail panel
+interface ExtendedTableCandidate {
+  id: string;
+  submissionId: string;
+  name: string;
+  currentRole: string;
+  jobId: string;
+  jobTitle: string;
+  stage: string;
+  status: string;
+  matchScore: number | null;
+  submittedAt: string;
+  email?: string;
+  phone?: string;
+  hoursInStage: number;
   company?: string;
   skills?: string[];
   experienceYears?: number;
@@ -414,16 +427,13 @@ export default function TalentHub() {
           totalCandidates={totalActiveCandidates}
         />
 
-        {/* Candidate Table */}
+        {/* Candidate Grid */}
         <div className="flex-1 min-h-0">
-          <CandidateTable
+          <CandidateGrid
             candidates={candidates}
             jobs={jobs}
             stageFilter={stageFilter}
-            selectedIds={selectedIds}
             onSelect={handleSelectCandidate}
-            onToggleSelect={handleToggleSelect}
-            onSelectAll={handleSelectAll}
             onMove={handleMove}
             onReject={handleReject}
             isProcessing={processing}
