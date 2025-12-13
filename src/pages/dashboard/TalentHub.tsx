@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { PipelineBar } from '@/components/talent/PipelineBar';
 import { UrgentBanner } from '@/components/talent/UrgentBanner';
 import { CandidateTable, TableCandidate } from '@/components/talent/CandidateTable';
 import { CandidateDetailPanel } from '@/components/talent/CandidateDetailPanel';
+import { DecisionMode } from '@/components/talent/DecisionMode';
+import { DecisionCandidate } from '@/components/talent/DecisionCard';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { SlaWarningBanner } from '@/components/sla/SlaWarningBanner';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
@@ -19,7 +22,9 @@ import { toast } from 'sonner';
 
 import { 
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  List,
+  Target
 } from 'lucide-react';
 import { isPast, isToday } from 'date-fns';
 
@@ -40,8 +45,10 @@ interface Job {
 
 export default function TalentHub() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [candidates, setCandidates] = useState<TableCandidate[]>([]);
+  const [decisionCandidates, setDecisionCandidates] = useState<DecisionCandidate[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +61,12 @@ export default function TalentHub() {
   
   const [rejectSubmissionId, setRejectSubmissionId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  
+  // View mode: 'list' or 'decide'
+  const viewMode = searchParams.get('view') || 'list';
+  const setViewMode = (mode: string) => {
+    setSearchParams({ view: mode });
+  };
   
   usePageViewTracking('talent_hub');
 
@@ -102,7 +115,18 @@ export default function TalentHub() {
           full_name,
           job_title,
           email,
-          phone
+          phone,
+          company,
+          skills,
+          experience_years,
+          cv_ai_bullets,
+          cv_ai_summary,
+          notice_period,
+          availability_date,
+          expose_highlights,
+          current_salary,
+          expected_salary,
+          city
         ),
         jobs!inner (
           id,
@@ -116,14 +140,18 @@ export default function TalentHub() {
       return;
     }
 
-    const tableCandidates: TableCandidate[] = (data || []).map((sub: any) => {
+    const tableCandidates: TableCandidate[] = [];
+    const decisionList: DecisionCandidate[] = [];
+
+    (data || []).forEach((sub: any) => {
       const candidate = sub.candidates;
       const job = sub.jobs;
       const now = new Date();
       const submittedAt = new Date(sub.submitted_at);
       const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
 
-      return {
+      // Table candidate (basic)
+      tableCandidates.push({
         id: candidate.id,
         submissionId: sub.id,
         name: candidate.full_name,
@@ -137,10 +165,36 @@ export default function TalentHub() {
         email: candidate.email,
         phone: candidate.phone,
         hoursInStage
-      };
+      });
+
+      // Decision candidate (extended) - only for submitted stage and not rejected
+      if ((sub.stage === 'submitted' || sub.status === 'submitted') && sub.status !== 'rejected') {
+        decisionList.push({
+          id: candidate.id,
+          submissionId: sub.id,
+          name: candidate.full_name,
+          currentRole: candidate.job_title || 'Nicht angegeben',
+          company: candidate.company,
+          jobTitle: job.title,
+          matchScore: sub.match_score,
+          submittedAt: sub.submitted_at,
+          hoursInStage,
+          skills: candidate.skills,
+          experienceYears: candidate.experience_years,
+          cvAiBullets: candidate.cv_ai_bullets,
+          cvAiSummary: candidate.cv_ai_summary,
+          noticePeriod: candidate.notice_period,
+          availabilityDate: candidate.availability_date,
+          exposeHighlights: candidate.expose_highlights,
+          currentSalary: candidate.current_salary,
+          expectedSalary: candidate.expected_salary,
+          city: candidate.city
+        });
+      }
     });
 
     setCandidates(tableCandidates);
+    setDecisionCandidates(decisionList);
   };
 
   const fetchInterviews = async () => {
@@ -284,10 +338,24 @@ export default function TalentHub() {
         ? { ...c, status: 'rejected' }
         : c
     ));
+    // Remove from decision candidates
+    setDecisionCandidates(prev => prev.filter(c => c.submissionId !== rejectSubmissionId));
     if (selectedCandidate?.submissionId === rejectSubmissionId) {
       setSelectedCandidate(null);
       setDetailOpen(false);
     }
+  };
+
+  // Handle interview request from decision mode
+  const handleDecisionInterview = async (submissionId: string) => {
+    await handleMove(submissionId, 'interview_1');
+    // Remove from decision candidates since they're now in interview stage
+    setDecisionCandidates(prev => prev.filter(c => c.submissionId !== submissionId));
+  };
+
+  // Handle reject from decision mode
+  const handleDecisionReject = (submissionId: string) => {
+    handleReject(submissionId);
   };
 
   const handleSelectCandidate = (candidate: TableCandidate) => {
@@ -358,37 +426,68 @@ export default function TalentHub() {
               </p>
             </div>
           </div>
+
+          {/* View Toggle */}
+          <Tabs value={viewMode} onValueChange={setViewMode}>
+            <TabsList className="h-9">
+              <TabsTrigger value="list" className="gap-1.5 text-xs px-3">
+                <List className="h-3.5 w-3.5" />
+                Liste
+              </TabsTrigger>
+              <TabsTrigger value="decide" className="gap-1.5 text-xs px-3">
+                <Target className="h-3.5 w-3.5" />
+                Entscheiden
+                {decisionCandidates.length > 0 && (
+                  <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                    {decisionCandidates.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        {/* Urgent Banner */}
-        <UrgentBanner 
-          items={urgentItems} 
-          onItemClick={handleUrgentItemClick} 
-        />
+        {viewMode === 'list' ? (
+          <>
+            {/* Urgent Banner */}
+            <UrgentBanner 
+              items={urgentItems} 
+              onItemClick={handleUrgentItemClick} 
+            />
 
-        {/* Pipeline Bar */}
-        <PipelineBar
-          stageCounts={stageCounts}
-          activeStage={stageFilter}
-          onStageClick={setStageFilter}
-          totalCandidates={totalActiveCandidates}
-        />
+            {/* Pipeline Bar */}
+            <PipelineBar
+              stageCounts={stageCounts}
+              activeStage={stageFilter}
+              onStageClick={setStageFilter}
+              totalCandidates={totalActiveCandidates}
+            />
 
-        {/* Candidate Table */}
-        <div className="flex-1 min-h-0">
-          <CandidateTable
-            candidates={candidates}
-            jobs={jobs}
-            stageFilter={stageFilter}
-            selectedIds={selectedIds}
-            onSelect={handleSelectCandidate}
-            onToggleSelect={handleToggleSelect}
-            onSelectAll={handleSelectAll}
-            onMove={handleMove}
-            onReject={handleReject}
+            {/* Candidate Table */}
+            <div className="flex-1 min-h-0">
+              <CandidateTable
+                candidates={candidates}
+                jobs={jobs}
+                stageFilter={stageFilter}
+                selectedIds={selectedIds}
+                onSelect={handleSelectCandidate}
+                onToggleSelect={handleToggleSelect}
+                onSelectAll={handleSelectAll}
+                onMove={handleMove}
+                onReject={handleReject}
+                isProcessing={processing}
+              />
+            </div>
+          </>
+        ) : (
+          /* Decision Mode */
+          <DecisionMode
+            candidates={decisionCandidates}
+            onInterview={handleDecisionInterview}
+            onReject={handleDecisionReject}
             isProcessing={processing}
           />
-        </div>
+        )}
       </div>
 
       {/* Detail Panel (Overlay) */}
