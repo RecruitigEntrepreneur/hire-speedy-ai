@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.parse-job-pdf]
 verify_jwt = true
+
+[functions.seed-complete-data]
+verify_jwt = false
