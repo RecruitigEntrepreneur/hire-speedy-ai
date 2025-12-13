@@ -454,7 +454,25 @@ export default function TalentHub() {
       <RejectionDialog
         open={rejectDialogOpen}
         onOpenChange={setRejectDialogOpen}
-        submission={rejectSubmissionId ? { id: rejectSubmissionId } as any : null}
+        submission={(() => {
+          if (!rejectSubmissionId) return null;
+          const candidate = candidates.find(c => c.submissionId === rejectSubmissionId);
+          if (!candidate) return null;
+          const job = jobs.find(j => j.id === candidate.jobId);
+          return {
+            id: rejectSubmissionId,
+            candidate: {
+              id: candidate.id,
+              full_name: candidate.name,
+              email: candidate.email || ''
+            },
+            job: {
+              id: candidate.jobId,
+              title: candidate.jobTitle,
+              company_name: job?.title || ''
+            }
+          };
+        })()}
         onSuccess={handleRejectSuccess}
       />
     </DashboardLayout>
