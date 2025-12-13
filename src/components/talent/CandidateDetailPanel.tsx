@@ -93,10 +93,10 @@ function getProgressColor(score: number) {
 }
 
 function getDealLabel(probability: number) {
-  if (probability >= 75) return { text: 'Hohe Chance', variant: 'default' as const };
-  if (probability >= 50) return { text: 'Gute Chance', variant: 'secondary' as const };
-  if (probability >= 30) return { text: 'Unsicher', variant: 'outline' as const };
-  return { text: 'Niedrig', variant: 'destructive' as const };
+  if (probability >= 75) return { text: 'Hoch', variant: 'default' as const, color: 'bg-green-500' };
+  if (probability >= 50) return { text: 'Gut', variant: 'secondary' as const, color: 'bg-amber-500' };
+  if (probability >= 30) return { text: 'Unsicher', variant: 'outline' as const, color: 'bg-orange-500' };
+  return { text: 'Niedrig', variant: 'destructive' as const, color: 'bg-red-500' };
 }
 
 export function CandidateDetailPanel({
@@ -151,6 +151,7 @@ export function CandidateDetailPanel({
   const nextStage = getNextStage(candidate.stage);
   const previousStage = getPreviousStage(candidate.stage);
   const dealLabel = matchResult ? getDealLabel(matchResult.dealProbability) : null;
+  const displayScore = matchResult?.overallScore ?? candidate.matchScore;
 
   const formatSalary = (salary?: number) => {
     if (!salary) return null;
@@ -159,27 +160,87 @@ export function CandidateDetailPanel({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-4xl w-[90vw] max-h-[85vh] p-0 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-6 border-b">
-          <div className="flex items-center gap-4 min-w-0">
-            <Avatar className="h-16 w-16 shrink-0">
-              <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
+      <DialogContent className="max-w-4xl w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
+        {/* COMPACT HEADER - Name, Match Score, Actions inline */}
+        <div className="shrink-0 border-b">
+          {/* Top row: Avatar, Name, Score, Actions */}
+          <div className="p-4 flex items-start gap-3">
+            <Avatar className="h-12 w-12 shrink-0">
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                 {getInitials(candidate.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <h2 className="font-semibold text-xl">{candidate.name}</h2>
-              <p className="text-sm text-muted-foreground">
-                {candidate.currentRole}
-                {candidate.company && ` @ ${candidate.company}`}
-                {candidate.experienceYears && ` • ${candidate.experienceYears} Jahre`}
-              </p>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-lg leading-tight truncate">{candidate.name}</h2>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {candidate.currentRole}
+                    {candidate.company && ` @ ${candidate.company}`}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                    {candidate.experienceYears && (
+                      <span>{candidate.experienceYears} Jahre</span>
+                    )}
+                    {candidate.city && (
+                      <span className="flex items-center gap-0.5">
+                        <MapPin className="h-3 w-3" />
+                        {candidate.city}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-0.5">
+                      <Clock className="h-3 w-3" />
+                      {formatDistanceToNow(new Date(candidate.submittedAt), { locale: de, addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Match Score Ring + Deal Badge */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {matchLoading ? (
+                    <Skeleton className="w-14 h-14 rounded-full" />
+                  ) : displayScore ? (
+                    <div className={cn(
+                      "flex flex-col items-center justify-center w-14 h-14 rounded-full border-[3px] font-bold",
+                      getScoreColor(displayScore)
+                    )}>
+                      <span className="text-lg leading-none">{displayScore}</span>
+                      <span className="text-[9px] font-normal opacity-80">Match</span>
+                    </div>
+                  ) : null}
+                  
+                  {dealLabel && (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className={cn("w-3 h-3 rounded-full", dealLabel.color)} />
+                      <span className="text-[10px] text-muted-foreground">{dealLabel.text}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Warning/Blocker Badges inline */}
+              {matchResult && (matchResult.blockers.length > 0 || matchResult.warnings.length > 0) && (
+                <div className="flex items-center gap-2 mt-2">
+                  {matchResult.blockers.length > 0 && (
+                    <Badge variant="destructive" className="text-[10px] gap-1 px-1.5 py-0">
+                      <XCircle className="h-3 w-3" />
+                      {matchResult.blockers.length} Blocker
+                    </Badge>
+                  )}
+                  {matchResult.warnings.length > 0 && (
+                    <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 border-amber-300 text-amber-600">
+                      <AlertTriangle className="h-3 w-3" />
+                      {matchResult.warnings.length} Hinweis{matchResult.warnings.length > 1 ? 'e' : ''}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Stage Progress Pipeline */}
-          <div className="flex items-center gap-1 mt-4 overflow-x-auto pb-1">
+          {/* Stage Pipeline - compact */}
+          <div className="px-4 pb-2 flex items-center gap-1 overflow-x-auto">
             {PIPELINE_STAGES.map((stage, index) => {
               const currentStageIndex = PIPELINE_STAGES.findIndex(s => s.key === candidate.stage);
               const isActive = candidate.stage === stage.key;
@@ -188,189 +249,92 @@ export function CandidateDetailPanel({
               return (
                 <div key={stage.key} className="flex items-center shrink-0">
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs whitespace-nowrap transition-colors",
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap",
                     isActive && "bg-primary text-primary-foreground font-medium",
                     isPast && "bg-muted text-muted-foreground",
-                    !isActive && !isPast && "text-muted-foreground/60"
+                    !isActive && !isPast && "text-muted-foreground/50"
                   )}>
-                    <div className={cn(
-                      "w-4 h-4 rounded-full flex items-center justify-center text-[10px]",
-                      isActive && "bg-primary-foreground/20",
-                      isPast && "bg-primary/20",
-                      !isActive && !isPast && "border border-muted-foreground/30"
-                    )}>
-                      {isPast ? (
-                        <Check className="h-2.5 w-2.5 text-primary" />
-                      ) : isActive ? (
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-                      ) : (
-                        <span className="text-muted-foreground/50">{index + 1}</span>
-                      )}
-                    </div>
+                    {isPast ? (
+                      <Check className="h-3 w-3" />
+                    ) : isActive ? (
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                    ) : null}
                     {stage.label}
                   </div>
                   {index < PIPELINE_STAGES.length - 1 && (
-                    <ChevronRight className={cn(
-                      "h-3 w-3 mx-0.5 shrink-0",
-                      isPast ? "text-primary/50" : "text-muted-foreground/30"
-                    )} />
+                    <ChevronRight className="h-3 w-3 mx-0.5 text-muted-foreground/30" />
                   )}
                 </div>
               );
             })}
           </div>
 
-          {/* Submitted time */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              Eingereicht {formatDistanceToNow(new Date(candidate.submittedAt), { locale: de, addSuffix: true })}
-            </span>
-          </div>
-
-          {/* Contact Buttons */}
-          <div className="flex items-center gap-2 mt-3">
+          {/* Actions Row - compact */}
+          <div className="px-4 pb-3 flex items-center gap-2">
+            {candidate.stage !== 'hired' && nextStage && (
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => onMove(candidate.submissionId, nextStage)}
+                disabled={isProcessing}
+              >
+                <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                → {getStageLabel(nextStage)}
+              </Button>
+            )}
+            {candidate.stage !== 'hired' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs text-destructive hover:bg-destructive/10"
+                onClick={() => onReject(candidate.submissionId)}
+                disabled={isProcessing}
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Ablehnen
+              </Button>
+            )}
+            {previousStage && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={() => onMove(candidate.submissionId, previousStage)}
+                disabled={isProcessing}
+              >
+                ← Zurück
+              </Button>
+            )}
+            
+            <div className="flex-1" />
+            
+            {/* Quick contact */}
             {candidate.email && (
-              <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                <a href={`mailto:${candidate.email}`}>
-                  <Mail className="h-3.5 w-3.5 mr-1.5" />
-                  E-Mail
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+                <a href={`mailto:${candidate.email}`} title="E-Mail senden">
+                  <Mail className="h-4 w-4" />
                 </a>
               </Button>
             )}
             {candidate.phone && (
-              <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                <a href={`tel:${candidate.phone}`}>
-                  <Phone className="h-3.5 w-3.5 mr-1.5" />
-                  Anrufen
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+                <a href={`tel:${candidate.phone}`} title="Anrufen">
+                  <Phone className="h-4 w-4" />
                 </a>
               </Button>
             )}
-            <Button variant="outline" size="sm" className="h-8 text-xs ml-auto" asChild>
+            <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
               <Link to={`/dashboard/candidates/${candidate.submissionId}`}>
-                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                <ExternalLink className="h-3.5 w-3.5 mr-1" />
                 Vollprofil
               </Link>
             </Button>
           </div>
         </div>
 
-        {/* Match Score Summary */}
-        <div className="p-4 border-b bg-muted/30">
-          {matchLoading ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-4">
-                <Skeleton className="w-16 h-16 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-full" />
-                </div>
-              </div>
-            </div>
-          ) : matchResult ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "flex flex-col items-center justify-center w-16 h-16 rounded-full border-4 font-bold",
-                  getScoreColor(matchResult.overallScore)
-                )}>
-                  <span className="text-xl">{matchResult.overallScore}</span>
-                  <span className="text-[10px] font-normal">Match</span>
-                </div>
-                
-                <div className="flex-1 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Deal-Wahrscheinlichkeit</span>
-                    <Badge variant={dealLabel?.variant}>{dealLabel?.text}</Badge>
-                  </div>
-                  <Progress value={matchResult.dealProbability} className="h-2" />
-                  <span className="text-xs text-muted-foreground">
-                    {matchResult.dealProbability}% Chance auf Vermittlung
-                  </span>
-                </div>
-              </div>
-
-              {/* Blockers Warning */}
-              {matchResult.blockers.length > 0 && (
-                <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-md border border-destructive/20">
-                  <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                  <span className="text-xs text-destructive font-medium">
-                    {matchResult.blockers.length} kritische{matchResult.blockers.length > 1 ? ' Blocker' : 'r Blocker'}
-                  </span>
-                </div>
-              )}
-
-              {/* Warnings */}
-              {matchResult.warnings.length > 0 && matchResult.blockers.length === 0 && (
-                <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 rounded-md border border-amber-200 dark:border-amber-800">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                    {matchResult.warnings.length} Hinweis{matchResult.warnings.length > 1 ? 'e' : ''} beachten
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : matchError ? (
-            <div className="text-sm text-muted-foreground text-center py-2">
-              {matchError}
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              {candidate.matchScore && (
-                <Badge variant="outline" className="gap-1">
-                  {candidate.matchScore}% Match
-                </Badge>
-              )}
-              <span className="text-xs text-muted-foreground">
-                Detaillierte Analyse wird geladen...
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        {candidate.stage !== 'hired' && (
-          <div className="p-4 border-b">
-            <div className="flex gap-2">
-              {nextStage && (
-                <Button
-                  className="flex-1"
-                  size="sm"
-                  onClick={() => onMove(candidate.submissionId, nextStage)}
-                  disabled={isProcessing}
-                >
-                  <ChevronRight className="h-4 w-4 mr-1" />
-                  {getStageLabel(nextStage)}
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10"
-                onClick={() => onReject(candidate.submissionId)}
-                disabled={isProcessing}
-              >
-                <X className="h-4 w-4 mr-1" />
-                Ablehnen
-              </Button>
-            </div>
-            {previousStage && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full mt-2 text-muted-foreground"
-                onClick={() => onMove(candidate.submissionId, previousStage)}
-                disabled={isProcessing}
-              >
-                ← Zurück zu {getStageLabel(previousStage)}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Content Tabs */}
-        <Tabs defaultValue="match" className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <TabsList className="mx-4 mt-2 grid w-auto grid-cols-4 shrink-0">
+        {/* Content Tabs - flex-1 with proper height calculation */}
+        <Tabs defaultValue="match" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mx-4 mt-2 mb-0 grid w-auto grid-cols-4 shrink-0">
             <TabsTrigger value="match" className="text-xs">Passung</TabsTrigger>
             <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
             <TabsTrigger value="timeline" className="text-xs">Timeline</TabsTrigger>
@@ -378,8 +342,8 @@ export function CandidateDetailPanel({
           </TabsList>
 
           {/* PASSUNG TAB */}
-          <TabsContent value="match" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
-            <ScrollArea className="flex-1">
+          <TabsContent value="match" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
               <div className="p-4 space-y-4">
                 {matchLoading ? (
                   <div className="space-y-3">
@@ -392,6 +356,15 @@ export function CandidateDetailPanel({
                   </div>
                 ) : matchResult ? (
                   <>
+                    {/* Deal Probability */}
+                    <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">Deal-Wahrscheinlichkeit</span>
+                        <span className="font-bold">{matchResult.dealProbability}%</span>
+                      </div>
+                      <Progress value={matchResult.dealProbability} className="h-2" />
+                    </div>
+
                     {/* Factor Breakdown */}
                     <div className="space-y-3">
                       <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -501,8 +474,8 @@ export function CandidateDetailPanel({
           </TabsContent>
 
           {/* PROFIL TAB */}
-          <TabsContent value="profile" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
-            <ScrollArea className="flex-1">
+          <TabsContent value="profile" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
               <div className="p-4 space-y-4">
                 {/* Job Info */}
                 <div className="rounded-lg border p-3">
@@ -641,8 +614,8 @@ export function CandidateDetailPanel({
           </TabsContent>
 
           {/* TIMELINE TAB */}
-          <TabsContent value="timeline" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
-            <ScrollArea className="flex-1">
+          <TabsContent value="timeline" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
               <div className="p-4 space-y-4">
                 <div className="flex gap-3">
                   <div className="flex flex-col items-center">
@@ -664,8 +637,8 @@ export function CandidateDetailPanel({
           </TabsContent>
 
           {/* NOTES TAB */}
-          <TabsContent value="notes" className="flex-1 mt-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
-            <ScrollArea className="flex-1">
+          <TabsContent value="notes" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
+            <ScrollArea className="h-full">
               <div className="p-4">
                 <div className="text-center py-8">
                   <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
