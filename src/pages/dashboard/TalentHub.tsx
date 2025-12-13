@@ -6,8 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 
-import { ActionQueue, ActionItem } from '@/components/talent/ActionQueue';
-import { CandidateStream, StreamCandidate } from '@/components/talent/CandidateStream';
+import { PipelineBar } from '@/components/talent/PipelineBar';
+import { UrgentBanner } from '@/components/talent/UrgentBanner';
+import { CandidateTable, TableCandidate } from '@/components/talent/CandidateTable';
 import { CandidateDetailPanel } from '@/components/talent/CandidateDetailPanel';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { SlaWarningBanner } from '@/components/sla/SlaWarningBanner';
@@ -18,11 +19,9 @@ import { toast } from 'sonner';
 
 import { 
   Loader2,
-  ArrowLeft,
-  LayoutGrid,
-  List
+  ArrowLeft
 } from 'lucide-react';
-import { isPast, differenceInHours, isToday } from 'date-fns';
+import { isPast, isToday } from 'date-fns';
 
 interface Interview {
   id: string;
@@ -42,13 +41,17 @@ interface Job {
 export default function TalentHub() {
   const { user } = useAuth();
   
-  const [candidates, setCandidates] = useState<StreamCandidate[]>([]);
+  const [candidates, setCandidates] = useState<TableCandidate[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   
-  const [selectedCandidate, setSelectedCandidate] = useState<StreamCandidate | null>(null);
+  const [stageFilter, setStageFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<TableCandidate | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  
   const [rejectSubmissionId, setRejectSubmissionId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   
@@ -113,7 +116,7 @@ export default function TalentHub() {
       return;
     }
 
-    const streamCandidates: StreamCandidate[] = (data || []).map((sub: any) => {
+    const tableCandidates: TableCandidate[] = (data || []).map((sub: any) => {
       const candidate = sub.candidates;
       const job = sub.jobs;
       const now = new Date();
@@ -137,7 +140,7 @@ export default function TalentHub() {
       };
     });
 
-    setCandidates(streamCandidates);
+    setCandidates(tableCandidates);
   };
 
   const fetchInterviews = async () => {
@@ -171,57 +174,42 @@ export default function TalentHub() {
     }
   };
 
-  // Build action items from data
-  const actionItems = useMemo((): ActionItem[] => {
-    const actions: ActionItem[] = [];
+  // Calculate stage counts
+  const stageCounts = useMemo(() => {
+    return PIPELINE_STAGES.reduce((acc, stage) => {
+      acc[stage.key] = candidates.filter(c => c.stage === stage.key && c.status !== 'rejected').length;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [candidates]);
 
-    // New candidates to review
+  // Build urgent items
+  const urgentItems = useMemo(() => {
+    const items: { id: string; type: 'overdue' | 'interview_today' | 'waiting_long'; title: string; subtitle: string; submissionId: string; scheduledAt?: string; meetingLink?: string }[] = [];
+
+    // Candidates waiting > 48h
     candidates
-      .filter(c => c.stage === 'submitted' && c.status !== 'rejected')
-      .slice(0, 10)
+      .filter(c => c.stage === 'submitted' && c.status !== 'rejected' && c.hoursInStage >= 48)
+      .slice(0, 5)
       .forEach(c => {
-        const isUrgent = c.hoursInStage >= 48;
-        const isHigh = c.hoursInStage >= 24;
-        actions.push({
-          id: `review-${c.submissionId}`,
-          type: 'review_candidate',
-          priority: isUrgent ? 'urgent' : isHigh ? 'high' : 'normal',
+        items.push({
+          id: `waiting-${c.submissionId}`,
+          type: 'waiting_long',
           title: c.name,
           subtitle: c.jobTitle,
-          submissionId: c.submissionId,
-          candidateId: c.id
+          submissionId: c.submissionId
         });
       });
 
-    // Interviews to schedule
-    interviews
-      .filter(i => i.status === 'pending' && !i.scheduled_at)
-      .forEach(i => {
-        const candidate = candidates.find(c => c.submissionId === i.submission_id);
-        actions.push({
-          id: `schedule-${i.id}`,
-          type: 'schedule_interview',
-          priority: 'high',
-          title: i.candidateName,
-          subtitle: i.jobTitle,
-          submissionId: i.submission_id,
-          candidateId: candidate?.id || ''
-        });
-      });
-
-    // Upcoming interviews today
+    // Interviews today
     interviews
       .filter(i => i.scheduled_at && isToday(new Date(i.scheduled_at)) && i.status !== 'completed' && i.status !== 'cancelled')
       .forEach(i => {
-        const candidate = candidates.find(c => c.submissionId === i.submission_id);
-        actions.push({
-          id: `join-${i.id}`,
-          type: 'join_interview',
-          priority: 'high',
+        items.push({
+          id: `interview-${i.id}`,
+          type: 'interview_today',
           title: i.candidateName,
           subtitle: i.jobTitle,
           submissionId: i.submission_id,
-          candidateId: candidate?.id || '',
           scheduledAt: i.scheduled_at!,
           meetingLink: i.meeting_link || undefined
         });
@@ -229,24 +217,19 @@ export default function TalentHub() {
 
     // Overdue interviews
     interviews
-      .filter(i => i.scheduled_at && isPast(new Date(i.scheduled_at)) && i.status !== 'completed' && i.status !== 'cancelled')
+      .filter(i => i.scheduled_at && isPast(new Date(i.scheduled_at)) && i.status !== 'completed' && i.status !== 'cancelled' && !isToday(new Date(i.scheduled_at)))
       .forEach(i => {
-        const candidate = candidates.find(c => c.submissionId === i.submission_id);
-        actions.push({
+        items.push({
           id: `overdue-${i.id}`,
           type: 'overdue',
-          priority: 'urgent',
           title: i.candidateName,
           subtitle: `${i.jobTitle} - Feedback ausstehend`,
           submissionId: i.submission_id,
-          candidateId: candidate?.id || '',
           scheduledAt: i.scheduled_at!
         });
       });
 
-    // Sort by priority
-    const priorityOrder = { urgent: 0, high: 1, normal: 2 };
-    return actions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+    return items;
   }, [candidates, interviews]);
 
   const handleMove = async (submissionId: string, newStage: string) => {
@@ -272,12 +255,12 @@ export default function TalentHub() {
       const stageLabel = PIPELINE_STAGES.find(s => s.key === newStage)?.label || newStage;
       toast.success(`Kandidat in "${stageLabel}" verschoben`);
       
-      // Update local state
       setCandidates(prev => prev.map(c => 
         c.submissionId === submissionId 
           ? { ...c, stage: newStage, status: newStatus }
           : c
       ));
+      
       if (selectedCandidate?.submissionId === submissionId) {
         setSelectedCandidate(prev => prev ? { ...prev, stage: newStage, status: newStatus } : null);
       }
@@ -303,19 +286,46 @@ export default function TalentHub() {
     ));
     if (selectedCandidate?.submissionId === rejectSubmissionId) {
       setSelectedCandidate(null);
+      setDetailOpen(false);
     }
   };
 
-  const handleSelectAction = (action: ActionItem) => {
-    const candidate = candidates.find(c => c.submissionId === action.submissionId);
+  const handleSelectCandidate = (candidate: TableCandidate) => {
+    setSelectedCandidate(candidate);
+    setDetailOpen(true);
+  };
+
+  const handleToggleSelect = (submissionId: string) => {
+    setSelectedIds(prev => 
+      prev.includes(submissionId)
+        ? prev.filter(id => id !== submissionId)
+        : [...prev, submissionId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const visibleCandidates = candidates.filter(c => 
+      c.status !== 'rejected' && 
+      (stageFilter === 'all' || c.stage === stageFilter)
+    );
+    const allSelected = visibleCandidates.every(c => selectedIds.includes(c.submissionId));
+    
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(visibleCandidates.map(c => c.submissionId));
+    }
+  };
+
+  const handleUrgentItemClick = (submissionId: string) => {
+    const candidate = candidates.find(c => c.submissionId === submissionId);
     if (candidate) {
       setSelectedCandidate(candidate);
+      setDetailOpen(true);
     }
   };
 
-  const handleSelectCandidate = (candidate: StreamCandidate) => {
-    setSelectedCandidate(candidate);
-  };
+  const totalActiveCandidates = candidates.filter(c => c.status !== 'rejected').length;
 
   if (loading) {
     return (
@@ -333,7 +343,7 @@ export default function TalentHub() {
         <SlaWarningBanner />
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b bg-background">
+        <div className="flex items-center justify-between gap-4 px-6 py-3 border-b bg-background">
           <div className="flex items-center gap-3">
             <Link 
               to="/dashboard" 
@@ -342,50 +352,54 @@ export default function TalentHub() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <div>
-              <h1 className="text-xl font-semibold">Talent Hub</h1>
-              <p className="text-sm text-muted-foreground">
-                {candidates.filter(c => c.status !== 'rejected').length} aktive Kandidaten • {jobs.length} Jobs
+              <h1 className="text-lg font-semibold">Talent Hub</h1>
+              <p className="text-xs text-muted-foreground">
+                {totalActiveCandidates} aktive Kandidaten • {jobs.length} Jobs
               </p>
             </div>
           </div>
         </div>
 
-        {/* Three-Panel Layout */}
-        <div className="flex-1 flex min-h-0">
-          {/* Left: Action Queue */}
-          <div className="w-72 shrink-0 border-r">
-            <ActionQueue
-              actions={actionItems}
-              onSelectAction={handleSelectAction}
-              selectedId={selectedCandidate?.submissionId}
-            />
-          </div>
+        {/* Urgent Banner */}
+        <UrgentBanner 
+          items={urgentItems} 
+          onItemClick={handleUrgentItemClick} 
+        />
 
-          {/* Middle: Candidate Stream */}
-          <div className="flex-1 min-w-0 border-r">
-            <CandidateStream
-              candidates={candidates}
-              jobs={jobs}
-              selectedId={selectedCandidate?.submissionId}
-              onSelect={handleSelectCandidate}
-              onMove={handleMove}
-              onReject={handleReject}
-              isProcessing={processing}
-            />
-          </div>
+        {/* Pipeline Bar */}
+        <PipelineBar
+          stageCounts={stageCounts}
+          activeStage={stageFilter}
+          onStageClick={setStageFilter}
+          totalCandidates={totalActiveCandidates}
+        />
 
-          {/* Right: Detail Panel */}
-          <div className="w-96 shrink-0">
-            <CandidateDetailPanel
-              candidate={selectedCandidate}
-              onClose={() => setSelectedCandidate(null)}
-              onMove={handleMove}
-              onReject={handleReject}
-              isProcessing={processing}
-            />
-          </div>
+        {/* Candidate Table */}
+        <div className="flex-1 min-h-0">
+          <CandidateTable
+            candidates={candidates}
+            jobs={jobs}
+            stageFilter={stageFilter}
+            selectedIds={selectedIds}
+            onSelect={handleSelectCandidate}
+            onToggleSelect={handleToggleSelect}
+            onSelectAll={handleSelectAll}
+            onMove={handleMove}
+            onReject={handleReject}
+            isProcessing={processing}
+          />
         </div>
       </div>
+
+      {/* Detail Panel (Overlay) */}
+      <CandidateDetailPanel
+        candidate={selectedCandidate}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onMove={handleMove}
+        onReject={handleReject}
+        isProcessing={processing}
+      />
 
       <RejectionDialog
         open={rejectDialogOpen}
