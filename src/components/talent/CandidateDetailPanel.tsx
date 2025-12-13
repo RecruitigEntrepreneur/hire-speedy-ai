@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
@@ -157,28 +157,24 @@ export function CandidateDetailPanel({
   };
 
   return (
-    <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent className="w-[500px] sm:max-w-[500px] p-0 flex flex-col">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[85vh] p-0 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar className="h-14 w-14 shrink-0">
-                <AvatarFallback className="bg-primary text-primary-foreground text-base font-semibold">
-                  {getInitials(candidate.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <h2 className="font-semibold text-lg truncate">{candidate.name}</h2>
-                <p className="text-sm text-muted-foreground truncate">
-                  {candidate.currentRole}
-                  {candidate.experienceYears && ` • ${candidate.experienceYears} Jahre`}
-                </p>
-              </div>
+        <div className="p-6 border-b">
+          <div className="flex items-center gap-4 min-w-0">
+            <Avatar className="h-16 w-16 shrink-0">
+              <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
+                {getInitials(candidate.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <h2 className="font-semibold text-xl">{candidate.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                {candidate.currentRole}
+                {candidate.company && ` @ ${candidate.company}`}
+                {candidate.experienceYears && ` • ${candidate.experienceYears} Jahre`}
+              </p>
             </div>
-            <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
 
           {/* Quick badges */}
@@ -630,7 +626,7 @@ export function CandidateDetailPanel({
             </TabsContent>
           </ScrollArea>
         </Tabs>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
