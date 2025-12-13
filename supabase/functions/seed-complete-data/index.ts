@@ -20,13 +20,16 @@ serve(async (req) => {
     console.log('🚀 Starting complete data seed...');
 
     // Step 1: Get Leon (client) and Marko (recruiter)
+    const LEON_EMAIL = 'leon.benko92@gmail.com';
+    const MARKO_EMAIL = 'marko.benko@malmalhigh.de';
+    
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, email, full_name')
-      .in('email', ['leon.schneider@kundentest.de', 'marko.benko@malmalhigh.de']);
+      .in('email', [LEON_EMAIL, MARKO_EMAIL]);
 
-    const leon = profiles?.find(p => p.email === 'leon.schneider@kundentest.de');
-    const marko = profiles?.find(p => p.email === 'marko.benko@malmalhigh.de');
+    const leon = profiles?.find(p => p.email === LEON_EMAIL);
+    const marko = profiles?.find(p => p.email === MARKO_EMAIL);
 
     if (!leon || !marko) {
       throw new Error('Leon or Marko not found in profiles');
