@@ -11,6 +11,8 @@ import { CandidateGrid } from '@/components/talent/CandidateGrid';
 import { CandidateDetailPanel } from '@/components/talent/CandidateDetailPanel';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { SlaWarningBanner } from '@/components/sla/SlaWarningBanner';
+import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
+import { Button } from '@/components/ui/button';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -18,7 +20,9 @@ import { toast } from 'sonner';
 
 import { 
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  GitCompare,
+  X
 } from 'lucide-react';
 import { isPast, isToday } from 'date-fns';
 
@@ -81,6 +85,7 @@ export default function TalentHub() {
   
   const [rejectSubmissionId, setRejectSubmissionId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   
   usePageViewTracking('talent_hub');
 
@@ -366,7 +371,7 @@ export default function TalentHub() {
     if (allSelected) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(visibleCandidates.map(c => c.submissionId));
+      setSelectedIds(visibleCandidates.map(c => c.submissionId).slice(0, 3)); // Max 3 for compare
     }
   };
 
@@ -390,6 +395,33 @@ export default function TalentHub() {
     );
   }
 
+  const handleBulkReject = async () => {
+    if (selectedIds.length === 0) return;
+    setProcessing(true);
+    try {
+      const { error } = await supabase
+        .from('submissions')
+        .update({ status: 'rejected' })
+        .in('id', selectedIds);
+      
+      if (error) throw error;
+      
+      toast.success(`${selectedIds.length} Kandidaten abgelehnt`);
+      setCandidates(prev => prev.map(c => 
+        selectedIds.includes(c.submissionId) ? { ...c, status: 'rejected' } : c
+      ));
+      setSelectedIds([]);
+    } catch (error) {
+      toast.error('Fehler beim Ablehnen');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRemoveFromCompare = (submissionId: string) => {
+    setSelectedIds(prev => prev.filter(id => id !== submissionId));
+  };
+
   return (
     <DashboardLayout>
       <div className="h-full flex flex-col -m-6">
@@ -412,6 +444,38 @@ export default function TalentHub() {
             </div>
           </div>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center justify-between gap-4 px-6 py-2 border-b bg-primary/5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{selectedIds.length} ausgewählt</span>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedIds.length >= 2 && selectedIds.length <= 3 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCompareOpen(true)}
+                >
+                  <GitCompare className="h-4 w-4 mr-1" />
+                  Vergleichen
+                </Button>
+              )}
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleBulkReject}
+                disabled={processing}
+              >
+                Alle ablehnen
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Urgent Banner */}
         <UrgentBanner 
@@ -475,6 +539,27 @@ export default function TalentHub() {
         })()}
         onSuccess={handleRejectSuccess}
       />
+
+      {/* Compare View Modal */}
+      {compareOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-4 z-50 overflow-auto rounded-lg border bg-background shadow-lg">
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background">
+              <h2 className="text-lg font-semibold">Kandidatenvergleich</h2>
+              <Button variant="ghost" size="sm" onClick={() => setCompareOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <CandidateCompareView 
+                submissionIds={selectedIds}
+                onRemove={handleRemoveFromCompare}
+                onClose={() => setCompareOpen(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

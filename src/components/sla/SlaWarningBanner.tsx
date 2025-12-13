@@ -33,36 +33,52 @@ export function SlaWarningBanner({ className }: SlaWarningBannerProps) {
 
   const fetchUrgentDeadlines = async () => {
     try {
-      // Fetch SLA deadlines that are approaching (within 48 hours) or breached
-      const { data, error } = await supabase
+      // Fetch SLA deadlines for submissions
+      const { data: slaData, error: slaError } = await supabase
         .from('sla_deadlines')
-        .select(`
-          id,
-          submission_id,
-          sla_type,
-          deadline,
-          status,
-          submissions!inner (
-            candidates!inner (full_name),
-            jobs!inner (title)
-          )
-        `)
+        .select('id, entity_type, entity_id, sla_rule_id, deadline_at, status')
+        .eq('entity_type', 'submission')
         .in('status', ['active', 'warning', 'breached'])
-        .lte('deadline', new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString())
-        .order('deadline', { ascending: true })
+        .lte('deadline_at', new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString())
+        .order('deadline_at', { ascending: true })
         .limit(5);
 
-      if (error) throw error;
+      if (slaError) throw slaError;
+      if (!slaData || slaData.length === 0) {
+        setUrgentDeadlines([]);
+        setLoading(false);
+        return;
+      }
 
-      const formatted = (data || []).map((d: any) => ({
-        id: d.id,
-        submission_id: d.submission_id,
-        sla_type: d.sla_type,
-        deadline: d.deadline,
-        status: d.status,
-        candidate_name: d.submissions?.candidates?.full_name || 'Unbekannt',
-        job_title: d.submissions?.jobs?.title || 'Unbekannt'
-      }));
+      // Fetch submissions separately to get candidate and job info
+      const submissionIds = slaData.map(d => d.entity_id);
+      const { data: subData } = await supabase
+        .from('submissions')
+        .select('id, candidates(full_name), jobs(title)')
+        .in('id', submissionIds);
+
+      // Fetch SLA rules for labels
+      const ruleIds = [...new Set(slaData.map(d => d.sla_rule_id))];
+      const { data: ruleData } = await supabase
+        .from('sla_rules')
+        .select('id, name')
+        .in('id', ruleIds);
+
+      const submissionMap = new Map((subData || []).map((s: any) => [s.id, s]));
+      const ruleMap = new Map((ruleData || []).map((r: any) => [r.id, r.name]));
+
+      const formatted = slaData.map((d: any) => {
+        const sub = submissionMap.get(d.entity_id);
+        return {
+          id: d.id,
+          submission_id: d.entity_id,
+          sla_type: ruleMap.get(d.sla_rule_id) || 'SLA',
+          deadline: d.deadline_at,
+          status: d.status,
+          candidate_name: sub?.candidates?.full_name || 'Unbekannt',
+          job_title: sub?.jobs?.title || 'Unbekannt'
+        };
+      });
 
       setUrgentDeadlines(formatted);
     } catch (error) {

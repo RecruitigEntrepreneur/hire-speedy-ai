@@ -72,13 +72,15 @@ export function PaymentStatusBadge({ status, totalFee }: PaymentStatusBadgeProps
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge 
-            variant="outline" 
-            className={`${statusConfig.color} ${statusConfig.bgColor} ${statusConfig.borderColor} gap-1 cursor-help`}
-          >
-            <Icon className="h-3 w-3" />
-            {statusConfig.label}
-          </Badge>
+          <span className="inline-flex">
+            <Badge 
+              variant="outline" 
+              className={`${statusConfig.color} ${statusConfig.bgColor} ${statusConfig.borderColor} gap-1 cursor-help`}
+            >
+              <Icon className="h-3 w-3" />
+              {statusConfig.label}
+            </Badge>
+          </span>
         </TooltipTrigger>
         <TooltipContent side="top">
           <div className="space-y-1">

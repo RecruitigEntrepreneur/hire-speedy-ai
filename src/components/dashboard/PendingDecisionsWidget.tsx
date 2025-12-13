@@ -11,6 +11,7 @@ import { CompactExposeCard } from '@/components/expose/CompactExposeCard';
 import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { generateAnonymousId } from '@/lib/anonymization';
+import { useMatchScoreV3 } from '@/hooks/useMatchScoreV3';
 import { Users, ArrowUpRight, Inbox, Clock, Calendar, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -46,6 +47,7 @@ export function PendingDecisionsWidget({ maxItems = 6 }: { maxItems?: number }) 
   const [interviewDialogOpen, setInterviewDialogOpen] = useState(false);
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<PendingSubmission | null>(null);
+  const { getScoreColor } = useMatchScoreV3();
 
   useEffect(() => {
     if (user) {
@@ -62,6 +64,7 @@ export function PendingDecisionsWidget({ maxItems = 6 }: { maxItems?: number }) 
           status,
           submitted_at,
           match_score,
+          v3_match_result,
           candidates!inner (
             id,
             job_title,
@@ -84,26 +87,33 @@ export function PendingDecisionsWidget({ maxItems = 6 }: { maxItems?: number }) 
       if (error) throw error;
 
       const now = new Date();
-      const formatted: PendingSubmission[] = (data || []).map((sub: any) => ({
-        id: sub.id,
-        status: sub.status,
-        submittedAt: sub.submitted_at,
-        hoursWaiting: Math.floor((now.getTime() - new Date(sub.submitted_at).getTime()) / (1000 * 60 * 60)),
-        candidate: {
-          id: sub.candidates.id,
-          job_title: sub.candidates.job_title || 'Nicht angegeben',
-          skills: sub.candidates.skills || [],
-          experience_years: sub.candidates.experience_years || 0,
-          city: sub.candidates.city || '',
-          notice_period: sub.candidates.notice_period || '',
-        },
-        job: {
-          id: sub.jobs.id,
-          title: sub.jobs.title,
-        },
-        matchScore: sub.match_score || 0,
-        dealProbability: 75, // Placeholder
-      }));
+      const formatted: PendingSubmission[] = (data || []).map((sub: any) => {
+        // Use V3 match result if available
+        const v3Result = sub.v3_match_result as any;
+        const matchScore = v3Result?.total_score ?? sub.match_score ?? 0;
+        const dealProbability = v3Result?.explainability?.deal_probability ?? Math.round(matchScore * 0.9);
+        
+        return {
+          id: sub.id,
+          status: sub.status,
+          submittedAt: sub.submitted_at,
+          hoursWaiting: Math.floor((now.getTime() - new Date(sub.submitted_at).getTime()) / (1000 * 60 * 60)),
+          candidate: {
+            id: sub.candidates.id,
+            job_title: sub.candidates.job_title || 'Nicht angegeben',
+            skills: sub.candidates.skills || [],
+            experience_years: sub.candidates.experience_years || 0,
+            city: sub.candidates.city || '',
+            notice_period: sub.candidates.notice_period || '',
+          },
+          job: {
+            id: sub.jobs.id,
+            title: sub.jobs.title,
+          },
+          matchScore,
+          dealProbability,
+        };
+      });
 
       setSubmissions(formatted);
     } catch (error) {

@@ -25,7 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { InterviewCalendarView } from '@/components/interview/InterviewCalendarView';
-import { Loader2, Calendar, Video, Phone, MapPin, Clock, CheckCircle, XCircle, LayoutGrid, List } from 'lucide-react';
+import { InterviewFeedbackForm } from '@/components/interview/InterviewFeedbackForm';
+import { Loader2, Calendar, Video, Phone, MapPin, Clock, CheckCircle, XCircle, LayoutGrid, List, MessageSquarePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -60,6 +61,8 @@ export default function ClientInterviews() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedbackInterview, setFeedbackInterview] = useState<Interview | null>(null);
   
   const [formData, setFormData] = useState({
     scheduled_at: '',
@@ -68,6 +71,11 @@ export default function ClientInterviews() {
     meeting_link: '',
     notes: '',
   });
+
+  const handleOpenFeedback = (interview: Interview) => {
+    setFeedbackInterview(interview);
+    setFeedbackDialogOpen(true);
+  };
 
   useEffect(() => {
     if (user) {
@@ -338,7 +346,7 @@ export default function ClientInterviews() {
               <TabsContent value="past" className="mt-6">
                 <div className="grid gap-4">
                   {pastInterviews.map((interview) => (
-                    <Card key={interview.id} className="opacity-75">
+                    <Card key={interview.id} className="opacity-75 hover:opacity-100 transition-opacity">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -355,6 +363,21 @@ export default function ClientInterviews() {
                               <p className="text-sm text-muted-foreground">
                                 {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
                               </p>
+                            )}
+                            {interview.feedback && (
+                              <Badge variant="secondary" className="mt-2">Feedback vorhanden</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {interview.status === 'completed' && !interview.feedback && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleOpenFeedback(interview)}
+                              >
+                                <MessageSquarePlus className="h-4 w-4 mr-1" />
+                                Feedback geben
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -435,6 +458,20 @@ export default function ClientInterviews() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Feedback Dialog */}
+        {feedbackInterview && (
+          <InterviewFeedbackForm
+            open={feedbackDialogOpen}
+            onOpenChange={setFeedbackDialogOpen}
+            interviewId={feedbackInterview.id}
+            candidateName={feedbackInterview.submission.candidate.full_name}
+            onSuccess={() => {
+              fetchInterviews();
+              setFeedbackDialogOpen(false);
+            }}
+          />
+        )}
       </DashboardLayout>
   );
 }
