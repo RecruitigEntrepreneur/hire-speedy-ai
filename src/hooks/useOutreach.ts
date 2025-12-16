@@ -164,6 +164,12 @@ export interface OutreachEmail {
   generation_prompt?: string;
   lead?: OutreachLead;
   campaign?: OutreachCampaign;
+  // Premium Trigger System fields
+  trigger_type?: 'hiring' | 'transition' | 'technology' | 'growth' | 'role';
+  trigger_secondary?: 'hiring' | 'transition' | 'technology' | 'growth' | 'role';
+  trigger_problem?: string;
+  trigger_confidence?: 'high' | 'medium' | 'low';
+  recipient_role?: 'cto' | 'hr' | 'founder' | 'manager' | 'other';
 }
 
 export interface OutreachConversation {
