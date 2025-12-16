@@ -163,90 +163,90 @@ const TARGET_FIELD_CATEGORIES: FieldCategory[] = [
 // Flat list of all fields for easy lookup
 const ALL_TARGET_FIELDS = TARGET_FIELD_CATEGORIES.flatMap(cat => cat.fields);
 
-// Extended auto-mapping patterns
+// Extended auto-mapping patterns - SPECIFIC patterns only, no generic matches
 const AUTO_MAP_PATTERNS: Record<string, string[]> = {
-  // Person
-  'first_name': ['first name', 'vorname', 'firstname', 'first_name', 'given name'],
-  'last_name': ['last name', 'nachname', 'lastname', 'last_name', 'surname', 'family name'],
-  'contact_name': ['full name', 'name', 'kontaktperson', 'contact name', 'kontakt'],
-  'contact_email': ['email', 'e-mail', 'mail', 'email address', 'e-mail-adresse'],
-  'contact_role': ['job title', 'position', 'role', 'titel', 'title', 'job_title', 'jobtitle'],
-  'seniority': ['seniority', 'level', 'karrierestufe'],
+  // Person - WICHTIG: Keine generischen patterns wie 'name' allein!
+  'first_name': ['first name', 'vorname', 'firstname', 'first_name', 'given name', 'first'],
+  'last_name': ['last name', 'nachname', 'lastname', 'last_name', 'surname', 'family name', 'last'],
+  'contact_name': ['full name', 'vollständiger name', 'kontaktperson', 'contact name', 'kontakt name', 'person name', 'contact person'],
+  'contact_email': ['contact email', 'email address', 'e-mail address', 'e-mail-adresse', 'person email'],
+  'contact_role': ['job title', 'position', 'role', 'titel', 'title', 'job_title', 'jobtitle', 'contact title'],
+  'seniority': ['seniority', 'level', 'karrierestufe', 'seniority level'],
   'department': ['department', 'abteilung', 'bereich'],
-  'mobile_phone': ['mobile', 'mobil', 'handy', 'cell', 'cell phone', 'mobiltelefon'],
+  'mobile_phone': ['mobile', 'mobil', 'handy', 'cell', 'cell phone', 'mobiltelefon', 'mobile phone'],
   'direct_phone': ['direct', 'durchwahl', 'direktwahl', 'direct phone', 'direct dial'],
-  'office_phone': ['office', 'büro', 'telefon', 'office phone', 'phone', 'tel'],
-  'personal_linkedin_url': ['personal linkedin', 'linkedin url', 'linkedin', 'linkedin profile'],
+  'office_phone': ['office phone', 'büro telefon', 'office tel', 'phone number', 'telefon'],
+  'personal_linkedin_url': ['person linkedin', 'personal linkedin', 'linkedin person', 'contact linkedin', 'linkedin url person'],
   'education': ['education', 'ausbildung', 'bildung', 'degree'],
-  'email_quality': ['email quality', 'e-mail qualität', 'quality'],
-  'email_verification_status': ['email verification', 'verification status', 'verified', 'verifiziert'],
+  'email_quality': ['email quality', 'e-mail qualität', 'email score'],
+  'email_verification_status': ['email verification', 'verification status', 'email verified', 'email verifiziert', 'email status'],
   
-  // Company
-  'company_name': ['company name', 'firma', 'firmenname', 'unternehmen', 'company', 'organisation', 'organization'],
-  'company_alias': ['company alias', 'alias', 'firmen-alias'],
-  'company_type': ['company type', 'unternehmenstyp', 'type', 'rechtsform'],
-  'company_description': ['company description', 'beschreibung', 'description', 'about'],
-  'company_website': ['website', 'url', 'homepage', 'webseite', 'web', 'company website'],
-  'company_domain': ['domain', 'company domain'],
-  'company_headcount': ['headcount', 'mitarbeiter', 'employees', 'size', 'mitarbeiterzahl', 'employee count'],
+  // Company - Spezifische patterns
+  'company_name': ['company name', 'firmenname', 'unternehmen', 'organisation', 'organization', 'company', 'firma'],
+  'company_alias': ['company alias', 'firmen-alias', 'alias'],
+  'company_type': ['company type', 'unternehmenstyp', 'rechtsform', 'legal form'],
+  'company_description': ['company description', 'firmenbeschreibung', 'about company'],
+  'company_website': ['company website', 'website', 'homepage', 'webseite', 'web url', 'company url'],
+  'company_domain': ['company domain', 'domain', 'email domain'],
+  'company_headcount': ['headcount', 'mitarbeiter', 'employees', 'mitarbeiterzahl', 'employee count', 'company size', 'size'],
   'company_industries': ['industries', 'branche', 'industry', 'branchen', 'sector'],
   'company_technologies': ['technologies', 'tech stack', 'technologien', 'tech', 'technology'],
   'company_financials': ['financials', 'finanzdaten', 'revenue', 'umsatz'],
-  'company_linkedin_url': ['company linkedin', 'linkedin firma', 'company linkedin url'],
-  'company_founded_year': ['founded', 'gründungsjahr', 'founded year', 'company founded year', 'year founded'],
+  'company_linkedin_url': ['company linkedin', 'linkedin firma', 'company linkedin url', 'linkedin company', 'linkedin url company'],
+  'company_founded_year': ['founded', 'gründungsjahr', 'founded year', 'company founded year', 'year founded', 'founded date'],
   'company_sic': ['sic', 'sic code'],
   'company_isic': ['isic', 'isic code'],
   'company_naics': ['naics', 'naics code'],
   
   // Company Address
-  'company_address_line': ['company address line', 'address line', 'straße', 'street', 'address', 'adresse', 'company address'],
-  'company_city': ['company city', 'firmenstadt'],
-  'company_zip': ['company post code', 'company zip', 'plz firma', 'postcode', 'zip code', 'zip'],
-  'company_state': ['company county', 'company state', 'bundesland firma', 'state', 'county'],
-  'company_country': ['company country', 'land firma'],
-  'city': ['city', 'stadt', 'ort', 'location'],
-  'country': ['country', 'land'],
+  'company_address_line': ['company address', 'address line', 'straße', 'street', 'address', 'adresse', 'company street'],
+  'company_city': ['company city', 'firmenstadt', 'company location'],
+  'company_zip': ['company post code', 'company zip', 'plz firma', 'company postcode', 'company postal'],
+  'company_state': ['company county', 'company state', 'bundesland firma', 'company region'],
+  'company_country': ['company country', 'land firma', 'company nation'],
+  'city': ['city', 'stadt', 'ort', 'location city'],
+  'country': ['country', 'land', 'nation'],
   
   // HQ
-  'hq_name': ['hq', 'headquarter', 'hauptsitz'],
-  'hq_address_line': ['hq address line', 'company hq address line', 'hq straße', 'hq address'],
-  'hq_city': ['hq city', 'company hq city', 'hq stadt'],
-  'hq_zip': ['hq post code', 'hq zip', 'company hq post code', 'hq plz'],
+  'hq_name': ['hq name', 'headquarter name', 'hauptsitz name'],
+  'hq_address_line': ['hq address', 'company hq address', 'hq straße', 'headquarter address'],
+  'hq_city': ['hq city', 'company hq city', 'hq stadt', 'headquarter city'],
+  'hq_zip': ['hq post code', 'hq zip', 'company hq post code', 'hq plz', 'hq postal'],
   'hq_state': ['hq county', 'hq state', 'company hq county', 'company hq state', 'hq bundesland'],
-  'hq_country': ['hq country', 'company hq country', 'hq land'],
+  'hq_country': ['hq country', 'company hq country', 'hq land', 'headquarter country'],
   
   // Hiring Signals
-  'hiring_title_1': ['hiring title 1', 'stelle 1 titel', 'job 1 title'],
-  'hiring_url_1': ['hiring url 1', 'stelle 1 url', 'job 1 url'],
+  'hiring_title_1': ['hiring title 1', 'stelle 1 titel', 'job 1 title', 'open position 1'],
+  'hiring_url_1': ['hiring url 1', 'stelle 1 url', 'job 1 url', 'position 1 url'],
   'hiring_location_1': ['hiring location 1', 'stelle 1 ort', 'job 1 location'],
   'hiring_date_1': ['hiring date 1', 'stelle 1 datum', 'job 1 date'],
-  'hiring_title_2': ['hiring title 2', 'stelle 2 titel', 'job 2 title'],
-  'hiring_url_2': ['hiring url 2', 'stelle 2 url', 'job 2 url'],
+  'hiring_title_2': ['hiring title 2', 'stelle 2 titel', 'job 2 title', 'open position 2'],
+  'hiring_url_2': ['hiring url 2', 'stelle 2 url', 'job 2 url', 'position 2 url'],
   'hiring_location_2': ['hiring location 2', 'stelle 2 ort', 'job 2 location'],
   'hiring_date_2': ['hiring date 2', 'stelle 2 datum', 'job 2 date'],
-  'hiring_title_3': ['hiring title 3', 'stelle 3 titel', 'job 3 title'],
-  'hiring_url_3': ['hiring url 3', 'stelle 3 url', 'job 3 url'],
+  'hiring_title_3': ['hiring title 3', 'stelle 3 titel', 'job 3 title', 'open position 3'],
+  'hiring_url_3': ['hiring url 3', 'stelle 3 url', 'job 3 url', 'position 3 url'],
   'hiring_location_3': ['hiring location 3', 'stelle 3 ort', 'job 3 location'],
   'hiring_date_3': ['hiring date 3', 'stelle 3 datum', 'job 3 date'],
-  'hiring_title_4': ['hiring title 4', 'stelle 4 titel', 'job 4 title'],
-  'hiring_url_4': ['hiring url 4', 'stelle 4 url', 'job 4 url'],
+  'hiring_title_4': ['hiring title 4', 'stelle 4 titel', 'job 4 title', 'open position 4'],
+  'hiring_url_4': ['hiring url 4', 'stelle 4 url', 'job 4 url', 'position 4 url'],
   'hiring_location_4': ['hiring location 4', 'stelle 4 ort', 'job 4 location'],
   'hiring_date_4': ['hiring date 4', 'stelle 4 datum', 'job 4 date'],
-  'hiring_title_5': ['hiring title 5', 'stelle 5 titel', 'job 5 title'],
-  'hiring_url_5': ['hiring url 5', 'stelle 5 url', 'job 5 url'],
+  'hiring_title_5': ['hiring title 5', 'stelle 5 titel', 'job 5 title', 'open position 5'],
+  'hiring_url_5': ['hiring url 5', 'stelle 5 url', 'job 5 url', 'position 5 url'],
   'hiring_location_5': ['hiring location 5', 'stelle 5 ort', 'job 5 location'],
   'hiring_date_5': ['hiring date 5', 'stelle 5 datum', 'job 5 date'],
   
   // Job Change Signals
-  'job_change_prev_company': ['job change - previous company', 'previous company', 'vorheriger arbeitgeber', 'prev company'],
-  'job_change_prev_title': ['job change - previous title', 'previous title', 'vorherige position', 'prev title'],
+  'job_change_prev_company': ['job change - previous company', 'previous company', 'vorheriger arbeitgeber', 'prev company', 'old company'],
+  'job_change_prev_title': ['job change - previous title', 'previous title', 'vorherige position', 'prev title', 'old title'],
   'job_change_new_company': ['job change - new company', 'new company', 'neuer arbeitgeber', 'current company'],
   'job_change_new_title': ['job change - new title', 'new title', 'neue position', 'current title'],
   'job_change_date': ['job change date', 'wechsel datum', 'change date'],
-  'moved_from_country': ['location move - from country', 'move from country', 'umzug von land'],
-  'moved_from_state': ['location move - from state', 'move from state', 'umzug von bundesland'],
-  'moved_to_country': ['location move - to country', 'move to country', 'umzug nach land'],
-  'moved_to_state': ['location move - to state', 'move to state', 'umzug nach bundesland'],
+  'moved_from_country': ['location move - from country', 'move from country', 'umzug von land', 'from country'],
+  'moved_from_state': ['location move - from state', 'move from state', 'umzug von bundesland', 'from state'],
+  'moved_to_country': ['location move - to country', 'move to country', 'umzug nach land', 'to country'],
+  'moved_to_state': ['location move - to state', 'move to state', 'umzug nach bundesland', 'to state'],
   'moved_date': ['location move date', 'move date', 'umzug datum'],
   
   // Meta
@@ -258,8 +258,76 @@ const AUTO_MAP_PATTERNS: Record<string, string[]> = {
   'profile_id': ['profile id', 'profil id', 'profile_id'],
   'sid': ['sid', 's_id'],
   'score': ['score', 'punktzahl', 'bewertung'],
-  'industry': ['branche', 'industry'],
-  'company_size': ['größe', 'size', 'unternehmensgröße'],
+};
+
+// Ausschluss-Patterns: Wenn Header diese enthält, NICHT auf das Feld mappen
+const EXCLUDE_FROM_FIELD: Record<string, string[]> = {
+  'contact_name': ['company', 'firma', 'organization', 'organisation', 'business', 'unternehmen'],
+  'contact_email': ['verification', 'status', 'quality', 'validated', 'valid', 'score', 'bounce'],
+  'personal_linkedin_url': ['company', 'firma', 'organization', 'organisation', 'business'],
+  'city': ['company', 'hq', 'firma', 'headquarter'],
+  'company_name': ['linkedin', 'website', 'url', 'domain', 'address', 'city', 'country', 'founded', 'year', 'type', 'size', 'headcount'],
+};
+
+// E-Mail Validierung
+const isValidEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+// Verbesserter Auto-Mapping Algorithmus
+const autoMapColumn = (header: string, sampleData?: string[]): string => {
+  const lowerHeader = header.toLowerCase().trim();
+  
+  // PHASE 1: Exakte Matches (höchste Priorität)
+  for (const [field, patterns] of Object.entries(AUTO_MAP_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (lowerHeader === pattern) {
+        return field;
+      }
+    }
+  }
+  
+  // PHASE 2: Alle Patterns sammeln und nach Länge sortieren (längste = spezifischer)
+  const allPatterns: { field: string; pattern: string }[] = [];
+  for (const [field, patterns] of Object.entries(AUTO_MAP_PATTERNS)) {
+    for (const pattern of patterns) {
+      allPatterns.push({ field, pattern });
+    }
+  }
+  allPatterns.sort((a, b) => b.pattern.length - a.pattern.length);
+  
+  // PHASE 3: Wortgrenzen-Match mit Ausschluss-Prüfung
+  for (const { field, pattern } of allPatterns) {
+    // Escape special regex characters
+    const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wordBoundaryRegex = new RegExp(`\\b${escapedPattern}\\b`, 'i');
+    
+    if (wordBoundaryRegex.test(lowerHeader)) {
+      // Prüfe Ausschluss-Liste
+      const excludePatterns = EXCLUDE_FROM_FIELD[field] || [];
+      const shouldExclude = excludePatterns.some(ex => lowerHeader.includes(ex));
+      
+      if (!shouldExclude) {
+        return field;
+      }
+    }
+  }
+  
+  // PHASE 4: Fallback für spezielle Felder mit Datenvalidierung
+  if (sampleData && sampleData.length > 0) {
+    const sample = sampleData.find(s => s && s.trim());
+    if (sample) {
+      // E-Mail-Feld erkennen basierend auf Daten
+      if (isValidEmail(sample) && (lowerHeader.includes('email') || lowerHeader.includes('e-mail') || lowerHeader.includes('mail'))) {
+        // Nur wenn es nicht ein Status/Quality Feld ist
+        if (!lowerHeader.includes('verification') && !lowerHeader.includes('status') && !lowerHeader.includes('quality')) {
+          return 'contact_email';
+        }
+      }
+    }
+  }
+  
+  return 'skip';
 };
 
 export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) {
@@ -328,20 +396,6 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
     });
   };
 
-  const autoMapColumn = (header: string): string => {
-    const lowerHeader = header.toLowerCase().trim();
-    
-    for (const [field, patterns] of Object.entries(AUTO_MAP_PATTERNS)) {
-      for (const pattern of patterns) {
-        if (lowerHeader === pattern || lowerHeader.includes(pattern)) {
-          return field;
-        }
-      }
-    }
-    
-    return 'skip';
-  };
-
   const handleFile = useCallback((selectedFile: File) => {
     setFile(selectedFile);
     const reader = new FileReader();
@@ -352,10 +406,11 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
         setHeaders(parsed[0]);
         setCsvData(parsed.slice(1));
         
-        // Auto-map columns using extended patterns
+        // Auto-map columns with sample data for better detection
         const autoMapping: Record<string, string> = {};
         parsed[0].forEach((header, index) => {
-          autoMapping[index.toString()] = autoMapColumn(header);
+          const sampleData = parsed.slice(1, 6).map(row => row[index] || '');
+          autoMapping[index.toString()] = autoMapColumn(header, sampleData);
         });
         setMapping(autoMapping);
         setStep('mapping');
