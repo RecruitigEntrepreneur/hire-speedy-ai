@@ -3765,6 +3765,93 @@ export type Database = {
         }
         Relationships: []
       }
+      outreach_companies: {
+        Row: {
+          address: string | null
+          career_crawled_at: string | null
+          career_page_status: string | null
+          career_page_url: string | null
+          city: string | null
+          company_updates: Json | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          domain: string
+          founded_year: number | null
+          headcount: number | null
+          hiring_activity: string | null
+          id: string
+          industry: string | null
+          linkedin_url: string | null
+          live_jobs: Json | null
+          live_jobs_count: number | null
+          name: string
+          news_crawled_at: string | null
+          priority_score: number | null
+          recent_news: Json | null
+          status: string | null
+          technologies: Json | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          career_crawled_at?: string | null
+          career_page_status?: string | null
+          career_page_url?: string | null
+          city?: string | null
+          company_updates?: Json | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          domain: string
+          founded_year?: number | null
+          headcount?: number | null
+          hiring_activity?: string | null
+          id?: string
+          industry?: string | null
+          linkedin_url?: string | null
+          live_jobs?: Json | null
+          live_jobs_count?: number | null
+          name: string
+          news_crawled_at?: string | null
+          priority_score?: number | null
+          recent_news?: Json | null
+          status?: string | null
+          technologies?: Json | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          career_crawled_at?: string | null
+          career_page_status?: string | null
+          career_page_url?: string | null
+          city?: string | null
+          company_updates?: Json | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          domain?: string
+          founded_year?: number | null
+          headcount?: number | null
+          hiring_activity?: string | null
+          id?: string
+          industry?: string | null
+          linkedin_url?: string | null
+          live_jobs?: Json | null
+          live_jobs_count?: number | null
+          name?: string
+          news_crawled_at?: string | null
+          priority_score?: number | null
+          recent_news?: Json | null
+          status?: string | null
+          technologies?: Json | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       outreach_conversations: {
         Row: {
           assigned_to: string | null
@@ -4034,6 +4121,7 @@ export type Database = {
           company_financials: string | null
           company_founded_year: number | null
           company_headcount: number | null
+          company_id: string | null
           company_industries: Json | null
           company_linkedin_url: string | null
           company_name: string
@@ -4119,6 +4207,7 @@ export type Database = {
           company_financials?: string | null
           company_founded_year?: number | null
           company_headcount?: number | null
+          company_id?: string | null
           company_industries?: Json | null
           company_linkedin_url?: string | null
           company_name: string
@@ -4204,6 +4293,7 @@ export type Database = {
           company_financials?: string | null
           company_founded_year?: number | null
           company_headcount?: number | null
+          company_id?: string | null
           company_industries?: Json | null
           company_linkedin_url?: string | null
           company_name?: string
@@ -4276,6 +4366,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "outreach_leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "outreach_leads_duplicate_of_fkey"
             columns: ["duplicate_of"]

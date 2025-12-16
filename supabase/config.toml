@@ -167,3 +167,6 @@ verify_jwt = true
 
 [functions.crawl-career-pages-bulk]
 verify_jwt = true
+
+[functions.crawl-company-data]
+verify_jwt = true
