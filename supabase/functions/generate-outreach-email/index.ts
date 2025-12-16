@@ -6,6 +6,40 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper: Domain aus URL extrahieren
+function extractDomain(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return parsed.hostname.replace('www.', '');
+  } catch {
+    return null;
+  }
+}
+
+// Helper: Prüfen ob Datum kürzlich ist (innerhalb von X Tagen)
+function isRecent(dateStr: string | null | undefined, days: number): boolean {
+  if (!dateStr) return false;
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays <= days;
+  } catch {
+    return false;
+  }
+}
+
+// Helper: Neuestes Hiring-Signal finden
+function getLatestHiring(signals: any[] | null): any | null {
+  if (!signals || signals.length === 0) return null;
+  
+  const withDates = signals.filter(s => s.date);
+  if (withDates.length === 0) return signals[0];
+  
+  return withDates.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+}
+
 // Vollständiger System-Prompt für B2B-E-Mail-Generierung
 const SYSTEM_PROMPT = `Du bist eine interne, geschäftskritische AI-Komponente innerhalb eines professionellen B2B-Recruiting-Systems.
 
@@ -37,6 +71,35 @@ VERBOTEN:
 - Annahmen über internen Zustand des Unternehmens
 - Mehrere CTAs
 
+PERSONALISIERUNGSSTRATEGIEN (nutze wenn Daten vorhanden):
+
+1. HIRING-SIGNALE (höchste Priorität wenn vorhanden):
+   - Wenn hiring_count > 0: "Ich sehe, dass Sie aktuell [latest_hiring_title] suchen..."
+   - Bei mehreren Stellen: "Mit aktuell [hiring_count] offenen Positionen..."
+   - Konkrete Stelle nennen zeigt Recherche und Relevanz
+
+2. JOB-WECHSEL (sehr persönlich, mit Vorsicht):
+   - Wenn has_recent_job_change: "Herzlichen Glückwunsch zu Ihrer Rolle bei [company_name]..."
+   - NICHT erwähnen wenn länger als 90 Tage her
+   - NICHT aufdringlich nachfragen
+
+3. STANDORT-WECHSEL (subtil einsetzen):
+   - Wenn has_recent_move: Bezug auf neue Stadt/Region nur wenn relevant
+   - "In [city] gibt es interessante Entwicklungen im [industry]-Bereich..."
+
+4. TECHNOLOGIE-BEZUG:
+   - Wenn company_technologies vorhanden: Tech-Stack als Anknüpfungspunkt
+   - "Als [technology]-basiertes Unternehmen..."
+
+5. BRANCHEN-KONTEXT:
+   - Wenn company_industries vorhanden: Branchenspezifische Herausforderungen ansprechen
+   - Nicht generisch, sondern konkret auf die Branche bezogen
+
+FALLBACK-STRATEGIE (wenn wenig Daten):
+- Auf Firmenname und Position fokussieren
+- Allgemeine aber respektvolle Ansprache
+- Keine erfundenen Details
+
 Bei fehlenden Variablen: Neutrale Formulierungen, keine Platzhalter, keine Verallgemeinerungen.
 
 OUTPUT-FORMAT (zwingend JSON):
@@ -44,6 +107,7 @@ OUTPUT-FORMAT (zwingend JSON):
   "subject": "...",
   "body": "...",
   "used_variables": ["company_name", "industry"],
+  "personalization_strategy": "hiring_signals | job_change | technology | industry | fallback",
   "confidence_level": "hoch | mittel | niedrig"
 }`;
 
@@ -62,7 +126,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Lead-Daten laden
+    // Lead-Daten laden (alle neuen Felder)
     const { data: lead, error: leadError } = await supabase
       .from("outreach_leads")
       .select("*")
@@ -86,25 +150,132 @@ serve(async (req) => {
       throw new Error("Kampagne nicht gefunden");
     }
 
-    // Verfügbare Variablen aufbereiten
+    // Hiring-Signale parsen
+    const hiringSignals = lead.hiring_signals || [];
+    const latestHiring = getLatestHiring(hiringSignals);
+    
+    // Job Change Data parsen
+    const jobChangeData = lead.job_change_data || {};
+    const hasRecentJobChange = isRecent(jobChangeData.date, 90);
+    
+    // Location Move Data parsen
+    const locationMoveData = lead.location_move_data || {};
+    const hasRecentMove = isRecent(locationMoveData.date, 90);
+
+    // Vollständige Variablen für AI-Personalisierung (80+)
     const availableVariables: Record<string, any> = {
-      company_name: lead.company_name,
-      industry: lead.industry,
-      company_size: lead.company_size,
+      // === PERSON (Basis) ===
+      first_name: lead.first_name,
+      last_name: lead.last_name,
+      full_name: lead.first_name && lead.last_name 
+        ? `${lead.first_name} ${lead.last_name}` 
+        : lead.contact_name,
       contact_name: lead.contact_name,
+      contact_email: lead.contact_email,
+      job_title: lead.contact_role,
       contact_role: lead.contact_role,
+      seniority: lead.seniority,
+      department: lead.department,
+      
+      // === PERSON (Kontakt) ===
+      mobile_phone: lead.mobile_phone,
+      direct_phone: lead.direct_phone,
+      office_phone: lead.office_phone,
+      personal_linkedin_url: lead.personal_linkedin_url,
+      education: lead.education,
+      
+      // === COMPANY (Basis) ===
+      company_name: lead.company_name,
+      company_alias: lead.company_alias,
+      company_type: lead.company_type,
+      company_description: lead.company_description,
+      company_website: lead.company_website,
+      company_domain: lead.company_domain || extractDomain(lead.company_website),
+      company_headcount: lead.company_headcount,
+      company_industries: lead.company_industries,
+      company_technologies: lead.company_technologies,
+      company_financials: lead.company_financials,
+      company_linkedin_url: lead.company_linkedin_url,
+      company_founded_year: lead.company_founded_year,
+      
+      // === COMPANY (Adresse) ===
+      company_address_line: lead.company_address_line,
+      company_city: lead.company_city,
+      company_zip: lead.company_zip,
+      company_state: lead.company_state,
+      company_country: lead.company_country,
+      
+      // === HQ ===
+      hq_name: lead.hq_name,
+      hq_address_line: lead.hq_address_line,
+      hq_city: lead.hq_city,
+      hq_zip: lead.hq_zip,
+      hq_state: lead.hq_state,
+      hq_country: lead.hq_country,
+      
+      // === HIRING-SIGNALE (Trigger-relevant!) ===
+      hiring_signals: hiringSignals,
+      hiring_count: hiringSignals.length,
+      has_hiring_signals: hiringSignals.length > 0,
+      latest_hiring_title: latestHiring?.title,
+      latest_hiring_url: latestHiring?.url,
+      latest_hiring_location: latestHiring?.location,
+      latest_hiring_date: latestHiring?.date,
+      hiring_titles_all: hiringSignals.map((h: any) => h.title).filter(Boolean).join(', '),
+      
+      // === JOB-WECHSEL-SIGNALE (Super-Personalisierung!) ===
+      has_recent_job_change: hasRecentJobChange,
+      job_change_prev_company: jobChangeData.prev_company,
+      job_change_prev_title: jobChangeData.prev_title,
+      job_change_new_company: jobChangeData.new_company,
+      job_change_new_title: jobChangeData.new_title,
+      job_change_date: jobChangeData.date,
+      
+      // === STANDORT-WECHSEL-SIGNALE ===
+      has_recent_move: hasRecentMove,
+      moved_from_country: locationMoveData.from_country,
+      moved_from_state: locationMoveData.from_state,
+      moved_to_country: locationMoveData.to_country,
+      moved_to_state: locationMoveData.to_state,
+      moved_date: locationMoveData.date,
+      
+      // === LOCATION (Person) ===
       country: lead.country,
       region: lead.region,
-      city: lead.city,
+      city: lead.city || lead.company_city,
+      
+      // === META ===
+      list_name: lead.list_name,
+      segment: lead.segment,
+      priority: lead.priority,
+      language: lead.language || 'de',
+      lead_source: lead.lead_source,
+      
+      // === LEGACY (Rückwärtskompatibilität) ===
+      industry: lead.industry,
+      company_size: lead.company_size,
       recruiting_challenges: lead.recruiting_challenges,
       current_ats: lead.current_ats,
       hiring_volume: lead.hiring_volume,
-      lead_source: lead.lead_source,
-      company_website: lead.company_website,
       revenue_range: lead.revenue_range,
     };
 
-    // User-Prompt mit Kontext
+    // Nur gefüllte Variablen für den Prompt
+    const filledVariables = Object.entries(availableVariables)
+      .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== false && 
+              !(Array.isArray(v) && v.length === 0) &&
+              !(typeof v === 'object' && Object.keys(v).length === 0))
+      .map(([k, v]) => `- ${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+      .join('\n');
+
+    // Bestimme Personalisierungsstrategie
+    let suggestedStrategy = 'fallback';
+    if (hiringSignals.length > 0) suggestedStrategy = 'hiring_signals';
+    else if (hasRecentJobChange) suggestedStrategy = 'job_change';
+    else if (lead.company_technologies?.length > 0) suggestedStrategy = 'technology';
+    else if (lead.company_industries?.length > 0 || lead.industry) suggestedStrategy = 'industry';
+
+    // User-Prompt mit vollem Kontext
     const sequenceType = sequence_step === 1 ? 'Erstkontakt' : `Follow-up ${sequence_step - 1}`;
     
     const userPrompt = `
@@ -113,15 +284,15 @@ KAMPAGNEN-KONTEXT:
 - Zielgruppe: ${campaign.target_segment}
 - Tonalität: ${campaign.tonality}
 - Erlaubter CTA: ${campaign.allowed_cta || "Macht ein kurzer Austausch Sinn?"}
-- Verbotene Wörter: ${JSON.stringify(campaign.forbidden_words)}
+- Verbotene Wörter: ${JSON.stringify(campaign.forbidden_words || [])}
 - Maximale Wortanzahl: ${campaign.max_word_count}
 - Sequenz-Schritt: ${sequence_step} (${sequenceType})
 
-LEAD-DATEN (nur diese Variablen verwenden):
-${Object.entries(availableVariables)
-  .filter(([_, v]) => v !== null && v !== undefined && v !== '')
-  .map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`)
-  .join('\n')}
+EMPFOHLENE PERSONALISIERUNGSSTRATEGIE: ${suggestedStrategy}
+(Nutze diese Strategie als Hauptansatz, aber wähle eine andere wenn sie besser passt)
+
+VERFÜGBARE LEAD-DATEN (alle gefüllten Variablen):
+${filledVariables}
 
 ABSENDER:
 - Name: ${campaign.sender_name}
@@ -131,10 +302,24 @@ ${sequence_step > 1 ? `
 WICHTIG: Dies ist ein Follow-up. Beziehe dich kurz auf die vorherige E-Mail, ohne aufdringlich zu sein. Variiere den Ansatz leicht.
 ` : ''}
 
-Generiere jetzt eine E-Mail für diesen Lead.
+${hiringSignals.length > 0 ? `
+HIRING-KONTEXT (UNBEDINGT NUTZEN!):
+Das Unternehmen sucht aktuell ${hiringSignals.length} Stelle(n):
+${hiringSignals.map((h: any, i: number) => `  ${i + 1}. ${h.title || 'Position'} ${h.location ? `in ${h.location}` : ''}`).join('\n')}
+Dies ist ein starkes Signal für Recruiting-Bedarf!
+` : ''}
+
+${hasRecentJobChange ? `
+JOB-WECHSEL-KONTEXT (mit Vorsicht nutzen):
+Die Person hat kürzlich zu ${jobChangeData.new_company || lead.company_name} gewechselt${jobChangeData.new_title ? ` als ${jobChangeData.new_title}` : ''}.
+Vorher: ${jobChangeData.prev_company || 'unbekannt'}${jobChangeData.prev_title ? ` als ${jobChangeData.prev_title}` : ''}
+` : ''}
+
+Generiere jetzt eine hochpersonalisierte E-Mail für diesen Lead.
 `;
 
-    console.log("Calling Lovable AI...");
+    console.log("Calling Lovable AI with strategy:", suggestedStrategy);
+    console.log("Variables count:", Object.keys(availableVariables).filter(k => availableVariables[k]).length);
 
     // AI-Generierung via Lovable AI
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -216,6 +401,7 @@ Generiere jetzt eine E-Mail für diesen Lead.
     }
 
     console.log(`Email generated and saved: ${savedEmail.id}`);
+    console.log(`Strategy used: ${emailData.personalization_strategy || suggestedStrategy}`);
 
     return new Response(
       JSON.stringify({
@@ -225,6 +411,8 @@ Generiere jetzt eine E-Mail für diesen Lead.
           forbidden_words_found: foundForbidden,
           word_count: wordCount,
           max_words: campaign.max_word_count,
+          personalization_strategy: emailData.personalization_strategy || suggestedStrategy,
+          variables_used: emailData.used_variables?.length || 0,
         }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
