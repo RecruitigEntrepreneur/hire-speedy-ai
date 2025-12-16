@@ -546,6 +546,11 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
       if (locationMoveData) {
         lead.location_move_data = locationMoveData;
       }
+
+      // Auto-compose contact_name from first_name + last_name if not directly mapped
+      if (!lead.contact_name && (lead.first_name || lead.last_name)) {
+        lead.contact_name = [lead.first_name, lead.last_name].filter(Boolean).join(' ').trim();
+      }
       
       return lead;
     }).filter(lead => lead.company_name && lead.contact_name && lead.contact_email);
@@ -592,9 +597,12 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
 
   const requiredFieldsMapped = () => {
     const mappedFields = Object.values(mapping);
-    return mappedFields.includes('company_name') && 
-           mappedFields.includes('contact_name') && 
-           mappedFields.includes('contact_email');
+    const hasCompanyName = mappedFields.includes('company_name');
+    const hasEmail = mappedFields.includes('contact_email');
+    // Accept contact_name OR (first_name + last_name)
+    const hasContactName = mappedFields.includes('contact_name') || 
+      (mappedFields.includes('first_name') && mappedFields.includes('last_name'));
+    return hasCompanyName && hasContactName && hasEmail;
   };
 
   const mappedFieldsCount = useMemo(() => {
