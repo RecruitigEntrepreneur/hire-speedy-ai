@@ -30,6 +30,7 @@ import { CampaignDialog } from '@/components/outreach/CampaignDialog';
 import { LeadDetailSheet } from '@/components/outreach/LeadDetailSheet';
 import { GenerateEmailsDialog } from '@/components/outreach/GenerateEmailsDialog';
 import { QueueStatusCard } from '@/components/outreach/QueueStatusCard';
+import { EmailReviewTable } from '@/components/outreach/EmailReviewTable';
 
 export default function AdminOutreach() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -592,137 +593,15 @@ export default function AdminOutreach() {
 
           {/* ========== REVIEW TAB ========== */}
           <TabsContent value="review" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Email List */}
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle>E-Mails zur Prüfung</CardTitle>
-                  <CardDescription>{reviewEmails?.length || 0} E-Mails warten auf Review</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[600px]">
-                    {reviewLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : reviewEmails && reviewEmails.length > 0 ? (
-                      <div className="divide-y">
-                        {reviewEmails.map(email => (
-                          <div 
-                            key={email.id} 
-                            className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${selectedEmail === email.id ? 'bg-muted' : ''}`}
-                            onClick={() => setSelectedEmail(email.id)}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1">
-                                <p className="font-medium">{email.lead?.contact_name}</p>
-                                <p className="text-sm text-muted-foreground">{email.lead?.company_name}</p>
-                              </div>
-                              <Badge variant={
-                                email.confidence_level === 'hoch' ? 'default' : 
-                                email.confidence_level === 'niedrig' ? 'destructive' : 'secondary'
-                              }>
-                                {email.confidence_level || 'mittel'}
-                              </Badge>
-                            </div>
-                            <p className="text-sm mt-2 line-clamp-2">{email.subject}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <CheckCircle className="h-16 w-16 mx-auto mb-4 opacity-20 text-green-500" />
-                        <h3 className="text-lg font-medium mb-2">Alles geprüft!</h3>
-                        <p>Keine E-Mails zur Prüfung vorhanden.</p>
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              {/* Email Preview */}
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle>E-Mail Vorschau</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {selectedEmail && reviewEmails?.find(e => e.id === selectedEmail) ? (() => {
-                    const email = reviewEmails.find(e => e.id === selectedEmail)!;
-                    return (
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-muted-foreground">An</p>
-                              <p className="font-medium">{email.lead?.contact_name} &lt;{email.lead?.contact_email}&gt;</p>
-                            </div>
-                            <Badge variant="outline">{email.lead?.company_name}</Badge>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Betreff</p>
-                            <p className="font-medium">{email.subject}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="p-4 rounded-lg border bg-background min-h-[200px]">
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed">{email.body}</p>
-                        </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-4">
-                            <span className="text-muted-foreground">
-                              Wörter: <span className="font-medium">{email.body?.split(' ').length || 0}</span>
-                            </span>
-                            <span className="text-muted-foreground">
-                              Kampagne: <span className="font-medium">{email.campaign?.name || '-'}</span>
-                            </span>
-                          </div>
-                          <Badge variant={
-                            email.confidence_level === 'hoch' ? 'default' : 
-                            email.confidence_level === 'niedrig' ? 'destructive' : 'secondary'
-                          }>
-                            Konfidenz: {email.confidence_level || 'mittel'}
-                          </Badge>
-                        </div>
-
-                        <div className="flex gap-3 pt-4 border-t">
-                          <Button 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => rejectEmail.mutate(email.id)}
-                            disabled={rejectEmail.isPending}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Ablehnen
-                          </Button>
-                          <Button 
-                            variant="outline"
-                            onClick={() => regenerateEmail.mutate(email.id)}
-                            disabled={regenerateEmail.isPending}
-                          >
-                            <RefreshCw className={`h-4 w-4 mr-2 ${regenerateEmail.isPending ? 'animate-spin' : ''}`} />
-                            Neu generieren
-                          </Button>
-                          <Button 
-                            className="flex-1"
-                            onClick={() => approveEmail.mutate(email.id)}
-                            disabled={approveEmail.isPending}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Freigeben
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })() : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Mail className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                      <p>Wählen Sie eine E-Mail aus der Liste aus</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <EmailReviewTable
+              emails={reviewEmails || []}
+              onApprove={(id) => approveEmail.mutate(id)}
+              onReject={(id) => rejectEmail.mutate(id)}
+              onRegenerate={(id) => regenerateEmail.mutate(id)}
+              onBulkApprove={(ids) => ids.forEach(id => approveEmail.mutate(id))}
+              onBulkReject={(ids) => ids.forEach(id => rejectEmail.mutate(id))}
+              isLoading={reviewLoading}
+            />
           </TabsContent>
 
           {/* ========== INBOX TAB ========== */}
