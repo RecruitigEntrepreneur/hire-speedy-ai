@@ -13,7 +13,8 @@ import {
   Users, Mail, Send, BarChart3, Inbox, Target, CheckCircle, XCircle, 
   Clock, Eye, MousePointer, MessageSquare, Plus, Upload, Search, 
   MoreHorizontal, Trash2, Edit, RefreshCw, Play, Pause, TrendingUp,
-  TrendingDown, Filter, Sparkles, AlertTriangle, Loader2, ArrowRight
+  TrendingDown, Filter, Sparkles, AlertTriangle, Loader2, ArrowRight,
+  Briefcase
 } from 'lucide-react';
 import { 
   useOutreachLeads, useOutreachCampaigns, useOutreachEmails, useOutreachStats, 
@@ -21,6 +22,7 @@ import {
   useDeleteLead, useToggleCampaign, useDeleteCampaign, useGenerateEmail,
   useQueueStatus, useRetryQueueItem, OutreachLead, OutreachCampaign
 } from '@/hooks/useOutreach';
+import { useHiringActivityStats } from '@/hooks/useCareerCrawl';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -31,6 +33,7 @@ import { LeadDetailSheet } from '@/components/outreach/LeadDetailSheet';
 import { GenerateEmailsDialog } from '@/components/outreach/GenerateEmailsDialog';
 import { QueueStatusCard } from '@/components/outreach/QueueStatusCard';
 import { EmailReviewTable } from '@/components/outreach/EmailReviewTable';
+import { CareerCheckTab } from '@/components/outreach/CareerCheckTab';
 
 export default function AdminOutreach() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -53,6 +56,7 @@ export default function AdminOutreach() {
   const { data: campaigns, isLoading: campaignsLoading } = useOutreachCampaigns();
   const { data: reviewEmails, isLoading: reviewLoading } = useOutreachEmails('review');
   const { data: conversations } = useOutreachConversations();
+  const { data: hiringStats } = useHiringActivityStats();
   const { data: queueItems } = useQueueStatus();
   
   // Mutations
@@ -119,13 +123,17 @@ export default function AdminOutreach() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl h-12">
+          <TabsList className="grid grid-cols-7 w-full max-w-5xl h-12">
             <TabsTrigger value="dashboard" className="gap-2">
               <BarChart3 className="h-4 w-4" />Dashboard
             </TabsTrigger>
             <TabsTrigger value="leads" className="gap-2">
               <Users className="h-4 w-4" />Leads
               {stats?.totalLeads ? <Badge variant="secondary" className="ml-1">{stats.totalLeads}</Badge> : null}
+            </TabsTrigger>
+            <TabsTrigger value="careers" className="gap-2">
+              <Briefcase className="h-4 w-4" />Karriere
+              {hiringStats?.hot ? <Badge className="ml-1 bg-orange-500">{hiringStats.hot}</Badge> : null}
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="gap-2">
               <Target className="h-4 w-4" />Kampagnen
@@ -317,6 +325,18 @@ export default function AdminOutreach() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* ========== CAREERS TAB ========== */}
+          <TabsContent value="careers" className="space-y-4 mt-6">
+            <CareerCheckTab 
+              onGenerateEmail={(leadId) => {
+                const campaign = campaigns?.find(c => c.is_active);
+                if (campaign) {
+                  generateEmail.mutate({ leadId, campaignId: campaign.id });
+                }
+              }}
+            />
           </TabsContent>
 
           {/* ========== LEADS TAB ========== */}

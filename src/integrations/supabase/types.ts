@@ -4021,6 +4021,9 @@ export type Database = {
       }
       outreach_leads: {
         Row: {
+          career_crawled_at: string | null
+          career_page_status: string | null
+          career_page_url: string | null
           city: string | null
           company_address_line: string | null
           company_alias: string | null
@@ -4061,6 +4064,7 @@ export type Database = {
           email_verification_status: string | null
           first_name: string | null
           founding_year: number | null
+          hiring_activity: string | null
           hiring_signals: Json | null
           hiring_volume: string | null
           hq_address_line: string | null
@@ -4079,6 +4083,8 @@ export type Database = {
           last_replied_at: string | null
           lead_source: string | null
           list_name: string | null
+          live_jobs: Json | null
+          live_jobs_count: number | null
           location_move_data: Json | null
           mobile_phone: string | null
           notes: string | null
@@ -4100,6 +4106,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          career_crawled_at?: string | null
+          career_page_status?: string | null
+          career_page_url?: string | null
           city?: string | null
           company_address_line?: string | null
           company_alias?: string | null
@@ -4140,6 +4149,7 @@ export type Database = {
           email_verification_status?: string | null
           first_name?: string | null
           founding_year?: number | null
+          hiring_activity?: string | null
           hiring_signals?: Json | null
           hiring_volume?: string | null
           hq_address_line?: string | null
@@ -4158,6 +4168,8 @@ export type Database = {
           last_replied_at?: string | null
           lead_source?: string | null
           list_name?: string | null
+          live_jobs?: Json | null
+          live_jobs_count?: number | null
           location_move_data?: Json | null
           mobile_phone?: string | null
           notes?: string | null
@@ -4179,6 +4191,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          career_crawled_at?: string | null
+          career_page_status?: string | null
+          career_page_url?: string | null
           city?: string | null
           company_address_line?: string | null
           company_alias?: string | null
@@ -4219,6 +4234,7 @@ export type Database = {
           email_verification_status?: string | null
           first_name?: string | null
           founding_year?: number | null
+          hiring_activity?: string | null
           hiring_signals?: Json | null
           hiring_volume?: string | null
           hq_address_line?: string | null
@@ -4237,6 +4253,8 @@ export type Database = {
           last_replied_at?: string | null
           lead_source?: string | null
           list_name?: string | null
+          live_jobs?: Json | null
+          live_jobs_count?: number | null
           location_move_data?: Json | null
           mobile_phone?: string | null
           notes?: string | null

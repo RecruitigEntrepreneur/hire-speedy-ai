@@ -161,3 +161,9 @@ verify_jwt = false
 
 [functions.resend-webhooks]
 verify_jwt = false
+
+[functions.crawl-career-page]
+verify_jwt = true
+
+[functions.crawl-career-pages-bulk]
+verify_jwt = true
