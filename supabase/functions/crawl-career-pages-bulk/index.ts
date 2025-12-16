@@ -38,26 +38,43 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch all leads
-    const { data: leads, error: leadsError } = await supabase
-      .from('outreach_leads')
-      .select('id, company_name, company_domain, company_website, contact_email, career_crawled_at, hiring_activity')
-      .in('id', lead_ids);
+    // Fetch leads in smaller batches to avoid URL length issues
+    const FETCH_BATCH_SIZE = 20;
+    const allLeads: any[] = [];
+    
+    for (let i = 0; i < lead_ids.length; i += FETCH_BATCH_SIZE) {
+      const batchIds = lead_ids.slice(i, i + FETCH_BATCH_SIZE);
+      const { data: batchLeads, error: batchError } = await supabase
+        .from('outreach_leads')
+        .select('id, company_name, company_domain, company_website, contact_email, career_crawled_at, hiring_activity')
+        .in('id', batchIds);
 
-    if (leadsError) {
+      if (batchError) {
+        console.error(`[Bulk Crawl] Batch fetch error:`, batchError);
+        continue;
+      }
+      
+      if (batchLeads) {
+        allLeads.push(...batchLeads);
+      }
+    }
+
+    if (allLeads.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: leadsError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'No leads found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`[Bulk Crawl] Fetched ${allLeads.length} leads to process`);
+
     const results: BulkCrawlResult['results'] = [];
-    const CONCURRENT_LIMIT = 3; // Process 3 at a time to avoid rate limits
+    const CONCURRENT_LIMIT = 3;
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
     // Process in batches
-    for (let i = 0; i < leads.length; i += CONCURRENT_LIMIT) {
-      const batch = leads.slice(i, i + CONCURRENT_LIMIT);
+    for (let i = 0; i < allLeads.length; i += CONCURRENT_LIMIT) {
+      const batch = allLeads.slice(i, i + CONCURRENT_LIMIT);
       
       const batchPromises = batch.map(async (lead) => {
         // Skip if recently crawled (within 24h) and not force refresh
@@ -112,8 +129,8 @@ Deno.serve(async (req) => {
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
 
-      // Small delay between batches to avoid rate limits
-      if (i + CONCURRENT_LIMIT < leads.length) {
+      // Small delay between batches
+      if (i + CONCURRENT_LIMIT < allLeads.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
