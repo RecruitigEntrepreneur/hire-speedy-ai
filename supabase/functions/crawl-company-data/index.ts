@@ -18,6 +18,12 @@ interface NewsItem {
   source?: string;
 }
 
+interface KeyExecutive {
+  name: string;
+  role: string;
+  linkedin?: string;
+}
+
 interface CrawlResult {
   career_page_url?: string;
   career_page_status: 'found' | 'not_found' | 'error';
@@ -25,6 +31,13 @@ interface CrawlResult {
   live_jobs_count: number;
   hiring_activity: 'hot' | 'active' | 'low' | 'none' | 'unknown';
   recent_news: NewsItem[];
+  key_executives: KeyExecutive[];
+  funding_stage?: string;
+  funding_total?: string;
+  remote_policy?: string;
+  awards: string[];
+  linkedin_url?: string;
+  employee_growth?: string;
 }
 
 function classifyHiringActivity(jobCount: number): 'hot' | 'active' | 'low' | 'none' {
@@ -79,6 +92,20 @@ function findBestCareerUrl(links: string[], domain: string): string | null {
   return scoredLinks.length > 0 ? scoredLinks[0].link : null;
 }
 
+function extractRemotePolicy(text: string): string | null {
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('remote first') || lowerText.includes('remote-first') || lowerText.includes('vollständig remote')) {
+    return 'remote_first';
+  }
+  if (lowerText.includes('hybrid') || lowerText.includes('teilweise remote')) {
+    return 'hybrid';
+  }
+  if (lowerText.includes('vor ort') || lowerText.includes('office') || lowerText.includes('präsenz')) {
+    return 'office';
+  }
+  return null;
+}
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
@@ -87,7 +114,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { company_id, domain, company_name, crawl_news = true } = await req.json();
+    const { company_id, domain, company_name, crawl_news = true, crawl_extended = true } = await req.json();
 
     if (!company_id && !domain) {
       return new Response(
@@ -138,6 +165,8 @@ Deno.serve(async (req) => {
       live_jobs_count: 0,
       hiring_activity: 'unknown',
       recent_news: [],
+      key_executives: [],
+      awards: [],
     };
 
     // Format domain for URL
@@ -186,6 +215,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               url: careerUrl,
               formats: [
+                'markdown',
                 'links',
                 {
                   type: 'json',
@@ -203,9 +233,11 @@ Deno.serve(async (req) => {
                           },
                         },
                       },
+                      remote_policy: { type: 'string' },
+                      benefits: { type: 'array', items: { type: 'string' } },
                     },
                   },
-                  prompt: 'Extract all job listings from this career page. For each job, extract the title, location, and department if available.',
+                  prompt: 'Extract all job listings from this career page. For each job, extract the title, location, and department if available. Also extract any mentioned remote/hybrid work policy and company benefits.',
                 },
               ],
               onlyMainContent: true,
@@ -216,6 +248,7 @@ Deno.serve(async (req) => {
             const scrapeData = await scrapeResponse.json();
             const jsonData = scrapeData.data?.json || scrapeData.json;
             const pageLinks = scrapeData.data?.links || scrapeData.links || [];
+            const markdown = scrapeData.data?.markdown || '';
 
             if (jsonData?.jobs && Array.isArray(jsonData.jobs)) {
               result.live_jobs = jsonData.jobs.map((job: any, index: number) => ({
@@ -228,6 +261,13 @@ Deno.serve(async (req) => {
                   l.toLowerCase().includes('position')
                 ) || careerUrl,
               }));
+            }
+
+            // Extract remote policy from markdown if not in JSON
+            if (!jsonData?.remote_policy && markdown) {
+              result.remote_policy = extractRemotePolicy(markdown) || undefined;
+            } else if (jsonData?.remote_policy) {
+              result.remote_policy = jsonData.remote_policy;
             }
 
             result.live_jobs_count = result.live_jobs.length;
@@ -246,7 +286,7 @@ Deno.serve(async (req) => {
       console.log(`[Company Crawl] Step 3: Searching for news about ${companyNameToUse}`);
       
       try {
-        const searchQuery = `"${companyNameToUse}" news OR pressemitteilung OR announcement 2024`;
+        const searchQuery = `"${companyNameToUse}" news OR pressemitteilung OR announcement 2024 2025`;
         
         const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
@@ -282,29 +322,151 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Step 4: Search for extended data (funding, executives, etc.)
+    if (crawl_extended && companyNameToUse) {
+      console.log(`[Company Crawl] Step 4: Searching for extended data about ${companyNameToUse}`);
+      
+      try {
+        // Search for funding information
+        const fundingQuery = `"${companyNameToUse}" funding OR finanzierung OR series site:techcrunch.com OR site:gruenderszene.de OR site:deutsche-startups.de 2024 2025`;
+        
+        const fundingResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: fundingQuery,
+            limit: 5,
+            lang: 'de',
+          }),
+        });
+
+        if (fundingResponse.ok) {
+          const fundingData = await fundingResponse.json();
+          const fundingResults = fundingData.data || [];
+          
+          // Parse funding info from search results
+          for (const item of fundingResults) {
+            const text = (item.title + ' ' + (item.description || '')).toLowerCase();
+            if (text.includes('series a')) result.funding_stage = 'Series A';
+            else if (text.includes('series b')) result.funding_stage = 'Series B';
+            else if (text.includes('series c')) result.funding_stage = 'Series C';
+            else if (text.includes('seed')) result.funding_stage = 'Seed';
+            else if (text.includes('ipo') || text.includes('börsengang')) result.funding_stage = 'Public';
+            
+            // Try to extract funding amount
+            const amountMatch = text.match(/(\d+(?:,\d+)?(?:\.\d+)?)\s*(million|mio|mrd|billion)/i);
+            if (amountMatch) {
+              result.funding_total = `${amountMatch[1]} ${amountMatch[2]}`;
+            }
+            
+            if (result.funding_stage) break;
+          }
+          
+          console.log(`[Company Crawl] Funding stage: ${result.funding_stage || 'not found'}`);
+        }
+
+        // Search for LinkedIn company page
+        const linkedinQuery = `site:linkedin.com/company "${companyNameToUse}"`;
+        const linkedinResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: linkedinQuery,
+            limit: 3,
+          }),
+        });
+
+        if (linkedinResponse.ok) {
+          const linkedinData = await linkedinResponse.json();
+          const linkedinResults = linkedinData.data || [];
+          
+          for (const item of linkedinResults) {
+            if (item.url && item.url.includes('linkedin.com/company')) {
+              result.linkedin_url = item.url;
+              break;
+            }
+          }
+          
+          console.log(`[Company Crawl] LinkedIn URL: ${result.linkedin_url || 'not found'}`);
+        }
+
+        // Search for awards
+        const awardsQuery = `"${companyNameToUse}" award OR auszeichnung OR "best employer" OR "top arbeitgeber" 2024 2025`;
+        const awardsResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: awardsQuery,
+            limit: 5,
+            lang: 'de',
+          }),
+        });
+
+        if (awardsResponse.ok) {
+          const awardsData = await awardsResponse.json();
+          const awardsResults = awardsData.data || [];
+          
+          result.awards = awardsResults
+            .filter((item: any) => item.title)
+            .slice(0, 3)
+            .map((item: any) => item.title);
+          
+          console.log(`[Company Crawl] Found ${result.awards.length} awards`);
+        }
+
+      } catch (extendedError) {
+        console.error(`[Company Crawl] Extended data error:`, extendedError);
+      }
+    }
+
     // Calculate priority score
     let priorityScore = 0;
     priorityScore += result.live_jobs_count * 2;
     priorityScore += result.recent_news.length * 3;
+    priorityScore += result.awards.length * 5;
+    if (result.funding_stage) priorityScore += 15;
     if (result.hiring_activity === 'hot') priorityScore += 20;
     else if (result.hiring_activity === 'active') priorityScore += 10;
 
     // Update company in database if company_id provided
     if (company_id) {
+      const updateData: Record<string, any> = {
+        career_page_url: result.career_page_url,
+        career_page_status: result.career_page_status,
+        live_jobs: result.live_jobs,
+        live_jobs_count: result.live_jobs_count,
+        hiring_activity: result.hiring_activity,
+        career_crawled_at: new Date().toISOString(),
+        recent_news: result.recent_news,
+        priority_score: priorityScore,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (crawl_news) {
+        updateData.news_crawled_at = new Date().toISOString();
+      }
+
+      if (crawl_extended) {
+        if (result.funding_stage) updateData.funding_stage = result.funding_stage;
+        if (result.funding_total) updateData.funding_total = result.funding_total;
+        if (result.linkedin_url) updateData.linkedin_url = result.linkedin_url;
+        if (result.remote_policy) updateData.remote_policy = result.remote_policy;
+        if (result.awards.length > 0) updateData.awards = result.awards;
+        if (result.key_executives.length > 0) updateData.key_executives = result.key_executives;
+      }
+
       const { error: updateError } = await supabase
         .from('outreach_companies')
-        .update({
-          career_page_url: result.career_page_url,
-          career_page_status: result.career_page_status,
-          live_jobs: result.live_jobs,
-          live_jobs_count: result.live_jobs_count,
-          hiring_activity: result.hiring_activity,
-          career_crawled_at: new Date().toISOString(),
-          recent_news: result.recent_news,
-          news_crawled_at: crawl_news ? new Date().toISOString() : undefined,
-          priority_score: priorityScore,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', company_id);
 
       if (updateError) {
