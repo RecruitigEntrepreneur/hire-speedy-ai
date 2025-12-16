@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -288,6 +288,14 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
     setSearchTerm('');
   };
 
+  // Cleanup scroll-lock on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.pointerEvents = '';
+      document.body.removeAttribute('data-scroll-locked');
+    };
+  }, []);
+
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n').filter(line => line.trim());
     return lines.map(line => {
@@ -565,8 +573,20 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
     return null;
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      resetState();
+      // Force cleanup scroll lock
+      setTimeout(() => {
+        document.body.style.pointerEvents = '';
+        document.body.removeAttribute('data-scroll-locked');
+      }, 100);
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) resetState(); onOpenChange(o); }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -578,6 +598,9 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
               </Badge>
             )}
           </DialogTitle>
+          <DialogDescription>
+            Importieren Sie Leads aus einer CSV-Datei mit automatischer Feldzuordnung
+          </DialogDescription>
         </DialogHeader>
 
         {step === 'upload' && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -63,6 +63,12 @@ export default function AdminOutreach() {
   const deleteCampaign = useDeleteCampaign();
   const generateEmail = useGenerateEmail();
   const retryQueue = useRetryQueueItem();
+
+  // Cleanup scroll-lock when changing tabs or closing dialogs
+  useEffect(() => {
+    document.body.style.pointerEvents = '';
+    document.body.removeAttribute('data-scroll-locked');
+  }, [activeTab]);
 
   // Filtered leads
   const filteredLeads = leads?.filter(lead => {
@@ -357,6 +363,7 @@ export default function AdminOutreach() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : filteredLeads && filteredLeads.length > 0 ? (
+                  <ScrollArea className="max-h-[600px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -435,6 +442,7 @@ export default function AdminOutreach() {
                       ))}
                     </TableBody>
                   </Table>
+                  </ScrollArea>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />
