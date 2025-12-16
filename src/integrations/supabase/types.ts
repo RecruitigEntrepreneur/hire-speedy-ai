@@ -4201,6 +4201,7 @@ export type Database = {
           notes: string | null
           office_phone: string | null
           open_positions_estimate: number | null
+          outreach_status: string | null
           personal_linkedin_url: string | null
           priority: string | null
           profile_id: string | null
@@ -4292,6 +4293,7 @@ export type Database = {
           notes?: string | null
           office_phone?: string | null
           open_positions_estimate?: number | null
+          outreach_status?: string | null
           personal_linkedin_url?: string | null
           priority?: string | null
           profile_id?: string | null
@@ -4383,6 +4385,7 @@ export type Database = {
           notes?: string | null
           office_phone?: string | null
           open_positions_estimate?: number | null
+          outreach_status?: string | null
           personal_linkedin_url?: string | null
           priority?: string | null
           profile_id?: string | null

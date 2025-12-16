@@ -1,22 +1,32 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Building2, Users, CheckCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CompanyListCard } from "./CompanyListCard";
 import { CompanySlimSheet } from "./CompanySlimSheet";
 import { useCompaniesWithLeadCounts } from "@/hooks/useOutreachCompanies";
-import { LeadImportDialog } from "./LeadImportDialog";
+import { SmartImportDialog } from "./SmartImportDialog";
 
 export function CompanyListView() {
   const [search, setSearch] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'needs_contacts' | 'ready'>('all');
   const { data: companies, isLoading } = useCompaniesWithLeadCounts();
 
-  const filteredCompanies = companies?.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry?.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredCompanies = companies?.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry?.toLowerCase().includes(search.toLowerCase());
+    
+    if (filter === 'needs_contacts') {
+      return matchesSearch && (c.leads_count === 0);
+    }
+    if (filter === 'ready') {
+      return matchesSearch && (c.leads_count > 0);
+    }
+    return matchesSearch;
+  }) || [];
 
   // Sort by priority: hot first, then by live_jobs count
   const sortedCompanies = [...filteredCompanies].sort((a, b) => {
@@ -27,8 +37,46 @@ export function CompanyListView() {
     return bJobs - aJobs;
   });
 
+  // Stats
+  const stats = {
+    total: companies?.length || 0,
+    needsContacts: companies?.filter(c => c.leads_count === 0).length || 0,
+    ready: companies?.filter(c => c.leads_count > 0).length || 0,
+  };
+
   return (
     <div className="space-y-4">
+      {/* Stats Row */}
+      <div className="flex gap-2">
+        <Button
+          variant={filter === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('all')}
+          className="gap-2"
+        >
+          <Building2 className="h-4 w-4" />
+          Alle ({stats.total})
+        </Button>
+        <Button
+          variant={filter === 'needs_contacts' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('needs_contacts')}
+          className="gap-2"
+        >
+          <Users className="h-4 w-4 text-yellow-500" />
+          Kontakte fehlen ({stats.needsContacts})
+        </Button>
+        <Button
+          variant={filter === 'ready' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('ready')}
+          className="gap-2"
+        >
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          Bereit ({stats.ready})
+        </Button>
+      </div>
+
       {/* Search & Actions */}
       <div className="flex gap-4">
         <div className="relative flex-1">
@@ -71,8 +119,8 @@ export function CompanyListView() {
         onClose={() => setSelectedCompanyId(null)}
       />
 
-      {/* Import Dialog */}
-      <LeadImportDialog
+      {/* Smart Import Dialog */}
+      <SmartImportDialog
         open={showImport}
         onOpenChange={setShowImport}
       />
