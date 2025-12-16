@@ -66,6 +66,7 @@ import AdminDealHealth from "./pages/admin/AdminDealHealth";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminInvoices from "./pages/admin/AdminInvoices";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminOutreach from "./pages/admin/AdminOutreach";
 
 // Client Analytics
 import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
@@ -373,6 +374,11 @@ function AppRoutes() {
       <Route path="/admin/users" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminUsers />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/outreach" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminOutreach />
         </ProtectedRoute>
       } />
       

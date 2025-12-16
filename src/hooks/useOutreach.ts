@@ -89,7 +89,10 @@ export function useOutreachCampaigns() {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as OutreachCampaign[];
+      return (data || []).map(campaign => ({
+        ...campaign,
+        stats: (campaign.stats as any) || { sent: 0, opened: 0, clicked: 0, replied: 0, converted: 0 }
+      })) as OutreachCampaign[];
     }
   });
 }
@@ -107,7 +110,13 @@ export function useOutreachEmails(status?: string) {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as OutreachEmail[];
+      return (data || []).map(email => ({
+        ...email,
+        campaign: email.campaign ? {
+          ...email.campaign,
+          stats: ((email.campaign as any).stats as any) || { sent: 0, opened: 0, clicked: 0, replied: 0, converted: 0 }
+        } : undefined
+      })) as OutreachEmail[];
     }
   });
 }
@@ -137,9 +146,9 @@ export function useOutreachStats() {
         supabase.from('outreach_conversations').select('id, intent', { count: 'exact' })
       ]);
 
-      const totalSent = campaigns.data?.reduce((acc, c) => acc + (c.stats?.sent || 0), 0) || 0;
-      const totalOpened = campaigns.data?.reduce((acc, c) => acc + (c.stats?.opened || 0), 0) || 0;
-      const totalReplied = campaigns.data?.reduce((acc, c) => acc + (c.stats?.replied || 0), 0) || 0;
+      const totalSent = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.sent || 0), 0) || 0;
+      const totalOpened = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.opened || 0), 0) || 0;
+      const totalReplied = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.replied || 0), 0) || 0;
 
       return {
         totalLeads: leads.count || 0,
@@ -161,7 +170,7 @@ export function useCreateCampaign() {
     mutationFn: async (campaign: Partial<OutreachCampaign>) => {
       const { data, error } = await supabase
         .from('outreach_campaigns')
-        .insert(campaign)
+        .insert(campaign as any)
         .select()
         .single();
       if (error) throw error;

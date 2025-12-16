@@ -26,6 +26,7 @@ import {
   Database,
   LogOut,
   User,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -112,6 +113,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Rechnungen', href: '/admin/invoices', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
+    { label: 'Outreach', href: '/admin/outreach', icon: <Mail className="h-4 w-4" /> },
   ];
 
   const navItems = role === 'admin' 
