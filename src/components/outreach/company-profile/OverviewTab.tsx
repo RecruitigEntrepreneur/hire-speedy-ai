@@ -6,11 +6,21 @@ interface OverviewTabProps {
   company: any;
 }
 
+// Helper to safely render values that might be objects
+const renderValue = (value: any): string => {
+  if (value === null || value === undefined) return "–";
+  if (typeof value === "object") {
+    if (Array.isArray(value)) return value.join(", ");
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
+
 export function OverviewTab({ company }: OverviewTabProps) {
-  const technologies = company.technologies as string[] | null;
-  const investors = company.investors as string[] | null;
-  const awards = company.awards as string[] | null;
-  const liveJobs = company.live_jobs as any[] | null;
+  const technologies = Array.isArray(company.technologies) ? company.technologies : null;
+  const investors = Array.isArray(company.investors) ? company.investors : null;
+  const awards = Array.isArray(company.awards) ? company.awards : null;
+  const liveJobs = Array.isArray(company.live_jobs) ? company.live_jobs : null;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -27,21 +37,21 @@ export function OverviewTab({ company }: OverviewTabProps) {
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Branche</span>
-              <span className="font-medium">{company.industry || "–"}</span>
+              <span className="font-medium">{renderValue(company.industry)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Stadt</span>
-              <span className="font-medium">{company.city || "–"}</span>
+              <span className="font-medium">{renderValue(company.city)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Land</span>
-              <span className="font-medium">{company.country || "–"}</span>
+              <span className="font-medium">{renderValue(company.country)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Gegründet</span>
-              <span className="font-medium">{company.founding_year || "–"}</span>
+              <span className="font-medium">{renderValue(company.founding_year)}</span>
             </div>
-            {company.description && (
+            {company.description && typeof company.description === 'string' && (
               <div className="pt-2 border-t">
                 <p className="text-muted-foreground leading-relaxed">{company.description}</p>
               </div>
@@ -61,26 +71,26 @@ export function OverviewTab({ company }: OverviewTabProps) {
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Mitarbeiter</span>
               <div className="flex items-center gap-2">
-                <span className="font-medium">{company.headcount || "–"}</span>
-                {company.headcount_growth && (
+                <span className="font-medium">{renderValue(company.headcount)}</span>
+                {company.headcount_growth && typeof company.headcount_growth !== 'object' && (
                   <Badge variant="outline" className="text-xs text-green-600">
                     <TrendingUp className="h-3 w-3 mr-1" />
-                    {company.headcount_growth}
+                    {String(company.headcount_growth)}
                   </Badge>
                 )}
               </div>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Umsatz</span>
-              <span className="font-medium">{company.revenue_range || "–"}</span>
+              <span className="font-medium">{renderValue(company.revenue_range)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Funding Stage</span>
-              <span className="font-medium">{company.funding_stage || "–"}</span>
+              <span className="font-medium">{renderValue(company.funding_stage)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Funding</span>
-              <span className="font-medium">{company.funding_total || "–"}</span>
+              <span className="font-medium">{renderValue(company.funding_total)}</span>
             </div>
             {investors && investors.length > 0 && (
               <div className="pt-2 border-t">
@@ -154,22 +164,22 @@ export function OverviewTab({ company }: OverviewTabProps) {
             ) : (
               <span className="text-muted-foreground">Keine Technologien hinterlegt</span>
             )}
-            {company.cloud_provider && (
+            {company.cloud_provider && typeof company.cloud_provider !== 'object' && (
               <div className="flex justify-between pt-2 border-t">
                 <span className="text-muted-foreground">Cloud</span>
-                <span className="font-medium">{company.cloud_provider}</span>
+                <span className="font-medium">{String(company.cloud_provider)}</span>
               </div>
             )}
-            {company.dev_tools && (
+            {company.dev_tools && typeof company.dev_tools !== 'object' && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Dev Tools</span>
-                <span className="font-medium">{company.dev_tools}</span>
+                <span className="font-medium">{String(company.dev_tools)}</span>
               </div>
             )}
-            {company.marketing_tools && (
+            {company.marketing_tools && typeof company.marketing_tools !== 'object' && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Marketing</span>
-                <span className="font-medium">{company.marketing_tools}</span>
+                <span className="font-medium">{String(company.marketing_tools)}</span>
               </div>
             )}
           </CardContent>
@@ -186,11 +196,11 @@ export function OverviewTab({ company }: OverviewTabProps) {
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Remote Policy</span>
-              <span className="font-medium">{company.remote_policy || "–"}</span>
+              <span className="font-medium">{renderValue(company.remote_policy)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Kultur</span>
-              <span className="font-medium">{company.company_culture || "–"}</span>
+              <span className="font-medium">{renderValue(company.company_culture)}</span>
             </div>
             {awards && awards.length > 0 && (
               <div className="pt-2 border-t">
