@@ -35,6 +35,8 @@ import { QueueStatusCard } from '@/components/outreach/QueueStatusCard';
 import { EmailReviewTable } from '@/components/outreach/EmailReviewTable';
 import { CareerCheckTab } from '@/components/outreach/CareerCheckTab';
 import { CompaniesTab } from '@/components/outreach/CompaniesTab';
+import { QueueDashboard } from '@/components/outreach/QueueDashboard';
+import { BulkGenerateDialog } from '@/components/outreach/BulkGenerateDialog';
 import { useCompanyStats } from '@/hooks/useOutreachCompanies';
 
 export default function AdminOutreach() {
@@ -44,6 +46,7 @@ export default function AdminOutreach() {
   const [importOpen, setImportOpen] = useState(false);
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [bulkGenerateOpen, setBulkGenerateOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<OutreachLead | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<OutreachCampaign | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
@@ -117,6 +120,10 @@ export default function AdminOutreach() {
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               CSV Import
+            </Button>
+            <Button variant="outline" onClick={() => setBulkGenerateOpen(true)}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Bulk E-Mails
             </Button>
             <Button onClick={() => setCampaignOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -695,81 +702,7 @@ export default function AdminOutreach() {
 
           {/* ========== QUEUE TAB ========== */}
           <TabsContent value="queue" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <QueueStatusCard />
-              </div>
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Warteschlange Details</CardTitle>
-                  <CardDescription>Alle E-Mails in der Versand-Queue</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {queueItems && queueItems.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Empfänger</TableHead>
-                          <TableHead>Betreff</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Geplant</TableHead>
-                          <TableHead>Versuche</TableHead>
-                          <TableHead></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {queueItems.map(item => (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <p className="font-medium">{item.email?.lead?.contact_name || '-'}</p>
-                              <p className="text-sm text-muted-foreground">{item.email?.lead?.company_name || '-'}</p>
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate">
-                              {item.email?.subject || '-'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={
-                                item.status === 'completed' ? 'default' :
-                                item.status === 'failed' ? 'destructive' :
-                                item.status === 'processing' ? 'secondary' : 'outline'
-                              }>
-                                {item.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
-                                {item.status === 'processing' && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                                {item.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
-                                {item.status === 'failed' && <XCircle className="h-3 w-3 mr-1" />}
-                                {item.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {format(new Date(item.scheduled_at), 'dd.MM. HH:mm', { locale: de })}
-                            </TableCell>
-                            <TableCell>{item.attempts}</TableCell>
-                            <TableCell>
-                              {item.status === 'failed' && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => retryQueue.mutate(item.id)}
-                                  disabled={retryQueue.isPending}
-                                >
-                                  <RefreshCw className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Send className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                      <h3 className="text-lg font-medium mb-2">Queue ist leer</h3>
-                      <p>Keine E-Mails in der Warteschlange.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <QueueDashboard />
           </TabsContent>
         </Tabs>
       </div>
@@ -777,6 +710,7 @@ export default function AdminOutreach() {
       {/* Dialogs */}
       <LeadImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <CampaignDialog open={campaignOpen} onOpenChange={setCampaignOpen} campaign={selectedCampaign || undefined} />
+      <BulkGenerateDialog open={bulkGenerateOpen} onOpenChange={setBulkGenerateOpen} />
       <LeadDetailSheet 
         open={!!selectedLead} 
         onOpenChange={(open) => !open && setSelectedLead(null)} 

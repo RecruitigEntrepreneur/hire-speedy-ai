@@ -484,6 +484,65 @@ export function useGenerateEmail() {
   });
 }
 
+export function useUpdateEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, subject, body }: { id: string; subject: string; body: string }) => {
+      const { error } = await supabase
+        .from('outreach_emails')
+        .update({ subject, body, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-emails'] });
+      toast.success('E-Mail gespeichert');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useProcessQueue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('process-outreach-queue');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['outreach-emails'] });
+      queryClient.invalidateQueries({ queryKey: ['outreach-stats'] });
+      toast.success(`Queue verarbeitet: ${data?.success || 0} gesendet, ${data?.failed || 0} fehlgeschlagen`);
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useBulkGenerateEmails() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ leadIds, campaignId }: { leadIds: string[]; campaignId: string }) => {
+      const results = await Promise.allSettled(
+        leadIds.map(leadId => 
+          supabase.functions.invoke('generate-outreach-email', {
+            body: { lead_id: leadId, campaign_id: campaignId, sequence_step: 1 }
+          })
+        )
+      );
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      return { successful, failed };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-emails'] });
+      toast.success(`${data.successful} E-Mails generiert${data.failed > 0 ? `, ${data.failed} fehlgeschlagen` : ''}`);
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
 // ============ SEQUENCES ============
 
 export function useStartSequence() {
