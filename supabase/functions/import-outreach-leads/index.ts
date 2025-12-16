@@ -43,9 +43,12 @@ interface LeadRow {
   company_linkedin_url?: string;
   headcount?: string;
   company_size?: string;
+  company_headcount?: string;
   industries?: string;
   industry?: string;
+  company_industries?: string;
   technologies?: string;
+  company_technologies?: string;
   financials?: string;
   revenue_range?: string;
   founded_year?: string;
@@ -126,6 +129,57 @@ function parseHiringSignals(row: LeadRow): any[] {
   }
   
   return signals;
+}
+
+// Helper: Build job change data JSONB
+function buildJobChangeData(row: LeadRow): any | null {
+  if (!row.job_change_previous_company && !row.job_change_new_company && !row.job_change_date) {
+    return null;
+  }
+  return {
+    previous_company: row.job_change_previous_company || null,
+    previous_title: row.job_change_previous_title || null,
+    new_company: row.job_change_new_company || null,
+    new_title: row.job_change_new_title || null,
+    date: row.job_change_date || null
+  };
+}
+
+// Helper: Build location move data JSONB
+function buildLocationMoveData(row: LeadRow): any | null {
+  if (!row.location_move_from_country && !row.location_move_to_country && !row.location_move_date) {
+    return null;
+  }
+  return {
+    from_country: row.location_move_from_country || null,
+    from_state: row.location_move_from_state || null,
+    to_country: row.location_move_to_country || null,
+    to_state: row.location_move_to_state || null,
+    date: row.location_move_date || null
+  };
+}
+
+// Helper: Parse array or string to array
+function parseToArray(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    // Handle comma-separated or semicolon-separated values
+    return value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+// Helper: Parse headcount to number
+function parseHeadcount(value: any): number | null {
+  if (!value) return null;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    // Handle ranges like "50-100" -> take lower bound
+    const match = value.match(/(\d+)/);
+    if (match) return parseInt(match[1], 10);
+  }
+  return null;
 }
 
 serve(async (req) => {
@@ -260,30 +314,63 @@ serve(async (req) => {
           // Parse hiring signals
           const hiringSignals = parseHiringSignals(mappedRow);
 
-          // Prepare lead data with extended fields
+          // Build JSONB data structures
+          const jobChangeData = buildJobChangeData(mappedRow);
+          const locationMoveData = buildLocationMoveData(mappedRow);
+
+          // Parse arrays for industries and technologies
+          const companyIndustries = parseToArray(
+            mappedRow.company_industries || mappedRow.industries || mappedRow.industry
+          );
+          const companyTechnologies = parseToArray(
+            mappedRow.company_technologies || mappedRow.technologies
+          );
+          const companyHeadcount = parseHeadcount(
+            mappedRow.company_headcount || mappedRow.headcount || mappedRow.company_size
+          );
+
+          // Prepare lead data with CORRECT column names matching the database
           const leadData = {
             // Company Info
             company_name: mappedRow.company_name,
             company_website: mappedRow.company_website || mappedRow.website || mappedRow.company_domain || null,
             industry: mappedRow.industry || mappedRow.industries || null,
-            industries: mappedRow.industries || null,
+            company_industries: companyIndustries,
             company_size: mappedRow.company_size || mappedRow.headcount || null,
-            headcount: mappedRow.headcount || null,
+            company_headcount: companyHeadcount,
             revenue_range: mappedRow.revenue_range || mappedRow.financials || null,
             founding_year: mappedRow.founding_year || (mappedRow.founded_year ? parseInt(String(mappedRow.founded_year)) : null),
             company_description: mappedRow.company_description || null,
             company_linkedin_url: mappedRow.company_linkedin_url || null,
-            technologies: mappedRow.technologies || null,
+            company_technologies: companyTechnologies,
+            
+            // Company Address
+            company_address_line: mappedRow.company_address_line || null,
+            company_city: mappedRow.company_city || null,
+            company_state: mappedRow.company_state || mappedRow.state || null,
+            company_country: mappedRow.company_country || null,
+            company_zip: mappedRow.company_zip || null,
+            
+            // HQ Address
+            hq_address_line: mappedRow.hq_address_line || mappedRow.company_address_line || null,
+            hq_city: mappedRow.hq_city || mappedRow.company_city || null,
+            hq_state: mappedRow.hq_state || mappedRow.company_state || mappedRow.state || null,
+            hq_country: mappedRow.hq_country || mappedRow.company_country || null,
+            hq_zip: mappedRow.hq_zip || mappedRow.company_zip || null,
             
             // Contact Info
             contact_name: contactName,
             contact_role: mappedRow.contact_role || mappedRow.job_title || null,
-            job_title: mappedRow.job_title || mappedRow.contact_role || null,
             contact_email: email,
             contact_phone: mappedRow.contact_phone || mappedRow.mobile_phone || mappedRow.direct_phone || mappedRow.office_phone || null,
             contact_linkedin: mappedRow.contact_linkedin || mappedRow.personal_linkedin_url || null,
             seniority: mappedRow.seniority || null,
             department: mappedRow.department || null,
+            
+            // Phone fields
+            office_phone: mappedRow.office_phone || null,
+            mobile_phone: mappedRow.mobile_phone || null,
+            direct_phone: mappedRow.direct_phone || null,
             
             // Location
             country: mappedRow.country || mappedRow.company_country || mappedRow.hq_country || "DE",
@@ -293,15 +380,9 @@ serve(async (req) => {
             // Hiring Signals
             hiring_signals: hiringSignals.length > 0 ? hiringSignals : null,
             
-            // Change Signals
-            job_change_previous_company: mappedRow.job_change_previous_company || null,
-            job_change_previous_title: mappedRow.job_change_previous_title || null,
-            job_change_new_company: mappedRow.job_change_new_company || null,
-            job_change_new_title: mappedRow.job_change_new_title || null,
-            job_change_date: mappedRow.job_change_date || null,
-            location_move_from_country: mappedRow.location_move_from_country || null,
-            location_move_to_country: mappedRow.location_move_to_country || null,
-            location_move_date: mappedRow.location_move_date || null,
+            // Change Signals as JSONB
+            job_change_data: jobChangeData,
+            location_move_data: locationMoveData,
             
             // Legacy/Other
             recruiting_challenges: mappedRow.recruiting_challenges || [],
@@ -360,6 +441,7 @@ serve(async (req) => {
                 email: lead.contact_email,
                 error: singleError.message
               });
+              console.error(`Single insert error for ${lead.contact_email}:`, singleError.message);
             } else {
               successful++;
             }
