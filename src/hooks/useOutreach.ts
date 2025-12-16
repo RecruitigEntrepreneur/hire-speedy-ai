@@ -66,6 +66,8 @@ export interface OutreachConversation {
   lead?: OutreachLead;
 }
 
+// ============ LEADS ============
+
 export function useOutreachLeads() {
   return useQuery({
     queryKey: ['outreach-leads'],
@@ -79,6 +81,80 @@ export function useOutreachLeads() {
     }
   });
 }
+
+export function useCreateLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (lead: Partial<OutreachLead>) => {
+      const { data, error } = await supabase
+        .from('outreach_leads')
+        .insert({
+          company_name: lead.company_name!,
+          contact_name: lead.contact_name!,
+          contact_email: lead.contact_email!,
+          contact_role: lead.contact_role,
+          company_website: lead.company_website,
+          industry: lead.industry,
+          company_size: lead.company_size,
+          country: lead.country,
+          city: lead.city,
+          segment: lead.segment || 'unknown',
+          priority: lead.priority || 'medium',
+          status: 'new',
+          score: lead.score || 50,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['outreach-stats'] });
+      toast.success('Lead erstellt');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useUpdateLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<OutreachLead> & { id: string }) => {
+      const { error } = await supabase
+        .from('outreach_leads')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-leads'] });
+      toast.success('Lead aktualisiert');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useDeleteLead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('outreach_leads')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['outreach-stats'] });
+      toast.success('Lead gelöscht');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+// ============ CAMPAIGNS ============
 
 export function useOutreachCampaigns() {
   return useQuery({
@@ -96,6 +172,82 @@ export function useOutreachCampaigns() {
     }
   });
 }
+
+export function useCreateCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (campaign: Partial<OutreachCampaign>) => {
+      const { data, error } = await supabase
+        .from('outreach_campaigns')
+        .insert(campaign as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-campaigns'] });
+      toast.success('Kampagne erstellt');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useUpdateCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<OutreachCampaign> & { id: string }) => {
+      const { error } = await supabase
+        .from('outreach_campaigns')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-campaigns'] });
+      toast.success('Kampagne aktualisiert');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useToggleCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('outreach_campaigns')
+        .update({ is_active: isActive, is_paused: !isActive })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-campaigns'] });
+      toast.success('Kampagnenstatus geändert');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useDeleteCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('outreach_campaigns')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-campaigns'] });
+      toast.success('Kampagne gelöscht');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+// ============ EMAILS ============
 
 export function useOutreachEmails(status?: string) {
   return useQuery({
@@ -118,69 +270,6 @@ export function useOutreachEmails(status?: string) {
         } : undefined
       })) as OutreachEmail[];
     }
-  });
-}
-
-export function useOutreachConversations() {
-  return useQuery({
-    queryKey: ['outreach-conversations'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('outreach_conversations')
-        .select('*, lead:outreach_leads(*)')
-        .order('last_message_at', { ascending: false });
-      if (error) throw error;
-      return data as OutreachConversation[];
-    }
-  });
-}
-
-export function useOutreachStats() {
-  return useQuery({
-    queryKey: ['outreach-stats'],
-    queryFn: async () => {
-      const [leads, emails, campaigns, conversations] = await Promise.all([
-        supabase.from('outreach_leads').select('id, status', { count: 'exact' }),
-        supabase.from('outreach_emails').select('id, status, opened_at, replied_at', { count: 'exact' }),
-        supabase.from('outreach_campaigns').select('stats'),
-        supabase.from('outreach_conversations').select('id, intent', { count: 'exact' })
-      ]);
-
-      const totalSent = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.sent || 0), 0) || 0;
-      const totalOpened = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.opened || 0), 0) || 0;
-      const totalReplied = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.replied || 0), 0) || 0;
-
-      return {
-        totalLeads: leads.count || 0,
-        totalEmails: emails.count || 0,
-        totalSent,
-        totalOpened,
-        totalReplied,
-        openRate: totalSent > 0 ? (totalOpened / totalSent * 100).toFixed(1) : 0,
-        replyRate: totalSent > 0 ? (totalReplied / totalSent * 100).toFixed(1) : 0,
-        conversations: conversations.count || 0
-      };
-    }
-  });
-}
-
-export function useCreateCampaign() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (campaign: Partial<OutreachCampaign>) => {
-      const { data, error } = await supabase
-        .from('outreach_campaigns')
-        .insert(campaign as any)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['outreach-campaigns'] });
-      toast.success('Kampagne erstellt');
-    },
-    onError: (err: any) => toast.error(err.message)
   });
 }
 
@@ -207,12 +296,64 @@ export function useApproveEmail() {
   });
 }
 
+export function useRejectEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (emailId: string) => {
+      const { error } = await supabase
+        .from('outreach_emails')
+        .update({ status: 'rejected' })
+        .eq('id', emailId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-emails'] });
+      toast.success('E-Mail abgelehnt');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+export function useRegenerateEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (emailId: string) => {
+      // Get the email to find lead and campaign
+      const { data: email, error: fetchError } = await supabase
+        .from('outreach_emails')
+        .select('lead_id, campaign_id, sequence_step')
+        .eq('id', emailId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+
+      // Delete the old email
+      await supabase.from('outreach_emails').delete().eq('id', emailId);
+
+      // Generate a new one
+      const { error } = await supabase.functions.invoke('generate-outreach-email', {
+        body: { 
+          lead_id: email.lead_id, 
+          campaign_id: email.campaign_id,
+          sequence_step: email.sequence_step
+        }
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-emails'] });
+      toast.success('E-Mail wird neu generiert');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
 export function useGenerateEmail() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ leadId, campaignId }: { leadId: string; campaignId: string }) => {
       const { data, error } = await supabase.functions.invoke('generate-outreach-email', {
-        body: { lead_id: leadId, campaign_id: campaignId }
+        body: { lead_id: leadId, campaign_id: campaignId, sequence_step: 1 }
       });
       if (error) throw error;
       return data;
@@ -222,5 +363,98 @@ export function useGenerateEmail() {
       toast.success('E-Mail generiert');
     },
     onError: (err: any) => toast.error(err.message)
+  });
+}
+
+// ============ SEQUENCES ============
+
+export function useStartSequence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ leadId, campaignId }: { leadId: string; campaignId: string }) => {
+      // Check if sequence already exists
+      const { data: existing } = await supabase
+        .from('outreach_sequences')
+        .select('id')
+        .eq('lead_id', leadId)
+        .eq('campaign_id', campaignId)
+        .single();
+
+      if (existing) {
+        throw new Error('Sequenz existiert bereits für diesen Lead');
+      }
+
+      const { error } = await supabase
+        .from('outreach_sequences')
+        .insert({
+          lead_id: leadId,
+          campaign_id: campaignId,
+          current_step: 1,
+          status: 'active',
+          next_send_at: new Date().toISOString(),
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-sequences'] });
+      toast.success('Sequenz gestartet');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
+// ============ CONVERSATIONS ============
+
+export function useOutreachConversations() {
+  return useQuery({
+    queryKey: ['outreach-conversations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('outreach_conversations')
+        .select('*, lead:outreach_leads(*)')
+        .order('last_message_at', { ascending: false });
+      if (error) throw error;
+      return data as OutreachConversation[];
+    }
+  });
+}
+
+// ============ STATS ============
+
+export function useOutreachStats() {
+  return useQuery({
+    queryKey: ['outreach-stats'],
+    queryFn: async () => {
+      const [leads, emails, campaigns, conversations, pendingReview] = await Promise.all([
+        supabase.from('outreach_leads').select('id, status', { count: 'exact' }),
+        supabase.from('outreach_emails').select('id, status, opened_at, replied_at', { count: 'exact' }),
+        supabase.from('outreach_campaigns').select('stats'),
+        supabase.from('outreach_conversations').select('id, intent', { count: 'exact' }),
+        supabase.from('outreach_emails').select('id', { count: 'exact' }).eq('status', 'draft')
+      ]);
+
+      const totalSent = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.sent || 0), 0) || 0;
+      const totalOpened = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.opened || 0), 0) || 0;
+      const totalReplied = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.replied || 0), 0) || 0;
+
+      const newLeads = leads.data?.filter(l => l.status === 'new').length || 0;
+      const contactedLeads = leads.data?.filter(l => l.status === 'contacted').length || 0;
+      const repliedLeads = leads.data?.filter(l => l.status === 'replied').length || 0;
+
+      return {
+        totalLeads: leads.count || 0,
+        newLeads,
+        contactedLeads,
+        repliedLeads,
+        totalEmails: emails.count || 0,
+        pendingReview: pendingReview.count || 0,
+        totalSent,
+        totalOpened,
+        totalReplied,
+        openRate: totalSent > 0 ? (totalOpened / totalSent * 100).toFixed(1) : '0',
+        replyRate: totalSent > 0 ? (totalReplied / totalSent * 100).toFixed(1) : '0',
+        conversations: conversations.count || 0
+      };
+    }
   });
 }
