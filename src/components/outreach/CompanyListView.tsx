@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Plus, Building2, Users, CheckCircle, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CompanyListCard } from "./CompanyListCard";
-import { CompanySlimSheet } from "./CompanySlimSheet";
+import { CompanyDetailDialog } from "./CompanyDetailDialog";
 import { useCompaniesWithLeadCounts } from "@/hooks/useOutreachCompanies";
 import { SmartImportDialog } from "./SmartImportDialog";
 import { QuickAddCompanyDialog } from "./QuickAddCompanyDialog";
@@ -119,8 +119,8 @@ export function CompanyListView() {
         </div>
       )}
 
-      {/* Company Detail Sheet */}
-      <CompanySlimSheet
+      {/* Company Detail Dialog */}
+      <CompanyDetailDialog
         companyId={selectedCompanyId}
         onClose={() => setSelectedCompanyId(null)}
       />

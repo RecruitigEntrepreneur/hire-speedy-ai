@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Mail, Inbox } from "lucide-react";
+import { Building2, Mail, Inbox, Users } from "lucide-react";
 import { CompanyListView } from "@/components/outreach/CompanyListView";
+import { ContactListView } from "@/components/outreach/ContactListView";
 import { EmailWorkflow } from "@/components/outreach/EmailWorkflow";
 import { InboxView } from "@/components/outreach/InboxView";
 import { useOutreachStats } from "@/hooks/useCompanyOutreach";
@@ -45,6 +46,10 @@ export default function OutreachSlim() {
               <Building2 className="h-4 w-4" />
               Unternehmen
             </TabsTrigger>
+            <TabsTrigger value="contacts" className="gap-2">
+              <Users className="h-4 w-4" />
+              Kontakte
+            </TabsTrigger>
             <TabsTrigger value="outreach" className="gap-2">
               <Mail className="h-4 w-4" />
               Outreach
@@ -57,6 +62,10 @@ export default function OutreachSlim() {
 
           <TabsContent value="companies" className="mt-6">
             <CompanyListView />
+          </TabsContent>
+
+          <TabsContent value="contacts" className="mt-6">
+            <ContactListView />
           </TabsContent>
 
           <TabsContent value="outreach" className="mt-6">

@@ -22,6 +22,7 @@ interface GenerateEmailsDialogProps {
   onOpenChange: (open: boolean) => void;
   leads: OutreachLead[];
   campaigns: OutreachCampaign[];
+  preSelectedLeadIds?: string[];
 }
 
 type Tone = 'formal' | 'professional' | 'casual' | 'direct';
@@ -36,10 +37,12 @@ interface GenerationOptions {
   generateVariants: boolean;
 }
 
-export function GenerateEmailsDialog({ open, onOpenChange, leads, campaigns }: GenerateEmailsDialogProps) {
+export function GenerateEmailsDialog({ open, onOpenChange, leads, campaigns, preSelectedLeadIds }: GenerateEmailsDialogProps) {
   const queryClient = useQueryClient();
   const [selectedCampaign, setSelectedCampaign] = useState<string>('');
-  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(() => 
+    preSelectedLeadIds ? new Set(preSelectedLeadIds) : new Set()
+  );
   const [step, setStep] = useState<'select' | 'generating' | 'done'>('select');
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState({ success: 0, errors: 0 });
