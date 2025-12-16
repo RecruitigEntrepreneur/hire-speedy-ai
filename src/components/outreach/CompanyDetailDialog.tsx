@@ -14,7 +14,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CompanyIntelligenceCard } from "./CompanyIntelligenceCard";
 import { InsightsPanel } from "./InsightsPanel";
-import { ContactDetailDialog } from "./ContactDetailDialog";
+import { LeadProfileDialog } from "./LeadProfileDialog";
 
 interface CompanyDetailDialogProps {
   companyId: string | null;
@@ -26,7 +26,7 @@ export function CompanyDetailDialog({ companyId, onClose }: CompanyDetailDialogP
   const crawlMutation = useCrawlCompanyData();
   const generateEmail = useGenerateEmail();
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-  const [selectedContact, setSelectedContact] = useState<any | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   const company = data?.company;
   const leads = data?.leads || [];
@@ -365,11 +365,7 @@ export function CompanyDetailDialog({ companyId, onClose }: CompanyDetailDialogP
                               <div 
                                 key={lead.id} 
                                 className="p-3 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
-                                onClick={() => setSelectedContact({
-                                  ...lead,
-                                  company_name: company.name,
-                                  company_id: companyId
-                                })}
+                                onClick={() => setSelectedLeadId(lead.id)}
                               >
                                 <div className="flex items-center justify-between">
                                   <div>
@@ -429,10 +425,14 @@ export function CompanyDetailDialog({ companyId, onClose }: CompanyDetailDialogP
         </DialogContent>
       </Dialog>
 
-      {/* Contact Detail Dialog */}
-      <ContactDetailDialog
-        contact={selectedContact}
-        onClose={() => setSelectedContact(null)}
+      {/* Lead Profile Dialog */}
+      <LeadProfileDialog
+        leadId={selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        onGenerateEmail={(id) => {
+          setSelectedLeadId(null);
+          handleGenerateEmail(id, { stopPropagation: () => {} } as React.MouseEvent);
+        }}
       />
     </>
   );

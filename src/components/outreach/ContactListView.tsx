@@ -19,6 +19,7 @@ import {
 import { useFilteredLeads, FilteredLead } from "@/hooks/useFilteredLeads";
 import { GenerateEmailsDialog } from "./GenerateEmailsDialog";
 import { CompanyDetailDialog } from "./CompanyDetailDialog";
+import { LeadProfileDialog } from "./LeadProfileDialog";
 import { useOutreachCampaigns } from "@/hooks/useOutreach";
 import { cn } from "@/lib/utils";
 
@@ -36,10 +37,11 @@ export function ContactListView() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   const hasActiveFilters = 
     filters.search || 
-    filters.roles.length > 0 || 
+    filters.roles.length > 0 ||
     filters.decisionLevels.length > 0 ||
     filters.functionalAreas.length > 0 ||
     filters.outreachStatuses.length > 0;
@@ -248,7 +250,10 @@ export function ContactListView() {
                     onClick={(e) => e.stopPropagation()}
                   />
                   
-                  <div className="flex-1 min-w-0" onClick={() => toggleLead(lead.id)}>
+                  <div 
+                    className="flex-1 min-w-0" 
+                    onClick={() => setSelectedLeadId(lead.id)}
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">
                         {lead.contact_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unbekannt'}
@@ -317,6 +322,17 @@ export function ContactListView() {
       <CompanyDetailDialog
         companyId={selectedCompanyId}
         onClose={() => setSelectedCompanyId(null)}
+      />
+
+      {/* Lead Profile Dialog */}
+      <LeadProfileDialog
+        leadId={selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        onGenerateEmail={(id) => {
+          setSelectedLeads(new Set([id]));
+          setGenerateDialogOpen(true);
+          setSelectedLeadId(null);
+        }}
       />
     </div>
   );
