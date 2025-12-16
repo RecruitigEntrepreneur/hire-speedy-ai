@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Upload, FileSpreadsheet, Check, AlertCircle, User, Building2, MapPin, 
@@ -653,7 +653,7 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
               </div>
             </div>
 
-            <ScrollArea className="flex-1 border rounded-lg">
+            <div className="flex-1 border rounded-lg overflow-y-auto min-h-0">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
@@ -758,7 +758,7 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
                   })}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
 
             <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3">
               <span>
