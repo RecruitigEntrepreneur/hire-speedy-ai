@@ -133,60 +133,60 @@ export function ContactListView() {
         
         <div className="flex gap-2 flex-wrap">
           <Select
-            value={filters.roles[0] || ''}
-            onValueChange={(v) => updateFilter('roles', v ? [v] : [])}
+            value={filters.roles[0] || '__all__'}
+            onValueChange={(v) => updateFilter('roles', v === '__all__' ? [] : [v])}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Rolle" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Alle Rollen</SelectItem>
-              {filterOptions.roles.map(role => (
+              <SelectItem value="__all__">Alle Rollen</SelectItem>
+              {filterOptions.roles.filter(r => r && r.trim()).map(role => (
                 <SelectItem key={role} value={role}>{role}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select
-            value={filters.decisionLevels[0] || ''}
-            onValueChange={(v) => updateFilter('decisionLevels', v ? [v] : [])}
+            value={filters.decisionLevels[0] || '__all__'}
+            onValueChange={(v) => updateFilter('decisionLevels', v === '__all__' ? [] : [v])}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Level" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Alle Level</SelectItem>
-              {filterOptions.decisionLevels.map(level => (
+              <SelectItem value="__all__">Alle Level</SelectItem>
+              {filterOptions.decisionLevels.filter(l => l && l.trim()).map(level => (
                 <SelectItem key={level} value={level}>{level}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select
-            value={filters.functionalAreas[0] || ''}
-            onValueChange={(v) => updateFilter('functionalAreas', v ? [v] : [])}
+            value={filters.functionalAreas[0] || '__all__'}
+            onValueChange={(v) => updateFilter('functionalAreas', v === '__all__' ? [] : [v])}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Bereich" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Alle Bereiche</SelectItem>
-              {filterOptions.functionalAreas.map(area => (
+              <SelectItem value="__all__">Alle Bereiche</SelectItem>
+              {filterOptions.functionalAreas.filter(a => a && a.trim()).map(area => (
                 <SelectItem key={area} value={area}>{area}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select
-            value={filters.outreachStatuses[0] || ''}
-            onValueChange={(v) => updateFilter('outreachStatuses', v ? [v] : [])}
+            value={filters.outreachStatuses[0] || '__all__'}
+            onValueChange={(v) => updateFilter('outreachStatuses', v === '__all__' ? [] : [v])}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Alle Status</SelectItem>
-              {filterOptions.outreachStatuses.map(status => (
+              <SelectItem value="__all__">Alle Status</SelectItem>
+              {filterOptions.outreachStatuses.filter(s => s && s.trim()).map(status => (
                 <SelectItem key={status} value={status}>{status}</SelectItem>
               ))}
             </SelectContent>
