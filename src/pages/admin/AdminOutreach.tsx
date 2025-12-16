@@ -64,11 +64,16 @@ export default function AdminOutreach() {
   const generateEmail = useGenerateEmail();
   const retryQueue = useRetryQueueItem();
 
-  // Cleanup scroll-lock when changing tabs or closing dialogs
+  // Aggressive scroll-lock cleanup
   useEffect(() => {
-    document.body.style.pointerEvents = '';
-    document.body.removeAttribute('data-scroll-locked');
-  }, [activeTab]);
+    const cleanup = () => {
+      document.body.style.pointerEvents = '';
+      document.body.style.overflow = '';
+      document.body.removeAttribute('data-scroll-locked');
+    };
+    cleanup();
+    return cleanup;
+  }, [activeTab, importOpen, selectedLead, campaignOpen, generateOpen]);
 
   // Filtered leads
   const filteredLeads = leads?.filter(lead => {
@@ -363,7 +368,7 @@ export default function AdminOutreach() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : filteredLeads && filteredLeads.length > 0 ? (
-                  <ScrollArea className="max-h-[600px]">
+                  <div className="max-h-[600px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -442,7 +447,7 @@ export default function AdminOutreach() {
                       ))}
                     </TableBody>
                   </Table>
-                  </ScrollArea>
+                  </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />

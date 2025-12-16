@@ -2,24 +2,134 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface HiringSignal {
+  title?: string;
+  url?: string;
+  location?: string;
+  date?: string;
+}
+
+export interface JobChangeData {
+  prev_company?: string;
+  prev_title?: string;
+  new_company?: string;
+  new_title?: string;
+  date?: string;
+}
+
+export interface LocationMoveData {
+  from_country?: string;
+  from_state?: string;
+  to_country?: string;
+  to_state?: string;
+  move_date?: string;
+}
+
 export interface OutreachLead {
   id: string;
-  company_name: string;
-  company_website?: string;
-  industry?: string;
-  company_size?: string;
+  
+  // Basis
   contact_name: string;
-  contact_role?: string;
   contact_email: string;
-  country?: string;
-  city?: string;
+  company_name: string;
+  
+  // Person erweitert
+  first_name?: string | null;
+  last_name?: string | null;
+  contact_role?: string | null;
+  seniority?: string | null;
+  department?: string | null;
+  education?: string | null;
+  
+  // Telefon
+  contact_phone?: string | null;
+  mobile_phone?: string | null;
+  direct_phone?: string | null;
+  office_phone?: string | null;
+  
+  // LinkedIn
+  personal_linkedin_url?: string | null;
+  contact_linkedin?: string | null;
+  
+  // E-Mail-Qualität
+  email_quality?: string | null;
+  email_validation_status?: string | null;
+  email_verification_status?: string | null;
+  email_validated?: boolean | null;
+  
+  // Unternehmen
+  company_alias?: string | null;
+  company_type?: string | null;
+  company_description?: string | null;
+  company_website?: string | null;
+  company_domain?: string | null;
+  company_linkedin_url?: string | null;
+  company_headcount?: number | null;
+  company_size?: string | null;
+  company_founded_year?: number | null;
+  company_industries?: any | null;
+  company_technologies?: any | null;
+  company_financials?: string | null;
+  revenue_range?: string | null;
+  industry?: string | null;
+  
+  // Firmen-Adresse
+  company_address_line?: string | null;
+  company_city?: string | null;
+  company_zip?: string | null;
+  company_state?: string | null;
+  company_country?: string | null;
+  
+  // HQ
+  hq_name?: string | null;
+  hq_address_line?: string | null;
+  hq_city?: string | null;
+  hq_zip?: string | null;
+  hq_state?: string | null;
+  hq_country?: string | null;
+  
+  // Location (Legacy)
+  city?: string | null;
+  country?: string | null;
+  region?: string | null;
+  
+  // Hiring-Signale (KRITISCH FÜR OUTREACH!)
+  hiring_signals?: any | null;
+  hiring_volume?: string | null;
+  open_positions_estimate?: number | null;
+  recruiting_challenges?: any | null;
+  
+  // Wechsel-Signale
+  job_change_data?: any | null;
+  location_move_data?: any | null;
+  
+  // Meta
   segment: string;
   priority: string;
   status: string;
   score: number;
-  last_contacted_at?: string;
-  last_replied_at?: string;
+  lead_source?: string | null;
+  list_name?: string | null;
+  profile_id?: string | null;
+  sid?: string | null;
+  tags?: any | null;
+  custom_attributes?: any | null;
+  language?: string | null;
+  notes?: string | null;
+  
+  // System
+  is_suppressed?: boolean | null;
+  suppression_reason?: string | null;
+  duplicate_of?: string | null;
+  has_replied?: boolean | null;
+  reply_sentiment?: string | null;
+  
+  // Timestamps
   created_at: string;
+  updated_at?: string | null;
+  last_contacted_at?: string | null;
+  last_replied_at?: string | null;
+  converted_at?: string | null;
 }
 
 export interface OutreachCampaign {

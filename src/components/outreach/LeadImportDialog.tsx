@@ -288,13 +288,22 @@ export function LeadImportDialog({ open, onOpenChange }: LeadImportDialogProps) 
     setSearchTerm('');
   };
 
-  // Cleanup scroll-lock on unmount
+  // Aggressive scroll-lock cleanup on unmount AND step changes
   useEffect(() => {
-    return () => {
+    const cleanup = () => {
       document.body.style.pointerEvents = '';
+      document.body.style.overflow = '';
       document.body.removeAttribute('data-scroll-locked');
     };
+    return cleanup;
   }, []);
+
+  // Additional cleanup when step changes
+  useEffect(() => {
+    document.body.style.pointerEvents = '';
+    document.body.style.overflow = '';
+    document.body.removeAttribute('data-scroll-locked');
+  }, [step]);
 
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n').filter(line => line.trim());
