@@ -3818,36 +3818,50 @@ export type Database = {
       outreach_companies: {
         Row: {
           address: string | null
+          awards: Json | null
           best_entry_point_id: string | null
           career_crawled_at: string | null
           career_page_status: string | null
           career_page_url: string | null
           city: string | null
+          cloud_provider: string | null
+          company_culture: Json | null
           company_notes: string | null
           company_updates: Json | null
           country: string | null
           created_at: string | null
           description: string | null
+          development_tools: Json | null
           domain: string
           employee_growth: string | null
           founded_year: number | null
           founding_year: number | null
+          funding_stage: string | null
+          funding_total: string | null
+          glassdoor_score: number | null
           headcount: number | null
           hiring_activity: string | null
           id: string
           industry: string | null
           intelligence_score: number | null
+          investors: Json | null
+          key_executives: Json | null
+          kununu_score: number | null
           last_activity_at: string | null
           last_enriched_at: string | null
+          linkedin_followers: number | null
           linkedin_url: string | null
           live_jobs: Json | null
           live_jobs_count: number | null
+          marketing_tools: Json | null
           name: string
           news_crawled_at: string | null
           outreach_status: string | null
           platform_fit: string[] | null
           priority_score: number | null
+          recent_funding_date: string | null
           recent_news: Json | null
+          remote_policy: string | null
           revenue_range: string | null
           revenue_trend: string | null
           social_linkedin: string | null
@@ -3860,36 +3874,50 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          awards?: Json | null
           best_entry_point_id?: string | null
           career_crawled_at?: string | null
           career_page_status?: string | null
           career_page_url?: string | null
           city?: string | null
+          cloud_provider?: string | null
+          company_culture?: Json | null
           company_notes?: string | null
           company_updates?: Json | null
           country?: string | null
           created_at?: string | null
           description?: string | null
+          development_tools?: Json | null
           domain: string
           employee_growth?: string | null
           founded_year?: number | null
           founding_year?: number | null
+          funding_stage?: string | null
+          funding_total?: string | null
+          glassdoor_score?: number | null
           headcount?: number | null
           hiring_activity?: string | null
           id?: string
           industry?: string | null
           intelligence_score?: number | null
+          investors?: Json | null
+          key_executives?: Json | null
+          kununu_score?: number | null
           last_activity_at?: string | null
           last_enriched_at?: string | null
+          linkedin_followers?: number | null
           linkedin_url?: string | null
           live_jobs?: Json | null
           live_jobs_count?: number | null
+          marketing_tools?: Json | null
           name: string
           news_crawled_at?: string | null
           outreach_status?: string | null
           platform_fit?: string[] | null
           priority_score?: number | null
+          recent_funding_date?: string | null
           recent_news?: Json | null
+          remote_policy?: string | null
           revenue_range?: string | null
           revenue_trend?: string | null
           social_linkedin?: string | null
@@ -3902,36 +3930,50 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          awards?: Json | null
           best_entry_point_id?: string | null
           career_crawled_at?: string | null
           career_page_status?: string | null
           career_page_url?: string | null
           city?: string | null
+          cloud_provider?: string | null
+          company_culture?: Json | null
           company_notes?: string | null
           company_updates?: Json | null
           country?: string | null
           created_at?: string | null
           description?: string | null
+          development_tools?: Json | null
           domain?: string
           employee_growth?: string | null
           founded_year?: number | null
           founding_year?: number | null
+          funding_stage?: string | null
+          funding_total?: string | null
+          glassdoor_score?: number | null
           headcount?: number | null
           hiring_activity?: string | null
           id?: string
           industry?: string | null
           intelligence_score?: number | null
+          investors?: Json | null
+          key_executives?: Json | null
+          kununu_score?: number | null
           last_activity_at?: string | null
           last_enriched_at?: string | null
+          linkedin_followers?: number | null
           linkedin_url?: string | null
           live_jobs?: Json | null
           live_jobs_count?: number | null
+          marketing_tools?: Json | null
           name?: string
           news_crawled_at?: string | null
           outreach_status?: string | null
           platform_fit?: string[] | null
           priority_score?: number | null
+          recent_funding_date?: string | null
           recent_news?: Json | null
+          remote_policy?: string | null
           revenue_range?: string | null
           revenue_trend?: string | null
           social_linkedin?: string | null
