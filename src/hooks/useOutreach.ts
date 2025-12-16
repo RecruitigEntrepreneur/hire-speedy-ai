@@ -419,18 +419,71 @@ export function useOutreachConversations() {
   });
 }
 
+// ============ QUEUE STATUS ============
+
+export interface QueueItem {
+  id: string;
+  email_id: string;
+  status: string;
+  scheduled_at: string;
+  sent_at?: string;
+  attempts: number;
+  error_message?: string;
+  email?: {
+    subject: string;
+    lead?: {
+      contact_name: string;
+      company_name: string;
+    };
+  };
+}
+
+export function useQueueStatus() {
+  return useQuery({
+    queryKey: ['outreach-queue'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('outreach_send_queue')
+        .select('*, email:outreach_emails(subject, lead:outreach_leads(contact_name, company_name))')
+        .order('scheduled_at', { ascending: true });
+      if (error) throw error;
+      return data as unknown as QueueItem[];
+    },
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+}
+
+export function useRetryQueueItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('outreach_send_queue')
+        .update({ status: 'pending', attempts: 0, error_message: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outreach-queue'] });
+      toast.success('Versuch wird wiederholt');
+    },
+    onError: (err: any) => toast.error(err.message)
+  });
+}
+
 // ============ STATS ============
 
 export function useOutreachStats() {
   return useQuery({
     queryKey: ['outreach-stats'],
     queryFn: async () => {
-      const [leads, emails, campaigns, conversations, pendingReview] = await Promise.all([
+      const [leads, emails, campaigns, conversations, pendingReview, queue] = await Promise.all([
         supabase.from('outreach_leads').select('id, status', { count: 'exact' }),
         supabase.from('outreach_emails').select('id, status, opened_at, replied_at', { count: 'exact' }),
         supabase.from('outreach_campaigns').select('stats'),
         supabase.from('outreach_conversations').select('id, intent', { count: 'exact' }),
-        supabase.from('outreach_emails').select('id', { count: 'exact' }).eq('status', 'draft')
+        supabase.from('outreach_emails').select('id', { count: 'exact' }).eq('status', 'review'),
+        supabase.from('outreach_send_queue').select('status')
       ]);
 
       const totalSent = campaigns.data?.reduce((acc, c) => acc + ((c.stats as any)?.sent || 0), 0) || 0;
@@ -440,6 +493,11 @@ export function useOutreachStats() {
       const newLeads = leads.data?.filter(l => l.status === 'new').length || 0;
       const contactedLeads = leads.data?.filter(l => l.status === 'contacted').length || 0;
       const repliedLeads = leads.data?.filter(l => l.status === 'replied').length || 0;
+
+      const queuePending = queue.data?.filter(q => q.status === 'pending').length || 0;
+      const queueProcessing = queue.data?.filter(q => q.status === 'processing').length || 0;
+      const queueCompleted = queue.data?.filter(q => q.status === 'completed').length || 0;
+      const queueFailed = queue.data?.filter(q => q.status === 'failed').length || 0;
 
       return {
         totalLeads: leads.count || 0,
@@ -453,7 +511,11 @@ export function useOutreachStats() {
         totalReplied,
         openRate: totalSent > 0 ? (totalOpened / totalSent * 100).toFixed(1) : '0',
         replyRate: totalSent > 0 ? (totalReplied / totalSent * 100).toFixed(1) : '0',
-        conversations: conversations.count || 0
+        conversations: conversations.count || 0,
+        queuePending,
+        queueProcessing,
+        queueCompleted,
+        queueFailed
       };
     }
   });
