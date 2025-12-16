@@ -3768,10 +3768,12 @@ export type Database = {
       outreach_companies: {
         Row: {
           address: string | null
+          best_entry_point_id: string | null
           career_crawled_at: string | null
           career_page_status: string | null
           career_page_url: string | null
           city: string | null
+          company_notes: string | null
           company_updates: Json | null
           country: string | null
           created_at: string | null
@@ -3782,24 +3784,30 @@ export type Database = {
           hiring_activity: string | null
           id: string
           industry: string | null
+          last_activity_at: string | null
           linkedin_url: string | null
           live_jobs: Json | null
           live_jobs_count: number | null
           name: string
           news_crawled_at: string | null
+          outreach_status: string | null
+          platform_fit: string[] | null
           priority_score: number | null
           recent_news: Json | null
           status: string | null
           technologies: Json | null
           updated_at: string | null
+          warm_score: number | null
           website: string | null
         }
         Insert: {
           address?: string | null
+          best_entry_point_id?: string | null
           career_crawled_at?: string | null
           career_page_status?: string | null
           career_page_url?: string | null
           city?: string | null
+          company_notes?: string | null
           company_updates?: Json | null
           country?: string | null
           created_at?: string | null
@@ -3810,24 +3818,30 @@ export type Database = {
           hiring_activity?: string | null
           id?: string
           industry?: string | null
+          last_activity_at?: string | null
           linkedin_url?: string | null
           live_jobs?: Json | null
           live_jobs_count?: number | null
           name: string
           news_crawled_at?: string | null
+          outreach_status?: string | null
+          platform_fit?: string[] | null
           priority_score?: number | null
           recent_news?: Json | null
           status?: string | null
           technologies?: Json | null
           updated_at?: string | null
+          warm_score?: number | null
           website?: string | null
         }
         Update: {
           address?: string | null
+          best_entry_point_id?: string | null
           career_crawled_at?: string | null
           career_page_status?: string | null
           career_page_url?: string | null
           city?: string | null
+          company_notes?: string | null
           company_updates?: Json | null
           country?: string | null
           created_at?: string | null
@@ -3838,16 +3852,20 @@ export type Database = {
           hiring_activity?: string | null
           id?: string
           industry?: string | null
+          last_activity_at?: string | null
           linkedin_url?: string | null
           live_jobs?: Json | null
           live_jobs_count?: number | null
           name?: string
           news_crawled_at?: string | null
+          outreach_status?: string | null
+          platform_fit?: string[] | null
           priority_score?: number | null
           recent_news?: Json | null
           status?: string | null
           technologies?: Json | null
           updated_at?: string | null
+          warm_score?: number | null
           website?: string | null
         }
         Relationships: []
@@ -4134,6 +4152,7 @@ export type Database = {
           contact_email: string
           contact_linkedin: string | null
           contact_name: string
+          contact_outreach_status: string | null
           contact_phone: string | null
           contact_role: string | null
           converted_at: string | null
@@ -4142,6 +4161,7 @@ export type Database = {
           created_by: string | null
           current_ats: string | null
           custom_attributes: Json | null
+          decision_level: string | null
           department: string | null
           direct_phone: string | null
           duplicate_of: string | null
@@ -4150,8 +4170,10 @@ export type Database = {
           email_validated: boolean | null
           email_validation_status: string | null
           email_verification_status: string | null
+          engagement_score: number | null
           first_name: string | null
           founding_year: number | null
+          functional_area: string | null
           hiring_activity: string | null
           hiring_signals: Json | null
           hiring_volume: string | null
@@ -4163,6 +4185,7 @@ export type Database = {
           hq_zip: string | null
           id: string
           industry: string | null
+          is_primary_contact: boolean | null
           is_suppressed: boolean | null
           job_change_data: Json | null
           language: string | null
@@ -4220,6 +4243,7 @@ export type Database = {
           contact_email: string
           contact_linkedin?: string | null
           contact_name: string
+          contact_outreach_status?: string | null
           contact_phone?: string | null
           contact_role?: string | null
           converted_at?: string | null
@@ -4228,6 +4252,7 @@ export type Database = {
           created_by?: string | null
           current_ats?: string | null
           custom_attributes?: Json | null
+          decision_level?: string | null
           department?: string | null
           direct_phone?: string | null
           duplicate_of?: string | null
@@ -4236,8 +4261,10 @@ export type Database = {
           email_validated?: boolean | null
           email_validation_status?: string | null
           email_verification_status?: string | null
+          engagement_score?: number | null
           first_name?: string | null
           founding_year?: number | null
+          functional_area?: string | null
           hiring_activity?: string | null
           hiring_signals?: Json | null
           hiring_volume?: string | null
@@ -4249,6 +4276,7 @@ export type Database = {
           hq_zip?: string | null
           id?: string
           industry?: string | null
+          is_primary_contact?: boolean | null
           is_suppressed?: boolean | null
           job_change_data?: Json | null
           language?: string | null
@@ -4306,6 +4334,7 @@ export type Database = {
           contact_email?: string
           contact_linkedin?: string | null
           contact_name?: string
+          contact_outreach_status?: string | null
           contact_phone?: string | null
           contact_role?: string | null
           converted_at?: string | null
@@ -4314,6 +4343,7 @@ export type Database = {
           created_by?: string | null
           current_ats?: string | null
           custom_attributes?: Json | null
+          decision_level?: string | null
           department?: string | null
           direct_phone?: string | null
           duplicate_of?: string | null
@@ -4322,8 +4352,10 @@ export type Database = {
           email_validated?: boolean | null
           email_validation_status?: string | null
           email_verification_status?: string | null
+          engagement_score?: number | null
           first_name?: string | null
           founding_year?: number | null
+          functional_area?: string | null
           hiring_activity?: string | null
           hiring_signals?: Json | null
           hiring_volume?: string | null
@@ -4335,6 +4367,7 @@ export type Database = {
           hq_zip?: string | null
           id?: string
           industry?: string | null
+          is_primary_contact?: boolean | null
           is_suppressed?: boolean | null
           job_change_data?: Json | null
           language?: string | null

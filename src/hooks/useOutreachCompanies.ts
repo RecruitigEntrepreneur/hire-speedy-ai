@@ -45,6 +45,13 @@ export interface OutreachCompany {
   status?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  // New Company-First fields
+  outreach_status?: string | null;
+  warm_score?: number | null;
+  best_entry_point_id?: string | null;
+  last_activity_at?: string | null;
+  company_notes?: string | null;
+  platform_fit?: string[] | null;
 }
 
 export interface CompanyWithLeads extends OutreachCompany {

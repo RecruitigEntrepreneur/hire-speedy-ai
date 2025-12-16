@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ interface CompaniesTabProps {
 }
 
 export function CompaniesTab({ onGenerateEmail }: CompaniesTabProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activityFilter, setActivityFilter] = useState<string>('all');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -243,7 +245,7 @@ export function CompaniesTab({ onGenerateEmail }: CompaniesTabProps) {
               <div className="flex-1">
                 <CompanyCard
                   company={company}
-                  onSelect={() => setSelectedCompanyId(company.id)}
+                  onSelect={() => navigate(`/admin/outreach/company/${company.id}`)}
                   onCrawl={() => handleCrawlCompany(company.id)}
                   isCrawling={crawlingCompanyId === company.id}
                 />
