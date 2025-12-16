@@ -7,29 +7,125 @@ const corsHeaders = {
 };
 
 interface LeadRow {
-  company_name?: string;
-  company_website?: string;
-  industry?: string;
-  company_size?: string;
-  revenue_range?: string;
-  founding_year?: number;
-  contact_name?: string;
-  contact_role?: string;
+  // Person / Contact
+  profile_id?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  email?: string;
   contact_email?: string;
-  contact_phone?: string;
+  email_verification_status?: string;
+  email_quality?: string;
+  mobile_phone?: string;
+  direct_phone?: string;
+  office_phone?: string;
+  personal_linkedin_url?: string;
   contact_linkedin?: string;
+  education?: string;
+  job_title?: string;
+  contact_role?: string;
+  seniority?: string;
+  department?: string;
+  lead_source?: string;
   country?: string;
+  state?: string;
   region?: string;
   city?: string;
+  
+  // Company
+  company_name?: string;
+  company_alias?: string;
+  company_type?: string;
+  company_description?: string;
+  company_domain?: string;
+  company_website?: string;
+  website?: string;
+  company_linkedin_url?: string;
+  headcount?: string;
+  company_size?: string;
+  industries?: string;
+  industry?: string;
+  technologies?: string;
+  financials?: string;
+  revenue_range?: string;
+  founded_year?: string;
+  founding_year?: number;
+  
+  // Company Address
+  company_address_line?: string;
+  company_city?: string;
+  company_zip?: string;
+  company_state?: string;
+  company_country?: string;
+  hq_address_line?: string;
+  hq_city?: string;
+  hq_zip?: string;
+  hq_state?: string;
+  hq_country?: string;
+  
+  // Hiring Signals
+  hiring_title_1?: string;
+  hiring_url_1?: string;
+  hiring_location_1?: string;
+  hiring_date_1?: string;
+  hiring_title_2?: string;
+  hiring_url_2?: string;
+  hiring_location_2?: string;
+  hiring_date_2?: string;
+  hiring_title_3?: string;
+  hiring_url_3?: string;
+  hiring_location_3?: string;
+  hiring_date_3?: string;
+  
+  // Change Signals
+  location_move_from_country?: string;
+  location_move_from_state?: string;
+  location_move_to_country?: string;
+  location_move_to_state?: string;
+  location_move_date?: string;
+  job_change_previous_company?: string;
+  job_change_previous_title?: string;
+  job_change_new_company?: string;
+  job_change_new_title?: string;
+  job_change_date?: string;
+  
+  // Legacy fields
+  contact_name?: string;
+  contact_phone?: string;
   recruiting_challenges?: string[];
   current_ats?: string;
   hiring_volume?: string;
   open_positions_estimate?: number;
-  lead_source?: string;
   segment?: string;
   priority?: string;
   notes?: string;
+  
   [key: string]: any;
+}
+
+// Helper: Validate email format
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// Helper: Parse hiring signals into structured format
+function parseHiringSignals(row: LeadRow): any[] {
+  const signals = [];
+  
+  for (let i = 1; i <= 5; i++) {
+    const title = row[`hiring_title_${i}`];
+    if (title) {
+      signals.push({
+        title,
+        url: row[`hiring_url_${i}`] || null,
+        location: row[`hiring_location_${i}`] || null,
+        date: row[`hiring_date_${i}`] || null
+      });
+    }
+  }
+  
+  return signals;
 }
 
 serve(async (req) => {
@@ -60,15 +156,44 @@ serve(async (req) => {
       })
       .eq("id", job_id);
 
+    // Pre-fetch suppression list for efficiency
+    const { data: suppressionList } = await supabase
+      .from("outreach_suppression_list")
+      .select("email");
+    
+    const suppressedEmails = new Set(
+      (suppressionList || []).map(s => s.email.toLowerCase())
+    );
+    console.log(`Loaded ${suppressedEmails.size} suppressed emails`);
+
+    // Pre-fetch existing emails for deduplication
+    const { data: existingLeads } = await supabase
+      .from("outreach_leads")
+      .select("id, contact_email");
+    
+    const existingEmails = new Map(
+      (existingLeads || []).map(l => [l.contact_email.toLowerCase(), l.id])
+    );
+    console.log(`Found ${existingEmails.size} existing leads`);
+
     let successful = 0;
     let failed = 0;
     let duplicates = 0;
+    let suppressed = 0;
     const errorLog: any[] = [];
+
+    // Get user ID from job
+    const { data: job } = await supabase
+      .from("outreach_import_jobs")
+      .select("created_by")
+      .eq("id", job_id)
+      .single();
 
     // Batch processing
     const BATCH_SIZE = 50;
     for (let i = 0; i < leads.length; i += BATCH_SIZE) {
       const batch = leads.slice(i, i + BATCH_SIZE);
+      const leadsToInsert = [];
       
       for (const row of batch) {
         try {
@@ -82,63 +207,103 @@ serve(async (req) => {
               }
             }
           } else {
-            // Use row directly if no mapping
             Object.assign(mappedRow, row);
           }
 
+          // Normalize email field
+          const email = (
+            mappedRow.contact_email || 
+            mappedRow.email || 
+            ''
+          ).toLowerCase().trim();
+          
+          // Normalize contact name
+          const contactName = mappedRow.contact_name || 
+            mappedRow.full_name ||
+            (mappedRow.first_name && mappedRow.last_name 
+              ? `${mappedRow.first_name} ${mappedRow.last_name}` 
+              : mappedRow.first_name || '');
+
           // Validate required fields
-          if (!mappedRow.contact_email) {
+          if (!email) {
             throw new Error("E-Mail-Adresse fehlt");
+          }
+          if (!isValidEmail(email)) {
+            throw new Error("Ungültige E-Mail-Adresse");
           }
           if (!mappedRow.company_name) {
             throw new Error("Firmenname fehlt");
           }
-          if (!mappedRow.contact_name) {
+          if (!contactName) {
             throw new Error("Kontaktname fehlt");
           }
 
-          // Validate email format
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(mappedRow.contact_email)) {
-            throw new Error("Ungültige E-Mail-Adresse");
-          }
-
-          // Check for duplicates
-          const { data: existing } = await supabase
-            .from("outreach_leads")
-            .select("id")
-            .eq("contact_email", mappedRow.contact_email.toLowerCase())
-            .single();
-
-          if (existing) {
-            duplicates++;
-            console.log(`Duplicate: ${mappedRow.contact_email}`);
+          // === GUARDRAIL: Check suppression list ===
+          if (suppressedEmails.has(email)) {
+            suppressed++;
+            console.log(`Suppressed: ${email}`);
+            errorLog.push({
+              row: i + batch.indexOf(row) + 1,
+              email,
+              error: "E-Mail ist auf der Sperrliste (DNC)"
+            });
             continue;
           }
 
-          // Get user ID from job
-          const { data: job } = await supabase
-            .from("outreach_import_jobs")
-            .select("created_by")
-            .eq("id", job_id)
-            .single();
+          // === GUARDRAIL: Check for duplicates ===
+          if (existingEmails.has(email)) {
+            duplicates++;
+            console.log(`Duplicate: ${email}`);
+            continue;
+          }
 
-          // Prepare lead data
+          // Parse hiring signals
+          const hiringSignals = parseHiringSignals(mappedRow);
+
+          // Prepare lead data with extended fields
           const leadData = {
+            // Company Info
             company_name: mappedRow.company_name,
-            company_website: mappedRow.company_website || null,
-            industry: mappedRow.industry || null,
-            company_size: mappedRow.company_size || null,
-            revenue_range: mappedRow.revenue_range || null,
-            founding_year: mappedRow.founding_year ? parseInt(String(mappedRow.founding_year)) : null,
-            contact_name: mappedRow.contact_name,
-            contact_role: mappedRow.contact_role || null,
-            contact_email: mappedRow.contact_email.toLowerCase(),
-            contact_phone: mappedRow.contact_phone || null,
-            contact_linkedin: mappedRow.contact_linkedin || null,
-            country: mappedRow.country || "DE",
-            region: mappedRow.region || null,
-            city: mappedRow.city || null,
+            company_website: mappedRow.company_website || mappedRow.website || mappedRow.company_domain || null,
+            industry: mappedRow.industry || mappedRow.industries || null,
+            industries: mappedRow.industries || null,
+            company_size: mappedRow.company_size || mappedRow.headcount || null,
+            headcount: mappedRow.headcount || null,
+            revenue_range: mappedRow.revenue_range || mappedRow.financials || null,
+            founding_year: mappedRow.founding_year || (mappedRow.founded_year ? parseInt(String(mappedRow.founded_year)) : null),
+            company_description: mappedRow.company_description || null,
+            company_linkedin_url: mappedRow.company_linkedin_url || null,
+            technologies: mappedRow.technologies || null,
+            
+            // Contact Info
+            contact_name: contactName,
+            contact_role: mappedRow.contact_role || mappedRow.job_title || null,
+            job_title: mappedRow.job_title || mappedRow.contact_role || null,
+            contact_email: email,
+            contact_phone: mappedRow.contact_phone || mappedRow.mobile_phone || mappedRow.direct_phone || mappedRow.office_phone || null,
+            contact_linkedin: mappedRow.contact_linkedin || mappedRow.personal_linkedin_url || null,
+            seniority: mappedRow.seniority || null,
+            department: mappedRow.department || null,
+            
+            // Location
+            country: mappedRow.country || mappedRow.company_country || mappedRow.hq_country || "DE",
+            region: mappedRow.region || mappedRow.state || mappedRow.company_state || mappedRow.hq_state || null,
+            city: mappedRow.city || mappedRow.company_city || mappedRow.hq_city || null,
+            
+            // Hiring Signals
+            hiring_signals: hiringSignals.length > 0 ? hiringSignals : null,
+            
+            // Change Signals
+            job_change_previous_company: mappedRow.job_change_previous_company || null,
+            job_change_previous_title: mappedRow.job_change_previous_title || null,
+            job_change_new_company: mappedRow.job_change_new_company || null,
+            job_change_new_title: mappedRow.job_change_new_title || null,
+            job_change_date: mappedRow.job_change_date || null,
+            location_move_from_country: mappedRow.location_move_from_country || null,
+            location_move_to_country: mappedRow.location_move_to_country || null,
+            location_move_date: mappedRow.location_move_date || null,
+            
+            // Legacy/Other
             recruiting_challenges: mappedRow.recruiting_challenges || [],
             current_ats: mappedRow.current_ats || null,
             hiring_volume: mappedRow.hiring_volume || null,
@@ -147,20 +312,21 @@ serve(async (req) => {
             segment: mappedRow.segment || "hiring_company",
             priority: mappedRow.priority || "warm",
             notes: mappedRow.notes || null,
+            
+            // Validation
+            email_validated: false,
+            email_validation_status: mappedRow.email_verification_status || mappedRow.email_quality || null,
+            is_suppressed: false,
+            
+            // Metadata
             created_by: job?.created_by || null,
             status: "new"
           };
 
-          // Insert lead
-          const { error: insertError } = await supabase
-            .from("outreach_leads")
-            .insert(leadData);
-
-          if (insertError) {
-            throw insertError;
-          }
-
-          successful++;
+          leadsToInsert.push(leadData);
+          
+          // Add to existing set to prevent duplicates within same import
+          existingEmails.set(email, 'pending');
 
         } catch (rowError: any) {
           failed++;
@@ -169,7 +335,37 @@ serve(async (req) => {
             email: row.contact_email || row.email || "unknown",
             error: rowError.message
           });
-          console.error(`Error importing row:`, rowError.message);
+          console.error(`Error processing row:`, rowError.message);
+        }
+      }
+
+      // Bulk insert leads
+      if (leadsToInsert.length > 0) {
+        const { data: insertedLeads, error: insertError } = await supabase
+          .from("outreach_leads")
+          .insert(leadsToInsert)
+          .select("id");
+
+        if (insertError) {
+          console.error("Bulk insert error:", insertError);
+          // Try individual inserts as fallback
+          for (const lead of leadsToInsert) {
+            const { error: singleError } = await supabase
+              .from("outreach_leads")
+              .insert(lead);
+            
+            if (singleError) {
+              failed++;
+              errorLog.push({
+                email: lead.contact_email,
+                error: singleError.message
+              });
+            } else {
+              successful++;
+            }
+          }
+        } else {
+          successful += insertedLeads?.length || leadsToInsert.length;
         }
       }
 
@@ -181,6 +377,7 @@ serve(async (req) => {
           successful_rows: successful,
           failed_rows: failed,
           duplicate_rows: duplicates,
+          suppressed_rows: suppressed,
           error_log: errorLog
         })
         .eq("id", job_id);
@@ -196,11 +393,12 @@ serve(async (req) => {
         successful_rows: successful,
         failed_rows: failed,
         duplicate_rows: duplicates,
+        suppressed_rows: suppressed,
         error_log: errorLog
       })
       .eq("id", job_id);
 
-    console.log(`Import complete: ${successful} successful, ${failed} failed, ${duplicates} duplicates`);
+    console.log(`Import complete: ${successful} successful, ${failed} failed, ${duplicates} duplicates, ${suppressed} suppressed`);
 
     return new Response(
       JSON.stringify({
@@ -209,7 +407,8 @@ serve(async (req) => {
         successful,
         failed,
         duplicates,
-        errors: errorLog.slice(0, 10) // Return first 10 errors
+        suppressed,
+        errors: errorLog.slice(0, 10)
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -217,7 +416,6 @@ serve(async (req) => {
   } catch (error: any) {
     console.error("Import error:", error);
 
-    // Update job as failed if job_id provided
     try {
       const body = await req.clone().json();
       if (body.job_id) {

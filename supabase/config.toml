@@ -155,3 +155,9 @@ verify_jwt = false
 
 [functions.import-outreach-leads]
 verify_jwt = true
+
+[functions.process-inbound-reply]
+verify_jwt = false
+
+[functions.resend-webhooks]
+verify_jwt = false
