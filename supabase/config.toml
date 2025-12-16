@@ -170,3 +170,9 @@ verify_jwt = true
 
 [functions.crawl-company-data]
 verify_jwt = true
+
+[functions.enrich-company-from-domain]
+verify_jwt = true
+
+[functions.generate-company-insights]
+verify_jwt = true

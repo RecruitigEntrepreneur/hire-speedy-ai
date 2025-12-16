@@ -1838,6 +1838,56 @@ export type Database = {
           },
         ]
       }
+      company_intelligence: {
+        Row: {
+          captured_at: string | null
+          company_id: string
+          created_at: string | null
+          data: Json | null
+          data_type: string
+          description: string | null
+          id: string
+          importance: string | null
+          source: string | null
+          title: string
+          valid_until: string | null
+        }
+        Insert: {
+          captured_at?: string | null
+          company_id: string
+          created_at?: string | null
+          data?: Json | null
+          data_type: string
+          description?: string | null
+          id?: string
+          importance?: string | null
+          source?: string | null
+          title: string
+          valid_until?: string | null
+        }
+        Update: {
+          captured_at?: string | null
+          company_id?: string
+          created_at?: string | null
+          data?: Json | null
+          data_type?: string
+          description?: string | null
+          id?: string
+          importance?: string | null
+          source?: string | null
+          title?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_intelligence_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_profiles: {
         Row: {
           address: string | null
@@ -3779,12 +3829,16 @@ export type Database = {
           created_at: string | null
           description: string | null
           domain: string
+          employee_growth: string | null
           founded_year: number | null
+          founding_year: number | null
           headcount: number | null
           hiring_activity: string | null
           id: string
           industry: string | null
+          intelligence_score: number | null
           last_activity_at: string | null
+          last_enriched_at: string | null
           linkedin_url: string | null
           live_jobs: Json | null
           live_jobs_count: number | null
@@ -3794,6 +3848,10 @@ export type Database = {
           platform_fit: string[] | null
           priority_score: number | null
           recent_news: Json | null
+          revenue_range: string | null
+          revenue_trend: string | null
+          social_linkedin: string | null
+          social_twitter: string | null
           status: string | null
           technologies: Json | null
           updated_at: string | null
@@ -3813,12 +3871,16 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           domain: string
+          employee_growth?: string | null
           founded_year?: number | null
+          founding_year?: number | null
           headcount?: number | null
           hiring_activity?: string | null
           id?: string
           industry?: string | null
+          intelligence_score?: number | null
           last_activity_at?: string | null
+          last_enriched_at?: string | null
           linkedin_url?: string | null
           live_jobs?: Json | null
           live_jobs_count?: number | null
@@ -3828,6 +3890,10 @@ export type Database = {
           platform_fit?: string[] | null
           priority_score?: number | null
           recent_news?: Json | null
+          revenue_range?: string | null
+          revenue_trend?: string | null
+          social_linkedin?: string | null
+          social_twitter?: string | null
           status?: string | null
           technologies?: Json | null
           updated_at?: string | null
@@ -3847,12 +3913,16 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           domain?: string
+          employee_growth?: string | null
           founded_year?: number | null
+          founding_year?: number | null
           headcount?: number | null
           hiring_activity?: string | null
           id?: string
           industry?: string | null
+          intelligence_score?: number | null
           last_activity_at?: string | null
+          last_enriched_at?: string | null
           linkedin_url?: string | null
           live_jobs?: Json | null
           live_jobs_count?: number | null
@@ -3862,6 +3932,10 @@ export type Database = {
           platform_fit?: string[] | null
           priority_score?: number | null
           recent_news?: Json | null
+          revenue_range?: string | null
+          revenue_trend?: string | null
+          social_linkedin?: string | null
+          social_twitter?: string | null
           status?: string | null
           technologies?: Json | null
           updated_at?: string | null

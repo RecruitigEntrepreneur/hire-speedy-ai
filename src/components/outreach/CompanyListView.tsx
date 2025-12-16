@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Building2, Users, CheckCircle } from "lucide-react";
+import { Search, Plus, Building2, Users, CheckCircle, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CompanyListCard } from "./CompanyListCard";
 import { CompanySlimSheet } from "./CompanySlimSheet";
 import { useCompaniesWithLeadCounts } from "@/hooks/useOutreachCompanies";
 import { SmartImportDialog } from "./SmartImportDialog";
+import { QuickAddCompanyDialog } from "./QuickAddCompanyDialog";
 
 export function CompanyListView() {
   const [search, setSearch] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [filter, setFilter] = useState<'all' | 'needs_contacts' | 'ready'>('all');
   const { data: companies, isLoading } = useCompaniesWithLeadCounts();
 
@@ -88,6 +90,10 @@ export function CompanyListView() {
             className="pl-10"
           />
         </div>
+        <Button variant="outline" onClick={() => setShowQuickAdd(true)}>
+          <Sparkles className="h-4 w-4 mr-2" />
+          Quick Add
+        </Button>
         <Button onClick={() => setShowImport(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Importieren
@@ -117,6 +123,13 @@ export function CompanyListView() {
       <CompanySlimSheet
         companyId={selectedCompanyId}
         onClose={() => setSelectedCompanyId(null)}
+      />
+
+      {/* Quick Add Dialog */}
+      <QuickAddCompanyDialog
+        open={showQuickAdd}
+        onOpenChange={setShowQuickAdd}
+        onSuccess={(id) => setSelectedCompanyId(id)}
       />
 
       {/* Smart Import Dialog */}

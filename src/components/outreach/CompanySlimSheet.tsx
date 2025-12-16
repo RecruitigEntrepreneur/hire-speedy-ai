@@ -5,12 +5,14 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { 
   Building2, Globe, MapPin, Users, Briefcase, RefreshCw, 
-  Mail, Newspaper, Code, UserPlus, ExternalLink 
+  Mail, Newspaper, Code, UserPlus, ExternalLink, Sparkles
 } from "lucide-react";
 import { useCompanyWithLeads, useCrawlCompanyData } from "@/hooks/useOutreachCompanies";
 import { useGenerateEmail } from "@/hooks/useOutreach";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CompanyIntelligenceCard } from "./CompanyIntelligenceCard";
+import { InsightsPanel } from "./InsightsPanel";
 
 interface CompanySlimSheetProps {
   companyId: string | null;
@@ -34,10 +36,9 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
   const handleGenerateEmail = async (leadId: string) => {
     setGeneratingFor(leadId);
     try {
-      // Note: This would need a campaign ID in real usage
       await generateEmail.mutateAsync({
         leadId,
-        campaignId: 'default' // You may want to have a default campaign
+        campaignId: 'default'
       });
       toast.success("E-Mail wurde generiert und ist im Outreach-Tab");
     } catch (error) {
@@ -85,7 +86,15 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
                     <Building2 className="h-6 w-6" />
                   </div>
                   <div>
-                    <SheetTitle className="text-xl">{company.name}</SheetTitle>
+                    <div className="flex items-center gap-2">
+                      <SheetTitle className="text-xl">{company.name}</SheetTitle>
+                      {company.intelligence_score !== null && company.intelligence_score !== undefined && company.intelligence_score > 0 && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Sparkles className="h-3 w-3" />
+                          {company.intelligence_score}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                       {company.industry && <span>{company.industry}</span>}
                       {company.city && (
@@ -108,13 +117,27 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
               </div>
             </SheetHeader>
 
-            <div className="mt-6 space-y-6">
-              {/* AI Insights */}
+            <div className="mt-6 space-y-4">
+              {/* Economic Data Card */}
+              <CompanyIntelligenceCard company={company} />
+
+              {/* AI Insights Panel */}
+              {companyId && (
+                <InsightsPanel 
+                  companyId={companyId}
+                  liveJobs={liveJobs}
+                  recentNews={recentNews}
+                  technologies={technologies.map(t => typeof t === 'string' ? t : String(t))}
+                  initialScore={company.intelligence_score ?? 0}
+                />
+              )}
+
+              {/* Jobs & News Card */}
               <Card className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold flex items-center gap-2">
                     <Code className="h-4 w-4" />
-                    AI-Insights
+                    Jobs & News
                   </h3>
                   <Button 
                     variant="outline" 
@@ -123,7 +146,7 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
                     disabled={crawlMutation.isPending}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${crawlMutation.isPending ? 'animate-spin' : ''}`} />
-                    {crawlMutation.isPending ? 'Crawle...' : 'Neu crawlen'}
+                    {crawlMutation.isPending ? 'Crawle...' : 'Aktualisieren'}
                   </Button>
                 </div>
 
@@ -133,6 +156,9 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
                     <div className="flex items-center gap-2 text-sm font-medium mb-2">
                       <Briefcase className="h-4 w-4 text-primary" />
                       {liveJobs.length} offene Stellen
+                      {company.hiring_activity === 'hot' && (
+                        <Badge variant="default" className="bg-orange-500 text-xs">HOT</Badge>
+                      )}
                     </div>
                     {liveJobs.length > 0 ? (
                       <div className="space-y-1 text-sm text-muted-foreground pl-6">
@@ -145,7 +171,7 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
                       </div>
                     ) : (
                       <div className="text-sm text-muted-foreground pl-6">
-                        Keine Jobs gefunden - crawlen Sie die Karriereseite
+                        Keine Jobs gefunden - klicken Sie auf Aktualisieren
                       </div>
                     )}
                   </div>
@@ -159,7 +185,7 @@ export function CompanySlimSheet({ companyId, onClose }: CompanySlimSheetProps) 
                       </div>
                       <div className="space-y-1 text-sm text-muted-foreground pl-6">
                         {recentNews.slice(0, 3).map((news: any, i: number) => (
-                          <div key={i}>"{news.title}"</div>
+                          <div key={i} className="truncate">• {news.title}</div>
                         ))}
                       </div>
                     </div>
