@@ -160,6 +160,8 @@ export interface OutreachEmail {
   opened_at?: string;
   replied_at?: string;
   created_at: string;
+  used_variables?: string[];
+  generation_prompt?: string;
   lead?: OutreachLead;
   campaign?: OutreachCampaign;
 }

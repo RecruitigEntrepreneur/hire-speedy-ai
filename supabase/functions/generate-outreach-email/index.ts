@@ -149,9 +149,27 @@ serve(async (req) => {
   }
 
   try {
-    const { lead_id, campaign_id, sequence_step = 1 } = await req.json();
+    const { lead_id, campaign_id, sequence_step = 1, options = {} } = await req.json();
+
+    // Extract generation options with defaults
+    const {
+      tone = 'professional',
+      length = 'medium',
+      focus = 'demo',
+      customInstruction = '',
+      isVariant = false
+    } = options;
+
+    // Map length to word count
+    const lengthToWords: Record<string, number> = {
+      short: 70,
+      medium: 100,
+      long: 150
+    };
+    const targetWordCount = lengthToWords[length] || 100;
 
     console.log(`Generating email for lead ${lead_id}, campaign ${campaign_id}, step ${sequence_step}`);
+    console.log(`Options: tone=${tone}, length=${length}, focus=${focus}, isVariant=${isVariant}`);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -310,20 +328,35 @@ serve(async (req) => {
     // User-Prompt mit vollem Kontext
     const sequenceType = sequence_step === 1 ? 'Erstkontakt' : `Follow-up ${sequence_step - 1}`;
     
+    // Map tone to German descriptions
+    const toneDescriptions: Record<string, string> = {
+      formal: 'Sehr formell und höflich, distanzierte Ansprache mit "Sie"',
+      professional: 'Professionell und sachlich, Standard-B2B-Kommunikation',
+      casual: 'Locker und freundlich, nahbar aber respektvoll',
+      direct: 'Direkt und auf den Punkt, kurze prägnante Sätze'
+    };
+    
+    // Map focus to CTA types
+    const focusCTAs: Record<string, string> = {
+      demo: 'Eine 15-Minuten Demo anbieten: "Hätten Sie 15 Minuten für eine kurze Demo?"',
+      meeting: 'Ein persönliches Gespräch/Meeting anbieten: "Wollen wir uns kurz austauschen?"',
+      info: 'Weitere Informationen anbieten: "Soll ich Ihnen mehr Details zusenden?"',
+      'case-study': 'Eine Erfolgsgeschichte/Case Study teilen: "Ich zeige Ihnen gerne, wie wir [ähnliches Unternehmen] geholfen haben"'
+    };
+    
     const userPrompt = `
 KAMPAGNEN-KONTEXT:
 - Ziel: ${campaign.goal}
 - Zielgruppe: ${campaign.target_segment}
-- Tonalität: ${campaign.tonality}
-- Maximale Wortanzahl: ${campaign.max_word_count}
 - Sequenz-Schritt: ${sequence_step} (${sequenceType})
 - Verbotene Wörter: ${JSON.stringify(campaign.forbidden_words || [])}
 
-CTA-VORGABE (PFLICHT):
-Der CTA muss IMMER eine 15-Minuten Demo anbieten, bezogen auf das identifizierte Problem.
-Beispiele:
-- "Hätten Sie 15 Minuten, um zu sehen, wie wir Ihre [Stelle]-Suche beschleunigen können?"
-- "Soll ich Ihnen in 15 Minuten zeigen, wie wir beim Teamaufbau unterstützen können?"
+GENERIERUNGS-OPTIONEN (WICHTIG!):
+- Tonalität: ${tone.toUpperCase()} - ${toneDescriptions[tone] || toneDescriptions.professional}
+- Ziel-Wortanzahl: ${targetWordCount} Wörter (${length === 'short' ? 'kurz und knapp' : length === 'long' ? 'ausführlicher' : 'mittellang'})
+- CTA-Fokus: ${focusCTAs[focus] || focusCTAs.demo}
+${isVariant ? '- VARIANTE: Dies ist eine alternative Version. Wähle einen anderen Einstieg und Ansatz als die Standard-Version.' : ''}
+${customInstruction ? `- ZUSÄTZLICHE ANWEISUNG: ${customInstruction}` : ''}
 
 EMPFOHLENE PERSONALISIERUNGSSTRATEGIE: ${suggestedStrategy}
 
@@ -346,7 +379,6 @@ ${hiringSignals.map((h: any, i: number) => `  ${i + 1}. ${h.title || 'Position'}
 DEIN ANSATZ:
 - Beziehe dich auf die konkrete(n) Stelle(n)
 - Zeige dass unsere Recruiter bereits passende Kandidaten haben
-- Demo-CTA fokussiert auf diese Stellen
 ` : ''}
 
 ${hasRecentJobChange ? `
@@ -357,7 +389,6 @@ ${jobChangeData.prev_company ? `Vorher: ${jobChangeData.prev_company}${jobChange
 DEIN ANSATZ:
 - Gratuliere zur neuen Rolle
 - Biete Unterstützung beim Teamaufbau
-- Demo-CTA fokussiert auf schnellen Teamaufbau
 ` : ''}
 
 ${!hiringSignals.length && !hasRecentJobChange && lead.company_technologies?.length > 0 ? `
@@ -367,7 +398,6 @@ Das Unternehmen nutzt: ${JSON.stringify(lead.company_technologies)}
 DEIN ANSATZ:
 - Tech-Recruiting ist komplex und zeitaufwändig
 - Unsere Recruiter verstehen den Tech-Stack
-- Demo-CTA fokussiert auf Tech-Recruiting-Expertise
 ` : ''}
 
 ${!hiringSignals.length && !hasRecentJobChange && !lead.company_technologies?.length ? `
@@ -375,13 +405,13 @@ FALLBACK-ANSATZ:
 Wenig spezifische Daten verfügbar. Nutze:
 - Branche/Industrie wenn bekannt
 - Allgemeine Recruiting-Herausforderungen
-- Niedrigschwelliger Demo-CTA
 ` : ''}
 
 Generiere jetzt eine E-Mail die:
 1. Das identifizierte Problem anspricht
 2. Unsere Plattform als Lösung positioniert
-3. Mit einem 15-Minuten Demo-Angebot endet
+3. Mit dem gewünschten CTA endet (${focus})
+4. Die gewünschte Tonalität (${tone}) und Länge (~${targetWordCount} Wörter) einhält
 `;
 
     console.log("Calling Lovable AI with strategy:", suggestedStrategy);
