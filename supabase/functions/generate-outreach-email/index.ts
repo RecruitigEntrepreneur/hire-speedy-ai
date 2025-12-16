@@ -40,22 +40,62 @@ function getLatestHiring(signals: any[] | null): any | null {
   return withDates.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 }
 
+// Plattform-Kontext für personalisierte Outreach-E-Mails
+const PLATFORM_CONTEXT = `
+UNSERE PLATTFORM - TalentBridge:
+Du repräsentierst eine KI-gestützte Recruiting-Plattform, die Unternehmen mit Top-Recruitern verbindet.
+
+KERNNUTZEN (nutze den relevantesten basierend auf Lead-Daten):
+
+1. FÜR UNTERNEHMEN MIT OFFENEN STELLEN (wenn hiring_signals vorhanden):
+   - Zugang zu geprüften, spezialisierten Recruitern mit sofort verfügbaren Kandidaten
+   - Positionen schneller besetzen durch unser aktives Netzwerk
+   - Pay-per-Placement Modell - nur zahlen bei erfolgreicher Besetzung
+
+2. FÜR WACHSENDE UNTERNEHMEN (wenn company_headcount > 50):
+   - Skalierbare Recruiting-Kapazität ohne Fixkosten
+   - KI-gestütztes Matching für passgenauere Kandidaten
+   - Transparentes Dashboard für alle laufenden Prozesse
+
+3. FÜR TECH-UNTERNEHMEN (wenn company_technologies vorhanden):
+   - Spezialisierte Tech-Recruiter mit echtem Fachwissen
+   - Verständnis für technische Rollen, Skills und Kultur
+   - Schnellere Time-to-Hire für schwer zu besetzende Tech-Positionen
+
+4. FÜR NEUE FÜHRUNGSKRÄFTE (wenn job_change kürzlich):
+   - Unterstützung beim Teamaufbau in der neuen Rolle
+   - Schneller Zugang zu qualifizierten Kandidaten
+   - Kein eigenes Recruiter-Netzwerk nötig
+
+DEMO-ANGEBOT (IMMER als CTA verwenden):
+- Biete eine kostenlose 15-Minuten Demo an
+- Zeige wie wir konkret bei ihren aktuellen Herausforderungen helfen können
+- Formulierung: "Hätten Sie 15 Minuten diese Woche, um zu sehen, wie wir [konkretes Problem] lösen können?"
+- Alternative: "Soll ich Ihnen in 15 Minuten zeigen, wie wir [Stelle/Herausforderung] schneller besetzen?"
+
+WICHTIG:
+- Wir sind KEIN Jobportal, sondern verbinden mit echten Recruitern
+- Wir haben bereits passende Kandidaten im Netzwerk
+- Kein Risiko: Nur bei erfolgreicher Vermittlung fallen Kosten an
+`;
+
 // Vollständiger System-Prompt für B2B-E-Mail-Generierung
 const SYSTEM_PROMPT = `Du bist eine interne, geschäftskritische AI-Komponente innerhalb eines professionellen B2B-Recruiting-Systems.
 
-Deine Aufgabe ist nicht Marketing, nicht Verkauf, nicht Kreativität um jeden Preis, sondern präzise, individuelle, seriöse und rechtlich saubere B2B-Kommunikation.
+${PLATFORM_CONTEXT}
+
+Deine Aufgabe ist präzise, individuelle, seriöse und rechtlich saubere B2B-Kommunikation, die unsere Plattform als Lösung für konkrete Recruiting-Herausforderungen positioniert.
 
 GRUNDPRINZIPIEN (unverhandelbar):
-- Individualisierung vor Masse
-- Seriosität vor Sales-Rhetorik
-- Klarheit vor Kreativität
+- Problem-Erkennung vor Produkt-Pitch
 - Relevanz vor Vollständigkeit
-- Recht & Deliverability vor Reichweite
+- Demo-Angebot als einziger CTA
+- Seriosität vor Sales-Rhetorik
 
 STRUKTUR (Pflicht):
-Betreff: Maximal 7 Wörter, sachlich, ruhig, nicht werblich, keine Emojis, keine Großbuchstaben
-Textkörper: Maximal {max_words} Wörter, 1 personalisierter Bezug, keine Selbstdarstellung, kein Pitch
-Call-to-Action: Genau ein CTA, niedrigschwellig, keine Dringlichkeit
+Betreff: Maximal 7 Wörter, Bezug auf konkretes Problem/Stelle wenn möglich, keine Emojis
+Textkörper: Maximal {max_words} Wörter, 1 personalisierter Bezug auf ihre Situation, kurze Lösung durch uns
+Call-to-Action: IMMER eine 15-Minuten Demo anbieten, bezogen auf ihr konkretes Problem
 
 SPRACHSTIL:
 - Deutsch, professionelles B2B-Niveau
@@ -69,36 +109,27 @@ VERBOTEN:
 - Superlative ("beste", "einzigartige", "revolutionär")
 - Marketingphrasen ("skalierbar", "disruptiv", "Gamechanger")
 - Annahmen über internen Zustand des Unternehmens
-- Mehrere CTAs
+- Andere CTAs als Demo-Angebot
 
 PERSONALISIERUNGSSTRATEGIEN (nutze wenn Daten vorhanden):
 
-1. HIRING-SIGNALE (höchste Priorität wenn vorhanden):
-   - Wenn hiring_count > 0: "Ich sehe, dass Sie aktuell [latest_hiring_title] suchen..."
-   - Bei mehreren Stellen: "Mit aktuell [hiring_count] offenen Positionen..."
-   - Konkrete Stelle nennen zeigt Recherche und Relevanz
+1. HIRING-SIGNALE (höchste Priorität - UNBEDINGT NUTZEN wenn vorhanden):
+   - Beziehe dich auf konkrete offene Stellen
+   - "Ich sehe, dass Sie aktuell [latest_hiring_title] suchen – genau solche Profile haben unsere Recruiter im Netzwerk."
+   - Demo-CTA: "Soll ich Ihnen zeigen, wie wir die [Stelle]-Suche beschleunigen können?"
 
-2. JOB-WECHSEL (sehr persönlich, mit Vorsicht):
-   - Wenn has_recent_job_change: "Herzlichen Glückwunsch zu Ihrer Rolle bei [company_name]..."
-   - NICHT erwähnen wenn länger als 90 Tage her
-   - NICHT aufdringlich nachfragen
+2. JOB-WECHSEL (sehr persönlich, ideal für Teamaufbau):
+   - Gratuliere zur neuen Rolle
+   - Biete Unterstützung beim Teamaufbau
+   - "Als neuer [Titel] bei [Company] möchten Sie sicher schnell Ihr Team aufbauen."
 
-3. STANDORT-WECHSEL (subtil einsetzen):
-   - Wenn has_recent_move: Bezug auf neue Stadt/Region nur wenn relevant
-   - "In [city] gibt es interessante Entwicklungen im [industry]-Bereich..."
+3. TECHNOLOGIE-BEZUG:
+   - Tech-Stack als Anknüpfungspunkt
+   - "Für [Technology]-Positionen haben wir spezialisierte Tech-Recruiter."
 
-4. TECHNOLOGIE-BEZUG:
-   - Wenn company_technologies vorhanden: Tech-Stack als Anknüpfungspunkt
-   - "Als [technology]-basiertes Unternehmen..."
-
-5. BRANCHEN-KONTEXT:
-   - Wenn company_industries vorhanden: Branchenspezifische Herausforderungen ansprechen
-   - Nicht generisch, sondern konkret auf die Branche bezogen
-
-FALLBACK-STRATEGIE (wenn wenig Daten):
-- Auf Firmenname und Position fokussieren
-- Allgemeine aber respektvolle Ansprache
-- Keine erfundenen Details
+4. BRANCHEN-KONTEXT:
+   - Branchenspezifische Recruiting-Herausforderungen
+   - "Im [Industry]-Bereich ist die Suche nach [Rolle] besonders herausfordernd."
 
 Bei fehlenden Variablen: Neutrale Formulierungen, keine Platzhalter, keine Verallgemeinerungen.
 
@@ -106,9 +137,10 @@ OUTPUT-FORMAT (zwingend JSON):
 {
   "subject": "...",
   "body": "...",
-  "used_variables": ["company_name", "industry"],
+  "used_variables": ["company_name", "latest_hiring_title"],
   "personalization_strategy": "hiring_signals | job_change | technology | industry | fallback",
-  "confidence_level": "hoch | mittel | niedrig"
+  "confidence_level": "hoch | mittel | niedrig",
+  "problem_identified": "z.B. 'Sucht Senior Developer' oder 'Neuer CEO baut Team auf'"
 }`;
 
 serve(async (req) => {
@@ -283,15 +315,19 @@ KAMPAGNEN-KONTEXT:
 - Ziel: ${campaign.goal}
 - Zielgruppe: ${campaign.target_segment}
 - Tonalität: ${campaign.tonality}
-- Erlaubter CTA: ${campaign.allowed_cta || "Macht ein kurzer Austausch Sinn?"}
-- Verbotene Wörter: ${JSON.stringify(campaign.forbidden_words || [])}
 - Maximale Wortanzahl: ${campaign.max_word_count}
 - Sequenz-Schritt: ${sequence_step} (${sequenceType})
+- Verbotene Wörter: ${JSON.stringify(campaign.forbidden_words || [])}
+
+CTA-VORGABE (PFLICHT):
+Der CTA muss IMMER eine 15-Minuten Demo anbieten, bezogen auf das identifizierte Problem.
+Beispiele:
+- "Hätten Sie 15 Minuten, um zu sehen, wie wir Ihre [Stelle]-Suche beschleunigen können?"
+- "Soll ich Ihnen in 15 Minuten zeigen, wie wir beim Teamaufbau unterstützen können?"
 
 EMPFOHLENE PERSONALISIERUNGSSTRATEGIE: ${suggestedStrategy}
-(Nutze diese Strategie als Hauptansatz, aber wähle eine andere wenn sie besser passt)
 
-VERFÜGBARE LEAD-DATEN (alle gefüllten Variablen):
+VERFÜGBARE LEAD-DATEN:
 ${filledVariables}
 
 ABSENDER:
@@ -303,19 +339,49 @@ WICHTIG: Dies ist ein Follow-up. Beziehe dich kurz auf die vorherige E-Mail, ohn
 ` : ''}
 
 ${hiringSignals.length > 0 ? `
-HIRING-KONTEXT (UNBEDINGT NUTZEN!):
+🎯 PROBLEM ERKANNT - HIRING-BEDARF (HÖCHSTE PRIORITÄT!):
 Das Unternehmen sucht aktuell ${hiringSignals.length} Stelle(n):
 ${hiringSignals.map((h: any, i: number) => `  ${i + 1}. ${h.title || 'Position'} ${h.location ? `in ${h.location}` : ''}`).join('\n')}
-Dies ist ein starkes Signal für Recruiting-Bedarf!
+
+DEIN ANSATZ:
+- Beziehe dich auf die konkrete(n) Stelle(n)
+- Zeige dass unsere Recruiter bereits passende Kandidaten haben
+- Demo-CTA fokussiert auf diese Stellen
 ` : ''}
 
 ${hasRecentJobChange ? `
-JOB-WECHSEL-KONTEXT (mit Vorsicht nutzen):
-Die Person hat kürzlich zu ${jobChangeData.new_company || lead.company_name} gewechselt${jobChangeData.new_title ? ` als ${jobChangeData.new_title}` : ''}.
-Vorher: ${jobChangeData.prev_company || 'unbekannt'}${jobChangeData.prev_title ? ` als ${jobChangeData.prev_title}` : ''}
+🎯 PROBLEM ERKANNT - NEUE FÜHRUNGSKRAFT:
+${lead.contact_name || 'Die Person'} ist kürzlich ${jobChangeData.new_title ? `als ${jobChangeData.new_title}` : ''} zu ${jobChangeData.new_company || lead.company_name} gewechselt.
+${jobChangeData.prev_company ? `Vorher: ${jobChangeData.prev_company}${jobChangeData.prev_title ? ` als ${jobChangeData.prev_title}` : ''}` : ''}
+
+DEIN ANSATZ:
+- Gratuliere zur neuen Rolle
+- Biete Unterstützung beim Teamaufbau
+- Demo-CTA fokussiert auf schnellen Teamaufbau
 ` : ''}
 
-Generiere jetzt eine hochpersonalisierte E-Mail für diesen Lead.
+${!hiringSignals.length && !hasRecentJobChange && lead.company_technologies?.length > 0 ? `
+🎯 PROBLEM ERKANNT - TECH-UNTERNEHMEN:
+Das Unternehmen nutzt: ${JSON.stringify(lead.company_technologies)}
+
+DEIN ANSATZ:
+- Tech-Recruiting ist komplex und zeitaufwändig
+- Unsere Recruiter verstehen den Tech-Stack
+- Demo-CTA fokussiert auf Tech-Recruiting-Expertise
+` : ''}
+
+${!hiringSignals.length && !hasRecentJobChange && !lead.company_technologies?.length ? `
+FALLBACK-ANSATZ:
+Wenig spezifische Daten verfügbar. Nutze:
+- Branche/Industrie wenn bekannt
+- Allgemeine Recruiting-Herausforderungen
+- Niedrigschwelliger Demo-CTA
+` : ''}
+
+Generiere jetzt eine E-Mail die:
+1. Das identifizierte Problem anspricht
+2. Unsere Plattform als Lösung positioniert
+3. Mit einem 15-Minuten Demo-Angebot endet
 `;
 
     console.log("Calling Lovable AI with strategy:", suggestedStrategy);
