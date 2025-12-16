@@ -28,6 +28,7 @@ export interface OutreachCompany {
   industry?: string | null;
   headcount?: number | null;
   founded_year?: number | null;
+  founding_year?: number | null;
   technologies?: Json;
   city?: string | null;
   country?: string | null;
@@ -45,13 +46,21 @@ export interface OutreachCompany {
   status?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
-  // New Company-First fields
+  // Company-First fields
   outreach_status?: string | null;
   warm_score?: number | null;
   best_entry_point_id?: string | null;
   last_activity_at?: string | null;
   company_notes?: string | null;
   platform_fit?: string[] | null;
+  // Intelligence fields
+  revenue_range?: string | null;
+  revenue_trend?: string | null;
+  employee_growth?: string | null;
+  intelligence_score?: number | null;
+  last_enriched_at?: string | null;
+  social_linkedin?: string | null;
+  social_twitter?: string | null;
 }
 
 export interface CompanyWithLeads extends OutreachCompany {
