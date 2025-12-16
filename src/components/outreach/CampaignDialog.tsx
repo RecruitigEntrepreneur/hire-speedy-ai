@@ -98,9 +98,22 @@ export function CampaignDialog({ open, onOpenChange, campaign }: CampaignDialogP
     setSequenceSteps(sequenceSteps.filter((_, i) => i !== index));
   };
 
+  // Email validation
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const emailDomain = formData.sender_email?.split('@')[1] || '';
+  const isResendTestDomain = emailDomain === 'resend.dev';
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.sender_name || !formData.sender_email) {
       toast.error('Bitte alle Pflichtfelder ausfüllen');
+      return;
+    }
+
+    if (!isValidEmail(formData.sender_email)) {
+      toast.error('Bitte eine gültige E-Mail-Adresse eingeben');
       return;
     }
 
@@ -368,7 +381,16 @@ export function CampaignDialog({ open, onOpenChange, campaign }: CampaignDialogP
                   value={formData.sender_email}
                   onChange={(e) => setFormData({ ...formData, sender_email: e.target.value })}
                   placeholder="max@firma.de"
+                  className={!isValidEmail(formData.sender_email) && formData.sender_email ? 'border-destructive' : ''}
                 />
+                {formData.sender_email && !isValidEmail(formData.sender_email) && (
+                  <p className="text-xs text-destructive">Ungültige E-Mail-Adresse</p>
+                )}
+                {isResendTestDomain && (
+                  <p className="text-xs text-amber-600">
+                    Test-Domain (resend.dev) - nur für Tests geeignet. Für Produktion eine verifizierte Domain verwenden.
+                  </p>
+                )}
               </div>
             </div>
 

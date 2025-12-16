@@ -3,16 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Check, Edit2, RefreshCw, Send, Mail, Eye } from "lucide-react";
-import { useOutreachEmails, useApproveEmail, useRejectEmail } from "@/hooks/useOutreach";
+import { Check, Edit2, RefreshCw, Send, Mail, Eye, Loader2, Play } from "lucide-react";
+import { useOutreachEmails, useApproveEmail, useRejectEmail, useUpdateEmail, useProcessQueue, useOutreachStats } from "@/hooks/useOutreach";
 import { useState } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 
 export function EmailWorkflow() {
   const { data: emails, isLoading } = useOutreachEmails();
+  const { data: stats } = useOutreachStats();
   const approveMutation = useApproveEmail();
   const rejectMutation = useRejectEmail();
+  const updateMutation = useUpdateEmail();
+  const processQueue = useProcessQueue();
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<{ subject: string; body: string }>({ subject: '', body: '' });
 
@@ -25,7 +29,11 @@ export function EmailWorkflow() {
   };
 
   const handleSave = async (emailId: string) => {
-    // For now just close edit mode - actual save would need mutation
+    await updateMutation.mutateAsync({
+      id: emailId,
+      subject: editedContent.subject,
+      body: editedContent.body
+    });
     setEditingId(null);
   };
 
@@ -35,6 +43,39 @@ export function EmailWorkflow() {
 
   return (
     <div className="space-y-8">
+      {/* Queue Status Bar */}
+      {(stats?.queuePending || 0) > 0 && (
+        <Card className="p-4 bg-primary/5 border-primary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="text-primary border-primary">
+                {stats?.queuePending} in Queue
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                E-Mails warten auf Versand
+              </span>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => processQueue.mutate()}
+              disabled={processQueue.isPending}
+            >
+              {processQueue.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sende...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Jetzt senden
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Pending Emails */}
       <div>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -85,8 +126,16 @@ export function EmailWorkflow() {
                       className="font-mono text-sm"
                     />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleSave(email.id)}>
-                        <Check className="h-4 w-4 mr-2" />
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleSave(email.id)}
+                        disabled={updateMutation.isPending}
+                      >
+                        {updateMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4 mr-2" />
+                        )}
                         Speichern
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
