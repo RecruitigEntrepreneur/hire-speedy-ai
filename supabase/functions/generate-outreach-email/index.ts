@@ -6,18 +6,30 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper: Domain aus URL extrahieren
-function extractDomain(url: string | null): string | null {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-    return parsed.hostname.replace('www.', '');
-  } catch {
-    return null;
-  }
+// ============ TYPES ============
+
+type TriggerType = 'hiring' | 'transition' | 'technology' | 'growth' | 'role';
+type RoleContext = 'cto' | 'hr' | 'founder' | 'manager' | 'other';
+type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+interface TriggerDecision {
+  primary: TriggerType;
+  secondary?: TriggerType;
+  problem: string;
+  opener: string;
+  roleContext: RoleContext;
+  confidence: ConfidenceLevel;
+  details: Record<string, any>;
 }
 
-// Helper: Prüfen ob Datum kürzlich ist (innerhalb von X Tagen)
+interface RoleLanguage {
+  focus: string;
+  keywords: string[];
+  painPoints: string[];
+}
+
+// ============ HELPER FUNCTIONS ============
+
 function isRecent(dateStr: string | null | undefined, days: number): boolean {
   if (!dateStr) return false;
   try {
@@ -30,118 +42,386 @@ function isRecent(dateStr: string | null | undefined, days: number): boolean {
   }
 }
 
-// Helper: Neuestes Hiring-Signal finden
+function daysSince(dateStr: string | null | undefined): number {
+  if (!dateStr) return 999;
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    return Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  } catch {
+    return 999;
+  }
+}
+
 function getLatestHiring(signals: any[] | null): any | null {
   if (!signals || signals.length === 0) return null;
-  
   const withDates = signals.filter(s => s.date);
   if (withDates.length === 0) return signals[0];
-  
   return withDates.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 }
 
-// Plattform-Kontext für personalisierte Outreach-E-Mails
-const PLATFORM_CONTEXT = `
-UNSERE PLATTFORM - TalentBridge:
-Du repräsentierst eine KI-gestützte Recruiting-Plattform, die Unternehmen mit Top-Recruitern verbindet.
+// ============ ROLE DETECTION ============
 
-KERNNUTZEN (nutze den relevantesten basierend auf Lead-Daten):
+function detectRole(jobTitle: string | null | undefined): RoleContext {
+  if (!jobTitle) return 'other';
+  const title = jobTitle.toLowerCase();
+  
+  // CTO / Tech Leadership
+  if (title.includes('cto') || title.includes('chief technology') || 
+      title.includes('vp engineering') || title.includes('head of engineering') ||
+      title.includes('technical director') || title.includes('engineering director')) {
+    return 'cto';
+  }
+  
+  // HR / People / Talent
+  if (title.includes('hr') || title.includes('human resource') || 
+      title.includes('people') || title.includes('talent') ||
+      title.includes('recruiting') || title.includes('recruiter')) {
+    return 'hr';
+  }
+  
+  // Founder / CEO / C-Level
+  if (title.includes('founder') || title.includes('ceo') || 
+      title.includes('chief executive') || title.includes('geschäftsführer') ||
+      title.includes('owner') || title.includes('inhaber') ||
+      title.includes('coo') || title.includes('chief operating')) {
+    return 'founder';
+  }
+  
+  // Manager
+  if (title.includes('manager') || title.includes('head of') || 
+      title.includes('director') || title.includes('lead') ||
+      title.includes('leiter')) {
+    return 'manager';
+  }
+  
+  return 'other';
+}
 
-1. FÜR UNTERNEHMEN MIT OFFENEN STELLEN (wenn hiring_signals vorhanden):
-   - Zugang zu geprüften, spezialisierten Recruitern mit sofort verfügbaren Kandidaten
-   - Positionen schneller besetzen durch unser aktives Netzwerk
-   - Pay-per-Placement Modell - nur zahlen bei erfolgreicher Besetzung
+// ============ ROLE-BASED LANGUAGE ============
 
-2. FÜR WACHSENDE UNTERNEHMEN (wenn company_headcount > 50):
-   - Skalierbare Recruiting-Kapazität ohne Fixkosten
-   - KI-gestütztes Matching für passgenauere Kandidaten
-   - Transparentes Dashboard für alle laufenden Prozesse
+function getRoleLanguage(role: RoleContext): RoleLanguage {
+  switch (role) {
+    case 'cto':
+      return {
+        focus: 'Tech-Qualität, Team-Velocity, technisches Verständnis',
+        keywords: ['Tech-Expertise', 'passende Skills', 'technisches Verständnis', 'Engineering-Kultur'],
+        painPoints: ['Zeit für Screening', 'falsche Tech-Matches', 'langsame Prozesse']
+      };
+    case 'hr':
+      return {
+        focus: 'Prozess-Entlastung, Kandidatenqualität, Verlässlichkeit',
+        keywords: ['Entlastung', 'vorgeprüfte Kandidaten', 'strukturierter Prozess', 'schnelle Besetzung'],
+        painPoints: ['Zeitaufwand', 'zu viele unpassende Bewerbungen', 'lange Time-to-Hire']
+      };
+    case 'founder':
+      return {
+        focus: 'Wachstum, Zeit-Fokus, Skalierung',
+        keywords: ['schnell skalieren', 'Zeit für Wichtiges', 'Wachstum ermöglichen', 'Team aufbauen'],
+        painPoints: ['keine Zeit für Recruiting', 'Fokus auf Kerngeschäft', 'schnelles Wachstum']
+      };
+    case 'manager':
+      return {
+        focus: 'Team-Performance, passende Verstärkung, Effizienz',
+        keywords: ['Team verstärken', 'passende Ergänzung', 'schnelle Unterstützung'],
+        painPoints: ['offene Stelle belastet Team', 'Projekte verzögern sich']
+      };
+    default:
+      return {
+        focus: 'Effizienz, Qualität',
+        keywords: ['passende Kandidaten', 'schnelle Ergebnisse'],
+        painPoints: ['Recruiting-Aufwand']
+      };
+  }
+}
 
-3. FÜR TECH-UNTERNEHMEN (wenn company_technologies vorhanden):
-   - Spezialisierte Tech-Recruiter mit echtem Fachwissen
-   - Verständnis für technische Rollen, Skills und Kultur
-   - Schnellere Time-to-Hire für schwer zu besetzende Tech-Positionen
+// ============ PREMIUM TRIGGER DECISION (DETERMINISTIC!) ============
 
-4. FÜR NEUE FÜHRUNGSKRÄFTE (wenn job_change kürzlich):
-   - Unterstützung beim Teamaufbau in der neuen Rolle
-   - Schneller Zugang zu qualifizierten Kandidaten
-   - Kein eigenes Recruiter-Netzwerk nötig
+function decideTrigger(lead: any): TriggerDecision {
+  const hiringSignals = lead.hiring_signals || [];
+  const jobChangeData = lead.job_change_data || {};
+  const hasRecentJobChange = isRecent(jobChangeData.date, 90);
+  const daysJobChange = daysSince(jobChangeData.date);
+  const technologies = lead.company_technologies || [];
+  const headcount = lead.company_headcount || 0;
+  const roleContext = detectRole(lead.contact_role);
+  const contactName = lead.first_name || lead.contact_name?.split(' ')[0] || '';
+  const companyName = lead.company_name || '';
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRIORITÄT 1: HIRING-DRUCK (höchste Conversion!)
+  // ═══════════════════════════════════════════════════════════════
+  if (hiringSignals.length > 0) {
+    const latestHiring = getLatestHiring(hiringSignals);
+    const hiringTitles = hiringSignals.map((h: any) => h.title).filter(Boolean);
+    const titlesText = hiringTitles.slice(0, 3).join(', ');
+    
+    let opener = '';
+    let problem = '';
+    
+    if (hiringSignals.length >= 3) {
+      opener = `${hiringSignals.length} offene Stellen bei ${companyName} – darunter ${latestHiring?.title || 'Schlüsselpositionen'}. In 60 Sekunden an hunderte spezialisierte Recruiter übergeben?`;
+      problem = `Sucht ${hiringSignals.length} Stellen parallel: ${titlesText}`;
+    } else if (hiringSignals.length === 2) {
+      opener = `Sie suchen einen ${hiringTitles[0]} und ${hiringTitles[1]}. Genau solche Profile haben unsere Recruiter im Netzwerk.`;
+      problem = `Sucht 2 Stellen: ${titlesText}`;
+    } else {
+      opener = `Sie suchen aktuell einen ${latestHiring?.title || 'Mitarbeiter'}${latestHiring?.location ? ` in ${latestHiring.location}` : ''} – genau solche Profile haben unsere Recruiter im Netzwerk.`;
+      problem = `Sucht ${latestHiring?.title || 'neue Mitarbeiter'}`;
+    }
+    
+    // Check for secondary trigger
+    let secondary: TriggerType | undefined;
+    if (hasRecentJobChange && daysJobChange <= 60) {
+      secondary = 'transition';
+    } else if (technologies.length > 2) {
+      secondary = 'technology';
+    }
+    
+    return {
+      primary: 'hiring',
+      secondary,
+      problem,
+      opener,
+      roleContext,
+      confidence: 'high',
+      details: { hiringCount: hiringSignals.length, latestTitle: latestHiring?.title, titles: hiringTitles }
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRIORITÄT 2: TRANSITION (hoher psychologischer Hebel!)
+  // ═══════════════════════════════════════════════════════════════
+  if (hasRecentJobChange) {
+    const newTitle = jobChangeData.new_title || lead.contact_role;
+    const newCompany = jobChangeData.new_company || companyName;
+    
+    let opener = '';
+    let problem = '';
+    
+    if (daysJobChange <= 30) {
+      opener = `Herzlichen Glückwunsch zum Start bei ${newCompany}! Die ersten Wochen sind entscheidend – brauchen Sie schnell passende Leute?`;
+      problem = `Neuer ${newTitle} (${daysJobChange} Tage) – baut Team auf`;
+    } else if (daysJobChange <= 60) {
+      opener = `Als neuer ${newTitle} bei ${newCompany} wollen Sie sicher Ihr Team schnell aufbauen. Genau dabei helfen wir.`;
+      problem = `Kürzlich ${newTitle} geworden – Team-Aufbau läuft`;
+    } else {
+      opener = `Nach dem Wechsel zu ${newCompany} stehen viele vor der Frage: Wie schnell das richtige Team finden?`;
+      problem = `Vor ${daysJobChange} Tagen gewechselt – potentieller Hiring-Bedarf`;
+    }
+    
+    return {
+      primary: 'transition',
+      secondary: technologies.length > 2 ? 'technology' : undefined,
+      problem,
+      opener,
+      roleContext,
+      confidence: daysJobChange <= 30 ? 'high' : 'medium',
+      details: { newTitle, newCompany, daysSinceChange: daysJobChange }
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRIORITÄT 3: TECHNOLOGIE (Spezialisierung = Vertrauen)
+  // ═══════════════════════════════════════════════════════════════
+  if (technologies.length > 0) {
+    const techList = Array.isArray(technologies) ? technologies.slice(0, 3).join(', ') : technologies;
+    
+    const opener = `Für ${techList}-Positionen sind spezialisierte Recruiter Gold wert. Unsere Tech-Recruiter verstehen den Stack.`;
+    const problem = `Tech-Company mit ${technologies.length} Technologien – spezialisiertes Recruiting nötig`;
+    
+    return {
+      primary: 'technology',
+      secondary: headcount >= 100 ? 'growth' : undefined,
+      problem,
+      opener,
+      roleContext,
+      confidence: 'medium',
+      details: { technologies: techList, techCount: technologies.length }
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRIORITÄT 4: WACHSTUMSPHASE (Company-Kontext)
+  // ═══════════════════════════════════════════════════════════════
+  if (headcount >= 50 && headcount <= 500) {
+    let phase = '';
+    if (headcount < 100) phase = 'Scale-up Phase';
+    else if (headcount < 250) phase = 'Wachstumsphase';
+    else phase = 'Skalierungsphase';
+    
+    const opener = `In wachsenden Teams Ihrer Größe sehen wir: Recruiting wird schnell zum Engpass. Wir lösen das.`;
+    const problem = `${companyName} (${headcount} MA) in ${phase} – skalierbare Recruiting-Kapazität nötig`;
+    
+    return {
+      primary: 'growth',
+      problem,
+      opener,
+      roleContext,
+      confidence: 'medium',
+      details: { headcount, phase }
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRIORITÄT 5: ROLLE (Fallback – aber immer noch relevant!)
+  // ═══════════════════════════════════════════════════════════════
+  const roleLanguage = getRoleLanguage(roleContext);
+  let opener = '';
+  let problem = '';
+  
+  switch (roleContext) {
+    case 'cto':
+      opener = `Tech-Talente zu finden ist zeitaufwändig. Unsere Tech-Recruiter nehmen Ihnen das ab – mit echtem technischen Verständnis.`;
+      problem = `CTO/Tech-Lead – typische Recruiting-Herausforderungen im Tech-Bereich`;
+      break;
+    case 'hr':
+      opener = `Recruiting ist Ihr Job – aber muss jede Stelle intern besetzt werden? Unsere Recruiter liefern vorgeprüfte Kandidaten.`;
+      problem = `HR/Talent – potentielle Entlastung bei Recruiting-Aufwand`;
+      break;
+    case 'founder':
+      opener = `Als Gründer ist Ihre Zeit kostbar. Recruiting sollte nicht Ihr Hauptjob sein – übergeben Sie es in 60 Sekunden an Experten.`;
+      problem = `Founder/CEO – Zeit-Fokus auf Kerngeschäft statt Recruiting`;
+      break;
+    default:
+      opener = `Recruiting ist Zeitfresser #1 für wachsende Unternehmen. In 60 Sekunden an hunderte Recruiter übergeben – klingt das interessant?`;
+      problem = `Allgemeiner Recruiting-Bedarf vermutet`;
+  }
+  
+  return {
+    primary: 'role',
+    problem,
+    opener,
+    roleContext,
+    confidence: 'low',
+    details: { roleType: roleContext, painPoints: roleLanguage.painPoints }
+  };
+}
 
-DEMO-ANGEBOT (IMMER als CTA verwenden):
-- Biete eine kostenlose 15-Minuten Demo an
-- Zeige wie wir konkret bei ihren aktuellen Herausforderungen helfen können
-- Formulierung: "Hätten Sie 15 Minuten diese Woche, um zu sehen, wie wir [konkretes Problem] lösen können?"
-- Alternative: "Soll ich Ihnen in 15 Minuten zeigen, wie wir [Stelle/Herausforderung] schneller besetzen?"
+// ============ FOCUSED SYSTEM PROMPT ============
 
-WICHTIG:
-- Wir sind KEIN Jobportal, sondern verbinden mit echten Recruitern
-- Wir haben bereits passende Kandidaten im Netzwerk
-- Kein Risiko: Nur bei erfolgreicher Vermittlung fallen Kosten an
-`;
+function buildFocusedPrompt(trigger: TriggerDecision, roleLanguage: RoleLanguage): string {
+  return `Du schreibst Premium B2B-Outreach-E-Mails für eine Recruiting-Plattform.
 
-// Vollständiger System-Prompt für B2B-E-Mail-Generierung
-const SYSTEM_PROMPT = `Du bist eine interne, geschäftskritische AI-Komponente innerhalb eines professionellen B2B-Recruiting-Systems.
+UNSER USP (baue EINEN dieser Punkte ein):
+• In 60 Sekunden Job an hunderte spezialisierte Recruiter übergeben
+• Passende Kandidaten schnell & qualitativ  
+• Nur zahlen bei Erfolg (Pay per Placement)
 
-${PLATFORM_CONTEXT}
+═══════════════════════════════════════════════════════════════
+GOLDENE REGEL: 1 Lead → 1 Haupttrigger → max. 1 Nebentrigger
+═══════════════════════════════════════════════════════════════
+Nutze NUR den angegebenen Trigger. Keine weiteren Personalisierungen!
+Alles andere ist Dekoration und wirkt konstruiert.
 
-Deine Aufgabe ist präzise, individuelle, seriöse und rechtlich saubere B2B-Kommunikation, die unsere Plattform als Lösung für konkrete Recruiting-Herausforderungen positioniert.
+E-MAIL-STRUKTUR (strikt einhalten):
 
-GRUNDPRINZIPIEN (unverhandelbar):
-- Problem-Erkennung vor Produkt-Pitch
-- Relevanz vor Vollständigkeit
-- Demo-Angebot als einziger CTA
-- Seriosität vor Sales-Rhetorik
+1️⃣ KONTEXT-SATZ (Trigger):
+   Nutze den vorgegebenen Opener oder variiere ihn leicht.
+   Zeigt: "Ich verstehe deine Situation"
 
-STRUKTUR (Pflicht):
-Betreff: Maximal 7 Wörter, Bezug auf konkretes Problem/Stelle wenn möglich, keine Emojis
-Textkörper: Maximal {max_words} Wörter, 1 personalisierter Bezug auf ihre Situation, kurze Lösung durch uns
-Call-to-Action: IMMER eine 15-Minuten Demo anbieten, bezogen auf ihr konkretes Problem
+2️⃣ RELEVANZ-SATZ (Problem):
+   "Gerade bei X sehen wir häufig..." oder "Das kostet Zeit..."
+   Zeigt: "Ich kenne dein Problem"
+
+3️⃣ POSITIONIERUNG (USP):
+   "Unsere Recruiter..." / "In 60 Sekunden..."
+   Zeigt: "Wir haben die Lösung"
+
+4️⃣ MINIMALER CTA:
+   "Macht ein kurzer Austausch Sinn?" oder "15 Minuten diese Woche?"
+   Kein Druck, nur Angebot.
+
+WORTLIMIT: Maximal 120 Wörter. Nicht verhandelbar.
+
+TONALITÄT FÜR ${trigger.roleContext.toUpperCase()}:
+Fokus: ${roleLanguage.focus}
+Nutze Wörter wie: ${roleLanguage.keywords.join(', ')}
 
 SPRACHSTIL:
-- Deutsch, professionelles B2B-Niveau
-- Höflich, aber nicht unterwürfig
-- Keine Anglizismen außer branchenüblich
-- Keine Emojis, keine Ausrufezeichen
-- Keine Floskeln ("Ich hoffe, es geht Ihnen gut")
+• Deutsch, professionelles B2B
+• Kurze, klare Sätze
+• Höflich, aber nicht unterwürfig
+• Keine Floskeln ("Ich hoffe...")
+• Keine Emojis, keine Ausrufezeichen
 
 VERBOTEN:
-- Verkaufsdruck ("jetzt", "dringend", "letzte Chance")
-- Superlative ("beste", "einzigartige", "revolutionär")
-- Marketingphrasen ("skalierbar", "disruptiv", "Gamechanger")
-- Annahmen über internen Zustand des Unternehmens
-- Andere CTAs als Demo-Angebot
+• Mehrere Personalisierungen mischen
+• Verkaufsdruck ("jetzt", "dringend")
+• Superlative ("beste", "einzigartige")
+• Über 120 Wörter
 
-PERSONALISIERUNGSSTRATEGIEN (nutze wenn Daten vorhanden):
-
-1. HIRING-SIGNALE (höchste Priorität - UNBEDINGT NUTZEN wenn vorhanden):
-   - Beziehe dich auf konkrete offene Stellen
-   - "Ich sehe, dass Sie aktuell [latest_hiring_title] suchen – genau solche Profile haben unsere Recruiter im Netzwerk."
-   - Demo-CTA: "Soll ich Ihnen zeigen, wie wir die [Stelle]-Suche beschleunigen können?"
-
-2. JOB-WECHSEL (sehr persönlich, ideal für Teamaufbau):
-   - Gratuliere zur neuen Rolle
-   - Biete Unterstützung beim Teamaufbau
-   - "Als neuer [Titel] bei [Company] möchten Sie sicher schnell Ihr Team aufbauen."
-
-3. TECHNOLOGIE-BEZUG:
-   - Tech-Stack als Anknüpfungspunkt
-   - "Für [Technology]-Positionen haben wir spezialisierte Tech-Recruiter."
-
-4. BRANCHEN-KONTEXT:
-   - Branchenspezifische Recruiting-Herausforderungen
-   - "Im [Industry]-Bereich ist die Suche nach [Rolle] besonders herausfordernd."
-
-Bei fehlenden Variablen: Neutrale Formulierungen, keine Platzhalter, keine Verallgemeinerungen.
-
-OUTPUT-FORMAT (zwingend JSON):
+OUTPUT (JSON):
 {
-  "subject": "...",
-  "body": "...",
-  "used_variables": ["company_name", "latest_hiring_title"],
-  "personalization_strategy": "hiring_signals | job_change | technology | industry | fallback",
-  "confidence_level": "hoch | mittel | niedrig",
-  "problem_identified": "z.B. 'Sucht Senior Developer' oder 'Neuer CEO baut Team auf'"
+  "subject": "Max 7 Wörter, Bezug auf konkretes Problem",
+  "body": "Die E-Mail (max 120 Wörter)",
+  "used_variables": ["liste_genutzter_variablen"],
+  "confidence_level": "hoch | mittel | niedrig"
 }`;
+}
+
+// ============ USER PROMPT (SINGLE TRIGGER) ============
+
+function buildUserPrompt(lead: any, campaign: any, trigger: TriggerDecision, options: any): string {
+  const contactName = lead.first_name || lead.contact_name?.split(' ')[0] || 'Kontakt';
+  const lastName = lead.last_name || lead.contact_name?.split(' ').slice(1).join(' ') || '';
+  
+  let prompt = `
+═══════════════════════════════════════════════════════════════
+ENTSCHIEDENER TRIGGER (nicht ändern!)
+═══════════════════════════════════════════════════════════════
+
+Typ: ${trigger.primary.toUpperCase()}
+Konfidenz: ${trigger.confidence}
+
+🎯 ERKANNTES PROBLEM:
+"${trigger.problem}"
+
+💡 VORGESCHLAGENER OPENER (nutze oder adaptiere):
+"${trigger.opener}"
+`;
+
+  if (trigger.secondary) {
+    prompt += `
+OPTIONALER NEBENTRIGGER (sanft einbauen, nicht dominant):
+${trigger.secondary.toUpperCase()}
+`;
+  }
+
+  prompt += `
+═══════════════════════════════════════════════════════════════
+EMPFÄNGER
+═══════════════════════════════════════════════════════════════
+
+Name: ${contactName} ${lastName}
+Anrede: ${lastName ? `Herr/Frau ${lastName}` : contactName}
+Rolle: ${lead.contact_role || 'nicht angegeben'} (${trigger.roleContext})
+Firma: ${lead.company_name}
+${lead.company_city ? `Standort: ${lead.company_city}` : ''}
+${lead.company_headcount ? `Größe: ${lead.company_headcount} Mitarbeiter` : ''}
+
+═══════════════════════════════════════════════════════════════
+ABSENDER
+═══════════════════════════════════════════════════════════════
+
+Name: ${campaign.sender_name}
+Signatur: ${campaign.sender_signature || 'Mit freundlichen Grüßen'}
+
+═══════════════════════════════════════════════════════════════
+ANWEISUNGEN
+═══════════════════════════════════════════════════════════════
+
+• Nutze NUR den angegebenen Trigger
+• Max 120 Wörter
+• Struktur einhalten: Kontext → Relevanz → USP → CTA
+${options.customInstruction ? `• Zusätzlich: ${options.customInstruction}` : ''}
+
+Generiere jetzt die E-Mail.`;
+
+  return prompt;
+}
+
+// ============ MAIN SERVER ============
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -150,33 +430,16 @@ serve(async (req) => {
 
   try {
     const { lead_id, campaign_id, sequence_step = 1, options = {} } = await req.json();
+    const { customInstruction = '', isVariant = false } = options;
 
-    // Extract generation options with defaults
-    const {
-      tone = 'professional',
-      length = 'medium',
-      focus = 'demo',
-      customInstruction = '',
-      isVariant = false
-    } = options;
-
-    // Map length to word count
-    const lengthToWords: Record<string, number> = {
-      short: 70,
-      medium: 100,
-      long: 150
-    };
-    const targetWordCount = lengthToWords[length] || 100;
-
-    console.log(`Generating email for lead ${lead_id}, campaign ${campaign_id}, step ${sequence_step}`);
-    console.log(`Options: tone=${tone}, length=${length}, focus=${focus}, isVariant=${isVariant}`);
+    console.log(`[Premium Trigger] Generating email for lead ${lead_id}, campaign ${campaign_id}`);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Lead-Daten laden (alle neuen Felder)
+    // Load lead data
     const { data: lead, error: leadError } = await supabase
       .from("outreach_leads")
       .select("*")
@@ -188,7 +451,7 @@ serve(async (req) => {
       throw new Error("Lead nicht gefunden");
     }
 
-    // Kampagnen-Daten laden
+    // Load campaign data
     const { data: campaign, error: campaignError } = await supabase
       .from("outreach_campaigns")
       .select("*")
@@ -200,224 +463,21 @@ serve(async (req) => {
       throw new Error("Kampagne nicht gefunden");
     }
 
-    // Hiring-Signale parsen
-    const hiringSignals = lead.hiring_signals || [];
-    const latestHiring = getLatestHiring(hiringSignals);
-    
-    // Job Change Data parsen
-    const jobChangeData = lead.job_change_data || {};
-    const hasRecentJobChange = isRecent(jobChangeData.date, 90);
-    
-    // Location Move Data parsen
-    const locationMoveData = lead.location_move_data || {};
-    const hasRecentMove = isRecent(locationMoveData.date, 90);
+    // ═══════════════════════════════════════════════════════════════
+    // DETERMINISTIC TRIGGER DECISION (no AI, pure logic!)
+    // ═══════════════════════════════════════════════════════════════
+    const trigger = decideTrigger(lead);
+    const roleLanguage = getRoleLanguage(trigger.roleContext);
 
-    // Vollständige Variablen für AI-Personalisierung (80+)
-    const availableVariables: Record<string, any> = {
-      // === PERSON (Basis) ===
-      first_name: lead.first_name,
-      last_name: lead.last_name,
-      full_name: lead.first_name && lead.last_name 
-        ? `${lead.first_name} ${lead.last_name}` 
-        : lead.contact_name,
-      contact_name: lead.contact_name,
-      contact_email: lead.contact_email,
-      job_title: lead.contact_role,
-      contact_role: lead.contact_role,
-      seniority: lead.seniority,
-      department: lead.department,
-      
-      // === PERSON (Kontakt) ===
-      mobile_phone: lead.mobile_phone,
-      direct_phone: lead.direct_phone,
-      office_phone: lead.office_phone,
-      personal_linkedin_url: lead.personal_linkedin_url,
-      education: lead.education,
-      
-      // === COMPANY (Basis) ===
-      company_name: lead.company_name,
-      company_alias: lead.company_alias,
-      company_type: lead.company_type,
-      company_description: lead.company_description,
-      company_website: lead.company_website,
-      company_domain: lead.company_domain || extractDomain(lead.company_website),
-      company_headcount: lead.company_headcount,
-      company_industries: lead.company_industries,
-      company_technologies: lead.company_technologies,
-      company_financials: lead.company_financials,
-      company_linkedin_url: lead.company_linkedin_url,
-      company_founded_year: lead.company_founded_year,
-      
-      // === COMPANY (Adresse) ===
-      company_address_line: lead.company_address_line,
-      company_city: lead.company_city,
-      company_zip: lead.company_zip,
-      company_state: lead.company_state,
-      company_country: lead.company_country,
-      
-      // === HQ ===
-      hq_name: lead.hq_name,
-      hq_address_line: lead.hq_address_line,
-      hq_city: lead.hq_city,
-      hq_zip: lead.hq_zip,
-      hq_state: lead.hq_state,
-      hq_country: lead.hq_country,
-      
-      // === HIRING-SIGNALE (Trigger-relevant!) ===
-      hiring_signals: hiringSignals,
-      hiring_count: hiringSignals.length,
-      has_hiring_signals: hiringSignals.length > 0,
-      latest_hiring_title: latestHiring?.title,
-      latest_hiring_url: latestHiring?.url,
-      latest_hiring_location: latestHiring?.location,
-      latest_hiring_date: latestHiring?.date,
-      hiring_titles_all: hiringSignals.map((h: any) => h.title).filter(Boolean).join(', '),
-      
-      // === JOB-WECHSEL-SIGNALE (Super-Personalisierung!) ===
-      has_recent_job_change: hasRecentJobChange,
-      job_change_prev_company: jobChangeData.prev_company,
-      job_change_prev_title: jobChangeData.prev_title,
-      job_change_new_company: jobChangeData.new_company,
-      job_change_new_title: jobChangeData.new_title,
-      job_change_date: jobChangeData.date,
-      
-      // === STANDORT-WECHSEL-SIGNALE ===
-      has_recent_move: hasRecentMove,
-      moved_from_country: locationMoveData.from_country,
-      moved_from_state: locationMoveData.from_state,
-      moved_to_country: locationMoveData.to_country,
-      moved_to_state: locationMoveData.to_state,
-      moved_date: locationMoveData.date,
-      
-      // === LOCATION (Person) ===
-      country: lead.country,
-      region: lead.region,
-      city: lead.city || lead.company_city,
-      
-      // === META ===
-      list_name: lead.list_name,
-      segment: lead.segment,
-      priority: lead.priority,
-      language: lead.language || 'de',
-      lead_source: lead.lead_source,
-      
-      // === LEGACY (Rückwärtskompatibilität) ===
-      industry: lead.industry,
-      company_size: lead.company_size,
-      recruiting_challenges: lead.recruiting_challenges,
-      current_ats: lead.current_ats,
-      hiring_volume: lead.hiring_volume,
-      revenue_range: lead.revenue_range,
-    };
+    console.log(`[Premium Trigger] Decision: ${trigger.primary.toUpperCase()} (${trigger.confidence})`);
+    console.log(`[Premium Trigger] Problem: ${trigger.problem}`);
+    console.log(`[Premium Trigger] Role: ${trigger.roleContext}`);
 
-    // Nur gefüllte Variablen für den Prompt
-    const filledVariables = Object.entries(availableVariables)
-      .filter(([_, v]) => v !== null && v !== undefined && v !== '' && v !== false && 
-              !(Array.isArray(v) && v.length === 0) &&
-              !(typeof v === 'object' && Object.keys(v).length === 0))
-      .map(([k, v]) => `- ${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-      .join('\n');
+    // Build focused prompts
+    const systemPrompt = buildFocusedPrompt(trigger, roleLanguage);
+    const userPrompt = buildUserPrompt(lead, campaign, trigger, options);
 
-    // Bestimme Personalisierungsstrategie
-    let suggestedStrategy = 'fallback';
-    if (hiringSignals.length > 0) suggestedStrategy = 'hiring_signals';
-    else if (hasRecentJobChange) suggestedStrategy = 'job_change';
-    else if (lead.company_technologies?.length > 0) suggestedStrategy = 'technology';
-    else if (lead.company_industries?.length > 0 || lead.industry) suggestedStrategy = 'industry';
-
-    // User-Prompt mit vollem Kontext
-    const sequenceType = sequence_step === 1 ? 'Erstkontakt' : `Follow-up ${sequence_step - 1}`;
-    
-    // Map tone to German descriptions
-    const toneDescriptions: Record<string, string> = {
-      formal: 'Sehr formell und höflich, distanzierte Ansprache mit "Sie"',
-      professional: 'Professionell und sachlich, Standard-B2B-Kommunikation',
-      casual: 'Locker und freundlich, nahbar aber respektvoll',
-      direct: 'Direkt und auf den Punkt, kurze prägnante Sätze'
-    };
-    
-    // Map focus to CTA types
-    const focusCTAs: Record<string, string> = {
-      demo: 'Eine 15-Minuten Demo anbieten: "Hätten Sie 15 Minuten für eine kurze Demo?"',
-      meeting: 'Ein persönliches Gespräch/Meeting anbieten: "Wollen wir uns kurz austauschen?"',
-      info: 'Weitere Informationen anbieten: "Soll ich Ihnen mehr Details zusenden?"',
-      'case-study': 'Eine Erfolgsgeschichte/Case Study teilen: "Ich zeige Ihnen gerne, wie wir [ähnliches Unternehmen] geholfen haben"'
-    };
-    
-    const userPrompt = `
-KAMPAGNEN-KONTEXT:
-- Ziel: ${campaign.goal}
-- Zielgruppe: ${campaign.target_segment}
-- Sequenz-Schritt: ${sequence_step} (${sequenceType})
-- Verbotene Wörter: ${JSON.stringify(campaign.forbidden_words || [])}
-
-GENERIERUNGS-OPTIONEN (WICHTIG!):
-- Tonalität: ${tone.toUpperCase()} - ${toneDescriptions[tone] || toneDescriptions.professional}
-- Ziel-Wortanzahl: ${targetWordCount} Wörter (${length === 'short' ? 'kurz und knapp' : length === 'long' ? 'ausführlicher' : 'mittellang'})
-- CTA-Fokus: ${focusCTAs[focus] || focusCTAs.demo}
-${isVariant ? '- VARIANTE: Dies ist eine alternative Version. Wähle einen anderen Einstieg und Ansatz als die Standard-Version.' : ''}
-${customInstruction ? `- ZUSÄTZLICHE ANWEISUNG: ${customInstruction}` : ''}
-
-EMPFOHLENE PERSONALISIERUNGSSTRATEGIE: ${suggestedStrategy}
-
-VERFÜGBARE LEAD-DATEN:
-${filledVariables}
-
-ABSENDER:
-- Name: ${campaign.sender_name}
-- Signatur: ${campaign.sender_signature || 'Mit freundlichen Grüßen'}
-
-${sequence_step > 1 ? `
-WICHTIG: Dies ist ein Follow-up. Beziehe dich kurz auf die vorherige E-Mail, ohne aufdringlich zu sein. Variiere den Ansatz leicht.
-` : ''}
-
-${hiringSignals.length > 0 ? `
-🎯 PROBLEM ERKANNT - HIRING-BEDARF (HÖCHSTE PRIORITÄT!):
-Das Unternehmen sucht aktuell ${hiringSignals.length} Stelle(n):
-${hiringSignals.map((h: any, i: number) => `  ${i + 1}. ${h.title || 'Position'} ${h.location ? `in ${h.location}` : ''}`).join('\n')}
-
-DEIN ANSATZ:
-- Beziehe dich auf die konkrete(n) Stelle(n)
-- Zeige dass unsere Recruiter bereits passende Kandidaten haben
-` : ''}
-
-${hasRecentJobChange ? `
-🎯 PROBLEM ERKANNT - NEUE FÜHRUNGSKRAFT:
-${lead.contact_name || 'Die Person'} ist kürzlich ${jobChangeData.new_title ? `als ${jobChangeData.new_title}` : ''} zu ${jobChangeData.new_company || lead.company_name} gewechselt.
-${jobChangeData.prev_company ? `Vorher: ${jobChangeData.prev_company}${jobChangeData.prev_title ? ` als ${jobChangeData.prev_title}` : ''}` : ''}
-
-DEIN ANSATZ:
-- Gratuliere zur neuen Rolle
-- Biete Unterstützung beim Teamaufbau
-` : ''}
-
-${!hiringSignals.length && !hasRecentJobChange && lead.company_technologies?.length > 0 ? `
-🎯 PROBLEM ERKANNT - TECH-UNTERNEHMEN:
-Das Unternehmen nutzt: ${JSON.stringify(lead.company_technologies)}
-
-DEIN ANSATZ:
-- Tech-Recruiting ist komplex und zeitaufwändig
-- Unsere Recruiter verstehen den Tech-Stack
-` : ''}
-
-${!hiringSignals.length && !hasRecentJobChange && !lead.company_technologies?.length ? `
-FALLBACK-ANSATZ:
-Wenig spezifische Daten verfügbar. Nutze:
-- Branche/Industrie wenn bekannt
-- Allgemeine Recruiting-Herausforderungen
-` : ''}
-
-Generiere jetzt eine E-Mail die:
-1. Das identifizierte Problem anspricht
-2. Unsere Plattform als Lösung positioniert
-3. Mit dem gewünschten CTA endet (${focus})
-4. Die gewünschte Tonalität (${tone}) und Länge (~${targetWordCount} Wörter) einhält
-`;
-
-    console.log("Calling Lovable AI with strategy:", suggestedStrategy);
-    console.log("Variables count:", Object.keys(availableVariables).filter(k => availableVariables[k]).length);
-
-    // AI-Generierung via Lovable AI
+    // AI Generation via Lovable AI
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -429,10 +489,9 @@ Generiere jetzt eine E-Mail die:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT.replace("{max_words}", String(campaign.max_word_count)) },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 0.7,
       }),
     });
 
@@ -445,9 +504,9 @@ Generiere jetzt eine E-Mail die:
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content;
 
-    console.log("AI Response received:", content?.substring(0, 200));
+    console.log("[Premium Trigger] AI Response received:", content?.substring(0, 200));
 
-    // JSON aus Response extrahieren
+    // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error("No valid JSON in AI response:", content);
@@ -456,7 +515,7 @@ Generiere jetzt eine E-Mail die:
 
     const emailData = JSON.parse(jsonMatch[0]);
 
-    // Qualitätsprüfung
+    // Quality check
     const forbiddenWords = campaign.forbidden_words || [];
     const foundForbidden = forbiddenWords.filter((word: string) =>
       emailData.body.toLowerCase().includes(word.toLowerCase()) ||
@@ -464,17 +523,17 @@ Generiere jetzt eine E-Mail die:
     );
 
     if (foundForbidden.length > 0) {
-      console.warn("Verbotene Wörter gefunden:", foundForbidden);
+      console.warn("[Premium Trigger] Verbotene Wörter gefunden:", foundForbidden);
       emailData.confidence_level = "niedrig";
     }
 
     const wordCount = emailData.body.split(/\s+/).length;
-    if (wordCount > campaign.max_word_count) {
-      console.warn(`Wortanzahl überschritten: ${wordCount}/${campaign.max_word_count}`);
+    if (wordCount > 120) {
+      console.warn(`[Premium Trigger] Wortanzahl überschritten: ${wordCount}/120`);
       emailData.confidence_level = "niedrig";
     }
 
-    // E-Mail in Datenbank speichern
+    // Save email with trigger tracking
     const { data: savedEmail, error: saveError } = await supabase
       .from("outreach_emails")
       .insert({
@@ -483,10 +542,16 @@ Generiere jetzt eine E-Mail die:
         subject: emailData.subject,
         body: emailData.body,
         used_variables: emailData.used_variables,
-        confidence_level: emailData.confidence_level,
+        confidence_level: emailData.confidence_level || trigger.confidence === 'high' ? 'hoch' : trigger.confidence === 'medium' ? 'mittel' : 'niedrig',
         sequence_step,
         status: "review",
         generation_prompt: userPrompt,
+        // NEW: Trigger tracking fields
+        trigger_type: trigger.primary,
+        trigger_secondary: trigger.secondary || null,
+        trigger_problem: trigger.problem,
+        trigger_confidence: trigger.confidence,
+        recipient_role: trigger.roleContext,
       })
       .select()
       .single();
@@ -496,18 +561,25 @@ Generiere jetzt eine E-Mail die:
       throw saveError;
     }
 
-    console.log(`Email generated and saved: ${savedEmail.id}`);
-    console.log(`Strategy used: ${emailData.personalization_strategy || suggestedStrategy}`);
+    console.log(`[Premium Trigger] Email saved: ${savedEmail.id}`);
+    console.log(`[Premium Trigger] Trigger: ${trigger.primary} | Role: ${trigger.roleContext} | Confidence: ${trigger.confidence}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         email: savedEmail,
+        trigger_analysis: {
+          primary: trigger.primary,
+          secondary: trigger.secondary,
+          problem: trigger.problem,
+          role: trigger.roleContext,
+          confidence: trigger.confidence,
+          details: trigger.details,
+        },
         quality_check: {
           forbidden_words_found: foundForbidden,
           word_count: wordCount,
-          max_words: campaign.max_word_count,
-          personalization_strategy: emailData.personalization_strategy || suggestedStrategy,
+          max_words: 120,
           variables_used: emailData.used_variables?.length || 0,
         }
       }),
@@ -515,7 +587,7 @@ Generiere jetzt eine E-Mail die:
     );
 
   } catch (error: any) {
-    console.error("Error generating email:", error);
+    console.error("[Premium Trigger] Error:", error);
     return new Response(
       JSON.stringify({ error: error?.message || "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

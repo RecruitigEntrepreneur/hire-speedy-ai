@@ -3838,6 +3838,7 @@ export type Database = {
           open_count: number | null
           opened_at: string | null
           personalization_used: Json | null
+          recipient_role: string | null
           replied_at: string | null
           reply_intent: string | null
           reply_sentiment: string | null
@@ -3853,6 +3854,10 @@ export type Database = {
           sequence_step: number | null
           status: string | null
           subject: string
+          trigger_confidence: string | null
+          trigger_problem: string | null
+          trigger_secondary: string | null
+          trigger_type: string | null
           updated_at: string | null
           used_variables: Json | null
         }
@@ -3878,6 +3883,7 @@ export type Database = {
           open_count?: number | null
           opened_at?: string | null
           personalization_used?: Json | null
+          recipient_role?: string | null
           replied_at?: string | null
           reply_intent?: string | null
           reply_sentiment?: string | null
@@ -3893,6 +3899,10 @@ export type Database = {
           sequence_step?: number | null
           status?: string | null
           subject: string
+          trigger_confidence?: string | null
+          trigger_problem?: string | null
+          trigger_secondary?: string | null
+          trigger_type?: string | null
           updated_at?: string | null
           used_variables?: Json | null
         }
@@ -3918,6 +3928,7 @@ export type Database = {
           open_count?: number | null
           opened_at?: string | null
           personalization_used?: Json | null
+          recipient_role?: string | null
           replied_at?: string | null
           reply_intent?: string | null
           reply_sentiment?: string | null
@@ -3933,6 +3944,10 @@ export type Database = {
           sequence_step?: number | null
           status?: string | null
           subject?: string
+          trigger_confidence?: string | null
+          trigger_problem?: string | null
+          trigger_secondary?: string | null
+          trigger_type?: string | null
           updated_at?: string | null
           used_variables?: Json | null
         }
