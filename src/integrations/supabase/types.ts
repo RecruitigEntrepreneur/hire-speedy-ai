@@ -3944,9 +3944,24 @@ export type Database = {
       outreach_leads: {
         Row: {
           city: string | null
+          company_address_line: string | null
+          company_alias: string | null
+          company_city: string | null
+          company_country: string | null
+          company_description: string | null
+          company_domain: string | null
+          company_financials: string | null
+          company_founded_year: number | null
+          company_headcount: number | null
+          company_industries: Json | null
+          company_linkedin_url: string | null
           company_name: string
           company_size: string | null
+          company_state: string | null
+          company_technologies: Json | null
+          company_type: string | null
           company_website: string | null
+          company_zip: string | null
           contact_email: string
           contact_linkedin: string | null
           contact_name: string
@@ -3958,30 +3973,69 @@ export type Database = {
           created_by: string | null
           current_ats: string | null
           custom_attributes: Json | null
+          department: string | null
+          direct_phone: string | null
+          education: string | null
+          email_quality: string | null
+          email_verification_status: string | null
+          first_name: string | null
           founding_year: number | null
+          hiring_signals: Json | null
           hiring_volume: string | null
+          hq_address_line: string | null
+          hq_city: string | null
+          hq_country: string | null
+          hq_name: string | null
+          hq_state: string | null
+          hq_zip: string | null
           id: string
           industry: string | null
+          job_change_data: Json | null
+          language: string | null
           last_contacted_at: string | null
+          last_name: string | null
           last_replied_at: string | null
           lead_source: string | null
+          list_name: string | null
+          location_move_data: Json | null
+          mobile_phone: string | null
           notes: string | null
+          office_phone: string | null
           open_positions_estimate: number | null
+          personal_linkedin_url: string | null
           priority: string | null
+          profile_id: string | null
           recruiting_challenges: Json | null
           region: string | null
           revenue_range: string | null
           score: number | null
           segment: string
+          seniority: string | null
+          sid: string | null
           status: string | null
           tags: Json | null
           updated_at: string | null
         }
         Insert: {
           city?: string | null
+          company_address_line?: string | null
+          company_alias?: string | null
+          company_city?: string | null
+          company_country?: string | null
+          company_description?: string | null
+          company_domain?: string | null
+          company_financials?: string | null
+          company_founded_year?: number | null
+          company_headcount?: number | null
+          company_industries?: Json | null
+          company_linkedin_url?: string | null
           company_name: string
           company_size?: string | null
+          company_state?: string | null
+          company_technologies?: Json | null
+          company_type?: string | null
           company_website?: string | null
+          company_zip?: string | null
           contact_email: string
           contact_linkedin?: string | null
           contact_name: string
@@ -3993,30 +4047,69 @@ export type Database = {
           created_by?: string | null
           current_ats?: string | null
           custom_attributes?: Json | null
+          department?: string | null
+          direct_phone?: string | null
+          education?: string | null
+          email_quality?: string | null
+          email_verification_status?: string | null
+          first_name?: string | null
           founding_year?: number | null
+          hiring_signals?: Json | null
           hiring_volume?: string | null
+          hq_address_line?: string | null
+          hq_city?: string | null
+          hq_country?: string | null
+          hq_name?: string | null
+          hq_state?: string | null
+          hq_zip?: string | null
           id?: string
           industry?: string | null
+          job_change_data?: Json | null
+          language?: string | null
           last_contacted_at?: string | null
+          last_name?: string | null
           last_replied_at?: string | null
           lead_source?: string | null
+          list_name?: string | null
+          location_move_data?: Json | null
+          mobile_phone?: string | null
           notes?: string | null
+          office_phone?: string | null
           open_positions_estimate?: number | null
+          personal_linkedin_url?: string | null
           priority?: string | null
+          profile_id?: string | null
           recruiting_challenges?: Json | null
           region?: string | null
           revenue_range?: string | null
           score?: number | null
           segment?: string
+          seniority?: string | null
+          sid?: string | null
           status?: string | null
           tags?: Json | null
           updated_at?: string | null
         }
         Update: {
           city?: string | null
+          company_address_line?: string | null
+          company_alias?: string | null
+          company_city?: string | null
+          company_country?: string | null
+          company_description?: string | null
+          company_domain?: string | null
+          company_financials?: string | null
+          company_founded_year?: number | null
+          company_headcount?: number | null
+          company_industries?: Json | null
+          company_linkedin_url?: string | null
           company_name?: string
           company_size?: string | null
+          company_state?: string | null
+          company_technologies?: Json | null
+          company_type?: string | null
           company_website?: string | null
+          company_zip?: string | null
           contact_email?: string
           contact_linkedin?: string | null
           contact_name?: string
@@ -4028,21 +4121,45 @@ export type Database = {
           created_by?: string | null
           current_ats?: string | null
           custom_attributes?: Json | null
+          department?: string | null
+          direct_phone?: string | null
+          education?: string | null
+          email_quality?: string | null
+          email_verification_status?: string | null
+          first_name?: string | null
           founding_year?: number | null
+          hiring_signals?: Json | null
           hiring_volume?: string | null
+          hq_address_line?: string | null
+          hq_city?: string | null
+          hq_country?: string | null
+          hq_name?: string | null
+          hq_state?: string | null
+          hq_zip?: string | null
           id?: string
           industry?: string | null
+          job_change_data?: Json | null
+          language?: string | null
           last_contacted_at?: string | null
+          last_name?: string | null
           last_replied_at?: string | null
           lead_source?: string | null
+          list_name?: string | null
+          location_move_data?: Json | null
+          mobile_phone?: string | null
           notes?: string | null
+          office_phone?: string | null
           open_positions_estimate?: number | null
+          personal_linkedin_url?: string | null
           priority?: string | null
+          profile_id?: string | null
           recruiting_challenges?: Json | null
           region?: string | null
           revenue_range?: string | null
           score?: number | null
           segment?: string
+          seniority?: string | null
+          sid?: string | null
           status?: string | null
           tags?: Json | null
           updated_at?: string | null
