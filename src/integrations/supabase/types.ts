@@ -3654,15 +3654,21 @@ export type Database = {
       outreach_campaigns: {
         Row: {
           allowed_cta: string | null
+          audience_type: string | null
           created_at: string | null
           created_by: string | null
+          cta_type: string | null
+          daily_limit: number | null
           description: string | null
+          domain_daily_limit: number | null
+          fallbacks: Json | null
           forbidden_words: Json | null
           goal: string
           id: string
           is_active: boolean | null
           is_paused: boolean | null
           max_word_count: number | null
+          max_words: number | null
           name: string
           sender_email: string
           sender_name: string
@@ -3673,20 +3679,33 @@ export type Database = {
           target_industries: Json | null
           target_regions: Json | null
           target_segment: string
+          test_mode: boolean | null
+          test_recipients: Json | null
           tonality: string | null
+          total_hires: number | null
+          total_meetings: number | null
+          total_revenue: number | null
           updated_at: string | null
+          value_proposition: string | null
+          variable_whitelist: Json | null
         }
         Insert: {
           allowed_cta?: string | null
+          audience_type?: string | null
           created_at?: string | null
           created_by?: string | null
+          cta_type?: string | null
+          daily_limit?: number | null
           description?: string | null
+          domain_daily_limit?: number | null
+          fallbacks?: Json | null
           forbidden_words?: Json | null
           goal?: string
           id?: string
           is_active?: boolean | null
           is_paused?: boolean | null
           max_word_count?: number | null
+          max_words?: number | null
           name: string
           sender_email: string
           sender_name: string
@@ -3697,20 +3716,33 @@ export type Database = {
           target_industries?: Json | null
           target_regions?: Json | null
           target_segment?: string
+          test_mode?: boolean | null
+          test_recipients?: Json | null
           tonality?: string | null
+          total_hires?: number | null
+          total_meetings?: number | null
+          total_revenue?: number | null
           updated_at?: string | null
+          value_proposition?: string | null
+          variable_whitelist?: Json | null
         }
         Update: {
           allowed_cta?: string | null
+          audience_type?: string | null
           created_at?: string | null
           created_by?: string | null
+          cta_type?: string | null
+          daily_limit?: number | null
           description?: string | null
+          domain_daily_limit?: number | null
+          fallbacks?: Json | null
           forbidden_words?: Json | null
           goal?: string
           id?: string
           is_active?: boolean | null
           is_paused?: boolean | null
           max_word_count?: number | null
+          max_words?: number | null
           name?: string
           sender_email?: string
           sender_name?: string
@@ -3721,8 +3753,15 @@ export type Database = {
           target_industries?: Json | null
           target_regions?: Json | null
           target_segment?: string
+          test_mode?: boolean | null
+          test_recipients?: Json | null
           tonality?: string | null
+          total_hires?: number | null
+          total_meetings?: number | null
+          total_revenue?: number | null
           updated_at?: string | null
+          value_proposition?: string | null
+          variable_whitelist?: Json | null
         }
         Relationships: []
       }
@@ -3778,8 +3817,11 @@ export type Database = {
       }
       outreach_emails: {
         Row: {
+          ai_confidence: string | null
+          attribution_notes: string | null
           body: string
           body_html: string | null
+          call_booked_at: string | null
           campaign_id: string | null
           click_count: number | null
           clicked_at: string | null
@@ -3788,19 +3830,24 @@ export type Database = {
           converted_at: string | null
           created_at: string | null
           generation_prompt: string | null
+          hire_completed_at: string | null
           id: string
+          job_created_at: string | null
           lead_id: string | null
           meeting_booked_at: string | null
           open_count: number | null
           opened_at: string | null
+          personalization_used: Json | null
           replied_at: string | null
           reply_intent: string | null
           reply_sentiment: string | null
           resend_id: string | null
+          revenue_amount: number | null
           revenue_attributed: number | null
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          risk_flags: Json | null
           scheduled_for: string | null
           sent_at: string | null
           sequence_step: number | null
@@ -3810,8 +3857,11 @@ export type Database = {
           used_variables: Json | null
         }
         Insert: {
+          ai_confidence?: string | null
+          attribution_notes?: string | null
           body: string
           body_html?: string | null
+          call_booked_at?: string | null
           campaign_id?: string | null
           click_count?: number | null
           clicked_at?: string | null
@@ -3820,19 +3870,24 @@ export type Database = {
           converted_at?: string | null
           created_at?: string | null
           generation_prompt?: string | null
+          hire_completed_at?: string | null
           id?: string
+          job_created_at?: string | null
           lead_id?: string | null
           meeting_booked_at?: string | null
           open_count?: number | null
           opened_at?: string | null
+          personalization_used?: Json | null
           replied_at?: string | null
           reply_intent?: string | null
           reply_sentiment?: string | null
           resend_id?: string | null
+          revenue_amount?: number | null
           revenue_attributed?: number | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          risk_flags?: Json | null
           scheduled_for?: string | null
           sent_at?: string | null
           sequence_step?: number | null
@@ -3842,8 +3897,11 @@ export type Database = {
           used_variables?: Json | null
         }
         Update: {
+          ai_confidence?: string | null
+          attribution_notes?: string | null
           body?: string
           body_html?: string | null
+          call_booked_at?: string | null
           campaign_id?: string | null
           click_count?: number | null
           clicked_at?: string | null
@@ -3852,19 +3910,24 @@ export type Database = {
           converted_at?: string | null
           created_at?: string | null
           generation_prompt?: string | null
+          hire_completed_at?: string | null
           id?: string
+          job_created_at?: string | null
           lead_id?: string | null
           meeting_booked_at?: string | null
           open_count?: number | null
           opened_at?: string | null
+          personalization_used?: Json | null
           replied_at?: string | null
           reply_intent?: string | null
           reply_sentiment?: string | null
           resend_id?: string | null
+          revenue_amount?: number | null
           revenue_attributed?: number | null
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          risk_flags?: Json | null
           scheduled_for?: string | null
           sent_at?: string | null
           sequence_step?: number | null
@@ -3975,8 +4038,11 @@ export type Database = {
           custom_attributes: Json | null
           department: string | null
           direct_phone: string | null
+          duplicate_of: string | null
           education: string | null
           email_quality: string | null
+          email_validated: boolean | null
+          email_validation_status: string | null
           email_verification_status: string | null
           first_name: string | null
           founding_year: number | null
@@ -3990,6 +4056,7 @@ export type Database = {
           hq_zip: string | null
           id: string
           industry: string | null
+          is_suppressed: boolean | null
           job_change_data: Json | null
           language: string | null
           last_contacted_at: string | null
@@ -4013,6 +4080,7 @@ export type Database = {
           seniority: string | null
           sid: string | null
           status: string | null
+          suppression_reason: string | null
           tags: Json | null
           updated_at: string | null
         }
@@ -4049,8 +4117,11 @@ export type Database = {
           custom_attributes?: Json | null
           department?: string | null
           direct_phone?: string | null
+          duplicate_of?: string | null
           education?: string | null
           email_quality?: string | null
+          email_validated?: boolean | null
+          email_validation_status?: string | null
           email_verification_status?: string | null
           first_name?: string | null
           founding_year?: number | null
@@ -4064,6 +4135,7 @@ export type Database = {
           hq_zip?: string | null
           id?: string
           industry?: string | null
+          is_suppressed?: boolean | null
           job_change_data?: Json | null
           language?: string | null
           last_contacted_at?: string | null
@@ -4087,6 +4159,7 @@ export type Database = {
           seniority?: string | null
           sid?: string | null
           status?: string | null
+          suppression_reason?: string | null
           tags?: Json | null
           updated_at?: string | null
         }
@@ -4123,8 +4196,11 @@ export type Database = {
           custom_attributes?: Json | null
           department?: string | null
           direct_phone?: string | null
+          duplicate_of?: string | null
           education?: string | null
           email_quality?: string | null
+          email_validated?: boolean | null
+          email_validation_status?: string | null
           email_verification_status?: string | null
           first_name?: string | null
           founding_year?: number | null
@@ -4138,6 +4214,7 @@ export type Database = {
           hq_zip?: string | null
           id?: string
           industry?: string | null
+          is_suppressed?: boolean | null
           job_change_data?: Json | null
           language?: string | null
           last_contacted_at?: string | null
@@ -4161,10 +4238,19 @@ export type Database = {
           seniority?: string | null
           sid?: string | null
           status?: string | null
+          suppression_reason?: string | null
           tags?: Json | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "outreach_leads_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "outreach_leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       outreach_messages: {
         Row: {
@@ -4237,6 +4323,96 @@ export type Database = {
             columns: ["email_id"]
             isOneToOne: false
             referencedRelation: "outreach_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_rate_limits: {
+        Row: {
+          created_at: string | null
+          current_count: number | null
+          id: string
+          limit_type: string
+          max_count: number
+          reset_at: string | null
+          sender_email: string
+          target_domain: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_count?: number | null
+          id?: string
+          limit_type?: string
+          max_count?: number
+          reset_at?: string | null
+          sender_email: string
+          target_domain?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_count?: number | null
+          id?: string
+          limit_type?: string
+          max_count?: number
+          reset_at?: string | null
+          sender_email?: string
+          target_domain?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      outreach_reply_classifications: {
+        Row: {
+          ai_classification: string | null
+          ai_confidence: number | null
+          classified_at: string | null
+          classified_by: string | null
+          created_at: string | null
+          email_id: string | null
+          human_classification: string | null
+          id: string
+          lead_id: string | null
+          reply_text: string | null
+        }
+        Insert: {
+          ai_classification?: string | null
+          ai_confidence?: number | null
+          classified_at?: string | null
+          classified_by?: string | null
+          created_at?: string | null
+          email_id?: string | null
+          human_classification?: string | null
+          id?: string
+          lead_id?: string | null
+          reply_text?: string | null
+        }
+        Update: {
+          ai_classification?: string | null
+          ai_confidence?: number | null
+          classified_at?: string | null
+          classified_by?: string | null
+          created_at?: string | null
+          email_id?: string | null
+          human_classification?: string | null
+          id?: string
+          lead_id?: string | null
+          reply_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_reply_classifications_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_reply_classifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -4338,6 +4514,91 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "outreach_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_suppression_list: {
+        Row: {
+          added_by: string | null
+          created_at: string | null
+          email: string
+          id: string
+          notes: string | null
+          original_lead_id: string | null
+          reason: string
+          source: string | null
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          notes?: string | null
+          original_lead_id?: string | null
+          reason: string
+          source?: string | null
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          notes?: string | null
+          original_lead_id?: string | null
+          reason?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_suppression_list_original_lead_id_fkey"
+            columns: ["original_lead_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_winning_patterns: {
+        Row: {
+          campaign_id: string | null
+          created_at: string | null
+          id: string
+          pattern_text: string
+          pattern_type: string
+          sample_count: number | null
+          segment: string | null
+          success_rate: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string | null
+          id?: string
+          pattern_text: string
+          pattern_type: string
+          sample_count?: number | null
+          segment?: string | null
+          success_rate?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string | null
+          id?: string
+          pattern_text?: string
+          pattern_type?: string
+          sample_count?: number | null
+          segment?: string | null
+          success_rate?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_winning_patterns_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
             referencedColumns: ["id"]
           },
         ]
