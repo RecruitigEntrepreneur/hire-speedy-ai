@@ -137,3 +137,21 @@ verify_jwt = true
 
 [functions.seed-complete-data]
 verify_jwt = false
+
+[functions.generate-outreach-email]
+verify_jwt = true
+
+[functions.process-outreach-queue]
+verify_jwt = false
+
+[functions.track-outreach-engagement]
+verify_jwt = false
+
+[functions.process-inbound-email]
+verify_jwt = false
+
+[functions.process-sequences]
+verify_jwt = false
+
+[functions.import-outreach-leads]
+verify_jwt = true
