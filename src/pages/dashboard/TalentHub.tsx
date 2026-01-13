@@ -823,40 +823,45 @@ export default function TalentHub() {
                     </TabsContent>
                   </Tabs>
 
-                  {/* Sticky Action Bar - Ausbalancierte Buttons */}
+                  {/* Sticky Action Bar - 2 Buttons: Nächster Schritt + Absage */}
                   {selectedCandidate.stage !== 'hired' && (
                     <div className="p-3 border-t bg-background">
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Dynamic Next Step Button */}
+                        {(selectedCandidate.stage === 'submitted' || selectedCandidate.stage === 'interview_1') ? (
+                          <Button 
+                            size="sm" 
+                            className="h-10 text-sm"
+                            onClick={() => handleInterviewRequest(selectedCandidate.submissionId, new Date())}
+                            disabled={processing}
+                          >
+                            <Calendar className="h-4 w-4 mr-1.5" />
+                            {selectedCandidate.stage === 'submitted' ? 'Interview 1' : 'Interview 2'}
+                          </Button>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            className="h-10 text-sm bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              const next = getNextStage(selectedCandidate.stage);
+                              if (next) handleMove(selectedCandidate.submissionId, next);
+                            }}
+                            disabled={processing || !getNextStage(selectedCandidate.stage)}
+                          >
+                            <ChevronRight className="h-4 w-4 mr-1.5" />
+                            {selectedCandidate.stage === 'interview_2' ? 'Angebot' : 'Einstellen'}
+                          </Button>
+                        )}
+                        
+                        {/* Reject Button */}
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="h-9 text-xs"
-                          onClick={() => handleInterviewRequest(selectedCandidate.submissionId, new Date())}
-                          disabled={processing}
-                        >
-                          <Calendar className="h-3.5 w-3.5 mr-1" />
-                          Interview
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          className="h-9 text-xs bg-green-600 hover:bg-green-700"
-                          onClick={() => {
-                            const next = getNextStage(selectedCandidate.stage);
-                            if (next) handleMove(selectedCandidate.submissionId, next);
-                          }}
-                          disabled={processing || !getNextStage(selectedCandidate.stage)}
-                        >
-                          <ThumbsUp className="h-3.5 w-3.5 mr-1" />
-                          Weiter
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-9 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                          className="h-10 text-sm text-destructive border-destructive/30 hover:bg-destructive/10"
                           onClick={() => handleReject(selectedCandidate.submissionId)}
                           disabled={processing}
                         >
-                          <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                          <ThumbsDown className="h-4 w-4 mr-1.5" />
                           Absage
                         </Button>
                       </div>
