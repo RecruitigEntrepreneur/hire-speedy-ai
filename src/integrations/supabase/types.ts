@@ -2867,6 +2867,7 @@ export type Database = {
           no_show_by: string | null
           no_show_reported: boolean | null
           notes: string | null
+          pending_opt_in: boolean | null
           proposed_slots: Json | null
           reminder_1h_sent: boolean | null
           reminder_24h_sent: boolean | null
@@ -2894,6 +2895,7 @@ export type Database = {
           no_show_by?: string | null
           no_show_reported?: boolean | null
           notes?: string | null
+          pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
@@ -2921,6 +2923,7 @@ export type Database = {
           no_show_by?: string | null
           no_show_reported?: boolean | null
           notes?: string | null
+          pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
@@ -6021,6 +6024,7 @@ export type Database = {
           consent_confirmed_at: string | null
           consent_document_url: string | null
           id: string
+          identity_revealed: boolean | null
           identity_unlocked: boolean | null
           job_id: string
           match_score: number | null
@@ -6029,6 +6033,7 @@ export type Database = {
           recruiter_id: string
           recruiter_notes: string | null
           rejection_reason: string | null
+          revealed_at: string | null
           stage: string | null
           status: string | null
           submitted_at: string
@@ -6043,6 +6048,7 @@ export type Database = {
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
           id?: string
+          identity_revealed?: boolean | null
           identity_unlocked?: boolean | null
           job_id: string
           match_score?: number | null
@@ -6051,6 +6057,7 @@ export type Database = {
           recruiter_id: string
           recruiter_notes?: string | null
           rejection_reason?: string | null
+          revealed_at?: string | null
           stage?: string | null
           status?: string | null
           submitted_at?: string
@@ -6065,6 +6072,7 @@ export type Database = {
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
           id?: string
+          identity_revealed?: boolean | null
           identity_unlocked?: boolean | null
           job_id?: string
           match_score?: number | null
@@ -6073,6 +6081,7 @@ export type Database = {
           recruiter_id?: string
           recruiter_notes?: string | null
           rejection_reason?: string | null
+          revealed_at?: string | null
           stage?: string | null
           status?: string | null
           submitted_at?: string

@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
 import { CandidateActionCard, CandidateActionCardProps } from '@/components/talent/CandidateActionCard';
+import { ClientCandidateSummaryCard } from '@/components/candidates/ClientCandidateSummaryCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
+import { useTalentHubActions } from '@/hooks/useTalentHubActions';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -736,27 +738,11 @@ export default function TalentHub() {
                     <TabsContent value="profile" className="flex-1 min-h-0 mt-0 p-4 data-[state=inactive]:hidden">
                       <ScrollArea className="h-full">
                         <div className="space-y-4 pr-2">
-                          {/* AI Summary */}
-                          {(selectedCandidate.cvAiBullets?.length || selectedCandidate.cvAiSummary) && (
-                            <div className="rounded-lg border p-3 space-y-2 bg-background">
-                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                                <Brain className="h-3.5 w-3.5" />
-                                KI-Zusammenfassung
-                              </p>
-                              {selectedCandidate.cvAiBullets?.length ? (
-                                <ul className="space-y-1">
-                                  {selectedCandidate.cvAiBullets.slice(0, 4).map((bullet, i) => (
-                                    <li key={i} className="text-sm flex items-start gap-2">
-                                      <span className="text-primary mt-0.5">•</span>
-                                      {bullet}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : selectedCandidate.cvAiSummary ? (
-                                <p className="text-sm text-muted-foreground">{selectedCandidate.cvAiSummary}</p>
-                              ) : null}
-                            </div>
-                          )}
+                          {/* Client AI Summary Card */}
+                          <ClientCandidateSummaryCard 
+                            candidateId={selectedCandidate.id}
+                            submissionId={selectedCandidate.submissionId}
+                          />
 
                           {/* Key Facts Grid */}
                           <div className="rounded-lg border p-3 bg-background">

@@ -176,3 +176,9 @@ verify_jwt = true
 
 [functions.generate-company-insights]
 verify_jwt = true
+
+[functions.process-talent-hub-action]
+verify_jwt = true
+
+[functions.refresh-analytics]
+verify_jwt = false
