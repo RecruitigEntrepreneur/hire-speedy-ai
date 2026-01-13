@@ -4,15 +4,23 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-
-import { PipelineBar } from '@/components/talent/PipelineBar';
-import { UrgentBanner } from '@/components/talent/UrgentBanner';
-import { CandidateGrid } from '@/components/talent/CandidateGrid';
-import { CandidateDetailPanel } from '@/components/talent/CandidateDetailPanel';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
-import { SlaWarningBanner } from '@/components/sla/SlaWarningBanner';
 import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
+import { CandidateActionCard, CandidateActionCardProps } from '@/components/talent/CandidateActionCard';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -22,9 +30,31 @@ import {
   Loader2,
   ArrowLeft,
   GitCompare,
-  X
+  X,
+  Search,
+  Filter,
+  ArrowUpDown,
+  Users,
+  Calendar,
+  AlertTriangle,
+  Clock,
+  ChevronRight,
+  ThumbsUp,
+  ThumbsDown,
+  Mail,
+  Phone,
+  ExternalLink,
+  MapPin,
+  Briefcase,
+  Brain,
+  Target,
+  Euro,
+  Video,
+  Check
 } from 'lucide-react';
-import { isPast, isToday } from 'date-fns';
+import { isPast, isToday, formatDistanceToNow, format } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface Interview {
   id: string;
@@ -42,23 +72,9 @@ interface Job {
 }
 
 // Extended candidate type for grid and detail panel
-interface ExtendedTableCandidate {
-  id: string;
-  submissionId: string;
-  name: string;
-  currentRole: string;
-  jobId: string;
-  jobTitle: string;
-  stage: string;
-  status: string;
-  matchScore: number | null;
-  submittedAt: string;
+interface ExtendedTableCandidate extends CandidateActionCardProps {
   email?: string;
   phone?: string;
-  hoursInStage: number;
-  company?: string;
-  skills?: string[];
-  experienceYears?: number;
   cvAiBullets?: string[];
   cvAiSummary?: string;
   noticePeriod?: string;
@@ -66,7 +82,6 @@ interface ExtendedTableCandidate {
   exposeHighlights?: string[];
   currentSalary?: number;
   expectedSalary?: number;
-  city?: string;
 }
 
 export default function TalentHub() {
@@ -79,9 +94,12 @@ export default function TalentHub() {
   const [processing, setProcessing] = useState(false);
   
   const [stageFilter, setStageFilter] = useState('all');
+  const [jobFilter, setJobFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'match' | 'waiting'>('newest');
+  
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<ExtendedTableCandidate | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
   
   const [rejectSubmissionId, setRejectSubmissionId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -168,7 +186,6 @@ export default function TalentHub() {
       const submittedAt = new Date(sub.submitted_at);
       const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
 
-      // Extended table candidate with all fields for detail panel
       tableCandidates.push({
         id: candidate.id,
         submissionId: sub.id,
@@ -183,7 +200,6 @@ export default function TalentHub() {
         email: candidate.email,
         phone: candidate.phone,
         hoursInStage,
-        // Extended fields for detail panel
         company: candidate.company,
         skills: candidate.skills,
         experienceYears: candidate.experience_years,
@@ -240,55 +256,72 @@ export default function TalentHub() {
     }, {} as Record<string, number>);
   }, [candidates]);
 
-  // Build urgent items
-  const urgentItems = useMemo(() => {
-    const items: { id: string; type: 'overdue' | 'interview_today' | 'waiting_long'; title: string; subtitle: string; submissionId: string; scheduledAt?: string; meetingLink?: string }[] = [];
-
-    // Candidates waiting > 48h
-    candidates
-      .filter(c => c.stage === 'submitted' && c.status !== 'rejected' && c.hoursInStage >= 48)
-      .slice(0, 5)
-      .forEach(c => {
-        items.push({
-          id: `waiting-${c.submissionId}`,
-          type: 'waiting_long',
-          title: c.name,
-          subtitle: c.jobTitle,
-          submissionId: c.submissionId
-        });
-      });
-
-    // Interviews today
-    interviews
-      .filter(i => i.scheduled_at && isToday(new Date(i.scheduled_at)) && i.status !== 'completed' && i.status !== 'cancelled')
-      .forEach(i => {
-        items.push({
-          id: `interview-${i.id}`,
-          type: 'interview_today',
-          title: i.candidateName,
-          subtitle: i.jobTitle,
-          submissionId: i.submission_id,
-          scheduledAt: i.scheduled_at!,
-          meetingLink: i.meeting_link || undefined
-        });
-      });
-
-    // Overdue interviews
-    interviews
-      .filter(i => i.scheduled_at && isPast(new Date(i.scheduled_at)) && i.status !== 'completed' && i.status !== 'cancelled' && !isToday(new Date(i.scheduled_at)))
-      .forEach(i => {
-        items.push({
-          id: `overdue-${i.id}`,
-          type: 'overdue',
-          title: i.candidateName,
-          subtitle: `${i.jobTitle} - Feedback ausstehend`,
-          submissionId: i.submission_id,
-          scheduledAt: i.scheduled_at!
-        });
-      });
-
-    return items;
+  // Quick stats
+  const quickStats = useMemo(() => {
+    const activeCandidates = candidates.filter(c => c.status !== 'rejected').length;
+    const interviewsToday = interviews.filter(i => 
+      i.scheduled_at && isToday(new Date(i.scheduled_at)) && i.status !== 'completed'
+    ).length;
+    const overdueCount = candidates.filter(c => 
+      c.stage === 'submitted' && c.status !== 'rejected' && c.hoursInStage >= 48
+    ).length;
+    
+    return { activeCandidates, interviewsToday, overdueCount };
   }, [candidates, interviews]);
+
+  // Filtered and sorted candidates
+  const filteredCandidates = useMemo(() => {
+    return candidates
+      .filter(c => {
+        if (c.status === 'rejected') return false;
+        if (stageFilter !== 'all' && c.stage !== stageFilter) return false;
+        if (jobFilter !== 'all' && c.jobId !== jobFilter) return false;
+        if (search) {
+          const searchLower = search.toLowerCase();
+          return (
+            c.name.toLowerCase().includes(searchLower) ||
+            c.currentRole.toLowerCase().includes(searchLower) ||
+            c.jobTitle.toLowerCase().includes(searchLower)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'oldest':
+            return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+          case 'match':
+            return (b.matchScore || 0) - (a.matchScore || 0);
+          case 'waiting':
+            return b.hoursInStage - a.hoursInStage;
+          case 'newest':
+          default:
+            return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+        }
+      });
+  }, [candidates, stageFilter, jobFilter, search, sortBy]);
+
+  // Attach interview data to candidates
+  const candidatesWithInterviews = useMemo(() => {
+    return filteredCandidates.map(c => {
+      const interview = interviews.find(i => i.submission_id === c.submissionId);
+      const feedbackPending = interview && 
+        interview.scheduled_at && 
+        isPast(new Date(interview.scheduled_at)) && 
+        interview.status !== 'completed';
+      
+      return {
+        ...c,
+        interview: interview ? {
+          id: interview.id,
+          scheduled_at: interview.scheduled_at,
+          status: interview.status,
+          meeting_link: interview.meeting_link
+        } : null,
+        feedbackPending
+      };
+    });
+  }, [filteredCandidates, interviews]);
 
   const handleMove = async (submissionId: string, newStage: string) => {
     setProcessing(true);
@@ -344,46 +377,80 @@ export default function TalentHub() {
     ));
     if (selectedCandidate?.submissionId === rejectSubmissionId) {
       setSelectedCandidate(null);
-      setDetailOpen(false);
     }
   };
 
   const handleSelectCandidate = (candidate: ExtendedTableCandidate) => {
     setSelectedCandidate(candidate);
-    setDetailOpen(true);
   };
 
-  const handleToggleSelect = (submissionId: string) => {
-    setSelectedIds(prev => 
-      prev.includes(submissionId)
-        ? prev.filter(id => id !== submissionId)
-        : [...prev, submissionId]
-    );
-  };
+  const handleInterviewRequest = async (submissionId: string, date: Date) => {
+    try {
+      const { error } = await supabase.from('interviews').insert({
+        submission_id: submissionId,
+        scheduled_at: date.toISOString(),
+        status: 'pending'
+      });
 
-  const handleSelectAll = () => {
-    const visibleCandidates = candidates.filter(c => 
-      c.status !== 'rejected' && 
-      (stageFilter === 'all' || c.stage === stageFilter)
-    );
-    const allSelected = visibleCandidates.every(c => selectedIds.includes(c.submissionId));
-    
-    if (allSelected) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(visibleCandidates.map(c => c.submissionId).slice(0, 3)); // Max 3 for compare
+      if (error) throw error;
+      toast.success('Interview-Anfrage gesendet');
+      fetchInterviews();
+    } catch (error) {
+      toast.error('Fehler beim Erstellen der Anfrage');
     }
   };
 
-  const handleUrgentItemClick = (submissionId: string) => {
-    const candidate = candidates.find(c => c.submissionId === submissionId);
-    if (candidate) {
-      setSelectedCandidate(candidate);
-      setDetailOpen(true);
+  const handleFeedback = async (submissionId: string, rating: 'positive' | 'neutral' | 'negative', note?: string) => {
+    try {
+      const interview = interviews.find(i => i.submission_id === submissionId);
+      if (interview) {
+        await supabase.from('interviews').update({
+          status: 'completed',
+          notes: note || `Bewertung: ${rating}`
+        }).eq('id', interview.id);
+      }
+
+      if (rating === 'positive') {
+        const candidate = candidates.find(c => c.submissionId === submissionId);
+        if (candidate) {
+          const nextStage = candidate.stage === 'interview_1' ? 'interview_2' : 'offer';
+          await handleMove(submissionId, nextStage);
+        }
+      } else if (rating === 'negative') {
+        handleReject(submissionId);
+      }
+
+      toast.success('Feedback gespeichert');
+      fetchInterviews();
+    } catch (error) {
+      toast.error('Fehler beim Speichern');
     }
+  };
+
+  const handleRemoveFromCompare = (submissionId: string) => {
+    setSelectedIds(prev => prev.filter(id => id !== submissionId));
   };
 
   const totalActiveCandidates = candidates.filter(c => c.status !== 'rejected').length;
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const formatSalary = (salary?: number) => {
+    if (!salary) return null;
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(salary);
+  };
+
+  const getNextStage = (currentStage: string) => {
+    const stages = ['submitted', 'interview_1', 'interview_2', 'offer', 'hired'];
+    const currentIndex = stages.indexOf(currentStage);
+    return currentIndex < stages.length - 1 ? stages[currentIndex + 1] : null;
+  };
+
+  const getStageLabel = (stage: string) => {
+    return PIPELINE_STAGES.find(s => s.key === stage)?.label || stage;
+  };
 
   if (loading) {
     return (
@@ -395,171 +462,494 @@ export default function TalentHub() {
     );
   }
 
-  const handleBulkReject = async () => {
-    if (selectedIds.length === 0) return;
-    setProcessing(true);
-    try {
-      const { error } = await supabase
-        .from('submissions')
-        .update({ status: 'rejected' })
-        .in('id', selectedIds);
-      
-      if (error) throw error;
-      
-      toast.success(`${selectedIds.length} Kandidaten abgelehnt`);
-      setCandidates(prev => prev.map(c => 
-        selectedIds.includes(c.submissionId) ? { ...c, status: 'rejected' } : c
-      ));
-      setSelectedIds([]);
-    } catch (error) {
-      toast.error('Fehler beim Ablehnen');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleRemoveFromCompare = (submissionId: string) => {
-    setSelectedIds(prev => prev.filter(id => id !== submissionId));
-  };
-
   return (
     <DashboardLayout>
-      <div className="h-full flex flex-col -m-6">
-        <SlaWarningBanner />
+      <TooltipProvider>
+        <div className="h-full flex flex-col -m-6">
+          {/* Compact Header with Stats */}
+          <div className="flex items-center justify-between gap-4 px-6 py-3 border-b bg-background">
+            <div className="flex items-center gap-3">
+              <Link 
+                to="/dashboard" 
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <div>
+                <h1 className="text-lg font-semibold">Talent Hub</h1>
+              </div>
+            </div>
+            
+            {/* Quick Stats Inline */}
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Users className="h-4 w-4" />
+                <span className="font-medium text-foreground">{quickStats.activeCandidates}</span>
+                <span>Kandidaten</span>
+              </div>
+              {quickStats.interviewsToday > 0 && (
+                <Badge className="bg-blue-500 hover:bg-blue-600">
+                  <Video className="h-3 w-3 mr-1" />
+                  {quickStats.interviewsToday} Interview{quickStats.interviewsToday !== 1 ? 's' : ''} heute
+                </Badge>
+              )}
+              {quickStats.overdueCount > 0 && (
+                <Badge variant="destructive">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  {quickStats.overdueCount} überfällig
+                </Badge>
+              )}
+            </div>
+          </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4 px-6 py-3 border-b bg-background">
-          <div className="flex items-center gap-3">
-            <Link 
-              to="/dashboard" 
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <div>
-              <h1 className="text-lg font-semibold">Talent Hub</h1>
-              <p className="text-xs text-muted-foreground">
-                {totalActiveCandidates} aktive Kandidaten • {jobs.length} Jobs
-              </p>
+          {/* Filters Row */}
+          <div className="flex items-center gap-3 px-6 py-2 border-b bg-muted/30">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suche..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            
+            <Select value={jobFilter} onValueChange={setJobFilter}>
+              <SelectTrigger className="h-9 w-40">
+                <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Alle Jobs" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Jobs</SelectItem>
+                {jobs.map(job => (
+                  <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+              <SelectTrigger className="h-9 w-36">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Neueste</SelectItem>
+                <SelectItem value="oldest">Älteste</SelectItem>
+                <SelectItem value="match">Match Score</SelectItem>
+                <SelectItem value="waiting">Wartezeit</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Pipeline Stage Tabs */}
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={() => setStageFilter('all')}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  stageFilter === 'all' 
+                    ? "bg-primary text-primary-foreground" 
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Alle
+                <Badge variant="secondary" className="ml-1.5 text-[10px] h-4 px-1">
+                  {totalActiveCandidates}
+                </Badge>
+              </button>
+              {PIPELINE_STAGES.map((stage) => {
+                const count = stageCounts[stage.key] || 0;
+                return (
+                  <button
+                    key={stage.key}
+                    onClick={() => setStageFilter(stage.key)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
+                      stageFilter === stage.key 
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {stage.label}
+                    {count > 0 && (
+                      <Badge 
+                        variant={stageFilter === stage.key ? "secondary" : "outline"} 
+                        className={cn(
+                          "ml-1.5 text-[10px] h-4 px-1",
+                          stage.key === 'submitted' && count > 0 && stageFilter !== stage.key && "bg-amber-100 text-amber-700 border-amber-300"
+                        )}
+                      >
+                        {count}
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main Split Layout */}
+          <div className="flex-1 flex min-h-0">
+            {/* Left: Candidate List (60%) */}
+            <div className="w-3/5 border-r flex flex-col min-h-0">
+              <ScrollArea className="flex-1">
+                <div className="p-4">
+                  {candidatesWithInterviews.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-48 text-center">
+                      <Users className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                      <p className="text-muted-foreground">
+                        {search || stageFilter !== 'all' || jobFilter !== 'all'
+                          ? 'Keine Kandidaten gefunden'
+                          : 'Noch keine Kandidaten vorhanden'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {candidatesWithInterviews.map(candidate => (
+                        <CandidateActionCard
+                          key={candidate.submissionId}
+                          candidate={candidate}
+                          isSelected={selectedCandidate?.submissionId === candidate.submissionId}
+                          onSelect={() => handleSelectCandidate(candidate)}
+                          onMove={handleMove}
+                          onReject={handleReject}
+                          onInterviewRequest={handleInterviewRequest}
+                          onFeedback={handleFeedback}
+                          isProcessing={processing}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Right: Detail Panel (40%) */}
+            <div className="w-2/5 flex flex-col min-h-0 bg-muted/10">
+              {selectedCandidate ? (
+                <>
+                  {/* Detail Header */}
+                  <div className="p-4 border-b bg-background">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-14 w-14 border-2 border-background shadow">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
+                          {getInitials(selectedCandidate.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="font-semibold text-lg truncate">{selectedCandidate.name}</h2>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {selectedCandidate.currentRole}
+                          {selectedCandidate.company && ` @ ${selectedCandidate.company}`}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          {selectedCandidate.city && (
+                            <span className="flex items-center gap-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {selectedCandidate.city}
+                            </span>
+                          )}
+                          {selectedCandidate.experienceYears && (
+                            <span className="flex items-center gap-0.5">
+                              <Briefcase className="h-3 w-3" />
+                              {selectedCandidate.experienceYears} Jahre
+                            </span>
+                          )}
+                          <span className="flex items-center gap-0.5">
+                            <Clock className="h-3 w-3" />
+                            {formatDistanceToNow(new Date(selectedCandidate.submittedAt), { locale: de, addSuffix: true })}
+                          </span>
+                        </div>
+                      </div>
+                      {selectedCandidate.matchScore && (
+                        <div className={cn(
+                          "flex flex-col items-center justify-center w-14 h-14 rounded-full border-[3px] font-bold shrink-0",
+                          selectedCandidate.matchScore >= 80 && "text-green-600 bg-green-50 border-green-300",
+                          selectedCandidate.matchScore >= 60 && selectedCandidate.matchScore < 80 && "text-amber-600 bg-amber-50 border-amber-300",
+                          selectedCandidate.matchScore < 60 && "text-muted-foreground bg-muted border-muted"
+                        )}>
+                          <span className="text-lg leading-none">{selectedCandidate.matchScore}</span>
+                          <span className="text-[9px] font-normal opacity-70">Match</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stage Pipeline */}
+                    <div className="flex items-center gap-1 mt-3 overflow-x-auto pb-1">
+                      {PIPELINE_STAGES.map((stage, index) => {
+                        const currentStageIndex = PIPELINE_STAGES.findIndex(s => s.key === selectedCandidate.stage);
+                        const isActive = selectedCandidate.stage === stage.key;
+                        const isPast = currentStageIndex > index;
+                        
+                        return (
+                          <div key={stage.key} className="flex items-center shrink-0">
+                            <div className={cn(
+                              "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] whitespace-nowrap",
+                              isActive && "bg-primary text-primary-foreground font-medium",
+                              isPast && "bg-muted text-muted-foreground",
+                              !isActive && !isPast && "text-muted-foreground/50"
+                            )}>
+                              {isPast && <Check className="h-2.5 w-2.5" />}
+                              {stage.label}
+                            </div>
+                            {index < PIPELINE_STAGES.length - 1 && (
+                              <ChevronRight className="h-3 w-3 mx-0.5 text-muted-foreground/30" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Quick Contact */}
+                    <div className="flex items-center gap-2 mt-3">
+                      {selectedCandidate.email && (
+                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+                          <a href={`mailto:${selectedCandidate.email}`}>
+                            <Mail className="h-3.5 w-3.5 mr-1" />
+                            E-Mail
+                          </a>
+                        </Button>
+                      )}
+                      {selectedCandidate.phone && (
+                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+                          <a href={`tel:${selectedCandidate.phone}`}>
+                            <Phone className="h-3.5 w-3.5 mr-1" />
+                            Anrufen
+                          </a>
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" className="h-8 text-xs ml-auto" asChild>
+                        <Link to={`/dashboard/candidates/${selectedCandidate.submissionId}`}>
+                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                          Vollprofil
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Detail Content Tabs */}
+                  <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0">
+                    <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2">
+                      <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
+                      <TabsTrigger value="timeline" className="text-xs">Historie</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="profile" className="flex-1 min-h-0 mt-0 p-4 data-[state=inactive]:hidden">
+                      <ScrollArea className="h-full">
+                        <div className="space-y-4 pr-2">
+                          {/* AI Summary */}
+                          {(selectedCandidate.cvAiBullets?.length || selectedCandidate.cvAiSummary) && (
+                            <div className="rounded-lg border p-3 space-y-2 bg-background">
+                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                                <Brain className="h-3.5 w-3.5" />
+                                KI-Zusammenfassung
+                              </p>
+                              {selectedCandidate.cvAiBullets?.length ? (
+                                <ul className="space-y-1">
+                                  {selectedCandidate.cvAiBullets.slice(0, 4).map((bullet, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <span className="text-primary mt-0.5">•</span>
+                                      {bullet}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : selectedCandidate.cvAiSummary ? (
+                                <p className="text-sm text-muted-foreground">{selectedCandidate.cvAiSummary}</p>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {/* Key Facts Grid */}
+                          <div className="rounded-lg border p-3 bg-background">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Key Facts</p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                              {selectedCandidate.experienceYears && (
+                                <>
+                                  <span className="text-muted-foreground">Erfahrung</span>
+                                  <span className="font-medium">{selectedCandidate.experienceYears} Jahre</span>
+                                </>
+                              )}
+                              {selectedCandidate.currentSalary && (
+                                <>
+                                  <span className="text-muted-foreground">Gehalt aktuell</span>
+                                  <span>{formatSalary(selectedCandidate.currentSalary)}</span>
+                                </>
+                              )}
+                              {selectedCandidate.expectedSalary && (
+                                <>
+                                  <span className="text-muted-foreground">Gehalt erwartet</span>
+                                  <span className="font-medium">{formatSalary(selectedCandidate.expectedSalary)}</span>
+                                </>
+                              )}
+                              {selectedCandidate.noticePeriod && (
+                                <>
+                                  <span className="text-muted-foreground">Kündigungsfrist</span>
+                                  <span>{selectedCandidate.noticePeriod}</span>
+                                </>
+                              )}
+                              {selectedCandidate.availabilityDate && (
+                                <>
+                                  <span className="text-muted-foreground">Verfügbar ab</span>
+                                  <span>{format(new Date(selectedCandidate.availabilityDate), 'dd.MM.yyyy')}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Skills */}
+                          {selectedCandidate.skills?.length ? (
+                            <div className="rounded-lg border p-3 bg-background space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                                <Target className="h-3.5 w-3.5" />
+                                Skills
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {selectedCandidate.skills.map((skill, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Job Applied For */}
+                          <div className="rounded-lg border p-3 bg-background">
+                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-1">
+                              <Briefcase className="h-3.5 w-3.5" />
+                              Bewirbt sich für
+                            </p>
+                            <p className="font-medium">{selectedCandidate.jobTitle}</p>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+
+                    <TabsContent value="timeline" className="flex-1 min-h-0 mt-0 p-4 data-[state=inactive]:hidden">
+                      <ScrollArea className="h-full">
+                        <div className="space-y-3 pr-2">
+                          {/* Timeline items */}
+                          <div className="relative pl-4 border-l-2 border-muted space-y-4">
+                            <div className="relative">
+                              <div className="absolute -left-[21px] w-4 h-4 rounded-full bg-primary border-2 border-background" />
+                              <div className="text-sm">
+                                <p className="font-medium">Eingereicht</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(selectedCandidate.submittedAt), 'dd.MM.yyyy HH:mm', { locale: de })}
+                                </p>
+                              </div>
+                            </div>
+                            {selectedCandidate.stage !== 'submitted' && (
+                              <div className="relative">
+                                <div className="absolute -left-[21px] w-4 h-4 rounded-full bg-muted border-2 border-background" />
+                                <div className="text-sm">
+                                  <p className="font-medium">Phase: {getStageLabel(selectedCandidate.stage)}</p>
+                                  <p className="text-xs text-muted-foreground">Aktuelle Phase</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+                  </Tabs>
+
+                  {/* Sticky Action Bar */}
+                  {selectedCandidate.stage !== 'hired' && (
+                    <div className="p-4 border-t bg-background flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 h-9"
+                        onClick={() => {
+                          // Open interview dialog for the selected candidate
+                          const card = document.querySelector(`[data-submission-id="${selectedCandidate.submissionId}"]`);
+                          // Trigger interview request via card
+                        }}
+                      >
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Interview
+                      </Button>
+                      {getNextStage(selectedCandidate.stage) && (
+                        <Button 
+                          size="sm" 
+                          className="flex-1 h-9"
+                          onClick={() => handleMove(selectedCandidate.submissionId, getNextStage(selectedCandidate.stage)!)}
+                          disabled={processing}
+                        >
+                          <ThumbsUp className="h-4 w-4 mr-1" />
+                          {getStageLabel(getNextStage(selectedCandidate.stage)!)}
+                        </Button>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-9 px-3 text-destructive hover:bg-destructive/10"
+                        onClick={() => handleReject(selectedCandidate.submissionId)}
+                        disabled={processing}
+                      >
+                        <ThumbsDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                  <Users className="h-16 w-16 text-muted-foreground/20 mb-4" />
+                  <p className="text-muted-foreground">
+                    Wählen Sie einen Kandidaten aus der Liste
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Bulk Actions Bar */}
-        {selectedIds.length > 0 && (
-          <div className="flex items-center justify-between gap-4 px-6 py-2 border-b bg-primary/5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{selectedIds.length} ausgewählt</span>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              {selectedIds.length >= 2 && selectedIds.length <= 3 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setCompareOpen(true)}
-                >
-                  <GitCompare className="h-4 w-4 mr-1" />
-                  Vergleichen
+        <RejectionDialog
+          open={rejectDialogOpen}
+          onOpenChange={setRejectDialogOpen}
+          submission={(() => {
+            if (!rejectSubmissionId) return null;
+            const candidate = candidates.find(c => c.submissionId === rejectSubmissionId);
+            if (!candidate) return null;
+            const job = jobs.find(j => j.id === candidate.jobId);
+            return {
+              id: rejectSubmissionId,
+              candidate: {
+                id: candidate.id,
+                full_name: candidate.name,
+                email: candidate.email || ''
+              },
+              job: {
+                id: candidate.jobId,
+                title: candidate.jobTitle,
+                company_name: job?.title || ''
+              }
+            };
+          })()}
+          onSuccess={handleRejectSuccess}
+        />
+
+        {/* Compare View Modal */}
+        {compareOpen && (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+            <div className="fixed inset-4 z-50 overflow-auto rounded-lg border bg-background shadow-lg">
+              <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background">
+                <h2 className="text-lg font-semibold">Kandidatenvergleich</h2>
+                <Button variant="ghost" size="sm" onClick={() => setCompareOpen(false)}>
+                  <X className="h-4 w-4" />
                 </Button>
-              )}
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={handleBulkReject}
-                disabled={processing}
-              >
-                Alle ablehnen
-              </Button>
+              </div>
+              <div className="p-4">
+                <CandidateCompareView 
+                  submissionIds={selectedIds}
+                  onRemove={handleRemoveFromCompare}
+                  onClose={() => setCompareOpen(false)}
+                />
+              </div>
             </div>
           </div>
         )}
-
-        {/* Urgent Banner */}
-        <UrgentBanner 
-          items={urgentItems} 
-          onItemClick={handleUrgentItemClick} 
-        />
-
-        {/* Pipeline Bar */}
-        <PipelineBar
-          stageCounts={stageCounts}
-          activeStage={stageFilter}
-          onStageClick={setStageFilter}
-          totalCandidates={totalActiveCandidates}
-        />
-
-        {/* Candidate Grid */}
-        <div className="flex-1 min-h-0">
-          <CandidateGrid
-            candidates={candidates}
-            jobs={jobs}
-            stageFilter={stageFilter}
-            onSelect={handleSelectCandidate}
-            onMove={handleMove}
-            onReject={handleReject}
-            isProcessing={processing}
-          />
-        </div>
-      </div>
-
-      {/* Detail Panel (Overlay) */}
-      <CandidateDetailPanel
-        candidate={selectedCandidate}
-        open={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        onMove={handleMove}
-        onReject={handleReject}
-        isProcessing={processing}
-      />
-
-      <RejectionDialog
-        open={rejectDialogOpen}
-        onOpenChange={setRejectDialogOpen}
-        submission={(() => {
-          if (!rejectSubmissionId) return null;
-          const candidate = candidates.find(c => c.submissionId === rejectSubmissionId);
-          if (!candidate) return null;
-          const job = jobs.find(j => j.id === candidate.jobId);
-          return {
-            id: rejectSubmissionId,
-            candidate: {
-              id: candidate.id,
-              full_name: candidate.name,
-              email: candidate.email || ''
-            },
-            job: {
-              id: candidate.jobId,
-              title: candidate.jobTitle,
-              company_name: job?.title || ''
-            }
-          };
-        })()}
-        onSuccess={handleRejectSuccess}
-      />
-
-      {/* Compare View Modal */}
-      {compareOpen && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-          <div className="fixed inset-4 z-50 overflow-auto rounded-lg border bg-background shadow-lg">
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background">
-              <h2 className="text-lg font-semibold">Kandidatenvergleich</h2>
-              <Button variant="ghost" size="sm" onClick={() => setCompareOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4">
-              <CandidateCompareView 
-                submissionIds={selectedIds}
-                onRemove={handleRemoveFromCompare}
-                onClose={() => setCompareOpen(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      </TooltipProvider>
     </DashboardLayout>
   );
 }
