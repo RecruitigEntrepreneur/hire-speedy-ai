@@ -20,7 +20,7 @@ import {
   useOutreachLeads, useOutreachCampaigns, useOutreachEmails, useOutreachStats, 
   useOutreachConversations, useApproveEmail, useRejectEmail, useRegenerateEmail,
   useDeleteLead, useToggleCampaign, useDeleteCampaign, useGenerateEmail,
-  useQueueStatus, useRetryQueueItem, OutreachLead, OutreachCampaign
+  useQueueStatus, useRetryQueueItem, useUpdateEmail, OutreachLead, OutreachCampaign
 } from '@/hooks/useOutreach';
 import { useHiringActivityStats } from '@/hooks/useCareerCrawl';
 import { format } from 'date-fns';
@@ -69,11 +69,17 @@ export default function AdminOutreach() {
   const approveEmail = useApproveEmail();
   const rejectEmail = useRejectEmail();
   const regenerateEmail = useRegenerateEmail();
+  const updateEmail = useUpdateEmail();
   const deleteLead = useDeleteLead();
   const toggleCampaign = useToggleCampaign();
   const deleteCampaign = useDeleteCampaign();
   const generateEmail = useGenerateEmail();
   const retryQueue = useRetryQueueItem();
+
+  // Check for campaigns with invalid sender emails
+  const invalidCampaigns = campaigns?.filter(c => 
+    c.is_active && (!c.sender_email || !c.sender_email.includes('@') || c.sender_email === 'test')
+  ) || [];
 
   // Aggressive scroll-lock cleanup
   useEffect(() => {
@@ -131,6 +137,36 @@ export default function AdminOutreach() {
             </Button>
           </div>
         </div>
+
+        {/* Warning for invalid campaign sender emails */}
+        {invalidCampaigns.length > 0 && (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="font-medium text-destructive">
+                    {invalidCampaigns.length} Kampagne(n) mit ungültiger Absender-E-Mail
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {invalidCampaigns.map(c => c.name).join(', ')} - E-Mails können nicht versendet werden
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedCampaign(invalidCampaigns[0]);
+                  setCampaignOpen(true);
+                }}
+              >
+                Kampagne bearbeiten
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-8 w-full max-w-6xl h-12">
@@ -637,7 +673,6 @@ export default function AdminOutreach() {
             )}
           </TabsContent>
 
-          {/* ========== REVIEW TAB ========== */}
           <TabsContent value="review" className="mt-6">
             <EmailReviewTable
               emails={reviewEmails || []}
@@ -646,6 +681,7 @@ export default function AdminOutreach() {
               onRegenerate={(id) => regenerateEmail.mutate(id)}
               onBulkApprove={(ids) => ids.forEach(id => approveEmail.mutate(id))}
               onBulkReject={(ids) => ids.forEach(id => rejectEmail.mutate(id))}
+              onSave={(id, subject, body) => updateEmail.mutate({ id, subject, body })}
               isLoading={reviewLoading}
             />
           </TabsContent>

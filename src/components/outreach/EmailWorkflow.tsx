@@ -20,7 +20,7 @@ export function EmailWorkflow() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<{ subject: string; body: string }>({ subject: '', body: '' });
 
-  const pendingEmails = emails?.filter(e => e.status === 'draft' || e.status === 'pending_review') || [];
+  const pendingEmails = emails?.filter(e => e.status === 'draft' || e.status === 'pending_review' || e.status === 'review') || [];
   const sentEmails = emails?.filter(e => e.status === 'sent' || e.status === 'delivered') || [];
 
   const handleStartEdit = (email: any) => {

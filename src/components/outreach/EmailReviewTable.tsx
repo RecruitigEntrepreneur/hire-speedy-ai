@@ -22,6 +22,7 @@ interface EmailReviewTableProps {
   onRegenerate: (id: string) => void;
   onBulkApprove: (ids: string[]) => void;
   onBulkReject: (ids: string[]) => void;
+  onSave?: (id: string, subject: string, body: string) => void;
   isLoading?: boolean;
 }
 
@@ -60,6 +61,7 @@ export function EmailReviewTable({
   onRegenerate,
   onBulkApprove,
   onBulkReject,
+  onSave,
   isLoading 
 }: EmailReviewTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -338,7 +340,15 @@ export function EmailReviewTable({
                                 <Button size="sm" onClick={cancelEditing} variant="outline">
                                   Abbrechen
                                 </Button>
-                                <Button size="sm" onClick={cancelEditing}>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => {
+                                    if (onSave) {
+                                      onSave(email.id, editSubject, editBody);
+                                    }
+                                    cancelEditing();
+                                  }}
+                                >
                                   <Save className="h-3 w-3 mr-1" />
                                   Speichern
                                 </Button>
