@@ -701,24 +701,8 @@ export default function TalentHub() {
                       })}
                     </div>
 
-                    {/* Quick Contact */}
+                    {/* Quick Actions - Plattformkontrolliert */}
                     <div className="flex items-center gap-2 mt-3">
-                      {selectedCandidate.email && (
-                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                          <a href={`mailto:${selectedCandidate.email}`}>
-                            <Mail className="h-3.5 w-3.5 mr-1" />
-                            E-Mail
-                          </a>
-                        </Button>
-                      )}
-                      {selectedCandidate.phone && (
-                        <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-                          <a href={`tel:${selectedCandidate.phone}`}>
-                            <Phone className="h-3.5 w-3.5 mr-1" />
-                            Anrufen
-                          </a>
-                        </Button>
-                      )}
                       <Button variant="outline" size="sm" className="h-8 text-xs ml-auto" asChild>
                         <Link to={`/dashboard/candidates/${selectedCandidate.submissionId}`}>
                           <ExternalLink className="h-3.5 w-3.5 mr-1" />
@@ -839,42 +823,43 @@ export default function TalentHub() {
                     </TabsContent>
                   </Tabs>
 
-                  {/* Sticky Action Bar */}
+                  {/* Sticky Action Bar - Ausbalancierte Buttons */}
                   {selectedCandidate.stage !== 'hired' && (
-                    <div className="p-4 border-t bg-background flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 h-9"
-                        onClick={() => {
-                          // Open interview dialog for the selected candidate
-                          const card = document.querySelector(`[data-submission-id="${selectedCandidate.submissionId}"]`);
-                          // Trigger interview request via card
-                        }}
-                      >
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Interview
-                      </Button>
-                      {getNextStage(selectedCandidate.stage) && (
+                    <div className="p-3 border-t bg-background">
+                      <div className="grid grid-cols-3 gap-2">
                         <Button 
+                          variant="outline" 
                           size="sm" 
-                          className="flex-1 h-9"
-                          onClick={() => handleMove(selectedCandidate.submissionId, getNextStage(selectedCandidate.stage)!)}
+                          className="h-9 text-xs"
+                          onClick={() => handleInterviewRequest(selectedCandidate.submissionId, new Date())}
                           disabled={processing}
                         >
-                          <ThumbsUp className="h-4 w-4 mr-1" />
-                          {getStageLabel(getNextStage(selectedCandidate.stage)!)}
+                          <Calendar className="h-3.5 w-3.5 mr-1" />
+                          Interview
                         </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-9 px-3 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleReject(selectedCandidate.submissionId)}
-                        disabled={processing}
-                      >
-                        <ThumbsDown className="h-4 w-4" />
-                      </Button>
+                        <Button 
+                          size="sm" 
+                          className="h-9 text-xs bg-green-600 hover:bg-green-700"
+                          onClick={() => {
+                            const next = getNextStage(selectedCandidate.stage);
+                            if (next) handleMove(selectedCandidate.submissionId, next);
+                          }}
+                          disabled={processing || !getNextStage(selectedCandidate.stage)}
+                        >
+                          <ThumbsUp className="h-3.5 w-3.5 mr-1" />
+                          Weiter
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={() => handleReject(selectedCandidate.submissionId)}
+                          disabled={processing}
+                        >
+                          <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                          Absage
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </>
