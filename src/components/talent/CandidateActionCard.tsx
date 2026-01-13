@@ -1,0 +1,343 @@
+import { useState } from 'react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { 
+  Calendar,
+  ThumbsUp, 
+  ThumbsDown, 
+  MessageSquare,
+  Clock,
+  MapPin,
+  Briefcase,
+  Video,
+  Star,
+  ChevronRight
+} from 'lucide-react';
+import { formatDistanceToNow, format, isToday, isPast } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
+import { QuickInterviewRequest } from './QuickInterviewRequest';
+import { QuickFeedbackInline } from './QuickFeedbackInline';
+
+export interface CandidateActionCardProps {
+  id: string;
+  submissionId: string;
+  name: string;
+  currentRole: string;
+  jobId: string;
+  jobTitle: string;
+  stage: string;
+  status: string;
+  matchScore: number | null;
+  submittedAt: string;
+  hoursInStage: number;
+  company?: string;
+  city?: string;
+  skills?: string[];
+  experienceYears?: number;
+  interview?: {
+    id: string;
+    scheduled_at: string | null;
+    status: string | null;
+    meeting_link: string | null;
+  } | null;
+  feedbackPending?: boolean;
+}
+
+interface CardProps {
+  candidate: CandidateActionCardProps;
+  isSelected?: boolean;
+  onSelect: () => void;
+  onMove: (submissionId: string, newStage: string) => void;
+  onReject: (submissionId: string) => void;
+  onInterviewRequest?: (submissionId: string, date: Date) => Promise<void>;
+  onFeedback?: (submissionId: string, rating: 'positive' | 'neutral' | 'negative', note?: string) => Promise<void>;
+  isProcessing?: boolean;
+}
+
+export function CandidateActionCard({
+  candidate,
+  isSelected,
+  onSelect,
+  onMove,
+  onReject,
+  onInterviewRequest,
+  onFeedback,
+  isProcessing
+}: CardProps) {
+  const [showInterviewPopover, setShowInterviewPopover] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getNextStage = (currentStage: string) => {
+    const stages = ['submitted', 'interview_1', 'interview_2', 'offer', 'hired'];
+    const currentIndex = stages.indexOf(currentStage);
+    return currentIndex < stages.length - 1 ? stages[currentIndex + 1] : null;
+  };
+
+  const nextStage = getNextStage(candidate.stage);
+  const isUrgent = candidate.hoursInStage >= 48;
+  const isWarning = candidate.hoursInStage >= 24 && candidate.hoursInStage < 48;
+
+  const getMatchScoreColor = (score: number | null) => {
+    if (!score) return 'bg-muted text-muted-foreground';
+    if (score >= 80) return 'bg-green-500 text-white';
+    if (score >= 60) return 'bg-amber-500 text-white';
+    if (score >= 40) return 'bg-orange-500 text-white';
+    return 'bg-muted text-muted-foreground';
+  };
+
+  const getMatchScoreRingColor = (score: number | null) => {
+    if (!score) return 'border-muted';
+    if (score >= 80) return 'border-green-500';
+    if (score >= 60) return 'border-amber-500';
+    if (score >= 40) return 'border-orange-500';
+    return 'border-muted';
+  };
+
+  // Check for interview status
+  const hasInterviewToday = candidate.interview?.scheduled_at && 
+    isToday(new Date(candidate.interview.scheduled_at)) && 
+    candidate.interview.status !== 'completed';
+  
+  const hasPastInterview = candidate.interview?.scheduled_at && 
+    isPast(new Date(candidate.interview.scheduled_at)) && 
+    candidate.interview.status !== 'completed';
+
+  const needsFeedback = hasPastInterview || candidate.feedbackPending;
+
+  const handleInterviewRequest = async (date: Date) => {
+    if (onInterviewRequest) {
+      await onInterviewRequest(candidate.submissionId, date);
+    }
+    setShowInterviewPopover(false);
+  };
+
+  const handleFeedback = async (rating: 'positive' | 'neutral' | 'negative', note?: string) => {
+    if (onFeedback) {
+      await onFeedback(candidate.submissionId, rating, note);
+    }
+    setShowFeedback(false);
+  };
+
+  return (
+    <Card 
+      className={cn(
+        "group cursor-pointer transition-all hover:shadow-lg hover:border-primary/40 relative",
+        isSelected && "ring-2 ring-primary border-primary",
+        isUrgent && "border-l-4 border-l-destructive",
+        isWarning && !isUrgent && "border-l-4 border-l-amber-500"
+      )}
+      onClick={onSelect}
+    >
+      <CardContent className="p-4">
+        {/* Header: Avatar + Name + Match Score Ring */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="relative">
+            <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+              <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+                {getInitials(candidate.name)}
+              </AvatarFallback>
+            </Avatar>
+            {/* Match Score Ring */}
+            {candidate.matchScore && (
+              <div className={cn(
+                "absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-2 bg-background flex items-center justify-center text-xs font-bold shadow-sm",
+                getMatchScoreRingColor(candidate.matchScore)
+              )}>
+                <span className={cn(
+                  "text-[10px]",
+                  candidate.matchScore >= 80 && "text-green-600",
+                  candidate.matchScore >= 60 && candidate.matchScore < 80 && "text-amber-600",
+                  candidate.matchScore >= 40 && candidate.matchScore < 60 && "text-orange-600"
+                )}>
+                  {candidate.matchScore}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{candidate.name}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {candidate.currentRole}
+              {candidate.company && ` @ ${candidate.company}`}
+            </p>
+            {/* Location & Experience */}
+            <div className="flex items-center gap-2 mt-1">
+              {candidate.city && (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <MapPin className="h-2.5 w-2.5" />
+                  {candidate.city}
+                </span>
+              )}
+              {candidate.experienceYears && (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <Briefcase className="h-2.5 w-2.5" />
+                  {candidate.experienceYears}J
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Skills Badges */}
+        {candidate.skills && candidate.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {candidate.skills.slice(0, 3).map((skill, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                {skill}
+              </Badge>
+            ))}
+            {candidate.skills.length > 3 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-muted-foreground">
+                +{candidate.skills.length - 3}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Time in Stage & Interview Status */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className={cn(
+            "flex items-center gap-1 text-[11px]",
+            isUrgent && "text-destructive font-medium",
+            isWarning && "text-amber-600"
+          )}>
+            <Clock className="h-3 w-3" />
+            <span>{formatDistanceToNow(new Date(candidate.submittedAt), { locale: de })}</span>
+          </div>
+          
+          {/* Interview Status Badge */}
+          {hasInterviewToday && candidate.interview?.scheduled_at && (
+            <Badge className="text-[10px] h-5 bg-blue-500 hover:bg-blue-600">
+              <Video className="h-2.5 w-2.5 mr-1" />
+              {format(new Date(candidate.interview.scheduled_at), 'HH:mm')}
+            </Badge>
+          )}
+          {needsFeedback && !hasInterviewToday && (
+            <Badge variant="outline" className="text-[10px] h-5 border-amber-400 text-amber-600 animate-pulse">
+              <Star className="h-2.5 w-2.5 mr-1" />
+              Feedback
+            </Badge>
+          )}
+        </div>
+
+        {/* Quick Feedback Inline (shows when feedback is pending) */}
+        {showFeedback && needsFeedback && (
+          <QuickFeedbackInline
+            onSubmit={handleFeedback}
+            onCancel={() => setShowFeedback(false)}
+          />
+        )}
+
+        {/* Action Buttons - Always Visible */}
+        {candidate.stage !== 'hired' && !showFeedback && (
+          <div 
+            className="flex items-center gap-1.5 pt-3 border-t"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Interview Request */}
+            <QuickInterviewRequest
+              open={showInterviewPopover}
+              onOpenChange={setShowInterviewPopover}
+              onSubmit={handleInterviewRequest}
+              candidateName={candidate.name}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 flex-1 text-xs gap-1"
+                    disabled={isProcessing}
+                  >
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Interview</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Interview anfragen</TooltipContent>
+              </Tooltip>
+            </QuickInterviewRequest>
+
+            {/* Forward / Accept */}
+            {nextStage && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-8 flex-1 text-xs gap-1"
+                    onClick={() => onMove(candidate.submissionId, nextStage)}
+                    disabled={isProcessing}
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Weiter</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Zur nächsten Phase</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Feedback Button (if pending) */}
+            {needsFeedback && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
+                    onClick={() => setShowFeedback(true)}
+                    disabled={isProcessing}
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Feedback geben</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Reject */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => onReject(candidate.submissionId)}
+                  disabled={isProcessing}
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ablehnen</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {/* Meeting Link Button for today's interview */}
+        {hasInterviewToday && candidate.interview?.meeting_link && (
+          <Button
+            variant="default"
+            size="sm"
+            className="w-full mt-2 h-8 text-xs bg-blue-500 hover:bg-blue-600"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(candidate.interview!.meeting_link!, '_blank');
+            }}
+          >
+            <Video className="h-3.5 w-3.5 mr-1" />
+            Meeting beitreten
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
