@@ -39,7 +39,7 @@ const wrapLinksForTracking = (html: string, emailEventId: string) => {
 };
 
 // Email templates
-const templates: Record<string, { subject: string; html: (data: Record<string, string>) => string }> = {
+const templates: Record<string, { subject: string; html: (data: Record<string, any>) => string }> = {
   interview_invitation: {
     subject: "Interview-Einladung: {jobTitle}",
     html: (data) => `
@@ -150,6 +150,120 @@ ${data.content}
         </div>
         <a href="${data.prepLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Vollständiges Vorbereitungsmaterial ansehen</a>
         <p>Viel Erfolg!<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  // New templates for Talent Hub workflow automation
+  interview_request_to_recruiter: {
+    subject: "Interview-Anfrage für Kandidat #{candidateAnonymId}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">🎯 Interview-Anfrage</h1>
+        <p>Sehr geehrte(r) Recruiter,</p>
+        <p>Ein Kunde möchte ein Interview mit einem Ihrer Kandidaten führen.</p>
+        
+        <div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #3b82f6;">
+          <p style="margin: 0 0 8px 0;"><strong>Position:</strong> ${data.jobTitle}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Unternehmen:</strong> ${data.companyName}</p>
+          <p style="margin: 0;"><strong>Kandidat:</strong> ${data.candidateAnonymId}</p>
+        </div>
+        
+        ${data.message ? `
+        <div style="background: #fafafa; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <p style="margin: 0 0 8px 0;"><strong>Nachricht des Kunden:</strong></p>
+          <p style="margin: 0; color: #666;">${data.message}</p>
+        </div>
+        ` : ''}
+        
+        ${data.proposedSlots && data.proposedSlots.length > 0 ? `
+        <div style="margin: 16px 0;">
+          <p><strong>Vorgeschlagene Termine:</strong></p>
+          <ul>
+            ${data.proposedSlots.map((slot: string) => `<li>${slot}</li>`).join('')}
+          </ul>
+        </div>
+        ` : ''}
+        
+        <p><strong>Nächster Schritt:</strong> Bitte holen Sie die Zustimmung des Kandidaten ein und bestätigen Sie die Teilnahme im Dashboard.</p>
+        
+        <a href="${data.dashboardUrl || '#'}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Im Dashboard bestätigen</a>
+        
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  opt_in_confirmed_to_client: {
+    subject: "✅ Kandidat hat zugestimmt: {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">🎉 Kandidat hat zugestimmt!</h1>
+        <p>Gute Nachrichten! Der Kandidat hat der Interview-Anfrage zugestimmt.</p>
+        
+        <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #22c55e;">
+          <p style="margin: 0 0 8px 0;"><strong>Name:</strong> ${data.candidateName}</p>
+          <p style="margin: 0 0 8px 0;"><strong>E-Mail:</strong> ${data.candidateEmail}</p>
+          ${data.candidatePhone ? `<p style="margin: 0 0 8px 0;"><strong>Telefon:</strong> ${data.candidatePhone}</p>` : ''}
+          <p style="margin: 0;"><strong>Position:</strong> ${data.jobTitle}</p>
+        </div>
+        
+        <p>Sie können jetzt den Interview-Termin finalisieren und direkten Kontakt aufnehmen.</p>
+        
+        <a href="${data.dashboardUrl || '#'}" style="display: inline-block; background: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Interview planen</a>
+        
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  candidate_moved_to_recruiter: {
+    subject: "📈 Kandidat weitergeleitet: {candidateName}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">📈 Fortschritt im Prozess</h1>
+        <p>Sehr geehrte(r) Recruiter,</p>
+        <p>Gute Nachrichten! Ihr Kandidat wurde im Bewerbungsprozess weitergeleitet.</p>
+        
+        <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #22c55e;">
+          <p style="margin: 0 0 8px 0;"><strong>Kandidat:</strong> ${data.candidateName}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Position:</strong> ${data.jobTitle}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Unternehmen:</strong> ${data.companyName}</p>
+          <p style="margin: 0;"><strong>Neue Phase:</strong> ${data.oldStage} → <strong style="color: #22c55e;">${data.newStage}</strong></p>
+        </div>
+        
+        <p>Der Prozess läuft wie geplant. Wir halten Sie über weitere Entwicklungen auf dem Laufenden.</p>
+        
+        <a href="${data.dashboardUrl || '#'}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Details im Dashboard</a>
+        
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
+      </div>
+    `,
+  },
+  candidate_rejected_to_recruiter: {
+    subject: "Absage: {candidateName} für {jobTitle}",
+    html: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #1a1a2e;">Absage erhalten</h1>
+        <p>Sehr geehrte(r) Recruiter,</p>
+        <p>Leider wurde Ihr Kandidat für diese Position nicht weiter berücksichtigt.</p>
+        
+        <div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #ef4444;">
+          <p style="margin: 0 0 8px 0;"><strong>Kandidat:</strong> ${data.candidateName}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Position:</strong> ${data.jobTitle}</p>
+          <p style="margin: 0;"><strong>Unternehmen:</strong> ${data.companyName}</p>
+        </div>
+        
+        ${data.rejectionReason ? `
+        <div style="background: #fafafa; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <p style="margin: 0 0 8px 0;"><strong>Begründung:</strong></p>
+          <p style="margin: 0; color: #666;">${data.rejectionReason}</p>
+          ${data.rejectionCategory ? `<p style="margin: 8px 0 0 0; color: #888; font-size: 14px;">Kategorie: ${data.rejectionCategory}</p>` : ''}
+        </div>
+        ` : ''}
+        
+        <p>Der Kandidat bleibt in Ihrem Talent Pool und kann für andere passende Stellen vorgeschlagen werden.</p>
+        
+        <a href="${data.dashboardUrl || '#'}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">Weitere Stellen finden</a>
+        
+        <p>Mit freundlichen Grüßen,<br/>Das Recruiting-Team</p>
       </div>
     `,
   },
