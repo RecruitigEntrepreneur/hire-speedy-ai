@@ -238,7 +238,7 @@ export function CandidateActionCard({
           />
         )}
 
-        {/* Action Buttons - Ausbalanciertes 3-Spalten Layout */}
+        {/* Action Buttons - 2-Spalten Layout: Dynamischer Nächster-Schritt + Absage */}
         {candidate.stage !== 'hired' && !showFeedback && (
           <div 
             className="pt-3 border-t"
@@ -258,47 +258,47 @@ export function CandidateActionCard({
               </Button>
             )}
             
-            {/* Main Action Buttons - 3 columns */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {/* Interview Request */}
-              <QuickInterviewRequest
-                open={showInterviewPopover}
-                onOpenChange={setShowInterviewPopover}
-                onSubmit={handleInterviewRequest}
-                candidateName={candidate.name}
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-full text-xs"
-                  disabled={isProcessing}
+            {/* Main Action Buttons - 2 columns */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Dynamic Next Step Button */}
+              {(candidate.stage === 'submitted' || candidate.stage === 'interview_1') ? (
+                <QuickInterviewRequest
+                  open={showInterviewPopover}
+                  onOpenChange={setShowInterviewPopover}
+                  onSubmit={handleInterviewRequest}
+                  candidateName={candidate.name}
                 >
-                  <Calendar className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Interview</span>
+                  <Button
+                    size="sm"
+                    className="h-9 w-full text-xs"
+                    disabled={isProcessing}
+                  >
+                    <Calendar className="h-3.5 w-3.5 mr-1" />
+                    {candidate.stage === 'submitted' ? 'Interview 1' : 'Interview 2'}
+                  </Button>
+                </QuickInterviewRequest>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-9 w-full text-xs bg-green-600 hover:bg-green-700"
+                  onClick={() => nextStage && onMove(candidate.submissionId, nextStage)}
+                  disabled={isProcessing || !nextStage}
+                >
+                  <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                  {candidate.stage === 'interview_2' ? 'Angebot' : 'Einstellen'}
                 </Button>
-              </QuickInterviewRequest>
-
-              {/* Forward / Accept */}
-              <Button
-                size="sm"
-                className="h-8 w-full text-xs bg-green-600 hover:bg-green-700"
-                onClick={() => nextStage && onMove(candidate.submissionId, nextStage)}
-                disabled={isProcessing || !nextStage}
-              >
-                <ThumbsUp className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Weiter</span>
-              </Button>
+              )}
 
               {/* Reject */}
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 w-full text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                className="h-9 w-full text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
                 onClick={() => onReject(candidate.submissionId)}
                 disabled={isProcessing}
               >
-                <ThumbsDown className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Absage</span>
+                <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                Absage
               </Button>
             </div>
           </div>
