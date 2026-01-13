@@ -238,87 +238,69 @@ export function CandidateActionCard({
           />
         )}
 
-        {/* Action Buttons - Always Visible */}
+        {/* Action Buttons - Ausbalanciertes 3-Spalten Layout */}
         {candidate.stage !== 'hired' && !showFeedback && (
           <div 
-            className="flex items-center gap-1.5 pt-3 border-t"
+            className="pt-3 border-t"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Interview Request */}
-            <QuickInterviewRequest
-              open={showInterviewPopover}
-              onOpenChange={setShowInterviewPopover}
-              onSubmit={handleInterviewRequest}
-              candidateName={candidate.name}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 flex-1 text-xs gap-1"
-                    disabled={isProcessing}
-                  >
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Interview</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Interview anfragen</TooltipContent>
-              </Tooltip>
-            </QuickInterviewRequest>
-
-            {/* Forward / Accept */}
-            {nextStage && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="h-8 flex-1 text-xs gap-1"
-                    onClick={() => onMove(candidate.submissionId, nextStage)}
-                    disabled={isProcessing}
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Weiter</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Zur nächsten Phase</TooltipContent>
-              </Tooltip>
-            )}
-
-            {/* Feedback Button (if pending) */}
+            {/* Feedback Button (if pending) - Full width above main actions */}
             {needsFeedback && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
-                    onClick={() => setShowFeedback(true)}
-                    disabled={isProcessing}
-                  >
-                    <Star className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Feedback geben</TooltipContent>
-              </Tooltip>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 mb-2 text-xs border-amber-400 text-amber-600 hover:bg-amber-50"
+                onClick={() => setShowFeedback(true)}
+                disabled={isProcessing}
+              >
+                <Star className="h-3.5 w-3.5 mr-1" />
+                Feedback geben
+              </Button>
             )}
-
-            {/* Reject */}
-            <Tooltip>
-              <TooltipTrigger asChild>
+            
+            {/* Main Action Buttons - 3 columns */}
+            <div className="grid grid-cols-3 gap-1.5">
+              {/* Interview Request */}
+              <QuickInterviewRequest
+                open={showInterviewPopover}
+                onOpenChange={setShowInterviewPopover}
+                onSubmit={handleInterviewRequest}
+                candidateName={candidate.name}
+              >
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => onReject(candidate.submissionId)}
+                  className="h-8 w-full text-xs"
                   disabled={isProcessing}
                 >
-                  <ThumbsDown className="h-3.5 w-3.5" />
+                  <Calendar className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Interview</span>
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>Ablehnen</TooltipContent>
-            </Tooltip>
+              </QuickInterviewRequest>
+
+              {/* Forward / Accept */}
+              <Button
+                size="sm"
+                className="h-8 w-full text-xs bg-green-600 hover:bg-green-700"
+                onClick={() => nextStage && onMove(candidate.submissionId, nextStage)}
+                disabled={isProcessing || !nextStage}
+              >
+                <ThumbsUp className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Weiter</span>
+              </Button>
+
+              {/* Reject */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-full text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => onReject(candidate.submissionId)}
+                disabled={isProcessing}
+              >
+                <ThumbsDown className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Absage</span>
+              </Button>
+            </div>
           </div>
         )}
 

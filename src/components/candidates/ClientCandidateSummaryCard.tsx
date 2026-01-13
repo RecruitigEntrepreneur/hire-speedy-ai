@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,8 @@ import {
   Target,
   ThumbsUp,
   ThumbsDown,
-  Minus
+  Minus,
+  Loader2
 } from 'lucide-react';
 import { useClientCandidateSummary, RiskFactor, PositiveFactor } from '@/hooks/useClientCandidateSummary';
 import { cn } from '@/lib/utils';
@@ -31,17 +32,40 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
   const { summary, loading, generating, generateSummary } = useClientCandidateSummary(candidateId, submissionId);
   const [risksOpen, setRisksOpen] = useState(false);
   const [strengthsOpen, setStrengthsOpen] = useState(false);
+  const hasTriedGenerate = useRef(false);
 
-  if (loading) {
+  // Auto-generate summary if none exists
+  useEffect(() => {
+    if (!loading && !summary && !generating && candidateId && !hasTriedGenerate.current) {
+      hasTriedGenerate.current = true;
+      generateSummary();
+    }
+  }, [loading, summary, generating, candidateId, generateSummary]);
+
+  // Reset the ref when candidateId changes
+  useEffect(() => {
+    hasTriedGenerate.current = false;
+  }, [candidateId]);
+
+  if (loading || (!summary && generating)) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-primary" />
+            AI-Analyse
+            {generating && (
+              <Badge variant="secondary" className="ml-auto gap-1 text-xs">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Wird erstellt...
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
+        <CardContent className="space-y-3">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-3/4" />
         </CardContent>
       </Card>
     );
@@ -50,31 +74,16 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
   if (!summary) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Kunden-Zusammenfassung
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-primary" />
+            AI-Analyse
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6">
-            <p className="text-muted-foreground mb-4">
-              Noch keine Zusammenfassung vorhanden. Generieren Sie eine AI-gestützte Analyse für Ihren Kunden.
-            </p>
-            <Button onClick={generateSummary} disabled={generating}>
-              {generating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Wird generiert...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Zusammenfassung generieren
-                </>
-              )}
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Analyse konnte nicht erstellt werden.
+          </p>
         </CardContent>
       </Card>
     );
