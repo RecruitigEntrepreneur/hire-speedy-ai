@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
-import { CandidateJobMatchingV2 } from './CandidateJobMatchingV2';
+import { CandidateJobMatchingV3 } from './CandidateJobMatchingV3';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { useAIAssessment } from '@/hooks/useAIAssessment';
 import { supabase } from '@/integrations/supabase/client';
@@ -193,8 +193,8 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
         </CardContent>
       </Card>
 
-      {/* BLOCK 2: Job Matching V2 - With AI Match Scoring */}
-      <CandidateJobMatchingV2 
+      {/* BLOCK 2: Job Matching V3.1 - With AI Match Scoring */}
+      <CandidateJobMatchingV3 
         candidate={{
           id: candidate.id,
           skills: candidate.skills,
