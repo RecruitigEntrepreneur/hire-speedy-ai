@@ -201,11 +201,12 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
     setCommuteDialog({ open: false, job: null, travelTime: 0 });
   };
 
-  // Filter visible matches (hot + standard, exclude hidden)
-  const visibleMatches = matchResults.filter(r => r.policy === 'hot' || r.policy === 'standard');
+  // Filter visible matches (hot + standard + maybe, exclude only hidden)
+  const visibleMatches = matchResults.filter(r => r.policy === 'hot' || r.policy === 'standard' || r.policy === 'maybe');
   const hotMatches = matchResults.filter(r => r.policy === 'hot');
   const standardMatches = matchResults.filter(r => r.policy === 'standard');
   const maybeMatches = matchResults.filter(r => r.policy === 'maybe');
+  const hiddenMatches = matchResults.filter(r => r.policy === 'hidden');
 
   if (jobsLoading || matchLoading) {
     return (
@@ -343,10 +344,41 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
             </div>
           )}
 
-          {/* Maybe Matches (collapsed) */}
+          {/* Maybe Matches Section */}
           {maybeMatches.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+                Weitere Optionen ({maybeMatches.length})
+              </div>
+              <div className="space-y-2">
+                {maybeMatches.map(result => {
+                  const job = getJobInfo(result.jobId);
+                  if (!job) return null;
+                  
+                  return (
+                    <JobMatchRow
+                      key={result.jobId}
+                      job={job}
+                      result={result}
+                      expanded={expandedJob === result.jobId}
+                      onToggle={() => setExpandedJob(expandedJob === result.jobId ? null : result.jobId)}
+                      onSubmit={() => handleSubmitToJob(job, result)}
+                      submitting={submitting === result.jobId}
+                      getPolicyColor={getPolicyColor}
+                      getPolicyLabel={getPolicyLabel}
+                      getPolicyIcon={getPolicyIcon}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Hidden Matches Info */}
+          {hiddenMatches.length > 0 && (
             <div className="text-xs text-muted-foreground pt-2 border-t">
-              +{maybeMatches.length} weitere Jobs mit niedrigerem Score
+              +{hiddenMatches.length} weitere Jobs mit sehr niedrigem Score
             </div>
           )}
         </CardContent>
