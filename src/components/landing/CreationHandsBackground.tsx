@@ -83,7 +83,7 @@ export const CreationHandsBackground = () => {
       <div 
         className="absolute inset-0 flex items-center justify-center animate-hand-left"
         style={{ 
-          clipPath: 'inset(0 50% 0 0)',
+          clipPath: 'inset(0 52% 0 0)',
         }}
       >
         <img
@@ -98,7 +98,7 @@ export const CreationHandsBackground = () => {
       <div 
         className="absolute inset-0 flex items-center justify-center animate-hand-right"
         style={{ 
-          clipPath: 'inset(0 0 0 50%)',
+          clipPath: 'inset(0 0 0 48%)',
         }}
       >
         <img
@@ -115,25 +115,25 @@ export const CreationHandsBackground = () => {
       <style>{`
         @keyframes hand-left {
           0%, 30% {
-            transform: translateX(-40px);
+            transform: translate(-40px, -80px);
           }
           45%, 55% {
-            transform: translateX(0);
+            transform: translate(0, -80px);
           }
           70%, 100% {
-            transform: translateX(-40px);
+            transform: translate(-40px, -80px);
           }
         }
         
         @keyframes hand-right {
           0%, 30% {
-            transform: translateX(40px);
+            transform: translate(40px, -80px);
           }
           45%, 55% {
-            transform: translateX(0);
+            transform: translate(0, -80px);
           }
           70%, 100% {
-            transform: translateX(40px);
+            transform: translate(40px, -80px);
           }
         }
         
