@@ -278,28 +278,6 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Regenerate Button */}
-        <div className="flex justify-between items-center pt-2 border-t">
-          <span className="text-xs text-muted-foreground">
-            Generiert: {new Date(summary.generated_at).toLocaleDateString('de-DE', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={generateSummary} disabled={generating}>
-            {generating ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Neu generieren
-              </>
-            )}
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
