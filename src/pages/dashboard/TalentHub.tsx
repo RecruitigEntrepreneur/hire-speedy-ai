@@ -7,13 +7,12 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
 import { CandidateActionCard, CandidateActionCardProps } from '@/components/talent/CandidateActionCard';
-import { ClientCandidateSummaryCard } from '@/components/candidates/ClientCandidateSummaryCard';
+import { CandidateMatchCard } from '@/components/talent/CandidateMatchCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   Select,
@@ -73,6 +72,29 @@ interface Job {
   title: string;
 }
 
+interface Experience {
+  id: string;
+  company_name: string;
+  job_title: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_current?: boolean | null;
+}
+
+interface Education {
+  id: string;
+  institution: string;
+  degree?: string | null;
+  field_of_study?: string | null;
+  graduation_year?: number | null;
+}
+
+interface InterviewNotes {
+  change_motivation?: string | null;
+  salary_current?: string | null;
+  salary_desired?: string | null;
+}
+
 // Extended candidate type for grid and detail panel
 interface ExtendedTableCandidate extends CandidateActionCardProps {
   email?: string;
@@ -84,6 +106,10 @@ interface ExtendedTableCandidate extends CandidateActionCardProps {
   exposeHighlights?: string[];
   currentSalary?: number;
   expectedSalary?: number;
+  experiences?: Experience[];
+  educations?: Education[];
+  interviewNotes?: InterviewNotes;
+  jobSkills?: string[];
 }
 
 export default function TalentHub() {
@@ -165,11 +191,30 @@ export default function TalentHub() {
           expose_highlights,
           current_salary,
           expected_salary,
-          city
+          city,
+          candidate_experiences (
+            id,
+            company_name,
+            job_title,
+            start_date,
+            end_date,
+            is_current
+          ),
+          candidate_educations (
+            id,
+            institution,
+            degree,
+            field_of_study,
+            graduation_year
+          ),
+          candidate_interview_notes (
+            change_motivation
+          )
         ),
         jobs!inner (
           id,
-          title
+          title,
+          required_skills
         )
       `)
       .order('submitted_at', { ascending: false });
@@ -187,6 +232,23 @@ export default function TalentHub() {
       const now = new Date();
       const submittedAt = new Date(sub.submitted_at);
       const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
+
+      // Sort experiences by start_date descending
+      const experiences = (candidate.candidate_experiences || []).sort((a: any, b: any) => {
+        if (!a.start_date) return 1;
+        if (!b.start_date) return -1;
+        return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+      });
+
+      // Sort educations by graduation_year descending
+      const educations = (candidate.candidate_educations || []).sort((a: any, b: any) => {
+        if (!a.graduation_year) return 1;
+        if (!b.graduation_year) return -1;
+        return b.graduation_year - a.graduation_year;
+      });
+
+      // Get first interview notes (there may be multiple)
+      const interviewNotes = candidate.candidate_interview_notes?.[0] || null;
 
       tableCandidates.push({
         id: candidate.id,
@@ -212,7 +274,13 @@ export default function TalentHub() {
         exposeHighlights: candidate.expose_highlights,
         currentSalary: candidate.current_salary,
         expectedSalary: candidate.expected_salary,
-        city: candidate.city
+        city: candidate.city,
+        experiences,
+        educations,
+        interviewNotes: interviewNotes ? {
+          change_motivation: interviewNotes.change_motivation
+        } : undefined,
+        jobSkills: job.required_skills || []
       });
     });
 
@@ -712,116 +780,25 @@ export default function TalentHub() {
                     </div>
                   </div>
 
-                  {/* Detail Content Tabs */}
-                  <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0">
-                    <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2">
-                      <TabsTrigger value="profile" className="text-xs">Profil</TabsTrigger>
-                      <TabsTrigger value="timeline" className="text-xs">Historie</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="profile" className="flex-1 min-h-0 mt-0 p-4 data-[state=inactive]:hidden">
-                      <ScrollArea className="h-full">
-                        <div className="space-y-4 pr-2">
-                          {/* Client AI Summary Card */}
-                          <ClientCandidateSummaryCard 
-                            candidateId={selectedCandidate.id}
-                            submissionId={selectedCandidate.submissionId}
-                          />
-
-                          {/* Key Facts Grid */}
-                          <div className="rounded-lg border p-3 bg-background">
-                            <p className="text-xs font-medium text-muted-foreground mb-2">Key Facts</p>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                              {selectedCandidate.experienceYears && (
-                                <>
-                                  <span className="text-muted-foreground">Erfahrung</span>
-                                  <span className="font-medium">{selectedCandidate.experienceYears} Jahre</span>
-                                </>
-                              )}
-                              {selectedCandidate.currentSalary && (
-                                <>
-                                  <span className="text-muted-foreground">Gehalt aktuell</span>
-                                  <span>{formatSalary(selectedCandidate.currentSalary)}</span>
-                                </>
-                              )}
-                              {selectedCandidate.expectedSalary && (
-                                <>
-                                  <span className="text-muted-foreground">Gehalt erwartet</span>
-                                  <span className="font-medium">{formatSalary(selectedCandidate.expectedSalary)}</span>
-                                </>
-                              )}
-                              {selectedCandidate.noticePeriod && (
-                                <>
-                                  <span className="text-muted-foreground">Kündigungsfrist</span>
-                                  <span>{selectedCandidate.noticePeriod}</span>
-                                </>
-                              )}
-                              {selectedCandidate.availabilityDate && (
-                                <>
-                                  <span className="text-muted-foreground">Verfügbar ab</span>
-                                  <span>{format(new Date(selectedCandidate.availabilityDate), 'dd.MM.yyyy')}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Skills */}
-                          {selectedCandidate.skills?.length ? (
-                            <div className="rounded-lg border p-3 bg-background space-y-2">
-                              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                                <Target className="h-3.5 w-3.5" />
-                                Skills
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {selectedCandidate.skills.map((skill, i) => (
-                                  <Badge key={i} variant="secondary" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-
-                          {/* Job Applied For */}
-                          <div className="rounded-lg border p-3 bg-background">
-                            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-1">
-                              <Briefcase className="h-3.5 w-3.5" />
-                              Bewirbt sich für
-                            </p>
-                            <p className="font-medium">{selectedCandidate.jobTitle}</p>
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </TabsContent>
-
-                    <TabsContent value="timeline" className="flex-1 min-h-0 mt-0 p-4 data-[state=inactive]:hidden">
-                      <ScrollArea className="h-full">
-                        <div className="space-y-3 pr-2">
-                          {/* Timeline items */}
-                          <div className="relative pl-4 border-l-2 border-muted space-y-4">
-                            <div className="relative">
-                              <div className="absolute -left-[21px] w-4 h-4 rounded-full bg-primary border-2 border-background" />
-                              <div className="text-sm">
-                                <p className="font-medium">Eingereicht</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(selectedCandidate.submittedAt), 'dd.MM.yyyy HH:mm', { locale: de })}
-                                </p>
-                              </div>
-                            </div>
-                            {selectedCandidate.stage !== 'submitted' && (
-                              <div className="relative">
-                                <div className="absolute -left-[21px] w-4 h-4 rounded-full bg-muted border-2 border-background" />
-                                <div className="text-sm">
-                                  <p className="font-medium">Phase: {getStageLabel(selectedCandidate.stage)}</p>
-                                  <p className="text-xs text-muted-foreground">Aktuelle Phase</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </TabsContent>
-                  </Tabs>
+                  {/* Scrollable Profile Content */}
+                  <ScrollArea className="flex-1">
+                    <div className="p-4">
+                      <CandidateMatchCard
+                        matchScore={selectedCandidate.matchScore}
+                        matchReasons={selectedCandidate.exposeHighlights || []}
+                        experiences={selectedCandidate.experiences}
+                        educations={selectedCandidate.educations}
+                        skills={selectedCandidate.skills || []}
+                        jobSkills={selectedCandidate.jobSkills}
+                        city={selectedCandidate.city}
+                        currentSalary={selectedCandidate.currentSalary}
+                        expectedSalary={selectedCandidate.expectedSalary}
+                        noticePeriod={selectedCandidate.noticePeriod}
+                        availabilityDate={selectedCandidate.availabilityDate}
+                        changeMotivation={selectedCandidate.interviewNotes?.change_motivation || undefined}
+                      />
+                    </div>
+                  </ScrollArea>
 
                   {/* Sticky Action Bar - 2 Buttons: Nächster Schritt + Absage */}
                   {selectedCandidate.stage !== 'hired' && (
