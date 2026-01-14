@@ -34,9 +34,14 @@ const defaultFilters: FilterState = {
   availability: 'all', selectedTags: [], sortBy: 'created_at', sortOrder: 'desc',
 };
 
+interface SubmissionsByCandidate {
+  [candidateId: string]: { jobTitle: string; companyName: string; status: string }[];
+}
+
 export default function RecruiterCandidates() {
   const { user } = useAuth();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [submissionsByCandidate, setSubmissionsByCandidate] = useState<SubmissionsByCandidate>({});
   const [loading, setLoading] = useState(true);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
@@ -68,6 +73,30 @@ export default function RecruiterCandidates() {
     }
     if (!error && data) {
       setCandidates(data as unknown as Candidate[]);
+      
+      // Fetch submissions for all candidates
+      const candidateIds = data.map((c: any) => c.id);
+      if (candidateIds.length > 0) {
+        const { data: submissionsData } = await supabase
+          .from('submissions')
+          .select('candidate_id, status, job:jobs(title, company_name)')
+          .in('candidate_id', candidateIds);
+        
+        if (submissionsData) {
+          const grouped: SubmissionsByCandidate = {};
+          submissionsData.forEach((sub: any) => {
+            if (!grouped[sub.candidate_id]) grouped[sub.candidate_id] = [];
+            if (sub.job) {
+              grouped[sub.candidate_id].push({
+                jobTitle: sub.job.title,
+                companyName: sub.job.company_name,
+                status: sub.status
+              });
+            }
+          });
+          setSubmissionsByCandidate(grouped);
+        }
+      }
     }
     setLoading(false);
   };
@@ -264,7 +293,8 @@ export default function RecruiterCandidates() {
               <CandidateCard 
                 key={c.id} 
                 candidate={c} 
-                tags={getCandidateTags(c.id)} 
+                tags={getCandidateTags(c.id)}
+                submissions={submissionsByCandidate[c.id] || []}
                 isSelected={selectedIds.includes(c.id)}
                 onSelect={handleSelect} 
                 onEdit={handleOpenDialog} 
