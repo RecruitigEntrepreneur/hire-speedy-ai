@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreationHandsBackground } from "./CreationHandsBackground";
 import { AsciiCodeOverlay } from "./AsciiCodeOverlay";
+import { MatchingVisualization } from "./MatchingVisualization";
 
 
 // Trust Logos
@@ -81,6 +82,9 @@ export const HeroSection = () => {
 
         {/* Trust Logos */}
         <TrustLogos />
+        
+        {/* Matching Visualization */}
+        <MatchingVisualization />
       </div>
     </section>
   );
