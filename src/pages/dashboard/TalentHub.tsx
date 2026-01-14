@@ -214,7 +214,7 @@ export default function TalentHub() {
         jobs!inner (
           id,
           title,
-          required_skills
+          skills
         )
       `)
       .order('submitted_at', { ascending: false });
