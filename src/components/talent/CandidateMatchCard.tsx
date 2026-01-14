@@ -1,5 +1,5 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   CheckCircle2, 
@@ -11,7 +11,9 @@ import {
   Clock,
   Building2,
   TrendingUp,
-  Target
+  Target,
+  Star,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -35,7 +37,7 @@ interface Education {
 }
 
 interface CandidateMatchCardProps {
-  matchScore?: number;
+  matchScore?: number | null;
   matchReasons?: string[];
   matchRisks?: string[];
   experiences?: Experience[];
@@ -48,6 +50,8 @@ interface CandidateMatchCardProps {
   noticePeriod?: string;
   availabilityDate?: string;
   changeMotivation?: string;
+  cvAiSummary?: string;
+  experienceYears?: number;
   className?: string;
 }
 
@@ -65,6 +69,8 @@ export function CandidateMatchCard({
   noticePeriod,
   availabilityDate,
   changeMotivation,
+  cvAiSummary,
+  experienceYears,
   className
 }: CandidateMatchCardProps) {
   const formatSalary = (salary?: number) => {
@@ -91,9 +97,9 @@ export function CandidateMatchCard({
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 85) return 'Sehr gut';
-    if (score >= 70) return 'Gut';
-    if (score >= 55) return 'Passend';
+    if (score >= 85) return 'Exzellent';
+    if (score >= 70) return 'Sehr gut';
+    if (score >= 55) return 'Gut';
     return 'Prüfen';
   };
 
@@ -107,18 +113,71 @@ export function CandidateMatchCard({
     !jobSkillsNormalized.includes(normalizeSkill(skill))
   );
 
+  // Generate fallback match reasons if none provided
+  const displayReasons = useMemo(() => {
+    if (matchReasons.length > 0) return matchReasons;
+    
+    const reasons: string[] = [];
+    
+    // Skill-Match
+    if (matchingSkills.length > 0) {
+      reasons.push(`${matchingSkills.length} passende Kernkompetenzen: ${matchingSkills.slice(0, 3).join(', ')}`);
+    }
+    
+    // Experience
+    if (experienceYears && experienceYears >= 3) {
+      reasons.push(`${experienceYears} Jahre Berufserfahrung`);
+    } else if (experiences.length >= 2) {
+      reasons.push(`${experiences.length} relevante Berufsstationen`);
+    }
+    
+    // Location
+    if (city) {
+      reasons.push(`Standort: ${city}`);
+    }
+    
+    // Availability
+    if (noticePeriod) {
+      reasons.push(`Kündigungsfrist: ${noticePeriod}`);
+    } else if (availabilityDate) {
+      reasons.push('Zeitnah verfügbar');
+    }
+    
+    // Salary
+    if (expectedSalary) {
+      reasons.push(`Gehaltsvorstellung: ${formatSalary(expectedSalary)}`);
+    }
+    
+    return reasons;
+  }, [matchReasons, matchingSkills, experienceYears, experiences.length, city, noticePeriod, availabilityDate, expectedSalary]);
+
   return (
     <div className={cn("space-y-4", className)}>
+      {/* Executive Summary - NEW */}
+      {cvAiSummary && (
+        <Card className="border-l-4 border-l-primary bg-primary/5">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-sm">Executive Summary</span>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {cvAiSummary}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Match Score & Reasons Section */}
-      {(matchScore || matchReasons.length > 0) && (
-        <Card className="border-l-4 border-l-primary">
+      {(matchScore || displayReasons.length > 0) && (
+        <Card className="border-l-4 border-l-green-500">
           <CardContent className="p-4 space-y-3">
             {/* Match Score Header */}
             {matchScore && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-sm">Matching</span>
+                  <Sparkles className="h-4 w-4 text-green-600" />
+                  <span className="font-semibold text-sm">KI-Matching</span>
                 </div>
                 <div className={cn(
                   "px-3 py-1 rounded-full border text-sm font-bold",
@@ -130,13 +189,13 @@ export function CandidateMatchCard({
             )}
 
             {/* Why this candidate fits */}
-            {matchReasons.length > 0 && (
+            {displayReasons.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Warum dieser Kandidat passt
                 </p>
                 <div className="space-y-1.5">
-                  {matchReasons.slice(0, 4).map((reason, idx) => (
+                  {displayReasons.slice(0, 4).map((reason, idx) => (
                     <div key={idx} className="flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                       <span>{reason}</span>
