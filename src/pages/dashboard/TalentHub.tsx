@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -8,6 +7,7 @@ import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
 import { CandidateActionCard, CandidateActionCardProps } from '@/components/talent/CandidateActionCard';
 import { CandidateMatchCard } from '@/components/talent/CandidateMatchCard';
+import { CandidateFullProfileDialog } from '@/components/talent/CandidateFullProfileDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -51,7 +51,8 @@ import {
   Target,
   Euro,
   Video,
-  Check
+  Check,
+  Maximize2
 } from 'lucide-react';
 import { isPast, isToday, formatDistanceToNow, format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -110,6 +111,7 @@ interface ExtendedTableCandidate extends CandidateActionCardProps {
   educations?: Education[];
   interviewNotes?: InterviewNotes;
   jobSkills?: string[];
+  changeMotivation?: string;
 }
 
 export default function TalentHub() {
@@ -132,6 +134,7 @@ export default function TalentHub() {
   const [rejectSubmissionId, setRejectSubmissionId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [fullProfileOpen, setFullProfileOpen] = useState(false);
   
   usePageViewTracking('talent_hub');
 
@@ -277,6 +280,7 @@ export default function TalentHub() {
         city: candidate.city,
         experiences,
         educations,
+        changeMotivation: interviewNotes?.change_motivation || undefined,
         interviewNotes: interviewNotes ? {
           change_motivation: interviewNotes.change_motivation
         } : undefined,
@@ -343,7 +347,7 @@ export default function TalentHub() {
   const filteredCandidates = useMemo(() => {
     return candidates
       .filter(c => {
-        if (c.status === 'rejected') return false;
+        if (c.status === 'rejected' || c.status === 'hired') return false;
         if (stageFilter !== 'all' && c.stage !== stageFilter) return false;
         if (jobFilter !== 'all' && c.jobId !== jobFilter) return false;
         if (search) {
@@ -539,12 +543,14 @@ export default function TalentHub() {
           {/* Compact Header with Stats */}
           <div className="flex items-center justify-between gap-4 px-6 py-3 border-b bg-background">
             <div className="flex items-center gap-3">
-              <Link 
-                to="/dashboard" 
+              <Button 
+                variant="ghost"
+                size="icon"
                 className="text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => window.history.back()}
               >
                 <ArrowLeft className="h-4 w-4" />
-              </Link>
+              </Button>
               <div>
                 <h1 className="text-lg font-semibold">Talent Hub</h1>
               </div>
@@ -771,11 +777,14 @@ export default function TalentHub() {
 
                     {/* Quick Actions - Plattformkontrolliert */}
                     <div className="flex items-center gap-2 mt-3">
-                      <Button variant="outline" size="sm" className="h-8 text-xs ml-auto" asChild>
-                        <Link to={`/dashboard/candidates/${selectedCandidate.submissionId}`}>
-                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                          Vollprofil
-                        </Link>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 text-xs ml-auto"
+                        onClick={() => setFullProfileOpen(true)}
+                      >
+                        <Maximize2 className="h-3.5 w-3.5 mr-1" />
+                        Vollprofil
                       </Button>
                     </div>
                   </div>
@@ -795,7 +804,9 @@ export default function TalentHub() {
                         expectedSalary={selectedCandidate.expectedSalary}
                         noticePeriod={selectedCandidate.noticePeriod}
                         availabilityDate={selectedCandidate.availabilityDate}
-                        changeMotivation={selectedCandidate.interviewNotes?.change_motivation || undefined}
+                        changeMotivation={selectedCandidate.changeMotivation || selectedCandidate.interviewNotes?.change_motivation}
+                        cvAiSummary={selectedCandidate.cvAiSummary}
+                        experienceYears={selectedCandidate.experienceYears}
                       />
                     </div>
                   </ScrollArea>
@@ -902,6 +913,21 @@ export default function TalentHub() {
             </div>
           </div>
         )}
+
+        {/* Full Profile Dialog */}
+        <CandidateFullProfileDialog
+          open={fullProfileOpen}
+          onOpenChange={setFullProfileOpen}
+          candidate={selectedCandidate ? {
+            ...selectedCandidate,
+            matchScore: selectedCandidate.matchScore,
+            submittedAt: selectedCandidate.submittedAt
+          } : null}
+          onMove={handleMove}
+          onReject={handleReject}
+          onInterviewRequest={handleInterviewRequest}
+          isProcessing={processing}
+        />
       </TooltipProvider>
     </DashboardLayout>
   );
