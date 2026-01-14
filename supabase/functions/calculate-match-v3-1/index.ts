@@ -542,21 +542,42 @@ function calculateFitScore(
   const breakdown = config.weights.fit_breakdown;
   const totalWeight = breakdown.skills + breakdown.experience + breakdown.seniority + breakdown.industry;
   
+  // NaN protection: If weights are 0 or NaN, return default score
+  if (totalWeight === 0 || isNaN(totalWeight)) {
+    console.warn('Fit score calculation: totalWeight is 0 or NaN, returning default');
+    return {
+      score: 50,
+      mustHaveCoverage: skillResult.mustHaveCoverage || 1.0,
+      breakdown: {
+        skills: skillResult.score || 50,
+        experience: experienceScore || 50,
+        seniority: seniorityScore || 50,
+        industry: industryScore || 50
+      },
+      details: {
+        skills: skillResult.details || { matched: [], transferable: [], missing: [], mustHaveMissing: [] }
+      }
+    };
+  }
+  
   const weightedScore = (
-    skillResult.score * (breakdown.skills / totalWeight) +
-    experienceScore * (breakdown.experience / totalWeight) +
-    seniorityScore * (breakdown.seniority / totalWeight) +
-    industryScore * (breakdown.industry / totalWeight)
+    (skillResult.score || 0) * (breakdown.skills / totalWeight) +
+    (experienceScore || 0) * (breakdown.experience / totalWeight) +
+    (seniorityScore || 0) * (breakdown.seniority / totalWeight) +
+    (industryScore || 0) * (breakdown.industry / totalWeight)
   );
+  
+  // Final NaN check
+  const finalScore = isNaN(weightedScore) ? 50 : Math.round(weightedScore);
 
   return {
-    score: Math.round(weightedScore),
+    score: finalScore,
     mustHaveCoverage: skillResult.mustHaveCoverage,
     breakdown: {
-      skills: skillResult.score,
-      experience: experienceScore,
-      seniority: seniorityScore,
-      industry: industryScore
+      skills: skillResult.score || 0,
+      experience: experienceScore || 0,
+      seniority: seniorityScore || 0,
+      industry: industryScore || 0
     },
     details: {
       skills: skillResult.details
@@ -580,14 +601,16 @@ function calculateSkillScore(
     mustHaves = skillReqs.filter(sr => sr.type === 'must');
     niceHaves = skillReqs.filter(sr => sr.type === 'nice');
   } else {
-    // Fallback: use must_have_skills from job
-    const mustHaveSkills = (job.must_have_skills || []).map((s: string) => s.toLowerCase());
+    // Fallback: use must_haves or must_have_skills from job (must_haves is the actual field name)
+    const mustHaveSkills = (job.must_haves || job.must_have_skills || []).map((s: string) => s.toLowerCase());
     const allSkills = (job.skills || []).map((s: string) => s.toLowerCase());
+    const niceToHaveSkills = (job.nice_to_haves || []).map((s: string) => s.toLowerCase());
     
     mustHaves = mustHaveSkills.map((s: string) => ({ skill_name: s, type: 'must', weight: 1.0 }));
-    niceHaves = allSkills
-      .filter((s: string) => !mustHaveSkills.includes(s))
-      .map((s: string) => ({ skill_name: s, type: 'nice', weight: 0.5 }));
+    
+    // Combine nice_to_haves with remaining skills
+    const niceSkills = [...new Set([...niceToHaveSkills, ...allSkills.filter((s: string) => !mustHaveSkills.includes(s))])];
+    niceHaves = niceSkills.map((s: string) => ({ skill_name: s, type: 'nice', weight: 0.5 }));
   }
 
   const matched: string[] = [];
