@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CreationHandsBackground } from "./CreationHandsBackground";
+import { AsciiHandsAnimation } from "./AsciiHandsAnimation";
 import { AsciiCodeOverlay } from "./AsciiCodeOverlay";
 import { MatchingVisualization } from "./MatchingVisualization";
 
@@ -26,8 +26,8 @@ export const HeroSection = () => {
       {/* Pure white/light background */}
       <div className="absolute inset-0 bg-background" />
       
-      {/* Creation Hands Background */}
-      <CreationHandsBackground />
+      {/* ASCII Hands Animation */}
+      <AsciiHandsAnimation />
       
       {/* ASCII Code Overlay */}
       <AsciiCodeOverlay />
