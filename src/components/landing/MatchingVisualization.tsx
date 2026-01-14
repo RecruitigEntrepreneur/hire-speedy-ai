@@ -1,139 +1,114 @@
-import { Briefcase, User, Zap, CheckCircle2 } from "lucide-react";
+import { Briefcase, User, Zap } from 'lucide-react';
 
-interface JobCardProps {
-  title: string;
-  company: string;
-  delay: number;
-}
-
-const JobCard = ({ title, company, delay }: JobCardProps) => (
+const JobCard = ({ title, company, index }: { title: string; company: string; index: number }) => (
   <div 
-    className="flex items-center gap-3 px-4 py-3 bg-card/80 backdrop-blur-sm border border-border/30 rounded-xl shadow-sm animate-card-enter-left"
-    style={{ animationDelay: `${delay}s` }}
+    className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-slate-200/50 animate-card-left-loop"
+    style={{ animationDelay: `${index * 0.2}s` }}
   >
-    <div className="w-9 h-9 rounded-lg bg-emerald/10 flex items-center justify-center flex-shrink-0">
-      <Briefcase className="w-4 h-4 text-emerald" />
+    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-navy to-slate-blue flex items-center justify-center">
+      <Briefcase className="w-4 h-4 text-white" />
     </div>
-    <div className="min-w-0">
-      <p className="text-sm font-medium text-foreground truncate">{title}</p>
-      <p className="text-xs text-muted-foreground truncate">{company}</p>
+    <div className="text-left">
+      <p className="text-xs font-semibold text-navy">{title}</p>
+      <p className="text-[10px] text-muted-foreground">{company}</p>
     </div>
   </div>
 );
 
-interface CandidateCardProps {
-  name: string;
-  role: string;
-  delay: number;
-}
-
-const CandidateCard = ({ name, role, delay }: CandidateCardProps) => (
+const CandidateCard = ({ name, role, index }: { name: string; role: string; index: number }) => (
   <div 
-    className="flex items-center gap-3 px-4 py-3 bg-card/80 backdrop-blur-sm border border-border/30 rounded-xl shadow-sm animate-card-enter-right"
-    style={{ animationDelay: `${delay}s` }}
+    className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-slate-200/50 animate-card-right-loop"
+    style={{ animationDelay: `${index * 0.2}s` }}
   >
-    <div className="w-9 h-9 rounded-lg bg-navy/10 flex items-center justify-center flex-shrink-0">
-      <User className="w-4 h-4 text-navy" />
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald to-emerald/70 flex items-center justify-center">
+      <User className="w-4 h-4 text-white" />
     </div>
-    <div className="min-w-0">
-      <p className="text-sm font-medium text-foreground truncate">{name}</p>
-      <p className="text-xs text-muted-foreground truncate">{role}</p>
+    <div className="text-left">
+      <p className="text-xs font-semibold text-navy">{name}</p>
+      <p className="text-[10px] text-muted-foreground">{role}</p>
     </div>
   </div>
 );
 
 const ConnectionLines = () => (
   <svg 
-    className="absolute inset-0 w-full h-full" 
-    viewBox="0 0 400 300"
+    className="absolute inset-0 w-full h-full pointer-events-none"
+    viewBox="0 0 400 250"
     preserveAspectRatio="xMidYMid meet"
   >
     <defs>
-      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="hsl(var(--emerald))" stopOpacity="0.6" />
-        <stop offset="50%" stopColor="hsl(var(--emerald-light))" stopOpacity="0.8" />
-        <stop offset="100%" stopColor="hsl(var(--emerald))" stopOpacity="0.6" />
+      <linearGradient id="lineGradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#1e3a5f" stopOpacity="0.6" />
+        <stop offset="50%" stopColor="#10b981" stopOpacity="0.9" />
+        <stop offset="100%" stopColor="#1e3a5f" stopOpacity="0.6" />
       </linearGradient>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
     </defs>
     
-    {/* Connection paths from jobs to center */}
-    <path
-      d="M 80 75 Q 150 75 200 150"
-      fill="none"
-      stroke="url(#lineGradient)"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="animate-line-draw"
-      style={{ animationDelay: '0.8s' }}
-    />
-    <path
-      d="M 80 150 Q 140 150 200 150"
-      fill="none"
-      stroke="url(#lineGradient)"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="animate-line-draw"
-      style={{ animationDelay: '1s' }}
-    />
-    <path
-      d="M 80 225 Q 150 225 200 150"
-      fill="none"
-      stroke="url(#lineGradient)"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="animate-line-draw"
-      style={{ animationDelay: '1.2s' }}
-    />
+    {/* Connection lines with flowing animation */}
+    {[0, 1, 2].map((i) => (
+      <path
+        key={i}
+        d={`M 60 ${60 + i * 65} Q 200 ${80 + i * 40} 340 ${60 + i * 65}`}
+        fill="none"
+        stroke="url(#lineGradient1)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        filter="url(#glow)"
+        className="animate-line-flow"
+        style={{ 
+          animationDelay: `${i * 0.3}s`,
+          strokeDasharray: '8 12',
+        }}
+      />
+    ))}
     
-    {/* Connection paths from center to candidates */}
-    <path
-      d="M 200 150 Q 250 75 320 75"
-      fill="none"
-      stroke="url(#lineGradient)"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="animate-line-draw"
-      style={{ animationDelay: '1.4s' }}
-    />
-    <path
-      d="M 200 150 Q 260 150 320 150"
-      fill="none"
-      stroke="url(#lineGradient)"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="animate-line-draw"
-      style={{ animationDelay: '1.6s' }}
-    />
-    <path
-      d="M 200 150 Q 250 225 320 225"
-      fill="none"
-      stroke="url(#lineGradient)"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="animate-line-draw"
-      style={{ animationDelay: '1.8s' }}
-    />
+    {/* Energy particles flowing along paths */}
+    {[0, 1, 2].map((i) => (
+      <circle
+        key={`particle-${i}`}
+        r="3"
+        fill="#10b981"
+        filter="url(#glow)"
+        className="animate-energy-particle"
+        style={{ animationDelay: `${i * 0.4}s` }}
+      >
+        <animateMotion
+          dur="3s"
+          repeatCount="indefinite"
+          path={`M 60 ${60 + i * 65} Q 200 ${80 + i * 40} 340 ${60 + i * 65}`}
+        />
+      </circle>
+    ))}
   </svg>
 );
 
 const MatchingCore = () => (
   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-    {/* Outer pulse ring */}
-    <div className="absolute inset-0 -m-6 rounded-full bg-emerald/10 animate-core-ring" />
+    {/* Outer pulsing rings */}
+    <div className="absolute -inset-8 rounded-full border-2 border-emerald/20 animate-ring-pulse-1" />
+    <div className="absolute -inset-6 rounded-full border border-emerald/30 animate-ring-pulse-2" />
+    <div className="absolute -inset-4 rounded-full border border-emerald/40 animate-ring-pulse-3" />
     
-    {/* Inner glow */}
-    <div className="absolute inset-0 -m-3 rounded-full bg-emerald/20 animate-core-glow" />
+    {/* Glow effect */}
+    <div className="absolute -inset-3 rounded-full bg-emerald/20 blur-xl animate-core-glow" />
     
-    {/* Core badge */}
-    <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald to-emerald-light flex items-center justify-center shadow-lg shadow-emerald/30 animate-core-appear">
-      <Zap className="w-7 h-7 text-white" />
+    {/* Core circle */}
+    <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-emerald to-emerald/80 flex items-center justify-center shadow-lg shadow-emerald/30 animate-core-pulse">
+      <Zap className="w-6 h-6 text-white animate-zap-flash" />
     </div>
     
     {/* Match score badge */}
-    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 animate-score-appear">
-      <div className="flex items-center gap-1.5 px-3 py-1 bg-card border border-emerald/30 rounded-full shadow-md">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
-        <span className="text-xs font-semibold text-emerald">87% Match</span>
+    <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 animate-score-pulse">
+      <div className="bg-white/95 backdrop-blur-sm rounded-full px-4 py-1.5 shadow-lg border border-emerald/30">
+        <span className="text-sm font-bold text-emerald animate-counter">94%</span>
+        <span className="text-xs text-muted-foreground ml-1">Match</span>
       </div>
     </div>
   </div>
@@ -141,188 +116,222 @@ const MatchingCore = () => (
 
 export const MatchingVisualization = () => {
   const jobs = [
-    { title: "Senior Developer", company: "TechCorp GmbH" },
-    { title: "Product Manager", company: "ScaleUp AG" },
-    { title: "UX Designer", company: "StartupX" },
+    { title: 'Senior Developer', company: 'TechCorp' },
+    { title: 'Product Manager', company: 'StartupXY' },
+    { title: 'UX Designer', company: 'DesignCo' },
   ];
-  
+
   const candidates = [
-    { name: "M. Schmidt", role: "Full-Stack Developer" },
-    { name: "A. Müller", role: "Product Lead" },
-    { name: "L. Weber", role: "Senior Designer" },
+    { name: 'Anna M.', role: 'Full-Stack Dev' },
+    { name: 'Thomas K.', role: 'PM Expert' },
+    { name: 'Lisa S.', role: 'UI/UX Lead' },
   ];
 
   return (
-    <div className="mt-16 animate-fade-in" style={{ animationDelay: '400ms' }}>
-      {/* Container with glassmorphism */}
-      <div className="relative max-w-3xl mx-auto px-6 py-8 bg-card/40 backdrop-blur-md border border-border/20 rounded-3xl shadow-xl">
-        {/* Background gradient */}
-        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald/5 via-transparent to-navy/5 pointer-events-none" />
+    <div className="relative w-full max-w-xl mx-auto h-72 mt-8">
+      {/* Glass container */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 backdrop-blur-sm rounded-2xl border border-white/30 shadow-xl overflow-hidden">
+        {/* Subtle grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, #1e3a5f 1px, transparent 1px),
+              linear-gradient(to bottom, #1e3a5f 1px, transparent 1px)
+            `,
+            backgroundSize: '20px 20px'
+          }}
+        />
         
-        {/* Connection lines SVG */}
+        {/* Connection lines */}
         <ConnectionLines />
         
-        {/* Content grid */}
-        <div className="relative grid grid-cols-3 gap-4 items-center min-h-[280px]">
-          {/* Left: Jobs */}
-          <div className="flex flex-col gap-3">
-            {jobs.map((job, i) => (
-              <JobCard key={job.title} {...job} delay={0.1 + i * 0.15} />
-            ))}
-          </div>
-          
-          {/* Center: Matching core */}
-          <div className="relative h-full">
-            <MatchingCore />
-          </div>
-          
-          {/* Right: Candidates */}
-          <div className="flex flex-col gap-3">
-            {candidates.map((candidate, i) => (
-              <CandidateCard key={candidate.name} {...candidate} delay={0.2 + i * 0.15} />
-            ))}
-          </div>
+        {/* Job cards - left side */}
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3">
+          {jobs.map((job, i) => (
+            <JobCard key={i} {...job} index={i} />
+          ))}
         </div>
         
-        {/* "Perfect Match" label */}
-        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 animate-label-appear">
-          <div className="px-4 py-1.5 bg-gradient-to-r from-emerald to-emerald-light text-white text-xs font-semibold rounded-full shadow-lg shadow-emerald/25">
-            Perfect Match in Sekunden
-          </div>
+        {/* Candidate cards - right side */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3">
+          {candidates.map((candidate, i) => (
+            <CandidateCard key={i} {...candidate} index={i} />
+          ))}
         </div>
+        
+        {/* Central matching core */}
+        <MatchingCore />
       </div>
       
-      {/* CSS Animations */}
       <style>{`
-        @keyframes card-enter-left {
-          0% {
-            opacity: 0;
-            transform: translateX(-30px) scale(0.9);
+        @keyframes card-left-loop {
+          0%, 100% {
+            transform: translateX(-8px);
+            opacity: 0.7;
           }
-          100% {
+          15%, 85% {
+            transform: translateX(0);
             opacity: 1;
-            transform: translateX(0) scale(1);
           }
         }
         
-        @keyframes card-enter-right {
-          0% {
-            opacity: 0;
-            transform: translateX(30px) scale(0.9);
+        @keyframes card-right-loop {
+          0%, 100% {
+            transform: translateX(8px);
+            opacity: 0.7;
           }
-          100% {
+          15%, 85% {
+            transform: translateX(0);
             opacity: 1;
-            transform: translateX(0) scale(1);
           }
         }
         
-        @keyframes line-draw {
-          0% {
-            stroke-dasharray: 200;
-            stroke-dashoffset: 200;
-            opacity: 0;
+        @keyframes line-flow {
+          0%, 100% {
+            stroke-dashoffset: 40;
+            opacity: 0.4;
           }
           50% {
             stroke-dashoffset: 0;
             opacity: 0.8;
           }
-          100% {
-            stroke-dashoffset: 0;
+        }
+        
+        @keyframes ring-pulse-1 {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.2;
+          }
+          50% {
+            transform: scale(1.15);
             opacity: 0.4;
           }
         }
         
-        @keyframes core-ring {
+        @keyframes ring-pulse-2 {
           0%, 100% {
             transform: scale(1);
             opacity: 0.3;
           }
           50% {
-            transform: scale(1.3);
-            opacity: 0.1;
+            transform: scale(1.1);
+            opacity: 0.5;
           }
         }
         
-        @keyframes core-glow {
+        @keyframes ring-pulse-3 {
           0%, 100% {
             transform: scale(1);
             opacity: 0.4;
           }
           50% {
-            transform: scale(1.15);
-            opacity: 0.2;
+            transform: scale(1.05);
+            opacity: 0.6;
           }
         }
         
-        @keyframes core-appear {
-          0% {
-            opacity: 0;
-            transform: scale(0);
+        @keyframes core-pulse {
+          0%, 100% {
+            transform: scale(0.95);
           }
-          100% {
-            opacity: 1;
+          50% {
+            transform: scale(1.05);
+          }
+        }
+        
+        @keyframes core-glow {
+          0%, 100% {
+            opacity: 0.4;
             transform: scale(1);
           }
+          50% {
+            opacity: 0.7;
+            transform: scale(1.2);
+          }
         }
         
-        @keyframes score-appear {
-          0%, 50% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(10px);
+        @keyframes zap-flash {
+          0%, 100% {
+            opacity: 0.8;
+            transform: scale(1);
           }
-          100% {
+          25% {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            transform: scale(1.1);
           }
-        }
-        
-        @keyframes label-appear {
-          0%, 60% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(10px);
+          50% {
+            opacity: 0.9;
+            transform: scale(1);
           }
-          100% {
+          75% {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+            transform: scale(1.05);
           }
         }
         
-        .animate-card-enter-left {
-          animation: card-enter-left 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-          opacity: 0;
+        @keyframes score-pulse {
+          0%, 100% {
+            transform: translateX(-50%) scale(0.95);
+            opacity: 0.8;
+          }
+          50% {
+            transform: translateX(-50%) scale(1);
+            opacity: 1;
+          }
         }
         
-        .animate-card-enter-right {
-          animation: card-enter-right 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-          opacity: 0;
+        @keyframes energy-particle {
+          0%, 100% {
+            opacity: 0.3;
+          }
+          50% {
+            opacity: 1;
+          }
         }
         
-        .animate-line-draw {
-          animation: line-draw 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-          stroke-dasharray: 200;
-          stroke-dashoffset: 200;
+        .animate-card-left-loop {
+          animation: card-left-loop 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         
-        .animate-core-ring {
-          animation: core-ring 3s ease-in-out infinite;
+        .animate-card-right-loop {
+          animation: card-right-loop 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        
+        .animate-line-flow {
+          animation: line-flow 3s ease-in-out infinite;
+        }
+        
+        .animate-ring-pulse-1 {
+          animation: ring-pulse-1 4s ease-in-out infinite;
+        }
+        
+        .animate-ring-pulse-2 {
+          animation: ring-pulse-2 4s ease-in-out infinite 0.3s;
+        }
+        
+        .animate-ring-pulse-3 {
+          animation: ring-pulse-3 4s ease-in-out infinite 0.6s;
+        }
+        
+        .animate-core-pulse {
+          animation: core-pulse 2s ease-in-out infinite;
         }
         
         .animate-core-glow {
-          animation: core-glow 3s ease-in-out infinite 0.5s;
+          animation: core-glow 3s ease-in-out infinite;
         }
         
-        .animate-core-appear {
-          animation: core-appear 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-          animation-delay: 0.6s;
-          opacity: 0;
+        .animate-zap-flash {
+          animation: zap-flash 1.5s ease-in-out infinite;
         }
         
-        .animate-score-appear {
-          animation: score-appear 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        .animate-score-pulse {
+          animation: score-pulse 3s ease-in-out infinite;
         }
         
-        .animate-label-appear {
-          animation: label-appear 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        .animate-energy-particle {
+          animation: energy-particle 3s ease-in-out infinite;
         }
       `}</style>
     </div>
