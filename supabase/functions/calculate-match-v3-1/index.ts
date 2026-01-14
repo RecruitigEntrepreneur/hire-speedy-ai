@@ -265,9 +265,10 @@ function buildConfig(configData: any): MatchingConfig {
         { min: 30, max: 999, multiplier: 0.05 }
       ],
       start_date: [
-        { min: 14, max: 30, multiplier: 0.7 },
-        { min: 30, max: 60, multiplier: 0.4 },
-        { min: 60, max: 999, multiplier: 0.2 }
+        { min: 14, max: 30, multiplier: 0.95 },
+        { min: 30, max: 60, multiplier: 0.85 },
+        { min: 60, max: 90, multiplier: 0.7 },
+        { min: 90, max: 999, multiplier: 0.4 }
       ],
       seniority: [
         { gap: 1, multiplier: 0.6 },
