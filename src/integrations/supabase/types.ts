@@ -393,14 +393,14 @@ export type Database = {
           {
             foreignKeyName: "candidate_client_summary_candidate_id_fkey"
             columns: ["candidate_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "candidate_job_overview"
             referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "candidate_client_summary_candidate_id_fkey"
             columns: ["candidate_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
