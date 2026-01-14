@@ -96,9 +96,16 @@ export interface Candidate {
   remote_flexibility?: string | null;
 }
 
+export interface CandidateSubmission {
+  jobTitle: string;
+  companyName: string;
+  status: string;
+}
+
 interface CandidateCardProps {
   candidate: Candidate;
   tags: CandidateTag[];
+  submissions?: CandidateSubmission[];
   isSelected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onEdit: (candidate: Candidate) => void;
@@ -117,9 +124,20 @@ const statusLabels: Record<string, string> = {
   rejected: 'Absage',
 };
 
+const submissionStatusLabels: Record<string, string> = {
+  submitted: 'Vorgestellt',
+  exposed: 'Exposé',
+  interview_requested: 'Interview angefragt',
+  interview_scheduled: 'Interview geplant',
+  offer: 'Angebot',
+  placed: 'Platziert',
+  rejected: 'Absage',
+};
+
 export function CandidateCard({
   candidate,
   tags,
+  submissions = [],
   isSelected,
   onSelect,
   onEdit,
@@ -288,6 +306,30 @@ export function CandidateCard({
                 +{candidate.skills.length - 3}
               </Badge>
             )}
+          </div>
+        )}
+
+        {/* Submissions / Vorstellungen */}
+        {submissions.length > 0 && (
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-muted-foreground mb-2">Vorgestellt bei:</p>
+            <div className="space-y-1.5">
+              {submissions.slice(0, 2).map((sub, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <Briefcase className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="truncate flex-1">{sub.jobTitle}</span>
+                  <Badge 
+                    variant={sub.status === 'placed' ? 'default' : sub.status === 'rejected' ? 'destructive' : 'secondary'} 
+                    className="text-xs shrink-0"
+                  >
+                    {submissionStatusLabels[sub.status] || sub.status}
+                  </Badge>
+                </div>
+              ))}
+              {submissions.length > 2 && (
+                <p className="text-xs text-muted-foreground">+{submissions.length - 2} weitere</p>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
