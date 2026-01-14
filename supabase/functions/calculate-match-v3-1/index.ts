@@ -277,9 +277,9 @@ function buildConfig(configData: any): MatchingConfig {
       ]
     },
     display_policies: configData?.display_policies || {
-      hot: { minScore: 85, minCoverage: 0.85, maxBlockers: 0, requiresMultiplier1: true },
-      standard: { minScore: 75, minCoverage: 0.70, maxBlockers: 0, requiresMultiplier1: false },
-      maybe: { minScore: 65, minCoverage: 0.60, maxBlockers: 1, requiresMultiplier1: false }
+      hot: { minScore: 80, minCoverage: 0.80, maxBlockers: 0, requiresMultiplier1: false },
+      standard: { minScore: 65, minCoverage: 0.60, maxBlockers: 0, requiresMultiplier1: false },
+      maybe: { minScore: 45, minCoverage: 0.40, maxBlockers: 2, requiresMultiplier1: false }
     }
   };
 }
