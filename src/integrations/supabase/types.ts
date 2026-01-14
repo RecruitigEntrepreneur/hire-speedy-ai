@@ -1322,6 +1322,7 @@ export type Database = {
           availability_date: string | null
           candidate_status: string | null
           certificates: Json | null
+          certifications: string[] | null
           city: string | null
           commute_mode: string | null
           company: string | null
@@ -1348,6 +1349,7 @@ export type Database = {
           import_source: string | null
           industry_experience: Json | null
           job_title: string | null
+          language_skills: Json | null
           linkedin_url: string | null
           max_commute_minutes: number | null
           nationality: string | null
@@ -1394,6 +1396,7 @@ export type Database = {
           availability_date?: string | null
           candidate_status?: string | null
           certificates?: Json | null
+          certifications?: string[] | null
           city?: string | null
           commute_mode?: string | null
           company?: string | null
@@ -1420,6 +1423,7 @@ export type Database = {
           import_source?: string | null
           industry_experience?: Json | null
           job_title?: string | null
+          language_skills?: Json | null
           linkedin_url?: string | null
           max_commute_minutes?: number | null
           nationality?: string | null
@@ -1466,6 +1470,7 @@ export type Database = {
           availability_date?: string | null
           candidate_status?: string | null
           certificates?: Json | null
+          certifications?: string[] | null
           city?: string | null
           commute_mode?: string | null
           company?: string | null
@@ -1492,6 +1497,7 @@ export type Database = {
           import_source?: string | null
           industry_experience?: Json | null
           job_title?: string | null
+          language_skills?: Json | null
           linkedin_url?: string | null
           max_commute_minutes?: number | null
           nationality?: string | null
@@ -3018,6 +3024,44 @@ export type Database = {
           },
         ]
       }
+      job_skill_requirements: {
+        Row: {
+          cluster_id: string | null
+          created_at: string | null
+          id: string
+          job_id: string
+          skill_name: string
+          type: string
+          weight: number | null
+        }
+        Insert: {
+          cluster_id?: string | null
+          created_at?: string | null
+          id?: string
+          job_id: string
+          skill_name: string
+          type: string
+          weight?: number | null
+        }
+        Update: {
+          cluster_id?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string
+          skill_name?: string
+          type?: string
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_skill_requirements_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           briefing_notes: string | null
@@ -3030,6 +3074,7 @@ export type Database = {
           employment_type: string | null
           experience_level: string | null
           fee_percentage: number | null
+          hard_kill_overrides: Json | null
           id: string
           industry: string | null
           location: string | null
@@ -3039,11 +3084,14 @@ export type Database = {
           office_lat: number | null
           office_lng: number | null
           onsite_days_required: number | null
+          onsite_required: boolean | null
           organization_id: string | null
           paused_at: string | null
           recruiter_fee_percentage: number | null
           remote_policy: string | null
           remote_type: string | null
+          required_certifications: string[] | null
+          required_languages: Json | null
           requirements: string | null
           salary_max: number | null
           salary_min: number | null
@@ -3065,6 +3113,7 @@ export type Database = {
           employment_type?: string | null
           experience_level?: string | null
           fee_percentage?: number | null
+          hard_kill_overrides?: Json | null
           id?: string
           industry?: string | null
           location?: string | null
@@ -3074,11 +3123,14 @@ export type Database = {
           office_lat?: number | null
           office_lng?: number | null
           onsite_days_required?: number | null
+          onsite_required?: boolean | null
           organization_id?: string | null
           paused_at?: string | null
           recruiter_fee_percentage?: number | null
           remote_policy?: string | null
           remote_type?: string | null
+          required_certifications?: string[] | null
+          required_languages?: Json | null
           requirements?: string | null
           salary_max?: number | null
           salary_min?: number | null
@@ -3100,6 +3152,7 @@ export type Database = {
           employment_type?: string | null
           experience_level?: string | null
           fee_percentage?: number | null
+          hard_kill_overrides?: Json | null
           id?: string
           industry?: string | null
           location?: string | null
@@ -3109,11 +3162,14 @@ export type Database = {
           office_lat?: number | null
           office_lng?: number | null
           onsite_days_required?: number | null
+          onsite_required?: boolean | null
           organization_id?: string | null
           paused_at?: string | null
           recruiter_fee_percentage?: number | null
           remote_policy?: string | null
           remote_type?: string | null
+          required_certifications?: string[] | null
+          required_languages?: Json | null
           requirements?: string | null
           salary_max?: number | null
           salary_min?: number | null
@@ -3140,12 +3196,18 @@ export type Database = {
           candidate_id: string | null
           created_at: string | null
           days_to_outcome: number | null
+          excluded: boolean | null
+          gate_multiplier: number | null
           gate_results: Json | null
           id: string
           job_id: string | null
+          kill_reason: string | null
+          killed: boolean | null
           match_version: string
+          must_have_coverage: number | null
           outcome_recorded_at: string | null
           outcome_stage: string | null
+          policy_tier: string | null
           predicted_constraint_score: number | null
           predicted_deal_probability: number | null
           predicted_fit_score: number | null
@@ -3159,12 +3221,18 @@ export type Database = {
           candidate_id?: string | null
           created_at?: string | null
           days_to_outcome?: number | null
+          excluded?: boolean | null
+          gate_multiplier?: number | null
           gate_results?: Json | null
           id?: string
           job_id?: string | null
+          kill_reason?: string | null
+          killed?: boolean | null
           match_version?: string
+          must_have_coverage?: number | null
           outcome_recorded_at?: string | null
           outcome_stage?: string | null
+          policy_tier?: string | null
           predicted_constraint_score?: number | null
           predicted_deal_probability?: number | null
           predicted_fit_score?: number | null
@@ -3178,12 +3246,18 @@ export type Database = {
           candidate_id?: string | null
           created_at?: string | null
           days_to_outcome?: number | null
+          excluded?: boolean | null
+          gate_multiplier?: number | null
           gate_results?: Json | null
           id?: string
           job_id?: string | null
+          kill_reason?: string | null
+          killed?: boolean | null
           match_version?: string
+          must_have_coverage?: number | null
           outcome_recorded_at?: string | null
           outcome_stage?: string | null
+          policy_tier?: string | null
           predicted_constraint_score?: number | null
           predicted_deal_probability?: number | null
           predicted_fit_score?: number | null
@@ -3234,10 +3308,14 @@ export type Database = {
         Row: {
           active: boolean | null
           created_at: string | null
+          dealbreaker_multipliers: Json | null
           description: string | null
+          display_policies: Json | null
           gate_thresholds: Json
+          hard_kill_defaults: Json | null
           id: string
           name: string | null
+          profile: string | null
           updated_at: string | null
           version: string
           weights: Json
@@ -3245,10 +3323,14 @@ export type Database = {
         Insert: {
           active?: boolean | null
           created_at?: string | null
+          dealbreaker_multipliers?: Json | null
           description?: string | null
+          display_policies?: Json | null
           gate_thresholds?: Json
+          hard_kill_defaults?: Json | null
           id?: string
           name?: string | null
+          profile?: string | null
           updated_at?: string | null
           version: string
           weights?: Json
@@ -3256,10 +3338,14 @@ export type Database = {
         Update: {
           active?: boolean | null
           created_at?: string | null
+          dealbreaker_multipliers?: Json | null
           description?: string | null
+          display_policies?: Json | null
           gate_thresholds?: Json
+          hard_kill_defaults?: Json | null
           id?: string
           name?: string | null
+          profile?: string | null
           updated_at?: string | null
           version?: string
           weights?: Json
@@ -5828,37 +5914,49 @@ export type Database = {
           aliases: string[] | null
           canonical_name: string
           category: string | null
+          cluster_id: string | null
+          core_prereqs: string[] | null
           created_at: string | null
           id: string
           parent_skill_id: string | null
           related_skills: string[] | null
           seniority_weight: number | null
+          support_prereqs: string[] | null
           transferability_from: Json | null
           updated_at: string | null
+          weight: number | null
         }
         Insert: {
           aliases?: string[] | null
           canonical_name: string
           category?: string | null
+          cluster_id?: string | null
+          core_prereqs?: string[] | null
           created_at?: string | null
           id?: string
           parent_skill_id?: string | null
           related_skills?: string[] | null
           seniority_weight?: number | null
+          support_prereqs?: string[] | null
           transferability_from?: Json | null
           updated_at?: string | null
+          weight?: number | null
         }
         Update: {
           aliases?: string[] | null
           canonical_name?: string
           category?: string | null
+          cluster_id?: string | null
+          core_prereqs?: string[] | null
           created_at?: string | null
           id?: string
           parent_skill_id?: string | null
           related_skills?: string[] | null
           seniority_weight?: number | null
+          support_prereqs?: string[] | null
           transferability_from?: Json | null
           updated_at?: string | null
+          weight?: number | null
         }
         Relationships: [
           {
