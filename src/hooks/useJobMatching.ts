@@ -153,9 +153,9 @@ export function useJobMatching(candidate: CandidateForMatching | null) {
             match_details: details,
           };
         })
-        .filter(job => job.match_score >= 40) // Only show jobs with 40%+ match
+        .filter(job => job.match_score >= 50) // Only show jobs with 50%+ match
         .sort((a, b) => b.match_score - a.match_score)
-        .slice(0, 5); // Top 5 jobs
+        .slice(0, 3); // Top 3 jobs (max)
 
       setMatchedJobs(jobsWithScores);
     } catch (error) {
