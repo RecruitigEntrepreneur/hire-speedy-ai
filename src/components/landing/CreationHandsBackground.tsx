@@ -5,7 +5,7 @@ const ElectricSparks = ({ visible }: { visible: boolean }) => {
   if (!visible) return null;
   
   return (
-    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+    <div className="absolute left-1/2 top-1/2 z-10" style={{ transform: 'translateX(-50%) translateY(calc(-50% - 80px))' }}>
       {/* Central glow */}
       <div className="absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/60 blur-xl animate-pulse" />
       <div className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 blur-md" />
@@ -83,7 +83,7 @@ export const CreationHandsBackground = () => {
       <div 
         className="absolute inset-0 flex items-center justify-center animate-hand-left"
         style={{ 
-          clipPath: 'inset(0 52% 0 0)',
+          clipPath: 'inset(0 55% 0 0)',
         }}
       >
         <img
@@ -98,7 +98,7 @@ export const CreationHandsBackground = () => {
       <div 
         className="absolute inset-0 flex items-center justify-center animate-hand-right"
         style={{ 
-          clipPath: 'inset(0 0 0 48%)',
+          clipPath: 'inset(0 0 0 45%)',
         }}
       >
         <img
