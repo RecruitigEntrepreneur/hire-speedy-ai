@@ -41,6 +41,7 @@ import RecruiterIntegrations from "./pages/recruiter/RecruiterIntegrations";
 
 // Integration pages
 import IntegrationSettings from "./pages/dashboard/IntegrationSettings";
+import OAuthCallback from "./pages/integrations/OAuthCallback";
 
 // Organization pages
 import TeamManagement from "./pages/organization/TeamManagement";

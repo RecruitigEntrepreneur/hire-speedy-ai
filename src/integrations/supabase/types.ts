@@ -2857,9 +2857,100 @@ export type Database = {
           },
         ]
       }
+      interview_participants: {
+        Row: {
+          confirmed: boolean | null
+          confirmed_at: string | null
+          created_at: string | null
+          feedback_submitted: boolean | null
+          id: string
+          interview_id: string
+          notes: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          confirmed?: boolean | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          feedback_submitted?: boolean | null
+          id?: string
+          interview_id: string
+          notes?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          confirmed?: boolean | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          feedback_submitted?: boolean | null
+          id?: string
+          interview_id?: string
+          notes?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_participants_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_types: {
+        Row: {
+          agenda_template: string | null
+          created_at: string | null
+          default_duration: number | null
+          description: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          organization_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agenda_template?: string | null
+          created_at?: string | null
+          default_duration?: number | null
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          organization_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agenda_template?: string | null
+          created_at?: string | null
+          default_duration?: number | null
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          organization_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interviews: {
         Row: {
           calendar_event_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           candidate_confirmed: boolean | null
           candidate_confirmed_at: string | null
           client_confirmed: boolean | null
@@ -2867,16 +2958,21 @@ export type Database = {
           created_at: string
           duration_minutes: number | null
           feedback: string | null
+          google_event_id: string | null
+          google_meet_link: string | null
           id: string
+          interview_type_id: string | null
           meeting_link: string | null
           meeting_type: string | null
           no_show_by: string | null
           no_show_reported: boolean | null
+          no_show_reported_at: string | null
           notes: string | null
           pending_opt_in: boolean | null
           proposed_slots: Json | null
           reminder_1h_sent: boolean | null
           reminder_24h_sent: boolean | null
+          rescheduled_from: string | null
           scheduled_at: string | null
           selected_slot_index: number | null
           selection_token: string | null
@@ -2888,6 +2984,9 @@ export type Database = {
         }
         Insert: {
           calendar_event_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           candidate_confirmed?: boolean | null
           candidate_confirmed_at?: string | null
           client_confirmed?: boolean | null
@@ -2895,16 +2994,21 @@ export type Database = {
           created_at?: string
           duration_minutes?: number | null
           feedback?: string | null
+          google_event_id?: string | null
+          google_meet_link?: string | null
           id?: string
+          interview_type_id?: string | null
           meeting_link?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
           no_show_reported?: boolean | null
+          no_show_reported_at?: string | null
           notes?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
+          rescheduled_from?: string | null
           scheduled_at?: string | null
           selected_slot_index?: number | null
           selection_token?: string | null
@@ -2916,6 +3020,9 @@ export type Database = {
         }
         Update: {
           calendar_event_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           candidate_confirmed?: boolean | null
           candidate_confirmed_at?: string | null
           client_confirmed?: boolean | null
@@ -2923,16 +3030,21 @@ export type Database = {
           created_at?: string
           duration_minutes?: number | null
           feedback?: string | null
+          google_event_id?: string | null
+          google_meet_link?: string | null
           id?: string
+          interview_type_id?: string | null
           meeting_link?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
           no_show_reported?: boolean | null
+          no_show_reported_at?: string | null
           notes?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
+          rescheduled_from?: string | null
           scheduled_at?: string | null
           selected_slot_index?: number | null
           selection_token?: string | null
@@ -2943,6 +3055,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "interviews_interview_type_id_fkey"
+            columns: ["interview_type_id"]
+            isOneToOne: false
+            referencedRelation: "interview_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_rescheduled_from_fkey"
+            columns: ["rescheduled_from"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interviews_submission_id_fkey"
             columns: ["submission_id"]
@@ -6391,6 +6517,45 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           user_type?: string
+        }
+        Relationships: []
+      }
+      user_integrations: {
+        Row: {
+          access_token: string
+          connected_at: string | null
+          email: string | null
+          id: string
+          metadata: Json | null
+          provider: string
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string | null
+          email?: string | null
+          id?: string
+          metadata?: Json | null
+          provider: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string | null
+          email?: string | null
+          id?: string
+          metadata?: Json | null
+          provider?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
