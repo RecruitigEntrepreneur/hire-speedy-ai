@@ -2781,6 +2781,47 @@ export type Database = {
           },
         ]
       }
+      interview_checklist_progress: {
+        Row: {
+          checklist_item: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          interview_id: string
+          is_completed: boolean
+          phase: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          checklist_item: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          interview_id: string
+          is_completed?: boolean
+          phase?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          checklist_item?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          interview_id?: string
+          is_completed?: boolean
+          phase?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_checklist_progress_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_feedback: {
         Row: {
           communication: number | null
@@ -2919,6 +2960,47 @@ export type Database = {
           },
         ]
       }
+      interview_notes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          interview_id: string
+          is_pinned: boolean
+          note_type: string
+          timestamp_seconds: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          interview_id: string
+          is_pinned?: boolean
+          note_type?: string
+          timestamp_seconds?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          interview_id?: string
+          is_pinned?: boolean
+          note_type?: string
+          timestamp_seconds?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_notes_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_participants: {
         Row: {
           confirmed: boolean | null
@@ -3024,6 +3106,8 @@ export type Database = {
           google_meet_link: string | null
           id: string
           interview_type_id: string | null
+          live_session_ended_at: string | null
+          live_session_started_at: string | null
           meeting_link: string | null
           meeting_type: string | null
           no_show_by: string | null
@@ -3032,6 +3116,7 @@ export type Database = {
           notes: string | null
           pending_opt_in: boolean | null
           proposed_slots: Json | null
+          quick_scores: Json | null
           reminder_1h_sent: boolean | null
           reminder_24h_sent: boolean | null
           rescheduled_from: string | null
@@ -3060,6 +3145,8 @@ export type Database = {
           google_meet_link?: string | null
           id?: string
           interview_type_id?: string | null
+          live_session_ended_at?: string | null
+          live_session_started_at?: string | null
           meeting_link?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
@@ -3068,6 +3155,7 @@ export type Database = {
           notes?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
+          quick_scores?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
           rescheduled_from?: string | null
@@ -3096,6 +3184,8 @@ export type Database = {
           google_meet_link?: string | null
           id?: string
           interview_type_id?: string | null
+          live_session_ended_at?: string | null
+          live_session_started_at?: string | null
           meeting_link?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
@@ -3104,6 +3194,7 @@ export type Database = {
           notes?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
+          quick_scores?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
           rescheduled_from?: string | null

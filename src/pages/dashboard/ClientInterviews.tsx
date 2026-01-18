@@ -13,6 +13,7 @@ import { ModernInterviewCard } from '@/components/interview/ModernInterviewCard'
 import { InterviewEmptyState } from '@/components/interview/InterviewEmptyState';
 import { InterviewFeedbackForm } from '@/components/interview/InterviewFeedbackForm';
 import { InterviewEditDialog } from '@/components/interview/InterviewEditDialog';
+import { LiveInterviewCompanion } from '@/components/interview/LiveInterviewCompanion';
 import { useInterviewKeyboardShortcuts } from '@/hooks/useInterviewKeyboardShortcuts';
 import { Loader2, LayoutGrid, List, Search, Video, Phone, MapPin, X, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,12 +62,35 @@ export default function ClientInterviews() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [feedbackInterview, setFeedbackInterview] = useState<Interview | null>(null);
+  const [companionOpen, setCompanionOpen] = useState(false);
+  const [companionInterview, setCompanionInterview] = useState<any>(null);
   
   // Filters
   const [statsFilter, setStatsFilter] = useState<FilterType>(null);
   const [meetingTypeFilter, setMeetingTypeFilter] = useState<MeetingTypeFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenCompanion = async (interview: Interview) => {
+    // Fetch full candidate data for the companion
+    const { data } = await supabase
+      .from('interviews')
+      .select(`
+        *,
+        submission:submissions(
+          id,
+          candidate:candidates(*),
+          job:jobs(title, company_name)
+        )
+      `)
+      .eq('id', interview.id)
+      .single();
+    
+    if (data) {
+      setCompanionInterview(data);
+      setCompanionOpen(true);
+    }
+  };
 
   // Keyboard shortcuts
   useInterviewKeyboardShortcuts({
@@ -454,6 +478,7 @@ export default function ClientInterviews() {
                       onFeedback={handleOpenFeedback}
                       onNoShow={handleNoShow}
                       onQuickReschedule={handleEdit}
+                      onOpenCompanion={handleOpenCompanion}
                       processing={processing}
                     />
                   ))}
@@ -473,6 +498,7 @@ export default function ClientInterviews() {
                       onEdit={handleEdit}
                       onComplete={handleComplete}
                       onFeedback={handleOpenFeedback}
+                      onOpenCompanion={handleOpenCompanion}
                       processing={processing}
                     />
                   ))}
@@ -490,6 +516,13 @@ export default function ClientInterviews() {
         onOpenChange={setDialogOpen}
         onSave={handleSave}
         processing={processing}
+      />
+
+      {/* Live Interview Companion */}
+      <LiveInterviewCompanion
+        open={companionOpen}
+        onOpenChange={setCompanionOpen}
+        interview={companionInterview}
       />
 
       {/* Feedback Dialog */}
