@@ -156,19 +156,56 @@ async function handleInterviewEvent(supabase: any, event: AutomationEvent) {
     if (interview) {
       const { data: submission } = await supabase
         .from("submissions")
-        .select("recruiter_id")
+        .select("recruiter_id, candidate_id, job_id")
         .eq("id", interview.submission_id)
         .single();
 
       if (submission) {
+        // Get candidate and job details for better notification
+        const { data: candidate } = await supabase
+          .from("candidates")
+          .select("full_name")
+          .eq("id", submission.candidate_id)
+          .single();
+
+        const { data: job } = await supabase
+          .from("jobs")
+          .select("title, client_id")
+          .eq("id", submission.job_id)
+          .single();
+
+        const scheduledAt = new Date(event.record.scheduled_at as string);
+        const formattedDate = scheduledAt.toLocaleDateString('de-DE', { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'long' 
+        });
+        const formattedTime = scheduledAt.toLocaleTimeString('de-DE', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+
+        // Notify recruiter
         await createNotification(supabase, {
           user_id: submission.recruiter_id,
           type: "interview_scheduled",
           title: "Interview geplant",
-          message: "Ein Interview wurde geplant.",
+          message: `Interview mit ${candidate?.full_name || 'Kandidat'} am ${formattedDate} um ${formattedTime}`,
           related_type: "interview",
           related_id: event.record.id as string,
         });
+
+        // Notify client
+        if (job?.client_id) {
+          await createNotification(supabase, {
+            user_id: job.client_id,
+            type: "interview_scheduled",
+            title: "Interview geplant",
+            message: `Interview für ${job.title} mit ${candidate?.full_name || 'Kandidat'} am ${formattedDate} um ${formattedTime}`,
+            related_type: "interview",
+            related_id: event.record.id as string,
+          });
+        }
       }
     }
   }

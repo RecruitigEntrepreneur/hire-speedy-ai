@@ -178,6 +178,10 @@ export function CandidateActionCard({
               {candidate.currentRole}
               {candidate.company && ` @ ${candidate.company}`}
             </p>
+            {/* Position/Job Badge */}
+            <p className="text-[10px] text-primary/70 font-medium truncate mt-0.5">
+              → {candidate.jobTitle}
+            </p>
             {/* Location & Experience */}
             <div className="flex items-center gap-2 mt-1">
               {candidate.city && (
