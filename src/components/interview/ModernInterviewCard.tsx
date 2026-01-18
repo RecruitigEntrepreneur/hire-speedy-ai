@@ -57,6 +57,7 @@ interface ModernInterviewCardProps {
   onFeedback: (interview: Interview) => void;
   onNoShow?: (interview: Interview, type: 'candidate' | 'client') => void;
   onQuickReschedule?: (interview: Interview) => void;
+  onOpenCompanion?: (interview: Interview) => void;
   processing?: boolean;
 }
 
@@ -67,6 +68,7 @@ export function ModernInterviewCard({
   onFeedback,
   onNoShow,
   onQuickReschedule,
+  onOpenCompanion,
   processing 
 }: ModernInterviewCardProps) {
   const navigate = useNavigate();
@@ -186,16 +188,29 @@ export function ModernInterviewCard({
     onFeedback(interview);
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't open companion if clicking on buttons or links
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') || 
+      target.closest('a') || 
+      target.closest('[role="menuitem"]')
+    ) {
+      return;
+    }
+    onOpenCompanion?.(interview);
+  };
+
   return (
     <div 
-      className={`
-        glass-card rounded-xl overflow-hidden
-        transition-all duration-300
-        hover:shadow-lg hover:border-primary/30
-        ${timeInfo.urgent ? 'border-l-4 border-l-emerald-500' : ''}
-        ${needsFeedback ? 'border-l-4 border-l-amber-500 ring-1 ring-amber-500/20' : ''}
-        ${isPastInterview ? 'opacity-75 hover:opacity-100' : ''}
-      `}
+      onClick={handleCardClick}
+      className={cn(
+        "glass-card rounded-xl overflow-hidden transition-all duration-300",
+        "hover:shadow-lg hover:border-primary/30 cursor-pointer",
+        timeInfo.urgent && "border-l-4 border-l-emerald-500",
+        needsFeedback && "border-l-4 border-l-amber-500 ring-1 ring-amber-500/20",
+        isPastInterview && "opacity-75 hover:opacity-100"
+      )}
     >
       <div className="p-5">
         {/* Header: Time & Status */}
