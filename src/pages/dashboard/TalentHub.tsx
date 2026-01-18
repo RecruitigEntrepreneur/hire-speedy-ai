@@ -463,9 +463,11 @@ export default function TalentHub() {
   const handleInterviewRequest = async (submissionId: string, details: {
     scheduledAt: Date;
     durationMinutes: number;
-    meetingType: 'video' | 'phone' | 'onsite';
+    meetingType: 'video' | 'phone' | 'onsite' | 'teams' | 'meet';
     meetingLink?: string;
     notes?: string;
+    interviewTypeId?: string;
+    participants?: { userId: string; role: 'lead' | 'panel' | 'observer' }[];
   }) => {
     setProcessing(true);
     try {
