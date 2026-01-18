@@ -456,9 +456,10 @@ export function LiveInterviewCompanion({
               <CandidateQuickInfo 
                 candidate={candidate} 
                 jobTitle={jobTitle}
-                clientSummary={clientSummary ? {
+clientSummary={clientSummary ? {
                   key_selling_points: clientSummary.key_selling_points,
                   change_motivation_summary: clientSummary.change_motivation_summary,
+                  career_goals: clientSummary.career_goals,
                   risk_factors: clientSummary.risk_factors,
                 } : undefined}
               />
