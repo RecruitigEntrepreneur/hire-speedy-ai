@@ -42,21 +42,22 @@ import { cn } from '@/lib/utils';
 interface Interview {
   id: string;
   scheduled_at: string | null;
-  duration_minutes: number | null;
-  meeting_type: string | null;
-  meeting_link: string | null;
-  status: string | null;
-  notes: string | null;
-  feedback: string | null;
-  submission: {
-    id: string;
-    candidate: {
+  duration_minutes?: number | null;
+  meeting_type?: string | null;
+  meeting_link?: string | null;
+  status?: string | null;
+  notes?: string | null;
+  feedback?: string | null;
+  location?: string | null;
+  submission?: {
+    id?: string;
+    candidate?: {
       full_name: string;
-      email: string;
+      email?: string;
     };
-    job: {
-      title: string;
-      company_name: string;
+    job?: {
+      title?: string;
+      company_name?: string;
     };
   };
 }
@@ -72,7 +73,7 @@ interface InterviewEditDialogProps {
     meeting_link: string;
     notes: string;
   }) => Promise<void>;
-  processing?: boolean;
+  isProcessing?: boolean;
 }
 
 const MEETING_TYPES = [
@@ -103,7 +104,7 @@ export function InterviewEditDialog({
   open,
   onOpenChange,
   onSave,
-  processing = false,
+  isProcessing = false,
 }: InterviewEditDialogProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     interview?.scheduled_at ? new Date(interview.scheduled_at) : undefined
@@ -457,10 +458,10 @@ export function InterviewEditDialog({
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={processing || !selectedDate}
+            disabled={isProcessing || !selectedDate}
             className="gap-1.5"
           >
-            {processing && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
             Speichern
           </Button>
         </DialogFooter>
