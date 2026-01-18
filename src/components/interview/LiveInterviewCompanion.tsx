@@ -441,18 +441,18 @@ export function LiveInterviewCompanion({
             )}
           </div>
 
-          {/* Main 3-column layout */}
+          {/* Main 3-column layout - 35% / 35% / 30% */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Left: Candidate Info */}
-            <div className="w-[280px] border-r bg-muted/20 overflow-hidden">
+            {/* Left: Candidate Info - 35% */}
+            <div className="w-[35%] min-w-[280px] border-r bg-muted/20 overflow-hidden">
               <CandidateQuickInfo 
                 candidate={candidate} 
                 jobTitle={jobTitle}
               />
             </div>
 
-            {/* Middle: Interview Guide */}
-            <div className="flex-1 border-r overflow-hidden">
+            {/* Middle: Interview Guide - 35% */}
+            <div className="w-[35%] min-w-[280px] border-r overflow-hidden">
               <InterviewGuide
                 interviewId={interview.id}
                 interviewTypeId={interview.interview_type_id}
@@ -461,8 +461,8 @@ export function LiveInterviewCompanion({
               />
             </div>
 
-            {/* Right: Live Notes */}
-            <div className="w-[320px] overflow-hidden">
+            {/* Right: Live Notes - 30% */}
+            <div className="w-[30%] min-w-[260px] overflow-hidden">
               <LiveNotesPanel
                 notes={notes}
                 pinnedNotes={pinnedNotes}
