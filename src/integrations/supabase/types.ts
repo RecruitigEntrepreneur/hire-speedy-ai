@@ -2781,6 +2781,68 @@ export type Database = {
           },
         ]
       }
+      interview_feedback: {
+        Row: {
+          communication: number | null
+          cons: string[] | null
+          created_at: string | null
+          culture_fit: number | null
+          evaluator_id: string
+          id: string
+          interview_id: string
+          motivation: number | null
+          notes: string | null
+          overall_rating: number | null
+          problem_solving: number | null
+          pros: string[] | null
+          recommendation: string | null
+          technical_skills: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          communication?: number | null
+          cons?: string[] | null
+          created_at?: string | null
+          culture_fit?: number | null
+          evaluator_id: string
+          id?: string
+          interview_id: string
+          motivation?: number | null
+          notes?: string | null
+          overall_rating?: number | null
+          problem_solving?: number | null
+          pros?: string[] | null
+          recommendation?: string | null
+          technical_skills?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          communication?: number | null
+          cons?: string[] | null
+          created_at?: string | null
+          culture_fit?: number | null
+          evaluator_id?: string
+          id?: string
+          interview_id?: string
+          motivation?: number | null
+          notes?: string | null
+          overall_rating?: number | null
+          problem_solving?: number | null
+          pros?: string[] | null
+          recommendation?: string | null
+          technical_skills?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_feedback_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_intelligence: {
         Row: {
           ai_assessment: Json | null
@@ -3146,6 +3208,47 @@ export type Database = {
             columns: ["placement_id"]
             isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_scorecards: {
+        Row: {
+          created_at: string | null
+          criteria: Json | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          job_id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          criteria?: Json | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          job_id: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          criteria?: Json | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          job_id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_scorecards_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -6034,6 +6137,54 @@ export type Database = {
           origin_lng?: number
         }
         Relationships: []
+      }
+      scorecard_evaluations: {
+        Row: {
+          created_at: string | null
+          evaluator_id: string
+          id: string
+          interview_id: string
+          notes: string | null
+          scorecard_id: string
+          scores: Json | null
+          total_score: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          evaluator_id: string
+          id?: string
+          interview_id: string
+          notes?: string | null
+          scorecard_id: string
+          scores?: Json | null
+          total_score?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          evaluator_id?: string
+          id?: string
+          interview_id?: string
+          notes?: string | null
+          scorecard_id?: string
+          scores?: Json | null
+          total_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorecard_evaluations_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scorecard_evaluations_scorecard_id_fkey"
+            columns: ["scorecard_id"]
+            isOneToOne: false
+            referencedRelation: "job_scorecards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       skill_taxonomy: {
         Row: {
