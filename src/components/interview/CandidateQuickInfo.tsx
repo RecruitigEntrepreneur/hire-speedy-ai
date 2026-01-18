@@ -1,8 +1,5 @@
 import React from 'react';
 import { 
-  Mail, 
-  Phone, 
-  MapPin, 
   Briefcase, 
   FileText, 
   Euro, 
@@ -10,7 +7,6 @@ import {
   ExternalLink,
   User,
   Globe,
-  Sparkles,
   Star,
   Target,
   AlertTriangle
@@ -108,15 +104,6 @@ export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: Candi
           )}
         </div>
 
-        {/* AI Summary */}
-        {candidate.cv_ai_summary && (
-          <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <Sparkles className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <p className="italic leading-relaxed">{candidate.cv_ai_summary}</p>
-            </div>
-          </div>
-        )}
 
         {/* Was zeichnet den Kandidaten aus */}
         {clientSummary?.key_selling_points && clientSummary.key_selling_points.length > 0 && (
@@ -155,35 +142,6 @@ export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: Candi
           </>
         )}
 
-        <Separator />
-
-        {/* Contact */}
-        <div className="space-y-2">
-          {candidate.email && (
-            <a 
-              href={`mailto:${candidate.email}`}
-              className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
-            >
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span className="truncate">{candidate.email}</span>
-            </a>
-          )}
-          {candidate.phone && (
-            <a 
-              href={`tel:${candidate.phone}`}
-              className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
-            >
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>{candidate.phone}</span>
-            </a>
-          )}
-          {candidate.city && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span>{candidate.city}</span>
-            </div>
-          )}
-        </div>
 
         {/* Languages */}
         {languages.length > 0 && (
