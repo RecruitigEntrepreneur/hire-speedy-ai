@@ -29,6 +29,7 @@ export interface ClientCandidateSummary {
   risk_factors: RiskFactor[];
   positive_factors: PositiveFactor[];
   change_motivation_summary: string;
+  career_goals: string;
   job_hopper_analysis: JobHopperAnalysis;
   recommendation_score: number;
   recommendation: 'strong_yes' | 'yes' | 'maybe' | 'no' | 'strong_no';
@@ -81,6 +82,7 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
           risk_factors: riskFactors,
           positive_factors: positiveFactors,
           change_motivation_summary: data.change_motivation_summary || '',
+          career_goals: data.career_goals || '',
           job_hopper_analysis: jobHopperAnalysis,
           recommendation_score: data.recommendation_score || 0,
           recommendation: (data.recommendation as ClientCandidateSummary['recommendation']) || 'maybe',

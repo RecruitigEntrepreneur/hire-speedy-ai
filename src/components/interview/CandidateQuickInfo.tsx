@@ -9,7 +9,8 @@ import {
   Globe,
   Star,
   Target,
-  AlertTriangle
+  AlertTriangle,
+  Compass
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ interface RiskFactor {
 interface ClientSummary {
   key_selling_points?: string[];
   change_motivation_summary?: string;
+  career_goals?: string;
   risk_factors?: RiskFactor[];
 }
 
@@ -142,6 +144,21 @@ export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: Candi
           </>
         )}
 
+        {/* Karriereziel */}
+        {clientSummary?.career_goals && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Compass className="h-3.5 w-3.5 text-emerald-500" />
+                Karriereziel
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {clientSummary.career_goals}
+              </p>
+            </div>
+          </>
+        )}
 
         {/* Languages */}
         {languages.length > 0 && (

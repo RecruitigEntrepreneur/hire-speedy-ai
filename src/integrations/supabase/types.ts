@@ -334,6 +334,7 @@ export type Database = {
       candidate_client_summary: {
         Row: {
           candidate_id: string
+          career_goals: string | null
           change_motivation_summary: string | null
           created_at: string | null
           deal_probability: number | null
@@ -353,6 +354,7 @@ export type Database = {
         }
         Insert: {
           candidate_id: string
+          career_goals?: string | null
           change_motivation_summary?: string | null
           created_at?: string | null
           deal_probability?: number | null
@@ -372,6 +374,7 @@ export type Database = {
         }
         Update: {
           candidate_id?: string
+          career_goals?: string | null
           change_motivation_summary?: string | null
           created_at?: string | null
           deal_probability?: number | null
