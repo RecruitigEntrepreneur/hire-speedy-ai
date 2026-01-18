@@ -31,6 +31,15 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { InterviewSchedulingDialog } from './InterviewSchedulingDialog';
+
+interface InterviewDetails {
+  scheduledAt: Date;
+  durationMinutes: number;
+  meetingType: 'video' | 'phone' | 'onsite';
+  meetingLink?: string;
+  notes?: string;
+}
 
 interface Experience {
   id: string;
@@ -81,7 +90,13 @@ interface CandidateFullProfileDialogProps {
   } | null;
   onMove: (submissionId: string, stage: string) => void;
   onReject: (submissionId: string) => void;
-  onInterviewRequest: (submissionId: string, date: Date) => void;
+  onInterviewRequest?: (submissionId: string, details: {
+    scheduledAt: Date;
+    durationMinutes: number;
+    meetingType: 'video' | 'phone' | 'onsite';
+    meetingLink?: string;
+    notes?: string;
+  }) => Promise<void>;
   isProcessing?: boolean;
 }
 
@@ -95,6 +110,17 @@ export function CandidateFullProfileDialog({
   isProcessing
 }: CandidateFullProfileDialogProps) {
   const [activeTab, setActiveTab] = useState('profil');
+  const [showInterviewDialog, setShowInterviewDialog] = useState(false);
+
+  if (!candidate) return null;
+
+  const handleInterviewSubmit = async (details: InterviewDetails) => {
+    if (onInterviewRequest) {
+      await onInterviewRequest(candidate.submissionId, details);
+    }
+    setShowInterviewDialog(false);
+    onOpenChange(false);
+  };
 
   if (!candidate) return null;
 
@@ -638,16 +664,25 @@ export function CandidateFullProfileDialog({
                   Absage
                 </Button>
                 {(candidate.stage === 'submitted' || candidate.stage === 'interview_1') ? (
-                  <Button
-                    onClick={() => {
-                      onInterviewRequest(candidate.submissionId, new Date());
-                      onOpenChange(false);
-                    }}
-                    disabled={isProcessing}
-                  >
-                    <Calendar className="h-4 w-4 mr-2" />
-                    {candidate.stage === 'submitted' ? 'Interview 1 anfragen' : 'Interview 2 anfragen'}
-                  </Button>
+                  <>
+                    <Button
+                      onClick={() => setShowInterviewDialog(true)}
+                      disabled={isProcessing}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {candidate.stage === 'submitted' ? 'Interview 1 anfragen' : 'Interview 2 anfragen'}
+                    </Button>
+                    <InterviewSchedulingDialog
+                      open={showInterviewDialog}
+                      onOpenChange={setShowInterviewDialog}
+                      candidate={{
+                        id: candidate.id,
+                        name: candidate.name,
+                        jobTitle: candidate.jobTitle
+                      }}
+                      onSubmit={handleInterviewSubmit}
+                    />
+                  </>
                 ) : nextStage && (
                   <Button
                     className="bg-green-600 hover:bg-green-700"

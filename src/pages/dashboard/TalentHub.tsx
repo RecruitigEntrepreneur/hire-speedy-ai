@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 import { useTalentHubActions } from '@/hooks/useTalentHubActions';
+import { InterviewSchedulingDialog } from '@/components/talent/InterviewSchedulingDialog';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -135,6 +136,7 @@ export default function TalentHub() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [fullProfileOpen, setFullProfileOpen] = useState(false);
+  const [detailInterviewDialogOpen, setDetailInterviewDialogOpen] = useState(false);
   
   usePageViewTracking('talent_hub');
 
@@ -458,19 +460,30 @@ export default function TalentHub() {
     setSelectedCandidate(candidate);
   };
 
-  const handleInterviewRequest = async (submissionId: string, date: Date) => {
+  const handleInterviewRequest = async (submissionId: string, details: {
+    scheduledAt: Date;
+    durationMinutes: number;
+    meetingType: 'video' | 'phone' | 'onsite';
+    meetingLink?: string;
+    notes?: string;
+  }) => {
     try {
       const { error } = await supabase.from('interviews').insert({
         submission_id: submissionId,
-        scheduled_at: date.toISOString(),
+        scheduled_at: details.scheduledAt.toISOString(),
+        duration_minutes: details.durationMinutes,
+        meeting_type: details.meetingType,
+        meeting_link: details.meetingLink || null,
+        notes: details.notes || null,
         status: 'pending'
       });
 
       if (error) throw error;
-      toast.success('Interview-Anfrage gesendet');
+      toast.success('Interview geplant');
       fetchInterviews();
     } catch (error) {
-      toast.error('Fehler beim Erstellen der Anfrage');
+      console.error('Error creating interview:', error);
+      toast.error('Fehler beim Erstellen des Interviews');
     }
   };
 
@@ -817,15 +830,27 @@ export default function TalentHub() {
                       <div className="grid grid-cols-2 gap-2">
                         {/* Dynamic Next Step Button */}
                         {(selectedCandidate.stage === 'submitted' || selectedCandidate.stage === 'interview_1') ? (
-                          <Button 
-                            size="sm" 
-                            className="h-10 text-sm"
-                            onClick={() => handleInterviewRequest(selectedCandidate.submissionId, new Date())}
-                            disabled={processing}
-                          >
-                            <Calendar className="h-4 w-4 mr-1.5" />
-                            {selectedCandidate.stage === 'submitted' ? 'Interview 1' : 'Interview 2'}
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="h-10 text-sm"
+                              onClick={() => setDetailInterviewDialogOpen(true)}
+                              disabled={processing}
+                            >
+                              <Calendar className="h-4 w-4 mr-1.5" />
+                              {selectedCandidate.stage === 'submitted' ? 'Interview 1' : 'Interview 2'}
+                            </Button>
+                            <InterviewSchedulingDialog
+                              open={detailInterviewDialogOpen}
+                              onOpenChange={setDetailInterviewDialogOpen}
+                              candidate={{
+                                id: selectedCandidate.id,
+                                name: selectedCandidate.name,
+                                jobTitle: selectedCandidate.jobTitle
+                              }}
+                              onSubmit={(details) => handleInterviewRequest(selectedCandidate.submissionId, details)}
+                            />
+                          </>
                         ) : (
                           <Button 
                             size="sm" 

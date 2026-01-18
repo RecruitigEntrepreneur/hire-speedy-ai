@@ -20,8 +20,16 @@ import { formatDistanceToNow, format, isToday, isPast } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
-import { QuickInterviewRequest } from './QuickInterviewRequest';
+import { InterviewSchedulingDialog } from './InterviewSchedulingDialog';
 import { QuickFeedbackInline } from './QuickFeedbackInline';
+
+interface InterviewDetails {
+  scheduledAt: Date;
+  durationMinutes: number;
+  meetingType: 'video' | 'phone' | 'onsite';
+  meetingLink?: string;
+  notes?: string;
+}
 
 export interface CandidateActionCardProps {
   id: string;
@@ -54,7 +62,7 @@ interface CardProps {
   onSelect: () => void;
   onMove: (submissionId: string, newStage: string) => void;
   onReject: (submissionId: string) => void;
-  onInterviewRequest?: (submissionId: string, date: Date) => Promise<void>;
+  onInterviewRequest?: (submissionId: string, details: InterviewDetails) => Promise<void>;
   onFeedback?: (submissionId: string, rating: 'positive' | 'neutral' | 'negative', note?: string) => Promise<void>;
   isProcessing?: boolean;
 }
@@ -69,7 +77,7 @@ export function CandidateActionCard({
   onFeedback,
   isProcessing
 }: CardProps) {
-  const [showInterviewPopover, setShowInterviewPopover] = useState(false);
+  const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
 
   const getInitials = (name: string) => {
@@ -113,11 +121,11 @@ export function CandidateActionCard({
 
   const needsFeedback = hasPastInterview || candidate.feedbackPending;
 
-  const handleInterviewRequest = async (date: Date) => {
+  const handleInterviewRequest = async (details: InterviewDetails) => {
     if (onInterviewRequest) {
-      await onInterviewRequest(candidate.submissionId, date);
+      await onInterviewRequest(candidate.submissionId, details);
     }
-    setShowInterviewPopover(false);
+    setShowInterviewDialog(false);
   };
 
   const handleFeedback = async (rating: 'positive' | 'neutral' | 'negative', note?: string) => {
@@ -262,21 +270,30 @@ export function CandidateActionCard({
             <div className="grid grid-cols-2 gap-2">
               {/* Dynamic Next Step Button */}
               {(candidate.stage === 'submitted' || candidate.stage === 'interview_1') ? (
-                <QuickInterviewRequest
-                  open={showInterviewPopover}
-                  onOpenChange={setShowInterviewPopover}
-                  onSubmit={handleInterviewRequest}
-                  candidateName={candidate.name}
-                >
+                <>
                   <Button
                     size="sm"
                     className="h-9 w-full text-xs"
                     disabled={isProcessing}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowInterviewDialog(true);
+                    }}
                   >
                     <Calendar className="h-3.5 w-3.5 mr-1" />
                     {candidate.stage === 'submitted' ? 'Interview 1' : 'Interview 2'}
                   </Button>
-                </QuickInterviewRequest>
+                  <InterviewSchedulingDialog
+                    open={showInterviewDialog}
+                    onOpenChange={setShowInterviewDialog}
+                    candidate={{
+                      id: candidate.id,
+                      name: candidate.name,
+                      jobTitle: candidate.jobTitle
+                    }}
+                    onSubmit={handleInterviewRequest}
+                  />
+                </>
               ) : (
                 <Button
                   size="sm"
