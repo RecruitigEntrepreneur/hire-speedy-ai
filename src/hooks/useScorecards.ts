@@ -82,7 +82,7 @@ export function useScorecards(jobId?: string) {
           job_id: jobId,
           name,
           description,
-          criteria: criteria as unknown as Record<string, unknown>[],
+          criteria: JSON.parse(JSON.stringify(criteria)),
           is_default: isDefault,
         }])
         .select()
@@ -217,7 +217,7 @@ export function useScorecardEvaluations(interviewId?: string) {
           interview_id: interviewId,
           scorecard_id: scorecardId,
           evaluator_id: user.id,
-          scores: scores as unknown as Record<string, unknown>[],
+          scores: JSON.parse(JSON.stringify(scores)),
           total_score: totalScore,
           notes,
         }], {
