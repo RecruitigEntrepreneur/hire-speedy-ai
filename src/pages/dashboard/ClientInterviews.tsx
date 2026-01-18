@@ -3,9 +3,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,11 +23,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { InterviewCalendarView } from '@/components/interview/InterviewCalendarView';
+import { InterviewStatsCards } from '@/components/interview/InterviewStatsCards';
+import { NextInterviewBanner } from '@/components/interview/NextInterviewBanner';
+import { ModernInterviewCard } from '@/components/interview/ModernInterviewCard';
+import { InterviewEmptyState } from '@/components/interview/InterviewEmptyState';
 import { InterviewFeedbackForm } from '@/components/interview/InterviewFeedbackForm';
-import { Loader2, Calendar, Video, Phone, MapPin, Clock, CheckCircle, XCircle, LayoutGrid, List, MessageSquarePlus } from 'lucide-react';
+import { Loader2, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 
 interface Interview {
   id: string;
@@ -163,31 +164,11 @@ export default function ClientInterviews() {
       });
       toast.success('Kandidat eingestellt! Placement erstellt.');
     } else {
-      toast.success('Interview abgeschlossen');
+      toast.success('Interview abgesagt');
     }
     
     fetchInterviews();
     setProcessing(false);
-  };
-
-  const getStatusBadge = (status: string | null) => {
-    const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      pending: { label: 'Ausstehend', variant: 'outline' },
-      scheduled: { label: 'Geplant', variant: 'default' },
-      completed: { label: 'Abgeschlossen', variant: 'secondary' },
-      cancelled: { label: 'Abgesagt', variant: 'destructive' },
-    };
-    const statusConfig = config[status || 'pending'] || config.pending;
-    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>;
-  };
-
-  const getMeetingIcon = (type: string | null) => {
-    switch (type) {
-      case 'video': return <Video className="h-4 w-4" />;
-      case 'phone': return <Phone className="h-4 w-4" />;
-      case 'onsite': return <MapPin className="h-4 w-4" />;
-      default: return <Calendar className="h-4 w-4" />;
-    }
   };
 
   if (loading) {
@@ -209,269 +190,205 @@ export default function ClientInterviews() {
 
   return (
     <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Interviews</h1>
-              <p className="text-muted-foreground mt-1">
-                Verwalten Sie Ihre geplanten Interviews
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4 mr-1" />
-                Liste
-              </Button>
-              <Button 
-                variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} 
-                size="sm"
-                onClick={() => setViewMode('calendar')}
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Kalender
-              </Button>
-            </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+              Interview Command Center
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Alle Ihre Interviews auf einen Blick
+            </p>
           </div>
+          <div className="flex items-center gap-2 glass-card rounded-lg p-1">
+            <Button 
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="gap-1.5"
+            >
+              <List className="h-4 w-4" />
+              Liste
+            </Button>
+            <Button 
+              variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('calendar')}
+              className="gap-1.5"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Kalender
+            </Button>
+          </div>
+        </div>
 
-          {/* Calendar View */}
-          {viewMode === 'calendar' && (
+        {/* Stats Cards */}
+        <InterviewStatsCards interviews={interviews} />
+
+        {/* Next Interview Banner */}
+        <NextInterviewBanner 
+          interviews={interviews}
+          onReschedule={handleEdit}
+        />
+
+        {/* Calendar View */}
+        {viewMode === 'calendar' && (
+          <div className="glass-card rounded-xl p-4">
             <InterviewCalendarView 
               interviews={interviews}
               onSelectInterview={(interview) => handleEdit(interview)}
             />
-          )}
+          </div>
+        )}
 
-          {/* List View */}
-          {viewMode === 'list' && (
-            <Tabs defaultValue="upcoming">
-              <TabsList>
-                <TabsTrigger value="upcoming">
-                  Anstehend ({upcomingInterviews.length})
-                </TabsTrigger>
-                <TabsTrigger value="past">
-                  Vergangen ({pastInterviews.length})
-                </TabsTrigger>
-              </TabsList>
+        {/* List View */}
+        {viewMode === 'list' && (
+          <Tabs defaultValue="upcoming" className="space-y-6">
+            <TabsList className="glass-card">
+              <TabsTrigger value="upcoming" className="gap-1.5">
+                Anstehend
+                {upcomingInterviews.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-primary/10 text-primary font-medium">
+                    {upcomingInterviews.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="past" className="gap-1.5">
+                Vergangen
+                {pastInterviews.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-muted text-muted-foreground font-medium">
+                    {pastInterviews.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-              <TabsContent value="upcoming" className="mt-6">
-                <div className="grid gap-4">
-                  {upcomingInterviews.length === 0 ? (
-                    <Card>
-                      <CardContent className="flex flex-col items-center justify-center py-12">
-                        <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">Keine anstehenden Interviews</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    upcomingInterviews.map((interview) => (
-                      <Card key={interview.id}>
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-lg">
-                                  {interview.submission.candidate.full_name}
-                                </h3>
-                                {getStatusBadge(interview.status)}
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {interview.submission.job.title} bei {interview.submission.job.company_name}
-                              </p>
-                              
-                              {interview.scheduled_at && (
-                                <div className="flex items-center gap-4 text-sm mt-3">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                    {format(new Date(interview.scheduled_at), 'HH:mm')} Uhr
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    {getMeetingIcon(interview.meeting_type)}
-                                    {interview.meeting_type === 'video' ? 'Video' : 
-                                     interview.meeting_type === 'phone' ? 'Telefon' : 'Vor Ort'}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {interview.meeting_link && (
-                                <Button variant="outline" size="sm" asChild>
-                                  <a href={interview.meeting_link} target="_blank" rel="noopener noreferrer">
-                                    Meeting beitreten
-                                  </a>
-                                </Button>
-                              )}
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleEdit(interview)}
-                              >
-                                Bearbeiten
-                              </Button>
-                              <Button 
-                                variant="default" 
-                                size="sm"
-                                onClick={() => handleComplete(interview, true)}
-                                disabled={processing}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Einstellen
-                              </Button>
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => handleComplete(interview, false)}
-                                disabled={processing}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Absagen
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="past" className="mt-6">
-                <div className="grid gap-4">
-                  {pastInterviews.map((interview) => (
-                    <Card key={interview.id} className="opacity-75 hover:opacity-100 transition-opacity">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">
-                                {interview.submission.candidate.full_name}
-                              </h3>
-                              {getStatusBadge(interview.status)}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {interview.submission.job.title}
-                            </p>
-                            {interview.scheduled_at && (
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(interview.scheduled_at), 'PPP', { locale: de })}
-                              </p>
-                            )}
-                            {interview.feedback && (
-                              <Badge variant="secondary" className="mt-2">Feedback vorhanden</Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {interview.status === 'completed' && !interview.feedback && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleOpenFeedback(interview)}
-                              >
-                                <MessageSquarePlus className="h-4 w-4 mr-1" />
-                                Feedback geben
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+            <TabsContent value="upcoming" className="mt-6">
+              {upcomingInterviews.length === 0 ? (
+                <InterviewEmptyState type="upcoming" />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {upcomingInterviews.map((interview) => (
+                    <ModernInterviewCard
+                      key={interview.id}
+                      interview={interview}
+                      onEdit={handleEdit}
+                      onComplete={handleComplete}
+                      onFeedback={handleOpenFeedback}
+                      processing={processing}
+                    />
                   ))}
                 </div>
-              </TabsContent>
-            </Tabs>
-          )}
-        </div>
+              )}
+            </TabsContent>
 
-        {/* Edit Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Interview bearbeiten</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Datum & Uhrzeit</Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.scheduled_at}
-                  onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Dauer (Minuten)</Label>
-                <Input
-                  type="number"
-                  value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label>Art des Interviews</Label>
-                <Select
-                  value={formData.meeting_type}
-                  onValueChange={(value) => setFormData({ ...formData, meeting_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="video">Video</SelectItem>
-                    <SelectItem value="phone">Telefon</SelectItem>
-                    <SelectItem value="onsite">Vor Ort</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Meeting-Link</Label>
-                <Input
-                  placeholder="https://..."
-                  value={formData.meeting_link}
-                  onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Notizen</Label>
-                <Textarea
-                  placeholder="Interne Notizen..."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Abbrechen
-              </Button>
-              <Button onClick={handleSave} disabled={processing}>
-                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Speichern
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Feedback Dialog */}
-        {feedbackInterview && (
-          <InterviewFeedbackForm
-            open={feedbackDialogOpen}
-            onOpenChange={setFeedbackDialogOpen}
-            interviewId={feedbackInterview.id}
-            candidateName={feedbackInterview.submission.candidate.full_name}
-            onSuccess={() => {
-              fetchInterviews();
-              setFeedbackDialogOpen(false);
-            }}
-          />
+            <TabsContent value="past" className="mt-6">
+              {pastInterviews.length === 0 ? (
+                <InterviewEmptyState type="past" />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {pastInterviews.map((interview) => (
+                    <ModernInterviewCard
+                      key={interview.id}
+                      interview={interview}
+                      onEdit={handleEdit}
+                      onComplete={handleComplete}
+                      onFeedback={handleOpenFeedback}
+                      processing={processing}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
-      </DashboardLayout>
+      </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Interview bearbeiten</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Datum & Uhrzeit</Label>
+              <Input
+                type="datetime-local"
+                value={formData.scheduled_at}
+                onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Dauer (Minuten)</Label>
+              <Input
+                type="number"
+                value={formData.duration_minutes}
+                onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Art des Interviews</Label>
+              <Select
+                value={formData.meeting_type}
+                onValueChange={(value) => setFormData({ ...formData, meeting_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="video">Video</SelectItem>
+                  <SelectItem value="phone">Telefon</SelectItem>
+                  <SelectItem value="onsite">Vor Ort</SelectItem>
+                  <SelectItem value="teams">Microsoft Teams</SelectItem>
+                  <SelectItem value="meet">Google Meet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Meeting-Link</Label>
+              <Input
+                placeholder="https://..."
+                value={formData.meeting_link}
+                onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Notizen</Label>
+              <Textarea
+                placeholder="Interne Notizen..."
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSave} disabled={processing}>
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Feedback Dialog */}
+      {feedbackInterview && (
+        <InterviewFeedbackForm
+          interviewId={feedbackInterview.id}
+          candidateName={feedbackInterview.submission.candidate.full_name}
+          open={feedbackDialogOpen}
+          onOpenChange={setFeedbackDialogOpen}
+          onSuccess={() => {
+            fetchInterviews();
+            setFeedbackDialogOpen(false);
+          }}
+        />
+      )}
+    </DashboardLayout>
   );
 }
