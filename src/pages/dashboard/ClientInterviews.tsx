@@ -515,7 +515,7 @@ export default function ClientInterviews() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSave}
-        processing={processing}
+        isProcessing={processing}
       />
 
       {/* Live Interview Companion */}
