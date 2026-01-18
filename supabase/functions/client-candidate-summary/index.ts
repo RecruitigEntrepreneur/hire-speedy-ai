@@ -30,6 +30,7 @@ interface ClientSummary {
   risk_factors: RiskFactor[];
   positive_factors: PositiveFactor[];
   change_motivation_summary: string;
+  career_goals: string;
   job_hopper_analysis: JobHopperAnalysis;
   recommendation_score: number;
   recommendation: "strong_yes" | "yes" | "maybe" | "no" | "strong_no";
@@ -55,13 +56,16 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch all candidate data
-    const [candidateResult, experiencesResult, interviewNotesResult, aiAssessmentResult, behaviorResult] = await Promise.all([
+    // Fetch all candidate data + job data via submission
+    const [candidateResult, experiencesResult, interviewNotesResult, aiAssessmentResult, behaviorResult, submissionResult] = await Promise.all([
       supabase.from("candidates").select("*").eq("id", candidateId).single(),
       supabase.from("candidate_experiences").select("*").eq("candidate_id", candidateId).order("start_date", { ascending: false }),
       supabase.from("candidate_interview_notes").select("*").eq("candidate_id", candidateId).order("created_at", { ascending: false }).limit(1),
       supabase.from("candidate_ai_assessment").select("*").eq("candidate_id", candidateId).maybeSingle(),
       supabase.from("candidate_behavior").select("*").eq("candidate_id", candidateId).maybeSingle(),
+      submissionId 
+        ? supabase.from("submissions").select("job_id, jobs(*)").eq("id", submissionId).single()
+        : Promise.resolve({ data: null, error: null }),
     ]);
 
     if (candidateResult.error) throw candidateResult.error;
@@ -71,6 +75,9 @@ serve(async (req) => {
     const interviewNotes = interviewNotesResult.data?.[0] || null;
     const aiAssessment = aiAssessmentResult.data;
     const behavior = behaviorResult.data;
+    const job = submissionResult.data?.jobs as any || null;
+
+    console.log("[client-candidate-summary] Job context loaded:", job?.title || "No job context");
 
     // Calculate job hopper metrics
     const jobHopperAnalysis = calculateJobHopperAnalysis(experiences);
@@ -83,33 +90,73 @@ Analysiere ALLE Informationen und erstelle ein strukturiertes JSON-Objekt mit:
 2. risk_factors: Array von Risikofaktoren mit factor, severity (low/medium/high), detail
 3. positive_factors: Array von Stärken mit factor, strength (low/medium/high), detail
 4. change_motivation_summary: Warum der Kandidat wechseln möchte (1-2 Sätze)
-5. recommendation_score: 0-100 Gesamtbewertung
-6. recommendation: strong_yes/yes/maybe/no/strong_no
-7. key_selling_points: Array von 3-5 Kernstärken als kurze Strings
+5. career_goals: Mittel- bis langfristige Karriereziele des Kandidaten (1-2 Sätze, basierend auf Interview-Notizen wie career_3_5_year_plan oder career_ultimate_goal)
+6. recommendation_score: 0-100 Gesamtbewertung
+7. recommendation: strong_yes/yes/maybe/no/strong_no
+8. key_selling_points: Array von 3-5 Kernstärken als kurze Strings
 
-Berücksichtige besonders:
+${job ? `WICHTIG - JOB-KONTEXT: Du hast Zugriff auf die konkrete Stellenanforderung des Kunden.
+Bei der RISIKOANALYSE musst du UNBEDINGT den Job-Kontext berücksichtigen:
+- Skill-Gaps: Welche Must-Have-Skills oder Nice-to-Haves fehlen dem Kandidaten im Vergleich zur Stelle?
+- Erfahrungs-Gaps: Hat der Kandidat die geforderte Seniorität/Erfahrungsjahre?
+- Gehalts-Fit: Liegt die Gehaltsvorstellung des Kandidaten im Budget des Kunden (salary_min - salary_max)?
+- Standort-Fit: Passt der Wohnort zum Job-Standort und zur Remote-Policy?
+- Verfügbarkeit: Passt die Kündigungsfrist zum gewünschten Starttermin?
+- Sprachkenntnisse: Erfüllt der Kandidat die geforderten Sprachanforderungen?
+- Zertifizierungen: Hat der Kandidat die geforderten Zertifikate?
+
+Formuliere Risiken IMMER mit Bezug zur Stelle, z.B.:
+- "Kubernetes-Erfahrung fehlt (Job: Must-Have)" statt nur "Kubernetes-Erfahrung fehlt"
+- "Gehaltsvorstellung 95k€ über Budget (Job: 70-85k€)" statt nur "Hohe Gehaltsvorstellung"
+- "Nur 2 Jahre React (Job fordert 5+ Jahre)" statt nur "Wenig React-Erfahrung"` : `Berücksichtige besonders:
 - Gehaltsvorstellungen vs. typische Marktgehälter
+- Skills und Erfahrung im Vergleich zu typischen Anforderungen`}
+
+Weitere Bewertungskriterien:
 - Wechselmotivation und Ernsthaftigkeit
 - Verfügbarkeit und Kündigungsfristen
 - Jobhopper-Tendenz (bereits berechnet, aber kontextualisieren)
-- Skills und Erfahrung
 - Kulturelle Passung basierend auf Interview-Notizen
 
 Antworte NUR mit validem JSON ohne Markdown-Formatierung.`;
 
-    const userPrompt = `Analysiere diesen Kandidaten:
+    // Build job context section if available
+    const jobContextSection = job ? `
+## Job-Anforderungen des Kunden (WICHTIG für Risiko-Analyse!)
+- Position: ${job.title || "Nicht angegeben"}
+- Unternehmen: ${job.company_name || "Nicht angegeben"}
+- Beschreibung: ${job.description || "Keine Beschreibung"}
+- Must-Have-Skills: ${Array.isArray(job.must_haves) ? job.must_haves.join(", ") : "Keine angegeben"}
+- Nice-to-Have-Skills: ${Array.isArray(job.nice_to_haves) ? job.nice_to_haves.join(", ") : "Keine angegeben"}
+- Geforderte Skills: ${Array.isArray(job.skills) ? job.skills.join(", ") : "Keine angegeben"}
+- Anforderungen: ${job.requirements || "Keine spezifischen"}
+- Gehaltsspanne: ${job.salary_min && job.salary_max ? `${job.salary_min.toLocaleString("de-DE")}€ - ${job.salary_max.toLocaleString("de-DE")}€` : "Nicht angegeben"}
+- Standort: ${job.location || "Nicht angegeben"}
+- Remote-Policy: ${job.remote_policy || job.remote_type || "Nicht angegeben"}
+- Präsenztage pro Woche: ${job.onsite_days_required ?? "Nicht angegeben"}
+- Erfahrungslevel: ${job.experience_level || job.seniority || "Nicht angegeben"}
+- Geforderte Jahre Erfahrung: ${job.experience_years_min ? `${job.experience_years_min}+ Jahre` : "Nicht angegeben"}
+- Sprachanforderungen: ${job.required_languages ? JSON.stringify(job.required_languages) : "Keine angegeben"}
+- Zertifizierungen: ${Array.isArray(job.required_certifications) ? job.required_certifications.join(", ") : "Keine gefordert"}
+- Startdatum gewünscht: ${job.start_date || "Flexibel"}
+- Briefing-Notizen: ${job.briefing_notes || "Keine"}
+` : "";
 
+    const userPrompt = `Analysiere diesen Kandidaten${job ? " FÜR DIE KONKRETE STELLE" : ""}:
+${jobContextSection}
 ## Kandidatenprofil
 - Name: ${candidate.full_name}
-- Position: ${candidate.job_title || "Nicht angegeben"}
+- Aktuelle Position: ${candidate.job_title || "Nicht angegeben"}
 - Erfahrung: ${candidate.experience_years || 0} Jahre
 - Standort: ${candidate.city || "Nicht angegeben"}
 - Aktuelles Gehalt: ${candidate.current_salary ? `${candidate.current_salary.toLocaleString("de-DE")}€` : "Nicht angegeben"}
 - Gehaltsvorstellung: ${candidate.expected_salary ? `${candidate.expected_salary.toLocaleString("de-DE")}€` : candidate.salary_expectation_min && candidate.salary_expectation_max ? `${candidate.salary_expectation_min.toLocaleString("de-DE")}€ - ${candidate.salary_expectation_max.toLocaleString("de-DE")}€` : "Nicht angegeben"}
 - Verfügbarkeit: ${candidate.availability_date || "Nicht angegeben"}
 - Kündigungsfrist: ${candidate.notice_period || "Nicht angegeben"}
-- Remote: ${candidate.remote_possible ? "Ja" : "Nein"}
-- Skills: ${(candidate.skills || []).join(", ") || "Keine angegeben"}
+- Remote-Präferenz: ${candidate.remote_preference || candidate.work_model || (candidate.remote_possible ? "Remote möglich" : "Nicht angegeben")}
+- Kandidaten-Skills: ${(candidate.skills || []).join(", ") || "Keine angegeben"}
+- Zertifikate: ${Array.isArray(candidate.certifications) ? candidate.certifications.join(", ") : "Keine angegeben"}
+- Sprachen: ${candidate.language_skills ? JSON.stringify(candidate.language_skills) : "Keine angegeben"}
 
 ## Jobhopper-Analyse (bereits berechnet)
 - Durchschnittliche Verweildauer: ${jobHopperAnalysis.avg_tenure_months} Monate
@@ -118,14 +165,15 @@ Antworte NUR mit validem JSON ohne Markdown-Formatierung.`;
 - Erklärung: ${jobHopperAnalysis.explanation}
 
 ## Berufserfahrung
-${experiences.map(exp => `- ${exp.job_title} bei ${exp.company_name} (${exp.start_date || "?"} - ${exp.end_date || "heute"})`).join("\n") || "Keine Erfahrung erfasst"}
+${experiences.map(exp => `- ${exp.job_title} bei ${exp.company_name} (${exp.start_date || "?"} - ${exp.end_date || "heute"}): ${exp.description || "Keine Beschreibung"}`).join("\n") || "Keine Erfahrung erfasst"}
 
-${interviewNotes ? `## Interview-Notizen
+${interviewNotes ? `## Interview-Notizen (Recruiter-Gespräch)
 - Wechselmotivation: ${interviewNotes.change_motivation || "Nicht erfasst"}
 - Was gefällt aktuell: ${interviewNotes.current_positive || "Nicht erfasst"}
 - Was stört aktuell: ${interviewNotes.current_negative || "Nicht erfasst"}
-- Warum jetzt: ${interviewNotes.why_now || "Nicht erfasst"}
+- Warum jetzt wechseln: ${interviewNotes.why_now || "Nicht erfasst"}
 - Karriereziel (3-5 Jahre): ${interviewNotes.career_3_5_year_plan || "Nicht erfasst"}
+- Ultimatives Karriereziel: ${interviewNotes.career_ultimate_goal || "Nicht erfasst"}
 - Gehaltsvorstellung: ${interviewNotes.salary_desired || "Nicht erfasst"}
 - Minimum-Gehalt: ${interviewNotes.salary_minimum || "Nicht erfasst"}
 - Empfehlung Recruiter: ${interviewNotes.would_recommend ? "Ja" : interviewNotes.would_recommend === false ? "Nein" : "Nicht bewertet"}
@@ -143,7 +191,7 @@ ${behavior ? `## Engagement-Daten
 - Emails geöffnet: ${behavior.emails_opened}
 - Abschluss-Wahrscheinlichkeit: ${behavior.closing_probability}%` : ""}
 
-Erstelle jetzt die Client-Zusammenfassung als JSON.`;
+Erstelle jetzt die Client-Zusammenfassung als JSON.${job ? " Achte besonders auf den Vergleich Kandidat vs. Job-Anforderungen bei den Risiken!" : ""}`;
 
     console.log("[client-candidate-summary] Calling AI for candidate:", candidateId);
 
@@ -227,12 +275,13 @@ Erstelle jetzt die Client-Zusammenfassung als JSON.`;
         risk_factors: finalSummary.risk_factors,
         positive_factors: finalSummary.positive_factors,
         change_motivation_summary: finalSummary.change_motivation_summary,
+        career_goals: finalSummary.career_goals || null,
         job_hopper_analysis: finalSummary.job_hopper_analysis,
         recommendation_score: finalSummary.recommendation_score,
         recommendation: finalSummary.recommendation,
         key_selling_points: finalSummary.key_selling_points,
         generated_at: new Date().toISOString(),
-        model_version: "v1",
+        model_version: "v2-job-context",
       }, {
         onConflict: "candidate_id",
       })
@@ -251,12 +300,13 @@ Erstelle jetzt die Client-Zusammenfassung als JSON.`;
           risk_factors: finalSummary.risk_factors,
           positive_factors: finalSummary.positive_factors,
           change_motivation_summary: finalSummary.change_motivation_summary,
+          career_goals: finalSummary.career_goals || null,
           job_hopper_analysis: finalSummary.job_hopper_analysis,
           recommendation_score: finalSummary.recommendation_score,
           recommendation: finalSummary.recommendation,
           key_selling_points: finalSummary.key_selling_points,
           generated_at: new Date().toISOString(),
-          model_version: "v1",
+          model_version: "v2-job-context",
         })
         .select()
         .single();
