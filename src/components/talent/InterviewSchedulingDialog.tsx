@@ -16,12 +16,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -34,12 +47,33 @@ import {
   Link2,
   FileText,
   CalendarCheck,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  X,
+  Users
 } from 'lucide-react';
 import { format, setHours, setMinutes, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useCalendarAvailability } from '@/hooks/useCalendarAvailability';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { useInterviewTypes, InterviewType } from '@/hooks/useInterviewTypes';
+import { useInterviewParticipants, ParticipantRole } from '@/hooks/useInterviewParticipants';
+
+// Microsoft Teams icon
+const TeamsIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+    <path d="M19.5 6.5h-3v-2a2.5 2.5 0 0 0-5 0v2h-3A2.5 2.5 0 0 0 6 9v9a2.5 2.5 0 0 0 2.5 2.5h11a2.5 2.5 0 0 0 2.5-2.5V9a2.5 2.5 0 0 0-2.5-2.5zm-6-2a1.5 1.5 0 0 1 1.5 1.5v2h-3v-2a1.5 1.5 0 0 1 1.5-1.5z"/>
+  </svg>
+);
+
+// Google Meet icon
+const MeetIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+    <path d="M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm7-6H5v7h14V8.5zm2-2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
 
 interface CandidateInfo {
   id: string;
@@ -50,9 +84,11 @@ interface CandidateInfo {
 interface InterviewDetails {
   scheduledAt: Date;
   durationMinutes: number;
-  meetingType: 'video' | 'phone' | 'onsite';
+  meetingType: 'video' | 'phone' | 'onsite' | 'teams' | 'meet';
   meetingLink?: string;
   notes?: string;
+  interviewTypeId?: string;
+  participants?: { userId: string; role: ParticipantRole }[];
 }
 
 interface InterviewSchedulingDialogProps {
@@ -60,6 +96,7 @@ interface InterviewSchedulingDialogProps {
   onOpenChange: (open: boolean) => void;
   candidate: CandidateInfo;
   onSubmit: (details: InterviewDetails) => Promise<void>;
+  teamMembers?: { id: string; name: string; email: string }[];
 }
 
 const TIME_SLOTS = [
@@ -69,13 +106,13 @@ const TIME_SLOTS = [
   '17:00', '17:30', '18:00'
 ];
 
-const DURATION_OPTIONS = [
-  { value: 30, label: '30 Minuten' },
-  { value: 45, label: '45 Minuten' },
-  { value: 60, label: '60 Minuten' },
-  { value: 90, label: '90 Minuten' },
-  { value: 120, label: '2 Stunden' }
-];
+const MEETING_TYPES = [
+  { value: 'video', label: 'Video-Call', icon: Video, description: 'Eigener Video-Link' },
+  { value: 'teams', label: 'MS Teams', icon: TeamsIcon, description: 'Auto-generiert' },
+  { value: 'meet', label: 'Google Meet', icon: MeetIcon, description: 'Auto-generiert' },
+  { value: 'phone', label: 'Telefon', icon: Phone, description: 'Telefoninterview' },
+  { value: 'onsite', label: 'Vor-Ort', icon: MapPin, description: 'Persönlich' },
+] as const;
 
 // Generate suggested dates (next 3 business days)
 const getSuggestedDates = () => {
@@ -101,24 +138,66 @@ export function InterviewSchedulingDialog({
   open,
   onOpenChange,
   candidate,
-  onSubmit
+  onSubmit,
+  teamMembers = []
 }: InterviewSchedulingDialogProps) {
   // Form state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>('10:00');
   const [duration, setDuration] = useState<number>(60);
-  const [meetingType, setMeetingType] = useState<'video' | 'phone' | 'onsite'>('video');
+  const [meetingType, setMeetingType] = useState<'video' | 'phone' | 'onsite' | 'teams' | 'meet'>('video');
   const [meetingLink, setMeetingLink] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  const [selectedInterviewType, setSelectedInterviewType] = useState<string>('');
+  const [selectedParticipants, setSelectedParticipants] = useState<{ userId: string; role: ParticipantRole; name: string }[]>([]);
   
   // UI state
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [participantPickerOpen, setParticipantPickerOpen] = useState(false);
   
-  // Calendar availability
-  const { isConnected, provider, loading: calendarLoading } = useCalendarAvailability({ durationMinutes: duration });
+  // Integrations
+  const { isConnected: msConnected, loading: msLoading } = useMicrosoftAuth();
+  const { isConnected: googleConnected, loading: googleLoading } = useGoogleAuth();
+  const { types: interviewTypes, loading: typesLoading } = useInterviewTypes();
+  const { isConnected: calendarConnected, provider, loading: calendarLoading } = useCalendarAvailability({ durationMinutes: duration });
 
   const suggestedDates = getSuggestedDates();
+
+  // Handle interview type selection
+  const handleInterviewTypeSelect = (typeId: string) => {
+    setSelectedInterviewType(typeId);
+    const type = interviewTypes.find(t => t.id === typeId);
+    if (type) {
+      setDuration(type.default_duration);
+      if (type.agenda_template) {
+        setNotes(type.agenda_template);
+      }
+    }
+  };
+
+  // Add participant
+  const addParticipant = (member: { id: string; name: string }) => {
+    if (!selectedParticipants.find(p => p.userId === member.id)) {
+      setSelectedParticipants(prev => [
+        ...prev, 
+        { userId: member.id, role: 'panel' as ParticipantRole, name: member.name }
+      ]);
+    }
+    setParticipantPickerOpen(false);
+  };
+
+  // Remove participant
+  const removeParticipant = (userId: string) => {
+    setSelectedParticipants(prev => prev.filter(p => p.userId !== userId));
+  };
+
+  // Update participant role
+  const updateParticipantRole = (userId: string, role: ParticipantRole) => {
+    setSelectedParticipants(prev => 
+      prev.map(p => p.userId === userId ? { ...p, role } : p)
+    );
+  };
 
   const handleQuickSelect = async (date: Date, time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -131,7 +210,9 @@ export function InterviewSchedulingDialog({
         durationMinutes: duration,
         meetingType,
         meetingLink: meetingLink || undefined,
-        notes: notes || undefined
+        notes: notes || undefined,
+        interviewTypeId: selectedInterviewType || undefined,
+        participants: selectedParticipants.map(p => ({ userId: p.userId, role: p.role }))
       });
       resetForm();
       onOpenChange(false);
@@ -153,7 +234,9 @@ export function InterviewSchedulingDialog({
         durationMinutes: duration,
         meetingType,
         meetingLink: meetingLink || undefined,
-        notes: notes || undefined
+        notes: notes || undefined,
+        interviewTypeId: selectedInterviewType || undefined,
+        participants: selectedParticipants.map(p => ({ userId: p.userId, role: p.role }))
       });
       resetForm();
       onOpenChange(false);
@@ -170,17 +253,22 @@ export function InterviewSchedulingDialog({
     setMeetingLink('');
     setNotes('');
     setShowCustomDate(false);
+    setSelectedInterviewType('');
+    setSelectedParticipants([]);
   };
 
   const generateMeetingLink = () => {
-    // Generate a placeholder meeting link - in production this would integrate with Google Meet/Zoom
     const meetingId = Math.random().toString(36).substring(2, 10);
     setMeetingLink(`https://meet.google.com/${meetingId}`);
   };
 
+  // Check if Teams/Meet is available
+  const isTeamsAvailable = msConnected;
+  const isMeetAvailable = googleConnected;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarCheck className="h-5 w-5 text-primary" />
@@ -194,13 +282,42 @@ export function InterviewSchedulingDialog({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {/* Interview Type Selection */}
+          {!typesLoading && interviewTypes.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Interview-Typ</Label>
+              <Select value={selectedInterviewType} onValueChange={handleInterviewTypeSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Interview-Typ wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {interviewTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id}>
+                      <div className="flex items-center justify-between w-full gap-4">
+                        <span>{type.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {type.default_duration} Min
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedInterviewType && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {interviewTypes.find(t => t.id === selectedInterviewType)?.description}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Calendar Integration Status */}
           {!calendarLoading && (
             <div className={cn(
               "flex items-center gap-2 p-3 rounded-lg text-sm",
-              isConnected ? "bg-green-50 text-green-700 border border-green-200" : "bg-muted"
+              calendarConnected ? "bg-green-50 text-green-700 border border-green-200" : "bg-muted"
             )}>
-              {isConnected ? (
+              {calendarConnected ? (
                 <>
                   <CalendarCheck className="h-4 w-4" />
                   <span>Kalender verbunden: {provider === 'google' ? 'Google Calendar' : 'Outlook'}</span>
@@ -317,71 +434,98 @@ export function InterviewSchedulingDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {DURATION_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value.toString()}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="30">30 Minuten</SelectItem>
+                        <SelectItem value="45">45 Minuten</SelectItem>
+                        <SelectItem value="60">60 Minuten</SelectItem>
+                        <SelectItem value="90">90 Minuten</SelectItem>
+                        <SelectItem value="120">2 Stunden</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
 
-              {/* Meeting Type */}
+              {/* Meeting Type - Extended */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">Meeting-Typ</Label>
                 <RadioGroup
                   value={meetingType}
-                  onValueChange={(v) => setMeetingType(v as 'video' | 'phone' | 'onsite')}
-                  className="grid grid-cols-3 gap-2"
+                  onValueChange={(v) => setMeetingType(v as typeof meetingType)}
+                  className="grid grid-cols-5 gap-2"
                 >
-                  <div>
-                    <RadioGroupItem value="video" id="video" className="peer sr-only" />
-                    <Label
-                      htmlFor="video"
-                      className={cn(
-                        "flex flex-col items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        meetingType === 'video' && "border-primary bg-primary/5"
-                      )}
-                    >
-                      <Video className="h-5 w-5 mb-1" />
-                      <span className="text-xs">Video-Call</span>
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="phone" id="phone" className="peer sr-only" />
-                    <Label
-                      htmlFor="phone"
-                      className={cn(
-                        "flex flex-col items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        meetingType === 'phone' && "border-primary bg-primary/5"
-                      )}
-                    >
-                      <Phone className="h-5 w-5 mb-1" />
-                      <span className="text-xs">Telefon</span>
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="onsite" id="onsite" className="peer sr-only" />
-                    <Label
-                      htmlFor="onsite"
-                      className={cn(
-                        "flex flex-col items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-all",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        meetingType === 'onsite' && "border-primary bg-primary/5"
-                      )}
-                    >
-                      <MapPin className="h-5 w-5 mb-1" />
-                      <span className="text-xs">Vor-Ort</span>
-                    </Label>
-                  </div>
+                  {MEETING_TYPES.map((type) => {
+                    const Icon = type.icon;
+                    const isDisabled = 
+                      (type.value === 'teams' && !isTeamsAvailable) ||
+                      (type.value === 'meet' && !isMeetAvailable);
+                    
+                    return (
+                      <div key={type.value}>
+                        <RadioGroupItem 
+                          value={type.value} 
+                          id={type.value} 
+                          className="peer sr-only" 
+                          disabled={isDisabled}
+                        />
+                        <Label
+                          htmlFor={type.value}
+                          className={cn(
+                            "flex flex-col items-center justify-center rounded-lg border-2 p-2.5 cursor-pointer transition-all text-center",
+                            "hover:bg-accent hover:text-accent-foreground",
+                            meetingType === type.value && "border-primary bg-primary/5",
+                            isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                          )}
+                        >
+                          <Icon />
+                          <span className="text-[10px] mt-1 font-medium">{type.label}</span>
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </RadioGroup>
+                
+                {/* Connection hints */}
+                {(meetingType === 'teams' && !isTeamsAvailable) && (
+                  <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                    <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+                    Microsoft Teams nicht verbunden.{' '}
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0 text-xs"
+                      onClick={() => window.location.href = '/recruiter/integrations'}
+                    >
+                      Jetzt verbinden
+                    </Button>
+                  </div>
+                )}
+                {(meetingType === 'meet' && !isMeetAvailable) && (
+                  <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                    <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+                    Google Calendar nicht verbunden.{' '}
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-auto p-0 text-xs"
+                      onClick={() => window.location.href = '/recruiter/integrations'}
+                    >
+                      Jetzt verbinden
+                    </Button>
+                  </div>
+                )}
+                {(meetingType === 'teams' && isTeamsAvailable) && (
+                  <p className="text-xs text-green-600 mt-2">
+                    ✓ Teams-Meeting wird automatisch erstellt
+                  </p>
+                )}
+                {(meetingType === 'meet' && isMeetAvailable) && (
+                  <p className="text-xs text-green-600 mt-2">
+                    ✓ Google Meet-Link wird automatisch erstellt
+                  </p>
+                )}
               </div>
 
-              {/* Meeting Link (for video calls) */}
+              {/* Meeting Link (for manual video calls) */}
               {meetingType === 'video' && (
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Meeting-Link (optional)</Label>
@@ -404,6 +548,98 @@ export function InterviewSchedulingDialog({
                       Generieren
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Multi-Interviewer Section */}
+              {teamMembers.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Interviewer
+                  </Label>
+                  
+                  {/* Selected participants */}
+                  {selectedParticipants.length > 0 && (
+                    <div className="space-y-2 mb-2">
+                      {selectedParticipants.map((participant) => (
+                        <div 
+                          key={participant.userId}
+                          className="flex items-center justify-between p-2 rounded-lg border bg-muted/30"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs">
+                                {participant.name.split(' ').map(n => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{participant.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Select 
+                              value={participant.role} 
+                              onValueChange={(v) => updateParticipantRole(participant.userId, v as ParticipantRole)}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="lead">Lead</SelectItem>
+                                <SelectItem value="panel">Panel</SelectItem>
+                                <SelectItem value="observer">Beobachter</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeParticipant(participant.userId)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Add participant button */}
+                  <Popover open={participantPickerOpen} onOpenChange={setParticipantPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Interviewer hinzufügen
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Suchen..." />
+                        <CommandList>
+                          <CommandEmpty>Keine Teammitglieder gefunden</CommandEmpty>
+                          <CommandGroup>
+                            {teamMembers
+                              .filter(m => !selectedParticipants.find(p => p.userId === m.id))
+                              .map(member => (
+                                <CommandItem
+                                  key={member.id}
+                                  onSelect={() => addParticipant(member)}
+                                >
+                                  <Avatar className="h-6 w-6 mr-2">
+                                    <AvatarFallback className="text-xs">
+                                      {member.name.split(' ').map(n => n[0]).join('')}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm">{member.name}</p>
+                                    <p className="text-xs text-muted-foreground">{member.email}</p>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
 

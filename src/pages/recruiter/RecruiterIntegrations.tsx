@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,9 +25,15 @@ import {
   Settings,
   RefreshCw,
   ExternalLink,
-  Zap
+  Zap,
+  Video,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 interface Integration {
   id: string;
@@ -37,6 +43,8 @@ interface Integration {
   connected: boolean;
   status?: 'active' | 'error' | 'syncing';
   lastSync?: string;
+  email?: string;
+  provider?: 'microsoft' | 'google';
 }
 
 export default function RecruiterIntegrations() {
@@ -45,7 +53,48 @@ export default function RecruiterIntegrations() {
   const [apiKey, setApiKey] = useState('');
   const [connecting, setConnecting] = useState(false);
 
+  // OAuth Hooks
+  const { 
+    isConnected: msConnected, 
+    connectionDetails: msDetails, 
+    loading: msLoading,
+    connectMicrosoft,
+    disconnectMicrosoft 
+  } = useMicrosoftAuth();
+
+  const {
+    isConnected: googleConnected,
+    connectionDetails: googleDetails,
+    loading: googleLoading,
+    connectGoogle,
+    disconnectGoogle
+  } = useGoogleAuth();
+
   const integrations: Integration[] = [
+    {
+      id: 'microsoft-teams',
+      name: 'Microsoft Teams',
+      description: 'Erstelle automatisch Teams-Meetings für Interviews und synchronisiere mit Outlook.',
+      icon: <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+        <Video className="h-5 w-5 text-blue-700" />
+      </div>,
+      connected: msConnected,
+      email: msDetails?.email || undefined,
+      provider: 'microsoft',
+      lastSync: msDetails?.connected_at ? format(new Date(msDetails.connected_at), 'dd.MM.yyyy HH:mm', { locale: de }) : undefined
+    },
+    {
+      id: 'google-calendar',
+      name: 'Google Calendar',
+      description: 'Synchronisiere Interviews mit Google Calendar und erstelle Google Meet-Links.',
+      icon: <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+        <Calendar className="h-5 w-5 text-red-600" />
+      </div>,
+      connected: googleConnected,
+      email: googleDetails?.email || undefined,
+      provider: 'google',
+      lastSync: googleDetails?.connected_at ? format(new Date(googleDetails.connected_at), 'dd.MM.yyyy HH:mm', { locale: de }) : undefined
+    },
     {
       id: 'hubspot',
       name: 'HubSpot',
@@ -61,24 +110,6 @@ export default function RecruiterIntegrations() {
       description: 'Verbinde dein Salesforce CRM für nahtlose Kandidatenverwaltung.',
       icon: <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
         <LinkIcon className="h-5 w-5 text-blue-600" />
-      </div>,
-      connected: false,
-    },
-    {
-      id: 'google-calendar',
-      name: 'Google Calendar',
-      description: 'Synchronisiere Interviews und Termine mit deinem Google Kalender.',
-      icon: <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-        <Calendar className="h-5 w-5 text-red-600" />
-      </div>,
-      connected: false,
-    },
-    {
-      id: 'outlook',
-      name: 'Microsoft Outlook',
-      description: 'E-Mail und Kalender Integration mit Microsoft 365.',
-      icon: <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-        <Mail className="h-5 w-5 text-blue-700" />
       </div>,
       connected: false,
     },
@@ -102,10 +133,36 @@ export default function RecruiterIntegrations() {
     },
   ];
 
-  const handleConnect = (integration: Integration) => {
+  const handleConnect = async (integration: Integration) => {
+    // Handle OAuth integrations
+    if (integration.provider === 'microsoft') {
+      await connectMicrosoft();
+      return;
+    }
+    
+    if (integration.provider === 'google') {
+      await connectGoogle();
+      return;
+    }
+
+    // Handle API key integrations
     setSelectedIntegration(integration);
     setSetupDialogOpen(true);
     setApiKey('');
+  };
+
+  const handleDisconnect = async (integration: Integration) => {
+    if (integration.provider === 'microsoft') {
+      await disconnectMicrosoft();
+      return;
+    }
+    
+    if (integration.provider === 'google') {
+      await disconnectGoogle();
+      return;
+    }
+
+    toast.success(`${integration.name} wurde getrennt`);
   };
 
   const handleSubmitConnection = async () => {
@@ -122,9 +179,7 @@ export default function RecruiterIntegrations() {
     setApiKey('');
   };
 
-  const handleDisconnect = (integration: Integration) => {
-    toast.success(`${integration.name} wurde getrennt`);
-  };
+  const isLoading = msLoading || googleLoading;
 
   return (
     <DashboardLayout>
@@ -144,10 +199,10 @@ export default function RecruiterIntegrations() {
               <LinkIcon className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">Kandidaten aus externen Quellen</h3>
+              <h3 className="font-semibold">Kalender & Meeting-Integrationen</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Verbinde dein CRM um Kontakte direkt als Kandidaten zu importieren. 
-                Alle importierten Kontakte werden automatisch deinem Kandidaten-Pool hinzugefügt.
+                Verbinde Microsoft Teams oder Google Calendar, um automatisch Meeting-Links für Interviews zu erstellen 
+                und Termine in deinem Kalender zu synchronisieren.
               </p>
             </div>
           </CardContent>
@@ -155,62 +210,87 @@ export default function RecruiterIntegrations() {
 
         {/* Integrations Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {integrations.map((integration) => (
-            <Card key={integration.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between mb-4">
-                  {integration.icon}
-                  {integration.connected ? (
-                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verbunden
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Nicht verbunden
-                    </Badge>
-                  )}
-                </div>
-                
-                <h3 className="font-semibold">{integration.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">
-                  {integration.description}
-                </p>
+          {integrations.map((integration) => {
+            const isOAuth = integration.provider === 'microsoft' || integration.provider === 'google';
+            const isIntegrationLoading = 
+              (integration.provider === 'microsoft' && msLoading) ||
+              (integration.provider === 'google' && googleLoading);
 
-                {integration.connected ? (
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Einstellungen
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleDisconnect(integration)}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
+            return (
+              <Card key={integration.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between mb-4">
+                    {integration.icon}
+                    {isIntegrationLoading ? (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Lädt...
+                      </Badge>
+                    ) : integration.connected ? (
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Verbunden
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Nicht verbunden
+                      </Badge>
+                    )}
                   </div>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => handleConnect(integration)}
-                  >
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    Verbinden
-                  </Button>
-                )}
-
-                {integration.connected && integration.lastSync && (
-                  <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3" />
-                    Zuletzt synchronisiert: {integration.lastSync}
+                  
+                  <h3 className="font-semibold">{integration.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    {integration.description}
                   </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+
+                  {integration.connected && integration.email && (
+                    <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {integration.email}
+                    </p>
+                  )}
+
+                  {integration.connected ? (
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="flex-1">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Einstellungen
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDisconnect(integration)}
+                        disabled={isIntegrationLoading}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => handleConnect(integration)}
+                      disabled={isIntegrationLoading}
+                    >
+                      {isIntegrationLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <LinkIcon className="h-4 w-4 mr-2" />
+                      )}
+                      {isOAuth ? 'Mit OAuth verbinden' : 'Verbinden'}
+                    </Button>
+                  )}
+
+                  {integration.connected && integration.lastSync && (
+                    <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" />
+                      Verbunden am: {integration.lastSync}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Auto-Sync Settings */}
@@ -244,6 +324,16 @@ export default function RecruiterIntegrations() {
               </div>
               <Switch id="notify-sync" />
             </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="auto-meeting">Automatische Meeting-Links</Label>
+                <p className="text-sm text-muted-foreground">
+                  Erstelle automatisch Meeting-Links beim Planen von Interviews
+                </p>
+              </div>
+              <Switch id="auto-meeting" defaultChecked />
+            </div>
           </CardContent>
         </Card>
 
@@ -264,7 +354,7 @@ export default function RecruiterIntegrations() {
         </Card>
       </div>
 
-      {/* Connection Setup Dialog */}
+      {/* Connection Setup Dialog (for non-OAuth integrations) */}
       <Dialog open={setupDialogOpen} onOpenChange={setSetupDialogOpen}>
         <DialogContent>
           <DialogHeader>
