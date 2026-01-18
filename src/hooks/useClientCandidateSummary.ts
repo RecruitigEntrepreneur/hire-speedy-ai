@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+const TARGET_VERSION = 'v2-job-context';
 
 export interface RiskFactor {
   factor: string;
@@ -43,19 +45,50 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  
+  // Track if we've already auto-regenerated for this candidate/submission combo
+  const hasAutoRegenerated = useRef(false);
+  const lastFetchKey = useRef<string>('');
 
   const fetchSummary = useCallback(async () => {
     if (!candidateId) return;
 
+    const fetchKey = `${candidateId}-${submissionId || 'none'}`;
+    
+    // Reset auto-regeneration flag if the key changed
+    if (lastFetchKey.current !== fetchKey) {
+      hasAutoRegenerated.current = false;
+      lastFetchKey.current = fetchKey;
+    }
+
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('candidate_client_summary')
-        .select('*')
-        .eq('candidate_id', candidateId)
-        .maybeSingle();
-
-      if (error) throw error;
+      let data = null;
+      
+      // Strategy 1: If submissionId is provided, fetch by submission_id first
+      if (submissionId) {
+        const { data: submissionData, error: submissionError } = await supabase
+          .from('candidate_client_summary')
+          .select('*')
+          .eq('submission_id', submissionId)
+          .maybeSingle();
+        
+        if (!submissionError && submissionData) {
+          data = submissionData;
+        }
+      }
+      
+      // Strategy 2: Fallback to candidate_id for legacy v1 data
+      if (!data) {
+        const { data: candidateData, error: candidateError } = await supabase
+          .from('candidate_client_summary')
+          .select('*')
+          .eq('candidate_id', candidateId)
+          .maybeSingle();
+        
+        if (candidateError) throw candidateError;
+        data = candidateData;
+      }
 
       if (data) {
         const riskFactors = Array.isArray(data.risk_factors) 
@@ -74,7 +107,7 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
           explanation: '',
         };
 
-        setSummary({
+        const parsedSummary: ClientCandidateSummary = {
           id: data.id,
           candidate_id: data.candidate_id,
           submission_id: data.submission_id,
@@ -89,20 +122,29 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
           key_selling_points: keySellingPoints,
           generated_at: data.generated_at || '',
           model_version: data.model_version || 'v1',
-        });
+        };
+
+        setSummary(parsedSummary);
+        
+        // Check if summary is outdated and needs regeneration
+        const isOutdated = 
+          parsedSummary.model_version !== TARGET_VERSION ||
+          !parsedSummary.career_goals ||
+          (submissionId && parsedSummary.submission_id !== submissionId);
+        
+        return { summary: parsedSummary, isOutdated };
       }
+      
+      return { summary: null, isOutdated: true };
     } catch (error) {
       console.error('Error fetching client summary:', error);
+      return { summary: null, isOutdated: true };
     } finally {
       setLoading(false);
     }
-  }, [candidateId]);
+  }, [candidateId, submissionId]);
 
-  useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
-
-  const generateSummary = useCallback(async () => {
+  const generateSummary = useCallback(async (options?: { silent?: boolean }) => {
     if (!candidateId) return null;
 
     setGenerating(true);
@@ -114,10 +156,12 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
       if (error) throw error;
 
       if (data?.success) {
-        toast({
-          title: 'Zusammenfassung erstellt',
-          description: 'Die Kunden-Zusammenfassung wurde erfolgreich generiert.',
-        });
+        if (!options?.silent) {
+          toast({
+            title: 'Zusammenfassung erstellt',
+            description: 'Die Kunden-Zusammenfassung wurde erfolgreich generiert.',
+          });
+        }
 
         await fetchSummary();
         return data.summary;
@@ -126,16 +170,34 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
       }
     } catch (error) {
       console.error('Error generating client summary:', error);
-      toast({
-        title: 'Fehler bei der Generierung',
-        description: error instanceof Error ? error.message : 'Ein Fehler ist aufgetreten',
-        variant: 'destructive',
-      });
+      if (!options?.silent) {
+        toast({
+          title: 'Fehler bei der Generierung',
+          description: error instanceof Error ? error.message : 'Ein Fehler ist aufgetreten',
+          variant: 'destructive',
+        });
+      }
       return null;
     } finally {
       setGenerating(false);
     }
   }, [candidateId, submissionId, fetchSummary, toast]);
+
+  // Initial fetch and auto-regeneration
+  useEffect(() => {
+    const fetchAndAutoRegenerate = async () => {
+      const result = await fetchSummary();
+      
+      // Auto-regenerate if outdated and we haven't already tried
+      if (result?.isOutdated && !hasAutoRegenerated.current && candidateId) {
+        hasAutoRegenerated.current = true;
+        console.log('[useClientCandidateSummary] Auto-regenerating outdated summary for candidate:', candidateId);
+        generateSummary({ silent: true });
+      }
+    };
+    
+    fetchAndAutoRegenerate();
+  }, [fetchSummary, candidateId, generateSummary]);
 
   return {
     summary,
