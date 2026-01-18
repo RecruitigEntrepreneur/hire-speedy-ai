@@ -766,13 +766,6 @@ export default function TalentHub() {
                           {selectedCandidate.currentRole}
                           {selectedCandidate.company && ` @ ${selectedCandidate.company}`}
                         </p>
-                        {/* Position Badge */}
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Badge variant="outline" className="text-xs font-normal">
-                            <Target className="h-3 w-3 mr-1" />
-                            {selectedCandidate.jobTitle}
-                          </Badge>
-                        </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           {selectedCandidate.city && (
                             <span className="flex items-center gap-0.5">
@@ -829,6 +822,15 @@ export default function TalentHub() {
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Position/Stelle unter der Pipeline */}
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <Target className="h-3.5 w-3.5 text-primary/70" />
+                      <span>Vorgeschlagen für:</span>
+                      <Badge variant="secondary" className="font-medium">
+                        {selectedCandidate.jobTitle}
+                      </Badge>
                     </div>
 
                     {/* Quick Actions - Plattformkontrolliert */}
