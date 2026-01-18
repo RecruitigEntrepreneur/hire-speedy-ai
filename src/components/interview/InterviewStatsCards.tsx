@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Calendar, Clock, MessageSquare, TrendingUp } from 'lucide-react';
-import { format, isToday, isThisWeek, differenceInMinutes, startOfMonth, endOfMonth } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { isToday, isThisWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface Interview {
   id: string;
@@ -20,9 +20,11 @@ interface Interview {
 
 interface InterviewStatsCardsProps {
   interviews: Interview[];
+  onFilterChange?: (filter: 'today' | 'week' | 'feedback' | 'completed' | null) => void;
+  activeFilter?: 'today' | 'week' | 'feedback' | 'completed' | null;
 }
 
-export function InterviewStatsCards({ interviews }: InterviewStatsCardsProps) {
+export function InterviewStatsCards({ interviews, onFilterChange, activeFilter }: InterviewStatsCardsProps) {
   const stats = useMemo(() => {
     const now = new Date();
     const monthStart = startOfMonth(now);
@@ -60,6 +62,7 @@ export function InterviewStatsCards({ interviews }: InterviewStatsCardsProps) {
 
   const cards = [
     {
+      key: 'today' as const,
       title: 'Heute',
       value: stats.today,
       subtitle: 'Interviews',
@@ -67,8 +70,10 @@ export function InterviewStatsCards({ interviews }: InterviewStatsCardsProps) {
       gradient: 'from-primary/10 to-primary/5',
       iconColor: 'text-primary',
       iconBg: 'bg-primary/10',
+      activeRing: 'ring-primary/50',
     },
     {
+      key: 'week' as const,
       title: 'Diese Woche',
       value: stats.week,
       subtitle: 'Interviews',
@@ -76,8 +81,10 @@ export function InterviewStatsCards({ interviews }: InterviewStatsCardsProps) {
       gradient: 'from-emerald-500/10 to-emerald-600/5',
       iconColor: 'text-emerald-600',
       iconBg: 'bg-emerald-500/10',
+      activeRing: 'ring-emerald-500/50',
     },
     {
+      key: 'feedback' as const,
       title: 'Feedback',
       value: stats.pendingFeedback,
       subtitle: 'Ausstehend',
@@ -86,8 +93,10 @@ export function InterviewStatsCards({ interviews }: InterviewStatsCardsProps) {
       iconColor: 'text-amber-600',
       iconBg: 'bg-amber-500/10',
       warning: stats.pendingFeedback > 0,
+      activeRing: 'ring-amber-500/50',
     },
     {
+      key: 'completed' as const,
       title: 'Diesen Monat',
       value: stats.completedMonth,
       subtitle: 'Abgeschlossen',
@@ -95,47 +104,69 @@ export function InterviewStatsCards({ interviews }: InterviewStatsCardsProps) {
       gradient: 'from-purple-500/10 to-purple-600/5',
       iconColor: 'text-purple-600',
       iconBg: 'bg-purple-500/10',
+      activeRing: 'ring-purple-500/50',
     },
   ];
 
+  const handleCardClick = (cardKey: typeof cards[number]['key']) => {
+    if (onFilterChange) {
+      // Toggle filter if clicking the same card
+      onFilterChange(activeFilter === cardKey ? null : cardKey);
+    }
+  };
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div
-          key={card.title}
-          className={`
-            glass-card rounded-xl p-4 
-            bg-gradient-to-br ${card.gradient}
-            hover:shadow-lg hover:scale-[1.02] 
-            transition-all duration-300 cursor-default
-            ${card.warning ? 'ring-2 ring-amber-500/30' : ''}
-          `}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {card.title}
-              </p>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-foreground">
-                  {card.value}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {card.subtitle}
-                </span>
-              </div>
-              {card.warning && card.value > 0 && (
-                <p className="text-xs text-amber-600 mt-1 font-medium">
-                  ⚠️ Bitte geben
+      {cards.map((card) => {
+        const isActive = activeFilter === card.key;
+        const isClickable = !!onFilterChange;
+        
+        return (
+          <button
+            key={card.title}
+            type="button"
+            disabled={!isClickable}
+            onClick={() => handleCardClick(card.key)}
+            className={cn(
+              "glass-card rounded-xl p-4 text-left",
+              "bg-gradient-to-br", card.gradient,
+              "transition-all duration-300",
+              isClickable && "cursor-pointer hover:shadow-lg hover:scale-[1.02]",
+              isActive && `ring-2 ${card.activeRing} shadow-lg scale-[1.02]`,
+              card.warning && !isActive && "ring-2 ring-amber-500/30"
+            )}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {card.title}
                 </p>
-              )}
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-foreground">
+                    {card.value}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {card.subtitle}
+                  </span>
+                </div>
+                {card.warning && card.value > 0 && (
+                  <p className="text-xs text-amber-600 mt-1 font-medium">
+                    ⚠️ Bitte geben
+                  </p>
+                )}
+                {isActive && (
+                  <p className="text-xs text-primary mt-1 font-medium">
+                    ✓ Filter aktiv
+                  </p>
+                )}
+              </div>
+              <div className={cn(card.iconBg, "p-2.5 rounded-lg")}>
+                <card.icon className={cn("h-5 w-5", card.iconColor)} />
+              </div>
             </div>
-            <div className={`${card.iconBg} p-2.5 rounded-lg`}>
-              <card.icon className={`h-5 w-5 ${card.iconColor}`} />
-            </div>
-          </div>
-        </div>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1,36 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { InterviewCalendarView } from '@/components/interview/InterviewCalendarView';
 import { InterviewStatsCards } from '@/components/interview/InterviewStatsCards';
 import { NextInterviewBanner } from '@/components/interview/NextInterviewBanner';
 import { ModernInterviewCard } from '@/components/interview/ModernInterviewCard';
 import { InterviewEmptyState } from '@/components/interview/InterviewEmptyState';
 import { InterviewFeedbackForm } from '@/components/interview/InterviewFeedbackForm';
-import { Loader2, LayoutGrid, List } from 'lucide-react';
+import { InterviewEditDialog } from '@/components/interview/InterviewEditDialog';
+import { useInterviewKeyboardShortcuts } from '@/hooks/useInterviewKeyboardShortcuts';
+import { Loader2, LayoutGrid, List, Search, Video, Phone, MapPin, X, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { isToday, isThisWeek } from 'date-fns';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface Interview {
   id: string;
@@ -54,6 +48,9 @@ interface Interview {
   };
 }
 
+type FilterType = 'today' | 'week' | 'feedback' | 'completed' | null;
+type MeetingTypeFilter = 'all' | 'video' | 'phone' | 'onsite';
+
 export default function ClientInterviews() {
   const { user } = useAuth();
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -65,12 +62,21 @@ export default function ClientInterviews() {
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [feedbackInterview, setFeedbackInterview] = useState<Interview | null>(null);
   
-  const [formData, setFormData] = useState({
-    scheduled_at: '',
-    duration_minutes: 60,
-    meeting_type: 'video',
-    meeting_link: '',
-    notes: '',
+  // Filters
+  const [statsFilter, setStatsFilter] = useState<FilterType>(null);
+  const [meetingTypeFilter, setMeetingTypeFilter] = useState<MeetingTypeFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  useInterviewKeyboardShortcuts({
+    onToggleView: () => setViewMode(prev => prev === 'list' ? 'calendar' : 'list'),
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onCloseDialog: () => {
+      if (dialogOpen) setDialogOpen(false);
+      else if (feedbackDialogOpen) setFeedbackDialogOpen(false);
+    },
+    enabled: true,
   });
 
   const handleOpenFeedback = (interview: Interview) => {
@@ -105,28 +111,27 @@ export default function ClientInterviews() {
 
   const handleEdit = (interview: Interview) => {
     setEditingInterview(interview);
-    setFormData({
-      scheduled_at: interview.scheduled_at ? format(new Date(interview.scheduled_at), "yyyy-MM-dd'T'HH:mm") : '',
-      duration_minutes: interview.duration_minutes || 60,
-      meeting_type: interview.meeting_type || 'video',
-      meeting_link: interview.meeting_link || '',
-      notes: interview.notes || '',
-    });
     setDialogOpen(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (data: {
+    scheduled_at: string;
+    duration_minutes: number;
+    meeting_type: string;
+    meeting_link: string;
+    notes: string;
+  }) => {
     if (!editingInterview) return;
     setProcessing(true);
 
     const { error } = await supabase
       .from('interviews')
       .update({
-        scheduled_at: formData.scheduled_at ? new Date(formData.scheduled_at).toISOString() : null,
-        duration_minutes: formData.duration_minutes,
-        meeting_type: formData.meeting_type,
-        meeting_link: formData.meeting_link,
-        notes: formData.notes,
+        scheduled_at: data.scheduled_at,
+        duration_minutes: data.duration_minutes,
+        meeting_type: data.meeting_type,
+        meeting_link: data.meeting_link,
+        notes: data.notes,
         status: 'scheduled',
       })
       .eq('id', editingInterview.id);
@@ -171,6 +176,78 @@ export default function ClientInterviews() {
     setProcessing(false);
   };
 
+  const handleNoShow = async (interview: Interview, type: 'candidate' | 'client') => {
+    setProcessing(true);
+    
+    await supabase
+      .from('interviews')
+      .update({ 
+        status: 'no_show',
+        notes: `${interview.notes || ''}\n\n[No-Show: ${type === 'candidate' ? 'Kandidat' : 'Kunde'} nicht erschienen]`.trim()
+      })
+      .eq('id', interview.id);
+
+    toast.success(`No-Show gemeldet: ${type === 'candidate' ? 'Kandidat' : 'Kunde'} nicht erschienen`);
+    fetchInterviews();
+    setProcessing(false);
+  };
+
+  // Apply all filters
+  const filteredInterviews = useMemo(() => {
+    let result = [...interviews];
+
+    // Stats filter
+    if (statsFilter === 'today') {
+      result = result.filter(i => 
+        i.scheduled_at && isToday(new Date(i.scheduled_at)) && i.status !== 'completed' && i.status !== 'cancelled'
+      );
+    } else if (statsFilter === 'week') {
+      result = result.filter(i => 
+        i.scheduled_at && isThisWeek(new Date(i.scheduled_at), { weekStartsOn: 1 }) && i.status !== 'completed' && i.status !== 'cancelled'
+      );
+    } else if (statsFilter === 'feedback') {
+      result = result.filter(i => i.status === 'completed' && !i.feedback);
+    } else if (statsFilter === 'completed') {
+      result = result.filter(i => i.status === 'completed');
+    }
+
+    // Meeting type filter
+    if (meetingTypeFilter !== 'all') {
+      result = result.filter(i => {
+        if (meetingTypeFilter === 'video') {
+          return i.meeting_type === 'video' || i.meeting_type === 'teams' || i.meeting_type === 'meet';
+        }
+        return i.meeting_type === meetingTypeFilter;
+      });
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(i => 
+        i.submission.candidate.full_name.toLowerCase().includes(query) ||
+        i.submission.job.title.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [interviews, statsFilter, meetingTypeFilter, searchQuery]);
+
+  const upcomingInterviews = filteredInterviews.filter(i => 
+    i.status !== 'completed' && i.status !== 'cancelled'
+  );
+  const pastInterviews = filteredInterviews.filter(i => 
+    i.status === 'completed' || i.status === 'cancelled'
+  );
+
+  const hasActiveFilters = statsFilter !== null || meetingTypeFilter !== 'all' || searchQuery.trim() !== '';
+
+  const clearAllFilters = () => {
+    setStatsFilter(null);
+    setMeetingTypeFilter('all');
+    setSearchQuery('');
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -180,13 +257,6 @@ export default function ClientInterviews() {
       </DashboardLayout>
     );
   }
-
-  const upcomingInterviews = interviews.filter(i => 
-    i.status !== 'completed' && i.status !== 'cancelled'
-  );
-  const pastInterviews = interviews.filter(i => 
-    i.status === 'completed' || i.status === 'cancelled'
-  );
 
   return (
     <DashboardLayout>
@@ -201,30 +271,136 @@ export default function ClientInterviews() {
               Alle Ihre Interviews auf einen Blick
             </p>
           </div>
-          <div className="flex items-center gap-2 glass-card rounded-lg p-1">
-            <Button 
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="gap-1.5"
-            >
-              <List className="h-4 w-4" />
-              Liste
-            </Button>
-            <Button 
-              variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} 
-              size="sm"
-              onClick={() => setViewMode('calendar')}
-              className="gap-1.5"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Kalender
-            </Button>
+          <div className="flex items-center gap-2">
+            {/* Keyboard Shortcuts Hint */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                    <Keyboard className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1 text-xs">
+                    <p><kbd className="px-1 rounded bg-muted">L</kbd> Liste/Kalender wechseln</p>
+                    <p><kbd className="px-1 rounded bg-muted">F</kbd> Suche fokussieren</p>
+                    <p><kbd className="px-1 rounded bg-muted">Esc</kbd> Dialog schließen</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <div className="glass-card rounded-lg p-1 flex items-center gap-1">
+              <Button 
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="gap-1.5"
+              >
+                <List className="h-4 w-4" />
+                Liste
+              </Button>
+              <Button 
+                variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} 
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+                className="gap-1.5"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Kalender
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <InterviewStatsCards interviews={interviews} />
+        {/* Stats Cards (clickable filters) */}
+        <InterviewStatsCards 
+          interviews={interviews}
+          onFilterChange={setStatsFilter}
+          activeFilter={statsFilter}
+        />
+
+        {/* Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Meeting Type Filters */}
+            <div className="flex items-center gap-1 glass-card rounded-lg p-1">
+              <Button
+                variant={meetingTypeFilter === 'all' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setMeetingTypeFilter('all')}
+              >
+                Alle
+              </Button>
+              <Button
+                variant={meetingTypeFilter === 'video' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setMeetingTypeFilter('video')}
+                className="gap-1.5"
+              >
+                <Video className="h-3.5 w-3.5" />
+                Video
+              </Button>
+              <Button
+                variant={meetingTypeFilter === 'phone' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setMeetingTypeFilter('phone')}
+                className="gap-1.5"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                Telefon
+              </Button>
+              <Button
+                variant={meetingTypeFilter === 'onsite' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setMeetingTypeFilter('onsite')}
+                className="gap-1.5"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                Vor Ort
+              </Button>
+            </div>
+
+            {/* Active Filters Badge */}
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllFilters}
+                className="gap-1.5 text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                Filter zurücksetzen
+              </Button>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Kandidat oder Position..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+
+        {/* Results Count */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">
+              {filteredInterviews.length} Ergebnis{filteredInterviews.length !== 1 ? 'se' : ''}
+            </Badge>
+            {statsFilter && (
+              <Badge variant="outline">
+                Filter: {statsFilter === 'today' ? 'Heute' : statsFilter === 'week' ? 'Diese Woche' : statsFilter === 'feedback' ? 'Feedback' : 'Abgeschlossen'}
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Next Interview Banner */}
         <NextInterviewBanner 
@@ -236,7 +412,7 @@ export default function ClientInterviews() {
         {viewMode === 'calendar' && (
           <div className="glass-card rounded-xl p-4">
             <InterviewCalendarView 
-              interviews={interviews}
+              interviews={filteredInterviews}
               onSelectInterview={(interview) => handleEdit(interview)}
             />
           </div>
@@ -276,6 +452,8 @@ export default function ClientInterviews() {
                       onEdit={handleEdit}
                       onComplete={handleComplete}
                       onFeedback={handleOpenFeedback}
+                      onNoShow={handleNoShow}
+                      onQuickReschedule={handleEdit}
                       processing={processing}
                     />
                   ))}
@@ -305,76 +483,14 @@ export default function ClientInterviews() {
         )}
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Interview bearbeiten</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Datum & Uhrzeit</Label>
-              <Input
-                type="datetime-local"
-                value={formData.scheduled_at}
-                onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Dauer (Minuten)</Label>
-              <Input
-                type="number"
-                value={formData.duration_minutes}
-                onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Art des Interviews</Label>
-              <Select
-                value={formData.meeting_type}
-                onValueChange={(value) => setFormData({ ...formData, meeting_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="phone">Telefon</SelectItem>
-                  <SelectItem value="onsite">Vor Ort</SelectItem>
-                  <SelectItem value="teams">Microsoft Teams</SelectItem>
-                  <SelectItem value="meet">Google Meet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Meeting-Link</Label>
-              <Input
-                placeholder="https://..."
-                value={formData.meeting_link}
-                onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Notizen</Label>
-              <Textarea
-                placeholder="Interne Notizen..."
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleSave} disabled={processing}>
-              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Speichern
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Professional Edit Dialog */}
+      <InterviewEditDialog
+        interview={editingInterview}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSave}
+        processing={processing}
+      />
 
       {/* Feedback Dialog */}
       {feedbackInterview && (

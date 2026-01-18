@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Video, Phone, MapPin, Clock, Calendar, 
   ExternalLink, MoreHorizontal, Edit, XCircle, 
-  CheckCircle, MessageSquarePlus, User
+  CheckCircle, MessageSquarePlus, User, Star,
+  UserX, CalendarClock, AlertTriangle
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -12,9 +13,20 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { format, differenceInHours, differenceInMinutes, isToday, isTomorrow, isPast } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface Interview {
   id: string;
@@ -43,6 +55,8 @@ interface ModernInterviewCardProps {
   onEdit: (interview: Interview) => void;
   onComplete: (interview: Interview, hired: boolean) => void;
   onFeedback: (interview: Interview) => void;
+  onNoShow?: (interview: Interview, type: 'candidate' | 'client') => void;
+  onQuickReschedule?: (interview: Interview) => void;
   processing?: boolean;
 }
 
@@ -51,9 +65,15 @@ export function ModernInterviewCard({
   onEdit, 
   onComplete, 
   onFeedback,
+  onNoShow,
+  onQuickReschedule,
   processing 
 }: ModernInterviewCardProps) {
+  const navigate = useNavigate();
   const scheduledDate = interview.scheduled_at ? new Date(interview.scheduled_at) : null;
+  const [quickRating, setQuickRating] = useState<number | null>(null);
+  const [isHoveringStars, setIsHoveringStars] = useState(false);
+  const [hoveredStar, setHoveredStar] = useState(0);
   
   const timeInfo = useMemo(() => {
     if (!scheduledDate) return { label: 'Nicht geplant', color: 'text-muted-foreground', urgent: false };
@@ -155,6 +175,17 @@ export function ModernInterviewCard({
   const needsFeedback = interview.status === 'completed' && !interview.feedback;
   const MeetingIcon = meetingConfig.icon;
 
+  const handleViewProfile = () => {
+    // Navigate to candidate profile (using submission's candidate info)
+    navigate(`/dashboard/candidates`);
+  };
+
+  const handleQuickRating = (rating: number) => {
+    setQuickRating(rating);
+    // In production, this would save to DB
+    onFeedback(interview);
+  };
+
   return (
     <div 
       className={`
@@ -185,7 +216,27 @@ export function ModernInterviewCard({
               </span>
             )}
           </div>
-          <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+            {/* View Profile Button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={handleViewProfile}
+                  >
+                    <User className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Profil ansehen</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -209,8 +260,8 @@ export function ModernInterviewCard({
               {interview.submission.job.title}
             </p>
             
-            {/* Meeting Type Badge */}
-            <div className="flex items-center gap-2 mt-2">
+            {/* Meeting Type Badge & Clickable Time */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className={`
                 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full
                 bg-gradient-to-r ${meetingConfig.gradient}
@@ -220,7 +271,26 @@ export function ModernInterviewCard({
                 {meetingConfig.label}
               </span>
               
-              {scheduledDate && (
+              {/* Clickable Time - Opens Edit Dialog */}
+              {scheduledDate && !isPastInterview && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(interview)}
+                  className={cn(
+                    "h-auto py-1 px-2 gap-1.5 text-xs text-muted-foreground",
+                    "hover:text-primary hover:bg-primary/5 group"
+                  )}
+                >
+                  <Clock className="h-3 w-3" />
+                  <span>
+                    {format(scheduledDate, "EEEE, d. MMM 'um' HH:mm", { locale: de })} Uhr
+                  </span>
+                  <Edit className="h-3 w-3 opacity-0 group-hover:opacity-70 transition-opacity" />
+                </Button>
+              )}
+
+              {scheduledDate && isPastInterview && (
                 <span className="text-xs text-muted-foreground">
                   {format(scheduledDate, 'HH:mm', { locale: de })} Uhr
                 </span>
@@ -229,22 +299,56 @@ export function ModernInterviewCard({
           </div>
         </div>
 
-        {/* Feedback Warning for past interviews */}
+        {/* Feedback Warning with Quick Rating for past interviews */}
         {needsFeedback && (
           <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <MessageSquarePlus className="h-4 w-4" />
-                <span className="text-sm font-medium">Feedback ausstehend</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <MessageSquarePlus className="h-4 w-4" />
+                  <span className="text-sm font-medium">Feedback ausstehend</span>
+                </div>
               </div>
-              <Button 
-                size="sm" 
-                variant="outline"
-                className="border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
-                onClick={() => onFeedback(interview)}
-              >
-                Jetzt geben
-              </Button>
+              
+              {/* Quick Star Rating */}
+              <div className="flex items-center justify-between">
+                <div 
+                  className="flex items-center gap-1"
+                  onMouseEnter={() => setIsHoveringStars(true)}
+                  onMouseLeave={() => {
+                    setIsHoveringStars(false);
+                    setHoveredStar(0);
+                  }}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className="p-0.5 transition-transform hover:scale-110"
+                      onClick={() => handleQuickRating(star)}
+                      onMouseEnter={() => setHoveredStar(star)}
+                    >
+                      <Star
+                        className={cn(
+                          "h-5 w-5 transition-colors",
+                          (isHoveringStars ? hoveredStar >= star : quickRating && quickRating >= star)
+                            ? "text-amber-500 fill-amber-500"
+                            : "text-amber-300"
+                        )}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-2">Quick-Rating</span>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
+                  onClick={() => onFeedback(interview)}
+                >
+                  Detailliert
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -292,11 +396,21 @@ export function ModernInterviewCard({
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleViewProfile}>
+                  <User className="h-4 w-4 mr-2" />
+                  Profil ansehen
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEdit(interview)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Bearbeiten
                 </DropdownMenuItem>
+                {onQuickReschedule && (
+                  <DropdownMenuItem onClick={() => onQuickReschedule(interview)}>
+                    <CalendarClock className="h-4 w-4 mr-2" />
+                    Verschieben
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={() => onComplete(interview, true)}
@@ -306,6 +420,25 @@ export function ModernInterviewCard({
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Einstellen
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {onNoShow && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      No-Show melden
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => onNoShow(interview, 'candidate')}>
+                        <UserX className="h-4 w-4 mr-2" />
+                        Kandidat nicht erschienen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onNoShow(interview, 'client')}>
+                        <UserX className="h-4 w-4 mr-2" />
+                        Kunde nicht erschienen
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
                 <DropdownMenuItem 
                   onClick={() => onComplete(interview, false)}
                   disabled={processing}
