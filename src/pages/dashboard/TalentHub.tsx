@@ -467,8 +467,15 @@ export default function TalentHub() {
     meetingLink?: string;
     notes?: string;
   }) => {
+    setProcessing(true);
     try {
-      const { error } = await supabase.from('interviews').insert({
+      // 1. Find current candidate and determine next stage
+      const candidate = candidates.find(c => c.submissionId === submissionId);
+      const currentStage = candidate?.stage || 'submitted';
+      const nextStage = currentStage === 'submitted' ? 'interview_1' : 'interview_2';
+
+      // 2. Create interview
+      const { error: interviewError } = await supabase.from('interviews').insert({
         submission_id: submissionId,
         scheduled_at: details.scheduledAt.toISOString(),
         duration_minutes: details.durationMinutes,
@@ -478,12 +485,41 @@ export default function TalentHub() {
         status: 'pending'
       });
 
-      if (error) throw error;
-      toast.success('Interview geplant');
+      if (interviewError) throw interviewError;
+
+      // 3. Update submission stage
+      const { error: stageError } = await supabase
+        .from('submissions')
+        .update({ stage: nextStage, status: 'interview' })
+        .eq('id', submissionId);
+
+      if (stageError) throw stageError;
+
+      // 4. Create notification (handled by automation-hub trigger)
+      // The automation-hub edge function will create proper notifications
+
+      // 5. Update local state
+      setCandidates(prev => prev.map(c => 
+        c.submissionId === submissionId 
+          ? { ...c, stage: nextStage, status: 'interview' }
+          : c
+      ));
+
+      // 6. Update selectedCandidate if it's the same one
+      if (selectedCandidate?.submissionId === submissionId) {
+        setSelectedCandidate(prev => prev ? { ...prev, stage: nextStage, status: 'interview' } : null);
+      }
+
+      const stageLabel = PIPELINE_STAGES.find(s => s.key === nextStage)?.label || nextStage;
+      toast.success(`Interview geplant - Kandidat in "${stageLabel}" verschoben`);
+      
+      // 7. Refresh interviews
       fetchInterviews();
     } catch (error) {
       console.error('Error creating interview:', error);
       toast.error('Fehler beim Erstellen des Interviews');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -724,12 +760,19 @@ export default function TalentHub() {
                           {getInitials(selectedCandidate.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                         <h2 className="font-semibold text-lg truncate">{selectedCandidate.name}</h2>
                         <p className="text-sm text-muted-foreground truncate">
                           {selectedCandidate.currentRole}
                           {selectedCandidate.company && ` @ ${selectedCandidate.company}`}
                         </p>
+                        {/* Position Badge */}
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Badge variant="outline" className="text-xs font-normal">
+                            <Target className="h-3 w-3 mr-1" />
+                            {selectedCandidate.jobTitle}
+                          </Badge>
+                        </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           {selectedCandidate.city && (
                             <span className="flex items-center gap-0.5">
