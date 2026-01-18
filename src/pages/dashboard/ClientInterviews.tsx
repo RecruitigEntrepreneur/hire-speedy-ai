@@ -121,7 +121,7 @@ export default function ClientInterviews() {
         *,
         submission:submissions(
           id,
-          candidate:candidates(full_name, email),
+          candidate:candidates(full_name, email, cv_ai_summary, language_skills),
           job:jobs(title, company_name)
         )
       `)

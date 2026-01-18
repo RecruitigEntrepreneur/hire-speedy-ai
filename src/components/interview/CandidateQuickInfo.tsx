@@ -8,7 +8,9 @@ import {
   Euro, 
   Calendar, 
   ExternalLink,
-  User
+  User,
+  Globe,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +33,8 @@ interface CandidateData {
   availability_date?: string;
   cv_url?: string;
   linkedin_url?: string;
+  cv_ai_summary?: string;
+  language_skills?: any;
 }
 
 interface CandidateQuickInfoProps {
@@ -55,6 +59,22 @@ export function CandidateQuickInfo({ candidate, jobTitle }: CandidateQuickInfoPr
     }).format(salary);
   };
 
+  // Parse language skills - can be array of strings or array of objects
+  const parseLanguageSkills = (skills: any): string[] => {
+    if (!skills) return [];
+    if (Array.isArray(skills)) {
+      return skills.map((s: any) => {
+        if (typeof s === 'string') return s;
+        if (s.language && s.proficiency) return `${s.language} (${s.proficiency})`;
+        if (s.language) return s.language;
+        return String(s);
+      });
+    }
+    return [];
+  };
+
+  const languages = parseLanguageSkills(candidate.language_skills);
+
   return (
     <ScrollArea className="h-full">
       <div className="p-4 space-y-4">
@@ -71,6 +91,16 @@ export function CandidateQuickInfo({ candidate, jobTitle }: CandidateQuickInfoPr
             <p className="text-xs text-muted-foreground">@ {candidate.company}</p>
           )}
         </div>
+
+        {/* AI Summary */}
+        {candidate.cv_ai_summary && (
+          <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+              <p className="italic leading-relaxed">{candidate.cv_ai_summary}</p>
+            </div>
+          </div>
+        )}
 
         <Separator />
 
@@ -101,6 +131,26 @@ export function CandidateQuickInfo({ candidate, jobTitle }: CandidateQuickInfoPr
             </div>
           )}
         </div>
+
+        {/* Languages */}
+        {languages.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
+                Sprachen
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {languages.map((lang, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {lang}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <Separator />
 
