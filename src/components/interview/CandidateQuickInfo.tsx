@@ -10,12 +10,27 @@ import {
   ExternalLink,
   User,
   Globe,
-  Sparkles
+  Sparkles,
+  Star,
+  Target,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface RiskFactor {
+  factor: string;
+  severity: 'low' | 'medium' | 'high';
+  detail: string;
+}
+
+interface ClientSummary {
+  key_selling_points?: string[];
+  change_motivation_summary?: string;
+  risk_factors?: RiskFactor[];
+}
 
 interface CandidateData {
   id: string;
@@ -40,9 +55,10 @@ interface CandidateData {
 interface CandidateQuickInfoProps {
   candidate: CandidateData;
   jobTitle?: string;
+  clientSummary?: ClientSummary;
 }
 
-export function CandidateQuickInfo({ candidate, jobTitle }: CandidateQuickInfoProps) {
+export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: CandidateQuickInfoProps) {
   const initials = candidate.full_name
     .split(' ')
     .map(n => n[0])
@@ -100,6 +116,43 @@ export function CandidateQuickInfo({ candidate, jobTitle }: CandidateQuickInfoPr
               <p className="italic leading-relaxed">{candidate.cv_ai_summary}</p>
             </div>
           </div>
+        )}
+
+        {/* Was zeichnet den Kandidaten aus */}
+        {clientSummary?.key_selling_points && clientSummary.key_selling_points.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5 text-amber-500" />
+                Was ihn auszeichnet
+              </h4>
+              <ul className="space-y-1.5">
+                {clientSummary.key_selling_points.slice(0, 5).map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
+
+        {/* Wechselmotivation */}
+        {clientSummary?.change_motivation_summary && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5 text-blue-500" />
+                Wechselmotivation
+              </h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {clientSummary.change_motivation_summary}
+              </p>
+            </div>
+          </>
         )}
 
         <Separator />
@@ -267,6 +320,33 @@ export function CandidateQuickInfo({ candidate, jobTitle }: CandidateQuickInfoPr
             )}
           </div>
         </div>
+
+        {/* Risiken - ganz unten */}
+        {clientSummary?.risk_factors && clientSummary.risk_factors.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                Risiken
+              </h4>
+              <ul className="space-y-1.5">
+                {clientSummary.risk_factors.slice(0, 2).map((risk, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm">
+                    <span className={
+                      risk.severity === 'high' ? 'text-destructive' :
+                      risk.severity === 'medium' ? 'text-amber-500' :
+                      'text-muted-foreground'
+                    }>
+                      {risk.severity === 'high' ? '🔴' : risk.severity === 'medium' ? '🟡' : '🟢'}
+                    </span>
+                    <span className="text-muted-foreground">{risk.factor}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
       </div>
     </ScrollArea>
   );
