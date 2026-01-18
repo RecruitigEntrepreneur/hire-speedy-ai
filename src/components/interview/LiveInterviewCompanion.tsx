@@ -24,6 +24,7 @@ import { InterviewSummaryDialog } from './InterviewSummaryDialog';
 import { InterviewEditDialog } from './InterviewEditDialog';
 import { useInterviewSession, QuickScores } from '@/hooks/useInterviewSession';
 import { useLiveInterviewNotes } from '@/hooks/useLiveInterviewNotes';
+import { useClientCandidateSummary } from '@/hooks/useClientCandidateSummary';
 import { supabase } from '@/integrations/supabase/client';
 
 // Meeting type configuration
@@ -125,6 +126,13 @@ export function LiveInterviewCompanion({
   const candidate = interview?.submission?.candidate;
   const jobTitle = interview?.submission?.job?.title;
   const companyName = interview?.submission?.job?.company_name;
+  const submissionId = (interview?.submission as any)?.id;
+
+  // Fetch client candidate summary
+  const { summary: clientSummary } = useClientCandidateSummary(
+    candidate?.id,
+    submissionId
+  );
 
   // Get meeting type config
   const meetingTypeKey = interview?.meeting_type?.toLowerCase() || 'video';
@@ -448,6 +456,11 @@ export function LiveInterviewCompanion({
               <CandidateQuickInfo 
                 candidate={candidate} 
                 jobTitle={jobTitle}
+                clientSummary={clientSummary ? {
+                  key_selling_points: clientSummary.key_selling_points,
+                  change_motivation_summary: clientSummary.change_motivation_summary,
+                  risk_factors: clientSummary.risk_factors,
+                } : undefined}
               />
             </div>
 
