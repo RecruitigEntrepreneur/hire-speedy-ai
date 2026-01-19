@@ -98,11 +98,11 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
         setJobs(fetchedJobs);
 
         if (fetchedJobs.length > 0) {
-          // Calculate batch matches
+          // Calculate batch matches - use 'preview' mode to show more results
           const results = await calculateBatchMatch(
             candidate.id,
             fetchedJobs.map(j => j.id),
-            'strict'
+            'preview'
           );
           setMatchResults(sortByRelevance(results));
         }
@@ -125,7 +125,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
     const results = await calculateBatchMatch(
       candidate.id,
       jobs.map(j => j.id),
-      'strict'
+      'preview'
     );
     setMatchResults(sortByRelevance(results));
     toast.success('Matches aktualisiert');
