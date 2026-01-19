@@ -10,12 +10,15 @@ import {
   Star,
   Target,
   AlertTriangle,
-  Compass
+  Compass,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 interface RiskFactor {
   factor: string;
@@ -28,6 +31,14 @@ interface ClientSummary {
   change_motivation_summary?: string;
   career_goals?: string;
   risk_factors?: RiskFactor[];
+}
+
+interface CurrentExperience {
+  job_title: string;
+  company_name: string;
+  location?: string;
+  start_date?: string;
+  description?: string;
 }
 
 interface CandidateData {
@@ -54,9 +65,10 @@ interface CandidateQuickInfoProps {
   candidate: CandidateData;
   jobTitle?: string;
   clientSummary?: ClientSummary;
+  currentExperience?: CurrentExperience;
 }
 
-export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: CandidateQuickInfoProps) {
+export function CandidateQuickInfo({ candidate, jobTitle, clientSummary, currentExperience }: CandidateQuickInfoProps) {
   const initials = candidate.full_name
     .split(' ')
     .map(n => n[0])
@@ -98,14 +110,61 @@ export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: Candi
             <span className="text-xl font-semibold text-primary">{initials}</span>
           </div>
           <h3 className="font-semibold text-lg">{candidate.full_name}</h3>
-          {candidate.job_title && (
-            <p className="text-sm text-muted-foreground">{candidate.job_title}</p>
-          )}
-          {candidate.company && (
-            <p className="text-xs text-muted-foreground">@ {candidate.company}</p>
-          )}
         </div>
 
+        {/* Aktuell - GANZ OBEN nach Avatar */}
+        <Separator />
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <Briefcase className="h-3.5 w-3.5 text-primary" />
+            Aktuell
+          </h4>
+          
+          <div className="space-y-1.5">
+            {/* Jobtitel */}
+            <p className="font-medium text-sm">
+              {currentExperience?.job_title || candidate.job_title || 'Keine Angabe'}
+            </p>
+            
+            {/* Firma & Ort */}
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span>{currentExperience?.company_name || candidate.company}</span>
+              {currentExperience?.location && (
+                <>
+                  <span>•</span>
+                  <MapPin className="h-3 w-3" />
+                  <span>{currentExperience.location}</span>
+                </>
+              )}
+            </div>
+            
+            {/* Zeitraum & Erfahrung */}
+            <p className="text-xs text-muted-foreground">
+              {currentExperience?.start_date && (
+                <>Seit {format(new Date(currentExperience.start_date), 'MMMM yyyy', { locale: de })}</>
+              )}
+              {candidate.experience_years && (
+                <>{currentExperience?.start_date ? ' • ' : ''}{candidate.experience_years} Jahre Berufserfahrung</>
+              )}
+            </p>
+            
+            {/* Aufgaben als Bulletpoints */}
+            {currentExperience?.description && (
+              <ul className="mt-2 space-y-1 border-l-2 border-primary/20 pl-3">
+                {currentExperience.description
+                  .split(/[.•\n]/)
+                  .map(task => task.trim())
+                  .filter(task => task.length > 5)
+                  .slice(0, 5)
+                  .map((task, idx) => (
+                    <li key={idx} className="text-sm text-muted-foreground leading-snug">
+                      {task}
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        </div>
 
         {/* Was zeichnet den Kandidaten aus */}
         {clientSummary?.key_selling_points && clientSummary.key_selling_points.length > 0 && (
@@ -179,23 +238,6 @@ export function CandidateQuickInfo({ candidate, jobTitle, clientSummary }: Candi
             </div>
           </>
         )}
-
-        <Separator />
-
-        {/* Current Position */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-            <Briefcase className="h-3.5 w-3.5" />
-            Aktuell
-          </h4>
-          <div className="text-sm">
-            <p className="font-medium">{candidate.job_title || 'Keine Angabe'}</p>
-            {candidate.company && <p className="text-muted-foreground">{candidate.company}</p>}
-            {candidate.experience_years && (
-              <p className="text-muted-foreground">{candidate.experience_years} Jahre Erfahrung</p>
-            )}
-          </div>
-        </div>
 
         <Separator />
 
