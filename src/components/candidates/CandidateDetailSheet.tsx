@@ -4,11 +4,9 @@ import { de } from 'date-fns/locale';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -136,10 +134,10 @@ export function CandidateDetailSheet({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-5xl w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
           {/* Header */}
-          <SheetHeader className="p-6 pb-4 border-b shrink-0">
+          <div className="p-6 pb-4 border-b shrink-0">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
@@ -151,7 +149,7 @@ export function CandidateDetailSheet({
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <SheetTitle className="text-xl mb-1">{candidate.full_name}</SheetTitle>
+                  <h2 className="text-xl font-semibold mb-1">{candidate.full_name}</h2>
                   <p className="text-sm text-muted-foreground">
                     {candidate.job_title 
                       ? `${candidate.job_title}${candidate.company ? ` bei ${candidate.company}` : ''}`
@@ -216,7 +214,7 @@ export function CandidateDetailSheet({
                 CV parsen
               </Button>
             </div>
-          </SheetHeader>
+          </div>
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
@@ -283,8 +281,8 @@ export function CandidateDetailSheet({
               </TabsContent>
             </ScrollArea>
           </Tabs>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Activity Dialog */}
       <AddActivityDialog
