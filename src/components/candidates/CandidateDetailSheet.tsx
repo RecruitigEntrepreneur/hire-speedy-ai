@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -8,6 +8,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Mail,
   Phone,
@@ -172,31 +178,63 @@ export function CandidateDetailSheet({
                 />
               </div>
               
-              {/* Quick Actions */}
-              <div className="flex items-center gap-2">
-                {candidate.phone && (
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${candidate.phone}`}>
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => window.location.href = `mailto:${candidate.email}`}>
-                  <Mail className="h-4 w-4" />
-                </Button>
-                {candidate.linkedin_url && (
-                  <Button variant="outline" size="sm" onClick={() => window.open(candidate.linkedin_url!, '_blank')}>
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={handleExport}>
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => onEdit(candidate)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </div>
+              {/* Quick Actions with Tooltips */}
+              <TooltipProvider delayDuration={300}>
+                <div className="flex items-center gap-2">
+                  {candidate.phone && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${candidate.phone}`}>
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Anrufen</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => window.location.href = `mailto:${candidate.email}`}>
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>E-Mail senden</TooltipContent>
+                  </Tooltip>
+                  {candidate.linkedin_url && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => window.open(candidate.linkedin_url!, '_blank')}>
+                          <Linkedin className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>LinkedIn öffnen</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={handleExport}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Profil exportieren</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>CV aktualisieren</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => onEdit(candidate)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Profil bearbeiten</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
             </div>
 
             {/* Tasks */}
