@@ -69,21 +69,21 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
 
   if (!notes) {
     return (
-      <Card className="border-dashed">
+      <Card className="border-dashed border-primary/30 bg-primary/5">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
-            <MessageSquare className="h-4 w-4" />
+          <CardTitle className="text-sm flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" />
             Interview-Erkenntnisse
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Noch kein Interview geführt
+            Noch kein Interview geführt – erfasse wichtige Erkenntnisse für bessere Matches.
           </p>
           {onViewDetails && (
-            <Button variant="link" size="sm" className="px-0 h-auto mt-1" onClick={onViewDetails}>
-              Interview starten
-              <ExternalLink className="h-3 w-3 ml-1" />
+            <Button size="sm" onClick={onViewDetails} className="w-full">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Interview jetzt starten
             </Button>
           )}
         </CardContent>
