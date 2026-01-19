@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -8,40 +6,39 @@ import {
   DialogContent,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Mail,
   Phone,
   Linkedin,
-  FileText,
   Edit,
   Download,
-  Copy,
-  Plus,
-  User,
-  Clock,
-  Briefcase,
-  StickyNote,
   RefreshCw,
-  MessageSquare,
+  Plus,
+  FileText,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
-import { CandidateActivityTimeline } from './CandidateActivityTimeline';
-import { CandidateJobsOverview } from './CandidateJobsOverview';
-import { CandidateNotes } from './CandidateNotes';
-import { CandidateOverviewTab } from './CandidateOverviewTab';
-import { CandidateInterviewTab } from './CandidateInterviewTab';
 import { CandidateStatusDropdown } from './CandidateStatusDropdown';
 import { AddActivityDialog } from './AddActivityDialog';
 import { CvUploadDialog } from './CvUploadDialog';
 import { CandidateTasksSection } from './CandidateTasksSection';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
+
+// New Components for 2-column layout
+import { CandidateKeyFactsCard } from './CandidateKeyFactsCard';
+import { QuickInterviewSummary } from './QuickInterviewSummary';
+import { CandidateJobMatchingV3 } from './CandidateJobMatchingV3';
+import { ClientCandidateSummaryCard } from './ClientCandidateSummaryCard';
+import { CandidateActivityTimeline } from './CandidateActivityTimeline';
+import { CandidateJobsOverview } from './CandidateJobsOverview';
+import { CandidateDocumentsManager } from './CandidateDocumentsManager';
+import { CandidateInterviewTab } from './CandidateInterviewTab';
 
 interface CandidateDetailSheetProps {
   candidate: Candidate | null;
@@ -60,15 +57,14 @@ export function CandidateDetailSheet({
   onEdit,
   onCandidateUpdated,
 }: CandidateDetailSheetProps) {
-  const [activeTab, setActiveTab] = useState('overview');
   const [addActivityOpen, setAddActivityOpen] = useState(false);
   const [cvUploadOpen, setCvUploadOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(candidate?.candidate_status || 'new');
+  const [showFullInterview, setShowFullInterview] = useState(false);
   const queryClient = useQueryClient();
   
   const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
 
-  // Update status mutation
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       if (!candidate) return;
@@ -111,10 +107,7 @@ export function CandidateDetailSheet({
 
   const handleExport = () => {
     if (!candidate) return;
-    const exportData = {
-      ...candidate,
-      exportedAt: new Date().toISOString(),
-    };
+    const exportData = { ...candidate, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -125,173 +118,186 @@ export function CandidateDetailSheet({
     toast.success('Profil exportiert');
   };
 
-  const handleDuplicate = async () => {
-    if (!candidate) return;
-    toast.info('Kandidat duplizieren ist noch nicht implementiert');
-  };
-
   if (!candidate) return null;
+
+  const extCandidate = candidate as any;
+
+  // Full Interview Mode
+  if (showFullInterview) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-5xl w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setShowFullInterview(false)}>
+                ← Zurück
+              </Button>
+              <h2 className="font-semibold">Interview mit {candidate.full_name}</h2>
+            </div>
+          </div>
+          <ScrollArea className="flex-1 p-6">
+            <CandidateInterviewTab 
+              candidate={candidate} 
+              onNotesUpdated={() => refetchActivities()}
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-5xl w-[90vw] h-[85vh] p-0 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="p-6 pb-4 border-b shrink-0">
-            <div className="flex items-start justify-between gap-4">
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden">
+          {/* Compact Header */}
+          <div className="px-6 py-4 border-b shrink-0">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                    {candidate.full_name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')}
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                    {candidate.full_name.split(' ').map((n) => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="text-xl font-semibold mb-1">{candidate.full_name}</h2>
+                  <h2 className="text-lg font-semibold">{candidate.full_name}</h2>
                   <p className="text-sm text-muted-foreground">
-                    {candidate.job_title 
-                      ? `${candidate.job_title}${candidate.company ? ` bei ${candidate.company}` : ''}`
-                      : candidate.email}
+                    {candidate.job_title || candidate.email}
                   </p>
-                  <div className="mt-2">
-                    <CandidateStatusDropdown
-                      value={currentStatus}
-                      onChange={(val) => statusMutation.mutate(val)}
-                      disabled={statusMutation.isPending}
-                    />
-                  </div>
                 </div>
+                <CandidateStatusDropdown
+                  value={currentStatus}
+                  onChange={(val) => statusMutation.mutate(val)}
+                  disabled={statusMutation.isPending}
+                />
               </div>
-              <Button variant="outline" size="sm" onClick={() => onEdit(candidate)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Bearbeiten
-              </Button>
+              
+              {/* Quick Actions */}
+              <div className="flex items-center gap-2">
+                {candidate.phone && (
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${candidate.phone}`}>
+                    <Phone className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => window.location.href = `mailto:${candidate.email}`}>
+                  <Mail className="h-4 w-4" />
+                </Button>
+                {candidate.linkedin_url && (
+                  <Button variant="outline" size="sm" onClick={() => window.open(candidate.linkedin_url!, '_blank')}>
+                    <Linkedin className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onEdit(candidate)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            {/* Open Tasks */}
-            <div className="mt-4">
+            {/* Tasks */}
+            <div className="mt-3">
               <CandidateTasksSection candidateId={candidate.id} />
-            </div>
-
-            {/* Quick Actions */}
-            <div className="flex flex-wrap gap-2 mt-4">
-              {candidate.phone && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = `tel:${candidate.phone}`}
-                >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Anrufen
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = `mailto:${candidate.email}`}
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                E-Mail
-              </Button>
-              {candidate.linkedin_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(candidate.linkedin_url!, '_blank')}
-                >
-                  <Linkedin className="h-4 w-4 mr-2" />
-                  LinkedIn
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                CV parsen
-              </Button>
             </div>
           </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid w-full grid-cols-5 shrink-0 mx-6 mt-4" style={{ width: 'calc(100% - 48px)' }}>
-              <TabsTrigger value="overview" className="flex items-center gap-1">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">Übersicht</span>
-              </TabsTrigger>
-              <TabsTrigger value="interview" className="flex items-center gap-1">
-                <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Interview</span>
-              </TabsTrigger>
-              <TabsTrigger value="activities" className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                <span className="hidden sm:inline">Aktivitäten</span>
-              </TabsTrigger>
-              <TabsTrigger value="submissions" className="flex items-center gap-1">
-                <Briefcase className="h-4 w-4" />
-                <span className="hidden sm:inline">Submissions</span>
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="flex items-center gap-1">
-                <StickyNote className="h-4 w-4" />
-                <span className="hidden sm:inline">Notizen</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <ScrollArea className="flex-1 px-6 pb-6">
-              {/* Tab 1: Overview */}
-              <TabsContent value="overview" className="mt-4 focus-visible:ring-0">
-                <CandidateOverviewTab candidate={candidate} tags={tags} />
-              </TabsContent>
-
-              {/* Tab 2: Interview */}
-              <TabsContent value="interview" className="mt-4 focus-visible:ring-0">
-                <CandidateInterviewTab 
-                  candidate={candidate} 
-                  onNotesUpdated={() => refetchActivities()}
+          {/* 2-Column Layout */}
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            {/* LEFT COLUMN (60%) - Main Content */}
+            <ScrollArea className="w-[60%] border-r">
+              <div className="p-4 space-y-4">
+                {/* Key Facts */}
+                <CandidateKeyFactsCard 
+                  candidate={{
+                    ...candidate,
+                    salary_expectation_min: extCandidate.salary_expectation_min,
+                    salary_expectation_max: extCandidate.salary_expectation_max,
+                    remote_preference: extCandidate.remote_preference,
+                    certifications: extCandidate.certifications,
+                  }} 
+                  tags={tags} 
                 />
-              </TabsContent>
 
-              {/* Tab 3: Activities */}
-              <TabsContent value="activities" className="mt-4 focus-visible:ring-0">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Aktivitäten-Timeline</h3>
-                  <Button size="sm" onClick={() => setAddActivityOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Aktivität hinzufügen
-                  </Button>
-                </div>
-                <CandidateActivityTimeline
-                  activities={activities}
-                  loading={activitiesLoading}
+                {/* Job Matching */}
+                <CandidateJobMatchingV3 
+                  candidate={{
+                    id: candidate.id,
+                    skills: candidate.skills,
+                    experience_years: candidate.experience_years,
+                    expected_salary: candidate.expected_salary,
+                    salary_expectation_min: extCandidate.salary_expectation_min,
+                    salary_expectation_max: extCandidate.salary_expectation_max,
+                    city: candidate.city,
+                    seniority: candidate.seniority,
+                    target_roles: extCandidate.target_roles,
+                    job_title: candidate.job_title,
+                    full_name: candidate.full_name,
+                    max_commute_minutes: extCandidate.max_commute_minutes,
+                    commute_mode: extCandidate.commute_mode,
+                    address_lat: extCandidate.address_lat,
+                    address_lng: extCandidate.address_lng,
+                    email: candidate.email,
+                    phone: candidate.phone,
+                  }}
                 />
-              </TabsContent>
 
-              {/* Tab 4: Submissions */}
-              <TabsContent value="submissions" className="mt-4 focus-visible:ring-0">
+                {/* Client Summary */}
+                <ClientCandidateSummaryCard candidateId={candidate.id} />
+
+                {/* Submissions */}
                 <CandidateJobsOverview candidateId={candidate.id} />
-              </TabsContent>
-
-              {/* Tab 5: Notes */}
-              <TabsContent value="notes" className="mt-4 focus-visible:ring-0">
-                <CandidateNotes candidateId={candidate.id} />
-              </TabsContent>
+              </div>
             </ScrollArea>
-          </Tabs>
+
+            {/* RIGHT COLUMN (40%) - Context & History */}
+            <ScrollArea className="w-[40%]">
+              <div className="p-4 space-y-4">
+                {/* Interview Summary */}
+                <QuickInterviewSummary 
+                  candidateId={candidate.id}
+                  onViewDetails={() => setShowFullInterview(true)}
+                />
+
+                {/* Documents */}
+                <CandidateDocumentsManager candidateId={candidate.id} />
+
+                {/* Activities */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Letzte Aktivitäten
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={() => setAddActivityOpen(true)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <CandidateActivityTimeline
+                    activities={activities.slice(0, 5)}
+                    loading={activitiesLoading}
+                  />
+                  {activities.length > 5 && (
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      +{activities.length - 5} weitere Aktivitäten
+                    </p>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Add Activity Dialog */}
       <AddActivityDialog
         open={addActivityOpen}
         onOpenChange={setAddActivityOpen}
         onSubmit={handleAddActivity}
       />
 
-      {/* CV Upload Dialog */}
       <CvUploadDialog
         open={cvUploadOpen}
         onOpenChange={setCvUploadOpen}
