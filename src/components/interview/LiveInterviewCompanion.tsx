@@ -128,6 +128,31 @@ export function LiveInterviewCompanion({
   const companyName = interview?.submission?.job?.company_name;
   const submissionId = (interview?.submission as any)?.id;
 
+  // Fetch current experience with description for detailed display
+  const [currentExperience, setCurrentExperience] = useState<{
+    job_title: string;
+    company_name: string;
+    location?: string;
+    start_date?: string;
+    description?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (candidate?.id) {
+      supabase
+        .from('candidate_experiences')
+        .select('job_title, company_name, location, start_date, description')
+        .eq('candidate_id', candidate.id)
+        .eq('is_current', true)
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setCurrentExperience(data);
+        });
+    }
+  }, [candidate?.id]);
+
   // Fetch client candidate summary
   const { summary: clientSummary } = useClientCandidateSummary(
     candidate?.id,
@@ -456,12 +481,13 @@ export function LiveInterviewCompanion({
               <CandidateQuickInfo 
                 candidate={candidate} 
                 jobTitle={jobTitle}
-clientSummary={clientSummary ? {
+                clientSummary={clientSummary ? {
                   key_selling_points: clientSummary.key_selling_points,
                   change_motivation_summary: clientSummary.change_motivation_summary,
                   career_goals: clientSummary.career_goals,
                   risk_factors: clientSummary.risk_factors,
                 } : undefined}
+                currentExperience={currentExperience || undefined}
               />
             </div>
 
