@@ -208,7 +208,7 @@ export function CandidateDetailSheet({
           {/* 2-Column Layout */}
           <div className="flex-1 flex min-h-0 overflow-hidden">
             {/* LEFT COLUMN (60%) - Main Content */}
-            <ScrollArea className="w-[60%] border-r">
+            <ScrollArea className="flex-[3] min-w-0 border-r">
               <div className="p-4 space-y-4">
                 {/* Key Facts */}
                 <CandidateKeyFactsCard 
@@ -254,7 +254,7 @@ export function CandidateDetailSheet({
             </ScrollArea>
 
             {/* RIGHT COLUMN (40%) - Context & History */}
-            <ScrollArea className="w-[40%]">
+            <ScrollArea className="flex-[2] min-w-[320px]">
               <div className="p-4 space-y-4">
                 {/* Interview Summary */}
                 <QuickInterviewSummary 

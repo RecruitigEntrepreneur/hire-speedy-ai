@@ -144,18 +144,19 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
     }
   }, [candidateId, submissionId]);
 
-  const generateSummary = useCallback(async (options?: { silent?: boolean }) => {
+  const generateSummary = useCallback(async (options?: { silent?: boolean; force?: boolean }) => {
     if (!candidateId) return null;
 
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('client-candidate-summary', {
-        body: { candidateId, submissionId },
+        body: { candidateId, submissionId, force: options?.force },
       });
 
       if (error) throw error;
 
       if (data?.success) {
+        // Only show toast for manual (non-silent) generation
         if (!options?.silent) {
           toast({
             title: 'Zusammenfassung erstellt',
@@ -183,21 +184,11 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
     }
   }, [candidateId, submissionId, fetchSummary, toast]);
 
-  // Initial fetch and auto-regeneration
+  // Initial fetch only - NO auto-regeneration to prevent constant pop-ups
+  // Regeneration is now triggered manually or via smart policies
   useEffect(() => {
-    const fetchAndAutoRegenerate = async () => {
-      const result = await fetchSummary();
-      
-      // Auto-regenerate if outdated and we haven't already tried
-      if (result?.isOutdated && !hasAutoRegenerated.current && candidateId) {
-        hasAutoRegenerated.current = true;
-        console.log('[useClientCandidateSummary] Auto-regenerating outdated summary for candidate:', candidateId);
-        generateSummary({ silent: true });
-      }
-    };
-    
-    fetchAndAutoRegenerate();
-  }, [fetchSummary, candidateId, generateSummary]);
+    fetchSummary();
+  }, [fetchSummary]);
 
   return {
     summary,

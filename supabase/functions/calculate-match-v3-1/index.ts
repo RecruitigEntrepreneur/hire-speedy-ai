@@ -312,8 +312,10 @@ function calculateMatch(
   // Stage B: Fit Score
   const fitResult = calculateFitScore(candidate, job, skillReqs, taxonomy, config);
 
-  // Must-have coverage gate
-  if (fitResult.mustHaveCoverage < 0.70) {
+  // Must-have coverage gate - only exclude in strict mode, otherwise show as 'maybe'
+  // Lowered threshold from 0.70 to 0.40 to show more results
+  const coverageExcluded = fitResult.mustHaveCoverage < 0.40;
+  if (coverageExcluded && mode === 'strict') {
     return createExcludedResult(jobId, fitResult.mustHaveCoverage, `Must-have Coverage nur ${Math.round(fitResult.mustHaveCoverage * 100)}%`);
   }
 
