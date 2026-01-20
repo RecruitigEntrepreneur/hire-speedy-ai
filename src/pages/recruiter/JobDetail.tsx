@@ -13,7 +13,6 @@ import {
   Briefcase,
   MapPin,
   Clock,
-  DollarSign,
   ArrowLeft,
   Flame,
   Zap,
@@ -21,10 +20,12 @@ import {
   Users,
   Calendar,
   CheckCircle2,
-  XCircle,
   Building2,
   Loader2,
-  Upload
+  Upload,
+  Sparkles,
+  TrendingUp,
+  Star,
 } from 'lucide-react';
 import {
   Dialog,
@@ -33,6 +34,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+
+interface FormattedContent {
+  headline: string;
+  highlights: string[];
+  role_summary: string;
+  ideal_candidate: string;
+  selling_points: string[];
+  urgency_note: string | null;
+}
 
 interface Job {
   id: string;
@@ -56,6 +66,7 @@ interface Job {
   urgency: string;
   industry: string;
   created_at: string;
+  formatted_content: FormattedContent | null;
 }
 
 // Triple-Blind: Anonymize company name for recruiters
@@ -101,7 +112,12 @@ export default function JobDetail() {
         .single();
 
       if (jobError) throw jobError;
-      setJob(jobData);
+      // Cast formatted_content from JSON to our interface
+      const typedJob = {
+        ...jobData,
+        formatted_content: jobData.formatted_content as unknown as FormattedContent | null
+      };
+      setJob(typedJob);
 
       // Fetch my submissions for this job
       if (user) {
@@ -202,266 +218,208 @@ export default function JobDetail() {
   }
 
   const potentialEarning = calculatePotentialEarning();
+  const formattedContent = job.formatted_content;
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-          {/* Back Button */}
-          <Link to="/recruiter/jobs">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Jobs
-            </Button>
-          </Link>
+        {/* Back Button */}
+        <Link to="/recruiter/jobs">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Zurück zu Jobs
+          </Button>
+        </Link>
 
-          {/* Header - Triple-Blind: Company name is anonymized */}
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="h-16 w-16 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0">
-                <Building2 className="h-8 w-8 text-primary-foreground" />
-              </div>
-              <div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl font-bold">{job.title}</h1>
-                  {getUrgencyBadge(job.urgency || 'standard')}
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Job #{job.id.slice(0, 8)}
-                  </Badge>
+        {/* Hero Section with AI-formatted headline */}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 via-background to-emerald/10 border">
+          <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
+          <div className="relative p-6 lg:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="h-16 w-16 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <Building2 className="h-8 w-8 text-primary-foreground" />
                 </div>
-                {/* Triple-Blind: Show anonymized company name */}
-                <p className="text-lg text-muted-foreground">
-                  {getAnonymizedCompanyName(job.industry)}
-                </p>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
-                  {job.location && (
+                <div className="space-y-2">
+                  {/* AI Headline or Job Title */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {formattedContent?.headline ? (
+                      <h1 className="text-2xl lg:text-3xl font-bold">
+                        {formattedContent.headline}
+                      </h1>
+                    ) : (
+                      <h1 className="text-2xl lg:text-3xl font-bold">{job.title}</h1>
+                    )}
+                    {getUrgencyBadge(job.urgency || 'standard')}
+                  </div>
+                  
+                  {/* Triple-Blind: Show anonymized company name */}
+                  <p className="text-lg text-muted-foreground flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    {getAnonymizedCompanyName(job.industry)}
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    {job.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        {job.location}
+                      </span>
+                    )}
                     <span className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {job.location}
+                      <Clock className="h-4 w-4" />
+                      {job.employment_type}
                     </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {job.employment_type}
-                  </span>
-                  <Badge variant="secondary" className="capitalize">
-                    {job.remote_type}
-                  </Badge>
-                  {job.industry && (
-                    <Badge variant="outline">{job.industry}</Badge>
+                    <Badge variant="secondary" className="capitalize">
+                      {job.remote_type}
+                    </Badge>
+                    {job.industry && (
+                      <Badge variant="outline">{job.industry}</Badge>
+                    )}
+                  </div>
+
+                  {/* AI Highlights */}
+                  {formattedContent?.highlights && formattedContent.highlights.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {formattedContent.highlights.map((highlight, i) => (
+                        <Badge key={i} variant="outline" className="bg-background/50 backdrop-blur-sm">
+                          <Star className="h-3 w-3 mr-1 text-warning" />
+                          {highlight}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setHubspotDialogOpen(true)}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Aus HubSpot
-              </Button>
-              <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
-                <DialogTrigger asChild>
-                  <Button size="lg" variant="emerald">
-                    <Users className="h-4 w-4 mr-2" />
-                    Kandidat einreichen
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Kandidat für {job.title} einreichen</DialogTitle>
-                  </DialogHeader>
-                  <CandidateSubmitForm 
-                    jobId={job.id} 
-                    jobTitle={job.title}
-                    mustHaves={job.must_haves}
-                    onSuccess={() => {
-                      setShowSubmitForm(false);
-                      fetchJobDetails();
-                    }}
-                  />
-                </DialogContent>
-              </Dialog>
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setHubspotDialogOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Aus HubSpot
+                </Button>
+                <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
+                  <DialogTrigger asChild>
+                    <Button size="lg" variant="emerald">
+                      <Users className="h-4 w-4 mr-2" />
+                      Kandidat einreichen
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Kandidat für {job.title} einreichen</DialogTitle>
+                    </DialogHeader>
+                    <CandidateSubmitForm 
+                      jobId={job.id} 
+                      jobTitle={job.title}
+                      mustHaves={job.must_haves}
+                      onSuccess={() => {
+                        setShowSubmitForm(false);
+                        fetchJobDetails();
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Description */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* AI Role Summary */}
+            {formattedContent?.role_summary && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Über diese Rolle
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg leading-relaxed">{formattedContent.role_summary}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* AI Ideal Candidate */}
+            {formattedContent?.ideal_candidate && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-emerald" />
+                    Idealer Kandidat
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="leading-relaxed">{formattedContent.ideal_candidate}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Description (fallback if no AI content) */}
+            {!formattedContent?.role_summary && job.description && (
               <Card>
                 <CardHeader>
                   <CardTitle>Beschreibung</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="whitespace-pre-wrap">{job.description || 'Keine Beschreibung vorhanden.'}</p>
+                  <p className="whitespace-pre-wrap">{job.description}</p>
                 </CardContent>
               </Card>
+            )}
 
-              {/* Requirements */}
-              {job.requirements && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Anforderungen</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="whitespace-pre-wrap">{job.requirements}</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Must Haves & Nice to Haves */}
-              <div className="grid md:grid-cols-2 gap-4">
-                {job.must_haves && job.must_haves.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <CheckCircle2 className="h-5 w-5 text-emerald" />
-                        Must-Haves
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
-                        {job.must_haves.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-emerald mt-0.5 flex-shrink-0" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {job.nice_to_haves && job.nice_to_haves.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Circle className="h-5 w-5 text-muted-foreground" />
-                        Nice-to-Haves
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
-                        {job.nice_to_haves.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm">
-                            <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Skills */}
-              {job.skills && job.skills.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Gesuchte Skills</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {job.skills.map((skill) => (
-                        <Badge key={skill} variant="outline">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* My Submissions */}
-              {mySubmissions.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Meine Einreichungen ({mySubmissions.length})</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {mySubmissions.map((sub) => (
-                        <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                          <div>
-                            <p className="font-medium">{sub.candidates?.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{sub.candidates?.email}</p>
-                          </div>
-                          <Badge className={`status-${sub.status}`}>
-                            {sub.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-4">
-              {/* Fee Card */}
-              <Card className="border-emerald/30 bg-emerald/5">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Deine Fee</p>
-                    <p className="text-3xl font-bold text-emerald">
-                      {job.recruiter_fee_percentage}%
-                    </p>
-                    {potentialEarning && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        ca. €{potentialEarning.toLocaleString()} bei Placement
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Job Details */}
+            {/* Requirements */}
+            {job.requirements && (
               <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Gehalt</span>
-                    <span className="font-medium">{formatSalary(job.salary_min, job.salary_max)}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Erfahrung</span>
-                    <span className="font-medium capitalize">{job.experience_level || '-'}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Einreichungen</span>
-                    <span className="font-medium">
-                      {totalSubmissions} gesamt ({mySubmissions.length} von dir)
-                    </span>
-                  </div>
-                  {job.deadline && (
-                    <>
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Deadline</span>
-                        <span className="font-medium flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {new Date(job.deadline).toLocaleDateString('de-DE')}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                <CardHeader>
+                  <CardTitle>Anforderungen</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-wrap">{job.requirements}</p>
                 </CardContent>
               </Card>
+            )}
 
-              {/* Screening Questions */}
-              {job.screening_questions && Object.keys(job.screening_questions).length > 0 && (
+            {/* Must Haves & Nice to Haves */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {job.must_haves && job.must_haves.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Screening-Fragen</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CheckCircle2 className="h-5 w-5 text-emerald" />
+                      Must-Haves
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ul className="space-y-2 text-sm">
-                      {Object.entries(job.screening_questions).map(([key, value]) => (
-                        <li key={key} className="text-muted-foreground">
-                          • {String(value)}
+                    <ul className="space-y-2">
+                      {job.must_haves.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-emerald mt-0.5 flex-shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {job.nice_to_haves && job.nice_to_haves.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Circle className="h-5 w-5 text-muted-foreground" />
+                      Nice-to-Haves
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {job.nice_to_haves.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          {item}
                         </li>
                       ))}
                     </ul>
@@ -469,17 +427,161 @@ export default function JobDetail() {
                 </Card>
               )}
             </div>
+
+            {/* Skills */}
+            {job.skills && job.skills.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gesuchte Skills</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {job.skills.map((skill) => (
+                      <Badge key={skill} variant="outline">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* My Submissions */}
+            {mySubmissions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Meine Einreichungen ({mySubmissions.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {mySubmissions.map((sub) => (
+                      <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div>
+                          <p className="font-medium">{sub.candidates?.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{sub.candidates?.email}</p>
+                        </div>
+                        <Badge className={`status-${sub.status}`}>
+                          {sub.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-4">
+            {/* Fee Card - Enhanced */}
+            <Card className="border-emerald/30 bg-gradient-to-br from-emerald/10 to-emerald/5 overflow-hidden">
+              <CardContent className="pt-6 relative">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald/10 rounded-full blur-2xl" />
+                <div className="text-center relative">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald/20 text-emerald text-xs font-medium mb-3">
+                    <TrendingUp className="h-3 w-3" />
+                    Dein Verdienst
+                  </div>
+                  <p className="text-4xl font-bold text-emerald">
+                    {job.recruiter_fee_percentage}%
+                  </p>
+                  {potentialEarning && (
+                    <p className="text-lg font-semibold text-foreground mt-2">
+                      ca. €{potentialEarning.toLocaleString()}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    bei erfolgreicher Vermittlung
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Selling Points */}
+            {formattedContent?.selling_points && formattedContent.selling_points.length > 0 && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Star className="h-4 w-4 text-warning" />
+                    Warum diese Stelle?
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {formattedContent.selling_points.map((point, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Job Details */}
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Gehalt</span>
+                  <span className="font-medium">{formatSalary(job.salary_min, job.salary_max)}</span>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Erfahrung</span>
+                  <span className="font-medium capitalize">{job.experience_level || '-'}</span>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Einreichungen</span>
+                  <span className="font-medium">
+                    {totalSubmissions} gesamt ({mySubmissions.length} von dir)
+                  </span>
+                </div>
+                {job.deadline && (
+                  <>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Deadline</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(job.deadline).toLocaleDateString('de-DE')}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Screening Questions */}
+            {job.screening_questions && Object.keys(job.screening_questions).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Screening-Fragen</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-sm">
+                    {Object.entries(job.screening_questions).map(([key, value]) => (
+                      <li key={key} className="text-muted-foreground">
+                        • {String(value)}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* HubSpot Import Dialog */}
-        <HubSpotImportDialog
-          open={hubspotDialogOpen}
-          onOpenChange={setHubspotDialogOpen}
-          onImportComplete={() => {
-            fetchJobDetails();
-          }}
-        />
-      </DashboardLayout>
+      {/* HubSpot Import Dialog */}
+      <HubSpotImportDialog
+        open={hubspotDialogOpen}
+        onOpenChange={setHubspotDialogOpen}
+        onImportComplete={() => {
+          fetchJobDetails();
+        }}
+      />
+    </DashboardLayout>
   );
 }

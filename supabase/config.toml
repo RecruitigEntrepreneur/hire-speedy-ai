@@ -188,3 +188,6 @@ verify_jwt = true
 
 [functions.refresh-analytics]
 verify_jwt = false
+
+[functions.format-job-for-recruiters]
+verify_jwt = true

@@ -3387,6 +3387,8 @@ export type Database = {
       }
       jobs: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           briefing_notes: string | null
           client_id: string
           commute_flexibility: string | null
@@ -3397,6 +3399,7 @@ export type Database = {
           employment_type: string | null
           experience_level: string | null
           fee_percentage: number | null
+          formatted_content: Json | null
           hard_kill_overrides: Json | null
           id: string
           industry: string | null
@@ -3426,6 +3429,8 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           briefing_notes?: string | null
           client_id: string
           commute_flexibility?: string | null
@@ -3436,6 +3441,7 @@ export type Database = {
           employment_type?: string | null
           experience_level?: string | null
           fee_percentage?: number | null
+          formatted_content?: Json | null
           hard_kill_overrides?: Json | null
           id?: string
           industry?: string | null
@@ -3465,6 +3471,8 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           briefing_notes?: string | null
           client_id?: string
           commute_flexibility?: string | null
@@ -3475,6 +3483,7 @@ export type Database = {
           employment_type?: string | null
           experience_level?: string | null
           fee_percentage?: number | null
+          formatted_content?: Json | null
           hard_kill_overrides?: Json | null
           id?: string
           industry?: string | null
