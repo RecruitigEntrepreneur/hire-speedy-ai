@@ -235,7 +235,7 @@ export default function CreateJob() {
           skills: skillsArray,
           must_haves: mustHavesArray,
           nice_to_haves: niceToHavesArray,
-          status: publish ? 'published' : 'draft',
+          status: publish ? 'pending_approval' : 'draft',
           office_address: formData.office_address || null,
           remote_policy: formData.remote_policy || null,
           onsite_days_required: formData.remote_policy === 'hybrid' ? parseInt(formData.onsite_days_required) : null,
@@ -245,7 +245,7 @@ export default function CreateJob() {
 
       if (error) throw error;
 
-      toast.success(publish ? 'Job veröffentlicht!' : 'Job als Entwurf gespeichert');
+      toast.success(publish ? 'Job zur Prüfung eingereicht!' : 'Job als Entwurf gespeichert');
       navigate(`/dashboard/jobs/${data.id}`);
     } catch (error) {
       console.error('Error creating job:', error);
@@ -601,7 +601,7 @@ export default function CreateJob() {
                   disabled={loading}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Job veröffentlichen
+                  Zur Prüfung einreichen
                 </Button>
               </div>
             </TabsContent>
