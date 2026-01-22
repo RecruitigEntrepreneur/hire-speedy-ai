@@ -1664,6 +1664,10 @@ export type Database = {
           is_active: boolean | null
           objection_handlers: Json | null
           phone_script: string | null
+          quick_checklist: string[] | null
+          red_flags: string[] | null
+          sample_phrases: Json | null
+          success_indicators: string[] | null
           talking_points: Json | null
           title: string
           trigger_type: string
@@ -1678,6 +1682,10 @@ export type Database = {
           is_active?: boolean | null
           objection_handlers?: Json | null
           phone_script?: string | null
+          quick_checklist?: string[] | null
+          red_flags?: string[] | null
+          sample_phrases?: Json | null
+          success_indicators?: string[] | null
           talking_points?: Json | null
           title: string
           trigger_type: string
@@ -1692,6 +1700,10 @@ export type Database = {
           is_active?: boolean | null
           objection_handlers?: Json | null
           phone_script?: string | null
+          quick_checklist?: string[] | null
+          red_flags?: string[] | null
+          sample_phrases?: Json | null
+          success_indicators?: string[] | null
           talking_points?: Json | null
           title?: string
           trigger_type?: string
