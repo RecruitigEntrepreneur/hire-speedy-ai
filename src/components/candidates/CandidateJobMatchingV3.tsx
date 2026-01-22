@@ -33,6 +33,7 @@ import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { prefetchRecommendations } from '@/hooks/useMatchRecommendation';
+import { formatSimpleAnonymousCompany, formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 
 interface CandidateJobMatchingV3Props {
   candidate: {
@@ -65,12 +66,15 @@ interface JobInfo {
   id: string;
   title: string;
   company_name: string;
+  industry: string | null;
+  company_size_band: string | null;
+  funding_stage: string | null;
+  tech_environment: string[] | null;
   location: string | null;
   salary_max: number | null;
   salary_min: number | null;
   remote_type: string | null;
 }
-
 export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: CandidateJobMatchingV3Props) {
   const { 
     calculateBatchMatch, 
@@ -110,10 +114,10 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
     async function loadJobsAndMatches() {
       setJobsLoading(true);
       try {
-        // Fetch published jobs
+        // Fetch published jobs with additional fields for anonymization
         const { data: jobsData, error: jobsError } = await supabase
           .from('jobs')
-          .select('id, title, company_name, location, salary_max, salary_min, remote_type')
+          .select('id, title, company_name, industry, company_size_band, funding_stage, tech_environment, location, salary_max, salary_min, remote_type')
           .eq('status', 'published')
           .order('created_at', { ascending: false })
           .limit(50);
@@ -568,25 +572,26 @@ function JobMatchRow({
             {job.title}
           </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="font-medium">{job.company_name}</span>
-            {job.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {job.location}
-              </span>
-            )}
+            {/* Triple-Blind: Anonymisierter Firmenname */}
+            <span className="font-medium text-muted-foreground">
+              {job.industry || job.company_size_band || job.funding_stage || job.tech_environment?.length
+                ? formatAnonymousCompany({
+                    industry: job.industry,
+                    companySize: job.company_size_band,
+                    fundingStage: job.funding_stage,
+                    techStack: job.tech_environment,
+                    location: job.location,
+                    remoteType: job.remote_type,
+                  })
+                : formatSimpleAnonymousCompany(job.industry)
+              }
+            </span>
             {(job.salary_min || job.salary_max) && (
               <span className="flex items-center gap-1">
                 <Euro className="h-3 w-3" />
                 {job.salary_min ? `${Math.round(job.salary_min / 1000)}k - ` : ''}
                 {job.salary_max ? `${Math.round(job.salary_max / 1000)}k` : ''}
               </span>
-            )}
-            {job.remote_type && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                {job.remote_type === 'remote' ? '🏠 Remote' : 
-                 job.remote_type === 'hybrid' ? '🏢 Hybrid' : '🏛️ Vor Ort'}
-              </Badge>
             )}
           </div>
           
