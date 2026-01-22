@@ -30,7 +30,7 @@ interface PowerThreeActionsProps {
   loading?: boolean;
   onOpenPlaybook: (playbookId: string) => void;
   onMarkDone: (alertId: string) => void;
-  onSelectCandidate?: (submissionId: string) => void;
+  onSelectCandidate?: (submissionId: string, alertId?: string, playbookId?: string) => void;
 }
 
 interface PowerAction {
@@ -174,7 +174,7 @@ export function PowerThreeActions({
         {powerActions.map((action, index) => (
           <div
             key={action.submissionId}
-            onClick={() => onSelectCandidate?.(action.submissionId)}
+            onClick={() => onSelectCandidate?.(action.submissionId, action.alert?.id, action.alert?.playbook_id || undefined)}
             className="p-4 rounded-lg bg-card border border-border hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
           >
             <div className="flex items-start justify-between gap-4">
