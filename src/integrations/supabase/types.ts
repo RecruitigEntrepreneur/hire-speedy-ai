@@ -3678,6 +3678,79 @@ export type Database = {
           },
         ]
       }
+      match_recommendations: {
+        Row: {
+          action_recommendation: string
+          candidate_id: string
+          confidence: string | null
+          created_at: string | null
+          generated_at: string | null
+          id: string
+          job_id: string
+          key_match_points: Json | null
+          key_risks: Json | null
+          match_score: number | null
+          model_version: string | null
+          negotiation_hints: Json | null
+          recommendation_text: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_recommendation: string
+          candidate_id: string
+          confidence?: string | null
+          created_at?: string | null
+          generated_at?: string | null
+          id?: string
+          job_id: string
+          key_match_points?: Json | null
+          key_risks?: Json | null
+          match_score?: number | null
+          model_version?: string | null
+          negotiation_hints?: Json | null
+          recommendation_text: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_recommendation?: string
+          candidate_id?: string
+          confidence?: string | null
+          created_at?: string | null
+          generated_at?: string | null
+          id?: string
+          job_id?: string
+          key_match_points?: Json | null
+          key_risks?: Json | null
+          match_score?: number | null
+          model_version?: string | null
+          negotiation_hints?: Json | null
+          recommendation_text?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_recommendations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_recommendations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_recommendations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matching_config: {
         Row: {
           active: boolean | null
