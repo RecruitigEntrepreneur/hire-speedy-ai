@@ -38,6 +38,7 @@ import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
 import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
 import RecruiterIntegrations from "./pages/recruiter/RecruiterIntegrations";
+import RecruiterCandidateDetail from "./pages/recruiter/RecruiterCandidateDetail";
 
 // Integration pages
 import IntegrationSettings from "./pages/dashboard/IntegrationSettings";
@@ -244,6 +245,11 @@ function AppRoutes() {
       <Route path="/recruiter/candidates" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterCandidates />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/candidates/:id" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterCandidateDetail />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/submissions" element={

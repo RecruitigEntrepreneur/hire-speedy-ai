@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -20,7 +21,6 @@ import { ViewToggle, ViewMode } from '@/components/candidates/ViewToggle';
 import { CandidateCard, Candidate } from '@/components/candidates/CandidateCard';
 import { CandidateListView } from '@/components/candidates/CandidateListView';
 import { CandidateTableView } from '@/components/candidates/CandidateTableView';
-import { CandidateDetailSheet } from '@/components/candidates/CandidateDetailSheet';
 import { TagManagerDialog } from '@/components/candidates/TagManagerDialog';
 import { BulkActionsBar } from '@/components/candidates/BulkActionsBar';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
@@ -40,6 +40,7 @@ interface SubmissionsByCandidate {
 
 export default function RecruiterCandidates() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [submissionsByCandidate, setSubmissionsByCandidate] = useState<SubmissionsByCandidate>({});
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,7 @@ export default function RecruiterCandidates() {
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [detailCandidate, setDetailCandidate] = useState<Candidate | null>(null);
+  const handleViewCandidate = (c: Candidate) => navigate(`/recruiter/candidates/${c.id}`);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [tagManagerCandidateId, setTagManagerCandidateId] = useState<string | null>(null);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
@@ -299,7 +300,7 @@ export default function RecruiterCandidates() {
                 onSelect={handleSelect} 
                 onEdit={handleOpenDialog} 
                 onDelete={handleDelete} 
-                onView={setDetailCandidate}
+                onView={handleViewCandidate}
                 onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
                 onAddToPool={() => toast.info('Talent Pool Feature')} 
               />
@@ -316,7 +317,7 @@ export default function RecruiterCandidates() {
             getCandidateTags={getCandidateTags} 
             onEdit={handleOpenDialog} 
             onDelete={handleDelete} 
-            onView={setDetailCandidate} 
+            onView={handleViewCandidate} 
             onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
             onAddToPool={() => toast.info('Talent Pool Feature')} 
           />
@@ -331,7 +332,7 @@ export default function RecruiterCandidates() {
             getCandidateTags={getCandidateTags} 
             onEdit={handleOpenDialog} 
             onDelete={handleDelete} 
-            onView={setDetailCandidate} 
+            onView={handleViewCandidate} 
             onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
             onAddToPool={() => toast.info('Talent Pool Feature')} 
           />
@@ -358,14 +359,6 @@ export default function RecruiterCandidates() {
         processing={processing}
       />
 
-      <CandidateDetailSheet 
-        candidate={detailCandidate} 
-        tags={detailCandidate ? getCandidateTags(detailCandidate.id) : []} 
-        open={!!detailCandidate} 
-        onOpenChange={open => !open && setDetailCandidate(null)} 
-        onEdit={c => { setDetailCandidate(null); handleOpenDialog(c); }}
-        onCandidateUpdated={fetchCandidates}
-      />
 
       <TagManagerDialog 
         open={tagManagerOpen} 
