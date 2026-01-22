@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Brain, Target, TrendingUp, AlertTriangle, CheckCircle, Database } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Brain, Target, TrendingUp, AlertTriangle, CheckCircle, Database, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface MLHealthData {
   totalEvents: number;
@@ -19,44 +21,70 @@ interface MLHealthData {
 export function MLHealthWidget() {
   const [data, setData] = useState<MLHealthData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+
+  async function fetchMLHealth() {
+    try {
+      // Fetch ml_training_events stats
+      const { data: eventStats } = await supabase
+        .from('ml_training_events')
+        .select('final_outcome, created_at');
+
+      // Fetch match_outcomes stats
+      const { data: matchStats } = await supabase
+        .from('match_outcomes')
+        .select('actual_outcome');
+
+      if (eventStats && matchStats) {
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        setData({
+          totalEvents: eventStats.length,
+          eventsWithOutcome: eventStats.filter(e => e.final_outcome).length,
+          hiredCount: eventStats.filter(e => e.final_outcome === 'hired').length,
+          rejectedCount: eventStats.filter(e => e.final_outcome === 'rejected').length,
+          withdrawnCount: eventStats.filter(e => e.final_outcome === 'withdrawn').length,
+          matchOutcomesTotal: matchStats.length,
+          matchOutcomesWithOutcome: matchStats.filter(m => m.actual_outcome).length,
+          recentEvents: eventStats.filter(e => new Date(e.created_at) > weekAgo).length,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching ML health:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function fetchMLHealth() {
-      try {
-        // Fetch ml_training_events stats
-        const { data: eventStats } = await supabase
-          .from('ml_training_events')
-          .select('final_outcome, created_at');
-
-        // Fetch match_outcomes stats
-        const { data: matchStats } = await supabase
-          .from('match_outcomes')
-          .select('actual_outcome');
-
-        if (eventStats && matchStats) {
-          const now = new Date();
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-          setData({
-            totalEvents: eventStats.length,
-            eventsWithOutcome: eventStats.filter(e => e.final_outcome).length,
-            hiredCount: eventStats.filter(e => e.final_outcome === 'hired').length,
-            rejectedCount: eventStats.filter(e => e.final_outcome === 'rejected').length,
-            withdrawnCount: eventStats.filter(e => e.final_outcome === 'withdrawn').length,
-            matchOutcomesTotal: matchStats.length,
-            matchOutcomesWithOutcome: matchStats.filter(m => m.actual_outcome).length,
-            recentEvents: eventStats.filter(e => new Date(e.created_at) > weekAgo).length,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching ML health:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchMLHealth();
   }, []);
+
+  async function handleSeedData() {
+    setSeeding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-ml-training-data', {
+        body: { count: 200 }
+      });
+
+      if (error) throw error;
+
+      toast.success('Training-Daten generiert', {
+        description: `${data.summary.total} Events: ${data.summary.hired} Hired, ${data.summary.rejected} Rejected, ${data.summary.withdrawn} Withdrawn`
+      });
+
+      // Refresh data
+      await fetchMLHealth();
+    } catch (error) {
+      console.error('Error seeding data:', error);
+      toast.error('Fehler beim Generieren', {
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler'
+      });
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -99,17 +127,34 @@ export function MLHealthWidget() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Readiness Status */}
-        <div className="flex items-center gap-2">
-          {isReady ? (
-            <>
-              <CheckCircle className="h-5 w-5 text-emerald-500" />
-              <span className="font-medium text-emerald-600">Training-ready</span>
-            </>
-          ) : (
-            <>
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <span className="font-medium text-amber-600">Daten werden gesammelt...</span>
-            </>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isReady ? (
+              <>
+                <CheckCircle className="h-5 w-5 text-emerald-500" />
+                <span className="font-medium text-emerald-600">Training-ready</span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <span className="font-medium text-amber-600">Daten werden gesammelt...</span>
+              </>
+            )}
+          </div>
+          {!isReady && data.eventsWithOutcome < 100 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSeedData}
+              disabled={seeding}
+            >
+              {seeding ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Seed 200 Events
+            </Button>
           )}
         </div>
 

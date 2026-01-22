@@ -34,6 +34,45 @@ interface Job {
   industry: string | null;
 }
 
+// 64-dimensional feature vector dimensions for semantic matching
+const FEATURE_DIMENSIONS = `
+[0]: frontend_score (0-1)
+[1]: backend_score (0-1)
+[2]: fullstack_score (0-1)
+[3]: devops_score (0-1)
+[4]: data_engineering_score (0-1)
+[5]: mobile_score (0-1)
+[6]: security_score (0-1)
+[7]: cloud_score (0-1)
+[8]: ai_ml_score (0-1)
+[9]: architecture_score (0-1)
+[10-19]: top_10_skill_proficiency (react, node, python, java, typescript, kubernetes, aws, sql, go, rust)
+[20]: junior_level (0-1)
+[21]: mid_level (0-1)
+[22]: senior_level (0-1)
+[23]: lead_level (0-1)
+[24]: architect_level (0-1)
+[25]: startup_fit (0-1)
+[26]: enterprise_fit (0-1)
+[27]: agency_fit (0-1)
+[28]: consulting_fit (0-1)
+[29]: remote_preference (0-1)
+[30]: hybrid_preference (0-1)
+[31]: onsite_preference (0-1)
+[32-41]: industry_experience (fintech, healthcare, ecommerce, saas, gaming, automotive, logistics, media, energy, manufacturing)
+[42]: leadership_experience (0-1)
+[43]: team_management (0-1)
+[44]: project_complexity (0-1)
+[45]: communication_skills (0-1)
+[46]: problem_solving (0-1)
+[47]: innovation_mindset (0-1)
+[48]: adaptability (0-1)
+[49]: technical_depth (0-1)
+[50]: breadth_of_knowledge (0-1)
+[51]: years_experience_normalized (0-1, 0=0yrs, 1=20+yrs)
+[52-63]: reserved for future dimensions
+`;
+
 function buildCandidateProfileText(c: Candidate): string {
   const parts: string[] = [];
   
@@ -111,34 +150,91 @@ async function generateEmbedding(text: string): Promise<number[]> {
     throw new Error('LOVABLE_API_KEY is not configured');
   }
   
-  console.log('Generating embedding for text of length:', text.length);
+  console.log('Generating Gemini feature vector for text of length:', text.length);
   
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/embeddings', {
+  const prompt = `Analyze this profile and extract a 64-dimensional feature vector for semantic matching.
+
+Profile:
+${text}
+
+Feature dimensions:
+${FEATURE_DIMENSIONS}
+
+INSTRUCTIONS:
+1. Analyze the profile carefully
+2. Score each dimension from 0.0 to 1.0 based on the profile content
+3. If information is not available for a dimension, use 0.5 as neutral
+4. Return ONLY a JSON array of exactly 64 floating point numbers
+5. No explanations, no markdown, just the array
+
+Example output format:
+[0.8, 0.3, 0.6, 0.2, 0.1, 0.0, 0.4, 0.7, 0.5, 0.6, 0.9, 0.8, 0.7, 0.3, 0.9, 0.2, 0.6, 0.4, 0.1, 0.0, 0.0, 0.2, 0.8, 0.0, 0.0, 0.7, 0.3, 0.2, 0.4, 0.8, 0.2, 0.0, 0.6, 0.3, 0.5, 0.4, 0.2, 0.1, 0.3, 0.4, 0.2, 0.1, 0.7, 0.5, 0.6, 0.7, 0.8, 0.6, 0.7, 0.8, 0.6, 0.65, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]`;
+
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: text,
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.1, // Low temperature for consistent outputs
+      max_tokens: 1000,
     }),
   });
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Embedding API error:', response.status, errorText);
-    throw new Error(`Embedding API error: ${response.status}`);
+    console.error('Gemini API error:', response.status, errorText);
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
   }
   
   const data = await response.json();
   
-  if (!data.data || !data.data[0] || !data.data[0].embedding) {
-    console.error('Invalid embedding response:', data);
-    throw new Error('Invalid embedding response');
+  if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+    console.error('Invalid Gemini response:', data);
+    throw new Error('Invalid Gemini response structure');
   }
   
-  return data.data[0].embedding;
+  const content = data.choices[0].message.content.trim();
+  console.log('Gemini response:', content.slice(0, 200));
+  
+  // Parse the JSON array from the response
+  let embedding: number[];
+  try {
+    // Handle potential markdown code blocks
+    let jsonStr = content;
+    if (jsonStr.includes('```')) {
+      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    }
+    embedding = JSON.parse(jsonStr);
+  } catch (parseError) {
+    console.error('Failed to parse embedding JSON:', content);
+    throw new Error(`Failed to parse embedding: ${parseError}`);
+  }
+  
+  // Validate the embedding
+  if (!Array.isArray(embedding) || embedding.length !== 64) {
+    console.error('Invalid embedding length:', embedding?.length);
+    throw new Error(`Invalid embedding length: expected 64, got ${embedding?.length}`);
+  }
+  
+  // Ensure all values are valid numbers between 0 and 1
+  embedding = embedding.map((v, i) => {
+    if (typeof v !== 'number' || isNaN(v)) {
+      console.warn(`Invalid value at index ${i}, defaulting to 0.5`);
+      return 0.5;
+    }
+    return Math.max(0, Math.min(1, v));
+  });
+  
+  return embedding;
 }
 
 serve(async (req) => {
@@ -211,7 +307,7 @@ serve(async (req) => {
               .update({ 
                 embedding: embeddingString,
                 embedding_updated_at: new Date().toISOString(),
-                embedding_model: 'text-embedding-3-small'
+                embedding_model: 'gemini-2.5-flash-64d'
               })
               .eq('id', item.entity_id);
             
@@ -242,7 +338,7 @@ serve(async (req) => {
               .update({ 
                 embedding: embeddingString,
                 embedding_updated_at: new Date().toISOString(),
-                embedding_model: 'text-embedding-3-small'
+                embedding_model: 'gemini-2.5-flash-64d'
               })
               .eq('id', item.entity_id);
             
@@ -323,7 +419,7 @@ serve(async (req) => {
         .update({ 
           embedding: embeddingString,
           embedding_updated_at: new Date().toISOString(),
-          embedding_model: 'text-embedding-3-small'
+          embedding_model: 'gemini-2.5-flash-64d'
         })
         .eq('id', id);
       
@@ -336,7 +432,8 @@ serve(async (req) => {
           success: true, 
           type: 'candidate',
           id,
-          profileTextLength: profileText.length
+          profileTextLength: profileText.length,
+          embeddingDimensions: 64
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -363,7 +460,7 @@ serve(async (req) => {
         .update({ 
           embedding: embeddingString,
           embedding_updated_at: new Date().toISOString(),
-          embedding_model: 'text-embedding-3-small'
+          embedding_model: 'gemini-2.5-flash-64d'
         })
         .eq('id', id);
       
@@ -376,7 +473,8 @@ serve(async (req) => {
           success: true, 
           type: 'job',
           id,
-          jobTextLength: jobText.length
+          jobTextLength: jobText.length,
+          embeddingDimensions: 64
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

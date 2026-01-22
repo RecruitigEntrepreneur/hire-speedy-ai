@@ -1,5 +1,8 @@
 project_id = "dngycrrhbnwdohbftpzq"
 
+[functions.seed-ml-training-data]
+verify_jwt = false
+
 [functions.calculate-match-v3-1]
 verify_jwt = true
 
