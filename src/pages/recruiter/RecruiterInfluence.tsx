@@ -99,10 +99,14 @@ export default function RecruiterInfluence() {
     await takeAction(alertId, 'completed');
   };
 
-  const handleSelectCandidate = (submissionId: string) => {
+  const handleSelectCandidate = (submissionId: string, alertId?: string, playbookId?: string) => {
     const submission = submissions.find(s => s.id === submissionId);
     if (submission) {
-      navigate(`/recruiter/candidates?id=${submission.candidate_id}`);
+      const params = new URLSearchParams();
+      if (alertId) params.set('alert', alertId);
+      if (playbookId) params.set('playbook', playbookId);
+      const queryString = params.toString();
+      navigate(`/recruiter/candidates/${submission.candidate_id}${queryString ? `?${queryString}` : ''}`);
     }
   };
 

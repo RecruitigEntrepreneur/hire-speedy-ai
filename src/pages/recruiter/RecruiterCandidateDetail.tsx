@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
+import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
 
 import { Candidate } from '@/components/candidates/CandidateCard';
 import { CandidateStatusDropdown } from '@/components/candidates/CandidateStatusDropdown';
@@ -51,6 +52,7 @@ import { CandidateJobsOverview } from '@/components/candidates/CandidateJobsOver
 import { CandidateDocumentsManager } from '@/components/candidates/CandidateDocumentsManager';
 import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
 import { CandidateStagePipeline } from '@/components/candidates/CandidateStagePipeline';
+import { CandidatePlaybookPanel } from '@/components/candidates/CandidatePlaybookPanel';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -69,6 +71,8 @@ export default function RecruiterCandidateDetail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTaskId = searchParams.get('task') || undefined;
+  const alertId = searchParams.get('alert') || undefined;
+  const playbookId = searchParams.get('playbook') || undefined;
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -84,6 +88,24 @@ export default function RecruiterCandidateDetail() {
   const candidateTags = candidate ? getCandidateTags(candidate.id) : [];
 
   const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
+  
+  // Load playbook if provided via URL
+  const { playbook } = useCoachingPlaybook(playbookId);
+  const [alertTitle, setAlertTitle] = useState<string | undefined>();
+
+  // Fetch alert title if alertId is provided
+  useEffect(() => {
+    if (alertId) {
+      supabase
+        .from('influence_alerts')
+        .select('title')
+        .eq('id', alertId)
+        .single()
+        .then(({ data }) => {
+          if (data) setAlertTitle(data.title);
+        });
+    }
+  }, [alertId]);
 
   // Fetch candidate data
   useEffect(() => {
@@ -513,6 +535,16 @@ export default function RecruiterCandidateDetail() {
 
           {/* RIGHT COLUMN - Context & History */}
           <div className="space-y-6 min-w-0">
+            {/* Coaching Playbook - Only show if we have one from alert context */}
+            {playbook && (
+              <CandidatePlaybookPanel
+                playbook={playbook}
+                alertTitle={alertTitle}
+                candidateName={candidate.full_name}
+                companyName={extCandidate?.company}
+              />
+            )}
+
             {/* Interview Summary */}
             <QuickInterviewSummary 
               candidateId={candidate.id}
