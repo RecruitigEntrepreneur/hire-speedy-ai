@@ -6,13 +6,18 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CompanyRevealBadge } from '@/components/recruiter/CompanyRevealBadge';
-import { formatAnonymousCompany, getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
+import { getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
+import { RecruiterQuickFacts } from '@/components/recruiter/RecruiterQuickFacts';
+import { AnonymousCompanyPitch } from '@/components/recruiter/AnonymousCompanyPitch';
+import { RoleSummaryCard } from '@/components/recruiter/RoleSummaryCard';
+import { SkillsDisplay } from '@/components/recruiter/SkillsDisplay';
+import { FeeCalculatorCard } from '@/components/recruiter/FeeCalculatorCard';
+import { SellingPointsCard } from '@/components/recruiter/SellingPointsCard';
+import { JobStatsCard } from '@/components/recruiter/JobStatsCard';
 import {
-  Briefcase,
   MapPin,
   Clock,
   ArrowLeft,
@@ -20,15 +25,12 @@ import {
   Zap,
   Circle,
   Users,
-  Calendar,
-  CheckCircle2,
   Building2,
   Loader2,
   Upload,
   Sparkles,
-  TrendingUp,
   Star,
-  Lock,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -37,6 +39,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface FormattedContent {
   headline: string;
@@ -45,6 +48,13 @@ interface FormattedContent {
   ideal_candidate: string;
   selling_points: string[];
   urgency_note: string | null;
+  anonymous_company_pitch?: string;
+  quick_facts?: {
+    team_size: string | null;
+    growth_stage: string | null;
+    culture_keywords: string[];
+    interview_process: string | null;
+  };
 }
 
 interface Job {
@@ -376,131 +386,97 @@ export default function JobDetail() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* AI Role Summary */}
-            {formattedContent?.role_summary && (
-              <Card className="border-primary/20 bg-primary/5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    Über diese Rolle
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-lg leading-relaxed">{formattedContent.role_summary}</p>
-                </CardContent>
-              </Card>
-            )}
+        {/* Quick Facts Bar */}
+        <RecruiterQuickFacts
+          quickFacts={formattedContent?.quick_facts}
+          companySize={job.company_size_band}
+          fundingStage={job.funding_stage}
+          techEnvironment={job.tech_environment}
+        />
 
-            {/* AI Ideal Candidate */}
-            {formattedContent?.ideal_candidate && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-emerald" />
-                    Idealer Kandidat
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="leading-relaxed">{formattedContent.ideal_candidate}</p>
-                </CardContent>
-              </Card>
-            )}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main Content - 60% */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Anonymous Company Pitch - NEW */}
+            <AnonymousCompanyPitch
+              pitch={formattedContent?.anonymous_company_pitch || null}
+              industry={job.industry}
+              companySize={job.company_size_band}
+              fundingStage={job.funding_stage}
+              isRevealed={accessStatus.companyRevealed}
+              companyName={job.company_name}
+            />
+
+            {/* AI Role Summary & Ideal Candidate */}
+            <RoleSummaryCard
+              roleSummary={formattedContent?.role_summary || null}
+              idealCandidate={formattedContent?.ideal_candidate || null}
+              mustHaves={job.must_haves}
+              niceToHaves={job.nice_to_haves}
+              isAIGenerated={!!formattedContent?.role_summary}
+            />
 
             {/* Description (fallback if no AI content) */}
             {!formattedContent?.role_summary && job.description && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Beschreibung</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Stellenbeschreibung</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={async () => {
+                      toast.loading('AI-Aufbereitung läuft...');
+                      try {
+                        await supabase.functions.invoke('format-job-for-recruiters', {
+                          body: { jobId: job.id }
+                        });
+                        await fetchJobDetails();
+                        toast.success('Stelle wurde AI-aufbereitet!');
+                      } catch (e) {
+                        toast.error('Fehler bei der AI-Aufbereitung');
+                      }
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    AI aufbereiten
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <p className="whitespace-pre-wrap">{job.description}</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
+                    {job.description}
+                  </p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Requirements */}
-            {job.requirements && (
+            {/* Requirements - only show if no AI content */}
+            {!formattedContent?.role_summary && job.requirements && (
               <Card>
                 <CardHeader>
                   <CardTitle>Anforderungen</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="whitespace-pre-wrap">{job.requirements}</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
+                    {job.requirements}
+                  </p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Must Haves & Nice to Haves */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {job.must_haves && job.must_haves.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <CheckCircle2 className="h-5 w-5 text-emerald" />
-                      Must-Haves
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {job.must_haves.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-emerald mt-0.5 flex-shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {job.nice_to_haves && job.nice_to_haves.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Circle className="h-5 w-5 text-muted-foreground" />
-                      Nice-to-Haves
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {job.nice_to_haves.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Skills */}
-            {job.skills && job.skills.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gesuchte Skills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {job.skills.map((skill) => (
-                      <Badge key={skill} variant="outline">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Skills Display */}
+            <SkillsDisplay 
+              skills={job.skills} 
+              techEnvironment={job.tech_environment}
+            />
 
             {/* My Submissions */}
             {mySubmissions.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Meine Einreichungen ({mySubmissions.length})</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Meine Einreichungen ({mySubmissions.length})
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -521,87 +497,31 @@ export default function JobDetail() {
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - 40% */}
           <div className="space-y-4">
-            {/* Fee Card - Enhanced */}
-            <Card className="border-emerald/30 bg-gradient-to-br from-emerald/10 to-emerald/5 overflow-hidden">
-              <CardContent className="pt-6 relative">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald/10 rounded-full blur-2xl" />
-                <div className="text-center relative">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald/20 text-emerald text-xs font-medium mb-3">
-                    <TrendingUp className="h-3 w-3" />
-                    Dein Verdienst
-                  </div>
-                  <p className="text-4xl font-bold text-emerald">
-                    {job.recruiter_fee_percentage}%
-                  </p>
-                  {potentialEarning && (
-                    <p className="text-lg font-semibold text-foreground mt-2">
-                      ca. €{potentialEarning.toLocaleString()}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    bei erfolgreicher Vermittlung
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Fee Calculator - NEW Component */}
+            <FeeCalculatorCard
+              feePercentage={job.recruiter_fee_percentage}
+              salaryMin={job.salary_min}
+              salaryMax={job.salary_max}
+            />
 
-            {/* AI Selling Points */}
-            {formattedContent?.selling_points && formattedContent.selling_points.length > 0 && (
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Star className="h-4 w-4 text-warning" />
-                    Warum diese Stelle?
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {formattedContent.selling_points.map((point, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
+            {/* Selling Points - NEW Component */}
+            <SellingPointsCard
+              sellingPoints={formattedContent?.selling_points || null}
+              highlights={formattedContent?.highlights}
+            />
 
-            {/* Job Details */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Gehalt</span>
-                  <span className="font-medium">{formatSalary(job.salary_min, job.salary_max)}</span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Erfahrung</span>
-                  <span className="font-medium capitalize">{job.experience_level || '-'}</span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Einreichungen</span>
-                  <span className="font-medium">
-                    {totalSubmissions} gesamt ({mySubmissions.length} von dir)
-                  </span>
-                </div>
-                {job.deadline && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Deadline</span>
-                      <span className="font-medium flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {new Date(job.deadline).toLocaleDateString('de-DE')}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+            {/* Job Stats - NEW Component */}
+            <JobStatsCard
+              location={job.location}
+              remoteType={job.remote_type}
+              employmentType={job.employment_type}
+              experienceLevel={job.experience_level}
+              totalSubmissions={totalSubmissions}
+              salaryMin={job.salary_min}
+              salaryMax={job.salary_max}
+            />
 
             {/* Screening Questions */}
             {job.screening_questions && Object.keys(job.screening_questions).length > 0 && (
@@ -617,6 +537,18 @@ export default function JobDetail() {
                       </li>
                     ))}
                   </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Urgency Note */}
+            {formattedContent?.urgency_note && (
+              <Card className="border-destructive/20 bg-destructive/5">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-destructive font-medium flex items-center gap-2">
+                    <Flame className="h-4 w-4" />
+                    {formattedContent.urgency_note}
+                  </p>
                 </CardContent>
               </Card>
             )}
