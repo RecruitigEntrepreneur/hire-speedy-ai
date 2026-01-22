@@ -211,6 +211,25 @@ async function selectSlot(supabase: any, params: {
     })
     .eq('id', interview.id);
 
+  // ========================================
+  // TRIPLE-BLIND: Stufe 2 - Voller Zugriff
+  // Wenn Kandidat Interview bestätigt, bekommt Recruiter vollen Zugriff
+  // ========================================
+  if (interview.submission_id) {
+    await supabase
+      .from('submissions')
+      .update({
+        full_access_granted: true,
+        full_access_granted_at: new Date().toISOString(),
+        // Stelle auch sicher dass company_revealed gesetzt ist (Fallback)
+        company_revealed: true,
+        company_revealed_at: new Date().toISOString(),
+      })
+      .eq('id', interview.submission_id);
+
+    console.log('🔓 Full access granted for submission:', interview.submission_id);
+  }
+
   // Create notification for client
   await supabase.from('notifications').insert({
     user_id: interview.submissions?.jobs?.client_id,

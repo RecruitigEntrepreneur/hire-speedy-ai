@@ -41,6 +41,8 @@ import {
   Target,
   Zap
 } from 'lucide-react';
+import { CompanyRevealIcon } from '@/components/recruiter/CompanyRevealBadge';
+import { getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
 
 interface CandidateBehavior {
   confidence_score: number | null;
@@ -65,10 +67,20 @@ interface Submission {
   rejection_reason: string;
   job_id: string;
   candidate_id: string;
+  // Triple-Blind Felder
+  company_revealed: boolean;
+  full_access_granted: boolean;
   jobs: {
     id: string;
     title: string;
     company_name: string;
+    industry: string | null;
+    company_size_band: string | null;
+    funding_stage: string | null;
+    tech_environment: string[] | null;
+    hiring_urgency: string | null;
+    location: string | null;
+    remote_type: string | null;
   };
   candidates: {
     id: string;
@@ -185,7 +197,7 @@ export default function RecruiterSubmissions() {
         .from('submissions')
         .select(`
           *,
-          jobs (id, title, company_name),
+          jobs (id, title, company_name, industry, company_size_band, funding_stage, tech_environment, hiring_urgency, location, remote_type),
           candidates (id, full_name, email, phone),
           interviews (id, scheduled_at, status),
           candidate_behavior (confidence_score, interview_readiness_score, closing_probability, engagement_level),
@@ -404,6 +416,28 @@ export default function RecruiterSubmissions() {
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                                       <Briefcase className="h-3 w-3" />
                                       <span className="truncate">{sub.jobs?.title}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                      <CompanyRevealIcon 
+                                        companyRevealed={sub.company_revealed} 
+                                        fullAccess={sub.full_access_granted} 
+                                      />
+                                      <span className="truncate">
+                                        {getDisplayCompanyName(
+                                          sub.jobs?.company_name || '',
+                                          sub.jobs?.industry,
+                                          sub.company_revealed,
+                                          {
+                                            industry: sub.jobs?.industry,
+                                            companySize: sub.jobs?.company_size_band,
+                                            fundingStage: sub.jobs?.funding_stage,
+                                            techStack: sub.jobs?.tech_environment,
+                                            location: sub.jobs?.location,
+                                            urgency: sub.jobs?.hiring_urgency,
+                                            remoteType: sub.jobs?.remote_type,
+                                          }
+                                        )}
+                                      </span>
                                     </div>
                                   </Link>
                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
