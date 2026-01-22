@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
+import { CompanyRevealBadge } from '@/components/recruiter/CompanyRevealBadge';
+import { formatAnonymousCompany, getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
 import {
   Briefcase,
   MapPin,
@@ -26,6 +28,7 @@ import {
   Sparkles,
   TrendingUp,
   Star,
+  Lock,
 } from 'lucide-react';
 import {
   Dialog,
@@ -67,19 +70,27 @@ interface Job {
   industry: string;
   created_at: string;
   formatted_content: FormattedContent | null;
+  // Neue Felder für kontextreiche Anonymisierung
+  company_size_band: string | null;
+  funding_stage: string | null;
+  hiring_urgency: string | null;
+  tech_environment: string[] | null;
 }
 
-// Triple-Blind: Anonymize company name for recruiters
-const getAnonymizedCompanyName = (industry: string | null): string => {
-  if (!industry) return 'Unternehmen';
-  return `[${industry}] Unternehmen`;
-};
+// Triple-Blind Reveal Status für diesen Job
+interface RecruiterAccessStatus {
+  hasSubmission: boolean;
+  companyRevealed: boolean;
+  fullAccessGranted: boolean;
+}
 
 interface Submission {
   id: string;
   candidate_id: string;
   status: string;
   submitted_at: string;
+  company_revealed: boolean;
+  full_access_granted: boolean;
   candidates: {
     full_name: string;
     email: string;
@@ -95,6 +106,11 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<RecruiterAccessStatus>({
+    hasSubmission: false,
+    companyRevealed: false,
+    fullAccessGranted: false,
+  });
 
   useEffect(() => {
     if (id) {
@@ -128,6 +144,8 @@ export default function JobDetail() {
             candidate_id,
             status,
             submitted_at,
+            company_revealed,
+            full_access_granted,
             candidates (
               full_name,
               email
@@ -136,7 +154,19 @@ export default function JobDetail() {
           .eq('job_id', id)
           .eq('recruiter_id', user.id);
 
-        setMySubmissions(mySubsData as any || []);
+        const submissions = mySubsData as Submission[] || [];
+        setMySubmissions(submissions);
+
+        // Bestimme den höchsten Zugriffsstatus basierend auf allen Submissions
+        const hasAnySubmission = submissions.length > 0;
+        const hasRevealedSubmission = submissions.some(s => s.company_revealed);
+        const hasFullAccessSubmission = submissions.some(s => s.full_access_granted);
+
+        setAccessStatus({
+          hasSubmission: hasAnySubmission,
+          companyRevealed: hasRevealedSubmission,
+          fullAccessGranted: hasFullAccessSubmission,
+        });
 
         // Count total submissions
         const { count } = await supabase
@@ -252,11 +282,31 @@ export default function JobDetail() {
                     {getUrgencyBadge(job.urgency || 'standard')}
                   </div>
                   
-                  {/* Triple-Blind: Show anonymized company name */}
-                  <p className="text-lg text-muted-foreground flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    {getAnonymizedCompanyName(job.industry)}
-                  </p>
+                  {/* Triple-Blind: Show company based on reveal status */}
+                  <div className="flex items-center gap-2 text-lg text-muted-foreground">
+                    <CompanyRevealBadge 
+                      companyRevealed={accessStatus.companyRevealed} 
+                      fullAccess={accessStatus.fullAccessGranted}
+                      showLabel={true}
+                      size="sm"
+                    />
+                    <span>
+                      {getDisplayCompanyName(
+                        job.company_name,
+                        job.industry,
+                        accessStatus.companyRevealed,
+                        {
+                          industry: job.industry,
+                          companySize: job.company_size_band,
+                          fundingStage: job.funding_stage,
+                          techStack: job.tech_environment,
+                          location: job.location,
+                          urgency: job.hiring_urgency,
+                          remoteType: job.remote_type,
+                        }
+                      )}
+                    </span>
+                  </div>
                   
                   <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     {job.location && (

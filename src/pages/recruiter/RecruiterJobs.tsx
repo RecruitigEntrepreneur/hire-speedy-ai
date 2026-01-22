@@ -21,10 +21,10 @@ import {
   ArrowUpRight,
   Loader2,
   Filter,
-  Shield,
+  Lock,
   Users
 } from 'lucide-react';
-import { anonymizeCompanyName } from '@/lib/anonymization';
+import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 
 interface Job {
   id: string;
@@ -40,6 +40,11 @@ interface Job {
   skills: string[];
   created_at: string;
   industry: string | null;
+  // Neue Felder für kontextreiche Anonymisierung
+  company_size_band: string | null;
+  funding_stage: string | null;
+  hiring_urgency: string | null;
+  tech_environment: string[] | null;
 }
 
 export default function RecruiterJobs() {
@@ -182,15 +187,17 @@ export default function RecruiterJobs() {
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                           <span className="flex items-center gap-1">
-                            <Shield className="h-3 w-3 text-amber-500" />
-                            {anonymizeCompanyName(job.industry)}
+                            <Lock className="h-3 w-3 text-muted-foreground" />
+                            {formatAnonymousCompany({
+                              industry: job.industry,
+                              companySize: job.company_size_band,
+                              fundingStage: job.funding_stage,
+                              techStack: job.tech_environment,
+                              location: job.location,
+                              urgency: job.hiring_urgency,
+                              remoteType: job.remote_type,
+                            })}
                           </span>
-                          {job.location && (
-                            <span className="flex items-center gap-1 truncate">
-                              <MapPin className="h-3 w-3" />
-                              {job.location}
-                            </span>
-                          )}
                         </div>
                       </div>
 

@@ -3393,6 +3393,7 @@ export type Database = {
           client_id: string
           commute_flexibility: string | null
           company_name: string
+          company_size_band: string | null
           created_at: string
           deadline: string | null
           description: string | null
@@ -3400,7 +3401,9 @@ export type Database = {
           experience_level: string | null
           fee_percentage: number | null
           formatted_content: Json | null
+          funding_stage: string | null
           hard_kill_overrides: Json | null
+          hiring_urgency: string | null
           id: string
           industry: string | null
           location: string | null
@@ -3424,6 +3427,7 @@ export type Database = {
           screening_questions: Json | null
           skills: string[] | null
           status: string | null
+          tech_environment: string[] | null
           title: string
           updated_at: string
           urgency: string | null
@@ -3435,6 +3439,7 @@ export type Database = {
           client_id: string
           commute_flexibility?: string | null
           company_name: string
+          company_size_band?: string | null
           created_at?: string
           deadline?: string | null
           description?: string | null
@@ -3442,7 +3447,9 @@ export type Database = {
           experience_level?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
+          funding_stage?: string | null
           hard_kill_overrides?: Json | null
+          hiring_urgency?: string | null
           id?: string
           industry?: string | null
           location?: string | null
@@ -3466,6 +3473,7 @@ export type Database = {
           screening_questions?: Json | null
           skills?: string[] | null
           status?: string | null
+          tech_environment?: string[] | null
           title: string
           updated_at?: string
           urgency?: string | null
@@ -3477,6 +3485,7 @@ export type Database = {
           client_id?: string
           commute_flexibility?: string | null
           company_name?: string
+          company_size_band?: string | null
           created_at?: string
           deadline?: string | null
           description?: string | null
@@ -3484,7 +3493,9 @@ export type Database = {
           experience_level?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
+          funding_stage?: string | null
           hard_kill_overrides?: Json | null
+          hiring_urgency?: string | null
           id?: string
           industry?: string | null
           location?: string | null
@@ -3508,6 +3519,7 @@ export type Database = {
           screening_questions?: Json | null
           skills?: string[] | null
           status?: string | null
+          tech_environment?: string[] | null
           title?: string
           updated_at?: string
           urgency?: string | null
@@ -6498,9 +6510,13 @@ export type Database = {
         Row: {
           candidate_id: string
           client_notes: string | null
+          company_revealed: boolean | null
+          company_revealed_at: string | null
           consent_confirmed: boolean | null
           consent_confirmed_at: string | null
           consent_document_url: string | null
+          full_access_granted: boolean | null
+          full_access_granted_at: string | null
           id: string
           identity_revealed: boolean | null
           identity_unlocked: boolean | null
@@ -6522,9 +6538,13 @@ export type Database = {
         Insert: {
           candidate_id: string
           client_notes?: string | null
+          company_revealed?: boolean | null
+          company_revealed_at?: string | null
           consent_confirmed?: boolean | null
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
+          full_access_granted?: boolean | null
+          full_access_granted_at?: string | null
           id?: string
           identity_revealed?: boolean | null
           identity_unlocked?: boolean | null
@@ -6546,9 +6566,13 @@ export type Database = {
         Update: {
           candidate_id?: string
           client_notes?: string | null
+          company_revealed?: boolean | null
+          company_revealed_at?: string | null
           consent_confirmed?: boolean | null
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
+          full_access_granted?: boolean | null
+          full_access_granted_at?: string | null
           id?: string
           identity_revealed?: boolean | null
           identity_unlocked?: boolean | null
