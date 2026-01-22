@@ -90,6 +90,19 @@ export default function RecruiterJobs() {
     return `Up to €${max?.toLocaleString()}`;
   };
 
+  const calculatePotentialEarning = (
+    salaryMin: number | null, 
+    salaryMax: number | null, 
+    feePercentage: number | null
+  ): number | null => {
+    if (!feePercentage || (!salaryMin && !salaryMax)) return null;
+    const avgSalary = salaryMin && salaryMax 
+      ? (salaryMin + salaryMax) / 2 
+      : salaryMin || salaryMax;
+    if (!avgSalary) return null;
+    return Math.round(avgSalary * (feePercentage / 100));
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -215,11 +228,16 @@ export default function RecruiterJobs() {
                         )}
                       </div>
 
-                      {/* Fee & Date */}
+                      {/* Fee & Potential Earnings */}
                       <div className="text-right shrink-0">
                         <p className="font-bold text-emerald">{job.recruiter_fee_percentage}%</p>
+                        {calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage) && (
+                          <p className="text-xs font-semibold text-emerald">
+                            ~€{calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)?.toLocaleString()}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
-                          {formatSalary(job.salary_min, job.salary_max).replace('€', '').replace(' - ', '-')}
+                          {formatSalary(job.salary_min, job.salary_max)}
                         </p>
                       </div>
 
