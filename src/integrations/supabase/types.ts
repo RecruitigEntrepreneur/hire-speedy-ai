@@ -3874,6 +3874,96 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_training_events: {
+        Row: {
+          candidate_id: string | null
+          candidate_skills_snapshot: Json | null
+          created_at: string | null
+          days_to_outcome: number | null
+          domain_match_at_event: string | null
+          event_type: string
+          final_outcome: string | null
+          id: string
+          job_id: string | null
+          job_requirements_snapshot: Json | null
+          match_score_at_event: number | null
+          recruiter_id: string | null
+          rejection_category: string | null
+          salary_delta_at_event: number | null
+          submission_id: string | null
+        }
+        Insert: {
+          candidate_id?: string | null
+          candidate_skills_snapshot?: Json | null
+          created_at?: string | null
+          days_to_outcome?: number | null
+          domain_match_at_event?: string | null
+          event_type: string
+          final_outcome?: string | null
+          id?: string
+          job_id?: string | null
+          job_requirements_snapshot?: Json | null
+          match_score_at_event?: number | null
+          recruiter_id?: string | null
+          rejection_category?: string | null
+          salary_delta_at_event?: number | null
+          submission_id?: string | null
+        }
+        Update: {
+          candidate_id?: string | null
+          candidate_skills_snapshot?: Json | null
+          created_at?: string | null
+          days_to_outcome?: number | null
+          domain_match_at_event?: string | null
+          event_type?: string
+          final_outcome?: string | null
+          id?: string
+          job_id?: string | null
+          job_requirements_snapshot?: Json | null
+          match_score_at_event?: number | null
+          recruiter_id?: string | null
+          rejection_category?: string | null
+          salary_delta_at_event?: number | null
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_training_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
