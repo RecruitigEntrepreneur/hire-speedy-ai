@@ -15,8 +15,10 @@ import {
   Upload,
   ArrowUpRight,
   Clock,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
+import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -256,6 +258,19 @@ export default function RecruiterDashboard() {
     return `Up to €${max?.toLocaleString()}`;
   };
 
+  const calculatePotentialEarning = (
+    salaryMin: number | null, 
+    salaryMax: number | null, 
+    feePercentage: number | null
+  ): number | null => {
+    if (!feePercentage || (!salaryMin && !salaryMax)) return null;
+    const avgSalary = salaryMin && salaryMax 
+      ? (salaryMin + salaryMax) / 2 
+      : salaryMin || salaryMax;
+    if (!avgSalary) return null;
+    return Math.round(avgSalary * (feePercentage / 100));
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -382,16 +397,18 @@ export default function RecruiterDashboard() {
                         <div>
                           <h4 className="font-medium">{job.title}</h4>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{job.company_name}</span>
-                            {job.location && (
-                              <>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {job.location}
-                                </span>
-                              </>
-                            )}
+                            <span className="flex items-center gap-1">
+                              <Lock className="h-3 w-3" />
+                              {formatAnonymousCompany({
+                                industry: job.industry,
+                                companySize: job.company_size_band,
+                                fundingStage: job.funding_stage,
+                                techStack: job.tech_environment,
+                                location: job.location,
+                                urgency: job.hiring_urgency,
+                                remoteType: job.remote_type,
+                              })}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -400,7 +417,12 @@ export default function RecruiterDashboard() {
                           <p className="font-medium text-emerald">
                             {job.recruiter_fee_percentage}% Fee
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          {calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage) && (
+                            <p className="text-sm font-semibold text-emerald">
+                              ~€{calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)?.toLocaleString()}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
                             {formatSalary(job.salary_min, job.salary_max)}
                           </p>
                         </div>
