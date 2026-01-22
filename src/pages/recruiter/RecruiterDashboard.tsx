@@ -27,7 +27,6 @@ import { CompactTaskList } from '@/components/influence/CompactTaskList';
 import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
-import { CandidateDetailSheet } from '@/components/candidates/CandidateDetailSheet';
 import { Candidate } from '@/components/candidates/CandidateCard';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { toast } from 'sonner';
@@ -51,17 +50,11 @@ export default function RecruiterDashboard() {
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
-  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate; jobTitle?: string; companyName?: string }>>({});
+  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
-  
-  // Candidate Detail Sheet state
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
-  const [activeTaskId, setActiveTaskId] = useState<string | undefined>(undefined);
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
-  const { getCandidateTags } = useCandidateTags();
   
   usePageViewTracking('recruiter_dashboard');
 
@@ -201,29 +194,11 @@ export default function RecruiterDashboard() {
 
   const handleViewCandidate = async (submissionId: string, alertId?: string) => {
     const candidateInfo = candidateMap[submissionId];
-    setActiveTaskId(alertId);
-    if (candidateInfo?.candidateData) {
-      setSelectedCandidate(candidateInfo.candidateData);
-      setCandidateSheetOpen(true);
-    } else if (candidateInfo?.candidateId) {
-      // Fetch full candidate data if not in map
-      const { data: candidate } = await supabase
-        .from('candidates')
-        .select('*')
-        .eq('id', candidateInfo.candidateId)
-        .single();
-      
-      if (candidate) {
-        setSelectedCandidate(candidate as Candidate);
-        setCandidateSheetOpen(true);
-      }
+    if (candidateInfo?.candidateId) {
+      // Navigate to candidate detail page with task context
+      const taskParam = alertId ? `?task=${alertId}` : '';
+      navigate(`/recruiter/candidates/${candidateInfo.candidateId}${taskParam}`);
     }
-  };
-
-
-  const handleEditCandidate = (candidate: Candidate) => {
-    // Navigate to candidates page with edit mode
-    navigate('/recruiter/candidates');
   };
 
   const statCards = [
@@ -501,19 +476,6 @@ export default function RecruiterDashboard() {
           onImportComplete={() => {
             toast.success('Kandidaten erfolgreich importiert');
           }}
-        />
-
-        {/* Candidate Detail Sheet */}
-        <CandidateDetailSheet
-          candidate={selectedCandidate}
-          tags={selectedCandidate ? getCandidateTags(selectedCandidate.id) : []}
-          open={candidateSheetOpen}
-          onOpenChange={(open) => {
-            setCandidateSheetOpen(open);
-            if (!open) setActiveTaskId(undefined);
-          }}
-          onEdit={handleEditCandidate}
-          activeTaskId={activeTaskId}
         />
       </div>
     </DashboardLayout>
