@@ -16,6 +16,7 @@ import { SkillsDisplay } from '@/components/recruiter/SkillsDisplay';
 import { FeeCalculatorCard } from '@/components/recruiter/FeeCalculatorCard';
 import { SellingPointsCard } from '@/components/recruiter/SellingPointsCard';
 import { JobStatsCard } from '@/components/recruiter/JobStatsCard';
+import { PartnerFactsCard } from '@/components/recruiter/PartnerFactsCard';
 import {
   MapPin,
   Clock,
@@ -35,7 +36,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { toast } from 'sonner';
 
 interface FormattedContent {
   headline: string;
@@ -103,10 +103,20 @@ interface Submission {
   };
 }
 
+interface CompanyProfile {
+  headcount: number | null;
+  annual_revenue: string | null;
+  founded_year: number | null;
+  unique_selling_point: string | null;
+  company_awards: string[] | null;
+  industry: string | null;
+}
+
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -161,6 +171,19 @@ export default function JobDetail() {
         formatted_content: jobData.formatted_content as unknown as FormattedContent | null
       };
       setJob(typedJob);
+
+      // Fetch company profile for Partner Facts
+      if (jobData.client_id) {
+        const { data: profileData } = await supabase
+          .from('company_profiles')
+          .select('headcount, annual_revenue, founded_year, unique_selling_point, company_awards, industry')
+          .eq('user_id', jobData.client_id)
+          .maybeSingle();
+
+        if (profileData) {
+          setCompanyProfile(profileData);
+        }
+      }
 
       // Fetch my submissions for this job
       if (user) {
@@ -407,7 +430,7 @@ export default function JobDetail() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content - 60% */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Anonymous Company Pitch - NEW */}
+            {/* Anonymous Company Pitch */}
             <AnonymousCompanyPitch
               pitch={formattedContent?.anonymous_company_pitch || null}
               industry={job.industry}
@@ -417,7 +440,10 @@ export default function JobDetail() {
               companyName={job.company_name}
             />
 
-            {/* AI Role Summary & Ideal Candidate */}
+            {/* Partner Facts - Company selling points */}
+            {companyProfile && (
+              <PartnerFactsCard facts={companyProfile} />
+            )}
             <RoleSummaryCard
               roleSummary={formattedContent?.role_summary || null}
               idealCandidate={formattedContent?.ideal_candidate || null}
@@ -426,23 +452,8 @@ export default function JobDetail() {
               isAIGenerated={!!formattedContent?.role_summary}
             />
 
-            {/* AI-Aufbereitung läuft - Loading State */}
-            {isFormatting && (
-              <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="py-8 flex flex-col items-center justify-center gap-3">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <span className="text-muted-foreground font-medium">
-                    AI bereitet Stelleninformationen auf...
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Dies kann einige Sekunden dauern
-                  </span>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Description (fallback if no AI content and not formatting) */}
-            {!formattedContent?.role_summary && job.description && !isFormatting && (
+            {/* Description (fallback if no AI content) */}
+            {!formattedContent?.role_summary && job.description && (
               <Card>
                 <CardHeader>
                   <CardTitle>Stellenbeschreibung</CardTitle>
@@ -455,8 +466,8 @@ export default function JobDetail() {
               </Card>
             )}
 
-            {/* Requirements - only show if no AI content and not formatting */}
-            {!formattedContent?.role_summary && job.requirements && !isFormatting && (
+            {/* Requirements - only show if no AI content */}
+            {!formattedContent?.role_summary && job.requirements && (
               <Card>
                 <CardHeader>
                   <CardTitle>Anforderungen</CardTitle>

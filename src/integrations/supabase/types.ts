@@ -1900,16 +1900,21 @@ export type Database = {
       company_profiles: {
         Row: {
           address: string | null
+          annual_revenue: string | null
           benefits: Json | null
           billing_email: string | null
           brand_color_primary: string | null
           brand_color_secondary: string | null
+          company_awards: string[] | null
           company_name: string
           created_at: string
           culture_values: Json | null
           description: string | null
+          founded_year: number | null
+          headcount: number | null
           id: string
           industry: string | null
+          last_enriched_at: string | null
           logo_url: string | null
           office_locations: Json | null
           opt_in_message: string | null
@@ -1921,6 +1926,7 @@ export type Database = {
           tagline: string | null
           tax_id: string | null
           team_size_range: string | null
+          unique_selling_point: string | null
           updated_at: string
           user_id: string
           website: string | null
@@ -1928,16 +1934,21 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          annual_revenue?: string | null
           benefits?: Json | null
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
+          company_awards?: string[] | null
           company_name: string
           created_at?: string
           culture_values?: Json | null
           description?: string | null
+          founded_year?: number | null
+          headcount?: number | null
           id?: string
           industry?: string | null
+          last_enriched_at?: string | null
           logo_url?: string | null
           office_locations?: Json | null
           opt_in_message?: string | null
@@ -1949,6 +1960,7 @@ export type Database = {
           tagline?: string | null
           tax_id?: string | null
           team_size_range?: string | null
+          unique_selling_point?: string | null
           updated_at?: string
           user_id: string
           website?: string | null
@@ -1956,16 +1968,21 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          annual_revenue?: string | null
           benefits?: Json | null
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
+          company_awards?: string[] | null
           company_name?: string
           created_at?: string
           culture_values?: Json | null
           description?: string | null
+          founded_year?: number | null
+          headcount?: number | null
           id?: string
           industry?: string | null
+          last_enriched_at?: string | null
           logo_url?: string | null
           office_locations?: Json | null
           opt_in_message?: string | null
@@ -1977,6 +1994,7 @@ export type Database = {
           tagline?: string | null
           tax_id?: string | null
           team_size_range?: string | null
+          unique_selling_point?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null

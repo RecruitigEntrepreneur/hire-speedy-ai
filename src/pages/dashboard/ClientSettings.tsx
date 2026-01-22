@@ -23,6 +23,10 @@ import {
   Globe,
   Save,
   Upload,
+  Sparkles,
+  Users,
+  TrendingUp,
+  Calendar,
 } from 'lucide-react';
 
 interface CompanyProfile {
@@ -35,6 +39,12 @@ interface CompanyProfile {
   address: string | null;
   tax_id: string | null;
   billing_email: string | null;
+  // Partner Facts
+  headcount: number | null;
+  annual_revenue: string | null;
+  founded_year: number | null;
+  unique_selling_point: string | null;
+  company_awards: string[] | null;
 }
 
 const INDUSTRIES = [
@@ -67,6 +77,11 @@ export default function ClientSettings() {
     address: null,
     tax_id: null,
     billing_email: null,
+    headcount: null,
+    annual_revenue: null,
+    founded_year: null,
+    unique_selling_point: null,
+    company_awards: null,
   });
 
   useEffect(() => {
@@ -113,6 +128,11 @@ export default function ClientSettings() {
             address: profile.address,
             tax_id: profile.tax_id,
             billing_email: profile.billing_email,
+            headcount: profile.headcount,
+            annual_revenue: profile.annual_revenue,
+            founded_year: profile.founded_year,
+            unique_selling_point: profile.unique_selling_point,
+            company_awards: profile.company_awards,
           })
           .eq('id', profile.id);
 
@@ -131,6 +151,11 @@ export default function ClientSettings() {
             address: profile.address,
             tax_id: profile.tax_id,
             billing_email: profile.billing_email,
+            headcount: profile.headcount,
+            annual_revenue: profile.annual_revenue,
+            founded_year: profile.founded_year,
+            unique_selling_point: profile.unique_selling_point,
+            company_awards: profile.company_awards,
           })
           .select()
           .single();
@@ -292,6 +317,77 @@ export default function ClientSettings() {
                     placeholder="DE123456789"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Partner Facts for Recruiters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Partner Facts für Recruiter
+              </CardTitle>
+              <CardDescription>
+                Diese Informationen werden Recruitern angezeigt, um dein Unternehmen zu präsentieren
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="headcount" className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    Mitarbeiteranzahl
+                  </Label>
+                  <Input
+                    id="headcount"
+                    type="number"
+                    value={profile.headcount || ''}
+                    onChange={(e) => setProfile({ ...profile, headcount: e.target.value ? parseInt(e.target.value) : null })}
+                    placeholder="z.B. 2000"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="annual_revenue" className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    Jahresumsatz
+                  </Label>
+                  <Input
+                    id="annual_revenue"
+                    value={profile.annual_revenue || ''}
+                    onChange={(e) => setProfile({ ...profile, annual_revenue: e.target.value })}
+                    placeholder="z.B. 250 Mio. €"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="founded_year" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    Gründungsjahr
+                  </Label>
+                  <Input
+                    id="founded_year"
+                    type="number"
+                    value={profile.founded_year || ''}
+                    onChange={(e) => setProfile({ ...profile, founded_year: e.target.value ? parseInt(e.target.value) : null })}
+                    placeholder="z.B. 1943"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="unique_selling_point">Unique Selling Point</Label>
+                <Textarea
+                  id="unique_selling_point"
+                  value={profile.unique_selling_point || ''}
+                  onChange={(e) => setProfile({ ...profile, unique_selling_point: e.target.value })}
+                  placeholder="z.B. Global führendes Unternehmen mit starkem Innovationsfokus"
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Was macht dein Unternehmen besonders attraktiv für Kandidaten?
+                </p>
               </div>
             </CardContent>
           </Card>
