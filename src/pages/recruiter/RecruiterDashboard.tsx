@@ -57,6 +57,7 @@ export default function RecruiterDashboard() {
   // Candidate Detail Sheet state
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<string | undefined>(undefined);
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
@@ -198,8 +199,9 @@ export default function RecruiterDashboard() {
     // Playbook viewing can be implemented with a dedicated page/dialog
   };
 
-  const handleViewCandidate = async (submissionId: string) => {
+  const handleViewCandidate = async (submissionId: string, alertId?: string) => {
     const candidateInfo = candidateMap[submissionId];
+    setActiveTaskId(alertId);
     if (candidateInfo?.candidateData) {
       setSelectedCandidate(candidateInfo.candidateData);
       setCandidateSheetOpen(true);
@@ -506,8 +508,12 @@ export default function RecruiterDashboard() {
           candidate={selectedCandidate}
           tags={selectedCandidate ? getCandidateTags(selectedCandidate.id) : []}
           open={candidateSheetOpen}
-          onOpenChange={setCandidateSheetOpen}
+          onOpenChange={(open) => {
+            setCandidateSheetOpen(open);
+            if (!open) setActiveTaskId(undefined);
+          }}
           onEdit={handleEditCandidate}
+          activeTaskId={activeTaskId}
         />
       </div>
     </DashboardLayout>
