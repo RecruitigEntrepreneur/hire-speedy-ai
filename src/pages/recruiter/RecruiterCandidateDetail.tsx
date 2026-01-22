@@ -24,6 +24,10 @@ import {
   Plus,
   Clock,
   Loader2,
+  MapPin,
+  Briefcase,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
@@ -46,6 +50,7 @@ import { CandidateActivityTimeline } from '@/components/candidates/CandidateActi
 import { CandidateJobsOverview } from '@/components/candidates/CandidateJobsOverview';
 import { CandidateDocumentsManager } from '@/components/candidates/CandidateDocumentsManager';
 import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
+import { CandidateStagePipeline } from '@/components/candidates/CandidateStagePipeline';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -252,111 +257,205 @@ export default function RecruiterCandidateDetail() {
     );
   }
 
+  // Format availability text
+  const getAvailabilityText = () => {
+    if (extCandidate?.availability_date) {
+      const date = new Date(extCandidate.availability_date);
+      if (date <= new Date()) return 'Sofort verfügbar';
+      return `Ab ${date.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' })}`;
+    }
+    if (extCandidate?.notice_period) {
+      const labels: Record<string, string> = {
+        immediate: 'Sofort verfügbar',
+        '2_weeks': '2 Wochen Kündigungsfrist',
+        '1_month': '1 Monat Kündigungsfrist',
+        '2_months': '2 Monate Kündigungsfrist',
+        '3_months': '3 Monate Kündigungsfrist',
+        '6_months': '6 Monate Kündigungsfrist',
+      };
+      return labels[extCandidate.notice_period] || extCandidate.notice_period;
+    }
+    return null;
+  };
+
+  // Format salary range
+  const getSalaryText = () => {
+    const min = extCandidate?.salary_expectation_min;
+    const max = extCandidate?.salary_expectation_max;
+    if (min && max) return `${Math.round(min / 1000)}k - ${Math.round(max / 1000)}k €`;
+    if (candidate?.expected_salary) return `${Math.round(candidate.expected_salary / 1000)}k €`;
+    return null;
+  };
+
+  const availabilityText = getAvailabilityText();
+  const salaryText = getSalaryText();
+  const topSkills = candidate?.skills?.slice(0, 3) || [];
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
+        {/* Hero Header Card */}
+        <div className="rounded-xl bg-gradient-to-br from-primary/5 via-background to-emerald/5 border shadow-sm overflow-hidden">
+          {/* Back Button Row */}
+          <div className="px-6 py-3 border-b bg-background/50">
             <Button variant="ghost" size="sm" onClick={() => navigate('/recruiter/candidates')}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Zurück
+              Zurück zu Kandidaten
             </Button>
-            <Avatar className="h-12 w-12">
-              <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                {candidate.full_name.split(' ').map((n) => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold">{candidate.full_name}</h1>
-                {readiness && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge 
-                        variant={readiness.badge.variant}
-                        className={readiness.badge.color}
-                      >
-                        {readiness.badge.label}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="font-medium">Profil-Vollständigkeit: {readiness.score}%</p>
-                      {readiness.missingFields.length > 0 && (
-                        <p className="text-xs">Fehlend: {readiness.missingFields.join(', ')}</p>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {candidate.job_title || candidate.email}
-              </p>
-            </div>
-            <CandidateStatusDropdown
-              value={currentStatus}
-              onChange={(val) => statusMutation.mutate(val)}
-              disabled={statusMutation.isPending}
-            />
           </div>
           
-          {/* Quick Actions */}
-          <TooltipProvider delayDuration={300}>
-            <div className="flex items-center gap-2 flex-wrap">
-              {candidate.phone && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${candidate.phone}`}>
-                      <Phone className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Anrufen</TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = `mailto:${candidate.email}`}>
-                    <Mail className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>E-Mail senden</TooltipContent>
-              </Tooltip>
-              {candidate.linkedin_url && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => window.open(candidate.linkedin_url!, '_blank')}>
-                      <Linkedin className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>LinkedIn öffnen</TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Profil exportieren</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>CV aktualisieren</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setFormDialogOpen(true)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Profil bearbeiten</TooltipContent>
-              </Tooltip>
+          {/* Main Hero Content */}
+          <div className="p-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Avatar */}
+              <Avatar className="h-20 w-20 border-2 border-primary/20 shrink-0">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-2xl font-semibold">
+                  {candidate.full_name.split(' ').map((n) => n[0]).join('')}
+                </AvatarFallback>
+              </Avatar>
+              
+              {/* Info Block */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div className="min-w-0">
+                    <h1 className="text-2xl font-bold truncate">{candidate.full_name}</h1>
+                    <p className="text-lg text-muted-foreground truncate">
+                      {candidate.job_title || 'Keine Position angegeben'}
+                    </p>
+                    
+                    {/* Meta Row */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                      {candidate.city && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {candidate.city}
+                        </span>
+                      )}
+                      {availabilityText && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {availabilityText}
+                        </span>
+                      )}
+                      {candidate.experience_years && (
+                        <span className="flex items-center gap-1">
+                          <Briefcase className="h-3.5 w-3.5" />
+                          {candidate.experience_years}+ Jahre
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Quick Actions */}
+                  <TooltipProvider delayDuration={300}>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {candidate.phone && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" onClick={() => window.location.href = `tel:${candidate.phone}`}>
+                              <Phone className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Anrufen</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" onClick={() => window.location.href = `mailto:${candidate.email}`}>
+                            <Mail className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>E-Mail senden</TooltipContent>
+                      </Tooltip>
+                      {candidate.linkedin_url && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" onClick={() => window.open(candidate.linkedin_url!, '_blank')}>
+                              <Linkedin className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>LinkedIn öffnen</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" onClick={handleExport}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Profil exportieren</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" onClick={() => setCvUploadOpen(true)}>
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>CV aktualisieren</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" onClick={() => setFormDialogOpen(true)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Profil bearbeiten</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TooltipProvider>
+                </div>
+                
+                {/* Badges Row */}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {readiness?.isReady && (
+                    <Badge className="bg-success/10 text-success">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Exposé-Ready
+                    </Badge>
+                  )}
+                  {!readiness?.isReady && readiness && (
+                    <Badge variant="outline" className="text-warning border-warning/50">
+                      {readiness.score}% vollständig
+                    </Badge>
+                  )}
+                  {salaryText && (
+                    <Badge variant="outline">{salaryText}</Badge>
+                  )}
+                  {topSkills.length > 0 && (
+                    <Badge variant="secondary" className="font-normal">
+                      {topSkills.join(', ')}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
-          </TooltipProvider>
+          </div>
+          
+          {/* Rejected Alert or Stage Pipeline */}
+          {currentStatus === 'rejected' ? (
+            <div className="px-6 py-4 bg-destructive/10 border-t flex items-center justify-between">
+              <div className="flex items-center gap-2 text-destructive">
+                <XCircle className="h-4 w-4" />
+                <span className="font-medium">Kandidat abgesagt</span>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => statusMutation.mutate('new')}
+                disabled={statusMutation.isPending}
+              >
+                Reaktivieren
+              </Button>
+            </div>
+          ) : (
+            <div className="px-6 py-4 bg-muted/30 border-t">
+              <CandidateStagePipeline
+                currentStage={currentStatus}
+                onStageChange={(stage) => statusMutation.mutate(stage)}
+                disabled={statusMutation.isPending}
+              />
+            </div>
+          )}
         </div>
 
         {/* Tasks */}
