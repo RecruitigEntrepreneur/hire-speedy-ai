@@ -37,7 +37,7 @@ export function CandidatePlaybookPanel({
   onClose,
 }: CandidatePlaybookPanelProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (!playbook) return null;
 
@@ -72,6 +72,27 @@ export function CandidatePlaybookPanel({
     </Button>
   );
 
+  // Compact collapsed state
+  if (!isExpanded) {
+    return (
+      <Card className="border-muted hover:border-primary/30 transition-colors">
+        <button 
+          onClick={() => setIsExpanded(true)}
+          className="w-full p-3 flex items-center justify-between text-left hover:bg-accent/30 rounded-lg transition-colors"
+        >
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Lightbulb className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-muted-foreground shrink-0">Hilfe:</span>
+            <span className="font-medium truncate">{alertTitle || playbook.title}</span>
+          </div>
+          <Badge variant="outline" className="text-xs shrink-0 ml-2">
+            Tipps
+          </Badge>
+        </button>
+      </Card>
+    );
+  }
+
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
       <CardHeader className="pb-2">
@@ -84,9 +105,9 @@ export function CandidatePlaybookPanel({
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0"
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => setIsExpanded(false)}
           >
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <ChevronUp className="h-4 w-4" />
           </Button>
         </div>
         {alertTitle && (
