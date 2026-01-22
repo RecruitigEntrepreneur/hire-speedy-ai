@@ -228,13 +228,14 @@ export default function RecruiterJobs() {
                         )}
                       </div>
 
-                      {/* Fee & Potential Earnings */}
+                      {/* Fee in € */}
                       <div className="text-right shrink-0">
-                        <p className="font-bold text-emerald">{job.recruiter_fee_percentage}%</p>
-                        {calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage) && (
-                          <p className="text-xs font-semibold text-emerald">
-                            ~€{calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)?.toLocaleString()}
+                        {calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage) ? (
+                          <p className="font-bold text-emerald">
+                            €{calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)?.toLocaleString('de-DE')}
                           </p>
+                        ) : (
+                          <p className="font-medium text-muted-foreground">k.A.</p>
                         )}
                         <p className="text-xs text-muted-foreground">
                           {formatSalary(job.salary_min, job.salary_max)}

@@ -235,6 +235,19 @@ export default function CreateJob() {
       return;
     }
 
+    // Gehaltsvalidierung nur beim Veröffentlichen
+    if (publish) {
+      if (!formData.salary_min || !formData.salary_max) {
+        toast.error('Bitte definiere eine Gehaltsrange, um den Job zu veröffentlichen');
+        return;
+      }
+      
+      if (parseInt(formData.salary_min) >= parseInt(formData.salary_max)) {
+        toast.error('Das Mindestgehalt muss kleiner als das Maximalgehalt sein');
+        return;
+      }
+    }
+
     // Check verification before publishing
     if (publish && !canPublishJobs) {
       toast.error('Bitte schließe zuerst die Verifizierung ab, um Jobs zu veröffentlichen');
