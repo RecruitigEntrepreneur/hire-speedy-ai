@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
-import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CompanyRevealBadge } from '@/components/recruiter/CompanyRevealBadge';
 import { getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
 import { RecruiterQuickFacts } from '@/components/recruiter/RecruiterQuickFacts';
@@ -27,7 +26,6 @@ import {
   Users,
   Building2,
   Loader2,
-  Upload,
   Star,
 } from 'lucide-react';
 import {
@@ -113,7 +111,6 @@ export default function JobDetail() {
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
-  const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
   const [accessStatus, setAccessStatus] = useState<RecruiterAccessStatus>({
     hasSubmission: false,
@@ -372,13 +369,6 @@ export default function JobDetail() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setHubspotDialogOpen(true)}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Aus HubSpot
-                </Button>
                 <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
                   <DialogTrigger asChild>
                     <Button size="lg" variant="emerald">
@@ -572,14 +562,6 @@ export default function JobDetail() {
         </div>
       </div>
 
-      {/* HubSpot Import Dialog */}
-      <HubSpotImportDialog
-        open={hubspotDialogOpen}
-        onOpenChange={setHubspotDialogOpen}
-        onImportComplete={() => {
-          fetchJobDetails();
-        }}
-      />
     </DashboardLayout>
   );
 }
