@@ -27,6 +27,7 @@ interface CandidateTask {
 
 interface CandidateTasksSectionProps {
   candidateId: string;
+  activeTaskId?: string;
 }
 
 const priorityConfig = {
@@ -56,7 +57,7 @@ const priorityConfig = {
   },
 };
 
-export function CandidateTasksSection({ candidateId }: CandidateTasksSectionProps) {
+export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTasksSectionProps) {
   const [tasks, setTasks] = useState<CandidateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
@@ -176,11 +177,17 @@ export function CandidateTasksSection({ candidateId }: CandidateTasksSectionProp
           {pendingTasks.map(task => {
             const config = priorityConfig[task.priority];
             const Icon = config.icon;
+            const isActive = task.id === activeTaskId;
 
             return (
               <div 
                 key={task.id}
-                className="p-3 flex items-start gap-3 hover:bg-accent/50 transition-colors"
+                className={cn(
+                  "p-3 flex items-start gap-3 transition-colors",
+                  isActive 
+                    ? "ring-2 ring-primary bg-primary/5" 
+                    : "hover:bg-accent/50"
+                )}
               >
                 <div className={cn("p-1.5 rounded", config.bgColor)}>
                   <Icon className={cn("h-4 w-4", config.color)} />

@@ -7,6 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Zap,
   MapPin,
   Euro,
@@ -18,11 +24,13 @@ import {
   ChevronUp,
   Flame,
   Sparkles,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 
 interface CandidateJobMatchingV3Props {
   candidate: {
@@ -43,6 +51,10 @@ interface CandidateJobMatchingV3Props {
     address_lng: number | null;
     email?: string;
     phone?: string;
+    availability_date?: string | null;
+    notice_period?: string | null;
+    cv_ai_summary?: string | null;
+    cv_ai_bullets?: unknown[] | null;
   };
   onSubmissionCreated?: () => void;
 }
@@ -78,6 +90,18 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
     travelTime: number;
   }>({ open: false, job: null, travelTime: 0 });
   const { user } = useAuth();
+
+  // Check readiness for submission
+  const readiness = getExposeReadiness({
+    skills: candidate.skills,
+    experience_years: candidate.experience_years,
+    expected_salary: candidate.expected_salary,
+    availability_date: candidate.availability_date,
+    notice_period: candidate.notice_period,
+    city: candidate.city,
+    cv_ai_summary: candidate.cv_ai_summary,
+    cv_ai_bullets: candidate.cv_ai_bullets,
+  });
 
   // Load jobs and calculate matches on mount
   useEffect(() => {
@@ -137,6 +161,12 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
 
   const handleSubmitToJob = async (job: JobInfo, result: V31MatchResult) => {
     if (!user) return;
+    
+    // Check readiness before allowing submission
+    if (!readiness.isReady) {
+      toast.error(`Profil unvollständig. Fehlend: ${readiness.missingFields.join(', ')}`);
+      return;
+    }
     
     // Check for commute warnings
     if (result.constraints.breakdown.commute < 50 && result.gates.dealbreakers.workModel === 1) {
@@ -282,6 +312,22 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
         </CardHeader>
         
         <CardContent className="space-y-4">
+          {/* Readiness Warning */}
+          {!readiness.isReady && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium text-sm">
+                <Lock className="h-4 w-4" />
+                Profil unvollständig ({readiness.score}%)
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                Fehlend: {readiness.missingFields.join(', ')}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vervollständigen Sie das Profil, um Kandidaten einzureichen.
+              </p>
+            </div>
+          )}
+
           {/* Hot Matches Section */}
           {hotMatches.length > 0 && (
             <div className="space-y-2">
@@ -303,6 +349,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       onToggle={() => setExpandedJob(expandedJob === result.jobId ? null : result.jobId)}
                       onSubmit={() => handleSubmitToJob(job, result)}
                       submitting={submitting === result.jobId}
+                      isReady={readiness.isReady}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -334,6 +381,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       onToggle={() => setExpandedJob(expandedJob === result.jobId ? null : result.jobId)}
                       onSubmit={() => handleSubmitToJob(job, result)}
                       submitting={submitting === result.jobId}
+                      isReady={readiness.isReady}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -365,6 +413,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       onToggle={() => setExpandedJob(expandedJob === result.jobId ? null : result.jobId)}
                       onSubmit={() => handleSubmitToJob(job, result)}
                       submitting={submitting === result.jobId}
+                      isReady={readiness.isReady}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -418,6 +467,7 @@ function JobMatchRow({
   onToggle,
   onSubmit,
   submitting,
+  isReady,
   getPolicyColor,
   getPolicyLabel,
   getPolicyIcon,
@@ -428,6 +478,7 @@ function JobMatchRow({
   onToggle: () => void;
   onSubmit: () => void;
   submitting: boolean;
+  isReady: boolean;
   getPolicyColor: (policy: V31MatchResult['policy']) => string;
   getPolicyLabel: (policy: V31MatchResult['policy']) => string;
   getPolicyIcon: (policy: V31MatchResult['policy']) => string;
@@ -485,25 +536,43 @@ function JobMatchRow({
           <Button size="sm" variant="ghost" className="shrink-0">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
-          <Button
-            size="sm"
-            variant={result.policy === 'hot' ? 'default' : 'secondary'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSubmit();
-            }}
-            disabled={submitting}
-            className="shrink-0"
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Send className="h-3 w-3 mr-1" />
-                Einreichen
-              </>
-            )}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="sm"
+                    variant={result.policy === 'hot' ? 'default' : 'secondary'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSubmit();
+                    }}
+                    disabled={submitting || !isReady}
+                    className="shrink-0"
+                  >
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : !isReady ? (
+                      <>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Gesperrt
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3 w-3 mr-1" />
+                        Einreichen
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!isReady && (
+                <TooltipContent>
+                  Profil unvollständig - bitte vervollständigen
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 

@@ -18,7 +18,7 @@ interface CompactTaskListProps {
   alerts: InfluenceAlert[];
   loading: boolean;
   onMarkDone: (alertId: string) => void;
-  onViewCandidate?: (submissionId: string) => void;
+  onViewCandidate?: (submissionId: string, alertId?: string) => void;
   candidateMap?: Record<string, { name: string; email: string; phone?: string; jobTitle?: string; companyName?: string }>;
   maxItems?: number;
   showViewAll?: boolean;
@@ -135,7 +135,7 @@ export function CompactTaskList({
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <PriorityIcon className={cn("h-4 w-4 shrink-0", config.textColor)} />
           <button
-            onClick={() => onViewCandidate?.(alert.submission_id)}
+            onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
             className="font-medium text-sm truncate hover:underline text-left"
           >
             {candidate?.name || 'Kandidat'}

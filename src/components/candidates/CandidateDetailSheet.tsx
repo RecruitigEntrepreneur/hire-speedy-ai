@@ -6,6 +6,7 @@ import {
   DialogContent,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -27,6 +28,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
@@ -53,6 +55,7 @@ interface CandidateDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onEdit: (candidate: Candidate) => void;
   onCandidateUpdated?: () => void;
+  activeTaskId?: string;
 }
 
 export function CandidateDetailSheet({
@@ -62,6 +65,7 @@ export function CandidateDetailSheet({
   onOpenChange,
   onEdit,
   onCandidateUpdated,
+  activeTaskId,
 }: CandidateDetailSheetProps) {
   const [addActivityOpen, setAddActivityOpen] = useState(false);
   const [cvUploadOpen, setCvUploadOpen] = useState(false);
@@ -70,6 +74,19 @@ export function CandidateDetailSheet({
   const queryClient = useQueryClient();
   
   const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
+
+  // Compute readiness for exposé
+  const extCandidate = candidate as any;
+  const readiness = candidate ? getExposeReadiness({
+    skills: candidate.skills,
+    experience_years: candidate.experience_years,
+    expected_salary: candidate.expected_salary,
+    availability_date: extCandidate?.availability_date,
+    notice_period: extCandidate?.notice_period,
+    city: candidate.city,
+    cv_ai_summary: extCandidate?.cv_ai_summary,
+    cv_ai_bullets: extCandidate?.cv_ai_bullets,
+  }) : null;
 
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -126,8 +143,6 @@ export function CandidateDetailSheet({
 
   if (!candidate) return null;
 
-  const extCandidate = candidate as any;
-
   // Full Interview Mode
   if (showFullInterview) {
     return (
@@ -166,7 +181,27 @@ export function CandidateDetailSheet({
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="text-lg font-semibold">{candidate.full_name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold">{candidate.full_name}</h2>
+                    {readiness && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant={readiness.badge.variant}
+                            className={readiness.badge.color}
+                          >
+                            {readiness.badge.label}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-medium">Profil-Vollständigkeit: {readiness.score}%</p>
+                          {readiness.missingFields.length > 0 && (
+                            <p className="text-xs">Fehlend: {readiness.missingFields.join(', ')}</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {candidate.job_title || candidate.email}
                   </p>
@@ -239,7 +274,7 @@ export function CandidateDetailSheet({
 
             {/* Tasks */}
             <div className="mt-3">
-              <CandidateTasksSection candidateId={candidate.id} />
+              <CandidateTasksSection candidateId={candidate.id} activeTaskId={activeTaskId} />
             </div>
           </div>
 
@@ -280,6 +315,10 @@ export function CandidateDetailSheet({
                     address_lng: extCandidate.address_lng,
                     email: candidate.email,
                     phone: candidate.phone,
+                    availability_date: extCandidate.availability_date,
+                    notice_period: extCandidate.notice_period,
+                    cv_ai_summary: extCandidate.cv_ai_summary,
+                    cv_ai_bullets: extCandidate.cv_ai_bullets,
                   }}
                 />
 
