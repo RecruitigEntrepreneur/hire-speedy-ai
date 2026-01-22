@@ -17,6 +17,7 @@ interface RetrievalFilters {
   experienceMin?: number;
   experienceMax?: number;
   limit?: number;
+  useSemanticSearch?: boolean; // NEW: Enable hybrid semantic search
 }
 
 interface RetrievalResult {
@@ -24,6 +25,8 @@ interface RetrievalResult {
   fullName: string;
   matchedFilters: string[];
   preScore: number; // Quick pre-score for ordering
+  semanticScore?: number; // NEW: Semantic similarity score
+  keywordScore?: number; // NEW: Keyword match score
 }
 
 serve(async (req) => {
@@ -40,6 +43,75 @@ serve(async (req) => {
     const limit = filters.limit || 200;
 
     console.log('Retrieval filters:', filters);
+
+    // NEW: Try hybrid semantic search if enabled and job has embedding
+    if (filters.useSemanticSearch && filters.jobId) {
+      console.log('Attempting hybrid semantic search for job:', filters.jobId);
+      
+      // Get job's embedding
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .select('embedding, must_haves')
+        .eq('id', filters.jobId)
+        .single();
+      
+      if (!jobError && job?.embedding) {
+        console.log('Job has embedding, using hybrid search');
+        
+        // Use hybrid search RPC function
+        const { data: hybridResults, error: hybridError } = await supabase.rpc('search_candidates_hybrid', {
+          query_embedding: job.embedding,
+          keyword_skills: filters.mustHaveSkills || job.must_haves || [],
+          salary_max: filters.salaryMax || null,
+          limit_count: limit
+        });
+        
+        if (!hybridError && hybridResults && hybridResults.length > 0) {
+          console.log(`Hybrid search returned ${hybridResults.length} candidates`);
+          
+          // If jobId provided, exclude already submitted candidates
+          let excludeIds: string[] = [];
+          if (filters.jobId) {
+            const { data: existingSubmissions } = await supabase
+              .from('submissions')
+              .select('candidate_id')
+              .eq('job_id', filters.jobId);
+            
+            excludeIds = (existingSubmissions || []).map(s => s.candidate_id);
+          }
+          
+          const filteredResults = hybridResults
+            .filter((r: any) => !excludeIds.includes(r.candidate_id))
+            .map((r: any) => ({
+              candidateId: r.candidate_id,
+              fullName: r.full_name,
+              matchedFilters: [r.match_explanation],
+              preScore: Math.round(r.hybrid_score * 3000), // Scale for comparison
+              semanticScore: r.semantic_score,
+              keywordScore: r.keyword_score
+            }));
+          
+          return new Response(
+            JSON.stringify({
+              candidates: filteredResults,
+              stats: {
+                totalScanned: hybridResults.length,
+                returned: filteredResults.length,
+                avgPreScore: filteredResults.length > 0 
+                  ? Math.round(filteredResults.reduce((s: number, c: any) => s + c.preScore, 0) / filteredResults.length)
+                  : 0,
+                searchType: 'hybrid_semantic'
+              }
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.log('Hybrid search failed or empty, falling back to keyword search', hybridError);
+        }
+      } else {
+        console.log('Job has no embedding, falling back to keyword search');
+      }
+    }
 
     // Build query with hard filters
     let query = supabase
@@ -212,7 +284,8 @@ serve(async (req) => {
           returned: topResults.length,
           avgPreScore: topResults.length > 0 
             ? Math.round(topResults.reduce((s, c) => s + c.preScore, 0) / topResults.length)
-            : 0
+            : 0,
+          searchType: 'keyword'
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

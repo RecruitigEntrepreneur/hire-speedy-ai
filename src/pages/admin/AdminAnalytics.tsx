@@ -7,6 +7,7 @@ import { DropOffAnalysis } from '@/components/analytics/DropOffAnalysis';
 import { MetricCard } from '@/components/analytics/MetricCard';
 import { PeriodSelector } from '@/components/analytics/PeriodSelector';
 import { MLHealthWidget } from '@/components/admin/MLHealthWidget';
+import { EmbeddingHealthWidget } from '@/components/admin/EmbeddingHealthWidget';
 import { useFunnelMetrics, useRecruiterLeaderboard, useCalculateAnalytics } from '@/hooks/useFunnelAnalytics';
 import { Users, Briefcase, UserCheck, Clock, TrendingUp, Award } from 'lucide-react';
 import { toast } from 'sonner';
@@ -130,10 +131,15 @@ export default function AdminAnalytics() {
         </div>
 
         {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6">
           <FunnelChart metrics={platformMetrics || null} isLoading={metricsLoading} />
           <DropOffAnalysis metrics={platformMetrics || null} isLoading={metricsLoading} />
+        </div>
+
+        {/* ML & Vector Health */}
+        <div className="grid lg:grid-cols-2 gap-6">
           <MLHealthWidget />
+          <EmbeddingHealthWidget />
         </div>
 
         {/* Leaderboard */}
