@@ -22,14 +22,21 @@ export interface V31MatchResult {
       language: boolean;
       onsite: boolean;
       license: boolean;
+      techDomain: boolean;
     };
     dealbreakers: {
       salary: number;
       startDate: number;
       seniority: number;
       workModel: number;
+      techDomain: number;
     };
     multiplier: number;
+    domainMismatch?: {
+      candidateDomain: string;
+      jobDomain: string;
+      isIncompatible: boolean;
+    };
   };
   fit: {
     score: number;

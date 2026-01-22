@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { 
   Brain, Target, Euro, Car, Clock, AlertTriangle, 
   CheckCircle2, XCircle, TrendingUp, ChevronDown, ChevronUp,
-  Flame, Sparkles, HelpCircle, Ban
+  Flame, Sparkles, HelpCircle, Ban, Layers
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -202,10 +202,11 @@ function SkillsDetail({ details }: { details: V31MatchResult['fit']['details']['
 }
 
 // Constraints detail component
-function ConstraintsDetail({ breakdown, gateMultiplier, dealbreakers }: { 
+function ConstraintsDetail({ breakdown, gateMultiplier, dealbreakers, domainMismatch }: { 
   breakdown: V31MatchResult['constraints']['breakdown'];
   gateMultiplier: number;
   dealbreakers: V31MatchResult['gates']['dealbreakers'];
+  domainMismatch?: V31MatchResult['gates']['domainMismatch'];
 }) {
   return (
     <div className="space-y-2 text-xs">
@@ -233,6 +234,31 @@ function ConstraintsDetail({ breakdown, gateMultiplier, dealbreakers }: {
         </div>
       </div>
 
+      {/* Domain Mismatch Warning - Critical */}
+      {domainMismatch?.isIncompatible && (
+        <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+          <Ban className="h-4 w-4 text-red-600" />
+          <div className="text-red-700 dark:text-red-400">
+            <div className="font-medium">Technologie-Mismatch</div>
+            <div className="text-xs opacity-80">
+              {domainMismatch.candidateDomain} → {domainMismatch.jobDomain}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {domainMismatch && !domainMismatch.isIncompatible && (
+        <div className="flex items-center gap-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <div className="text-orange-700 dark:text-orange-400">
+            <div className="font-medium">Tech-Bereich abweichend</div>
+            <div className="text-xs opacity-80">
+              {domainMismatch.candidateDomain} → {domainMismatch.jobDomain}
+            </div>
+          </div>
+        </div>
+      )}
+
       {gateMultiplier < 0.95 && (
         <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -242,8 +268,11 @@ function ConstraintsDetail({ breakdown, gateMultiplier, dealbreakers }: {
         </div>
       )}
 
-      {(dealbreakers.salary < 1 || dealbreakers.startDate < 1 || dealbreakers.seniority < 1 || dealbreakers.workModel < 1) && (
+      {(dealbreakers.salary < 1 || dealbreakers.startDate < 1 || dealbreakers.seniority < 1 || dealbreakers.workModel < 1 || dealbreakers.techDomain < 1) && (
         <div className="text-muted-foreground space-y-1">
+          {dealbreakers.techDomain < 1 && (
+            <div className="text-red-600 font-medium">• Tech-Domain: {Math.round(dealbreakers.techDomain * 100)}% Multiplier</div>
+          )}
           {dealbreakers.salary < 1 && (
             <div>• Gehalt: {Math.round(dealbreakers.salary * 100)}% Multiplier</div>
           )}
@@ -392,6 +421,7 @@ export function MatchScoreCardV31({ result, compact = false, showExplainability 
               breakdown={result.constraints.breakdown}
               gateMultiplier={result.gateMultiplier}
               dealbreakers={result.gates.dealbreakers}
+              domainMismatch={result.gates.domainMismatch}
             />
           </FactorRow>
         </div>

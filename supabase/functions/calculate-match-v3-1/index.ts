@@ -8,6 +8,241 @@ const corsHeaders = {
 };
 
 // ============================================
+// TECH DOMAIN CLASSIFICATION
+// ============================================
+
+const TECH_DOMAINS: Record<string, {
+  skills: string[];
+  transferable_to: string[];
+  incompatible_with: string[];
+}> = {
+  embedded_hardware: {
+    skills: ['fpga', 'vhdl', 'verilog', 'embedded', 'hardware', 'pcb', 'altium', 
+             'cadence', 'xilinx', 'arm', 'microcontroller', 'rtos', 'tia portal', 
+             'beckhoff', 'twincat', 'sps', 'plc', 'elektronik', 'firmware', 'asic',
+             'oscilloscope', 'schaltungstechnik', 'eagle', 'kicad', 'labview',
+             'signal processing', 'dsp', 'can bus', 'modbus', 'i2c', 'spi', 'uart'],
+    transferable_to: ['iot', 'firmware', 'devops'],
+    incompatible_with: ['backend_cloud', 'frontend_web', 'data_ml', 'product_management', 'design']
+  },
+  backend_cloud: {
+    skills: ['java', 'spring', 'spring boot', 'aws', 'azure', 'gcp', 'kubernetes', 'docker', 
+             'microservices', 'postgresql', 'mongodb', 'redis', 'kafka', 'api', 'rest',
+             'graphql', 'node.js', 'python', 'go', 'golang', 'rust', 'c#', '.net', 'dotnet',
+             'sql', 'mysql', 'oracle', 'rabbitmq', 'elasticsearch', 'nginx', 'lambda',
+             'serverless', 'terraform', 'ci/cd', 'jenkins', 'gitlab'],
+    transferable_to: ['devops', 'data_ml', 'frontend_web'],
+    incompatible_with: ['embedded_hardware', 'design', 'product_management']
+  },
+  frontend_web: {
+    skills: ['react', 'vue', 'angular', 'typescript', 'javascript', 'css', 
+             'html', 'next.js', 'nuxt', 'tailwind', 'webpack', 'vite', 'sass',
+             'redux', 'mobx', 'zustand', 'svelte', 'jquery', 'bootstrap',
+             'material ui', 'chakra', 'storybook', 'cypress', 'playwright'],
+    transferable_to: ['mobile', 'backend_cloud'],
+    incompatible_with: ['embedded_hardware', 'data_ml']
+  },
+  data_ml: {
+    skills: ['python', 'tensorflow', 'pytorch', 'pandas', 'spark', 'sql', 
+             'machine learning', 'data science', 'ai', 'deep learning', 'numpy',
+             'scikit-learn', 'jupyter', 'databricks', 'airflow', 'mlflow',
+             'data engineering', 'etl', 'hadoop', 'hive', 'presto', 'dbt',
+             'power bi', 'tableau', 'looker', 'snowflake', 'bigquery', 'llm',
+             'nlp', 'computer vision', 'opencv', 'huggingface'],
+    transferable_to: ['backend_cloud'],
+    incompatible_with: ['embedded_hardware', 'frontend_web', 'design']
+  },
+  devops: {
+    skills: ['docker', 'kubernetes', 'terraform', 'ansible', 'ci/cd', 'jenkins', 
+             'github actions', 'linux', 'bash', 'aws', 'azure', 'gcp', 'helm',
+             'prometheus', 'grafana', 'datadog', 'splunk', 'elk', 'vagrant',
+             'puppet', 'chef', 'cloudformation', 'argocd', 'istio', 'envoy'],
+    transferable_to: ['backend_cloud', 'embedded_hardware'],
+    incompatible_with: ['design', 'product_management']
+  },
+  mobile: {
+    skills: ['swift', 'kotlin', 'react native', 'flutter', 'ios', 'android',
+             'objective-c', 'xamarin', 'ionic', 'cordova', 'swiftui', 'jetpack compose',
+             'xcode', 'android studio', 'cocoapods', 'gradle'],
+    transferable_to: ['frontend_web'],
+    incompatible_with: ['embedded_hardware', 'data_ml', 'devops']
+  },
+  design: {
+    skills: ['figma', 'sketch', 'adobe xd', 'ui', 'ux', 'prototyping', 
+             'user research', 'design system', 'wireframing', 'invision',
+             'zeplin', 'principle', 'framer', 'photoshop', 'illustrator',
+             'after effects', 'motion design', 'accessibility', 'usability testing'],
+    transferable_to: ['frontend_web', 'product_management'],
+    incompatible_with: ['embedded_hardware', 'backend_cloud', 'data_ml', 'devops']
+  },
+  product_management: {
+    skills: ['product management', 'roadmap', 'okr', 'agile', 'scrum', 
+             'stakeholder', 'user stories', 'jira', 'confluence', 'product owner',
+             'backlog', 'sprint planning', 'kanban', 'a/b testing', 'analytics',
+             'customer discovery', 'market research', 'competitive analysis',
+             'go-to-market', 'pricing strategy', 'feature prioritization'],
+    transferable_to: ['design'],
+    incompatible_with: ['embedded_hardware', 'backend_cloud', 'data_ml', 'devops', 'mobile']
+  },
+  security: {
+    skills: ['security', 'cybersecurity', 'penetration testing', 'soc', 'siem',
+             'vulnerability', 'compliance', 'iso 27001', 'gdpr', 'firewall',
+             'encryption', 'oauth', 'identity', 'iam', 'zero trust', 'devsecops'],
+    transferable_to: ['devops', 'backend_cloud'],
+    incompatible_with: ['design', 'product_management']
+  },
+  sap_erp: {
+    skills: ['sap', 'abap', 'sap hana', 'sap fiori', 's/4hana', 'sap mm', 'sap sd',
+             'sap fi', 'sap co', 'sap hr', 'sap basis', 'erp', 'oracle erp',
+             'salesforce', 'dynamics 365', 'netsuite'],
+    transferable_to: ['backend_cloud'],
+    incompatible_with: ['embedded_hardware', 'frontend_web', 'design', 'mobile']
+  }
+};
+
+// ============================================
+// DOMAIN DETECTION FUNCTIONS
+// ============================================
+
+interface DomainDetectionResult {
+  primary: string;
+  secondary: string | null;
+  confidence: number;
+  scores: Record<string, number>;
+}
+
+function detectCandidateDomain(candidateSkills: string[], jobTitle?: string): DomainDetectionResult {
+  const normalizedSkills = (candidateSkills || []).map(s => s.toLowerCase().trim());
+  const domainScores: Record<string, number> = {};
+  
+  for (const [domain, config] of Object.entries(TECH_DOMAINS)) {
+    let matchCount = 0;
+    for (const skill of normalizedSkills) {
+      if (config.skills.some(ds => skill.includes(ds) || ds.includes(skill))) {
+        matchCount++;
+      }
+    }
+    // Normalize by candidate skills count, not domain skills count
+    domainScores[domain] = normalizedSkills.length > 0 
+      ? matchCount / Math.max(normalizedSkills.length, 1)
+      : 0;
+  }
+  
+  // Also consider job title for domain hints
+  if (jobTitle) {
+    const lowerTitle = jobTitle.toLowerCase();
+    if (lowerTitle.includes('hardware') || lowerTitle.includes('embedded') || lowerTitle.includes('fpga')) {
+      domainScores['embedded_hardware'] = Math.max(domainScores['embedded_hardware'] || 0, 0.5);
+    }
+    if (lowerTitle.includes('backend') || lowerTitle.includes('java') || lowerTitle.includes('cloud')) {
+      domainScores['backend_cloud'] = Math.max(domainScores['backend_cloud'] || 0, 0.5);
+    }
+    if (lowerTitle.includes('frontend') || lowerTitle.includes('react') || lowerTitle.includes('web')) {
+      domainScores['frontend_web'] = Math.max(domainScores['frontend_web'] || 0, 0.5);
+    }
+    if (lowerTitle.includes('data') || lowerTitle.includes('ml') || lowerTitle.includes('machine learning')) {
+      domainScores['data_ml'] = Math.max(domainScores['data_ml'] || 0, 0.5);
+    }
+    if (lowerTitle.includes('product') || lowerTitle.includes('pm')) {
+      domainScores['product_management'] = Math.max(domainScores['product_management'] || 0, 0.5);
+    }
+    if (lowerTitle.includes('design') || lowerTitle.includes('ux') || lowerTitle.includes('ui')) {
+      domainScores['design'] = Math.max(domainScores['design'] || 0, 0.5);
+    }
+  }
+  
+  const sorted = Object.entries(domainScores).sort((a, b) => b[1] - a[1]);
+  
+  return {
+    primary: sorted[0]?.[0] || 'other',
+    secondary: sorted[1]?.[1] > 0.1 ? sorted[1][0] : null,
+    confidence: sorted[0]?.[1] || 0,
+    scores: domainScores
+  };
+}
+
+function detectJobDomain(job: any): DomainDetectionResult {
+  const allJobSkills: string[] = [
+    ...(job.skills || []),
+    ...(job.must_haves || []),
+    ...(job.nice_to_haves || [])
+  ].map(s => s.toLowerCase().trim());
+  
+  const domainScores: Record<string, number> = {};
+  
+  for (const [domain, config] of Object.entries(TECH_DOMAINS)) {
+    let matchCount = 0;
+    for (const skill of allJobSkills) {
+      if (config.skills.some(ds => skill.includes(ds) || ds.includes(skill))) {
+        matchCount++;
+      }
+    }
+    domainScores[domain] = allJobSkills.length > 0 
+      ? matchCount / Math.max(allJobSkills.length, 1)
+      : 0;
+  }
+  
+  // Job title signals
+  const jobTitle = (job.title || '').toLowerCase();
+  if (jobTitle.includes('hardware') || jobTitle.includes('embedded') || jobTitle.includes('fpga') || jobTitle.includes('firmware')) {
+    domainScores['embedded_hardware'] = Math.max(domainScores['embedded_hardware'] || 0, 0.6);
+  }
+  if (jobTitle.includes('backend') || jobTitle.includes('java') || jobTitle.includes('cloud') || jobTitle.includes('api')) {
+    domainScores['backend_cloud'] = Math.max(domainScores['backend_cloud'] || 0, 0.6);
+  }
+  if (jobTitle.includes('frontend') || jobTitle.includes('react') || jobTitle.includes('web') || jobTitle.includes('vue')) {
+    domainScores['frontend_web'] = Math.max(domainScores['frontend_web'] || 0, 0.6);
+  }
+  if (jobTitle.includes('data') || jobTitle.includes('ml') || jobTitle.includes('machine learning') || jobTitle.includes('ai')) {
+    domainScores['data_ml'] = Math.max(domainScores['data_ml'] || 0, 0.6);
+  }
+  if (jobTitle.includes('product manager') || jobTitle.includes('product owner')) {
+    domainScores['product_management'] = Math.max(domainScores['product_management'] || 0, 0.7);
+  }
+  if (jobTitle.includes('designer') || jobTitle.includes('ux') || jobTitle.includes('ui')) {
+    domainScores['design'] = Math.max(domainScores['design'] || 0, 0.6);
+  }
+  if (jobTitle.includes('devops') || jobTitle.includes('sre') || jobTitle.includes('platform')) {
+    domainScores['devops'] = Math.max(domainScores['devops'] || 0, 0.6);
+  }
+  if (jobTitle.includes('mobile') || jobTitle.includes('ios') || jobTitle.includes('android')) {
+    domainScores['mobile'] = Math.max(domainScores['mobile'] || 0, 0.6);
+  }
+  if (jobTitle.includes('sap') || jobTitle.includes('erp')) {
+    domainScores['sap_erp'] = Math.max(domainScores['sap_erp'] || 0, 0.6);
+  }
+  if (jobTitle.includes('security') || jobTitle.includes('cyber')) {
+    domainScores['security'] = Math.max(domainScores['security'] || 0, 0.6);
+  }
+  
+  const sorted = Object.entries(domainScores).sort((a, b) => b[1] - a[1]);
+  
+  return {
+    primary: sorted[0]?.[0] || 'other',
+    secondary: sorted[1]?.[1] > 0.1 ? sorted[1][0] : null,
+    confidence: sorted[0]?.[1] || 0,
+    scores: domainScores
+  };
+}
+
+function formatDomainName(domain: string): string {
+  const names: Record<string, string> = {
+    embedded_hardware: 'Embedded/Hardware',
+    backend_cloud: 'Backend/Cloud',
+    frontend_web: 'Frontend/Web',
+    data_ml: 'Data/ML',
+    devops: 'DevOps',
+    mobile: 'Mobile',
+    design: 'Design/UX',
+    product_management: 'Product Management',
+    security: 'Security',
+    sap_erp: 'SAP/ERP',
+    other: 'Allgemein'
+  };
+  return names[domain] || domain;
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -27,6 +262,12 @@ interface DealBreakerResult {
     startDate: number;
     seniority: number;
     workModel: number;
+    techDomain: number;
+  };
+  domainMismatch?: {
+    candidateDomain: string;
+    jobDomain: string;
+    isIncompatible: boolean;
   };
 }
 
@@ -53,14 +294,21 @@ interface V31MatchResult {
       language: boolean;
       onsite: boolean;
       license: boolean;
+      techDomain: boolean;
     };
     dealbreakers: {
       salary: number;
       startDate: number;
       seniority: number;
+      techDomain: number;
       workModel: number;
     };
     multiplier: number;
+    domainMismatch?: {
+      candidateDomain: string;
+      jobDomain: string;
+      isIncompatible: boolean;
+    };
   };
   fit: {
     score: number;
@@ -358,10 +606,12 @@ function calculateMatch(
         visa: false,
         language: false,
         onsite: false,
-        license: false
+        license: false,
+        techDomain: dealbreakers.domainMismatch?.isIncompatible || false
       },
       dealbreakers: dealbreakers.factors,
-      multiplier: gateMultiplier
+      multiplier: gateMultiplier,
+      domainMismatch: dealbreakers.domainMismatch
     },
     fit: {
       score: fitResult.score,
@@ -505,7 +755,41 @@ function calculateDealbreakers(candidate: any, job: any, config: MatchingConfig)
     workModelMult = 0.7;
   }
 
-  const finalMultiplier = salaryMult * startDateMult * seniorityMult * workModelMult;
+  // TECH DOMAIN MISMATCH - Critical for preventing cross-domain matches
+  let techDomainMult = 1.0;
+  let domainMismatch: DealBreakerResult['domainMismatch'] = undefined;
+  
+  const candidateDomain = detectCandidateDomain(candidate.skills || [], candidate.job_title);
+  const jobDomain = detectJobDomain(job);
+  
+  // Only apply domain penalty if both sides have reasonable confidence
+  if (candidateDomain.confidence >= 0.15 && jobDomain.confidence >= 0.15) {
+    const candidateDomainConfig = TECH_DOMAINS[candidateDomain.primary];
+    
+    if (candidateDomainConfig?.incompatible_with?.includes(jobDomain.primary)) {
+      // Major domain mismatch - apply heavy penalty (e.g., Embedded vs Backend)
+      techDomainMult = 0.1;
+      domainMismatch = {
+        candidateDomain: formatDomainName(candidateDomain.primary),
+        jobDomain: formatDomainName(jobDomain.primary),
+        isIncompatible: true
+      };
+      console.log(`[Domain Mismatch] Candidate ${candidateDomain.primary} (${(candidateDomain.confidence * 100).toFixed(0)}%) vs Job ${jobDomain.primary} (${(jobDomain.confidence * 100).toFixed(0)}%) - Multiplier: ${techDomainMult}`);
+    } else if (!candidateDomainConfig?.transferable_to?.includes(jobDomain.primary) && 
+               candidateDomain.primary !== jobDomain.primary &&
+               candidateDomain.primary !== 'other' && 
+               jobDomain.primary !== 'other') {
+      // Different but not explicitly incompatible - smaller penalty
+      techDomainMult = 0.6;
+      domainMismatch = {
+        candidateDomain: formatDomainName(candidateDomain.primary),
+        jobDomain: formatDomainName(jobDomain.primary),
+        isIncompatible: false
+      };
+    }
+  }
+
+  const finalMultiplier = salaryMult * startDateMult * seniorityMult * workModelMult * techDomainMult;
 
   return {
     multiplier: Math.max(0.05, finalMultiplier),
@@ -513,8 +797,10 @@ function calculateDealbreakers(candidate: any, job: any, config: MatchingConfig)
       salary: salaryMult,
       startDate: startDateMult,
       seniority: seniorityMult,
-      workModel: workModelMult
-    }
+      workModel: workModelMult,
+      techDomain: techDomainMult
+    },
+    domainMismatch
   };
 }
 
@@ -920,6 +1206,13 @@ function generateExplainability(
     topRisks.push(`Fehlende Must-haves: ${missingSkills.slice(0, 2).join(', ')}`);
   }
 
+  // TECH DOMAIN MISMATCH - Critical risk indicator
+  if (dealbreakers.domainMismatch?.isIncompatible) {
+    topRisks.unshift(`⚠️ Technologie-Mismatch: ${dealbreakers.domainMismatch.candidateDomain} vs ${dealbreakers.domainMismatch.jobDomain}`);
+  } else if (dealbreakers.domainMismatch) {
+    topRisks.push(`Tech-Bereich abweichend: ${dealbreakers.domainMismatch.candidateDomain} vs ${dealbreakers.domainMismatch.jobDomain}`);
+  }
+
   if (dealbreakers.factors.salary < 1) {
     const gap = Math.round((1 - dealbreakers.factors.salary) * 100);
     topRisks.push(`Gehalt über Budget (Multiplier: ${dealbreakers.factors.salary.toFixed(2)})`);
@@ -980,9 +1273,10 @@ function createKilledResult(jobId: string, reason: string, category?: string): V
         visa: category === 'visa',
         language: category === 'language',
         onsite: category === 'onsite',
-        license: category === 'license'
+        license: category === 'license',
+        techDomain: category === 'tech_domain'
       },
-      dealbreakers: { salary: 1, startDate: 1, seniority: 1, workModel: 1 },
+      dealbreakers: { salary: 1, startDate: 1, seniority: 1, workModel: 1, techDomain: 1 },
       multiplier: 0
     },
     fit: {
@@ -1014,8 +1308,8 @@ function createExcludedResult(jobId: string, coverage: number, reason: string): 
     gateMultiplier: 1,
     policy: 'hidden',
     gates: {
-      hardKills: { visa: false, language: false, onsite: false, license: false },
-      dealbreakers: { salary: 1, startDate: 1, seniority: 1, workModel: 1 },
+      hardKills: { visa: false, language: false, onsite: false, license: false, techDomain: false },
+      dealbreakers: { salary: 1, startDate: 1, seniority: 1, workModel: 1, techDomain: 1 },
       multiplier: 1
     },
     fit: {
