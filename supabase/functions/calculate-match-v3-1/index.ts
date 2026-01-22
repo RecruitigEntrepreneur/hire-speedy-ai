@@ -23,7 +23,7 @@ const TECH_DOMAINS: Record<string, {
              'oscilloscope', 'schaltungstechnik', 'eagle', 'kicad', 'labview',
              'signal processing', 'dsp', 'can bus', 'modbus', 'i2c', 'spi', 'uart'],
     transferable_to: ['iot', 'firmware', 'devops'],
-    incompatible_with: ['backend_cloud', 'frontend_web', 'data_ml', 'product_management', 'design']
+    incompatible_with: ['backend_cloud', 'frontend_web', 'data_ml', 'product_management', 'design', 'finance_accounting']
   },
   backend_cloud: {
     skills: ['java', 'spring', 'spring boot', 'aws', 'azure', 'gcp', 'kubernetes', 'docker', 
@@ -32,7 +32,7 @@ const TECH_DOMAINS: Record<string, {
              'sql', 'mysql', 'oracle', 'rabbitmq', 'elasticsearch', 'nginx', 'lambda',
              'serverless', 'terraform', 'ci/cd', 'jenkins', 'gitlab'],
     transferable_to: ['devops', 'data_ml', 'frontend_web'],
-    incompatible_with: ['embedded_hardware', 'design', 'product_management']
+    incompatible_with: ['embedded_hardware', 'design', 'product_management', 'finance_accounting']
   },
   frontend_web: {
     skills: ['react', 'vue', 'angular', 'typescript', 'javascript', 'css', 
@@ -40,7 +40,7 @@ const TECH_DOMAINS: Record<string, {
              'redux', 'mobx', 'zustand', 'svelte', 'jquery', 'bootstrap',
              'material ui', 'chakra', 'storybook', 'cypress', 'playwright'],
     transferable_to: ['mobile', 'backend_cloud'],
-    incompatible_with: ['embedded_hardware', 'data_ml']
+    incompatible_with: ['embedded_hardware', 'data_ml', 'finance_accounting']
   },
   data_ml: {
     skills: ['python', 'tensorflow', 'pytorch', 'pandas', 'spark', 'sql', 
@@ -50,7 +50,7 @@ const TECH_DOMAINS: Record<string, {
              'power bi', 'tableau', 'looker', 'snowflake', 'bigquery', 'llm',
              'nlp', 'computer vision', 'opencv', 'huggingface'],
     transferable_to: ['backend_cloud'],
-    incompatible_with: ['embedded_hardware', 'frontend_web', 'design']
+    incompatible_with: ['embedded_hardware', 'frontend_web', 'design', 'finance_accounting']
   },
   devops: {
     skills: ['docker', 'kubernetes', 'terraform', 'ansible', 'ci/cd', 'jenkins', 
@@ -58,14 +58,14 @@ const TECH_DOMAINS: Record<string, {
              'prometheus', 'grafana', 'datadog', 'splunk', 'elk', 'vagrant',
              'puppet', 'chef', 'cloudformation', 'argocd', 'istio', 'envoy'],
     transferable_to: ['backend_cloud', 'embedded_hardware'],
-    incompatible_with: ['design', 'product_management']
+    incompatible_with: ['design', 'product_management', 'finance_accounting']
   },
   mobile: {
     skills: ['swift', 'kotlin', 'react native', 'flutter', 'ios', 'android',
              'objective-c', 'xamarin', 'ionic', 'cordova', 'swiftui', 'jetpack compose',
              'xcode', 'android studio', 'cocoapods', 'gradle'],
     transferable_to: ['frontend_web'],
-    incompatible_with: ['embedded_hardware', 'data_ml', 'devops']
+    incompatible_with: ['embedded_hardware', 'data_ml', 'devops', 'finance_accounting']
   },
   design: {
     skills: ['figma', 'sketch', 'adobe xd', 'ui', 'ux', 'prototyping', 
@@ -73,7 +73,7 @@ const TECH_DOMAINS: Record<string, {
              'zeplin', 'principle', 'framer', 'photoshop', 'illustrator',
              'after effects', 'motion design', 'accessibility', 'usability testing'],
     transferable_to: ['frontend_web', 'product_management'],
-    incompatible_with: ['embedded_hardware', 'backend_cloud', 'data_ml', 'devops']
+    incompatible_with: ['embedded_hardware', 'backend_cloud', 'data_ml', 'devops', 'finance_accounting']
   },
   product_management: {
     skills: ['product management', 'roadmap', 'okr', 'agile', 'scrum', 
@@ -82,21 +82,52 @@ const TECH_DOMAINS: Record<string, {
              'customer discovery', 'market research', 'competitive analysis',
              'go-to-market', 'pricing strategy', 'feature prioritization'],
     transferable_to: ['design'],
-    incompatible_with: ['embedded_hardware', 'backend_cloud', 'data_ml', 'devops', 'mobile']
+    incompatible_with: ['embedded_hardware', 'backend_cloud', 'data_ml', 'devops', 'mobile', 'finance_accounting']
   },
   security: {
     skills: ['security', 'cybersecurity', 'penetration testing', 'soc', 'siem',
              'vulnerability', 'compliance', 'iso 27001', 'gdpr', 'firewall',
              'encryption', 'oauth', 'identity', 'iam', 'zero trust', 'devsecops'],
     transferable_to: ['devops', 'backend_cloud'],
-    incompatible_with: ['design', 'product_management']
+    incompatible_with: ['design', 'product_management', 'finance_accounting']
   },
   sap_erp: {
-    skills: ['sap', 'abap', 'sap hana', 'sap fiori', 's/4hana', 'sap mm', 'sap sd',
-             'sap fi', 'sap co', 'sap hr', 'sap basis', 'erp', 'oracle erp',
-             'salesforce', 'dynamics 365', 'netsuite'],
-    transferable_to: ['backend_cloud'],
-    incompatible_with: ['embedded_hardware', 'frontend_web', 'design', 'mobile']
+    // NOTE: Generic "SAP" removed - only technical SAP skills trigger this domain
+    skills: ['abap', 'sap hana', 'sap fiori', 's/4hana', 'sap mm', 'sap sd',
+             'sap fi', 'sap co', 'sap hr', 'sap basis', 'sap entwicklung',
+             'sap customizing', 'sap integration', 'sap bw', 'sap btp',
+             'erp entwicklung', 'oracle erp', 'dynamics 365 entwicklung'],
+    transferable_to: ['backend_cloud', 'finance_accounting'],
+    incompatible_with: ['embedded_hardware', 'frontend_web', 'design', 'mobile', 'data_ml']
+  },
+  finance_accounting: {
+    skills: ['buchhaltung', 'finanzbuchhaltung', 'bilanzbuchhaltung', 'buchhalter',
+             'fibu', 'controlling', 'jahresabschluss', 'monatsabschluss',
+             'kreditorenbuchhaltung', 'debitorenbuchhaltung', 'lohnbuchhaltung',
+             'steuerrecht', 'umsatzsteuer', 'hgb', 'ifrs', 'gaap',
+             'mahnwesen', 'forderungsmanagement', 'zahlungsverkehr',
+             'datev', 'addison', 'lexware', 'navision', 'sage',
+             'rechnungswesen', 'steuererklärung', 'bilanz', 'guv',
+             'reisekosten', 'anlagenbuchhaltung', 'kostenrechnung',
+             'wirtschaftsprüfung', 'audit', 'treasury', 'financial reporting',
+             'accounts payable', 'accounts receivable', 'general ledger'],
+    transferable_to: ['sap_erp'], // Buchhalter können zu SAP-Finance-Rollen wechseln
+    incompatible_with: ['data_ml', 'frontend_web', 'mobile', 'embedded_hardware', 
+                        'design', 'devops', 'security', 'backend_cloud']
+  },
+  hr_recruiting: {
+    skills: ['recruiting', 'hr', 'human resources', 'personalwesen', 'bewerbermanagement',
+             'onboarding', 'personalentwicklung', 'arbeitsrecht', 'lohnabrechnung',
+             'talent acquisition', 'employer branding', 'workday', 'personio'],
+    transferable_to: [],
+    incompatible_with: ['data_ml', 'backend_cloud', 'frontend_web', 'embedded_hardware', 'devops', 'security']
+  },
+  marketing_sales: {
+    skills: ['marketing', 'sales', 'vertrieb', 'crm', 'hubspot', 'salesforce',
+             'content marketing', 'seo', 'sem', 'social media', 'lead generation',
+             'account management', 'business development', 'key account'],
+    transferable_to: ['product_management'],
+    incompatible_with: ['data_ml', 'backend_cloud', 'embedded_hardware', 'devops', 'security']
   }
 };
 
@@ -148,6 +179,26 @@ function detectCandidateDomain(candidateSkills: string[], jobTitle?: string): Do
     }
     if (lowerTitle.includes('design') || lowerTitle.includes('ux') || lowerTitle.includes('ui')) {
       domainScores['design'] = Math.max(domainScores['design'] || 0, 0.5);
+    }
+    // Finance/Accounting titles - high confidence boost
+    if (lowerTitle.includes('buchhalter') || lowerTitle.includes('accountant') ||
+        lowerTitle.includes('finanzbuchhalter') || lowerTitle.includes('bilanzbuchhalter') ||
+        lowerTitle.includes('controlling') || lowerTitle.includes('controller') ||
+        lowerTitle.includes('steuerfachangestellte') || lowerTitle.includes('tax') ||
+        lowerTitle.includes('finance manager') || lowerTitle.includes('accounting')) {
+      domainScores['finance_accounting'] = Math.max(domainScores['finance_accounting'] || 0, 0.7);
+    }
+    // HR/Recruiting titles
+    if (lowerTitle.includes('recruiter') || lowerTitle.includes('hr ') || 
+        lowerTitle.includes('human resources') || lowerTitle.includes('talent') ||
+        lowerTitle.includes('personalreferent') || lowerTitle.includes('people')) {
+      domainScores['hr_recruiting'] = Math.max(domainScores['hr_recruiting'] || 0, 0.7);
+    }
+    // Sales/Marketing titles
+    if (lowerTitle.includes('sales') || lowerTitle.includes('vertrieb') ||
+        lowerTitle.includes('account manager') || lowerTitle.includes('business development') ||
+        lowerTitle.includes('marketing manager') || lowerTitle.includes('key account')) {
+      domainScores['marketing_sales'] = Math.max(domainScores['marketing_sales'] || 0, 0.7);
     }
   }
   
@@ -208,11 +259,30 @@ function detectJobDomain(job: any): DomainDetectionResult {
   if (jobTitle.includes('mobile') || jobTitle.includes('ios') || jobTitle.includes('android')) {
     domainScores['mobile'] = Math.max(domainScores['mobile'] || 0, 0.6);
   }
-  if (jobTitle.includes('sap') || jobTitle.includes('erp')) {
+  if (jobTitle.includes('sap') || jobTitle.includes('erp') || jobTitle.includes('abap')) {
     domainScores['sap_erp'] = Math.max(domainScores['sap_erp'] || 0, 0.6);
   }
   if (jobTitle.includes('security') || jobTitle.includes('cyber')) {
     domainScores['security'] = Math.max(domainScores['security'] || 0, 0.6);
+  }
+  // Finance/Accounting job titles
+  if (jobTitle.includes('buchhalter') || jobTitle.includes('accountant') ||
+      jobTitle.includes('finance') || jobTitle.includes('controlling') ||
+      jobTitle.includes('controller') || jobTitle.includes('accounting') ||
+      jobTitle.includes('treasury') || jobTitle.includes('audit')) {
+    domainScores['finance_accounting'] = Math.max(domainScores['finance_accounting'] || 0, 0.7);
+  }
+  // HR/Recruiting job titles
+  if (jobTitle.includes('recruiter') || jobTitle.includes('hr ') ||
+      jobTitle.includes('human resources') || jobTitle.includes('talent') ||
+      jobTitle.includes('people') || jobTitle.includes('personalreferent')) {
+    domainScores['hr_recruiting'] = Math.max(domainScores['hr_recruiting'] || 0, 0.7);
+  }
+  // Sales/Marketing job titles
+  if (jobTitle.includes('sales') || jobTitle.includes('vertrieb') ||
+      jobTitle.includes('account manager') || jobTitle.includes('business development') ||
+      jobTitle.includes('marketing') || jobTitle.includes('key account')) {
+    domainScores['marketing_sales'] = Math.max(domainScores['marketing_sales'] || 0, 0.7);
   }
   
   const sorted = Object.entries(domainScores).sort((a, b) => b[1] - a[1]);
@@ -237,6 +307,9 @@ function formatDomainName(domain: string): string {
     product_management: 'Product Management',
     security: 'Security',
     sap_erp: 'SAP/ERP',
+    finance_accounting: 'Finance/Accounting',
+    hr_recruiting: 'HR/Recruiting',
+    marketing_sales: 'Marketing/Sales',
     other: 'Allgemein'
   };
   return names[domain] || domain;
