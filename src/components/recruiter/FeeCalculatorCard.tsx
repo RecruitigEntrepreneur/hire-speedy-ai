@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, Percent, Euro } from "lucide-react";
+import { TrendingUp, Percent, Euro } from "lucide-react";
 
 interface FeeCalculatorCardProps {
   feePercentage: number | null;
@@ -35,54 +35,54 @@ export function FeeCalculatorCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Fee Percentage */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground flex items-center gap-1">
-            <Percent className="h-4 w-4" />
-            Recruiter-Fee
-          </span>
-          <span className="font-semibold text-green-700 dark:text-green-400">
-            {fee}%
-          </span>
-        </div>
-
-        {/* Salary Range */}
-        {(salaryMin || salaryMax) && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground flex items-center gap-1">
-              <DollarSign className="h-4 w-4" />
-              Gehaltsspanne
+        {/* Main Earning Display */}
+        {avgEarning ? (
+          <div className="text-center py-2">
+            <span className="text-3xl font-bold text-green-700 dark:text-green-400">
+              €{avgEarning.toLocaleString('de-DE')}
             </span>
-            <span className="font-medium text-sm">
-              {formatSalaryRange(salaryMin, salaryMax)}
-            </span>
+            <p className="text-sm text-muted-foreground mt-1">
+              Dein Verdienst bei erfolgreicher Vermittlung
+            </p>
           </div>
+        ) : (
+          <p className="text-center text-sm text-muted-foreground italic py-4">
+            Gehalt nicht angegeben
+          </p>
         )}
 
-        {/* Potential Earning */}
+        {/* Details */}
         {avgEarning && (
-          <div className="pt-2 border-t border-green-200 dark:border-green-800">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium flex items-center gap-1">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                Potenzial
+          <div className="pt-3 border-t border-green-200 dark:border-green-800 space-y-2">
+            {/* Salary Range */}
+            {(salaryMin || salaryMax) && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="h-4 w-4" />
+                  Gehaltsspanne
+                </span>
+                <span className="font-medium">
+                  {formatSalaryRange(salaryMin, salaryMax)}
+                </span>
+              </div>
+            )}
+            
+            {/* Fee Percentage as secondary info */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Percent className="h-4 w-4" />
+                Fee
               </span>
-              <span className="text-xl font-bold text-green-700 dark:text-green-400">
-                ~€{avgEarning.toLocaleString('de-DE')}
-              </span>
+              <span className="font-medium">{fee}%</span>
             </div>
+
+            {/* Earning Range if different */}
             {minEarning && maxEarning && minEarning !== maxEarning && (
-              <p className="text-xs text-muted-foreground text-right mt-1">
-                €{minEarning.toLocaleString('de-DE')} - €{maxEarning.toLocaleString('de-DE')}
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Range: €{minEarning.toLocaleString('de-DE')} - €{maxEarning.toLocaleString('de-DE')}
               </p>
             )}
           </div>
-        )}
-
-        {!avgEarning && (
-          <p className="text-xs text-muted-foreground italic">
-            Gehalt nicht angegeben
-          </p>
         )}
       </CardContent>
     </Card>
