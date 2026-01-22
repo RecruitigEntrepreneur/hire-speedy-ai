@@ -131,7 +131,9 @@ serve(async (req) => {
       matchOutcomes.push({
         candidate_id: candidate.id,
         job_id: job.id,
-        predicted_score: matchScore,
+        predicted_overall_score: matchScore,
+        predicted_fit_score: Math.round(matchScore * 0.65),
+        predicted_constraint_score: Math.round(matchScore * 0.35),
         actual_outcome: 'hired',
         outcome_stage: 'offer_accepted',
         days_to_outcome: daysToOutcome,
@@ -175,7 +177,9 @@ serve(async (req) => {
       matchOutcomes.push({
         candidate_id: candidate.id,
         job_id: job.id,
-        predicted_score: matchScore,
+        predicted_overall_score: matchScore,
+        predicted_fit_score: Math.round(matchScore * 0.55),
+        predicted_constraint_score: Math.round(matchScore * 0.45),
         actual_outcome: 'rejected',
         rejection_category: scenario.category || 'other',
         outcome_stage: stage,
@@ -219,7 +223,9 @@ serve(async (req) => {
       matchOutcomes.push({
         candidate_id: candidate.id,
         job_id: job.id,
-        predicted_score: matchScore,
+        predicted_overall_score: matchScore,
+        predicted_fit_score: Math.round(matchScore * 0.60),
+        predicted_constraint_score: Math.round(matchScore * 0.40),
         actual_outcome: 'withdrawn',
         outcome_stage: stage,
         days_to_outcome: daysToOutcome,
