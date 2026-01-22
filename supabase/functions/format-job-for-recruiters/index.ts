@@ -13,6 +13,13 @@ interface FormattedContent {
   ideal_candidate: string;
   selling_points: string[];
   urgency_note: string | null;
+  anonymous_company_pitch: string;
+  quick_facts: {
+    team_size: string | null;
+    growth_stage: string | null;
+    culture_keywords: string[];
+    interview_process: string | null;
+  };
 }
 
 serve(async (req) => {
@@ -54,8 +61,18 @@ serve(async (req) => {
       );
     }
 
-    // Build prompt for AI formatting
+    // Build prompt for AI formatting with ANONYMIZATION
     const prompt = `Du bist ein professioneller Recruiter-Marketing-Spezialist. Formatiere diese Stellenanzeige so, dass sie für Recruiter besonders attraktiv und übersichtlich ist.
+
+⚠️ KRITISCH - TRIPLE-BLIND ANONYMISIERUNG:
+- Nenne NIEMALS den Firmennamen "${job.company_name}" in deinen Texten!
+- Ersetze alle Firmenreferenzen durch "das Unternehmen" oder "der Arbeitgeber"
+- Vermeide spezifische Firmen-Produkte, Marken oder bekannte Projekte die zur Identifikation führen könnten
+- Fokussiere auf die Rolle und Aufgaben, NICHT auf die Firma
+- Die Branche darf genannt werden, aber keine identifizierenden Details
+
+BEISPIEL FALSCH: "Bei Trivium eSolutions arbeiten Sie an innovativen Lösungen..."
+BEISPIEL RICHTIG: "In diesem wachsenden IT-Unternehmen arbeiten Sie an innovativen Lösungen..."
 
 STELLENINFORMATIONEN:
 - Titel: ${job.title}
@@ -66,8 +83,11 @@ STELLENINFORMATIONEN:
 - Erfahrung: ${job.experience_level || 'Mid-Level'}
 - Gehalt: ${job.salary_min ? `€${job.salary_min.toLocaleString()}` : 'k.A.'} - ${job.salary_max ? `€${job.salary_max.toLocaleString()}` : 'k.A.'}
 - Recruiter-Fee: ${job.recruiter_fee_percentage || 15}%
+- Unternehmensgröße: ${job.company_size_band || 'Nicht angegeben'}
+- Funding-Stage: ${job.funding_stage || 'Nicht angegeben'}
+- Tech-Stack: ${job.tech_environment?.join(', ') || 'Nicht angegeben'}
 
-BESCHREIBUNG:
+BESCHREIBUNG (ANONYMISIERE DIESE):
 ${job.description || 'Keine Beschreibung vorhanden.'}
 
 ANFORDERUNGEN:
@@ -83,11 +103,14 @@ NICE-TO-HAVES:
 ${job.nice_to_haves?.join(', ') || 'Keine Nice-to-Haves'}
 
 Erstelle eine ansprechende Formatierung mit:
-1. Eine catchy Headline (max 60 Zeichen)
+1. Eine catchy Headline (max 60 Zeichen) - OHNE Firmennamen!
 2. 3-4 Key Highlights (kurze Bulletpoints, die Recruiter ansprechen)
-3. Eine prägnante Rollenbeschreibung (2-3 Sätze)
+3. Eine prägnante Rollenbeschreibung (2-3 Sätze) - ANONYMISIERT
 4. Beschreibung des idealen Kandidaten (2-3 Sätze)
 5. 3-5 Selling Points (Benefits, die Kandidaten überzeugen)
+6. NEUE PFLICHTFELDER:
+   - anonymous_company_pitch: 2-3 Sätze über das Unternehmen OHNE Firmennamen zu nennen (z.B. "Innovatives IT-Unternehmen im Benelux-Raum mit Fokus auf Enterprise-Lösungen...")
+   - quick_facts: Team-Größe, Wachstumsphase, Kultur-Keywords, Interview-Prozess
 
 WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
 
@@ -109,13 +132,13 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
             type: "function",
             function: {
               name: "format_job",
-              description: "Formatiere die Stellenanzeige für Recruiter",
+              description: "Formatiere die Stellenanzeige für Recruiter - OHNE Firmennamen zu nennen!",
               parameters: {
                 type: "object",
                 properties: {
                   headline: { 
                     type: "string", 
-                    description: "Catchy headline für die Stelle, max 60 Zeichen" 
+                    description: "Catchy headline für die Stelle, max 60 Zeichen, OHNE Firmennamen!" 
                   },
                   highlights: { 
                     type: "array", 
@@ -124,7 +147,7 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
                   },
                   role_summary: { 
                     type: "string", 
-                    description: "Prägnante Rollenbeschreibung, 2-3 Sätze" 
+                    description: "Prägnante Rollenbeschreibung, 2-3 Sätze, ANONYMISIERT ohne Firmennamen" 
                   },
                   ideal_candidate: { 
                     type: "string", 
@@ -138,9 +161,27 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
                   urgency_note: { 
                     type: "string", 
                     description: "Optionaler Urgency-Hinweis falls dringend" 
+                  },
+                  anonymous_company_pitch: {
+                    type: "string",
+                    description: "2-3 Sätze über das Unternehmen OHNE den Firmennamen zu nennen. Beispiel: 'Innovatives IT-Unternehmen im Benelux-Raum...'"
+                  },
+                  quick_facts: {
+                    type: "object",
+                    properties: {
+                      team_size: { type: "string", description: "z.B. '5-10 Entwickler'" },
+                      growth_stage: { type: "string", description: "z.B. 'Wachstumsphase', 'Etabliert', 'Startup'" },
+                      culture_keywords: { 
+                        type: "array", 
+                        items: { type: "string" },
+                        description: "3-5 Kultur-Keywords wie 'agil', 'remote-friendly', 'international'" 
+                      },
+                      interview_process: { type: "string", description: "z.B. '3-stufig, ca. 2 Wochen'" }
+                    },
+                    required: ["growth_stage", "culture_keywords"]
                   }
                 },
-                required: ["headline", "highlights", "role_summary", "ideal_candidate", "selling_points"],
+                required: ["headline", "highlights", "role_summary", "ideal_candidate", "selling_points", "anonymous_company_pitch", "quick_facts"],
                 additionalProperties: false
               }
             }
@@ -197,6 +238,9 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
 
     // Generate fallback content if AI fails
     if (!formattedContent) {
+      const industryContext = job.industry ? `im Bereich ${job.industry}` : '';
+      const locationContext = job.location ? `in der Region ${job.location.split(',')[0]}` : '';
+      
       formattedContent = {
         headline: job.title,
         highlights: [
@@ -207,7 +251,14 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
         role_summary: job.description?.substring(0, 200) + '...' || 'Spannende Position mit Entwicklungsmöglichkeiten.',
         ideal_candidate: `Erfahrung auf ${job.experience_level || 'Mid'}-Level mit Skills in ${job.skills?.slice(0, 3).join(', ') || 'relevanten Technologien'}.`,
         selling_points: job.nice_to_haves?.slice(0, 5) || ['Attraktive Vergütung', 'Moderne Arbeitsumgebung', 'Entwicklungsmöglichkeiten'],
-        urgency_note: null
+        urgency_note: null,
+        anonymous_company_pitch: `Etabliertes Unternehmen ${industryContext} ${locationContext} sucht Verstärkung für das Team.`.trim(),
+        quick_facts: {
+          team_size: null,
+          growth_stage: job.funding_stage || 'Etabliert',
+          culture_keywords: ['professionell'],
+          interview_process: null
+        }
       };
     }
 
