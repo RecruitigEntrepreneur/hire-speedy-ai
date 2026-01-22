@@ -28,9 +28,7 @@ import {
   Building2,
   Loader2,
   Upload,
-  Sparkles,
   Star,
-  RefreshCw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -116,6 +114,7 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
+  const [isFormatting, setIsFormatting] = useState(false);
   const [accessStatus, setAccessStatus] = useState<RecruiterAccessStatus>({
     hasSubmission: false,
     companyRevealed: false,
@@ -127,6 +126,27 @@ export default function JobDetail() {
       fetchJobDetails();
     }
   }, [id]);
+
+  // Automatische AI-Aufbereitung wenn formatted_content fehlt
+  useEffect(() => {
+    const autoFormatJob = async () => {
+      if (job && !job.formatted_content && !isFormatting && !loading) {
+        setIsFormatting(true);
+        try {
+          await supabase.functions.invoke('format-job-for-recruiters', {
+            body: { jobId: job.id }
+          });
+          await fetchJobDetails();
+        } catch (e) {
+          console.error('Auto-format failed:', e);
+        } finally {
+          setIsFormatting(false);
+        }
+      }
+    };
+    
+    autoFormatJob();
+  }, [job?.id, job?.formatted_content, loading]);
 
   const fetchJobDetails = async () => {
     try {
@@ -416,30 +436,26 @@ export default function JobDetail() {
               isAIGenerated={!!formattedContent?.role_summary}
             />
 
-            {/* Description (fallback if no AI content) */}
-            {!formattedContent?.role_summary && job.description && (
+            {/* AI-Aufbereitung läuft - Loading State */}
+            {isFormatting && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="py-8 flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-muted-foreground font-medium">
+                    AI bereitet Stelleninformationen auf...
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Dies kann einige Sekunden dauern
+                  </span>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Description (fallback if no AI content and not formatting) */}
+            {!formattedContent?.role_summary && job.description && !isFormatting && (
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader>
                   <CardTitle>Stellenbeschreibung</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={async () => {
-                      toast.loading('AI-Aufbereitung läuft...');
-                      try {
-                        await supabase.functions.invoke('format-job-for-recruiters', {
-                          body: { jobId: job.id }
-                        });
-                        await fetchJobDetails();
-                        toast.success('Stelle wurde AI-aufbereitet!');
-                      } catch (e) {
-                        toast.error('Fehler bei der AI-Aufbereitung');
-                      }
-                    }}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    AI aufbereiten
-                  </Button>
                 </CardHeader>
                 <CardContent>
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
@@ -449,8 +465,8 @@ export default function JobDetail() {
               </Card>
             )}
 
-            {/* Requirements - only show if no AI content */}
-            {!formattedContent?.role_summary && job.requirements && (
+            {/* Requirements - only show if no AI content and not formatting */}
+            {!formattedContent?.role_summary && job.requirements && !isFormatting && (
               <Card>
                 <CardHeader>
                   <CardTitle>Anforderungen</CardTitle>
