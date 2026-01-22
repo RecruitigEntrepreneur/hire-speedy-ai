@@ -7188,6 +7188,17 @@ export type Database = {
           skills: string[]
         }[]
       }
+      find_similar_candidates_by_skills: {
+        Args: { limit_count?: number; source_id: string }
+        Returns: {
+          city: string
+          full_name: string
+          id: string
+          job_title: string
+          similarity: number
+          skills: string[]
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
