@@ -191,3 +191,6 @@ verify_jwt = false
 
 [functions.format-job-for-recruiters]
 verify_jwt = true
+
+[functions.enrich-job-data]
+verify_jwt = true

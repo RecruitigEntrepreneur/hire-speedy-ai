@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,11 +32,16 @@ import {
   Home,
   Calendar,
   Upload,
-  FileUp
+  FileUp,
+  Brain,
+  TrendingUp,
+  Users,
+  Coins
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useJobParsing, ParsedJobData } from '@/hooks/useJobParsing';
 import { useJobPdfParsing, ParsedJobProfile } from '@/hooks/useJobPdfParsing';
+import { useJobEnrichment, EnrichmentResult } from '@/hooks/useJobEnrichment';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
@@ -46,6 +51,7 @@ export default function CreateJob() {
   const navigate = useNavigate();
   const { parseJobUrl, parseJobText, parsing } = useJobParsing();
   const { uploadAndParsePdf, parseJobText: parseJobPdfText, isLoading: pdfParsing } = useJobPdfParsing();
+  const { enrichJobData, enriching, enrichmentData } = useJobEnrichment();
   const { canPublishJobs, isFullyVerified, loading: verificationLoading } = useClientVerification();
   const [activeTab, setActiveTab] = useState('quick');
   const [loading, setLoading] = useState(false);
@@ -72,13 +78,19 @@ export default function CreateJob() {
     office_address: '',
     remote_policy: 'hybrid',
     onsite_days_required: '3',
+    // Enrichment Felder
+    industry: '',
+    company_size_band: '',
+    funding_stage: '',
+    tech_environment: '',
+    hiring_urgency: 'standard',
   });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const applyParsedData = (data: ParsedJobData) => {
+  const applyParsedData = async (data: ParsedJobData) => {
     setFormData(prev => ({
       ...prev,
       title: data.title || '',
@@ -97,6 +109,30 @@ export default function CreateJob() {
     }));
     setImportedData(data);
     setActiveTab('quick');
+
+    // Trigger enrichment in background
+    if (data.title && data.company_name) {
+      const enriched = await enrichJobData({
+        title: data.title,
+        company_name: data.company_name,
+        description: data.description,
+        skills: data.skills || [],
+        location: data.location,
+        remote_type: data.remote_type,
+      });
+
+      if (enriched) {
+        setFormData(prev => ({
+          ...prev,
+          industry: enriched.industry || prev.industry,
+          company_size_band: enriched.company_size_band || prev.company_size_band,
+          funding_stage: enriched.funding_stage || prev.funding_stage,
+          tech_environment: enriched.tech_environment?.join(', ') || prev.tech_environment,
+          hiring_urgency: enriched.hiring_urgency || prev.hiring_urgency,
+          skills: enriched.normalized_skills?.join(', ') || prev.skills,
+        }));
+      }
+    }
   };
 
   const handleImportFromUrl = async () => {
@@ -107,7 +143,7 @@ export default function CreateJob() {
 
     const data = await parseJobUrl(jobUrl);
     if (data) {
-      applyParsedData(data);
+      await applyParsedData(data);
       toast.success('Job erfolgreich importiert!');
     }
   };
@@ -218,6 +254,10 @@ export default function CreateJob() {
         ? formData.nice_to_haves.split(',').map(s => s.trim()).filter(Boolean)
         : [];
 
+      const techEnvironmentArray = formData.tech_environment
+        ? formData.tech_environment.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
       const { data, error } = await supabase
         .from('jobs')
         .insert({
@@ -239,6 +279,12 @@ export default function CreateJob() {
           office_address: formData.office_address || null,
           remote_policy: formData.remote_policy || null,
           onsite_days_required: formData.remote_policy === 'hybrid' ? parseInt(formData.onsite_days_required) : null,
+          // Enrichment fields
+          industry: formData.industry || null,
+          company_size_band: formData.company_size_band || null,
+          funding_stage: formData.funding_stage || null,
+          tech_environment: techEnvironmentArray.length > 0 ? techEnvironmentArray : null,
+          hiring_urgency: formData.hiring_urgency !== 'standard' ? formData.hiring_urgency : null,
         })
         .select()
         .single();
@@ -296,6 +342,18 @@ export default function CreateJob() {
                       {importedData.skills?.length || 0} Skills, {importedData.must_haves?.length || 0} Must-Haves erkannt
                     </p>
                   </div>
+                  {enriching && (
+                    <Badge variant="secondary" className="animate-pulse">
+                      <Brain className="h-3 w-3 mr-1" />
+                      Firmen-Daten werden recherchiert...
+                    </Badge>
+                  )}
+                  {enrichmentData && !enriching && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      KI-angereichert
+                    </Badge>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => setImportedData(null)}>
                     Schließen
                   </Button>
@@ -584,6 +642,130 @@ export default function CreateJob() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* KI-Enrichment Felder (automatisch befüllt) */}
+              {(enrichmentData || formData.industry || formData.company_size_band || formData.funding_stage) && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className="h-5 w-5 text-primary" />
+                      KI-analysierte Firmeninfos
+                      <Badge variant="outline" className="ml-2 text-xs">Optional editierbar</Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Diese Daten helfen Recruitern, passende Kandidaten zu finden
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <TrendingUp className="h-3 w-3" />
+                          Industrie
+                        </Label>
+                        <Select
+                          value={formData.industry}
+                          onValueChange={(value) => handleInputChange('industry', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Industrie auswählen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Technology">Technology</SelectItem>
+                            <SelectItem value="FinTech">FinTech</SelectItem>
+                            <SelectItem value="HealthTech">HealthTech</SelectItem>
+                            <SelectItem value="E-Commerce">E-Commerce</SelectItem>
+                            <SelectItem value="Automotive">Automotive</SelectItem>
+                            <SelectItem value="EdTech">EdTech</SelectItem>
+                            <SelectItem value="CleanTech">CleanTech</SelectItem>
+                            <SelectItem value="Consulting">Consulting</SelectItem>
+                            <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                            <SelectItem value="Media">Media</SelectItem>
+                            <SelectItem value="Real Estate">Real Estate</SelectItem>
+                            <SelectItem value="Logistics">Logistics</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Users className="h-3 w-3" />
+                          Unternehmensgröße
+                        </Label>
+                        <Select
+                          value={formData.company_size_band}
+                          onValueChange={(value) => handleInputChange('company_size_band', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Größe auswählen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1-50">1-50 Mitarbeiter</SelectItem>
+                            <SelectItem value="51-200">51-200 Mitarbeiter</SelectItem>
+                            <SelectItem value="201-500">201-500 Mitarbeiter</SelectItem>
+                            <SelectItem value="501-1000">501-1000 Mitarbeiter</SelectItem>
+                            <SelectItem value="1000+">1000+ Mitarbeiter</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Coins className="h-3 w-3" />
+                          Funding-Stage
+                        </Label>
+                        <Select
+                          value={formData.funding_stage}
+                          onValueChange={(value) => handleInputChange('funding_stage', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Funding auswählen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Bootstrapped">Bootstrapped</SelectItem>
+                            <SelectItem value="Seed">Seed</SelectItem>
+                            <SelectItem value="Series A">Series A</SelectItem>
+                            <SelectItem value="Series B">Series B</SelectItem>
+                            <SelectItem value="Series C+">Series C+</SelectItem>
+                            <SelectItem value="Public">Public / Börsennotiert</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Zap className="h-3 w-3" />
+                          Hiring-Dringlichkeit
+                        </Label>
+                        <Select
+                          value={formData.hiring_urgency}
+                          onValueChange={(value) => handleInputChange('hiring_urgency', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard">Standard</SelectItem>
+                            <SelectItem value="urgent">Dringend</SelectItem>
+                            <SelectItem value="ASAP">ASAP</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {formData.tech_environment && (
+                      <div className="space-y-2">
+                        <Label>Tech-Stack (normalisiert)</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {formData.tech_environment.split(',').map((tech, i) => (
+                            <Badge key={i} variant="secondary">
+                              {tech.trim()}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-end">
