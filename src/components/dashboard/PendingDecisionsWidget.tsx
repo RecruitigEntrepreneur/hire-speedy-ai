@@ -57,29 +57,11 @@ export function PendingDecisionsWidget({ maxItems = 6 }: { maxItems?: number }) 
 
   const fetchPendingSubmissions = async () => {
     try {
+      // Use the view to avoid PostgREST nested filter issues
       const { data, error } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          status,
-          submitted_at,
-          match_score,
-          v3_match_result,
-          candidates!inner (
-            id,
-            job_title,
-            skills,
-            experience_years,
-            city,
-            notice_period
-          ),
-          jobs!inner (
-            id,
-            title,
-            client_id
-          )
-        `)
-        .eq('jobs.client_id', user?.id)
+        .from('client_submissions_view')
+        .select('*')
+        .eq('client_id', user?.id)
         .in('status', ['submitted', 'accepted', 'interview'])
         .order('submitted_at', { ascending: false })
         .limit(maxItems * 3);
@@ -88,10 +70,8 @@ export function PendingDecisionsWidget({ maxItems = 6 }: { maxItems?: number }) 
 
       const now = new Date();
       const formatted: PendingSubmission[] = (data || []).map((sub: any) => {
-        // Use V3 match result if available
-        const v3Result = sub.v3_match_result as any;
-        const matchScore = v3Result?.total_score ?? sub.match_score ?? 0;
-        const dealProbability = v3Result?.explainability?.deal_probability ?? Math.round(matchScore * 0.9);
+        const matchScore = sub.match_score ?? 0;
+        const dealProbability = Math.round(matchScore * 0.9);
         
         return {
           id: sub.id,
@@ -99,16 +79,17 @@ export function PendingDecisionsWidget({ maxItems = 6 }: { maxItems?: number }) 
           submittedAt: sub.submitted_at,
           hoursWaiting: Math.floor((now.getTime() - new Date(sub.submitted_at).getTime()) / (1000 * 60 * 60)),
           candidate: {
-            id: sub.candidates.id,
-            job_title: sub.candidates.job_title || 'Nicht angegeben',
-            skills: sub.candidates.skills || [],
-            experience_years: sub.candidates.experience_years || 0,
-            city: sub.candidates.city || '',
-            notice_period: sub.candidates.notice_period || '',
+            id: sub.candidate_id,
+            job_title: sub.candidate_role || 'Nicht angegeben',
+            skills: sub.skills || [],
+            experience_years: sub.experience_years || 0,
+            city: sub.city || '',
+            notice_period: sub.notice_period || '',
           },
           job: {
-            id: sub.jobs.id,
-            title: sub.jobs.title,
+            id: sub.job_id,
+            title: sub.job_title,
+            industry: sub.job_industry,
           },
           matchScore,
           dealProbability,

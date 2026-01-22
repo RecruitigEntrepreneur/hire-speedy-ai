@@ -48,14 +48,9 @@ export function useClientTasks() {
 
       // 1. Pending candidate decisions (submissions with status 'submitted')
       const { data: pendingSubmissions } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          submitted_at,
-          candidate:candidates(id, full_name),
-          job:jobs!inner(id, title, industry, client_id)
-        `)
-        .eq('jobs.client_id', user.id)
+        .from('client_submissions_view')
+        .select('*')
+        .eq('client_id', user.id)
         .eq('status', 'submitted')
         .order('submitted_at', { ascending: true });
 
@@ -69,21 +64,21 @@ export function useClientTasks() {
           else if (hoursWaiting >= 12) urgency = 'warning';
 
           // Generate anonymous ID for triple-blind
-          const anonymousId = `${sub.job?.title?.slice(0, 2).toUpperCase() || 'XX'}-${sub.id.slice(0, 6).toUpperCase()}`;
+          const anonymousId = `${sub.job_title?.slice(0, 2).toUpperCase() || 'XX'}-${sub.id.slice(0, 6).toUpperCase()}`;
 
           taskList.push({
             id: `decision-${sub.id}`,
             type: 'decision',
-            title: `${sub.candidate?.full_name || 'Kandidat'} wartet auf Entscheidung`,
-            description: `Für ${sub.job?.title || 'Job'}`,
+            title: `${sub.candidate_name || 'Kandidat'} wartet auf Entscheidung`,
+            description: `Für ${sub.job_title || 'Job'}`,
             urgency,
             submissionId: sub.id,
-            jobId: sub.job?.id,
-            candidateId: sub.candidate?.id,
-            candidateName: sub.candidate?.full_name,
+            jobId: sub.job_id,
+            candidateId: sub.candidate_id,
+            candidateName: sub.candidate_name,
             candidateAnonymousId: anonymousId,
-            jobTitle: sub.job?.title,
-            jobIndustry: sub.job?.industry || 'IT',
+            jobTitle: sub.job_title,
+            jobIndustry: sub.job_industry || 'IT',
             hoursWaiting,
             createdAt: sub.submitted_at,
           });
@@ -92,19 +87,9 @@ export function useClientTasks() {
 
       // 2. Pending interviews (status 'pending' or unscheduled)
       const { data: pendingInterviews } = await supabase
-        .from('interviews')
-        .select(`
-          id,
-          status,
-          scheduled_at,
-          created_at,
-          submission:submissions!inner(
-            id,
-            candidate:candidates(id, full_name),
-            job:jobs!inner(id, title, industry, client_id)
-          )
-        `)
-        .eq('submission.job.client_id', user.id)
+        .from('client_interviews_view')
+        .select('*')
+        .eq('client_id', user.id)
         .or('status.eq.pending,scheduled_at.is.null');
 
       if (pendingInterviews) {
@@ -119,24 +104,24 @@ export function useClientTasks() {
           // Different message based on whether scheduled or not
           const needsScheduling = !interview.scheduled_at;
           const title = needsScheduling 
-            ? `Interview terminieren: ${interview.submission?.candidate?.full_name || 'Kandidat'}`
-            : `Interview bestätigen: ${interview.submission?.candidate?.full_name || 'Kandidat'}`;
+            ? `Interview terminieren: ${interview.candidate_name || 'Kandidat'}`
+            : `Interview bestätigen: ${interview.candidate_name || 'Kandidat'}`;
 
-          const anonymousId = `${interview.submission?.job?.title?.slice(0, 2).toUpperCase() || 'XX'}-${interview.submission?.id?.slice(0, 6).toUpperCase() || '000000'}`;
+          const anonymousId = `${interview.job_title?.slice(0, 2).toUpperCase() || 'XX'}-${interview.submission_id?.slice(0, 6).toUpperCase() || '000000'}`;
 
           taskList.push({
             id: `interview-${interview.id}`,
             type: 'interview',
             title,
-            description: `Für ${interview.submission?.job?.title || 'Job'}`,
+            description: `Für ${interview.job_title || 'Job'}`,
             urgency,
-            submissionId: interview.submission?.id,
-            jobId: interview.submission?.job?.id,
-            candidateId: interview.submission?.candidate?.id,
-            candidateName: interview.submission?.candidate?.full_name,
+            submissionId: interview.submission_id,
+            jobId: interview.job_id,
+            candidateId: interview.candidate_id,
+            candidateName: interview.candidate_name,
             candidateAnonymousId: anonymousId,
-            jobTitle: interview.submission?.job?.title,
-            jobIndustry: interview.submission?.job?.industry || 'IT',
+            jobTitle: interview.job_title,
+            jobIndustry: interview.job_industry || 'IT',
             interviewId: interview.id,
             hoursWaiting,
             createdAt: interview.created_at,
@@ -146,18 +131,9 @@ export function useClientTasks() {
 
       // 3. Pending offers
       const { data: pendingOffers } = await supabase
-        .from('offers')
-        .select(`
-          id,
-          status,
-          created_at,
-          submission:submissions!inner(
-            id,
-            candidate:candidates(id, full_name),
-            job:jobs!inner(id, title, industry, client_id)
-          )
-        `)
-        .eq('submission.job.client_id', user.id)
+        .from('client_offers_view')
+        .select('*')
+        .eq('client_id', user.id)
         .in('status', ['draft', 'pending']);
 
       if (pendingOffers) {
@@ -172,15 +148,15 @@ export function useClientTasks() {
           taskList.push({
             id: `offer-${offer.id}`,
             type: 'offer',
-            title: `Angebot prüfen: ${offer.submission?.candidate?.full_name || 'Kandidat'}`,
-            description: `Für ${offer.submission?.job?.title || 'Job'}`,
+            title: `Angebot prüfen: ${offer.candidate_name || 'Kandidat'}`,
+            description: `Für ${offer.job_title || 'Job'}`,
             urgency,
-            submissionId: offer.submission?.id,
-            jobId: offer.submission?.job?.id,
-            candidateId: offer.submission?.candidate?.id,
-            candidateName: offer.submission?.candidate?.full_name,
-            jobTitle: offer.submission?.job?.title,
-            jobIndustry: offer.submission?.job?.industry || 'IT',
+            submissionId: offer.submission_id,
+            jobId: offer.job_id,
+            candidateId: offer.candidate_id,
+            candidateName: offer.candidate_name,
+            jobTitle: offer.job_title,
+            jobIndustry: 'IT',
             offerId: offer.id,
             hoursWaiting,
             createdAt: offer.created_at,
