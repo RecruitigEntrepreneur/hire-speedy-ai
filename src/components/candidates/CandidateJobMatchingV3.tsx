@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMatchScoreV31, V31MatchResult } from '@/hooks/useMatchScoreV31';
 import { MatchScoreCardV31 } from './MatchScoreCardV31';
 import { CommuteConfirmationDialog } from './CommuteConfirmationDialog';
+import { AIRecommendationBadge } from './AIRecommendationBadge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
+import { prefetchRecommendations } from '@/hooks/useMatchRecommendation';
 
 interface CandidateJobMatchingV3Props {
   candidate: {
@@ -350,6 +352,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       onSubmit={() => handleSubmitToJob(job, result)}
                       submitting={submitting === result.jobId}
                       isReady={readiness.isReady}
+                      candidateId={candidate.id}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -382,6 +385,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       onSubmit={() => handleSubmitToJob(job, result)}
                       submitting={submitting === result.jobId}
                       isReady={readiness.isReady}
+                      candidateId={candidate.id}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -414,6 +418,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       onSubmit={() => handleSubmitToJob(job, result)}
                       submitting={submitting === result.jobId}
                       isReady={readiness.isReady}
+                      candidateId={candidate.id}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -468,6 +473,7 @@ function JobMatchRow({
   onSubmit,
   submitting,
   isReady,
+  candidateId,
   getPolicyColor,
   getPolicyLabel,
   getPolicyIcon,
@@ -479,63 +485,136 @@ function JobMatchRow({
   onSubmit: () => void;
   submitting: boolean;
   isReady: boolean;
+  candidateId: string;
   getPolicyColor: (policy: V31MatchResult['policy']) => string;
   getPolicyLabel: (policy: V31MatchResult['policy']) => string;
   getPolicyIcon: (policy: V31MatchResult['policy']) => string;
 }) {
+  const [hovered, setHovered] = useState(false);
+
+  // Prefetch recommendation on hover
+  useEffect(() => {
+    if (hovered && candidateId && job.id) {
+      prefetchRecommendations(candidateId, [job.id]);
+    }
+  }, [hovered, candidateId, job.id]);
+
+  // Calculate must-have coverage visual (5 dots)
+  const coverageDots = Math.round(result.mustHaveCoverage * 5);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-0">
       <div 
         className={cn(
-          "flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer",
+          "group relative flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer",
           result.policy === 'hot' 
-            ? "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800 hover:border-green-400" 
-            : "bg-background hover:border-primary/50"
+            ? "bg-gradient-to-r from-green-50/80 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/10 border-green-200 dark:border-green-800 hover:border-green-400 hover:shadow-md hover:shadow-green-100" 
+            : result.policy === 'standard'
+            ? "bg-gradient-to-r from-blue-50/50 to-indigo-50/30 dark:from-blue-900/10 dark:to-indigo-900/5 border-blue-100 dark:border-blue-800 hover:border-blue-300 hover:shadow-sm"
+            : "bg-background hover:border-primary/50 hover:shadow-sm"
         )}
         onClick={onToggle}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
-        {/* Score Circle */}
-        <div className="flex flex-col items-center min-w-[50px]">
-          <span className={cn("text-lg font-bold", getPolicyColor(result.policy))}>
-            {result.overall ?? 0}%
+        {/* Score Ring */}
+        <div className="relative flex-shrink-0">
+          <svg className="w-14 h-14" viewBox="0 0 48 48">
+            {/* Background circle */}
+            <circle 
+              className="text-muted stroke-current" 
+              strokeWidth="3" 
+              fill="transparent" 
+              r="18" cx="24" cy="24" 
+            />
+            {/* Progress circle */}
+            <circle 
+              className={cn(
+                "stroke-current transition-all duration-500",
+                result.policy === 'hot' ? 'text-green-500' :
+                result.policy === 'standard' ? 'text-blue-500' :
+                result.policy === 'maybe' ? 'text-amber-500' : 'text-muted-foreground'
+              )}
+              strokeWidth="3" 
+              fill="transparent" 
+              r="18" cx="24" cy="24"
+              strokeDasharray={`${(result.overall / 100) * 113} 113`}
+              strokeLinecap="round"
+              transform="rotate(-90 24 24)"
+              style={{
+                filter: result.policy === 'hot' ? 'drop-shadow(0 0 6px rgba(34, 197, 94, 0.4))' : 'none'
+              }}
+            />
+            <text 
+              x="24" y="26" 
+              textAnchor="middle" 
+              className={cn(
+                "text-sm font-bold fill-current",
+                getPolicyColor(result.policy)
+              )}
+            >
+              {result.overall}
+            </text>
+          </svg>
+          {/* Policy icon */}
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs">
+            {getPolicyIcon(result.policy)}
           </span>
-          <span className="text-xs">{getPolicyIcon(result.policy)}</span>
         </div>
 
         {/* Job Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{job.title}</p>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-            <span className="truncate">{job.company_name}</span>
+        <div className="flex-1 min-w-0 space-y-1">
+          <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+            {job.title}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="font-medium">{job.company_name}</span>
             {job.location && (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
                 {job.location}
               </span>
             )}
-            {job.salary_max && (
+            {(job.salary_min || job.salary_max) && (
               <span className="flex items-center gap-1">
                 <Euro className="h-3 w-3" />
-                {Math.round(job.salary_max / 1000)}k
+                {job.salary_min ? `${Math.round(job.salary_min / 1000)}k - ` : ''}
+                {job.salary_max ? `${Math.round(job.salary_max / 1000)}k` : ''}
               </span>
             )}
+            {job.remote_type && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                {job.remote_type === 'remote' ? '🏠 Remote' : 
+                 job.remote_type === 'hybrid' ? '🏢 Hybrid' : '🏛️ Vor Ort'}
+              </Badge>
+            )}
           </div>
-          {/* Coverage Badge */}
-          <div className="mt-1">
-            <Badge 
-              variant={result.mustHaveCoverage >= 0.85 ? 'default' : result.mustHaveCoverage >= 0.7 ? 'secondary' : 'destructive'} 
-              className="text-xs"
-            >
-              {Math.round(result.mustHaveCoverage * 100)}% Must-Have Coverage
-            </Badge>
+          
+          {/* Must-Have Coverage Mini Bar */}
+          <div className="flex items-center gap-2 pt-0.5">
+            <div className="flex gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "w-2 h-2 rounded-sm transition-colors",
+                    i < coverageDots 
+                      ? result.mustHaveCoverage >= 0.85 ? "bg-green-500" 
+                        : result.mustHaveCoverage >= 0.7 ? "bg-blue-500" 
+                        : "bg-amber-500"
+                      : "bg-muted"
+                  )} 
+                />
+              ))}
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              {Math.round(result.mustHaveCoverage * 100)}% Must-Haves
+            </span>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" className="shrink-0">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -548,19 +627,22 @@ function JobMatchRow({
                       onSubmit();
                     }}
                     disabled={submitting || !isReady}
-                    className="shrink-0"
+                    className={cn(
+                      "shrink-0 transition-all",
+                      result.policy === 'hot' && "bg-green-600 hover:bg-green-700"
+                    )}
                   >
                     {submitting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : !isReady ? (
                       <>
                         <Lock className="h-3 w-3 mr-1" />
-                        Gesperrt
+                        <span className="hidden sm:inline">Gesperrt</span>
                       </>
                     ) : (
                       <>
                         <Send className="h-3 w-3 mr-1" />
-                        Einreichen
+                        <span className="hidden sm:inline">Einreichen</span>
                       </>
                     )}
                   </Button>
@@ -573,15 +655,38 @@ function JobMatchRow({
               )}
             </Tooltip>
           </TooltipProvider>
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            className={cn(
+              "shrink-0 h-8 w-8 p-0 transition-transform duration-200",
+              expanded && "rotate-180"
+            )}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      {/* Expanded Details */}
-      {expanded && (
-        <div className="ml-4 mr-4">
-          <MatchScoreCardV31 result={result} showExplainability={true} />
+      {/* Expanded Details with Animation */}
+      <div className={cn(
+        "overflow-hidden transition-all duration-300 ease-in-out",
+        expanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"
+      )}>
+        <div className="pt-2 pb-1 px-2 space-y-3">
+          {/* AI Recommendation Badge */}
+          <AIRecommendationBadge
+            candidateId={candidateId}
+            jobId={job.id}
+            matchResult={result}
+            autoLoad={expanded}
+            compact={false}
+          />
+          
+          {/* Detailed Match Score Card */}
+          <MatchScoreCardV31 result={result} showExplainability={true} compact={true} />
         </div>
-      )}
+      </div>
     </div>
   );
 }
