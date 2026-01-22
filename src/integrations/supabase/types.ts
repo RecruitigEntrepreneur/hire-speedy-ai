@@ -133,6 +133,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_activity_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "candidate_activity_log_related_alert_id_fkey"
             columns: ["related_alert_id"]
             isOneToOne: false
@@ -145,6 +159,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
+            columns: ["related_submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
@@ -231,6 +252,20 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "candidate_ai_assessment_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_ai_assessment_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
         ]
       }
       candidate_behavior: {
@@ -316,11 +351,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_behavior_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "candidate_behavior_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_behavior_submission_id_fkey"
@@ -408,11 +464,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_client_summary_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "candidate_client_summary_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_client_summary_submission_id_fkey"
@@ -461,6 +538,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_comments_submission_id_fkey"
@@ -518,11 +602,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_commitment_updates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
@@ -586,11 +691,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_conflicts_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
             columns: ["submission_a_id"]
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
+            columns: ["submission_a_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
@@ -605,6 +731,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
+            columns: ["submission_b_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
@@ -673,6 +806,20 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
         ]
       }
       candidate_educations: {
@@ -723,6 +870,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_educations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_educations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -780,6 +941,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_experiences_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_experiences_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -913,6 +1088,20 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "candidate_interview_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_interview_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
         ]
       }
       candidate_languages: {
@@ -951,6 +1140,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_languages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_languages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -1002,6 +1205,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -1090,6 +1307,20 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "candidate_projects_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_projects_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
         ]
       }
       candidate_risk_reports: {
@@ -1145,11 +1376,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_risk_reports_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "candidate_risk_reports_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "candidate_risk_reports_submission_id_fkey"
@@ -1199,6 +1451,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -1282,6 +1548,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_tag_assignments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_tag_assignments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "candidate_tag_assignments_tag_id_fkey"
@@ -1599,6 +1879,13 @@ export type Database = {
             foreignKeyName: "client_notifications_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_notifications_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -1795,11 +2082,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "communication_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "communication_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "communication_log_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "communication_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "communication_log_submission_id_fkey"
@@ -1858,6 +2166,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commute_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "commute_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "commute_overrides_job_id_fkey"
@@ -2377,6 +2699,20 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employer_feedback_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "employer_feedback_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
         ]
       }
       employer_scores: {
@@ -2623,6 +2959,13 @@ export type Database = {
             foreignKeyName: "identity_unlock_logs_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_unlock_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -2687,6 +3030,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "influence_alerts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "influence_alerts_submission_id_fkey"
@@ -2892,6 +3242,13 @@ export type Database = {
             foreignKeyName: "interview_checklist_progress_interview_id_fkey"
             columns: ["interview_id"]
             isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_checklist_progress_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
             referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
@@ -2950,6 +3307,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "interview_feedback_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interview_feedback_interview_id_fkey"
             columns: ["interview_id"]
@@ -3016,6 +3380,13 @@ export type Database = {
             foreignKeyName: "interview_intelligence_interview_id_fkey"
             columns: ["interview_id"]
             isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_intelligence_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
             referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
@@ -3025,6 +3396,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_intelligence_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "interview_intelligence_submission_id_fkey"
@@ -3071,6 +3449,13 @@ export type Database = {
             foreignKeyName: "interview_notes_interview_id_fkey"
             columns: ["interview_id"]
             isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_notes_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
             referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
@@ -3111,6 +3496,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "interview_participants_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interview_participants_interview_id_fkey"
             columns: ["interview_id"]
@@ -3294,6 +3686,13 @@ export type Database = {
             foreignKeyName: "interviews_rescheduled_from_fkey"
             columns: ["rescheduled_from"]
             isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_rescheduled_from_fkey"
+            columns: ["rescheduled_from"]
+            isOneToOne: false
             referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
@@ -3303,6 +3702,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "interviews_submission_id_fkey"
@@ -3707,6 +4113,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "match_outcomes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "match_outcomes_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -3719,6 +4139,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "match_outcomes_submission_id_fkey"
@@ -3792,6 +4219,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_recommendations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_recommendations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "match_recommendations_job_id_fkey"
@@ -3993,6 +4434,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ml_training_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "ml_training_events_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -4005,6 +4460,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ml_training_events_submission_id_fkey"
@@ -4080,6 +4542,13 @@ export type Database = {
           offer_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "offer_events_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "offer_events_offer_id_fkey"
             columns: ["offer_id"]
@@ -4223,6 +4692,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "offers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "offers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "offers_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -4235,6 +4718,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_rankings"
             referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "offers_submission_id_fkey"
@@ -5721,6 +6211,13 @@ export type Database = {
             foreignKeyName: "placements_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -6120,6 +6617,20 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "recruiter_tasks_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_tasks_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
         ]
       }
       recruiter_verifications: {
@@ -6278,6 +6789,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reference_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "reference_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -6446,6 +6971,13 @@ export type Database = {
             foreignKeyName: "rejections_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rejections_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
@@ -6529,6 +7061,13 @@ export type Database = {
           total_score?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "scorecard_evaluations_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scorecard_evaluations_interview_id_fkey"
             columns: ["interview_id"]
@@ -6851,6 +7390,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
             foreignKeyName: "submissions_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -6991,6 +7544,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_pool_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "talent_pool_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
         ]
       }
@@ -7161,6 +7728,167 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_interviews_view: {
+        Row: {
+          candidate_id: string | null
+          candidate_name: string | null
+          client_id: string | null
+          created_at: string | null
+          id: string | null
+          job_id: string | null
+          job_industry: string | null
+          job_title: string | null
+          scheduled_at: string | null
+          status: string | null
+          submission_id: string | null
+          submission_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_offers_view: {
+        Row: {
+          candidate_id: string | null
+          candidate_name: string | null
+          client_id: string | null
+          created_at: string | null
+          id: string | null
+          job_id: string | null
+          job_title: string | null
+          status: string | null
+          submission_id: string | null
+          submission_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_submissions_view: {
+        Row: {
+          candidate_id: string | null
+          candidate_name: string | null
+          candidate_role: string | null
+          city: string | null
+          client_id: string | null
+          experience_years: number | null
+          id: string | null
+          job_id: string | null
+          job_industry: string | null
+          job_title: string | null
+          match_score: number | null
+          notice_period: string | null
+          skills: string[] | null
+          stage: string | null
+          status: string | null
+          submitted_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
           },
           {
             foreignKeyName: "submissions_job_id_fkey"
