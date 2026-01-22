@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -116,6 +117,7 @@ interface ExtendedTableCandidate extends CandidateActionCardProps {
 }
 
 export default function TalentHub() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [candidates, setCandidates] = useState<ExtendedTableCandidate[]>([]);
@@ -457,7 +459,8 @@ export default function TalentHub() {
   };
 
   const handleSelectCandidate = (candidate: ExtendedTableCandidate) => {
-    setSelectedCandidate(candidate);
+    // Navigate to the central candidate detail page (Triple-Blind compliant)
+    navigate(`/dashboard/candidates/${candidate.submissionId}`);
   };
 
   const handleInterviewRequest = async (submissionId: string, details: {
