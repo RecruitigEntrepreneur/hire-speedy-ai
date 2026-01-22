@@ -1338,6 +1338,9 @@ export type Database = {
           cv_raw_text: string | null
           cv_url: string | null
           email: string
+          embedding: string | null
+          embedding_model: string | null
+          embedding_updated_at: string | null
           expected_salary: number | null
           experience_years: number | null
           expose_certifications: Json | null
@@ -1412,6 +1415,9 @@ export type Database = {
           cv_raw_text?: string | null
           cv_url?: string | null
           email: string
+          embedding?: string | null
+          embedding_model?: string | null
+          embedding_updated_at?: string | null
           expected_salary?: number | null
           experience_years?: number | null
           expose_certifications?: Json | null
@@ -1486,6 +1492,9 @@ export type Database = {
           cv_raw_text?: string | null
           cv_url?: string | null
           email?: string
+          embedding?: string | null
+          embedding_model?: string | null
+          embedding_updated_at?: string | null
           expected_salary?: number | null
           experience_years?: number | null
           expose_certifications?: Json | null
@@ -2274,6 +2283,39 @@ export type Database = {
           subject?: string
           trigger_event?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      embedding_queue: {
+        Row: {
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          priority: number | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          priority?: number | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          priority?: number | null
+          processed_at?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -3427,6 +3469,9 @@ export type Database = {
           created_at: string
           deadline: string | null
           description: string | null
+          embedding: string | null
+          embedding_model: string | null
+          embedding_updated_at: string | null
           employment_type: string | null
           experience_level: string | null
           fee_percentage: number | null
@@ -3473,6 +3518,9 @@ export type Database = {
           created_at?: string
           deadline?: string | null
           description?: string | null
+          embedding?: string | null
+          embedding_model?: string | null
+          embedding_updated_at?: string | null
           employment_type?: string | null
           experience_level?: string | null
           fee_percentage?: number | null
@@ -3519,6 +3567,9 @@ export type Database = {
           created_at?: string
           deadline?: string | null
           description?: string | null
+          embedding?: string | null
+          embedding_model?: string | null
+          embedding_updated_at?: string | null
           employment_type?: string | null
           experience_level?: string | null
           fee_percentage?: number | null
@@ -7122,6 +7173,21 @@ export type Database = {
       }
     }
     Functions: {
+      find_similar_candidates: {
+        Args: {
+          exclude_id?: string
+          limit_count?: number
+          source_embedding: string
+        }
+        Returns: {
+          city: string
+          full_name: string
+          id: string
+          job_title: string
+          similarity: number
+          skills: string[]
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -7132,6 +7198,25 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      search_candidates_hybrid: {
+        Args: {
+          keyword_skills?: string[]
+          limit_count?: number
+          query_embedding: string
+          salary_max?: number
+        }
+        Returns: {
+          candidate_id: string
+          city: string
+          full_name: string
+          hybrid_score: number
+          job_title: string
+          keyword_score: number
+          match_explanation: string
+          semantic_score: number
+          skills: string[]
+        }[]
       }
     }
     Enums: {
