@@ -47,6 +47,7 @@ import { CandidateActivityTimeline } from './CandidateActivityTimeline';
 import { CandidateJobsOverview } from './CandidateJobsOverview';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { CandidateInterviewTab } from './CandidateInterviewTab';
+import { SimilarCandidates } from './SimilarCandidates';
 
 interface CandidateDetailSheetProps {
   candidate: Candidate | null;
@@ -341,6 +342,9 @@ export function CandidateDetailSheet({
 
                 {/* Documents */}
                 <CandidateDocumentsManager candidateId={candidate.id} />
+
+                {/* Similar Candidates */}
+                <SimilarCandidates candidateId={candidate.id} limit={3} />
 
                 {/* Activities */}
                 <div>

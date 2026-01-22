@@ -53,6 +53,7 @@ import { CandidateDocumentsManager } from '@/components/candidates/CandidateDocu
 import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
 import { CandidateStagePipeline } from '@/components/candidates/CandidateStagePipeline';
 import { CandidatePlaybookPanel } from '@/components/candidates/CandidatePlaybookPanel';
+import { SimilarCandidates } from '@/components/candidates/SimilarCandidates';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -553,6 +554,9 @@ export default function RecruiterCandidateDetail() {
 
             {/* Documents */}
             <CandidateDocumentsManager candidateId={candidate.id} />
+
+            {/* Similar Candidates */}
+            <SimilarCandidates candidateId={candidate.id} limit={5} />
 
             {/* Activities */}
             <div>
