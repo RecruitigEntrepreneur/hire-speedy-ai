@@ -391,10 +391,12 @@ export type Database = {
         Row: {
           candidate_id: string
           career_goals: string | null
+          change_motivation_status: string | null
           change_motivation_summary: string | null
           created_at: string | null
           deal_probability: number | null
           executive_summary: string | null
+          fit_assessment: string | null
           generated_at: string | null
           hard_facts: Json | null
           id: string
@@ -402,19 +404,23 @@ export type Database = {
           key_selling_points: Json | null
           model_version: string | null
           positive_factors: Json | null
+          primary_domain: string | null
           recommendation: string | null
           recommendation_score: number | null
           risk_factors: Json | null
+          role_archetype: string | null
           submission_id: string | null
           updated_at: string | null
         }
         Insert: {
           candidate_id: string
           career_goals?: string | null
+          change_motivation_status?: string | null
           change_motivation_summary?: string | null
           created_at?: string | null
           deal_probability?: number | null
           executive_summary?: string | null
+          fit_assessment?: string | null
           generated_at?: string | null
           hard_facts?: Json | null
           id?: string
@@ -422,19 +428,23 @@ export type Database = {
           key_selling_points?: Json | null
           model_version?: string | null
           positive_factors?: Json | null
+          primary_domain?: string | null
           recommendation?: string | null
           recommendation_score?: number | null
           risk_factors?: Json | null
+          role_archetype?: string | null
           submission_id?: string | null
           updated_at?: string | null
         }
         Update: {
           candidate_id?: string
           career_goals?: string | null
+          change_motivation_status?: string | null
           change_motivation_summary?: string | null
           created_at?: string | null
           deal_probability?: number | null
           executive_summary?: string | null
+          fit_assessment?: string | null
           generated_at?: string | null
           hard_facts?: Json | null
           id?: string
@@ -442,9 +452,11 @@ export type Database = {
           key_selling_points?: Json | null
           model_version?: string | null
           positive_factors?: Json | null
+          primary_domain?: string | null
           recommendation?: string | null
           recommendation_score?: number | null
           risk_factors?: Json | null
+          role_archetype?: string | null
           submission_id?: string | null
           updated_at?: string | null
         }
