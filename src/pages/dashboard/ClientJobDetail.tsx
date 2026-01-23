@@ -30,6 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { JobEditDialog } from '@/components/jobs/JobEditDialog';
 import { CandidateQuickView } from '@/components/candidates/CandidateQuickView';
+import { JobExecutiveSummary } from '@/components/jobs/JobExecutiveSummary';
 import { 
   ArrowLeft,
   Briefcase, 
@@ -56,6 +57,26 @@ import {
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
+interface JobSummary {
+  key_facts: { icon: string; label: string; value: string }[];
+  tasks_structured: { category: string; items: string[] }[];
+  requirements_structured: {
+    education: string[];
+    experience: string[];
+    tools: string[];
+    soft_skills: string[];
+    certifications: string[];
+  };
+  benefits_extracted: { icon: string; text: string }[];
+  ai_insights: {
+    role_type: string;
+    ideal_profile: string;
+    unique_selling_point: string;
+    hiring_recommendation: string;
+  };
+  generated_at: string;
+}
+
 interface Job {
   id: string;
   title: string;
@@ -80,6 +101,8 @@ interface Job {
   onsite_days_required: number | null;
   urgency: string | null;
   industry: string | null;
+  job_summary: JobSummary | null;
+  intake_completeness: number | null;
 }
 
 interface Candidate {
@@ -163,6 +186,27 @@ export default function ClientJobDetail() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewNotes, setInterviewNotes] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  const generateSummary = async () => {
+    if (!job) return;
+    setIsGeneratingSummary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-job-summary', {
+        body: { jobId: job.id }
+      });
+      if (error) throw error;
+      if (data?.summary) {
+        setJob(prev => prev ? { ...prev, job_summary: data.summary } : null);
+        toast({ title: 'Summary generiert', description: 'Die Executive Summary wurde erstellt.' });
+      }
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      toast({ title: 'Fehler', description: 'Summary konnte nicht generiert werden.', variant: 'destructive' });
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
 
   useEffect(() => {
     if (id && user) {
@@ -186,7 +230,12 @@ export default function ClientJobDetail() {
         return;
       }
 
-      setJob(jobData);
+      // Transform jobData to match our Job interface
+      setJob({
+        ...jobData,
+        job_summary: jobData.job_summary as unknown as JobSummary | null,
+        intake_completeness: jobData.intake_completeness ?? null
+      } as Job);
 
       // Fetch submissions with candidate and recruiter info
       const { data: submissionsData, error: submissionsError } = await supabase
@@ -491,136 +540,31 @@ export default function ClientJobDetail() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Main Info */}
-              <div className="lg:col-span-2 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Stellenbeschreibung</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground whitespace-pre-wrap">
-                      {job.description || 'Keine Beschreibung vorhanden.'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {job.requirements && (
+            <JobExecutiveSummary
+              summary={job.job_summary}
+              intakeCompleteness={job.intake_completeness || 0}
+              isGenerating={isGeneratingSummary}
+              onRefreshSummary={generateSummary}
+              onEditIntake={() => setShowEditDialog(true)}
+            />
+            
+            {/* Fallback: Raw description if no summary */}
+            {!job.job_summary && !isGeneratingSummary && (
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Anforderungen</CardTitle>
+                      <CardTitle className="text-lg">Stellenbeschreibung</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground whitespace-pre-wrap">
-                        {job.requirements}
+                        {job.description || 'Keine Beschreibung vorhanden.'}
                       </p>
                     </CardContent>
                   </Card>
-                )}
-
-                {(job.skills && job.skills.length > 0) && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Gesuchte Skills</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {job.skills.map((skill, i) => (
-                          <Badge key={i} variant="secondary">{skill}</Badge>
-                        ))}
-                      </div>
-                      {job.must_haves && job.must_haves.length > 0 && (
-                        <div className="mt-4">
-                          <p className="text-sm font-medium mb-2">Must-Haves:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {job.must_haves.map((item, i) => (
-                              <Badge key={i} className="bg-red-500/10 text-red-600 border-red-500/20">
-                                {item}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
+                </div>
               </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Gehalt</span>
-                      <span className="font-medium">
-                        {formatSalary(job.salary_min)} - {formatSalary(job.salary_max)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Remote</span>
-                      <span className="font-medium capitalize">{job.remote_type || '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Anstellung</span>
-                      <span className="font-medium capitalize">{job.employment_type || '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Level</span>
-                      <span className="font-medium capitalize">{job.experience_level || '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fee</span>
-                      <span className="font-medium">{job.fee_percentage || 20}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Erstellt</span>
-                      <span className="font-medium">{formatDate(job.created_at)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tage offen</span>
-                      <span className="font-medium">
-                        {Math.floor((Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Upcoming Interviews */}
-                {interviews.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
-                        Nächste Interviews
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {interviews.slice(0, 3).map((interview) => {
-                        const submission = submissions.find(s => s.id === interview.submission_id);
-                        return (
-                          <div key={interview.id} className="flex items-center gap-3 text-sm">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <UserCheck className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">
-                                {submission?.candidate.full_name || 'Kandidat'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(interview.scheduled_at), "dd.MM. 'um' HH:mm", { locale: de })}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
+            )}
           </TabsContent>
 
           {/* Candidates Tab - Kanban Pipeline */}
