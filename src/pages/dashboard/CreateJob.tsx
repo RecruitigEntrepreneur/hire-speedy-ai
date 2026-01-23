@@ -124,6 +124,9 @@ export default function CreateJob() {
     candidates_in_pipeline: '',
     decision_makers_count: '',
     remote_days: '',
+    // Erweiterte KI-Felder
+    company_culture: '',
+    career_path: '',
   });
 
   const handleInputChange = (field: string, value: string | unknown) => {
@@ -164,6 +167,7 @@ export default function CreateJob() {
 
   const countFilledFields = (data: ParsedJobData): number => {
     let count = 0;
+    // Basis-Felder
     if (data.title) count++;
     if (data.company_name) count++;
     if (data.description) count++;
@@ -177,6 +181,20 @@ export default function CreateJob() {
     if (data.skills?.length) count++;
     if (data.must_haves?.length) count++;
     if (data.nice_to_haves?.length) count++;
+    // Erweiterte Felder
+    if (data.team_size) count++;
+    if (data.team_avg_age) count++;
+    if (data.reports_to) count++;
+    if (data.core_hours) count++;
+    if (data.remote_days) count++;
+    if (data.company_culture) count++;
+    if (data.benefits_extracted?.length) count++;
+    if (data.unique_selling_points?.length) count++;
+    if (data.career_path) count++;
+    if (data.hiring_urgency) count++;
+    if (data.vacancy_reason) count++;
+    if (data.industry) count++;
+    if (data.company_size_estimate) count++;
     return count;
   };
 
@@ -186,6 +204,7 @@ export default function CreateJob() {
     
     setFormData(prev => ({
       ...prev,
+      // Basis-Felder
       title: data.title || '',
       company_name: data.company_name || '',
       description: data.description || '',
@@ -199,7 +218,35 @@ export default function CreateJob() {
       skills: data.skills?.join(', ') || '',
       must_haves: data.must_haves?.join(', ') || '',
       nice_to_haves: data.nice_to_haves?.join(', ') || '',
+      // Team & Struktur
+      team_size: data.team_size?.toString() || '',
+      // Arbeitsweise
+      remote_days: data.remote_days?.toString() || '',
+      // Kultur & Benefits
+      company_culture: data.company_culture || '',
+      career_path: data.career_path || '',
+      // Dringlichkeit
+      hiring_urgency: data.hiring_urgency || 'standard',
+      vacancy_reason: data.vacancy_reason || '',
+      // Industrie & Firma
+      industry: data.industry || '',
+      company_size_band: data.company_size_estimate || '',
     }));
+    
+    // Store benefits and USPs in intake data for later use
+    if (data.benefits_extracted?.length || data.unique_selling_points?.length) {
+      setIntakeData(prev => ({
+        ...prev,
+        benefits: data.benefits_extracted,
+        unique_selling_points: data.unique_selling_points,
+        company_culture: data.company_culture || undefined,
+        team_size: data.team_size || undefined,
+        remote_days: data.remote_days || undefined,
+        career_path: data.career_path || undefined,
+        hiring_urgency: data.hiring_urgency as 'standard' | 'urgent' | 'hot' | undefined,
+        vacancy_reason: data.vacancy_reason || undefined,
+      }));
+    }
     
     setFlowState('review');
     
@@ -208,7 +255,7 @@ export default function CreateJob() {
       reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
-    // Trigger enrichment in background
+    // Trigger enrichment in background (for remaining company data)
     if (data.title && data.company_name) {
       const enriched = await enrichJobData({
         title: data.title,
@@ -222,11 +269,11 @@ export default function CreateJob() {
       if (enriched) {
         setFormData(prev => ({
           ...prev,
-          industry: enriched.industry || prev.industry,
-          company_size_band: enriched.company_size_band || prev.company_size_band,
+          industry: prev.industry || enriched.industry || '',
+          company_size_band: prev.company_size_band || enriched.company_size_band || '',
           funding_stage: enriched.funding_stage || prev.funding_stage,
           tech_environment: enriched.tech_environment?.join(', ') || prev.tech_environment,
-          hiring_urgency: enriched.hiring_urgency || prev.hiring_urgency,
+          hiring_urgency: prev.hiring_urgency !== 'standard' ? prev.hiring_urgency : (enriched.hiring_urgency || prev.hiring_urgency),
           skills: enriched.normalized_skills?.join(', ') || prev.skills,
         }));
       }
@@ -295,6 +342,24 @@ export default function CreateJob() {
       skills: data.technical_skills,
       must_haves: data.requirements,
       nice_to_haves: data.nice_to_have,
+      // Erweiterte Felder - defaults
+      team_size: null,
+      team_avg_age: null,
+      reports_to: null,
+      department_structure: null,
+      core_hours: null,
+      remote_days: null,
+      overtime_policy: null,
+      daily_routine: null,
+      company_culture: data.company_culture || null,
+      benefits_extracted: data.benefits || [],
+      unique_selling_points: [],
+      career_path: null,
+      hiring_urgency: null,
+      vacancy_reason: null,
+      hiring_deadline_weeks: null,
+      industry: data.industry || null,
+      company_size_estimate: null,
     };
     
     const fieldsCount = countFilledFields(parsedData);
@@ -315,7 +380,18 @@ export default function CreateJob() {
       skills: data.technical_skills?.join(', ') || '',
       must_haves: data.requirements?.join(', ') || '',
       nice_to_haves: data.nice_to_have?.join(', ') || '',
+      company_culture: data.company_culture || '',
+      industry: data.industry || '',
     }));
+    
+    // Store benefits in intake data
+    if (data.benefits?.length) {
+      setIntakeData(prev => ({
+        ...prev,
+        benefits: data.benefits,
+        company_culture: data.company_culture || undefined,
+      }));
+    }
     
     setFlowState('review');
     
