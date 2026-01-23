@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,12 +17,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { 
   Link2, 
   FileText, 
-  Zap, 
   ArrowLeft, 
   Loader2,
   MapPin,
@@ -36,15 +48,21 @@ import {
   Brain,
   TrendingUp,
   Users,
-  Coins
+  Coins,
+  Zap,
+  ChevronRight,
+  PenLine
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { useJobParsing, ParsedJobData } from '@/hooks/useJobParsing';
 import { useJobPdfParsing, ParsedJobProfile } from '@/hooks/useJobPdfParsing';
-import { useJobEnrichment, EnrichmentResult } from '@/hooks/useJobEnrichment';
+import { useJobEnrichment } from '@/hooks/useJobEnrichment';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
+
+type FlowState = 'import-selection' | 'importing' | 'review' | 'submitting';
+type ImportMethod = 'pdf' | 'text' | 'url' | null;
 
 export default function CreateJob() {
   const { user } = useAuth();
@@ -52,13 +70,21 @@ export default function CreateJob() {
   const { parseJobUrl, parseJobText, parsing } = useJobParsing();
   const { uploadAndParsePdf, parseJobText: parseJobPdfText, isLoading: pdfParsing } = useJobPdfParsing();
   const { enrichJobData, enriching, enrichmentData } = useJobEnrichment();
-  const { canPublishJobs, isFullyVerified, loading: verificationLoading } = useClientVerification();
-  const [activeTab, setActiveTab] = useState('quick');
+  const { canPublishJobs, loading: verificationLoading } = useClientVerification();
+  
+  const [flowState, setFlowState] = useState<FlowState>('import-selection');
   const [loading, setLoading] = useState(false);
+  
+  // Modal states
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showTextModal, setShowTextModal] = useState(false);
   const [jobUrl, setJobUrl] = useState('');
   const [jobTextInput, setJobTextInput] = useState('');
-  const [importedData, setImportedData] = useState<ParsedJobData | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [parsedFieldsCount, setParsedFieldsCount] = useState(0);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const reviewSectionRef = useRef<HTMLDivElement>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -90,7 +116,28 @@ export default function CreateJob() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const countFilledFields = (data: ParsedJobData): number => {
+    let count = 0;
+    if (data.title) count++;
+    if (data.company_name) count++;
+    if (data.description) count++;
+    if (data.requirements) count++;
+    if (data.location) count++;
+    if (data.remote_type) count++;
+    if (data.employment_type) count++;
+    if (data.experience_level) count++;
+    if (data.salary_min) count++;
+    if (data.salary_max) count++;
+    if (data.skills?.length) count++;
+    if (data.must_haves?.length) count++;
+    if (data.nice_to_haves?.length) count++;
+    return count;
+  };
+
   const applyParsedData = async (data: ParsedJobData) => {
+    const fieldsCount = countFilledFields(data);
+    setParsedFieldsCount(fieldsCount);
+    
     setFormData(prev => ({
       ...prev,
       title: data.title || '',
@@ -107,8 +154,13 @@ export default function CreateJob() {
       must_haves: data.must_haves?.join(', ') || '',
       nice_to_haves: data.nice_to_haves?.join(', ') || '',
     }));
-    setImportedData(data);
-    setActiveTab('quick');
+    
+    setFlowState('review');
+    
+    // Scroll to review section after a brief delay
+    setTimeout(() => {
+      reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 
     // Trigger enrichment in background
     if (data.title && data.company_name) {
@@ -141,10 +193,15 @@ export default function CreateJob() {
       return;
     }
 
+    setShowUrlModal(false);
+    setFlowState('importing');
+    
     const data = await parseJobUrl(jobUrl);
     if (data) {
       await applyParsedData(data);
       toast.success('Job erfolgreich importiert!');
+    } else {
+      setFlowState('import-selection');
     }
   };
 
@@ -154,22 +211,49 @@ export default function CreateJob() {
       return;
     }
 
+    setShowTextModal(false);
+    setFlowState('importing');
+    
     const data = await parseJobPdfText(jobTextInput);
     if (data) {
       applyParsedJobProfile(data);
       toast.success('Job erfolgreich analysiert!');
+    } else {
+      setFlowState('import-selection');
     }
   };
 
   const handleFileUpload = async (file: File) => {
+    setFlowState('importing');
     const data = await uploadAndParsePdf(file);
     if (data) {
       applyParsedJobProfile(data);
       toast.success('PDF erfolgreich analysiert!');
+    } else {
+      setFlowState('import-selection');
     }
   };
 
   const applyParsedJobProfile = (data: ParsedJobProfile) => {
+    const parsedData: ParsedJobData = {
+      title: data.title,
+      company_name: data.company,
+      description: data.description,
+      requirements: data.requirements?.join('\n') || '',
+      location: data.location,
+      remote_type: data.remote_policy,
+      employment_type: data.employment_type,
+      experience_level: data.seniority_level,
+      salary_min: data.salary_min,
+      salary_max: data.salary_max,
+      skills: data.technical_skills,
+      must_haves: data.requirements,
+      nice_to_haves: data.nice_to_have,
+    };
+    
+    const fieldsCount = countFilledFields(parsedData);
+    setParsedFieldsCount(fieldsCount);
+    
     setFormData(prev => ({
       ...prev,
       title: data.title || '',
@@ -186,22 +270,13 @@ export default function CreateJob() {
       must_haves: data.requirements?.join(', ') || '',
       nice_to_haves: data.nice_to_have?.join(', ') || '',
     }));
-    setImportedData({
-      title: data.title,
-      company_name: data.company,
-      description: data.description,
-      requirements: data.requirements?.join('\n') || '',
-      location: data.location,
-      remote_type: data.remote_policy,
-      employment_type: data.employment_type,
-      experience_level: data.seniority_level,
-      salary_min: data.salary_min,
-      salary_max: data.salary_max,
-      skills: data.technical_skills,
-      must_haves: data.requirements,
-      nice_to_haves: data.nice_to_have,
-    });
-    setActiveTab('quick');
+    
+    setFlowState('review');
+    
+    // Scroll to review section
+    setTimeout(() => {
+      reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -229,6 +304,13 @@ export default function CreateJob() {
     }
   }, []);
 
+  const handleManualCreate = () => {
+    setFlowState('review');
+    setTimeout(() => {
+      reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   const handleSubmit = async (publish: boolean = false) => {
     if (!formData.title || !formData.company_name) {
       toast.error('Bitte fülle die Pflichtfelder aus');
@@ -255,6 +337,7 @@ export default function CreateJob() {
       return;
     }
 
+    setFlowState('submitting');
     setLoading(true);
     try {
       const skillsArray = formData.skills
@@ -309,230 +392,392 @@ export default function CreateJob() {
     } catch (error) {
       console.error('Error creating job:', error);
       toast.error('Fehler beim Erstellen des Jobs');
+      setFlowState('review');
     } finally {
       setLoading(false);
     }
   };
 
+  const isImporting = flowState === 'importing' || parsing || pdfParsing;
+
   return (
     <DashboardLayout>
-        <div className="max-w-3xl mx-auto space-y-6">
-          {/* Header */}
-          <div>
-            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Zurück
-            </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Neue Stelle erstellen</h1>
-            <p className="text-muted-foreground">Erstelle eine Stellenanzeige in unter 60 Sekunden</p>
-          </div>
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
+        <div>
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Zurück
+          </Button>
+          <h1 className="text-3xl font-bold tracking-tight">Neue Stelle erstellen</h1>
+          <p className="text-muted-foreground">In unter 60 Sekunden fertig – dank KI-Import</p>
+        </div>
 
-          {/* Verification Warning */}
-          {!verificationLoading && !canPublishJobs && (
-            <Alert variant="destructive">
-              <ShieldAlert className="h-4 w-4" />
-              <AlertTitle>Verifizierung erforderlich</AlertTitle>
-              <AlertDescription className="flex items-center justify-between">
-                <span>
-                  Um Jobs zu veröffentlichen, musst du zuerst die Unternehmensverifizierung abschließen.
-                </span>
-                <Button variant="outline" size="sm" asChild className="ml-4">
-                  <Link to="/onboarding">Jetzt verifizieren</Link>
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+        {/* Verification Warning */}
+        {!verificationLoading && !canPublishJobs && (
+          <Alert variant="destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Verifizierung erforderlich</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>
+                Um Jobs zu veröffentlichen, musst du zuerst die Unternehmensverifizierung abschließen.
+              </span>
+              <Button variant="outline" size="sm" asChild className="ml-4">
+                <Link to="/onboarding">Jetzt verifizieren</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
-          {/* Import Success Banner */}
-          {importedData && (
-            <Card className="border-emerald/30 bg-emerald/5">
-              <CardContent className="py-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-emerald" />
-                  <div className="flex-1">
-                    <p className="font-medium">Job erfolgreich importiert</p>
-                    <p className="text-sm text-muted-foreground">
-                      {importedData.skills?.length || 0} Skills, {importedData.must_haves?.length || 0} Must-Haves erkannt
-                    </p>
+        {/* Import Selection - 3 Prominent Buttons */}
+        {(flowState === 'import-selection' || flowState === 'importing') && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* PDF Upload */}
+              <Card 
+                className={`cursor-pointer transition-all hover:border-primary hover:shadow-md group ${
+                  dragActive ? 'border-primary bg-primary/5 shadow-md' : ''
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <CardContent className="py-8 text-center relative">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                    }}
+                    disabled={isImporting}
+                  />
+                  {isImporting && pdfParsing ? (
+                    <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
+                  ) : (
+                    <FileUp className="h-12 w-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors" />
+                  )}
+                  <h3 className="font-semibold mt-4">PDF hochladen</h3>
+                  <p className="text-sm text-muted-foreground mt-1">SAP, Personio, Workday...</p>
+                </CardContent>
+              </Card>
+
+              {/* Text Paste */}
+              <Card 
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md group"
+                onClick={() => !isImporting && setShowTextModal(true)}
+              >
+                <CardContent className="py-8 text-center">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors" />
+                  <h3 className="font-semibold mt-4">Text einfügen</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Copy & Paste</p>
+                </CardContent>
+              </Card>
+
+              {/* URL Import */}
+              <Card 
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md group"
+                onClick={() => !isImporting && setShowUrlModal(true)}
+              >
+                <CardContent className="py-8 text-center">
+                  {isImporting && parsing ? (
+                    <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
+                  ) : (
+                    <Link2 className="h-12 w-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors" />
+                  )}
+                  <h3 className="font-semibold mt-4">URL importieren</h3>
+                  <p className="text-sm text-muted-foreground mt-1">LinkedIn, Stepstone...</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Importing State */}
+            {isImporting && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="py-6">
+                  <div className="flex items-center justify-center gap-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <div>
+                      <p className="font-medium">KI analysiert die Stellenanzeige...</p>
+                      <p className="text-sm text-muted-foreground">Titel, Skills, Gehalt und mehr werden extrahiert</p>
+                    </div>
                   </div>
-                  {enriching && (
-                    <Badge variant="secondary" className="animate-pulse">
-                      <Brain className="h-3 w-3 mr-1" />
-                      Firmen-Daten werden recherchiert...
-                    </Badge>
-                  )}
-                  {enrichmentData && !enriching && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      KI-angereichert
-                    </Badge>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => setImportedData(null)}>
-                    Schließen
-                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Manual Create Option */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">oder</span>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <Button 
+                variant="ghost" 
+                onClick={handleManualCreate}
+                disabled={isImporting}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <PenLine className="mr-2 h-4 w-4" />
+                Manuell erstellen
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Review Section - Compact Form */}
+        {(flowState === 'review' || flowState === 'submitting') && (
+          <div ref={reviewSectionRef} className="space-y-6">
+            {/* Success Banner */}
+            {parsedFieldsCount > 0 && (
+              <Card className="border-emerald/30 bg-emerald/5">
+                <CardContent className="py-4">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald" />
+                    <div className="flex-1">
+                      <p className="font-medium">Import erfolgreich</p>
+                      <p className="text-sm text-muted-foreground">
+                        {parsedFieldsCount} Felder automatisch ausgefüllt
+                      </p>
+                    </div>
+                    {enriching && (
+                      <Badge variant="secondary" className="animate-pulse">
+                        <Brain className="h-3 w-3 mr-1" />
+                        KI recherchiert Firmen-Daten...
+                      </Badge>
+                    )}
+                    {enrichmentData && !enriching && (
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        KI-angereichert
+                      </Badge>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setFlowState('import-selection');
+                        setParsedFieldsCount(0);
+                      }}
+                    >
+                      Neu importieren
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Compact Summary - Main Fields */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Zusammenfassung
+                </CardTitle>
+                <CardDescription>Prüfe und bearbeite die erkannten Daten</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Jobtitel *</Label>
+                    <Input
+                      id="title"
+                      placeholder="z.B. Senior Software Engineer"
+                      value={formData.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company_name">Firmenname *</Label>
+                    <Input
+                      id="company_name"
+                      placeholder="z.B. Acme GmbH"
+                      value={formData.company_name}
+                      onChange={(e) => handleInputChange('company_name', e.target.value)}
+                    />
+                  </div>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="salary_min">Gehalt (€)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="salary_min"
+                        type="number"
+                        placeholder="Min"
+                        value={formData.salary_min}
+                        onChange={(e) => handleInputChange('salary_min', e.target.value)}
+                      />
+                      <span className="text-muted-foreground">–</span>
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={formData.salary_max}
+                        onChange={(e) => handleInputChange('salary_max', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Standort</Label>
+                    <Input
+                      id="location"
+                      placeholder="z.B. Berlin"
+                      value={formData.location}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Remote-Modell</Label>
+                    <Select
+                      value={formData.remote_type}
+                      onValueChange={(value) => handleInputChange('remote_type', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="onsite">Vor Ort</SelectItem>
+                        <SelectItem value="hybrid">Hybrid</SelectItem>
+                        <SelectItem value="remote">Remote</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Erfahrungslevel</Label>
+                    <Select
+                      value={formData.experience_level}
+                      onValueChange={(value) => handleInputChange('experience_level', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="junior">Junior (0-2 Jahre)</SelectItem>
+                        <SelectItem value="mid">Mid-Level (2-5 Jahre)</SelectItem>
+                        <SelectItem value="senior">Senior (5-8 Jahre)</SelectItem>
+                        <SelectItem value="lead">Lead/Principal (8+ Jahre)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Skills Preview */}
+                {formData.skills && (
+                  <div className="space-y-2">
+                    <Label>Skills</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.skills.split(',').slice(0, 6).map((skill, i) => (
+                        <Badge key={i} variant="secondary">{skill.trim()}</Badge>
+                      ))}
+                      {formData.skills.split(',').length > 6 && (
+                        <Badge variant="outline">+{formData.skills.split(',').length - 6} mehr</Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
 
-          {/* Tabs for different upload methods */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="quick" className="flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                Formular
-              </TabsTrigger>
-              <TabsTrigger value="url" className="flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
-                URL Import
-              </TabsTrigger>
-              <TabsTrigger value="upload" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Text/PDF
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Quick Form */}
-            <TabsContent value="quick" className="space-y-6 mt-6">
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    Grundinformationen
-                  </CardTitle>
-                  <CardDescription>Wesentliche Details zur Position</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Jobtitel *</Label>
-                      <Input
-                        id="title"
-                        placeholder="z.B. Senior Software Engineer"
-                        value={formData.title}
-                        onChange={(e) => handleInputChange('title', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="company_name">Firmenname *</Label>
-                      <Input
-                        id="company_name"
-                        placeholder="z.B. Acme GmbH"
-                        value={formData.company_name}
-                        onChange={(e) => handleInputChange('company_name', e.target.value)}
-                      />
-                    </div>
+            {/* Accordion for Additional Details */}
+            <Accordion type="single" collapsible className="space-y-4">
+              {/* Description & Requirements */}
+              <AccordionItem value="description" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Beschreibung & Anforderungen
+                    {(formData.description || formData.requirements) && (
+                      <Badge variant="secondary" className="ml-2 text-xs">ausgefüllt</Badge>
+                    )}
                   </div>
-
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="description">Stellenbeschreibung</Label>
                     <Textarea
                       id="description"
-                      placeholder="Beschreibe die Rolle, Verantwortlichkeiten und was sie besonders macht..."
+                      placeholder="Beschreibe die Rolle, Verantwortlichkeiten..."
                       rows={5}
                       value={formData.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
                     />
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="requirements">Anforderungen</Label>
                     <Textarea
                       id="requirements"
-                      placeholder="Liste die Qualifikationen, Erfahrung und erforderlichen Skills auf..."
+                      placeholder="Liste die Qualifikationen auf..."
                       rows={4}
                       value={formData.requirements}
                       onChange={(e) => handleInputChange('requirements', e.target.value)}
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </AccordionContent>
+              </AccordionItem>
 
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Standort & Arbeitsmodell
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Standort</Label>
-                      <Input
-                        id="location"
-                        placeholder="z.B. Berlin, Deutschland"
-                        value={formData.location}
-                        onChange={(e) => handleInputChange('location', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Remote-Modell</Label>
-                      <Select
-                        value={formData.remote_type}
-                        onValueChange={(value) => handleInputChange('remote_type', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="onsite">Vor Ort</SelectItem>
-                          <SelectItem value="hybrid">Hybrid</SelectItem>
-                          <SelectItem value="remote">Remote</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+              {/* Skills Details */}
+              <AccordionItem value="skills" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Skills & Anforderungen bearbeiten
                   </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Anstellungsart</Label>
-                      <Select
-                        value={formData.employment_type}
-                        onValueChange={(value) => handleInputChange('employment_type', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="full-time">Vollzeit</SelectItem>
-                          <SelectItem value="part-time">Teilzeit</SelectItem>
-                          <SelectItem value="contract">Befristet</SelectItem>
-                          <SelectItem value="freelance">Freelance</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Erfahrungslevel</Label>
-                      <Select
-                        value={formData.experience_level}
-                        onValueChange={(value) => handleInputChange('experience_level', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="junior">Junior (0-2 Jahre)</SelectItem>
-                          <SelectItem value="mid">Mid-Level (2-5 Jahre)</SelectItem>
-                          <SelectItem value="senior">Senior (5-8 Jahre)</SelectItem>
-                          <SelectItem value="lead">Lead/Principal (8+ Jahre)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="skills">Erforderliche Skills</Label>
+                    <Input
+                      id="skills"
+                      placeholder="z.B. React, TypeScript, Node.js (kommagetrennt)"
+                      value={formData.skills}
+                      onChange={(e) => handleInputChange('skills', e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Skills mit Komma trennen</p>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="must_haves">Must-Haves</Label>
+                    <Input
+                      id="must_haves"
+                      placeholder="z.B. 5+ Jahre Erfahrung, Bachelor"
+                      value={formData.must_haves}
+                      onChange={(e) => handleInputChange('must_haves', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nice_to_haves">Nice-to-Haves</Label>
+                    <Input
+                      id="nice_to_haves"
+                      placeholder="z.B. AWS Zertifizierung"
+                      value={formData.nice_to_haves}
+                      onChange={(e) => handleInputChange('nice_to_haves', e.target.value)}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-              {/* Remote-Policy Section */}
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Home className="h-5 w-5" />
+              {/* Remote Policy */}
+              <AccordionItem value="remote" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Home className="h-4 w-4" />
                     Remote-Policy & Büro
-                  </CardTitle>
-                  <CardDescription>Legen Sie fest, wie viele Tage vor Ort gearbeitet werden müssen</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Remote-Policy</Label>
@@ -580,96 +825,42 @@ export default function CreateJob() {
                         step={1}
                         className="w-full"
                       />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>0 (sehr flexibel)</span>
-                        <span>3 (Standard)</span>
-                        <span>5 (täglich)</span>
-                      </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
 
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5" />
-                    Gehalt & Skills
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="salary_min">Minimum Gehalt (€)</Label>
-                      <Input
-                        id="salary_min"
-                        type="number"
-                        placeholder="z.B. 50000"
-                        value={formData.salary_min}
-                        onChange={(e) => handleInputChange('salary_min', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="salary_max">Maximum Gehalt (€)</Label>
-                      <Input
-                        id="salary_max"
-                        type="number"
-                        placeholder="z.B. 80000"
-                        value={formData.salary_max}
-                        onChange={(e) => handleInputChange('salary_max', e.target.value)}
-                      />
+                      <Label>Anstellungsart</Label>
+                      <Select
+                        value={formData.employment_type}
+                        onValueChange={(value) => handleInputChange('employment_type', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="full-time">Vollzeit</SelectItem>
+                          <SelectItem value="part-time">Teilzeit</SelectItem>
+                          <SelectItem value="contract">Befristet</SelectItem>
+                          <SelectItem value="freelance">Freelance</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
+                </AccordionContent>
+              </AccordionItem>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="skills">Erforderliche Skills</Label>
-                    <Input
-                      id="skills"
-                      placeholder="z.B. React, TypeScript, Node.js (kommagetrennt)"
-                      value={formData.skills}
-                      onChange={(e) => handleInputChange('skills', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Skills mit Komma trennen</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="must_haves">Must-Haves</Label>
-                    <Input
-                      id="must_haves"
-                      placeholder="z.B. 5+ Jahre Erfahrung, Bachelor, Deutsch fließend"
-                      value={formData.must_haves}
-                      onChange={(e) => handleInputChange('must_haves', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Zwingende Anforderungen (kommagetrennt)</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="nice_to_haves">Nice-to-Haves</Label>
-                    <Input
-                      id="nice_to_haves"
-                      placeholder="z.B. AWS Zertifizierung, Startup-Erfahrung"
-                      value={formData.nice_to_haves}
-                      onChange={(e) => handleInputChange('nice_to_haves', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Optionale Pluspunkte (kommagetrennt)</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* KI-Enrichment Felder (automatisch befüllt) */}
+              {/* KI-Enrichment Fields */}
               {(enrichmentData || formData.industry || formData.company_size_band || formData.funding_stage) && (
-                <Card className="border-primary/30 bg-primary/5">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Brain className="h-5 w-5 text-primary" />
+                <AccordionItem value="enrichment" className="border border-primary/30 rounded-lg px-4 bg-primary/5">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-primary" />
                       KI-analysierte Firmeninfos
-                      <Badge variant="outline" className="ml-2 text-xs">Optional editierbar</Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Diese Daten helfen Recruitern, passende Kandidaten zu finden
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                      <Badge variant="outline" className="ml-2 text-xs">Optional</Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2">
@@ -776,189 +967,114 @@ export default function CreateJob() {
                         </div>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </AccordionContent>
+                </AccordionItem>
               )}
+            </Accordion>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => handleSubmit(false)}
-                  disabled={loading}
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Als Entwurf speichern
-                </Button>
-                <Button
-                  variant="hero"
-                  onClick={() => handleSubmit(true)}
-                  disabled={loading}
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Zur Prüfung einreichen
-                </Button>
-              </div>
-            </TabsContent>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => handleSubmit(false)}
+                disabled={loading}
+              >
+                {loading && flowState === 'submitting' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Als Entwurf speichern
+              </Button>
+              <Button
+                variant="hero"
+                onClick={() => handleSubmit(true)}
+                disabled={loading}
+              >
+                {loading && flowState === 'submitting' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                Zur Prüfung einreichen
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
-            {/* URL Import */}
-            <TabsContent value="url" className="mt-6">
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    KI-Import von Job-URL
-                  </CardTitle>
-                  <CardDescription>Füge einen Link zu einer bestehenden Stellenanzeige ein</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="jobUrl">URL zur Stellenanzeige</Label>
-                    <Input
-                      id="jobUrl"
-                      type="url"
-                      placeholder="https://careers.example.com/jobs/123"
-                      value={jobUrl}
-                      onChange={(e) => setJobUrl(e.target.value)}
-                    />
-                  </div>
-                  <Button 
-                    variant="hero" 
-                    onClick={handleImportFromUrl}
-                    disabled={parsing || !jobUrl.trim()}
-                    className="w-full"
-                  >
-                    {parsing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analysiere Seite...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="mr-2 h-4 w-4" />
-                        Job-Details extrahieren
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Unsere KI analysiert die Seite und extrahiert automatisch: Titel, Beschreibung, Anforderungen, Skills, Gehalt und mehr.
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
+      {/* URL Import Modal */}
+      <Dialog open={showUrlModal} onOpenChange={setShowUrlModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-primary" />
+              Job-URL importieren
+            </DialogTitle>
+            <DialogDescription>
+              Füge einen Link zu einer bestehenden Stellenanzeige ein
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="jobUrl">URL zur Stellenanzeige</Label>
+              <Input
+                id="jobUrl"
+                type="url"
+                placeholder="https://careers.example.com/jobs/123"
+                value={jobUrl}
+                onChange={(e) => setJobUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleImportFromUrl()}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Unterstützt: LinkedIn, Stepstone, Indeed, Karriereseiten und mehr
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUrlModal(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="hero" onClick={handleImportFromUrl} disabled={!jobUrl.trim()}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Analysieren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            {/* PDF Upload / Text Paste */}
-            <TabsContent value="upload" className="mt-6 space-y-6">
-              {/* PDF Upload Card */}
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileUp className="h-5 w-5 text-primary" />
-                    PDF hochladen
-                  </CardTitle>
-                  <CardDescription>
-                    Lade eine Stellenanzeige als PDF hoch (z.B. Export aus SAP, Personio, Workday)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div
-                    className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                      dragActive 
-                        ? 'border-primary bg-primary/5' 
-                        : 'border-border hover:border-primary/50 hover:bg-muted/30'
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileUpload(file);
-                      }}
-                      disabled={pdfParsing}
-                    />
-                    <div className="flex flex-col items-center gap-3">
-                      {pdfParsing ? (
-                        <>
-                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                          <div>
-                            <p className="font-medium">Analysiere PDF...</p>
-                            <p className="text-sm text-muted-foreground">Die KI extrahiert alle Stelleninformationen</p>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-10 w-10 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">PDF hier ablegen oder klicken</p>
-                            <p className="text-sm text-muted-foreground">PDF • Max 20MB</p>
-                          </div>
-                          <Badge variant="secondary" className="mt-2">
-                            HR-System Export? Wird unterstützt!
-                          </Badge>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Text Import Modal */}
+      <Dialog open={showTextModal} onOpenChange={setShowTextModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Stellentext einfügen
+            </DialogTitle>
+            <DialogDescription>
+              Kopiere den vollständigen Stellentext hier ein
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Füge hier den vollständigen Stellentext ein...
 
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">oder Text einfügen</span>
-                </div>
-              </div>
+Beispiel:
+Senior Software Engineer (m/w/d)
+Unternehmen: TechCorp GmbH
+Standort: Berlin, Deutschland
+Gehalt: €60.000 - €80.000
 
-              {/* Text Input Card */}
-              <Card className="border-border/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Stellentext eingeben
-                  </CardTitle>
-                  <CardDescription>
-                    Kopiere den Stellentext direkt hier ein
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Textarea
-                    placeholder="Füge hier den vollständigen Stellentext ein..."
-                    rows={8}
-                    value={jobTextInput}
-                    onChange={(e) => setJobTextInput(e.target.value)}
-                  />
-                  <Button 
-                    variant="hero" 
-                    onClick={handleImportFromText}
-                    disabled={pdfParsing || !jobTextInput.trim()}
-                    className="w-full"
-                  >
-                    {pdfParsing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analysiere Text...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Mit KI analysieren
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </DashboardLayout>
+Über uns:
+..."
+              rows={12}
+              value={jobTextInput}
+              onChange={(e) => setJobTextInput(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTextModal(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="hero" onClick={handleImportFromText} disabled={!jobTextInput.trim()}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Mit KI analysieren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
   );
 }
