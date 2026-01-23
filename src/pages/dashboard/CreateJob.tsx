@@ -60,6 +60,10 @@ import { useJobEnrichment } from '@/hooks/useJobEnrichment';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
+import { IntakeBriefingSection } from '@/components/jobs/IntakeBriefingSection';
+import { QuickQuestionsSection } from '@/components/jobs/QuickQuestionsSection';
+import { IntakeProgress } from '@/components/jobs/IntakeProgress';
+import { ExtractedIntakeData } from '@/hooks/useIntakeBriefing';
 
 type FlowState = 'import-selection' | 'importing' | 'review' | 'submitting';
 type ImportMethod = 'pdf' | 'text' | 'url' | null;
@@ -86,6 +90,10 @@ export default function CreateJob() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reviewSectionRef = useRef<HTMLDivElement>(null);
   
+  // Intake state
+  const [intakeCompleteness, setIntakeCompleteness] = useState(0);
+  const [intakeData, setIntakeData] = useState<Partial<ExtractedIntakeData>>({});
+
   const [formData, setFormData] = useState({
     title: '',
     company_name: '',
@@ -110,10 +118,48 @@ export default function CreateJob() {
     funding_stage: '',
     tech_environment: '',
     hiring_urgency: 'standard',
+    // Intake Felder
+    team_size: '',
+    vacancy_reason: '',
+    candidates_in_pipeline: '',
+    decision_makers_count: '',
+    remote_days: '',
   });
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleIntakeDataExtracted = (data: ExtractedIntakeData, completeness: number) => {
+    setIntakeCompleteness(completeness);
+    setIntakeData(data);
+    
+    // Apply extracted data to form
+    setFormData(prev => ({
+      ...prev,
+      team_size: data.team_size?.toString() || prev.team_size,
+      vacancy_reason: data.vacancy_reason || prev.vacancy_reason,
+      hiring_urgency: data.hiring_urgency || prev.hiring_urgency,
+      company_culture: data.company_culture || '',
+      career_path: data.career_path || '',
+      must_haves: data.must_have_criteria?.join(', ') || prev.must_haves,
+      nice_to_haves: data.nice_to_have_criteria?.join(', ') || prev.nice_to_haves,
+      salary_min: data.salary_min?.toString() || prev.salary_min,
+      salary_max: data.salary_max?.toString() || prev.salary_max,
+      remote_days: data.remote_days?.toString() || prev.remote_days,
+    }));
+  };
+
+  // Calculate missing required fields for Quick Questions
+  const getMissingFields = (): string[] => {
+    const missing: string[] = [];
+    if (!formData.vacancy_reason && !intakeData.vacancy_reason) missing.push('vacancy_reason');
+    if (!formData.hiring_urgency || formData.hiring_urgency === 'standard') missing.push('hiring_urgency');
+    if (!formData.decision_makers_count) missing.push('decision_makers_count');
+    if (!formData.candidates_in_pipeline) missing.push('candidates_in_pipeline');
+    if (!formData.team_size && !intakeData.team_size) missing.push('team_size');
+    if (!formData.remote_days && !intakeData.remote_days) missing.push('remote_days');
+    return missing;
   };
 
   const countFilledFields = (data: ParsedJobData): number => {
@@ -381,6 +427,21 @@ export default function CreateJob() {
           funding_stage: formData.funding_stage || null,
           tech_environment: techEnvironmentArray.length > 0 ? techEnvironmentArray : null,
           hiring_urgency: formData.hiring_urgency !== 'standard' ? formData.hiring_urgency : null,
+          // Intake fields
+          team_size: formData.team_size ? parseInt(formData.team_size) : null,
+          vacancy_reason: formData.vacancy_reason || null,
+          candidates_in_pipeline: formData.candidates_in_pipeline ? parseInt(formData.candidates_in_pipeline) : null,
+          intake_completeness: intakeCompleteness || null,
+          intake_briefing: intakeData.company_culture || null,
+          company_culture: intakeData.company_culture || null,
+          career_path: intakeData.career_path || null,
+          success_profile: intakeData.success_profile || null,
+          daily_routine: intakeData.daily_routine || null,
+          trainable_skills: intakeData.trainable_skills || null,
+          must_have_criteria: intakeData.must_have_criteria || null,
+          nice_to_have_criteria: intakeData.nice_to_have_criteria || null,
+          reports_to: intakeData.reports_to || null,
+          works_council: intakeData.works_council || null,
         })
         .select()
         .single();
@@ -575,6 +636,24 @@ export default function CreateJob() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {/* Smart Intake Briefing Section */}
+            <IntakeBriefingSection
+              onDataExtracted={handleIntakeDataExtracted}
+              existingData={intakeData}
+            />
+
+            {/* Quick Questions for missing fields */}
+            <QuickQuestionsSection
+              missingFields={getMissingFields()}
+              currentValues={formData}
+              onValueChange={(field, value) => handleInputChange(field, String(value))}
+            />
+
+            {/* Intake Progress Indicator */}
+            {intakeCompleteness > 0 && (
+              <IntakeProgress completeness={intakeCompleteness} />
             )}
 
             {/* Compact Summary - Main Fields */}

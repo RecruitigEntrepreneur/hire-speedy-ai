@@ -3879,28 +3879,50 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          bonus_structure: string | null
           briefing_notes: string | null
+          candidates_dropped_reason: string | null
+          candidates_in_pipeline: number | null
+          career_example: string | null
+          career_path: string | null
           client_id: string
           commute_flexibility: string | null
+          company_culture: string | null
           company_name: string
           company_size_band: string | null
+          contract_creation_days: number | null
+          contract_sensitive_topics: string | null
+          contract_type: string | null
+          core_hours: string | null
           created_at: string
+          daily_routine: string | null
           deadline: string | null
+          decision_makers: string[] | null
+          department_structure: string | null
           description: string | null
           embedding: string | null
           embedding_model: string | null
           embedding_updated_at: string | null
           employment_type: string | null
           experience_level: string | null
+          failure_profile: string | null
           fee_percentage: number | null
           formatted_content: Json | null
           funding_stage: string | null
           hard_kill_overrides: Json | null
+          hiring_deadline: string | null
           hiring_urgency: string | null
           id: string
           industry: string | null
+          industry_challenges: string | null
+          industry_opportunities: string | null
+          intake_briefing: string | null
+          intake_completeness: number | null
           location: string | null
+          must_have_criteria: string[] | null
           must_haves: string[] | null
+          negative_impact_if_unfilled: string | null
+          nice_to_have_criteria: string[] | null
           nice_to_haves: string[] | null
           office_address: string | null
           office_lat: number | null
@@ -3908,10 +3930,13 @@ export type Database = {
           onsite_days_required: number | null
           onsite_required: boolean | null
           organization_id: string | null
+          overtime_policy: string | null
           paused_at: string | null
+          position_advantages: string[] | null
           recruiter_fee_percentage: number | null
           remote_policy: string | null
           remote_type: string | null
+          reports_to: string | null
           required_certifications: string[] | null
           required_languages: Json | null
           requirements: string | null
@@ -3920,36 +3945,69 @@ export type Database = {
           screening_questions: Json | null
           skills: string[] | null
           status: string | null
+          success_profile: string | null
+          task_breakdown: Json | null
+          task_focus: string | null
+          team_avg_age: string | null
+          team_size: number | null
           tech_environment: string[] | null
+          time_tracking_method: string | null
           title: string
+          trainable_skills: string[] | null
+          unique_selling_points: string[] | null
           updated_at: string
           urgency: string | null
+          vacancy_reason: string | null
+          works_council: boolean | null
+          works_council_meeting_schedule: string | null
         }
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          bonus_structure?: string | null
           briefing_notes?: string | null
+          candidates_dropped_reason?: string | null
+          candidates_in_pipeline?: number | null
+          career_example?: string | null
+          career_path?: string | null
           client_id: string
           commute_flexibility?: string | null
+          company_culture?: string | null
           company_name: string
           company_size_band?: string | null
+          contract_creation_days?: number | null
+          contract_sensitive_topics?: string | null
+          contract_type?: string | null
+          core_hours?: string | null
           created_at?: string
+          daily_routine?: string | null
           deadline?: string | null
+          decision_makers?: string[] | null
+          department_structure?: string | null
           description?: string | null
           embedding?: string | null
           embedding_model?: string | null
           embedding_updated_at?: string | null
           employment_type?: string | null
           experience_level?: string | null
+          failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
           funding_stage?: string | null
           hard_kill_overrides?: Json | null
+          hiring_deadline?: string | null
           hiring_urgency?: string | null
           id?: string
           industry?: string | null
+          industry_challenges?: string | null
+          industry_opportunities?: string | null
+          intake_briefing?: string | null
+          intake_completeness?: number | null
           location?: string | null
+          must_have_criteria?: string[] | null
           must_haves?: string[] | null
+          negative_impact_if_unfilled?: string | null
+          nice_to_have_criteria?: string[] | null
           nice_to_haves?: string[] | null
           office_address?: string | null
           office_lat?: number | null
@@ -3957,10 +4015,13 @@ export type Database = {
           onsite_days_required?: number | null
           onsite_required?: boolean | null
           organization_id?: string | null
+          overtime_policy?: string | null
           paused_at?: string | null
+          position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
           remote_policy?: string | null
           remote_type?: string | null
+          reports_to?: string | null
           required_certifications?: string[] | null
           required_languages?: Json | null
           requirements?: string | null
@@ -3969,36 +4030,69 @@ export type Database = {
           screening_questions?: Json | null
           skills?: string[] | null
           status?: string | null
+          success_profile?: string | null
+          task_breakdown?: Json | null
+          task_focus?: string | null
+          team_avg_age?: string | null
+          team_size?: number | null
           tech_environment?: string[] | null
+          time_tracking_method?: string | null
           title: string
+          trainable_skills?: string[] | null
+          unique_selling_points?: string[] | null
           updated_at?: string
           urgency?: string | null
+          vacancy_reason?: string | null
+          works_council?: boolean | null
+          works_council_meeting_schedule?: string | null
         }
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          bonus_structure?: string | null
           briefing_notes?: string | null
+          candidates_dropped_reason?: string | null
+          candidates_in_pipeline?: number | null
+          career_example?: string | null
+          career_path?: string | null
           client_id?: string
           commute_flexibility?: string | null
+          company_culture?: string | null
           company_name?: string
           company_size_band?: string | null
+          contract_creation_days?: number | null
+          contract_sensitive_topics?: string | null
+          contract_type?: string | null
+          core_hours?: string | null
           created_at?: string
+          daily_routine?: string | null
           deadline?: string | null
+          decision_makers?: string[] | null
+          department_structure?: string | null
           description?: string | null
           embedding?: string | null
           embedding_model?: string | null
           embedding_updated_at?: string | null
           employment_type?: string | null
           experience_level?: string | null
+          failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
           funding_stage?: string | null
           hard_kill_overrides?: Json | null
+          hiring_deadline?: string | null
           hiring_urgency?: string | null
           id?: string
           industry?: string | null
+          industry_challenges?: string | null
+          industry_opportunities?: string | null
+          intake_briefing?: string | null
+          intake_completeness?: number | null
           location?: string | null
+          must_have_criteria?: string[] | null
           must_haves?: string[] | null
+          negative_impact_if_unfilled?: string | null
+          nice_to_have_criteria?: string[] | null
           nice_to_haves?: string[] | null
           office_address?: string | null
           office_lat?: number | null
@@ -4006,10 +4100,13 @@ export type Database = {
           onsite_days_required?: number | null
           onsite_required?: boolean | null
           organization_id?: string | null
+          overtime_policy?: string | null
           paused_at?: string | null
+          position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
           remote_policy?: string | null
           remote_type?: string | null
+          reports_to?: string | null
           required_certifications?: string[] | null
           required_languages?: Json | null
           requirements?: string | null
@@ -4018,10 +4115,21 @@ export type Database = {
           screening_questions?: Json | null
           skills?: string[] | null
           status?: string | null
+          success_profile?: string | null
+          task_breakdown?: Json | null
+          task_focus?: string | null
+          team_avg_age?: string | null
+          team_size?: number | null
           tech_environment?: string[] | null
+          time_tracking_method?: string | null
           title?: string
+          trainable_skills?: string[] | null
+          unique_selling_points?: string[] | null
           updated_at?: string
           urgency?: string | null
+          vacancy_reason?: string | null
+          works_council?: boolean | null
+          works_council_meeting_schedule?: string | null
         }
         Relationships: [
           {
