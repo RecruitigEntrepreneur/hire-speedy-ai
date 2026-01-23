@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export interface ParsedJobData {
+  // Basis-Felder
   title: string;
   company_name: string;
   description: string | null;
@@ -16,6 +17,33 @@ export interface ParsedJobData {
   skills: string[];
   must_haves: string[];
   nice_to_haves: string[];
+  
+  // Team & Struktur
+  team_size: number | null;
+  team_avg_age: string | null;
+  reports_to: string | null;
+  department_structure: string | null;
+  
+  // Arbeitsweise
+  core_hours: string | null;
+  remote_days: number | null;
+  overtime_policy: string | null;
+  daily_routine: string | null;
+  
+  // Kultur & Benefits
+  company_culture: string | null;
+  benefits_extracted: string[];
+  unique_selling_points: string[];
+  career_path: string | null;
+  
+  // Dringlichkeit
+  hiring_urgency: 'standard' | 'urgent' | 'hot' | null;
+  vacancy_reason: string | null;
+  hiring_deadline_weeks: number | null;
+  
+  // Industrie & Firma (falls erkennbar)
+  industry: string | null;
+  company_size_estimate: string | null;
 }
 
 export function useJobParsing() {

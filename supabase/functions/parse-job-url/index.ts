@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 interface ParsedJobData {
+  // Basis-Felder
   title: string;
   company_name: string;
   description: string | null;
@@ -19,6 +20,33 @@ interface ParsedJobData {
   skills: string[];
   must_haves: string[];
   nice_to_haves: string[];
+  
+  // Team & Struktur
+  team_size: number | null;
+  team_avg_age: string | null;
+  reports_to: string | null;
+  department_structure: string | null;
+  
+  // Arbeitsweise
+  core_hours: string | null;
+  remote_days: number | null;
+  overtime_policy: string | null;
+  daily_routine: string | null;
+  
+  // Kultur & Benefits
+  company_culture: string | null;
+  benefits_extracted: string[];
+  unique_selling_points: string[];
+  career_path: string | null;
+  
+  // Dringlichkeit
+  hiring_urgency: 'standard' | 'urgent' | 'hot' | null;
+  vacancy_reason: string | null;
+  hiring_deadline_weeks: number | null;
+  
+  // Industrie & Firma
+  industry: string | null;
+  company_size_estimate: string | null;
 }
 
 serve(async (req) => {
@@ -76,9 +104,9 @@ serve(async (req) => {
 
     console.log("Parsing job posting with Lovable AI...");
 
-    const systemPrompt = `Du bist ein erfahrener HR-Experte und Stellenanzeigen-Analyst. Analysiere die folgende Stellenanzeige und extrahiere strukturierte Daten.
+    const systemPrompt = `Du bist ein erfahrener HR-Experte und Stellenanzeigen-Analyst. Analysiere die Stellenanzeige und extrahiere ALLE verfügbaren Informationen.
 
-Extrahiere folgende Informationen:
+PFLICHT-FELDER:
 - title: Jobtitel (PFLICHT)
 - company_name: Firmenname (PFLICHT, falls nicht erkennbar: "Unbekannt")
 - description: Vollständige Stellenbeschreibung
@@ -93,9 +121,42 @@ Extrahiere folgende Informationen:
 - must_haves: Array von Muss-Kriterien
 - nice_to_haves: Array von Kann-Kriterien
 
-Sei präzise und extrahiere nur Informationen, die tatsächlich vorhanden sind.
-Bei Gehaltsangaben pro Monat multipliziere mit 12.
-Setze fehlende Informationen auf null oder leere Arrays.`;
+TEAM & STRUKTUR (falls erwähnt):
+- team_size: Zahl (z.B. "12-köpfiges Team" → 12)
+- team_avg_age: String (z.B. "junges dynamisches Team" → "25-35")
+- reports_to: String (z.B. "berichtet an CFO", "Teamleitung")
+- department_structure: String (z.B. "Teil des Finance-Teams")
+
+ARBEITSWEISE (falls erwähnt):
+- core_hours: String (z.B. "Kernarbeitszeit 10-16 Uhr", "flexibel Mo-Fr")
+- remote_days: Zahl (z.B. "2 Tage Home Office" → 2, "mobiles Arbeiten möglich" → 1)
+- overtime_policy: String (z.B. "keine Überstunden", "Gleitzeitkonto")
+- daily_routine: String (z.B. "typischer Arbeitstag...")
+
+KULTUR & BENEFITS:
+- company_culture: String (Tonfall der Anzeige, Du/Sie-Kultur, Werte)
+- benefits_extracted: Array ALLER genannten Benefits (Deutschlandticket, Fitness, etc.)
+- unique_selling_points: Array der besonderen Vorteile dieser Stelle
+- career_path: String (Entwicklungsmöglichkeiten, Aufstiegschancen)
+
+DRINGLICHKEIT:
+- hiring_urgency: "standard" | "urgent" | "hot"
+  - "hot" = "sofort", "ab sofort", "schnellstmöglich"
+  - "urgent" = "zum nächstmöglichen Zeitpunkt", "baldmöglichst"
+  - "standard" = kein Zeitdruck erkennbar
+- vacancy_reason: String (Nachfolge, Wachstum, neues Team, etc.)
+- hiring_deadline_weeks: Zahl (falls Frist genannt)
+
+INDUSTRIE & FIRMA:
+- industry: String (z.B. "Fitness", "Finance", "IT", "Healthcare")
+- company_size_estimate: String (z.B. "Startup", "51-200", "Konzern")
+
+WICHTIGE REGELN:
+- Extrahiere NUR was explizit im Text steht oder klar ableitbar ist
+- Nutze Kontext-Hinweise (z.B. "Du" vs "Sie" für Kultur-Einschätzung)
+- Bei Gehaltsangaben pro Monat multipliziere mit 12
+- Setze fehlende Informationen auf null oder leere Arrays
+- Bei Benefits: Extrahiere JEDEN genannten Vorteil einzeln`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -114,10 +175,11 @@ Setze fehlende Informationen auf null oder leere Arrays.`;
             type: "function",
             function: {
               name: "extract_job_data",
-              description: "Extrahiert strukturierte Daten aus einer Stellenanzeige",
+              description: "Extrahiert ALLE strukturierten Daten aus einer Stellenanzeige",
               parameters: {
                 type: "object",
                 properties: {
+                  // Basis-Felder
                   title: { type: "string" },
                   company_name: { type: "string" },
                   description: { type: "string", nullable: true },
@@ -142,9 +204,40 @@ Setze fehlende Informationen auf null oder leere Arrays.`;
                   salary_max: { type: "number", nullable: true },
                   skills: { type: "array", items: { type: "string" } },
                   must_haves: { type: "array", items: { type: "string" } },
-                  nice_to_haves: { type: "array", items: { type: "string" } }
+                  nice_to_haves: { type: "array", items: { type: "string" } },
+                  
+                  // Team & Struktur
+                  team_size: { type: "integer", nullable: true },
+                  team_avg_age: { type: "string", nullable: true },
+                  reports_to: { type: "string", nullable: true },
+                  department_structure: { type: "string", nullable: true },
+                  
+                  // Arbeitsweise
+                  core_hours: { type: "string", nullable: true },
+                  remote_days: { type: "integer", nullable: true },
+                  overtime_policy: { type: "string", nullable: true },
+                  daily_routine: { type: "string", nullable: true },
+                  
+                  // Kultur & Benefits
+                  company_culture: { type: "string", nullable: true },
+                  benefits_extracted: { type: "array", items: { type: "string" } },
+                  unique_selling_points: { type: "array", items: { type: "string" } },
+                  career_path: { type: "string", nullable: true },
+                  
+                  // Dringlichkeit
+                  hiring_urgency: { 
+                    type: "string", 
+                    enum: ["standard", "urgent", "hot"],
+                    nullable: true 
+                  },
+                  vacancy_reason: { type: "string", nullable: true },
+                  hiring_deadline_weeks: { type: "integer", nullable: true },
+                  
+                  // Industrie & Firma
+                  industry: { type: "string", nullable: true },
+                  company_size_estimate: { type: "string", nullable: true }
                 },
-                required: ["title", "company_name", "skills", "must_haves", "nice_to_haves"]
+                required: ["title", "company_name", "skills", "must_haves", "nice_to_haves", "benefits_extracted", "unique_selling_points"]
               }
             }
           }
