@@ -3918,6 +3918,7 @@ export type Database = {
           industry_opportunities: string | null
           intake_briefing: string | null
           intake_completeness: number | null
+          job_summary: Json | null
           location: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
@@ -4003,6 +4004,7 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          job_summary?: Json | null
           location?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
@@ -4088,6 +4090,7 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          job_summary?: Json | null
           location?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
