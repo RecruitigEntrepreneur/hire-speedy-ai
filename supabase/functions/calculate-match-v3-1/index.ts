@@ -352,6 +352,30 @@ interface SkillCredit {
   prereqPenalty?: boolean;
 }
 
+// Enhanced reason with categorization (Phase 5)
+interface EnhancedReason {
+  text: string;
+  impact: 'high' | 'medium' | 'low';
+  category: 'skills' | 'experience' | 'salary' | 'availability' | 'location' | 'domain';
+}
+
+// Enhanced risk with mitigation (Phase 5)
+interface EnhancedRisk {
+  text: string;
+  severity: 'critical' | 'warning' | 'info';
+  mitigatable: boolean;
+  mitigation?: string;
+  category: 'skills' | 'salary' | 'timing' | 'seniority' | 'domain';
+}
+
+// Recruiter action recommendation (Phase 5)
+interface RecruiterAction {
+  recommendation: 'proceed' | 'review' | 'skip';
+  priority: 'high' | 'medium' | 'low';
+  nextSteps: string[];
+  talkingPoints?: string[];
+}
+
 interface V31MatchResult {
   version: string;
   jobId: string;
@@ -413,6 +437,10 @@ interface V31MatchResult {
     topRisks: string[];
     whyNot?: string;
     nextAction: string;
+    // Enhanced fields (Phase 5)
+    enhancedReasons?: EnhancedReason[];
+    enhancedRisks?: EnhancedRisk[];
+    recruiterAction?: RecruiterAction;
   };
 }
 
@@ -1252,78 +1280,267 @@ function generateExplainability(
 ): V31MatchResult['explainability'] {
   const topReasons: string[] = [];
   const topRisks: string[] = [];
+  const enhancedReasons: { text: string; impact: 'high' | 'medium' | 'low'; category: 'skills' | 'experience' | 'salary' | 'availability' | 'location' | 'domain' }[] = [];
+  const enhancedRisks: { text: string; severity: 'critical' | 'warning' | 'info'; mitigatable: boolean; mitigation?: string; category: 'skills' | 'salary' | 'timing' | 'seniority' | 'domain' }[] = [];
+  const nextSteps: string[] = [];
+  const talkingPoints: string[] = [];
   let nextAction = 'Profil prüfen';
   let whyNot: string | undefined;
 
-  // Reasons
+  // ============================================
+  // ENHANCED REASONS (Phase 5)
+  // ============================================
+  
+  // Skill matches
   const matchedSkills = fitResult.details?.skills?.matched || [];
+  const transferableSkills = fitResult.details?.skills?.transferable || [];
+  
   if (matchedSkills.length > 0) {
-    topReasons.push(`${matchedSkills.length} Skill-Matches: ${matchedSkills.slice(0, 3).join(', ')}`);
+    const text = `${matchedSkills.length} direkte Skill-Matches: ${matchedSkills.slice(0, 3).join(', ')}`;
+    topReasons.push(text);
+    enhancedReasons.push({
+      text,
+      impact: matchedSkills.length >= 5 ? 'high' : matchedSkills.length >= 3 ? 'medium' : 'low',
+      category: 'skills'
+    });
+    talkingPoints.push(`Ihre Erfahrung mit ${matchedSkills.slice(0, 2).join(' und ')} passt hervorragend`);
   }
 
+  if (transferableSkills.length > 0) {
+    enhancedReasons.push({
+      text: `${transferableSkills.length} übertragbare Skills`,
+      impact: 'medium',
+      category: 'skills'
+    });
+  }
+
+  // Experience match
   if (fitResult.breakdown.experience >= 80) {
-    topReasons.push(`Erfahrung passt: ${candidate.experience_years || 0} Jahre`);
+    const text = `Erfahrung passt: ${candidate.experience_years || 0} Jahre`;
+    topReasons.push(text);
+    enhancedReasons.push({
+      text,
+      impact: 'high',
+      category: 'experience'
+    });
+  } else if (fitResult.breakdown.experience >= 60) {
+    enhancedReasons.push({
+      text: `${candidate.experience_years || 0} Jahre Erfahrung (ausreichend)`,
+      impact: 'medium',
+      category: 'experience'
+    });
   }
 
+  // Salary in budget
   if (constraintsResult.breakdown.salary >= 80) {
     topReasons.push('Gehaltsvorstellung im Budget');
+    enhancedReasons.push({
+      text: 'Gehalt im Rahmen des Budgets',
+      impact: 'high',
+      category: 'salary'
+    });
+  } else if (constraintsResult.breakdown.salary >= 60) {
+    enhancedReasons.push({
+      text: 'Gehalt verhandelbar im Budget',
+      impact: 'medium',
+      category: 'salary'
+    });
+    talkingPoints.push('Gehaltsrahmen klären und Flexibilität ausloten');
   }
 
+  // Availability
   if (constraintsResult.breakdown.startDate >= 90) {
     topReasons.push('Kurzfristig verfügbar');
+    enhancedReasons.push({
+      text: 'Kann kurzfristig starten',
+      impact: 'high',
+      category: 'availability'
+    });
+  } else if (constraintsResult.breakdown.startDate >= 70) {
+    enhancedReasons.push({
+      text: 'Startdatum passt zum Zeitplan',
+      impact: 'medium',
+      category: 'availability'
+    });
   }
 
-  // Risks
+  // Location/Remote
+  if (constraintsResult.breakdown.commute >= 80) {
+    enhancedReasons.push({
+      text: 'Standort/Remote-Präferenz passt',
+      impact: 'medium',
+      category: 'location'
+    });
+  }
+
+  // ============================================
+  // ENHANCED RISKS (Phase 5)
+  // ============================================
+  
+  // Missing must-haves
   const missingSkills = fitResult.details?.skills?.mustHaveMissing || [];
   if (missingSkills.length > 0) {
-    topRisks.push(`Fehlende Must-haves: ${missingSkills.slice(0, 2).join(', ')}`);
+    const text = `Fehlende Must-haves: ${missingSkills.slice(0, 2).join(', ')}`;
+    topRisks.push(text);
+    
+    const hasTransferable = transferableSkills.some((ts: string) => 
+      missingSkills.some((ms: string) => ts.toLowerCase().includes(ms.toLowerCase().slice(0, 4)))
+    );
+    
+    enhancedRisks.push({
+      text,
+      severity: missingSkills.length >= 3 ? 'critical' : 'warning',
+      mitigatable: hasTransferable || missingSkills.length <= 2,
+      mitigation: hasTransferable 
+        ? 'Übertragbare Skills vorhanden - Einarbeitung möglich'
+        : missingSkills.length <= 2 
+          ? 'Skills können on-the-job erlernt werden'
+          : undefined,
+      category: 'skills'
+    });
+    
+    if (missingSkills.length <= 2) {
+      talkingPoints.push(`Einarbeitung in ${missingSkills[0]} besprechen`);
+    }
   }
 
-  // TECH DOMAIN MISMATCH - Critical risk indicator
+  // Tech domain mismatch
   if (dealbreakers.domainMismatch?.isIncompatible) {
-    topRisks.unshift(`⚠️ Technologie-Mismatch: ${dealbreakers.domainMismatch.candidateDomain} vs ${dealbreakers.domainMismatch.jobDomain}`);
+    const text = `Technologie-Mismatch: ${dealbreakers.domainMismatch.candidateDomain} → ${dealbreakers.domainMismatch.jobDomain}`;
+    topRisks.unshift(`⚠️ ${text}`);
+    enhancedRisks.unshift({
+      text,
+      severity: 'critical',
+      mitigatable: false,
+      category: 'domain'
+    });
   } else if (dealbreakers.domainMismatch) {
-    topRisks.push(`Tech-Bereich abweichend: ${dealbreakers.domainMismatch.candidateDomain} vs ${dealbreakers.domainMismatch.jobDomain}`);
+    const text = `Tech-Bereich abweichend: ${dealbreakers.domainMismatch.candidateDomain} → ${dealbreakers.domainMismatch.jobDomain}`;
+    topRisks.push(text);
+    enhancedRisks.push({
+      text,
+      severity: 'warning',
+      mitigatable: true,
+      mitigation: 'Umstiegsmotivation im Interview klären',
+      category: 'domain'
+    });
+    talkingPoints.push('Motivation für den Bereichswechsel erfragen');
   }
 
+  // Salary over budget
   if (dealbreakers.factors.salary < 1) {
     const gap = Math.round((1 - dealbreakers.factors.salary) * 100);
-    topRisks.push(`Gehalt über Budget (Multiplier: ${dealbreakers.factors.salary.toFixed(2)})`);
+    const text = `Gehalt über Budget (${gap}% über Maximum)`;
+    topRisks.push(text);
+    enhancedRisks.push({
+      text,
+      severity: gap > 20 ? 'critical' : 'warning',
+      mitigatable: gap <= 15,
+      mitigation: gap <= 15 
+        ? 'Benefits und Zusatzleistungen als Ausgleich anbieten'
+        : gap <= 20 
+          ? 'Stufenweiser Gehaltsanstieg verhandeln'
+          : undefined,
+      category: 'salary'
+    });
+    if (gap <= 15) {
+      talkingPoints.push('Gesamtpaket inkl. Benefits besprechen');
+    }
   }
 
+  // Start date issue
   if (dealbreakers.factors.startDate < 1) {
     topRisks.push('Starttermin nicht optimal');
+    enhancedRisks.push({
+      text: 'Starttermin später als gewünscht',
+      severity: 'info',
+      mitigatable: true,
+      mitigation: 'Kündigungsfrist abklären, evtl. Aufhebungsvertrag',
+      category: 'timing'
+    });
   }
 
+  // Seniority mismatch
   if (dealbreakers.factors.seniority < 1) {
     topRisks.push('Seniority-Level weicht ab');
+    enhancedRisks.push({
+      text: 'Seniority-Level nicht optimal',
+      severity: 'warning',
+      mitigatable: true,
+      mitigation: 'Entwicklungspotenzial und Wachstumsmöglichkeiten betonen',
+      category: 'seniority'
+    });
   }
 
-  // Next action based on policy
+  // ============================================
+  // RECRUITER ACTIONS (Phase 5)
+  // ============================================
+  
+  let recommendation: 'proceed' | 'review' | 'skip' = 'review';
+  let priority: 'high' | 'medium' | 'low' = 'medium';
+
   switch (policy) {
     case 'hot':
       nextAction = 'Sofort zum Interview einladen';
+      recommendation = 'proceed';
+      priority = 'high';
+      nextSteps.push('Innerhalb von 24h kontaktieren');
+      nextSteps.push('Interview-Termin vorschlagen');
+      if (matchedSkills.length > 0) {
+        nextSteps.push(`USPs hervorheben: ${matchedSkills.slice(0, 2).join(', ')}`);
+      }
+      talkingPoints.push('Aktuelle Situation und Wechselmotivation erfragen');
+      talkingPoints.push('Gehaltsvorstellung und Verfügbarkeit bestätigen');
       break;
+      
     case 'standard':
       nextAction = 'Kandidat kontaktieren und Details klären';
+      recommendation = 'proceed';
+      priority = 'medium';
+      nextSteps.push('Profil im Detail prüfen');
+      if (missingSkills.length > 0) {
+        nextSteps.push(`Skill-Gaps klären: ${missingSkills.slice(0, 2).join(', ')}`);
+      }
+      if (dealbreakers.factors.salary < 1) {
+        nextSteps.push('Gehaltsrahmen vorab klären');
+      }
+      nextSteps.push('Bei positivem Eindruck zum Interview einladen');
       break;
+      
     case 'maybe':
       nextAction = 'Bei Bedarf manuell prüfen';
+      recommendation = 'review';
+      priority = 'low';
       whyNot = 'Score oder Coverage unter Standard-Schwelle';
+      nextSteps.push('Nur bei Engpässen in Betracht ziehen');
+      nextSteps.push('Alternative Jobs für Kandidaten prüfen');
       break;
+      
     case 'hidden':
       nextAction = 'Nicht anzeigen';
+      recommendation = 'skip';
+      priority = 'low';
       whyNot = fitResult.mustHaveCoverage < 0.70 
         ? `Must-have Coverage nur ${Math.round(fitResult.mustHaveCoverage * 100)}%`
         : 'Score unter Mindest-Schwelle';
       break;
   }
 
+  const recruiterAction: V31MatchResult['explainability']['recruiterAction'] = {
+    recommendation,
+    priority,
+    nextSteps: nextSteps.slice(0, 4),
+    talkingPoints: talkingPoints.length > 0 ? talkingPoints.slice(0, 4) : undefined
+  };
+
   return {
     topReasons: topReasons.slice(0, 3),
     topRisks: topRisks.slice(0, 3),
     whyNot,
-    nextAction
+    nextAction,
+    enhancedReasons: enhancedReasons.slice(0, 5),
+    enhancedRisks: enhancedRisks.slice(0, 5),
+    recruiterAction
   };
 }
 

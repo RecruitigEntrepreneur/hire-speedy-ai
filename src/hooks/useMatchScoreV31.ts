@@ -7,6 +7,30 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type PolicyTier = 'hot' | 'standard' | 'maybe' | 'hidden';
 
+// Enhanced reason with categorization (Phase 5)
+export interface EnhancedReason {
+  text: string;
+  impact: 'high' | 'medium' | 'low';
+  category: 'skills' | 'experience' | 'salary' | 'availability' | 'location' | 'domain';
+}
+
+// Enhanced risk with mitigation (Phase 5)
+export interface EnhancedRisk {
+  text: string;
+  severity: 'critical' | 'warning' | 'info';
+  mitigatable: boolean;
+  mitigation?: string;
+  category: 'skills' | 'salary' | 'timing' | 'seniority' | 'domain';
+}
+
+// Recruiter action recommendation (Phase 5)
+export interface RecruiterAction {
+  recommendation: 'proceed' | 'review' | 'skip';
+  priority: 'high' | 'medium' | 'low';
+  nextSteps: string[];
+  talkingPoints?: string[];
+}
+
 export interface V31MatchResult {
   version: string;
   jobId: string;
@@ -68,6 +92,10 @@ export interface V31MatchResult {
     topRisks: string[];
     whyNot?: string;
     nextAction: string;
+    // Enhanced fields (Phase 5)
+    enhancedReasons?: EnhancedReason[];
+    enhancedRisks?: EnhancedRisk[];
+    recruiterAction?: RecruiterAction;
   };
 }
 

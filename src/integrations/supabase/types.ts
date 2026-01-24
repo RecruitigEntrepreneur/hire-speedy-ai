@@ -1429,25 +1429,43 @@ export type Database = {
           candidate_id: string
           category: string | null
           created_at: string | null
+          from_cv: boolean | null
           id: string
+          is_primary: boolean | null
+          last_used: string | null
           level: string | null
           skill_name: string
+          updated_at: string | null
+          verified: boolean | null
+          years_experience: number | null
         }
         Insert: {
           candidate_id: string
           category?: string | null
           created_at?: string | null
+          from_cv?: boolean | null
           id?: string
+          is_primary?: boolean | null
+          last_used?: string | null
           level?: string | null
           skill_name: string
+          updated_at?: string | null
+          verified?: boolean | null
+          years_experience?: number | null
         }
         Update: {
           candidate_id?: string
           category?: string | null
           created_at?: string | null
+          from_cv?: boolean | null
           id?: string
+          is_primary?: boolean | null
+          last_used?: string | null
           level?: string | null
           skill_name?: string
+          updated_at?: string | null
+          verified?: boolean | null
+          years_experience?: number | null
         }
         Relationships: [
           {
@@ -3841,28 +3859,43 @@ export type Database = {
         Row: {
           cluster_id: string | null
           created_at: string | null
+          description: string | null
           id: string
           job_id: string
+          min_proficiency: string | null
+          min_years: number | null
+          recency_required: number | null
           skill_name: string
           type: string
+          updated_at: string | null
           weight: number | null
         }
         Insert: {
           cluster_id?: string | null
           created_at?: string | null
+          description?: string | null
           id?: string
           job_id: string
+          min_proficiency?: string | null
+          min_years?: number | null
+          recency_required?: number | null
           skill_name: string
           type: string
+          updated_at?: string | null
           weight?: number | null
         }
         Update: {
           cluster_id?: string | null
           created_at?: string | null
+          description?: string | null
           id?: string
           job_id?: string
+          min_proficiency?: string | null
+          min_years?: number | null
+          recency_required?: number | null
           skill_name?: string
           type?: string
+          updated_at?: string | null
           weight?: number | null
         }
         Relationships: [
