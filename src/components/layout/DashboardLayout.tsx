@@ -108,6 +108,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Deal Health', href: '/admin/deal-health', icon: <Activity className="h-4 w-4" /> },
     { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
+    { label: 'Matching Config', href: '/admin/matching-config', icon: <Target className="h-4 w-4" /> },
     { label: 'Activity', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
     { label: 'Fraud', href: '/admin/fraud', icon: <AlertTriangle className="h-4 w-4" /> },
     { label: 'Rechnungen', href: '/admin/invoices', icon: <CreditCard className="h-4 w-4" /> },
