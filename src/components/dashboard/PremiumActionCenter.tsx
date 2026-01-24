@@ -1,22 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
+import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { UnifiedAction } from '@/hooks/useClientDashboard';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
   AlertCircle, 
@@ -64,9 +54,16 @@ export function PremiumActionCenter({
     open: false,
     action: null,
   });
-  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; action: UnifiedAction | null }>({
+  const [rejectDialog, setRejectDialog] = useState<{ 
+    open: boolean; 
+    submission: { 
+      id: string; 
+      candidate: { id: string; full_name: string; email: string }; 
+      job: { id: string; title: string; company_name: string }; 
+    } | null 
+  }>({
     open: false,
-    action: null,
+    submission: null,
   });
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -79,34 +76,22 @@ export function PremiumActionCenter({
   };
 
   const handleReject = (action: UnifiedAction) => {
-    setRejectDialog({ open: true, action });
-  };
-
-  const confirmReject = async () => {
-    if (!rejectDialog.action?.submissionId) return;
-
-    setProcessingId(rejectDialog.action.id);
-    try {
-      const { error } = await supabase
-        .from('submissions')
-        .update({ 
-          stage: 'client_rejected',
-          status: 'rejected',
-          rejection_reason: 'Vom Kunden abgelehnt'
-        })
-        .eq('id', rejectDialog.action.submissionId);
-
-      if (error) throw error;
-
-      toast.success('Kandidat abgelehnt');
-      onActionComplete?.();
-    } catch (error) {
-      console.error('Reject error:', error);
-      toast.error('Fehler beim Ablehnen');
-    } finally {
-      setProcessingId(null);
-      setRejectDialog({ open: false, action: null });
-    }
+    setRejectDialog({ 
+      open: true, 
+      submission: {
+        id: action.submissionId || '',
+        candidate: {
+          id: action.candidateId || '',
+          full_name: action.candidateAnonymousId || 'Kandidat',
+          email: ''
+        },
+        job: {
+          id: action.jobId || '',
+          title: action.jobTitle || 'Position',
+          company_name: ''
+        }
+      }
+    });
   };
 
   const formatWaitingTime = (hours: number): string => {
@@ -210,30 +195,16 @@ export function PremiumActionCenter({
         />
       )}
 
-      {/* Reject Confirmation Dialog */}
-      <AlertDialog 
-        open={rejectDialog.open} 
-        onOpenChange={(open) => setRejectDialog({ open, action: open ? rejectDialog.action : null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Kandidat ablehnen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie {rejectDialog.action?.candidateAnonymousId || 'diesen Kandidaten'} für die Position 
-              "{rejectDialog.action?.jobTitle}" ablehnen? Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmReject}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Ablehnen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Rejection Dialog with reason selection */}
+      <RejectionDialog
+        open={rejectDialog.open}
+        onOpenChange={(open) => setRejectDialog({ open, submission: open ? rejectDialog.submission : null })}
+        submission={rejectDialog.submission}
+        onSuccess={() => {
+          setRejectDialog({ open: false, submission: null });
+          onActionComplete?.();
+        }}
+      />
     </>
   );
 }
@@ -247,12 +218,22 @@ interface ActionCardProps {
 }
 
 function ActionCard({ action, onRequestInterview, onReject, isProcessing, formatWaitingTime }: ActionCardProps) {
+  const navigate = useNavigate();
   const styles = URGENCY_STYLES[action.urgency];
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on a button
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+    
+    navigate(`/dashboard/candidates/${action.submissionId}`);
+  };
 
   return (
     <div 
+      onClick={handleCardClick}
       className={cn(
-        "rounded-lg border bg-card p-4 transition-all hover:shadow-md",
+        "rounded-lg border bg-card p-4 transition-all hover:shadow-md cursor-pointer",
         styles.border
       )}
     >
@@ -284,12 +265,15 @@ function ActionCard({ action, onRequestInterview, onReject, isProcessing, format
         <span>wartet seit {formatWaitingTime(action.waitingHours)}</span>
       </div>
 
-      {/* Actions - with proper z-index to prevent click hijacking */}
-      <div className="flex gap-2 relative z-10">
+      {/* Actions */}
+      <div className="flex gap-2">
         <Button 
           size="sm" 
           className="flex-1"
-          onClick={onRequestInterview}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRequestInterview();
+          }}
           disabled={isProcessing}
         >
           <Calendar className="h-4 w-4 mr-1" />
@@ -298,20 +282,14 @@ function ActionCard({ action, onRequestInterview, onReject, isProcessing, format
         <Button 
           size="sm" 
           variant="outline"
-          onClick={onReject}
+          onClick={(e) => {
+            e.stopPropagation();
+            onReject();
+          }}
           disabled={isProcessing}
           className="text-muted-foreground hover:text-destructive hover:border-destructive"
         >
           <X className="h-4 w-4" />
-        </Button>
-        <Button 
-          size="sm" 
-          variant="ghost"
-          asChild
-        >
-          <Link to={`/dashboard/candidates/${action.submissionId}`}>
-            <ArrowRight className="h-4 w-4" />
-          </Link>
         </Button>
       </div>
     </div>
