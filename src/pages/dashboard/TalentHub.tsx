@@ -629,6 +629,19 @@ export default function TalentHub() {
                   {quickStats.overdueCount} überfällig
                 </Badge>
               )}
+              
+              {/* Compare Button */}
+              {selectedIds.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setCompareOpen(true)}
+                  className="gap-1.5"
+                >
+                  <GitCompare className="h-3.5 w-3.5" />
+                  Vergleichen ({selectedIds.length})
+                </Button>
+              )}
             </div>
           </div>
 
@@ -735,17 +748,48 @@ export default function TalentHub() {
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                       {candidatesWithInterviews.map(candidate => (
-                        <CandidateActionCard
-                          key={candidate.submissionId}
-                          candidate={candidate}
-                          isSelected={selectedCandidate?.submissionId === candidate.submissionId}
-                          onSelect={() => handleSelectCandidate(candidate)}
-                          onMove={handleMove}
-                          onReject={handleReject}
-                          onInterviewRequest={handleInterviewRequest}
-                          onFeedback={handleFeedback}
-                          isProcessing={processing}
-                        />
+                        <div key={candidate.submissionId} className="relative group">
+                          {/* Multi-select checkbox */}
+                          <div 
+                            className={cn(
+                              "absolute top-2 left-2 z-10 transition-opacity",
+                              selectedIds.length > 0 || "opacity-0 group-hover:opacity-100"
+                            )}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedIds.includes(candidate.submissionId)) {
+                                  setSelectedIds(prev => prev.filter(id => id !== candidate.submissionId));
+                                } else if (selectedIds.length < 3) {
+                                  setSelectedIds(prev => [...prev, candidate.submissionId]);
+                                } else {
+                                  toast.error('Maximal 3 Kandidaten zum Vergleichen');
+                                }
+                              }}
+                              className={cn(
+                                "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                                selectedIds.includes(candidate.submissionId)
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "bg-background border-muted-foreground/30 hover:border-primary"
+                              )}
+                            >
+                              {selectedIds.includes(candidate.submissionId) && (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </button>
+                          </div>
+                          <CandidateActionCard
+                            candidate={candidate}
+                            isSelected={selectedCandidate?.submissionId === candidate.submissionId}
+                            onSelect={() => handleSelectCandidate(candidate)}
+                            onMove={handleMove}
+                            onReject={handleReject}
+                            onInterviewRequest={handleInterviewRequest}
+                            onFeedback={handleFeedback}
+                            isProcessing={processing}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -983,6 +1027,19 @@ export default function TalentHub() {
                   submissionIds={selectedIds}
                   onRemove={handleRemoveFromCompare}
                   onClose={() => setCompareOpen(false)}
+                  onInterviewRequest={(submissionId) => {
+                    // Simple interview request - open the dialog with this candidate
+                    const candidate = candidates.find(c => c.submissionId === submissionId);
+                    if (candidate) {
+                      setSelectedCandidate(candidate);
+                      setDetailInterviewDialogOpen(true);
+                      setCompareOpen(false);
+                    }
+                  }}
+                  onReject={(submissionId) => {
+                    handleReject(submissionId);
+                    setCompareOpen(false);
+                  }}
                 />
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ import {
   LogOut,
   User,
   Mail,
+  Keyboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +39,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
+import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShortcuts';
+import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsHelp';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -53,6 +56,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, role, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  
+  // Initialize keyboard shortcuts
+  const { shortcuts } = useDashboardKeyboardShortcuts(() => setShortcutsHelpOpen(true));
 
   const handleSignOut = async () => {
     await signOut();
@@ -226,6 +233,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp 
+        open={shortcutsHelpOpen} 
+        onOpenChange={setShortcutsHelpOpen}
+        shortcuts={shortcuts}
+      />
     </div>
   );
 }

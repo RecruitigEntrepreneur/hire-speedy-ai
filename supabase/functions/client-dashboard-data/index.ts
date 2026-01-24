@@ -81,22 +81,56 @@ async function fetchStats(supabase: any, clientId: string): Promise<DashboardSta
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+  // First, get job IDs for this client (can't use subqueries in .in())
+  const { data: clientJobs } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('client_id', clientId);
+  
+  const jobIds = (clientJobs || []).map((j: any) => j.id);
+  
+  // If no jobs, return empty stats
+  if (jobIds.length === 0) {
+    return {
+      activeJobs: 0,
+      totalCandidates: 0,
+      pendingInterviews: 0,
+      placements: 0,
+      newCandidatesLast7Days: 0,
+    };
+  }
+
+  // Get submission IDs for interviews query
+  const { data: jobSubmissions } = await supabase
+    .from('submissions')
+    .select('id')
+    .in('job_id', jobIds);
+  
+  const submissionIds = (jobSubmissions || []).map((s: any) => s.id);
+
+  // Now run parallel queries with actual arrays (guard against empty arrays)
   const [jobsResult, candidatesResult, interviewsResult, placementsResult, newCandidatesResult] = await Promise.all([
-    supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('client_id', clientId).eq('status', 'published'),
-    supabase.from('submissions').select('id', { count: 'exact', head: true }).in('job_id', 
-      supabase.from('jobs').select('id').eq('client_id', clientId)
-    ),
-    supabase.from('interviews').select('id', { count: 'exact', head: true }).in('submission_id',
-      supabase.from('submissions').select('id').in('job_id',
-        supabase.from('jobs').select('id').eq('client_id', clientId)
-      )
-    ).in('status', ['pending', 'scheduled']),
-    supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'hired').in('job_id',
-      supabase.from('jobs').select('id').eq('client_id', clientId)
-    ),
-    supabase.from('submissions').select('id', { count: 'exact', head: true }).gte('submitted_at', sevenDaysAgo).in('job_id',
-      supabase.from('jobs').select('id').eq('client_id', clientId)
-    ),
+    supabase.from('jobs').select('id', { count: 'exact', head: true })
+      .eq('client_id', clientId)
+      .eq('status', 'published'),
+    jobIds.length > 0 
+      ? supabase.from('submissions').select('id', { count: 'exact', head: true }).in('job_id', jobIds)
+      : Promise.resolve({ count: 0 }),
+    submissionIds.length > 0 
+      ? supabase.from('interviews').select('id', { count: 'exact', head: true })
+          .in('submission_id', submissionIds)
+          .in('status', ['pending', 'scheduled'])
+      : Promise.resolve({ count: 0 }),
+    jobIds.length > 0
+      ? supabase.from('submissions').select('id', { count: 'exact', head: true })
+          .eq('status', 'hired')
+          .in('job_id', jobIds)
+      : Promise.resolve({ count: 0 }),
+    jobIds.length > 0
+      ? supabase.from('submissions').select('id', { count: 'exact', head: true })
+          .gte('submitted_at', sevenDaysAgo)
+          .in('job_id', jobIds)
+      : Promise.resolve({ count: 0 }),
   ]);
 
   return {
