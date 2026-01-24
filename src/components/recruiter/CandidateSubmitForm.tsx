@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileUpload } from '@/components/files/FileUpload';
-import { useMatchScore } from '@/hooks/useMatchScore';
+import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
 
 interface CandidateSubmitFormProps {
@@ -47,7 +47,7 @@ interface ExistingCandidate {
 export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess }: CandidateSubmitFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { calculateMatch, loading: matchLoading } = useMatchScore();
+  const { calculateSingleMatch, loading: matchLoading } = useMatchScoreV31();
   const { parseCV, parsing: cvParsing } = useCvParsing();
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -291,11 +291,11 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
       // Calculate AI match score in background
       setCalculatingScore(true);
       try {
-        const matchResult = await calculateMatch(candidateId, jobId);
+        const matchResult = await calculateSingleMatch(candidateId, jobId);
         if (matchResult) {
           toast({
             title: 'Erfolgreich eingereicht!',
-            description: `Der Kandidat wurde mit ${matchResult.overallScore}% Match-Score für "${jobTitle}" eingereicht.`
+            description: `Der Kandidat wurde mit ${matchResult.overall}% Match-Score für "${jobTitle}" eingereicht.`
           });
         } else {
           toast({
