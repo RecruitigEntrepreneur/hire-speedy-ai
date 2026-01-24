@@ -4,11 +4,24 @@ import { Progress } from '@/components/ui/progress';
 import { 
   Brain, Target, Euro, Car, Clock, AlertTriangle, 
   CheckCircle2, XCircle, TrendingUp, ChevronDown, ChevronUp,
-  Flame, Sparkles, HelpCircle, Ban, Layers
+  Flame, Sparkles, HelpCircle, Ban, Layers, Lightbulb,
+  MessageSquare, ArrowRight, Shield, Zap, Info
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import type { V31MatchResult, PolicyTier } from '@/hooks/useMatchScoreV31';
+import type { V31MatchResult, PolicyTier, EnhancedReason, EnhancedRisk, RecruiterAction } from '@/hooks/useMatchScoreV31';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MatchScoreCardV31Props {
   result: V31MatchResult;
@@ -75,6 +88,42 @@ function getCoverageVariant(coverage: number): "default" | "secondary" | "destru
   if (coverage >= 0.70) return 'secondary';
   return 'destructive';
 }
+
+// Severity styling for risks
+const severityConfig = {
+  critical: { 
+    bg: 'bg-red-50 dark:bg-red-900/20', 
+    border: 'border-red-200 dark:border-red-800',
+    text: 'text-red-700 dark:text-red-400',
+    icon: XCircle
+  },
+  warning: { 
+    bg: 'bg-amber-50 dark:bg-amber-900/20', 
+    border: 'border-amber-200 dark:border-amber-800',
+    text: 'text-amber-700 dark:text-amber-400',
+    icon: AlertTriangle
+  },
+  info: { 
+    bg: 'bg-blue-50 dark:bg-blue-900/20', 
+    border: 'border-blue-200 dark:border-blue-800',
+    text: 'text-blue-700 dark:text-blue-400',
+    icon: Info
+  }
+};
+
+// Impact styling for reasons
+const impactConfig = {
+  high: { badge: 'bg-green-100 text-green-700 border-green-200' },
+  medium: { badge: 'bg-blue-100 text-blue-700 border-blue-200' },
+  low: { badge: 'bg-gray-100 text-gray-700 border-gray-200' }
+};
+
+// Priority styling
+const priorityConfig = {
+  high: { color: 'text-red-600', bg: 'bg-red-50', label: 'Hohe Priorität' },
+  medium: { color: 'text-amber-600', bg: 'bg-amber-50', label: 'Mittlere Priorität' },
+  low: { color: 'text-gray-600', bg: 'bg-gray-50', label: 'Niedrige Priorität' }
+};
 
 // Factor row component
 function FactorRow({ 
@@ -291,6 +340,146 @@ function ConstraintsDetail({ breakdown, gateMultiplier, dealbreakers, domainMism
   );
 }
 
+// Enhanced Reasons Component (Phase 5)
+function EnhancedReasonsSection({ reasons }: { reasons: EnhancedReason[] }) {
+  if (!reasons || reasons.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-medium text-green-600 flex items-center gap-1">
+        <CheckCircle2 className="h-3 w-3" />
+        Stärken
+      </div>
+      <div className="space-y-1">
+        {reasons.map((reason, i) => (
+          <div key={i} className="flex items-start gap-2 text-xs">
+            <Badge 
+              variant="outline" 
+              className={cn("text-[10px] px-1.5 py-0", impactConfig[reason.impact].badge)}
+            >
+              {reason.impact === 'high' ? 'Stark' : reason.impact === 'medium' ? 'Gut' : 'OK'}
+            </Badge>
+            <span className="text-muted-foreground flex-1">{reason.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Enhanced Risks Component (Phase 5)
+function EnhancedRisksSection({ risks }: { risks: EnhancedRisk[] }) {
+  if (!risks || risks.length === 0) return null;
+
+  return (
+    <TooltipProvider>
+      <div className="space-y-1.5">
+        <div className="text-xs font-medium text-amber-600 flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Risiken
+        </div>
+        <div className="space-y-1.5">
+          {risks.map((risk, i) => {
+            const config = severityConfig[risk.severity];
+            const RiskIcon = config.icon;
+            
+            return (
+              <div 
+                key={i} 
+                className={cn(
+                  "flex items-start gap-2 p-2 rounded border text-xs",
+                  config.bg, config.border
+                )}
+              >
+                <RiskIcon className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", config.text)} />
+                <div className="flex-1 min-w-0">
+                  <div className={cn("font-medium", config.text)}>{risk.text}</div>
+                  {risk.mitigatable && risk.mitigation && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 mt-1 text-green-600 cursor-help">
+                          <Shield className="h-3 w-3" />
+                          <span className="text-[10px]">Lösbar</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-xs">{risk.mitigation}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+// Recruiter Action Component (Phase 5)
+function RecruiterActionSection({ action, policy }: { action: RecruiterAction; policy: PolicyTier }) {
+  const prioConfig = priorityConfig[action.priority];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-medium text-primary flex items-center gap-1">
+          <Lightbulb className="h-3 w-3" />
+          Empfehlung
+        </div>
+        <Badge 
+          variant="outline" 
+          className={cn("text-[10px]", prioConfig.bg, prioConfig.color)}
+        >
+          {prioConfig.label}
+        </Badge>
+      </div>
+
+      {/* Next Steps */}
+      {action.nextSteps.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+            Nächste Schritte
+          </div>
+          <div className="space-y-1">
+            {action.nextSteps.map((step, i) => (
+              <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                <span>{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Talking Points */}
+      {action.talkingPoints && action.talkingPoints.length > 0 && (
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="talking-points" className="border-0">
+            <AccordionTrigger className="py-1.5 text-xs text-muted-foreground hover:no-underline">
+              <div className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" />
+                Gesprächspunkte ({action.talkingPoints.length})
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-1 pb-0">
+              <div className="space-y-1 pl-4">
+                {action.talkingPoints.map((point, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <span className="text-primary">•</span>
+                    <span>{point}</span>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
+    </div>
+  );
+}
+
 export function MatchScoreCardV31({ result, compact = false, showExplainability = true }: MatchScoreCardV31Props) {
   const [expandedFactor, setExpandedFactor] = useState<string | null>(null);
   
@@ -300,6 +489,9 @@ export function MatchScoreCardV31({ result, compact = false, showExplainability 
   const toggleFactor = (factor: string) => {
     setExpandedFactor(expandedFactor === factor ? null : factor);
   };
+
+  // Use enhanced data if available, fall back to basic
+  const hasEnhancedData = result.explainability.enhancedReasons || result.explainability.enhancedRisks || result.explainability.recruiterAction;
 
   if (compact) {
     return (
@@ -426,8 +618,33 @@ export function MatchScoreCardV31({ result, compact = false, showExplainability 
           </FactorRow>
         </div>
 
-        {/* Explainability */}
-        {showExplainability && (result.explainability.topReasons.length > 0 || result.explainability.topRisks.length > 0) && (
+        {/* Enhanced Explainability (Phase 5) */}
+        {showExplainability && hasEnhancedData && (
+          <div className="pt-3 border-t space-y-3">
+            {/* Enhanced Reasons */}
+            {result.explainability.enhancedReasons && result.explainability.enhancedReasons.length > 0 && (
+              <EnhancedReasonsSection reasons={result.explainability.enhancedReasons} />
+            )}
+            
+            {/* Enhanced Risks */}
+            {result.explainability.enhancedRisks && result.explainability.enhancedRisks.length > 0 && (
+              <EnhancedRisksSection risks={result.explainability.enhancedRisks} />
+            )}
+
+            {/* Recruiter Action */}
+            {result.explainability.recruiterAction && (
+              <div className="pt-2 border-t">
+                <RecruiterActionSection 
+                  action={result.explainability.recruiterAction} 
+                  policy={result.policy}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fallback: Basic Explainability */}
+        {showExplainability && !hasEnhancedData && (result.explainability.topReasons.length > 0 || result.explainability.topRisks.length > 0) && (
           <div className="pt-3 border-t space-y-2">
             {result.explainability.topReasons.length > 0 && (
               <div className="space-y-1">

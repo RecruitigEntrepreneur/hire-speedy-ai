@@ -414,3 +414,206 @@ export function areSkillsEquivalent(skillA: string, skillB: string): boolean {
   const canonicalB = getCanonicalSkill(skillB);
   return canonicalA === canonicalB;
 }
+
+// ============================================
+// SKILL LEVEL MATCHING (Phase 6)
+// ============================================
+
+export interface CandidateSkillLevel {
+  skill_name: string;
+  level: string | null; // 'beginner' | 'intermediate' | 'advanced' | 'expert'
+  years_experience: number | null;
+  last_used: string | null; // Date string
+  is_primary: boolean;
+  verified: boolean;
+}
+
+export interface JobSkillRequirement {
+  skill_name: string;
+  type: string; // 'must_have' | 'nice_to_have'
+  min_years: number | null;
+  min_proficiency: string | null; // 'beginner' | 'intermediate' | 'advanced' | 'expert'
+  recency_required: number | null; // months
+}
+
+export interface SkillLevelMatchResult {
+  skill: string;
+  hasSkill: boolean;
+  levelMatch: {
+    yearsScore: number;      // 0-100
+    proficiencyScore: number; // 0-100
+    recencyScore: number;     // 0-100
+    overall: number;          // Weighted average
+  };
+  details: {
+    candidateYears: number | null;
+    requiredYears: number | null;
+    candidateLevel: string | null;
+    requiredLevel: string | null;
+    lastUsedMonths: number | null;
+    recencyRequired: number | null;
+  };
+}
+
+const PROFICIENCY_LEVELS: Record<string, number> = {
+  'beginner': 1,
+  'intermediate': 2,
+  'advanced': 3,
+  'expert': 4
+};
+
+/**
+ * Calculate skill level match score for a single skill
+ * Weights: Years 40%, Proficiency 40%, Recency 20%
+ */
+export function calculateSkillLevelMatch(
+  candidateSkill: CandidateSkillLevel | null,
+  jobRequirement: JobSkillRequirement
+): SkillLevelMatchResult {
+  // If candidate doesn't have the skill, return 0
+  if (!candidateSkill) {
+    return {
+      skill: jobRequirement.skill_name,
+      hasSkill: false,
+      levelMatch: {
+        yearsScore: 0,
+        proficiencyScore: 0,
+        recencyScore: 0,
+        overall: 0
+      },
+      details: {
+        candidateYears: null,
+        requiredYears: jobRequirement.min_years,
+        candidateLevel: null,
+        requiredLevel: jobRequirement.min_proficiency,
+        lastUsedMonths: null,
+        recencyRequired: jobRequirement.recency_required
+      }
+    };
+  }
+
+  let yearsScore = 100;
+  let proficiencyScore = 100;
+  let recencyScore = 100;
+
+  // Years experience check
+  const reqYears = jobRequirement.min_years;
+  const candYears = candidateSkill.years_experience;
+
+  if (reqYears !== null && reqYears > 0) {
+    if (candYears === null) {
+      yearsScore = 70; // No data, give partial credit
+    } else if (candYears >= reqYears) {
+      yearsScore = 100;
+    } else if (candYears >= reqYears * 0.75) {
+      yearsScore = 85;
+    } else if (candYears >= reqYears * 0.5) {
+      yearsScore = 70;
+    } else {
+      yearsScore = 50;
+    }
+  }
+
+  // Proficiency level check
+  const reqLevel = jobRequirement.min_proficiency;
+  const candLevel = candidateSkill.level;
+
+  if (reqLevel !== null) {
+    const reqLevelNum = PROFICIENCY_LEVELS[reqLevel] || 2;
+    const candLevelNum = candLevel ? (PROFICIENCY_LEVELS[candLevel] || 2) : 2;
+
+    if (candLevelNum >= reqLevelNum) {
+      proficiencyScore = 100;
+    } else if (candLevelNum === reqLevelNum - 1) {
+      proficiencyScore = 75;
+    } else {
+      proficiencyScore = 50;
+    }
+  }
+
+  // Recency check
+  const recencyRequired = jobRequirement.recency_required;
+  const lastUsed = candidateSkill.last_used;
+
+  let lastUsedMonths: number | null = null;
+  if (recencyRequired !== null && recencyRequired > 0) {
+    if (lastUsed === null) {
+      recencyScore = 80; // No data, give partial credit
+    } else {
+      const lastUsedDate = new Date(lastUsed);
+      const now = new Date();
+      lastUsedMonths = Math.floor((now.getTime() - lastUsedDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+
+      if (lastUsedMonths <= recencyRequired) {
+        recencyScore = 100;
+      } else if (lastUsedMonths <= recencyRequired * 1.5) {
+        recencyScore = 80;
+      } else if (lastUsedMonths <= recencyRequired * 2) {
+        recencyScore = 60;
+      } else {
+        recencyScore = 40;
+      }
+    }
+  }
+
+  // Verified skill bonus
+  if (candidateSkill.verified) {
+    yearsScore = Math.min(100, yearsScore + 5);
+    proficiencyScore = Math.min(100, proficiencyScore + 5);
+  }
+
+  // Primary skill bonus
+  if (candidateSkill.is_primary) {
+    yearsScore = Math.min(100, yearsScore + 3);
+    proficiencyScore = Math.min(100, proficiencyScore + 3);
+  }
+
+  // Weighted average: Years 40%, Proficiency 40%, Recency 20%
+  const overall = Math.round(
+    yearsScore * 0.4 +
+    proficiencyScore * 0.4 +
+    recencyScore * 0.2
+  );
+
+  return {
+    skill: jobRequirement.skill_name,
+    hasSkill: true,
+    levelMatch: {
+      yearsScore,
+      proficiencyScore,
+      recencyScore,
+      overall
+    },
+    details: {
+      candidateYears: candYears,
+      requiredYears: reqYears,
+      candidateLevel: candLevel,
+      requiredLevel: reqLevel,
+      lastUsedMonths,
+      recencyRequired
+    }
+  };
+}
+
+/**
+ * Calculate credit adjustment based on skill level match
+ * Returns a multiplier (0.7 - 1.0) to apply to base skill credit
+ */
+export function getSkillLevelCredit(levelMatch: SkillLevelMatchResult): number {
+  if (!levelMatch.hasSkill) return 0;
+
+  const overall = levelMatch.levelMatch.overall;
+
+  // No level requirements = full credit
+  if (
+    levelMatch.details.requiredYears === null &&
+    levelMatch.details.requiredLevel === null &&
+    levelMatch.details.recencyRequired === null
+  ) {
+    return 1.0;
+  }
+
+  if (overall >= 80) return 1.0;    // Full credit
+  if (overall >= 60) return 0.85;   // Minor penalty
+  return 0.70;                       // Skill exists but level doesn't match
+}
