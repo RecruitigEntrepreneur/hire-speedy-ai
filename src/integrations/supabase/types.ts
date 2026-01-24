@@ -7207,6 +7207,42 @@ export type Database = {
           },
         ]
       }
+      skill_synonyms: {
+        Row: {
+          active: boolean | null
+          bidirectional: boolean | null
+          canonical_name: string
+          category: string | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          synonym: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          bidirectional?: boolean | null
+          canonical_name: string
+          category?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          synonym: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          bidirectional?: boolean | null
+          canonical_name?: string
+          category?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          synonym?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       skill_taxonomy: {
         Row: {
           aliases: string[] | null
@@ -7683,6 +7719,54 @@ export type Database = {
             referencedColumns: ["candidate_id"]
           },
         ]
+      }
+      tech_domains: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          display_name: string
+          display_name_de: string | null
+          domain_key: string
+          id: string
+          incompatible_with: string[] | null
+          primary_skills: string[] | null
+          secondary_skills: string[] | null
+          title_keywords: string[] | null
+          transferable_to: string[] | null
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          display_name: string
+          display_name_de?: string | null
+          domain_key: string
+          id?: string
+          incompatible_with?: string[] | null
+          primary_skills?: string[] | null
+          secondary_skills?: string[] | null
+          title_keywords?: string[] | null
+          transferable_to?: string[] | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          display_name?: string
+          display_name_de?: string | null
+          domain_key?: string
+          id?: string
+          incompatible_with?: string[] | null
+          primary_skills?: string[] | null
+          secondary_skills?: string[] | null
+          title_keywords?: string[] | null
+          transferable_to?: string[] | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: []
       }
       user_behavior_scores: {
         Row: {

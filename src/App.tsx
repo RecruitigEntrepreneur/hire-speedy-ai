@@ -71,6 +71,8 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import OutreachSlim from "./pages/admin/OutreachSlim";
 import CompanyDetail from "./pages/admin/CompanyDetail";
 import AdminMatchingConfig from "./pages/admin/AdminMatchingConfig";
+import AdminDomains from "./pages/admin/AdminDomains";
+import AdminSkillSynonyms from "./pages/admin/AdminSkillSynonyms";
 
 // Client Analytics
 import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
@@ -378,6 +380,16 @@ function AppRoutes() {
       <Route path="/admin/matching-config" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminMatchingConfig />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/domains" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDomains />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/skill-synonyms" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminSkillSynonyms />
         </ProtectedRoute>
       } />
       <Route path="/admin/invoices" element={
