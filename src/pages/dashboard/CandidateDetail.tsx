@@ -449,69 +449,132 @@ export default function CandidateDetail() {
               </CardContent>
             </Card>
 
-            {/* ==================== 4. MATCHING-BEWERTUNG ==================== */}
-            <Card>
+            {/* ==================== 4. MATCH-EMPFEHLUNG (V3.1 = Single Source of Truth) ==================== */}
+            <Card className="border-2 border-primary/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  Matching-Bewertung
+                  Match-Empfehlung
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Score + Fit Label */}
-                <div className="flex items-center gap-4">
-                  {matchScore > 0 && (
-                    <div className="text-3xl font-bold">
-                      {matchResult?.overall || matchScore}%
-                    </div>
-                  )}
-                  <Badge className={cn(fitLabel.bgClass, fitLabel.textClass, "border-0 text-sm px-3 py-1")}>
-                    {fitLabel.label}
-                  </Badge>
-                  {matchResult?.policy && (
-                    <Badge variant="outline" className="text-xs">
-                      {matchResult.policy === 'hot' ? '🔥 Hot Match' : 
-                       matchResult.policy === 'standard' ? '✓ Standard' : 
-                       matchResult.policy === 'maybe' ? '? Prüfen' : '✗ Ausgeschlossen'}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Executive Summary */}
-                {executiveSummary && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {executiveSummary}
-                  </p>
-                )}
-
-                {/* Key Selling Points */}
-                {!executiveSummary && keySellingPoints.length > 0 && (
-                  <ul className="space-y-2">
-                    {keySellingPoints.map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm">
-                        <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                        <span>{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* V31 Match Score Breakdown */}
-                {matchResult && !matchLoading && (
-                  <div className="pt-4 border-t">
-                    <MatchScoreBreakdown 
-                      matchScore={matchResult.overall}
-                      v31Result={matchResult}
-                      compact={true}
-                    />
+                {/* Loading state */}
+                {matchLoading && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Match wird berechnet...
                   </div>
                 )}
                 
-                {/* Loading state for match breakdown */}
-                {matchLoading && (
-                  <div className="pt-4 border-t flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Match-Analyse wird geladen...
+                {/* V3.1 Match Result - THE SINGLE SOURCE OF TRUTH */}
+                {matchResult && !matchLoading && (
+                  <>
+                    {/* Score + Policy Badge */}
+                    <div className="flex items-center gap-4">
+                      {/* Circular Score Display */}
+                      <div className="relative w-20 h-20">
+                        <svg className="w-20 h-20 -rotate-90">
+                          <circle cx="40" cy="40" r="36" 
+                            className="stroke-muted fill-none" 
+                            strokeWidth="6" 
+                          />
+                          <circle cx="40" cy="40" r="36" 
+                            className={cn(
+                              "fill-none transition-all",
+                              matchResult.policy === 'hot' && "stroke-emerald-500",
+                              matchResult.policy === 'standard' && "stroke-primary",
+                              matchResult.policy === 'maybe' && "stroke-amber-500",
+                              matchResult.policy === 'hidden' && "stroke-destructive"
+                            )}
+                            strokeWidth="6"
+                            strokeDasharray={`${matchResult.overall * 2.26} 226`}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-2xl font-bold">{matchResult.overall}%</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Badge className={cn(
+                          "text-sm px-3 py-1",
+                          matchResult.policy === 'hot' && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0",
+                          matchResult.policy === 'standard' && "bg-primary/10 text-primary border-0",
+                          matchResult.policy === 'maybe' && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0",
+                          matchResult.policy === 'hidden' && "bg-destructive/10 text-destructive border-0"
+                        )}>
+                          {matchResult.policy === 'hot' ? '🔥 Hot Match' : 
+                           matchResult.policy === 'standard' ? '✓ Standard' : 
+                           matchResult.policy === 'maybe' ? '? Prüfen' : '✗ Nicht geeignet'}
+                        </Badge>
+                        
+                        {/* Must-Have Coverage */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Must-Haves:</span>
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <div key={i} className={cn(
+                                "w-2 h-2 rounded-full",
+                                i < Math.round((matchResult.fit?.details?.skills?.matched?.length || 0) / 
+                                  Math.max(1, (matchResult.fit?.details?.skills?.matched?.length || 0) + 
+                                  (matchResult.fit?.details?.skills?.mustHaveMissing?.length || 0)) * 5) 
+                                  ? "bg-primary" 
+                                  : "bg-muted"
+                              )} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* WARUM NICHT? - Prominent bei Ausschluss */}
+                    {(matchResult.killed || matchResult.excluded) && (
+                      <Alert className="border-destructive/50 bg-destructive/5">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <AlertDescription>
+                          <p className="font-medium text-destructive">Warum nicht geeignet:</p>
+                          <p className="text-sm mt-1">
+                            {matchResult.explainability?.whyNot || 
+                             (matchResult.fit?.details?.skills?.mustHaveMissing?.length > 0 
+                               ? `Fehlende Must-Have Skills: ${matchResult.fit.details.skills.mustHaveMissing.join(', ')}` 
+                               : 'Kritische Anforderungen nicht erfüllt')}
+                          </p>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {/* Qualitative AI Summary (without numbers) */}
+                    {executiveSummary && !matchResult.killed && !matchResult.excluded && (
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground leading-relaxed">{executiveSummary}</p>
+                      </div>
+                    )}
+                    
+                    {/* V31 Match Score Breakdown */}
+                    <div className="pt-4 border-t">
+                      <MatchScoreBreakdown 
+                        matchScore={matchResult.overall}
+                        v31Result={matchResult}
+                        compact={true}
+                      />
+                    </div>
+                  </>
+                )}
+                
+                {/* Fallback when V3.1 not available */}
+                {!matchResult && !matchLoading && (
+                  <div className="space-y-4">
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Match-Analyse für diese Position wird berechnet...
+                      </AlertDescription>
+                    </Alert>
+                    {executiveSummary && (
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">{executiveSummary}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

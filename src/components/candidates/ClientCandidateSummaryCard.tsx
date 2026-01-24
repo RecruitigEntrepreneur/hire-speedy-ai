@@ -169,12 +169,10 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="h-5 w-5 text-primary" />
-            Kunden-Zusammenfassung
+            KI-Einschätzung
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="font-mono">
-              {summary.recommendation_score}/100
-            </Badge>
+            {/* Score removed - V3.1 Match Engine is the single source of truth */}
             <Badge className={cn('gap-1', recStyle.bg, recStyle.text, 'border')}>
               <RecIcon className="h-3 w-3" />
               {recStyle.label}

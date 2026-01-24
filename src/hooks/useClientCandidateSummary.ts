@@ -33,7 +33,7 @@ export interface ClientCandidateSummary {
   change_motivation_summary: string;
   career_goals: string;
   job_hopper_analysis: JobHopperAnalysis;
-  recommendation_score: number;
+  // NOTE: recommendation_score REMOVED - V3.1 Match Engine is the single source of truth
   recommendation: 'strong_yes' | 'yes' | 'maybe' | 'no' | 'strong_no';
   key_selling_points: string[];
   generated_at: string;
@@ -117,7 +117,7 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
           change_motivation_summary: data.change_motivation_summary || '',
           career_goals: data.career_goals || '',
           job_hopper_analysis: jobHopperAnalysis,
-          recommendation_score: data.recommendation_score || 0,
+          // NOTE: recommendation_score removed - V3.1 Match Engine is the single source of truth
           recommendation: (data.recommendation as ClientCandidateSummary['recommendation']) || 'maybe',
           key_selling_points: keySellingPoints,
           generated_at: data.generated_at || '',

@@ -36,7 +36,7 @@ interface ClientSummary {
   change_motivation_status: "unbekannt" | "gering" | "mittel" | "hoch";
   career_goals: string;
   job_hopper_analysis: JobHopperAnalysis;
-  recommendation_score: number;
+  // NOTE: recommendation_score REMOVED - V3.1 Match Engine is the single source of truth
   recommendation: "strong_yes" | "yes" | "maybe" | "no" | "strong_no";
   key_selling_points: string[];
 }
@@ -209,9 +209,12 @@ STRUKTUR (exakt einhalten):
 7. change_motivation_summary: ANONYME Zusammenfassung warum Wechsel (1-2 Sätze)
 8. change_motivation_status: "unbekannt" | "gering" | "mittel" | "hoch"
 9. career_goals: ANONYME Karriereziele (1-2 Sätze)
-10. recommendation_score: 0-100 Gesamtbewertung
-11. recommendation: strong_yes/yes/maybe/no/strong_no
-12. key_selling_points: 3-5 ANONYME Kernstärken als kurze Strings
+10. recommendation: strong_yes/yes/maybe/no/strong_no (qualitative Einschätzung, KEIN Score!)
+11. key_selling_points: 3-5 ANONYME Kernstärken als kurze Strings
+
+⚠️ WICHTIG: GENERIERE KEINEN NUMERISCHEN SCORE!
+Das strukturierte Matching wird separat vom V3.1 Matching-Engine berechnet.
+Fokussiere dich auf QUALITATIVE Insights (Texte, Risiken, Stärken).
 
 ${job ? `WICHTIG - JOB-KONTEXT: Du hast Zugriff auf die konkrete Stellenanforderung.
 Bei der RISIKOANALYSE IMMER den Job-Kontext berücksichtigen:
@@ -380,7 +383,7 @@ Erstelle jetzt die ANONYME Client-Zusammenfassung als JSON.`;
       job_hopper_analysis: jobHopperAnalysis,
     };
 
-    // Save to database with new fields
+    // Save to database with new fields (NO recommendation_score - V3.1 is source of truth)
     const { data: savedSummary, error: saveError } = await supabase
       .from("candidate_client_summary")
       .upsert({
@@ -396,11 +399,11 @@ Erstelle jetzt die ANONYME Client-Zusammenfassung als JSON.`;
         change_motivation_status: finalSummary.change_motivation_status,
         career_goals: finalSummary.career_goals || null,
         job_hopper_analysis: finalSummary.job_hopper_analysis,
-        recommendation_score: finalSummary.recommendation_score,
+        // NOTE: recommendation_score intentionally omitted - V3.1 Match Engine provides the score
         recommendation: finalSummary.recommendation,
         key_selling_points: finalSummary.key_selling_points,
         generated_at: new Date().toISOString(),
-        model_version: "v3-triple-blind",
+        model_version: "v4-no-score",
       }, {
         onConflict: "candidate_id",
       })
@@ -425,11 +428,11 @@ Erstelle jetzt die ANONYME Client-Zusammenfassung als JSON.`;
           change_motivation_status: finalSummary.change_motivation_status,
           career_goals: finalSummary.career_goals || null,
           job_hopper_analysis: finalSummary.job_hopper_analysis,
-          recommendation_score: finalSummary.recommendation_score,
+          // NOTE: recommendation_score intentionally omitted
           recommendation: finalSummary.recommendation,
           key_selling_points: finalSummary.key_selling_points,
           generated_at: new Date().toISOString(),
-          model_version: "v3-triple-blind",
+          model_version: "v4-no-score",
         })
         .select()
         .single();
