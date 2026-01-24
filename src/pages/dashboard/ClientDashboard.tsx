@@ -1,18 +1,15 @@
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
-import { UnifiedActionCenter } from '@/components/dashboard/UnifiedActionCenter';
-import { EnhancedLiveJobCard } from '@/components/dashboard/EnhancedLiveJobCard';
-import { HealthScoreCompact } from '@/components/dashboard/HealthScoreCompact';
-import { QuickActionsBar } from '@/components/dashboard/QuickActionsBar';
-import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
+import { QuickJobImport } from '@/components/dashboard/QuickJobImport';
+import { PremiumActionCenter } from '@/components/dashboard/PremiumActionCenter';
+import { CompactJobCard } from '@/components/dashboard/CompactJobCard';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { 
-  Plus, 
   Briefcase,
   ArrowRight,
   RefreshCw
@@ -32,15 +29,9 @@ export default function ClientDashboard() {
       <DashboardLayout>
         <div className="space-y-6">
           <Skeleton className="h-12 w-full" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32 lg:col-span-2" />
-          </div>
+          <Skeleton className="h-24" />
+          <Skeleton className="h-48" />
           <Skeleton className="h-64" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-96" />
-            <Skeleton className="h-96" />
-          </div>
         </div>
       </DashboardLayout>
     );
@@ -60,13 +51,12 @@ export default function ClientDashboard() {
     );
   }
 
-  const { stats, actions, liveJobs, activity, healthScore } = data || {
-    stats: { activeJobs: 0, totalCandidates: 0, pendingInterviews: 0, placements: 0, newCandidatesLast7Days: 0 },
+  const { actions, liveJobs } = data || {
     actions: [],
     liveJobs: [],
-    activity: [],
-    healthScore: { level: 'good' as const, score: 75, label: 'Gut', message: 'Laden...' },
   };
+
+  const pendingCount = actions.length;
 
   return (
     <DashboardLayout>
@@ -74,115 +64,64 @@ export default function ClientDashboard() {
         {/* Verification Banner */}
         <VerificationStatusBanner />
 
-        {/* Header with Health Score and Quick Actions */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground text-sm">
-              Willkommen zurück! Hier ist Ihr Recruiting-Überblick.
-            </p>
-          </div>
-          <Button asChild>
-            <Link to="/dashboard/jobs/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Neuen Job erstellen
-            </Link>
-          </Button>
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">
+            {pendingCount > 0 
+              ? `Sie haben ${pendingCount} ausstehende Entscheidung${pendingCount > 1 ? 'en' : ''}.`
+              : 'Willkommen zurück! Alle Aufgaben erledigt.'
+            }
+          </p>
         </div>
 
-        {/* Health Score + Quick Actions Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <HealthScoreCompact health={healthScore} />
-          <div className="lg:col-span-2 flex items-center">
-            <QuickActionsBar className="w-full" />
-          </div>
-        </div>
+        {/* Quick Job Import */}
+        <QuickJobImport />
 
-        {/* Unified Action Center */}
-        <UnifiedActionCenter 
+        {/* Premium Action Center */}
+        <PremiumActionCenter 
           actions={actions} 
           onActionComplete={handleActionComplete}
           maxActions={6}
         />
 
-        {/* Live Jobs + Activity Feed */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Live Jobs */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Briefcase className="h-5 w-5 text-primary" />
-                Aktive Jobs
-              </h2>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/dashboard/jobs">
-                  Alle Jobs
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
+        {/* Active Jobs */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              Aktive Jobs
+            </h2>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/dashboard/jobs">
+                Alle Jobs
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+          
+          {liveJobs.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-8 text-center">
+                <Briefcase className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-2">Noch keine aktiven Jobs</p>
+                <p className="text-sm text-muted-foreground">
+                  Importieren Sie eine Stellenausschreibung oben, um zu starten.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {liveJobs.map((job) => (
+                <CompactJobCard 
+                  key={job.id} 
+                  job={job} 
+                  onActionComplete={handleActionComplete}
+                />
+              ))}
             </div>
-            
-            {liveJobs.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <Briefcase className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground mb-4">Noch keine aktiven Jobs</p>
-                  <Button asChild>
-                    <Link to="/dashboard/jobs/new">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Ersten Job erstellen
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {liveJobs.map((job) => (
-                  <EnhancedLiveJobCard 
-                    key={job.id} 
-                    job={job} 
-                    onActionComplete={handleActionComplete}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Activity Feed */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Aktivitäten</h2>
-            <ActivityFeed />
-          </div>
+          )}
         </div>
-
-        {/* Quick Stats Summary (minimal, at bottom) */}
-        {stats.activeJobs > 0 && (
-          <Card className="bg-muted/30">
-            <CardContent className="py-4">
-              <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Aktive Jobs:</span>
-                  <span className="font-semibold">{stats.activeJobs}</span>
-                </div>
-                <div className="h-4 w-px bg-border" />
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Kandidaten:</span>
-                  <span className="font-semibold">{stats.totalCandidates}</span>
-                </div>
-                <div className="h-4 w-px bg-border" />
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Interviews:</span>
-                  <span className="font-semibold">{stats.pendingInterviews}</span>
-                </div>
-                <div className="h-4 w-px bg-border" />
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Einstellungen:</span>
-                  <span className="font-semibold text-success">{stats.placements}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </DashboardLayout>
   );
