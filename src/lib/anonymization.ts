@@ -97,30 +97,59 @@ export function anonymizeCompanyName(industry: string | null): string {
   return `[${industry}] Unternehmen`;
 }
 
-// Semantische Erklärungen für fehlende Felder
+// Semantische Erklärungen für fehlende Felder mit professionellem Kontext
 export function explainMissingField(fieldType: string, hasInterview: boolean): string {
-  const explanations: Record<string, string> = {
-    motivation: hasInterview 
-      ? 'Im Interview nicht besprochen' 
-      : 'Nicht erfasst (Interview noch nicht geführt)',
-    salary: 'Nicht freigegeben',
-    availability: 'Noch nicht besprochen',
-    skills: 'Nicht erfasst',
-    risks: hasInterview 
-      ? 'Keine Risiken identifiziert' 
-      : 'Nicht erfasst (Interview noch nicht geführt)',
-    strengths: hasInterview 
-      ? 'Noch keine Stärken identifiziert' 
-      : 'Nicht erfasst (Interview noch nicht geführt)',
-    career_goals: hasInterview
-      ? 'Im Interview nicht besprochen'
-      : 'Nicht erfasst (Interview noch nicht geführt)',
-    region: 'Nicht angegeben',
-    experience: 'Nicht angegeben',
-    seniority: 'Nicht angegeben',
-    work_model: 'Nicht angegeben',
+  const explanations: Record<string, { preInterview: string; postInterview: string }> = {
+    motivation: {
+      preInterview: 'Wird im Interview besprochen',
+      postInterview: 'Im Interview nicht erfasst'
+    },
+    salary: {
+      preInterview: 'Wird im Interview besprochen',
+      postInterview: 'Vom Kandidaten noch nicht freigegeben'
+    },
+    availability: {
+      preInterview: 'Noch nicht besprochen',
+      postInterview: 'Im Interview geklärt'
+    },
+    skills: {
+      preInterview: 'CV-Analyse ausstehend',
+      postInterview: 'Im Lebenslauf nicht detailliert'
+    },
+    risks: {
+      preInterview: 'Wird im Interview analysiert',
+      postInterview: 'Keine Risiken identifiziert'
+    },
+    strengths: {
+      preInterview: 'Wird im Interview analysiert',
+      postInterview: 'Noch keine Stärken identifiziert'
+    },
+    career_goals: {
+      preInterview: 'Wird im Interview besprochen',
+      postInterview: 'Im Interview nicht erfasst'
+    },
+    region: {
+      preInterview: 'Standort noch nicht erfasst',
+      postInterview: 'Standort nicht angegeben'
+    },
+    experience: {
+      preInterview: 'CV-Analyse ausstehend',
+      postInterview: 'Im Lebenslauf nicht angegeben'
+    },
+    seniority: {
+      preInterview: 'Wird basierend auf CV ermittelt',
+      postInterview: 'Fachliche Einschätzung folgt'
+    },
+    work_model: {
+      preInterview: 'Präferenz noch nicht erfasst',
+      postInterview: 'Arbeitsmodell flexibel'
+    },
   };
-  return explanations[fieldType] || 'Keine Angabe';
+  
+  const fieldExplanation = explanations[fieldType];
+  if (!fieldExplanation) return 'Keine Angabe';
+  
+  return hasInterview ? fieldExplanation.postInterview : fieldExplanation.preInterview;
 }
 
 // Fit-Label mit Farbe basierend auf Score

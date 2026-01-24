@@ -9,24 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft,
@@ -64,98 +49,54 @@ import { de } from 'date-fns/locale';
 import { ClientCandidateSummaryCard } from '@/components/candidates/ClientCandidateSummaryCard';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { MatchScoreBreakdown } from '@/components/matching/MatchScoreBreakdown';
-import { useExposeData } from '@/hooks/useExposeData';
+import { RejectionDialog } from '@/components/rejection/RejectionDialog';
+import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
+import { useClientCandidateView } from '@/hooks/useClientCandidateView';
 import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { cn } from '@/lib/utils';
 
 // Import Triple-Blind anonymization helpers
 import { 
   generateAnonymousId, 
-  anonymizeRegionBroad, 
-  anonymizeExperience, 
-  anonymizeSalary,
-  getFitLabel,
-  getMotivationStatus,
   explainMissingField,
 } from '@/lib/anonymization';
-
-const REJECTION_REASONS = [
-  'Qualifikation passt nicht',
-  'Gehaltsvorstellung zu hoch',
-  'Keine Kulturpassung',
-  'Andere Kandidaten bevorzugt',
-  'Position bereits besetzt',
-  'Sonstiges',
-];
 
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Use the expose data hook for professional anonymized data
-  const { data: exposeData, loading: exposeLoading } = useExposeData(id);
+  // ============================================================================
+  // ZENTRALE DATENQUELLE: useClientCandidateView Hook
+  // ============================================================================
+  const { data: candidateView, loading, error, refetch } = useClientCandidateView(id);
   
   // Use V31 Match Score for detailed breakdown
   const { calculateSingleMatch, results: matchResults, loading: matchLoading } = useMatchScoreV31();
   const matchResult = matchResults[0] || null;
   
-  const [submission, setSubmission] = useState<any>(null);
+  // Comments (separate fetch as they're user-specific)
   const [comments, setComments] = useState<any[]>([]);
-  const [clientSummary, setClientSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   
   // Dialog states
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [interviewDate, setInterviewDate] = useState('');
-  const [interviewNotes, setInterviewNotes] = useState('');
-  const [processing, setProcessing] = useState(false);
 
+  // Fetch comments
   useEffect(() => {
     if (id && user) {
-      fetchSubmission();
       fetchComments();
-      fetchClientSummary();
     }
   }, [id, user]);
 
-  // Fetch V31 match result when submission is loaded
+  // Fetch V31 match result when data is loaded
   useEffect(() => {
-    if (submission?.candidate?.id && submission?.job?.id) {
-      calculateSingleMatch(submission.candidate.id, submission.job.id, 'strict');
+    if (candidateView?.candidateId && candidateView?.jobId) {
+      calculateSingleMatch(candidateView.candidateId, candidateView.jobId, 'strict');
     }
-  }, [submission?.candidate?.id, submission?.job?.id]);
-
-  const fetchSubmission = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('submissions')
-        .select(`
-          *,
-          candidate:candidates(*),
-          job:jobs(id, title, company_name, requirements, salary_min, salary_max, must_haves, nice_to_haves, industry)
-        `)
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) {
-        toast({ title: 'Kandidat nicht gefunden', variant: 'destructive' });
-        return;
-      }
-      
-      setSubmission(data);
-    } catch (error) {
-      console.error('Error fetching submission:', error);
-      toast({ title: 'Fehler beim Laden', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [candidateView?.candidateId, candidateView?.jobId]);
 
   const fetchComments = async () => {
     try {
@@ -170,23 +111,6 @@ export default function CandidateDetail() {
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
-    }
-  };
-
-  const fetchClientSummary = async () => {
-    try {
-      // Try to get summary by submission_id first
-      const { data, error } = await supabase
-        .from('candidate_client_summary')
-        .select('*')
-        .eq('submission_id', id)
-        .maybeSingle();
-
-      if (!error && data) {
-        setClientSummary(data);
-      }
-    } catch (error) {
-      console.error('Error fetching client summary:', error);
     }
   };
 
@@ -216,96 +140,6 @@ export default function CandidateDetail() {
     }
   };
 
-  const handleReject = async () => {
-    if (!submission) return;
-    setProcessing(true);
-    
-    try {
-      const { error } = await supabase
-        .from('submissions')
-        .update({ 
-          status: 'rejected',
-          stage: 'rejected',
-          rejection_reason: rejectionReason,
-        })
-        .eq('id', submission.id);
-
-      if (error) throw error;
-      
-      setShowRejectDialog(false);
-      setRejectionReason('');
-      toast({ title: 'Kandidat abgelehnt' });
-      fetchSubmission();
-    } catch (error) {
-      console.error('Error rejecting:', error);
-      toast({ title: 'Fehler', variant: 'destructive' });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleScheduleInterview = async () => {
-    if (!submission || !interviewDate) return;
-    setProcessing(true);
-    
-    try {
-      // Create interview - this triggers automatic opt-in email to candidate
-      const { error: interviewError } = await supabase
-        .from('interviews')
-        .insert({
-          submission_id: submission.id,
-          scheduled_at: interviewDate,
-          notes: interviewNotes,
-          status: 'scheduled',
-          meeting_type: 'video',
-        });
-
-      if (interviewError) throw interviewError;
-
-      // Update submission stage
-      const { error: updateError } = await supabase
-        .from('submissions')
-        .update({ stage: 'interview', status: 'interview' })
-        .eq('id', submission.id);
-
-      if (updateError) throw updateError;
-      
-      setShowInterviewDialog(false);
-      setInterviewDate('');
-      setInterviewNotes('');
-      toast({ 
-        title: 'Interview geplant', 
-        description: 'Kandidat wird automatisch per E-Mail benachrichtigt und um Zustimmung gebeten.' 
-      });
-      fetchSubmission();
-    } catch (error) {
-      console.error('Error scheduling interview:', error);
-      toast({ title: 'Fehler beim Planen', variant: 'destructive' });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  // Triple-Blind Status
-  const identityUnlocked = submission?.identity_unlocked === true;
-  const candidate = submission?.candidate;
-  const job = submission?.job;
-  const hasInterview = !!clientSummary?.change_motivation_status && clientSummary.change_motivation_status !== 'unbekannt';
-
-  // Display name based on Triple-Blind status - NEVER show real name when locked
-  const displayName = identityUnlocked && candidate?.full_name 
-    ? candidate.full_name 
-    : generateAnonymousId(id || '');
-
-  // Get fit assessment from summary
-  const fitLabel = getFitLabel(
-    clientSummary?.recommendation_score || exposeData?.matchScore,
-    clientSummary?.fit_assessment
-  );
-
-  // Get motivation status
-  const motivationStatus = getMotivationStatus(clientSummary?.change_motivation_status);
-
   const getStatusBadge = (status: string | null) => {
     const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       submitted: { label: 'Eingereicht', variant: 'secondary' },
@@ -321,7 +155,8 @@ export default function CandidateDetail() {
     return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
   };
 
-  if (loading || exposeLoading) {
+  // Loading state
+  if (loading) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -340,11 +175,13 @@ export default function CandidateDetail() {
     );
   }
 
-  if (!submission || !candidate) {
+  // Error or not found state
+  if (error || !candidateView) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
           <h2 className="text-xl font-semibold">Kandidat nicht gefunden</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
           <Button asChild className="mt-4">
             <Link to="/dashboard/candidates">Zurück zur Übersicht</Link>
           </Button>
@@ -352,6 +189,45 @@ export default function CandidateDetail() {
       </DashboardLayout>
     );
   }
+
+  // Destructure for cleaner code
+  const {
+    displayName,
+    identityUnlocked,
+    isAnonymized,
+    currentRole,
+    experience,
+    seniority,
+    salaryRange,
+    availability,
+    region,
+    workModel,
+    topSkills,
+    matchScore,
+    fitLabel,
+    dealProbability,
+    motivationStatus,
+    status,
+    stage,
+    jobTitle,
+    jobId,
+    jobIndustry,
+    executiveSummary,
+    keySellingPoints,
+    riskFactors,
+    positiveFactors,
+    recruiterNotes,
+    email,
+    phone,
+    cvUrl,
+    linkedinUrl,
+    hasRequiredData,
+    missingFields,
+    canBePresented,
+    hasInterview,
+    candidateId,
+    submissionId
+  } = candidateView;
 
   return (
     <DashboardLayout>
@@ -378,8 +254,8 @@ export default function CandidateDetail() {
                     ? "bg-primary/10 text-primary" 
                     : "bg-muted text-muted-foreground"
                 )}>
-                  {identityUnlocked && candidate.full_name ? (
-                    candidate.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+                  {identityUnlocked ? (
+                    displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
                   ) : (
                     <User className="h-6 w-6" />
                   )}
@@ -394,13 +270,13 @@ export default function CandidateDetail() {
                   </div>
                   
                   <p className="text-sm text-muted-foreground">
-                    für <span className="font-medium text-foreground">{job?.title || 'Position'}</span>
+                    für <span className="font-medium text-foreground">{jobTitle}</span>
                   </p>
                 </div>
 
                 {/* Status Badges */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  {getStatusBadge(submission.stage || submission.status)}
+                  {getStatusBadge(stage || status)}
                   
                   {/* Fit Assessment Badge */}
                   <Badge className={cn(fitLabel.bgClass, fitLabel.textClass, "border-0")}>
@@ -410,7 +286,7 @@ export default function CandidateDetail() {
               </div>
               
               {/* Right: Actions */}
-              {submission.status !== 'hired' && submission.status !== 'rejected' && (
+              {status !== 'hired' && status !== 'rejected' && (
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => setShowInterviewDialog(true)}>
                     <Calendar className="h-4 w-4 mr-2" />
@@ -425,6 +301,22 @@ export default function CandidateDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Readiness Warning Banner */}
+        {!hasRequiredData && (
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription>
+              <p className="font-medium text-amber-800 dark:text-amber-200">Profildaten unvollständig</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Fehlende Pflichtfelder: {missingFields.join(', ')}
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                Der Recruiter wurde benachrichtigt, diese Daten zu ergänzen.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Triple-Blind Info Banner */}
         {!identityUnlocked && (
@@ -456,31 +348,10 @@ export default function CandidateDetail() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {/* Role Archetype */}
+                  {/* Role */}
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Rollen-Archetyp</p>
-                    <p className="font-medium text-sm">
-                      {clientSummary?.role_archetype || candidate.seniority || 'Fachkraft'}
-                    </p>
-                  </div>
-                  
-                  {/* Primary Domain */}
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Domäne</p>
-                    <p className="font-medium text-sm">
-                      {clientSummary?.primary_domain || 'Software Engineering'}
-                    </p>
-                  </div>
-                  
-                  {/* Region - Always anonymized to broad region */}
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Region</p>
-                    <p className="font-medium flex items-center gap-1.5 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {identityUnlocked 
-                        ? (candidate.city || 'Nicht angegeben') 
-                        : anonymizeRegionBroad(candidate.city)}
-                    </p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Aktuelle Rolle</p>
+                    <p className="font-medium text-sm">{currentRole}</p>
                   </div>
                   
                   {/* Seniority */}
@@ -488,7 +359,16 @@ export default function CandidateDetail() {
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Seniorität</p>
                     <p className="font-medium flex items-center gap-1.5 text-sm">
                       <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      {candidate.seniority || explainMissingField('seniority', hasInterview)}
+                      {seniority}
+                    </p>
+                  </div>
+                  
+                  {/* Region */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Region</p>
+                    <p className="font-medium flex items-center gap-1.5 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      {region}
                     </p>
                   </div>
                   
@@ -497,10 +377,7 @@ export default function CandidateDetail() {
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Arbeitsmodell</p>
                     <p className="font-medium flex items-center gap-1.5 text-sm">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
-                      {candidate.remote_preference === 'remote' ? 'Remote' 
-                        : candidate.remote_preference === 'hybrid' ? 'Hybrid' 
-                        : candidate.remote_preference === 'onsite' ? 'Vor Ort' 
-                        : candidate.work_model || 'Flexibel'}
+                      {workModel}
                     </p>
                   </div>
                   
@@ -509,10 +386,7 @@ export default function CandidateDetail() {
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Verfügbarkeit</p>
                     <p className="font-medium flex items-center gap-1.5 text-sm">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      {candidate.notice_period || 
-                       (candidate.availability_date 
-                         ? format(new Date(candidate.availability_date), 'MMM yyyy', { locale: de })
-                         : explainMissingField('availability', hasInterview))}
+                      {availability}
                     </p>
                   </div>
                 </div>
@@ -521,12 +395,12 @@ export default function CandidateDetail() {
 
                 {/* Salary & Experience Row */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Experience Range */}
+                  {/* Experience */}
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Erfahrung</p>
                     <p className="font-medium flex items-center gap-1.5">
                       <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                      {anonymizeExperience(candidate.experience_years)}
+                      {experience}
                     </p>
                   </div>
                   
@@ -535,11 +409,7 @@ export default function CandidateDetail() {
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Gehaltsband</p>
                     <p className="font-medium flex items-center gap-1.5">
                       <Euro className="h-4 w-4 text-muted-foreground" />
-                      {candidate.expected_salary 
-                        ? anonymizeSalary(candidate.expected_salary)
-                        : candidate.salary_expectation_min && candidate.salary_expectation_max
-                          ? `€${(candidate.salary_expectation_min / 1000).toFixed(0)}k - €${(candidate.salary_expectation_max / 1000).toFixed(0)}k`
-                          : explainMissingField('salary', hasInterview)}
+                      {salaryRange}
                     </p>
                   </div>
                 </div>
@@ -555,29 +425,21 @@ export default function CandidateDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Primary Origin */}
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Primärer Ursprung</p>
-                  <p className="font-medium">
-                    {clientSummary?.primary_domain || 'Software Engineering'}
-                  </p>
-                </div>
-                
-                {/* Top 5 Core Competencies */}
+                {/* Top Skills */}
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Kernkompetenzen (Top 5)</p>
                   <div className="flex flex-wrap gap-2">
-                    {(candidate.skills || []).slice(0, 5).map((skill: string, idx: number) => (
+                    {topSkills.slice(0, 5).map((skill: string, idx: number) => (
                       <Badge key={idx} variant="secondary" className="text-sm">
                         {skill}
                       </Badge>
                     ))}
-                    {candidate.skills && candidate.skills.length > 5 && (
+                    {topSkills.length > 5 && (
                       <Badge variant="outline" className="text-sm">
-                        +{candidate.skills.length - 5} weitere
+                        +{topSkills.length - 5} weitere
                       </Badge>
                     )}
-                    {(!candidate.skills || candidate.skills.length === 0) && (
+                    {topSkills.length === 0 && (
                       <p className="text-sm text-muted-foreground">
                         {explainMissingField('skills', hasInterview)}
                       </p>
@@ -598,9 +460,9 @@ export default function CandidateDetail() {
               <CardContent className="space-y-4">
                 {/* Score + Fit Label */}
                 <div className="flex items-center gap-4">
-                  {(matchResult?.overall || clientSummary?.recommendation_score || exposeData?.matchScore) && (
+                  {matchScore > 0 && (
                     <div className="text-3xl font-bold">
-                      {matchResult?.overall || clientSummary?.recommendation_score || exposeData?.matchScore}%
+                      {matchResult?.overall || matchScore}%
                     </div>
                   )}
                   <Badge className={cn(fitLabel.bgClass, fitLabel.textClass, "border-0 text-sm px-3 py-1")}>
@@ -615,19 +477,19 @@ export default function CandidateDetail() {
                   )}
                 </div>
 
-                {/* Executive Summary - Anonymized */}
-                {clientSummary?.executive_summary && (
+                {/* Executive Summary */}
+                {executiveSummary && (
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {clientSummary.executive_summary}
+                    {executiveSummary}
                   </p>
                 )}
 
-                {/* If no summary yet */}
-                {!clientSummary?.executive_summary && exposeData?.executiveSummary && exposeData.executiveSummary.length > 0 && (
+                {/* Key Selling Points */}
+                {!executiveSummary && keySellingPoints.length > 0 && (
                   <ul className="space-y-2">
-                    {exposeData.executiveSummary.map((point, idx) => (
+                    {keySellingPoints.map((point, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
-                        <CheckCircle className="h-4 w-4 text-success mt-0.5 shrink-0" />
+                        <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
                         <span>{point}</span>
                       </li>
                     ))}
@@ -682,21 +544,21 @@ export default function CandidateDetail() {
                       <AlertTriangle className="h-4 w-4 text-amber-500" />
                       Risiken
                     </div>
-                    {clientSummary?.risk_factors && Array.isArray(clientSummary.risk_factors) && clientSummary.risk_factors.length > 0 ? (
+                    {riskFactors.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {clientSummary.risk_factors.filter((r: any) => r.severity === 'high').length > 0 && (
+                        {riskFactors.filter((r: any) => r.severity === 'high').length > 0 && (
                           <Badge variant="destructive" className="text-xs">
-                            {clientSummary.risk_factors.filter((r: any) => r.severity === 'high').length} hoch
+                            {riskFactors.filter((r: any) => r.severity === 'high').length} hoch
                           </Badge>
                         )}
-                        {clientSummary.risk_factors.filter((r: any) => r.severity === 'medium').length > 0 && (
+                        {riskFactors.filter((r: any) => r.severity === 'medium').length > 0 && (
                           <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">
-                            {clientSummary.risk_factors.filter((r: any) => r.severity === 'medium').length} mittel
+                            {riskFactors.filter((r: any) => r.severity === 'medium').length} mittel
                           </Badge>
                         )}
-                        {clientSummary.risk_factors.filter((r: any) => r.severity === 'low').length > 0 && (
+                        {riskFactors.filter((r: any) => r.severity === 'low').length > 0 && (
                           <Badge variant="secondary" className="text-xs">
-                            {clientSummary.risk_factors.filter((r: any) => r.severity === 'low').length} gering
+                            {riskFactors.filter((r: any) => r.severity === 'low').length} gering
                           </Badge>
                         )}
                       </div>
@@ -713,9 +575,9 @@ export default function CandidateDetail() {
                       <CheckCircle className="h-4 w-4 text-emerald-500" />
                       Stärken
                     </div>
-                    {clientSummary?.positive_factors && Array.isArray(clientSummary.positive_factors) && clientSummary.positive_factors.length > 0 ? (
+                    {positiveFactors.length > 0 ? (
                       <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">
-                        {clientSummary.positive_factors.length} identifiziert
+                        {positiveFactors.length} identifiziert
                       </Badge>
                     ) : (
                       <p className="text-xs text-muted-foreground">
@@ -725,17 +587,15 @@ export default function CandidateDetail() {
                   </div>
                 </div>
 
-                {/* Deal Health Badge */}
-                {exposeData?.dealHealthScore !== undefined && (
+                {/* Deal Probability */}
+                {dealProbability > 0 && (
                   <>
                     <Separator />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Deal-Gesundheit</span>
-                      <DealHealthBadge 
-                        score={exposeData.dealHealthScore} 
-                        riskLevel={exposeData.dealHealthRisk as 'low' | 'medium' | 'high'} 
-                        size="sm"
-                      />
+                      <span className="text-sm text-muted-foreground">Deal-Wahrscheinlichkeit</span>
+                      <Badge variant="outline" className="text-sm font-semibold">
+                        {dealProbability}%
+                      </Badge>
                     </div>
                   </>
                 )}
@@ -781,7 +641,7 @@ export default function CandidateDetail() {
             )}
 
             {/* Documents - Only When Unlocked */}
-            {identityUnlocked && (candidate.cv_url || candidate.linkedin_url || candidate.video_url) && (
+            {identityUnlocked && (cvUrl || linkedinUrl) && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -790,29 +650,20 @@ export default function CandidateDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                  {candidate.cv_url && (
+                  {cvUrl && (
                     <Button variant="outline" size="sm" asChild>
-                      <a href={candidate.cv_url} target="_blank" rel="noopener noreferrer">
+                      <a href={cvUrl} target="_blank" rel="noopener noreferrer">
                         <FileText className="h-4 w-4 mr-2" />
                         Lebenslauf öffnen
                         <ExternalLink className="h-3 w-3 ml-2" />
                       </a>
                     </Button>
                   )}
-                  {candidate.linkedin_url && (
+                  {linkedinUrl && (
                     <Button variant="outline" size="sm" asChild>
-                      <a href={candidate.linkedin_url} target="_blank" rel="noopener noreferrer">
+                      <a href={linkedinUrl} target="_blank" rel="noopener noreferrer">
                         <Linkedin className="h-4 w-4 mr-2" />
                         LinkedIn
-                        <ExternalLink className="h-3 w-3 ml-2" />
-                      </a>
-                    </Button>
-                  )}
-                  {candidate.video_url && (
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={candidate.video_url} target="_blank" rel="noopener noreferrer">
-                        <Video className="h-4 w-4 mr-2" />
-                        Video
                         <ExternalLink className="h-3 w-3 ml-2" />
                       </a>
                     </Button>
@@ -878,12 +729,12 @@ export default function CandidateDetail() {
           <div className="lg:col-span-2 space-y-6">
             {/* Client Candidate Summary Card - The star of the show */}
             <ClientCandidateSummaryCard 
-              candidateId={candidate.id}
+              candidateId={candidateId}
               submissionId={id}
             />
             
-            {/* Recruiter Notes (anonymized) */}
-            {submission.recruiter_notes && (
+            {/* Recruiter Notes */}
+            {recruiterNotes && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -892,13 +743,13 @@ export default function CandidateDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">{submission.recruiter_notes}</p>
+                  <p className="text-sm text-muted-foreground">{recruiterNotes}</p>
                 </CardContent>
               </Card>
             )}
 
             {/* Contact info card - Only When Unlocked */}
-            {identityUnlocked && (candidate.email || candidate.phone) && (
+            {identityUnlocked && (email || phone) && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -907,19 +758,19 @@ export default function CandidateDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {candidate.email && (
+                  {email && (
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${candidate.email}`} className="hover:underline">
-                        {candidate.email}
+                      <a href={`mailto:${email}`} className="hover:underline">
+                        {email}
                       </a>
                     </div>
                   )}
-                  {candidate.phone && (
+                  {phone && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${candidate.phone}`} className="hover:underline">
-                        {candidate.phone}
+                      <a href={`tel:${phone}`} className="hover:underline">
+                        {phone}
                       </a>
                     </div>
                   )}
@@ -930,86 +781,44 @@ export default function CandidateDetail() {
         </div>
       </div>
 
-      {/* Reject Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Kandidat ablehnen</DialogTitle>
-            <DialogDescription>
-              Bitte wählen Sie einen Ablehnungsgrund aus.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Select value={rejectionReason} onValueChange={setRejectionReason}>
-              <SelectTrigger>
-                <SelectValue placeholder="Ablehnungsgrund wählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {REJECTION_REASONS.map((reason) => (
-                  <SelectItem key={reason} value={reason}>
-                    {reason}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
-              Abbrechen
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleReject}
-              disabled={!rejectionReason || processing}
-            >
-              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Ablehnen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ==================== DIALOGE ==================== */}
+      
+      {/* Professional Rejection Dialog */}
+      <RejectionDialog
+        open={showRejectDialog}
+        onOpenChange={setShowRejectDialog}
+        submission={{
+          id: submissionId,
+          candidate: {
+            id: candidateId,
+            full_name: displayName,
+            email: email || ''
+          },
+          job: {
+            id: jobId,
+            title: jobTitle,
+            company_name: ''
+          }
+        }}
+        onSuccess={() => {
+          setShowRejectDialog(false);
+          refetch();
+        }}
+      />
 
-      {/* Interview Dialog */}
-      <Dialog open={showInterviewDialog} onOpenChange={setShowInterviewDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Interview anfragen</DialogTitle>
-            <DialogDescription>
-              Wählen Sie einen Termin für das Interview. Der Kandidat erhält automatisch eine Opt-In Anfrage per E-Mail.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Termin</label>
-              <Input
-                type="datetime-local"
-                value={interviewDate}
-                onChange={(e) => setInterviewDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Notizen (optional)</label>
-              <Textarea
-                placeholder="Zusätzliche Informationen zum Interview..."
-                value={interviewNotes}
-                onChange={(e) => setInterviewNotes(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInterviewDialog(false)}>
-              Abbrechen
-            </Button>
-            <Button 
-              onClick={handleScheduleInterview}
-              disabled={!interviewDate || processing}
-            >
-              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Interview anfragen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Professional Interview Dialog with Triple-Blind */}
+      <InterviewRequestWithOptInDialog
+        open={showInterviewDialog}
+        onOpenChange={setShowInterviewDialog}
+        submissionId={submissionId}
+        candidateAnonymousId={displayName}
+        jobTitle={jobTitle}
+        jobIndustry={jobIndustry}
+        onSuccess={() => {
+          setShowInterviewDialog(false);
+          refetch();
+        }}
+      />
     </DashboardLayout>
   );
 }
