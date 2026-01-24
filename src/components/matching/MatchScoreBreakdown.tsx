@@ -68,9 +68,70 @@ function getStatusFromScore(score: number): 'excellent' | 'good' | 'warning' | '
   return 'poor';
 }
 
-// Map V31 result to breakdown categories
+// Map V31 result to breakdown categories with better explanations for excluded candidates
 function mapV31ToBreakdown(result: V31MatchResult): BreakdownCategory[] {
   const { fit, constraints } = result;
+  const isExcluded = result.killed || result.excluded;
+  
+  // Build detailed skill information
+  const skillDetails: string[] = [];
+  if (isExcluded && fit.details.skills.mustHaveMissing.length > 0) {
+    skillDetails.push(`❌ Fehlende Must-Haves: ${fit.details.skills.mustHaveMissing.join(', ')}`);
+  }
+  if (fit.details.skills.matched.length > 0) {
+    skillDetails.push(`✓ ${fit.details.skills.matched.length} exakte Matches`);
+  }
+  if (fit.details.skills.transferable.length > 0) {
+    skillDetails.push(`↔ ${fit.details.skills.transferable.length} transferierbare Skills`);
+  }
+  if (!isExcluded && fit.details.skills.missing.length > 0) {
+    skillDetails.push(`○ ${fit.details.skills.missing.length} fehlende Nice-to-Haves`);
+  }
+  if (skillDetails.length === 0) {
+    skillDetails.push('Skill-Analyse ausstehend');
+  }
+  
+  // Build experience details
+  const expDetails: string[] = [];
+  if (fit.breakdown.seniority > 0) {
+    expDetails.push(`Seniority-Match: ${fit.breakdown.seniority}%`);
+  }
+  if (fit.breakdown.industry > 0) {
+    expDetails.push(`Branchen-Erfahrung: ${fit.breakdown.industry}%`);
+  }
+  if (expDetails.length === 0) {
+    expDetails.push('Erfahrungs-Analyse ausstehend');
+  }
+  
+  // Build salary details
+  const salaryDetails: string[] = [];
+  if (constraints.breakdown.salary < 50) {
+    salaryDetails.push('⚠️ Erhebliche Budget-Abweichung');
+  } else if (constraints.breakdown.salary < 80) {
+    salaryDetails.push('Budget-Abweichung vorhanden');
+  } else {
+    salaryDetails.push('✓ Im Budgetrahmen');
+  }
+  
+  // Build availability details
+  const availDetails: string[] = [];
+  if (constraints.breakdown.startDate >= 80) {
+    availDetails.push('✓ Zeitlich passend');
+  } else if (constraints.breakdown.startDate >= 50) {
+    availDetails.push('Startdatum etwas später als gewünscht');
+  } else {
+    availDetails.push('⚠️ Startdatum problematisch');
+  }
+  
+  // Build location details
+  const locationDetails: string[] = [];
+  if (constraints.breakdown.commute >= 80) {
+    locationDetails.push('✓ Standort passt');
+  } else if (constraints.breakdown.commute >= 50) {
+    locationDetails.push('Pendeldistanz akzeptabel');
+  } else {
+    locationDetails.push('⚠️ Standort/Pendel problematisch');
+  }
   
   const categories: BreakdownCategory[] = [
     {
@@ -78,17 +139,7 @@ function mapV31ToBreakdown(result: V31MatchResult): BreakdownCategory[] {
       score: fit.breakdown.skills,
       weight: 35,
       label: 'Skills',
-      details: [
-        fit.details.skills.matched.length > 0 
-          ? `${fit.details.skills.matched.length} exakte Matches` 
-          : null,
-        fit.details.skills.transferable.length > 0 
-          ? `${fit.details.skills.transferable.length} transferierbare Skills` 
-          : null,
-        fit.details.skills.mustHaveMissing.length > 0 
-          ? `${fit.details.skills.mustHaveMissing.length} fehlende Must-Haves` 
-          : null,
-      ].filter(Boolean) as string[],
+      details: skillDetails,
       status: getStatusFromScore(fit.breakdown.skills),
     },
     {
@@ -96,10 +147,7 @@ function mapV31ToBreakdown(result: V31MatchResult): BreakdownCategory[] {
       score: fit.breakdown.experience,
       weight: 25,
       label: 'Erfahrung',
-      details: [
-        `Seniority-Match: ${fit.breakdown.seniority}%`,
-        fit.breakdown.industry > 0 ? `Branchen-Erfahrung: ${fit.breakdown.industry}%` : null,
-      ].filter(Boolean) as string[],
+      details: expDetails,
       status: getStatusFromScore(fit.breakdown.experience),
     },
     {
@@ -107,9 +155,7 @@ function mapV31ToBreakdown(result: V31MatchResult): BreakdownCategory[] {
       score: constraints.breakdown.salary,
       weight: 20,
       label: 'Gehalt',
-      details: constraints.breakdown.salary < 80 
-        ? ['Budget-Abweichung vorhanden'] 
-        : ['Im Budgetrahmen'],
+      details: salaryDetails,
       status: getStatusFromScore(constraints.breakdown.salary),
     },
     {
@@ -117,9 +163,7 @@ function mapV31ToBreakdown(result: V31MatchResult): BreakdownCategory[] {
       score: constraints.breakdown.startDate,
       weight: 10,
       label: 'Verfügbarkeit',
-      details: constraints.breakdown.startDate >= 80 
-        ? ['Zeitlich passend'] 
-        : ['Startdatum-Differenz'],
+      details: availDetails,
       status: getStatusFromScore(constraints.breakdown.startDate),
     },
     {
@@ -127,9 +171,7 @@ function mapV31ToBreakdown(result: V31MatchResult): BreakdownCategory[] {
       score: constraints.breakdown.commute,
       weight: 10,
       label: 'Standort',
-      details: constraints.breakdown.commute >= 80 
-        ? ['Standort passt'] 
-        : ['Pendeldistanz beachten'],
+      details: locationDetails,
       status: getStatusFromScore(constraints.breakdown.commute),
     },
   ];

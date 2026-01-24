@@ -295,9 +295,9 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         summary?.role_archetype || 
         getSemanticExplanation('seniority', { hasInterview, stage });
 
-      // Get fit and motivation labels
+      // Get fit label based on fit_assessment only (V3.1 provides the numeric score)
       const fitLabel = getFitLabel(
-        summary?.recommendation_score || submission.match_score,
+        null, // Score comes from V3.1 Engine, not from summary
         summary?.fit_assessment
       );
       const motivationStatus = getMotivationStatus(summary?.change_motivation_status);
@@ -338,8 +338,9 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         // Skills
         topSkills: candidate.skills || [],
         
-        // Matching
-        matchScore: summary?.recommendation_score || submission.match_score || 0,
+        // Matching - V3.1 Engine is the SINGLE SOURCE OF TRUTH
+        // matchScore is only used as fallback, V3.1 should always be preferred in UI
+        matchScore: submission.match_score || 0, // Legacy fallback, V3.1 takes precedence
         fitLabel,
         dealProbability: summary?.deal_probability || 
           (health?.drop_off_probability ? 100 - health.drop_off_probability : 50),
