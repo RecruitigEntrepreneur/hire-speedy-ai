@@ -199,3 +199,6 @@ verify_jwt = true
 
 [functions.generate-job-summary]
 verify_jwt = true
+
+[functions.client-dashboard-data]
+verify_jwt = true
