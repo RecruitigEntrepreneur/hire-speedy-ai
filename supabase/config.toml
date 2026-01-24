@@ -54,11 +54,6 @@ verify_jwt = true
 [functions.gdpr-deletion]
 verify_jwt = true
 
-[functions.seed-data]
-verify_jwt = true
-
-[functions.seed-test-data]
-verify_jwt = true
 
 [functions.parse-cv]
 verify_jwt = true
@@ -144,8 +139,6 @@ verify_jwt = false
 [functions.parse-job-pdf]
 verify_jwt = true
 
-[functions.seed-complete-data]
-verify_jwt = false
 
 [functions.generate-outreach-email]
 verify_jwt = true
