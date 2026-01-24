@@ -146,12 +146,13 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
   const actions: UnifiedAction[] = [];
   const now = new Date();
 
-  // 1. Pending candidate decisions
+  // 1. Pending candidate decisions (exclude rejected/hired)
   const { data: pendingSubmissions } = await supabase
     .from('client_submissions_view')
     .select('*')
     .eq('client_id', clientId)
     .eq('status', 'submitted')
+    .not('stage', 'in', '("rejected","client_rejected","hired","interview_requested")')
     .order('submitted_at', { ascending: true })
     .limit(20);
 
