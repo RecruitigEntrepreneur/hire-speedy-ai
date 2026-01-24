@@ -154,6 +154,15 @@ export function InterviewRequestWithOptInDialog({
 
       if (updateError) throw updateError;
 
+      // Update submission stage to remove from pending actions
+      await supabase
+        .from('submissions')
+        .update({ 
+          stage: 'interview_requested',
+          status: 'interview'
+        })
+        .eq('id', submissionId);
+
       // Create notification for recruiter
       const { data: submission } = await supabase
         .from('submissions')

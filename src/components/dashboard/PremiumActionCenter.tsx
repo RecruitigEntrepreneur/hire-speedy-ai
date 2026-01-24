@@ -89,7 +89,11 @@ export function PremiumActionCenter({
     try {
       const { error } = await supabase
         .from('submissions')
-        .update({ stage: 'client_rejected' })
+        .update({ 
+          stage: 'client_rejected',
+          status: 'rejected',
+          rejection_reason: 'Vom Kunden abgelehnt'
+        })
         .eq('id', rejectDialog.action.submissionId);
 
       if (error) throw error;
@@ -244,19 +248,15 @@ interface ActionCardProps {
 
 function ActionCard({ action, onRequestInterview, onReject, isProcessing, formatWaitingTime }: ActionCardProps) {
   const styles = URGENCY_STYLES[action.urgency];
-  
-  // Extract match score from title if available (format: "92% Match")
-  const matchScoreMatch = action.title.match(/(\d+)%/);
-  const matchScore = matchScoreMatch ? parseInt(matchScoreMatch[1]) : null;
 
   return (
     <div 
       className={cn(
-        "relative rounded-lg border bg-card p-4 transition-all hover:shadow-md",
+        "rounded-lg border bg-card p-4 transition-all hover:shadow-md",
         styles.border
       )}
     >
-      {/* Header with ID and Match Score */}
+      {/* Header with ID and Urgency */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
@@ -271,17 +271,9 @@ function ActionCard({ action, onRequestInterview, onReject, isProcessing, format
             </p>
           </div>
         </div>
-        {matchScore && (
-          <Badge 
-            variant="outline" 
-            className={cn(
-              "font-semibold",
-              matchScore >= 85 ? "bg-success/10 text-success border-success/30" :
-              matchScore >= 70 ? "bg-primary/10 text-primary border-primary/30" :
-              "bg-muted text-muted-foreground"
-            )}
-          >
-            {matchScore}%
+        {action.urgency === 'critical' && (
+          <Badge variant="destructive" className="text-xs">
+            Dringend
           </Badge>
         )}
       </div>
@@ -292,8 +284,8 @@ function ActionCard({ action, onRequestInterview, onReject, isProcessing, format
         <span>wartet seit {formatWaitingTime(action.waitingHours)}</span>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2">
+      {/* Actions - with proper z-index to prevent click hijacking */}
+      <div className="flex gap-2 relative z-10">
         <Button 
           size="sm" 
           className="flex-1"
@@ -312,18 +304,16 @@ function ActionCard({ action, onRequestInterview, onReject, isProcessing, format
         >
           <X className="h-4 w-4" />
         </Button>
-      </div>
-
-      {/* View Details Link */}
-      {action.submissionId && (
-        <Link 
-          to={`/dashboard/candidates/${action.submissionId}`}
-          className="absolute inset-0 z-0"
-          onClick={(e) => e.stopPropagation()}
+        <Button 
+          size="sm" 
+          variant="ghost"
+          asChild
         >
-          <span className="sr-only">Details anzeigen</span>
-        </Link>
-      )}
+          <Link to={`/dashboard/candidates/${action.submissionId}`}>
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
