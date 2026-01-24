@@ -63,7 +63,9 @@ import { de } from 'date-fns/locale';
 // Import professional components
 import { ClientCandidateSummaryCard } from '@/components/candidates/ClientCandidateSummaryCard';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
+import { MatchScoreBreakdown } from '@/components/matching/MatchScoreBreakdown';
 import { useExposeData } from '@/hooks/useExposeData';
+import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { cn } from '@/lib/utils';
 
 // Import Triple-Blind anonymization helpers
@@ -94,6 +96,10 @@ export default function CandidateDetail() {
   // Use the expose data hook for professional anonymized data
   const { data: exposeData, loading: exposeLoading } = useExposeData(id);
   
+  // Use V31 Match Score for detailed breakdown
+  const { calculateSingleMatch, results: matchResults, loading: matchLoading } = useMatchScoreV31();
+  const matchResult = matchResults[0] || null;
+  
   const [submission, setSubmission] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [clientSummary, setClientSummary] = useState<any>(null);
@@ -116,6 +122,13 @@ export default function CandidateDetail() {
       fetchClientSummary();
     }
   }, [id, user]);
+
+  // Fetch V31 match result when submission is loaded
+  useEffect(() => {
+    if (submission?.candidate?.id && submission?.job?.id) {
+      calculateSingleMatch(submission.candidate.id, submission.job.id, 'strict');
+    }
+  }, [submission?.candidate?.id, submission?.job?.id]);
 
   const fetchSubmission = async () => {
     try {
@@ -585,14 +598,21 @@ export default function CandidateDetail() {
               <CardContent className="space-y-4">
                 {/* Score + Fit Label */}
                 <div className="flex items-center gap-4">
-                  {(clientSummary?.recommendation_score || exposeData?.matchScore) && (
+                  {(matchResult?.overall || clientSummary?.recommendation_score || exposeData?.matchScore) && (
                     <div className="text-3xl font-bold">
-                      {clientSummary?.recommendation_score || exposeData?.matchScore}%
+                      {matchResult?.overall || clientSummary?.recommendation_score || exposeData?.matchScore}%
                     </div>
                   )}
                   <Badge className={cn(fitLabel.bgClass, fitLabel.textClass, "border-0 text-sm px-3 py-1")}>
                     {fitLabel.label}
                   </Badge>
+                  {matchResult?.policy && (
+                    <Badge variant="outline" className="text-xs">
+                      {matchResult.policy === 'hot' ? '🔥 Hot Match' : 
+                       matchResult.policy === 'standard' ? '✓ Standard' : 
+                       matchResult.policy === 'maybe' ? '? Prüfen' : '✗ Ausgeschlossen'}
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Executive Summary - Anonymized */}
@@ -607,11 +627,30 @@ export default function CandidateDetail() {
                   <ul className="space-y-2">
                     {exposeData.executiveSummary.map((point, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
-                        <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                        <CheckCircle className="h-4 w-4 text-success mt-0.5 shrink-0" />
                         <span>{point}</span>
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {/* V31 Match Score Breakdown */}
+                {matchResult && !matchLoading && (
+                  <div className="pt-4 border-t">
+                    <MatchScoreBreakdown 
+                      matchScore={matchResult.overall}
+                      v31Result={matchResult}
+                      compact={true}
+                    />
+                  </div>
+                )}
+                
+                {/* Loading state for match breakdown */}
+                {matchLoading && (
+                  <div className="pt-4 border-t flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Match-Analyse wird geladen...
+                  </div>
                 )}
               </CardContent>
             </Card>
