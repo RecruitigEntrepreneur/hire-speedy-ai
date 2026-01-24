@@ -31,6 +31,8 @@ import { useToast } from '@/hooks/use-toast';
 import { JobEditDialog } from '@/components/jobs/JobEditDialog';
 import { CandidateQuickView } from '@/components/candidates/CandidateQuickView';
 import { JobExecutiveSummary } from '@/components/jobs/JobExecutiveSummary';
+import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
+import { cn } from '@/lib/utils';
 import { 
   ArrowLeft,
   Briefcase, 
@@ -53,6 +55,8 @@ import {
   BarChart3,
   UserCheck,
   MessageSquare,
+  GitCompare,
+  Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -187,6 +191,31 @@ export default function ClientJobDetail() {
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewNotes, setInterviewNotes] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  
+  // Multi-select for comparison
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+
+  // Toggle candidate selection for comparison
+  const handleToggleSelect = (submissionId: string) => {
+    if (selectedSubmissionIds.includes(submissionId)) {
+      setSelectedSubmissionIds(prev => prev.filter(id => id !== submissionId));
+    } else if (selectedSubmissionIds.length < 3) {
+      setSelectedSubmissionIds(prev => [...prev, submissionId]);
+    } else {
+      toast({ title: 'Maximal 3 Kandidaten', description: 'Entferne erst einen Kandidaten.', variant: 'destructive' });
+    }
+  };
+
+  const handleRemoveFromCompare = (submissionId: string) => {
+    setSelectedSubmissionIds(prev => prev.filter(id => id !== submissionId));
+  };
+
+  // Generate anonymous ID for Triple-Blind compliance
+  const generateAnonymousId = (submissionId: string): string => {
+    const prefix = job?.title?.slice(0, 2).toUpperCase() || 'XX';
+    return `${prefix}-${submissionId.slice(0, 6).toUpperCase()}`;
+  };
 
   const generateSummary = async () => {
     if (!job) return;
@@ -489,6 +518,17 @@ export default function ClientJobDetail() {
                   <Edit2 className="h-4 w-4 mr-2" />
                   Bearbeiten
                 </Button>
+                {selectedSubmissionIds.length > 0 && (
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => setCompareOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <GitCompare className="h-4 w-4" />
+                    Vergleichen ({selectedSubmissionIds.length}/3)
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -585,35 +625,50 @@ export default function ClientJobDetail() {
                       
                       <div className="space-y-2 min-h-[200px]">
                         {stageSubmissions.map((submission) => {
-                          const initials = submission.candidate.full_name
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
-                            .toUpperCase()
-                            .slice(0, 2);
+                          const anonymousId = generateAnonymousId(submission.id);
+                          const isSelected = selectedSubmissionIds.includes(submission.id);
                             
                           return (
                             <Card 
                               key={submission.id}
-                              className="cursor-pointer hover:shadow-md transition-all hover:border-primary/30"
+                              className={cn(
+                                "cursor-pointer hover:shadow-md transition-all hover:border-primary/30 group relative",
+                                isSelected && "ring-2 ring-primary border-primary"
+                              )}
                               onClick={() => {
                                 setSelectedSubmission(submission);
                                 setShowCandidateView(true);
                               }}
                             >
                               <CardContent className="p-3">
-                                <div className="flex items-start gap-3">
+                                <div className="flex items-start gap-3 relative">
+                                  {/* Selection Checkbox */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleSelect(submission.id);
+                                    }}
+                                    className={cn(
+                                      "absolute -top-1 -left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all z-10",
+                                      isSelected
+                                        ? "bg-primary border-primary text-primary-foreground"
+                                        : "bg-background border-muted-foreground/30 hover:border-primary opacity-0 group-hover:opacity-100"
+                                    )}
+                                  >
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                  </button>
+
                                   <Avatar className="h-10 w-10">
-                                    <AvatarFallback className="bg-gradient-navy text-primary-foreground text-xs">
-                                      {initials}
+                                    <AvatarFallback className="bg-primary/10 text-primary font-mono text-xs">
+                                      {anonymousId.slice(0, 2)}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm truncate">
-                                      {submission.candidate.full_name}
+                                    <p className="font-mono font-medium text-sm truncate">
+                                      {anonymousId}
                                     </p>
                                     <p className="text-xs text-muted-foreground truncate">
-                                      {submission.candidate.job_title || 'Keine Position'}
+                                      {submission.candidate.seniority || 'Kandidat'}
                                     </p>
                                     
                                     {/* Skills Preview */}
@@ -872,7 +927,7 @@ export default function ClientJobDetail() {
           <DialogHeader>
             <DialogTitle>Interview planen</DialogTitle>
             <DialogDescription>
-              Interview mit {selectedSubmission?.candidate.full_name} planen.
+              Interview mit Kandidat planen.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -904,6 +959,42 @@ export default function ClientJobDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Compare View Modal */}
+      {compareOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-4 z-50 overflow-auto rounded-lg border bg-background shadow-lg">
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background">
+              <h2 className="text-lg font-semibold">Kandidatenvergleich</h2>
+              <Button variant="ghost" size="sm" onClick={() => setCompareOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <CandidateCompareView 
+                submissionIds={selectedSubmissionIds}
+                onRemove={handleRemoveFromCompare}
+                onClose={() => setCompareOpen(false)}
+                onInterviewRequest={(submissionId) => {
+                  const sub = submissions.find(s => s.id === submissionId);
+                  if (sub) {
+                    setSelectedSubmission(sub);
+                    setShowInterviewDialog(true);
+                    setCompareOpen(false);
+                  }
+                }}
+                onReject={(submissionId) => {
+                  const sub = submissions.find(s => s.id === submissionId);
+                  if (sub) {
+                    openRejectDialog(sub);
+                    setCompareOpen(false);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
