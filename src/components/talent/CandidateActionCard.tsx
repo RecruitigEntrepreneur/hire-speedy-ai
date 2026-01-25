@@ -6,15 +6,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Calendar,
-  ThumbsUp, 
   ThumbsDown, 
-  MessageSquare,
   Clock,
   MapPin,
   Briefcase,
   Video,
   Star,
-  ChevronRight
+  ChevronRight,
+  Flame,
+  CircleCheck,
+  HelpCircle,
+  EyeOff
 } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isPast } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -34,13 +36,14 @@ interface InterviewDetails {
 export interface CandidateActionCardProps {
   id: string;
   submissionId: string;
-  name: string;
+  name: string; // Now anonymous ID like PR-A7FA2C
   currentRole: string;
   jobId: string;
   jobTitle: string;
   stage: string;
   status: string;
   matchScore: number | null;
+  matchPolicy?: string | null; // V3.1 policy: hot, standard, maybe, hidden
   submittedAt: string;
   hoursInStage: number;
   company?: string;
@@ -67,6 +70,38 @@ interface CardProps {
   isProcessing?: boolean;
 }
 
+// V3.1 Policy configuration
+const POLICY_CONFIG = {
+  hot: {
+    label: 'Hot',
+    icon: Flame,
+    className: 'bg-green-500 text-white border-green-600',
+    ringColor: 'border-green-500',
+    textColor: 'text-green-600'
+  },
+  standard: {
+    label: 'Standard',
+    icon: CircleCheck,
+    className: 'bg-blue-500 text-white border-blue-600',
+    ringColor: 'border-blue-500',
+    textColor: 'text-blue-600'
+  },
+  maybe: {
+    label: 'Prüfen',
+    icon: HelpCircle,
+    className: 'bg-amber-500 text-white border-amber-600',
+    ringColor: 'border-amber-500',
+    textColor: 'text-amber-600'
+  },
+  hidden: {
+    label: 'Nicht geeignet',
+    icon: EyeOff,
+    className: 'bg-muted text-muted-foreground border-muted',
+    ringColor: 'border-muted',
+    textColor: 'text-muted-foreground'
+  }
+};
+
 export function CandidateActionCard({
   candidate,
   isSelected,
@@ -81,6 +116,10 @@ export function CandidateActionCard({
   const [showFeedback, setShowFeedback] = useState(false);
 
   const getInitials = (name: string) => {
+    // For anonymous IDs like PR-A7FA2C, use first 2 chars after prefix
+    if (name.startsWith('PR-')) {
+      return name.slice(3, 5).toUpperCase();
+    }
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
@@ -94,21 +133,21 @@ export function CandidateActionCard({
   const isUrgent = candidate.hoursInStage >= 48;
   const isWarning = candidate.hoursInStage >= 24 && candidate.hoursInStage < 48;
 
-  const getMatchScoreColor = (score: number | null) => {
-    if (!score) return 'bg-muted text-muted-foreground';
-    if (score >= 80) return 'bg-green-500 text-white';
-    if (score >= 60) return 'bg-amber-500 text-white';
-    if (score >= 40) return 'bg-orange-500 text-white';
-    return 'bg-muted text-muted-foreground';
+  // Get policy configuration (fallback based on score if no policy)
+  const getPolicy = () => {
+    if (candidate.matchPolicy && POLICY_CONFIG[candidate.matchPolicy as keyof typeof POLICY_CONFIG]) {
+      return POLICY_CONFIG[candidate.matchPolicy as keyof typeof POLICY_CONFIG];
+    }
+    // Fallback to score-based policy
+    const score = candidate.matchScore || 0;
+    if (score >= 75) return POLICY_CONFIG.hot;
+    if (score >= 55) return POLICY_CONFIG.standard;
+    if (score >= 35) return POLICY_CONFIG.maybe;
+    return POLICY_CONFIG.hidden;
   };
 
-  const getMatchScoreRingColor = (score: number | null) => {
-    if (!score) return 'border-muted';
-    if (score >= 80) return 'border-green-500';
-    if (score >= 60) return 'border-amber-500';
-    if (score >= 40) return 'border-orange-500';
-    return 'border-muted';
-  };
+  const policy = getPolicy();
+  const PolicyIcon = policy.icon;
 
   // Check for interview status
   const hasInterviewToday = candidate.interview?.scheduled_at && 
@@ -146,26 +185,24 @@ export function CandidateActionCard({
       onClick={onSelect}
     >
       <CardContent className="p-4">
-        {/* Header: Avatar + Name + Match Score Ring */}
+        {/* Header: Avatar + Anonymous ID + Policy Badge */}
         <div className="flex items-start gap-3 mb-3">
           <div className="relative">
-            <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+            <Avatar className={cn(
+              "h-12 w-12 border-2 shadow-sm",
+              policy.ringColor
+            )}>
               <AvatarFallback className="bg-primary text-primary-foreground font-medium">
                 {getInitials(candidate.name)}
               </AvatarFallback>
             </Avatar>
-            {/* Match Score Ring */}
-            {candidate.matchScore && (
+            {/* Score Ring with Policy Color */}
+            {candidate.matchScore !== null && (
               <div className={cn(
                 "absolute -bottom-1 -right-1 w-7 h-7 rounded-full border-2 bg-background flex items-center justify-center text-xs font-bold shadow-sm",
-                getMatchScoreRingColor(candidate.matchScore)
+                policy.ringColor
               )}>
-                <span className={cn(
-                  "text-[10px]",
-                  candidate.matchScore >= 80 && "text-green-600",
-                  candidate.matchScore >= 60 && candidate.matchScore < 80 && "text-amber-600",
-                  candidate.matchScore >= 40 && candidate.matchScore < 60 && "text-orange-600"
-                )}>
+                <span className={cn("text-[10px]", policy.textColor)}>
                   {candidate.matchScore}
                 </span>
               </div>
@@ -173,12 +210,18 @@ export function CandidateActionCard({
           </div>
           
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate">{candidate.name}</p>
+            {/* Anonymous ID + Policy Badge */}
+            <div className="flex items-center gap-2">
+              <p className="font-mono font-semibold text-sm">{candidate.name}</p>
+              <Badge className={cn("text-[10px] h-5 gap-1", policy.className)}>
+                <PolicyIcon className="h-3 w-3" />
+                {policy.label}
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground truncate">
               {candidate.currentRole}
-              {candidate.company && ` @ ${candidate.company}`}
             </p>
-            {/* Position/Job Badge */}
+            {/* Position/Job */}
             <p className="text-[10px] text-primary/70 font-medium truncate mt-0.5">
               → {candidate.jobTitle}
             </p>
@@ -250,13 +293,13 @@ export function CandidateActionCard({
           />
         )}
 
-        {/* Action Buttons - 2-Spalten Layout: Dynamischer Nächster-Schritt + Absage */}
+        {/* Action Buttons - 2-Column Layout */}
         {candidate.stage !== 'hired' && !showFeedback && (
           <div 
             className="pt-3 border-t"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Feedback Button (if pending) - Full width above main actions */}
+            {/* Feedback Button (if pending) */}
             {needsFeedback && (
               <Button
                 variant="outline"
@@ -270,9 +313,8 @@ export function CandidateActionCard({
               </Button>
             )}
             
-            {/* Main Action Buttons - 2 columns */}
+            {/* Main Action Buttons */}
             <div className="grid grid-cols-2 gap-2">
-              {/* Dynamic Next Step Button */}
               {(candidate.stage === 'submitted' || candidate.stage === 'interview_1') ? (
                 <>
                   <Button
