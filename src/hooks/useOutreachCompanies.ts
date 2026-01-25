@@ -8,6 +8,18 @@ export interface LiveJob {
   location?: string;
   department?: string;
   url?: string;
+  type?: string;
+  // Extended job details
+  description?: string;
+  requirements?: string[];
+  nice_to_haves?: string[];
+  tech_stack?: string[];
+  experience_level?: string;
+  salary_range?: string;
+  benefits?: string[];
+  remote_policy?: string;
+  posted_at?: string;
+  scraped_at?: string;
 }
 
 export interface NewsItem {

@@ -1,20 +1,25 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, ExternalLink, Flame, MapPin, Clock, Building2 } from "lucide-react";
+import { Briefcase, ExternalLink, Flame, MapPin, Clock, Building2, ChevronRight, Code } from "lucide-react";
+import { JobDetailDialog } from "./JobDetailDialog";
+import { LiveJob } from "@/hooks/useOutreachCompanies";
 
 interface JobsTabProps {
   company: any;
 }
 
 export function JobsTab({ company }: JobsTabProps) {
-  const liveJobs = (company.live_jobs as any[]) || [];
+  const [selectedJob, setSelectedJob] = useState<LiveJob | null>(null);
+  
+  const liveJobs = (company.live_jobs as LiveJob[]) || [];
   const jobCategories = company.job_categories as string[] | null;
 
   const getHiringBadge = (activity: string | null) => {
     switch (activity) {
       case 'hot':
-        return <Badge className="bg-red-500 text-white"><Flame className="h-3 w-3 mr-1" /> HOT</Badge>;
+        return <Badge className="bg-destructive text-destructive-foreground"><Flame className="h-3 w-3 mr-1" /> HOT</Badge>;
       case 'warm':
         return <Badge className="bg-orange-500 text-white">WARM</Badge>;
       case 'cold':
@@ -76,13 +81,15 @@ export function JobsTab({ company }: JobsTabProps) {
               {liveJobs.map((job, i) => (
                 <div 
                   key={i} 
-                  className="p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => job.url && window.open(job.url, '_blank')}
+                  className="p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
+                  onClick={() => setSelectedJob(job)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="font-medium text-sm">{job.title || 'Unbenannte Stelle'}</div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                      <div className="font-medium text-sm group-hover:text-primary transition-colors">
+                        {job.title || 'Unbenannte Stelle'}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                         {job.location && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
@@ -101,11 +108,35 @@ export function JobsTab({ company }: JobsTabProps) {
                             {new Date(job.posted_at).toLocaleDateString('de-DE')}
                           </span>
                         )}
+                        {job.tech_stack && job.tech_stack.length > 0 && (
+                          <Badge variant="outline" className="text-xs h-5">
+                            <Code className="h-3 w-3 mr-1" />
+                            {job.tech_stack.length} Tech
+                          </Badge>
+                        )}
+                        {job.experience_level && (
+                          <Badge variant="secondary" className="text-xs h-5">
+                            {job.experience_level}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    {job.url && (
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                    )}
+                    <div className="flex items-center gap-1">
+                      {job.url && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(job.url, '_blank');
+                          }}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -119,6 +150,13 @@ export function JobsTab({ company }: JobsTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Job Detail Dialog */}
+      <JobDetailDialog 
+        job={selectedJob} 
+        company={company}
+        onClose={() => setSelectedJob(null)} 
+      />
     </div>
   );
 }
