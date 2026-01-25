@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -28,7 +28,9 @@ import {
   Building2,
   Loader2,
   Star,
+  ChevronRight,
 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -114,6 +116,7 @@ interface CompanyProfile {
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
@@ -496,16 +499,32 @@ export default function JobDetail() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                <div className="space-y-3">
                     {mySubmissions.map((sub) => (
-                      <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                        <div>
-                          <p className="font-medium">{sub.candidates?.full_name}</p>
-                          <p className="text-sm text-muted-foreground">{sub.candidates?.email}</p>
+                      <div 
+                        key={sub.id} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors group"
+                        onClick={() => navigate(`/recruiter/candidates/${sub.candidate_id}`)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              {sub.candidates?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium group-hover:text-primary transition-colors">
+                              {sub.candidates?.full_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{sub.candidates?.email}</p>
+                          </div>
                         </div>
-                        <Badge className={`status-${sub.status}`}>
-                          {sub.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`status-${sub.status}`}>
+                            {sub.status}
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </div>
                     ))}
                   </div>
