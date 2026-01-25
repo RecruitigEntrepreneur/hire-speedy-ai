@@ -1,20 +1,19 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Plus, Building2, Users, CheckCircle, Sparkles } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { CompanyListCard } from "./CompanyListCard";
-import { CompanyProfileDialog } from "./CompanyProfileDialog";
 import { useCompaniesWithLeadCounts } from "@/hooks/useOutreachCompanies";
 import { SmartImportDialog } from "./SmartImportDialog";
 import { QuickAddCompanyDialog } from "./QuickAddCompanyDialog";
 
 export function CompanyListView() {
   const [search, setSearch] = useState("");
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [filter, setFilter] = useState<'all' | 'needs_contacts' | 'ready'>('all');
+  const navigate = useNavigate();
   const { data: companies, isLoading } = useCompaniesWithLeadCounts();
 
   const filteredCompanies = companies?.filter(c => {
@@ -113,23 +112,17 @@ export function CompanyListView() {
             <CompanyListCard
               key={company.id}
               company={company}
-              onClick={() => setSelectedCompanyId(company.id)}
+              onClick={() => navigate(`/admin/outreach/company/${company.id}`)}
             />
           ))}
         </div>
       )}
 
-      {/* Company Profile Dialog */}
-      <CompanyProfileDialog
-        companyId={selectedCompanyId}
-        onClose={() => setSelectedCompanyId(null)}
-      />
-
       {/* Quick Add Dialog */}
       <QuickAddCompanyDialog
         open={showQuickAdd}
         onOpenChange={setShowQuickAdd}
-        onSuccess={(id) => setSelectedCompanyId(id)}
+        onSuccess={(id) => navigate(`/admin/outreach/company/${id}`)}
       />
 
       {/* Smart Import Dialog */}

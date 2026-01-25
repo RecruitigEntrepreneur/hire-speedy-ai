@@ -25,6 +25,13 @@ interface KeyExecutive {
 }
 
 interface CrawlResult {
+  // Company basics
+  industry?: string;
+  city?: string;
+  country?: string;
+  headcount?: string;
+  founded_year?: string;
+  // Career data
   career_page_url?: string;
   career_page_status: 'found' | 'not_found' | 'error';
   live_jobs: LiveJob[];
@@ -173,6 +180,57 @@ Deno.serve(async (req) => {
     let formattedDomain = companyDomain.trim().toLowerCase();
     if (!formattedDomain.startsWith('http')) {
       formattedDomain = `https://${formattedDomain}`;
+    }
+
+    // Step 0: Scrape main website for company basics
+    console.log(`[Company Crawl] Step 0: Extracting company basics from ${formattedDomain}`);
+    
+    try {
+      const mainScrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${firecrawlApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: formattedDomain,
+          formats: [
+            {
+              type: 'json',
+              schema: {
+                type: 'object',
+                properties: {
+                  company_description: { type: 'string' },
+                  industry: { type: 'string' },
+                  headquarters_city: { type: 'string' },
+                  headquarters_country: { type: 'string' },
+                  employee_count: { type: 'string' },
+                  founded_year: { type: 'string' },
+                },
+              },
+              prompt: 'Extract company information from this website: What industry/sector is this company in? Where is the headquarters (city and country)? How many employees does the company have (size/headcount)? When was it founded?',
+            },
+          ],
+          onlyMainContent: true,
+          waitFor: 2000,
+        }),
+      });
+
+      if (mainScrapeResponse.ok) {
+        const mainData = await mainScrapeResponse.json();
+        const basics = mainData.data?.json || mainData.json;
+        
+        if (basics) {
+          if (basics.industry) result.industry = basics.industry;
+          if (basics.headquarters_city) result.city = basics.headquarters_city;
+          if (basics.headquarters_country) result.country = basics.headquarters_country;
+          if (basics.employee_count) result.headcount = basics.employee_count;
+          if (basics.founded_year) result.founded_year = basics.founded_year;
+          console.log(`[Company Crawl] Basics extracted: industry=${result.industry}, city=${result.city}, headcount=${result.headcount}`);
+        }
+      }
+    } catch (basicsError) {
+      console.error(`[Company Crawl] Basics extraction error:`, basicsError);
     }
 
     // Step 1: Find career page using map
@@ -468,6 +526,12 @@ Deno.serve(async (req) => {
     // Update company in database if company_id provided
     if (company_id) {
       const updateData: Record<string, any> = {
+        // Company basics from Step 0
+        ...(result.industry && { industry: result.industry }),
+        ...(result.city && { city: result.city }),
+        ...(result.country && { country: result.country }),
+        ...(result.headcount && { headcount: result.headcount }),
+        // Career data
         career_page_url: result.career_page_url,
         career_page_status: result.career_page_status,
         live_jobs: result.live_jobs,
