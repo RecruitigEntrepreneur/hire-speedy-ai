@@ -1147,6 +1147,77 @@ Deno.serve(async (req) => {
       }
     }
 
+    // === AUTO-CREATE CONTACTS FROM KEY EXECUTIVES ===
+    if (crawl_extended && result.key_executives.length > 0 && company_id) {
+      console.log(`[Company Crawl] Creating ${result.key_executives.length} contacts from executives`);
+      
+      for (const exec of result.key_executives) {
+        if (!exec.name) continue;
+        
+        // Check if contact already exists (by name + company)
+        const { data: existing } = await supabase
+          .from('outreach_leads')
+          .select('id')
+          .eq('company_id', company_id)
+          .ilike('contact_name', exec.name)
+          .maybeSingle();
+        
+        if (!existing) {
+          // Determine decision level based on role
+          const role = (exec.role || '').toLowerCase();
+          let decisionLevel = 'gatekeeper';
+          if (role.includes('ceo') || role.includes('geschäftsführer') || role.includes('managing director') ||
+              role.includes('cto') || role.includes('cfo') || role.includes('coo') || role.includes('chro') ||
+              role.includes('chief') || role.includes('founder') || role.includes('gründer')) {
+            decisionLevel = 'entscheider';
+          } else if (role.includes('head of') || role.includes('director') || role.includes('vp') || 
+                     role.includes('vice president') || role.includes('leiter') || role.includes('lead')) {
+            decisionLevel = 'influencer';
+          }
+          
+          // Determine functional area
+          let functionalArea = 'Other';
+          if (role.includes('hr') || role.includes('people') || role.includes('chro') || role.includes('talent') || role.includes('personal')) {
+            functionalArea = 'HR';
+          } else if (role.includes('tech') || role.includes('cto') || role.includes('engineer') || role.includes('development')) {
+            functionalArea = 'Tech';
+          } else if (role.includes('marketing') || role.includes('cmo') || role.includes('brand')) {
+            functionalArea = 'Marketing';
+          } else if (role.includes('sales') || role.includes('vertrieb') || role.includes('revenue')) {
+            functionalArea = 'Sales';
+          } else if (role.includes('finance') || role.includes('cfo') || role.includes('finanz')) {
+            functionalArea = 'Finance';
+          } else if (role.includes('ceo') || role.includes('geschäftsführer') || role.includes('managing') || role.includes('founder')) {
+            functionalArea = 'Leadership';
+          }
+          
+          // Create new contact
+          const { error: insertError } = await supabase
+            .from('outreach_leads')
+            .insert({
+              company_id: company_id,
+              company_name: companyNameToUse,
+              contact_name: exec.name,
+              contact_email: `kontakt@${domain || 'unbekannt.de'}`,
+              contact_title: exec.role,
+              personal_linkedin_url: exec.linkedin || null,
+              lead_source: 'linkedin_crawl',
+              segment: 'enterprise',
+              decision_level: decisionLevel,
+              functional_area: functionalArea,
+              status: 'neu',
+              contact_outreach_status: 'nicht_kontaktiert',
+            });
+          
+          if (insertError) {
+            console.error(`[Company Crawl] Failed to create contact for ${exec.name}:`, insertError.message);
+          } else {
+            console.log(`[Company Crawl] Created contact: ${exec.name} (${decisionLevel})`);
+          }
+        }
+      }
+    }
+
     console.log(`[Company Crawl] Completed for ${companyNameToUse}`);
 
     return new Response(
