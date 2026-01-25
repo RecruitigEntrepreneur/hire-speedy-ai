@@ -1,12 +1,17 @@
 import { cn } from '@/lib/utils';
-import { Star, Phone, Calendar, Gift, UserCheck } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const CANDIDATE_STAGES = [
-  { key: 'new', label: 'Neu', icon: Star },
-  { key: 'contacted', label: 'Kontaktiert', icon: Phone },
-  { key: 'interview', label: 'Interview', icon: Calendar },
-  { key: 'offer', label: 'Angebot', icon: Gift },
-  { key: 'placed', label: 'Platziert', icon: UserCheck },
+  { key: 'new', label: 'Neu' },
+  { key: 'contacted', label: 'Kontaktiert' },
+  { key: 'interview', label: 'Interview' },
+  { key: 'offer', label: 'Angebot' },
+  { key: 'placed', label: 'Platziert' },
 ];
 
 interface CandidateStagePipelineProps {
@@ -21,9 +26,6 @@ export function CandidateStagePipeline({
   disabled = false 
 }: CandidateStagePipelineProps) {
   const currentIndex = CANDIDATE_STAGES.findIndex(s => s.key === currentStage);
-  const progressPercent = currentIndex >= 0 
-    ? (currentIndex / (CANDIDATE_STAGES.length - 1)) * 100 
-    : 0;
 
   // Don't show pipeline for rejected status
   if (currentStage === 'rejected') {
@@ -31,59 +33,38 @@ export function CandidateStagePipeline({
   }
 
   return (
-    <div className="relative">
-      <div className="flex items-center justify-between relative">
-        {/* Background connector line */}
-        <div className="absolute top-4 left-[10%] right-[10%] h-0.5 bg-border" />
-        
-        {/* Progress line */}
-        <div 
-          className="absolute top-4 left-[10%] h-0.5 bg-primary transition-all duration-500 ease-out" 
-          style={{ width: `${progressPercent * 0.8}%` }}
-        />
-        
+    <TooltipProvider delayDuration={100}>
+      <div className="flex items-center gap-1.5">
         {CANDIDATE_STAGES.map((stage, index) => {
           const isPast = index < currentIndex;
           const isCurrent = index === currentIndex;
-          const isFuture = index > currentIndex;
-          const StageIcon = stage.icon;
 
           return (
-            <button
-              key={stage.key}
-              onClick={() => !disabled && onStageChange?.(stage.key)}
-              disabled={disabled}
-              className={cn(
-                "relative z-10 flex flex-col items-center gap-1.5 group transition-transform",
-                !disabled && "hover:scale-105",
-                isCurrent && "scale-110",
-                disabled && "cursor-default"
-              )}
-            >
-              <div 
-                className={cn(
-                  "h-8 w-8 rounded-full flex items-center justify-center border-2 transition-all duration-300",
-                  isPast && "bg-primary border-primary text-primary-foreground",
-                  isCurrent && "bg-primary border-primary text-primary-foreground ring-4 ring-primary/20",
-                  isFuture && "bg-background border-muted-foreground/30 text-muted-foreground",
-                  !disabled && isFuture && "group-hover:border-primary/50 group-hover:text-primary/70"
-                )}
-              >
-                <StageIcon className="h-4 w-4" />
-              </div>
-              <span 
-                className={cn(
-                  "text-xs font-medium transition-colors",
-                  (isPast || isCurrent) ? "text-foreground" : "text-muted-foreground",
-                  !disabled && isFuture && "group-hover:text-foreground"
-                )}
-              >
+            <Tooltip key={stage.key}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => !disabled && onStageChange?.(stage.key)}
+                  disabled={disabled}
+                  className={cn(
+                    "h-2 w-2 rounded-full transition-all duration-200",
+                    isPast && "bg-primary",
+                    isCurrent && "bg-primary ring-2 ring-primary/30 scale-150",
+                    !isPast && !isCurrent && "bg-muted-foreground/30",
+                    !disabled && "hover:scale-[2] cursor-pointer"
+                  )}
+                  aria-label={stage.label}
+                />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
                 {stage.label}
-              </span>
-            </button>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
+        <span className="ml-1.5 text-xs text-muted-foreground">
+          {CANDIDATE_STAGES[currentIndex]?.label || currentStage}
+        </span>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -28,7 +28,10 @@ import {
   Briefcase,
   CheckCircle,
   XCircle,
+  Building2,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
@@ -90,6 +93,37 @@ export default function RecruiterCandidateDetail() {
 
   const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
   
+  // Fetch submissions for this candidate
+  const { data: submissions } = useQuery({
+    queryKey: ['candidate-submissions-header', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+          id,
+          status,
+          submitted_at,
+          job:jobs(id, title, company_name)
+        `)
+        .eq('candidate_id', id!)
+        .order('submitted_at', { ascending: false });
+      if (error) throw error;
+      return data as { id: string; status: string; submitted_at: string; job: { id: string; title: string; company_name: string } }[];
+    },
+    enabled: !!id
+  });
+
+  const activeSubmissions = submissions?.filter(s => !['rejected', 'hired'].includes(s.status)) || [];
+
+  const statusLabels: Record<string, string> = {
+    submitted: 'Eingereicht',
+    accepted: 'Akzeptiert',
+    rejected: 'Abgelehnt',
+    interview: 'Interview',
+    offer: 'Angebot',
+    hired: 'Eingestellt',
+  };
+
   // Load playbook if provided via URL
   const { playbook } = useCoachingPlaybook(playbookId);
   const [alertTitle, setAlertTitle] = useState<string | undefined>();
@@ -428,8 +462,8 @@ export default function RecruiterCandidateDetail() {
                   </TooltipProvider>
                 </div>
                 
-                {/* Badges Row */}
-                <div className="flex flex-wrap gap-2 mt-4">
+                {/* Badges Row with Stage Pipeline */}
+                <div className="flex flex-wrap items-center gap-2 mt-4">
                   {readiness?.isReady && (
                     <Badge className="bg-success/10 text-success">
                       <CheckCircle className="h-3 w-3 mr-1" />
@@ -449,14 +483,51 @@ export default function RecruiterCandidateDetail() {
                       {topSkills.join(', ')}
                     </Badge>
                   )}
+                  
+                  {/* Compact Stage Pipeline */}
+                  {currentStatus !== 'rejected' && (
+                    <div className="ml-auto">
+                      <CandidateStagePipeline
+                        currentStage={currentStatus}
+                        onStageChange={(stage) => statusMutation.mutate(stage)}
+                        disabled={statusMutation.isPending}
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {/* Active Submissions - Prominent in Header */}
+                {activeSubmissions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {activeSubmissions.map(sub => (
+                      <Link
+                        key={sub.id}
+                        to={`/recruiter/jobs/${sub.job.id}`}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors text-sm group"
+                      >
+                        <Building2 className="h-3.5 w-3.5 text-primary" />
+                        <span className="font-medium group-hover:text-primary transition-colors">
+                          {sub.job.title}
+                        </span>
+                        <span className="text-muted-foreground">@</span>
+                        <span className="text-muted-foreground">{sub.job.company_name}</span>
+                        <Badge variant="outline" className="h-5 text-xs ml-1">
+                          {statusLabels[sub.status] || sub.status}
+                        </Badge>
+                        <span className="text-muted-foreground text-xs">
+                          {formatDistanceToNow(new Date(sub.submitted_at), { addSuffix: true, locale: de })}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
           
-          {/* Rejected Alert or Stage Pipeline */}
-          {currentStatus === 'rejected' ? (
-            <div className="px-6 py-4 bg-destructive/10 border-t flex items-center justify-between">
+          {/* Rejected Alert */}
+          {currentStatus === 'rejected' && (
+            <div className="px-6 py-3 bg-destructive/10 border-t flex items-center justify-between">
               <div className="flex items-center gap-2 text-destructive">
                 <XCircle className="h-4 w-4" />
                 <span className="font-medium">Kandidat abgesagt</span>
@@ -469,14 +540,6 @@ export default function RecruiterCandidateDetail() {
               >
                 Reaktivieren
               </Button>
-            </div>
-          ) : (
-            <div className="px-6 py-4 bg-muted/30 border-t">
-              <CandidateStagePipeline
-                currentStage={currentStatus}
-                onStageChange={(stage) => statusMutation.mutate(stage)}
-                disabled={statusMutation.isPending}
-              />
             </div>
           )}
         </div>
