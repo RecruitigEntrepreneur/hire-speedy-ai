@@ -241,6 +241,7 @@ Deno.serve(async (req) => {
                 },
               ],
               onlyMainContent: true,
+              waitFor: 3000, // Wait for JavaScript-rendered content
             }),
           });
 
@@ -250,7 +251,7 @@ Deno.serve(async (req) => {
             const pageLinks = scrapeData.data?.links || scrapeData.links || [];
             const markdown = scrapeData.data?.markdown || '';
 
-            if (jsonData?.jobs && Array.isArray(jsonData.jobs)) {
+            if (jsonData?.jobs && Array.isArray(jsonData.jobs) && jsonData.jobs.length > 0) {
               result.live_jobs = jsonData.jobs.map((job: any, index: number) => ({
                 title: job.title || `Position ${index + 1}`,
                 location: job.location || undefined,
@@ -261,6 +262,33 @@ Deno.serve(async (req) => {
                   l.toLowerCase().includes('position')
                 ) || careerUrl,
               }));
+            }
+            
+            // Fallback: If JSON extraction failed, try to detect jobs from links
+            if (result.live_jobs.length === 0 && pageLinks.length > 0) {
+              const jobLinks = pageLinks.filter((l: string) => 
+                /\/job[s]?\/|\/stelle[n]?\/|\/position[s]?\/|\/career[s]?\/|\/opening[s]?\//i.test(l) &&
+                !l.endsWith('/jobs') && !l.endsWith('/careers') // Exclude main listing pages
+              );
+              
+              if (jobLinks.length > 0) {
+                console.log(`[Company Crawl] Fallback: Found ${jobLinks.length} job links`);
+                result.live_jobs = jobLinks.slice(0, 20).map((url: string, i: number) => {
+                  // Try to extract job title from URL
+                  const pathParts = new URL(url).pathname.split('/').filter(Boolean);
+                  const titlePart = pathParts[pathParts.length - 1] || `Position ${i + 1}`;
+                  const title = titlePart
+                    .replace(/-/g, ' ')
+                    .replace(/_/g, ' ')
+                    .replace(/\d+$/, '')
+                    .trim();
+                  
+                  return {
+                    title: title.charAt(0).toUpperCase() + title.slice(1),
+                    url: url,
+                  };
+                });
+              }
             }
 
             // Extract remote policy from markdown if not in JSON

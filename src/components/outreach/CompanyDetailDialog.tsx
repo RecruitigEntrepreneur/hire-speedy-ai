@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -81,7 +81,7 @@ export function CompanyDetailDialog({ companyId, onClose }: CompanyDetailDialogP
   return (
     <>
       <Dialog open={!!companyId} onOpenChange={() => onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] p-0">
           {isLoading ? (
             <div className="flex items-center justify-center h-40">
               <div className="text-muted-foreground">Laden...</div>
@@ -133,9 +133,12 @@ export function CompanyDetailDialog({ companyId, onClose }: CompanyDetailDialogP
                     )}
                   </div>
                 </div>
+                <DialogDescription className="sr-only">
+                  Firmendetails und Ansprechpartner für {company.name}
+                </DialogDescription>
               </DialogHeader>
 
-              <ScrollArea className="max-h-[calc(90vh-100px)]">
+              <ScrollArea className="h-[calc(95vh-120px)]">
                 <div className="p-6 pt-4 space-y-4">
                   {/* Extended Data Badges */}
                   {(companyAny.funding_stage || companyAny.remote_policy || companyAny.kununu_score || companyAny.linkedin_followers) && (
