@@ -8,7 +8,13 @@ import {
   Users,
   Flame,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
+  Code,
+  Star,
+  TrendingDown,
+  DollarSign,
+  Award
 } from 'lucide-react';
 import { OutreachCompany, LiveJob, NewsItem } from '@/hooks/useOutreachCompanies';
 import {
@@ -20,11 +26,7 @@ import {
 } from '@/components/ui/select';
 
 interface CompanyOverviewTabProps {
-  company: OutreachCompany & { 
-    outreach_status?: string; 
-    warm_score?: number;
-    best_entry_point_id?: string;
-  };
+  company: OutreachCompany;
   leads: any[];
   onStatusChange: (status: string) => void;
 }
@@ -32,6 +34,11 @@ interface CompanyOverviewTabProps {
 export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOverviewTabProps) {
   const liveJobs = (Array.isArray(company?.live_jobs) ? company.live_jobs : []) as unknown as LiveJob[];
   const recentNews = (Array.isArray(company?.recent_news) ? company.recent_news : []) as unknown as NewsItem[];
+  
+  // Cast JSON fields for new intelligence data
+  const technologies = (Array.isArray(company?.technologies) ? company.technologies : []) as string[];
+  const keyExecutives = (Array.isArray(company?.key_executives) ? company.key_executives : []) as { name: string; role: string; linkedin?: string }[];
+  const awards = (Array.isArray(company?.awards) ? company.awards : []) as string[];
 
   // Analyze why this company is interesting
   const insights: string[] = [];
@@ -106,7 +113,7 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-500" />
+              <TrendingUp className="h-4 w-4 text-primary" />
               Warum interessant?
             </CardTitle>
           </CardHeader>
@@ -127,7 +134,7 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Target className="h-4 w-4 text-blue-500" />
+              <Target className="h-4 w-4 text-primary" />
               Outreach Status
             </CardTitle>
           </CardHeader>
@@ -185,10 +192,10 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
       {/* Right Column */}
       <div className="space-y-6">
         {/* Strategy Recommendation */}
-        <Card className="border-green-500/30 bg-green-500/5">
+        <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Target className="h-4 w-4 text-green-500" />
+              <Target className="h-4 w-4 text-primary" />
               Empfohlene Strategie
             </CardTitle>
           </CardHeader>
@@ -236,7 +243,7 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-500" />
+              <Users className="h-4 w-4 text-primary" />
               Kontakt-Übersicht
             </CardTitle>
           </CardHeader>
@@ -247,13 +254,13 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
                 <p className="text-xs text-muted-foreground">Gesamt</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-blue-500">
+                <p className="text-2xl font-bold text-primary">
                   {leads.filter(l => l.decision_level === 'entscheider').length}
                 </p>
                 <p className="text-xs text-muted-foreground">Entscheider</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold text-green-500">
+                <p className="text-2xl font-bold text-primary">
                   {leads.filter(l => l.contact_outreach_status === 'geantwortet').length}
                 </p>
                 <p className="text-xs text-muted-foreground">Antworten</p>
@@ -261,6 +268,110 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
             </div>
           </CardContent>
         </Card>
+
+        {/* Company Intelligence Card */}
+        {(technologies.length > 0 || company.kununu_score || company.glassdoor_score || company.revenue_range || company.employee_growth || keyExecutives.length > 0 || awards.length > 0) && (
+          <Card className="border-accent/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Unternehmens-Intelligence
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Tech Stack */}
+              {technologies.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Code className="h-3 w-3" />
+                    Tech Stack
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {technologies.slice(0, 10).map((tech, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">{tech}</Badge>
+                    ))}
+                    {technologies.length > 10 && (
+                      <Badge variant="outline" className="text-xs">+{technologies.length - 10}</Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Employer Scores */}
+              {(company.kununu_score || company.glassdoor_score) && (
+                <div className="flex flex-wrap gap-4">
+                  {company.kununu_score && (
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Kununu:</span>
+                      <span className="font-medium">{company.kununu_score}/5</span>
+                    </div>
+                  )}
+                  {company.glassdoor_score && (
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Glassdoor:</span>
+                      <span className="font-medium">{company.glassdoor_score}/5</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Financial / Growth */}
+              {(company.revenue_range || company.employee_growth) && (
+                <div className="flex flex-wrap gap-4">
+                  {company.revenue_range && (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Umsatz:</span>
+                      <span className="font-medium">{company.revenue_range}</span>
+                    </div>
+                  )}
+                  {company.employee_growth && (
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Wachstum:</span>
+                      <span className="font-medium">{company.employee_growth}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Key Executives */}
+              {keyExecutives.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Users className="h-3 w-3" />
+                    Key Executives
+                  </div>
+                  <div className="space-y-1">
+                    {keyExecutives.slice(0, 3).map((exec, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{exec.name}</span>
+                        <Badge variant="outline" className="text-xs">{exec.role}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Awards */}
+              {awards.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Award className="h-3 w-3" />
+                    Auszeichnungen
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {awards.slice(0, 3).map((award, i) => (
+                      <Badge key={i} variant="outline" className="text-xs">{award.slice(0, 40)}{award.length > 40 ? '...' : ''}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

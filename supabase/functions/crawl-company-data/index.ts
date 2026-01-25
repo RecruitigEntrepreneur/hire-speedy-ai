@@ -639,6 +639,92 @@ Deno.serve(async (req) => {
               }
             }
 
+            // Fallback 3: Extract jobs from markdown text (for sites like Rimac with text-only listings)
+            if (result.live_jobs.length === 0 && markdown) {
+              console.log(`[Company Crawl] Fallback 3: Extracting jobs from markdown text`);
+              
+              const extractedJobs: { title: string; location?: string }[] = [];
+              const lines = markdown.split('\n');
+              
+              for (const line of lines) {
+                // Pattern 1: Lines starting with bullet points (- or * or •)
+                const bulletMatch = line.match(/^[-*•]\s*(.+)/);
+                if (bulletMatch) {
+                  const content = bulletMatch[1].trim();
+                  // Skip navigation/menu items (too short or common words)
+                  if (content.length > 15 && content.length < 120 &&
+                      !content.toLowerCase().includes('open positions') &&
+                      !content.toLowerCase().includes('offene stellen') &&
+                      !content.toLowerCase().includes('apply now') &&
+                      !content.toLowerCase().includes('jetzt bewerben') &&
+                      !content.toLowerCase().includes('learn more') &&
+                      !content.toLowerCase().includes('read more') &&
+                      !content.toLowerCase().includes('view all') &&
+                      !content.toLowerCase().includes('alle anzeigen') &&
+                      !content.toLowerCase().includes('home') &&
+                      !content.toLowerCase().includes('about') &&
+                      !content.toLowerCase().includes('contact') &&
+                      // Check for job-like keywords
+                      (content.toLowerCase().includes('engineer') ||
+                       content.toLowerCase().includes('manager') ||
+                       content.toLowerCase().includes('developer') ||
+                       content.toLowerCase().includes('designer') ||
+                       content.toLowerCase().includes('analyst') ||
+                       content.toLowerCase().includes('specialist') ||
+                       content.toLowerCase().includes('lead') ||
+                       content.toLowerCase().includes('director') ||
+                       content.toLowerCase().includes('head of') ||
+                       content.toLowerCase().includes('senior') ||
+                       content.toLowerCase().includes('junior') ||
+                       content.toLowerCase().includes('(m/w/d)') ||
+                       content.toLowerCase().includes('(m/f/d)') ||
+                       content.toLowerCase().includes('(m/f/x)') ||
+                       content.match(/\s+[–-]\s+[A-Z][a-z]+/) || // Title - Location pattern
+                       content.match(/[,]\s*[A-Z][a-z]+(?:\s*,\s*[A-Z]{2,3})?$/))) { // Ends with City, Country
+                    
+                    // Try to split title and location
+                    const dashSplit = content.split(/\s+[–-]\s+(?=[A-Z])/);
+                    if (dashSplit.length >= 2) {
+                      extractedJobs.push({
+                        title: dashSplit[0].trim(),
+                        location: dashSplit.slice(1).join(' - ').trim()
+                      });
+                    } else {
+                      extractedJobs.push({ title: content });
+                    }
+                  }
+                }
+                
+                // Pattern 2: Lines with job title patterns but no bullet (e.g., headers)
+                const jobHeaderMatch = line.match(/^#+\s*(.+(?:Engineer|Manager|Developer|Designer|Analyst|Specialist|Lead|Director|m\/w\/d|m\/f\/d).+)$/i);
+                if (jobHeaderMatch && !extractedJobs.find(j => j.title === jobHeaderMatch[1].trim())) {
+                  const content = jobHeaderMatch[1].trim();
+                  if (content.length > 10 && content.length < 120) {
+                    extractedJobs.push({ title: content });
+                  }
+                }
+              }
+              
+              // Pattern 3: Look for job title blocks (multiple lines in a row that look like job titles)
+              const jobBlockPattern = /(?:^|\n)([A-Z][^.\n]{10,80}(?:Engineer|Manager|Developer|Designer|Analyst|Specialist|Lead|Director|\(m\/w\/d\)|\(m\/f\/d\))[^.\n]{0,40})(?:\n|$)/gi;
+              let blockMatch;
+              while ((blockMatch = jobBlockPattern.exec(markdown)) !== null) {
+                const title = blockMatch[1].trim();
+                if (!extractedJobs.find(j => j.title.toLowerCase() === title.toLowerCase())) {
+                  extractedJobs.push({ title });
+                }
+              }
+              
+              if (extractedJobs.length > 0) {
+                console.log(`[Company Crawl] Fallback 3: Extracted ${extractedJobs.length} jobs from markdown`);
+                result.live_jobs = extractedJobs.slice(0, 100).map(job => ({
+                  title: job.title,
+                  location: job.location,
+                  url: urlToScrape
+                }));
+              }
+            }
+
             // Extract remote policy from markdown if not in JSON
             if (!jsonData?.remote_policy && markdown) {
               result.remote_policy = extractRemotePolicy(markdown) || undefined;
