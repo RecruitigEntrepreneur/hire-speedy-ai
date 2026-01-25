@@ -1,20 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { 
   Sparkles, 
   Target, 
   TrendingUp,
   Users,
-  Flame,
-  AlertCircle,
-  CheckCircle2,
-  Building2,
-  Code,
-  Star,
-  TrendingDown,
-  DollarSign,
-  Award
+  AlertCircle
 } from 'lucide-react';
 import { OutreachCompany, LiveJob, NewsItem } from '@/hooks/useOutreachCompanies';
 import {
@@ -24,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CompanyIntelligenceCard } from './company-profile/CompanyIntelligenceCard';
+import { useCrawlCompanyData } from '@/hooks/useOutreachCompanies';
 
 interface CompanyOverviewTabProps {
   company: OutreachCompany;
@@ -32,13 +25,10 @@ interface CompanyOverviewTabProps {
 }
 
 export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOverviewTabProps) {
+  const crawlMutation = useCrawlCompanyData();
   const liveJobs = (Array.isArray(company?.live_jobs) ? company.live_jobs : []) as unknown as LiveJob[];
   const recentNews = (Array.isArray(company?.recent_news) ? company.recent_news : []) as unknown as NewsItem[];
-  
-  // Cast JSON fields for new intelligence data
-  const technologies = (Array.isArray(company?.technologies) ? company.technologies : []) as string[];
-  const keyExecutives = (Array.isArray(company?.key_executives) ? company.key_executives : []) as { name: string; role: string; linkedin?: string }[];
-  const awards = (Array.isArray(company?.awards) ? company.awards : []) as string[];
+  const keyExecutives = (Array.isArray(company?.key_executives) ? company.key_executives : []) as unknown as { name: string; role: string; linkedin?: string }[];
 
   // Analyze why this company is interesting
   const insights: string[] = [];
@@ -269,109 +259,12 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
           </CardContent>
         </Card>
 
-        {/* Company Intelligence Card */}
-        {(technologies.length > 0 || company.kununu_score || company.glassdoor_score || company.revenue_range || company.employee_growth || keyExecutives.length > 0 || awards.length > 0) && (
-          <Card className="border-accent/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-primary" />
-                Unternehmens-Intelligence
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Tech Stack */}
-              {technologies.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Code className="h-3 w-3" />
-                    Tech Stack
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {technologies.slice(0, 10).map((tech, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{tech}</Badge>
-                    ))}
-                    {technologies.length > 10 && (
-                      <Badge variant="outline" className="text-xs">+{technologies.length - 10}</Badge>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Employer Scores */}
-              {(company.kununu_score || company.glassdoor_score) && (
-                <div className="flex flex-wrap gap-4">
-                  {company.kununu_score && (
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Kununu:</span>
-                      <span className="font-medium">{company.kununu_score}/5</span>
-                    </div>
-                  )}
-                  {company.glassdoor_score && (
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Glassdoor:</span>
-                      <span className="font-medium">{company.glassdoor_score}/5</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Financial / Growth */}
-              {(company.revenue_range || company.employee_growth) && (
-                <div className="flex flex-wrap gap-4">
-                  {company.revenue_range && (
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Umsatz:</span>
-                      <span className="font-medium">{company.revenue_range}</span>
-                    </div>
-                  )}
-                  {company.employee_growth && (
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-muted-foreground">Wachstum:</span>
-                      <span className="font-medium">{company.employee_growth}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Key Executives */}
-              {keyExecutives.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Users className="h-3 w-3" />
-                    Key Executives
-                  </div>
-                  <div className="space-y-1">
-                    {keyExecutives.slice(0, 3).map((exec, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{exec.name}</span>
-                        <Badge variant="outline" className="text-xs">{exec.role}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Awards */}
-              {awards.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Award className="h-3 w-3" />
-                    Auszeichnungen
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {awards.slice(0, 3).map((award, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{award.slice(0, 40)}{award.length > 40 ? '...' : ''}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {/* Company Intelligence Card - Always visible */}
+        <CompanyIntelligenceCard 
+          company={company} 
+          onCrawl={() => crawlMutation.mutate(company.id)}
+          isCrawling={crawlMutation.isPending}
+        />
       </div>
     </div>
   );
