@@ -260,8 +260,27 @@ export function useCrawlCompanyData() {
 
   return useMutation({
     mutationFn: async (companyId: string) => {
+      // First get company data for proper crawl parameters
+      const { data: company, error: fetchError } = await supabase
+        .from('outreach_companies')
+        .select('domain, name')
+        .eq('id', companyId)
+        .single();
+
+      if (fetchError || !company) {
+        throw new Error('Unternehmen nicht gefunden');
+      }
+
+      // Multi-source crawl with all parameters
       const { data, error } = await supabase.functions.invoke('crawl-company-data', {
-        body: { company_id: companyId },
+        body: { 
+          company_id: companyId,
+          domain: company.domain,
+          company_name: company.name,
+          crawl_news: true,
+          crawl_extended: true,
+          crawl_all_sources: true
+        },
       });
 
       if (error) throw error;
@@ -269,9 +288,14 @@ export function useCrawlCompanyData() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['outreach-companies'] });
+      queryClient.invalidateQueries({ queryKey: ['outreach-company'] });
+      queryClient.invalidateQueries({ queryKey: ['company-leads'] });
       const jobCount = data?.data?.live_jobs_count || 0;
       const newsCount = data?.data?.recent_news?.length || 0;
-      toast.success(`Crawl abgeschlossen: ${jobCount} Jobs, ${newsCount} News gefunden`);
+      const contactsCount = data?.data?.key_executives?.length || 0;
+      toast.success(`Crawl abgeschlossen`, {
+        description: `${jobCount} Jobs, ${newsCount} News, ${contactsCount} Kontakte gefunden`
+      });
     },
     onError: (error: Error) => {
       toast.error(`Crawl-Fehler: ${error.message}`);
