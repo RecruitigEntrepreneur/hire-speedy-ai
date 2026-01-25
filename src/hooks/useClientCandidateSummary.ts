@@ -153,10 +153,28 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
         body: { candidateId, submissionId, force: options?.force },
       });
 
-      if (error) throw error;
+      // Handle specific error cases
+      if (error) {
+        // Check for payment/credit limit errors
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('402') || errorMessage.includes('Payment required')) {
+          throw new Error('AI-Kredit-Limit erreicht. Bitte kontaktieren Sie den Support.');
+        }
+        if (errorMessage.includes('429') || errorMessage.includes('Rate limit')) {
+          throw new Error('Zu viele Anfragen. Bitte warten Sie einen Moment.');
+        }
+        throw error;
+      }
+
+      // Handle error responses from the function
+      if (data?.error) {
+        if (data.error.includes('Payment required') || data.error.includes('402')) {
+          throw new Error('AI-Kredit-Limit erreicht. Bitte kontaktieren Sie den Support.');
+        }
+        throw new Error(data.error);
+      }
 
       if (data?.success) {
-        // Only show toast for manual (non-silent) generation
         if (!options?.silent) {
           toast({
             title: 'Zusammenfassung erstellt',
@@ -167,7 +185,7 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
         await fetchSummary();
         return data.summary;
       } else {
-        throw new Error(data?.error || 'Unbekannter Fehler');
+        throw new Error('Unbekannter Fehler bei der Generierung');
       }
     } catch (error) {
       console.error('Error generating client summary:', error);
