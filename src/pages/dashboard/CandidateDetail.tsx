@@ -140,19 +140,51 @@ export default function CandidateDetail() {
     }
   };
 
-  const getStatusBadge = (status: string | null) => {
-    const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  const getStatusBadge = (stageOrStatus: string | null) => {
+    const config: Record<string, { 
+      label: string; 
+      variant: 'default' | 'secondary' | 'destructive' | 'outline';
+      className?: string;
+    }> = {
       submitted: { label: 'Eingereicht', variant: 'secondary' },
       screening: { label: 'In Prüfung', variant: 'secondary' },
-      interview: { label: 'Interview', variant: 'default' },
+      
+      // Interview-Flow (GRANULAR)
+      interview_requested: { 
+        label: 'Interview angefragt', 
+        variant: 'outline',
+        className: 'border-blue-400 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-300 dark:bg-blue-950/50'
+      },
+      candidate_opted_in: { 
+        label: 'Opt-In erhalten', 
+        variant: 'default',
+        className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0'
+      },
+      interview_scheduled: { 
+        label: 'Interview geplant', 
+        variant: 'default',
+        className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0'
+      },
+      interview: { label: 'Interview-Phase', variant: 'default' },
+      
       second_interview: { label: 'Zweitgespräch', variant: 'default' },
       offer: { label: 'Angebot', variant: 'default' },
-      hired: { label: 'Eingestellt', variant: 'default' },
+      hired: { 
+        label: 'Eingestellt', 
+        variant: 'default',
+        className: 'bg-green-500 text-white border-0'
+      },
       rejected: { label: 'Abgelehnt', variant: 'destructive' },
+      client_rejected: { label: 'Abgelehnt', variant: 'destructive' },
+      opt_in_declined: { 
+        label: 'Opt-In abgelehnt', 
+        variant: 'destructive',
+        className: 'bg-destructive/10 text-destructive border-destructive/30'
+      },
       talentpool: { label: 'Talentpool', variant: 'outline' },
     };
-    const cfg = config[status || 'submitted'] || config.submitted;
-    return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
+    const cfg = config[stageOrStatus || 'submitted'] || config.submitted;
+    return <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>;
   };
 
   // Loading state
@@ -285,25 +317,161 @@ export default function CandidateDetail() {
                 </div>
               </div>
               
-              {/* Right: Actions */}
-              {status !== 'hired' && status !== 'rejected' && (
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => setShowInterviewDialog(true)}>
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Interview anfragen
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowRejectDialog(true)}>
-                    <X className="h-4 w-4 mr-2" />
-                    Ablehnen
-                  </Button>
-                </div>
-              )}
+              {/* Right: Actions - STAGE-AWARE */}
+              {(() => {
+                // Bereits abgeschlossen?
+                if (status === 'hired' || status === 'rejected' || status === 'client_rejected') {
+                  return null;
+                }
+                
+                // Interview bereits angefragt - warten auf Kandidaten-Zustimmung
+                if (stage === 'interview_requested') {
+                  return (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <Badge variant="outline" className="border-blue-400 text-blue-700 bg-blue-50 dark:border-blue-600 dark:text-blue-300 dark:bg-blue-950/50 gap-1.5 px-3 py-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        Interview angefragt
+                      </Badge>
+                      <Button variant="outline" size="sm" onClick={() => setShowRejectDialog(true)}>
+                        <X className="h-4 w-4 mr-2" />
+                        Ablehnen
+                      </Button>
+                    </div>
+                  );
+                }
+                
+                // Kandidat hat zugestimmt - Interview kann geplant werden
+                if (stage === 'candidate_opted_in') {
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => setShowInterviewDialog(true)}>
+                        <Video className="h-4 w-4 mr-2" />
+                        Interview planen
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowRejectDialog(true)}>
+                        <X className="h-4 w-4 mr-2" />
+                        Ablehnen
+                      </Button>
+                    </div>
+                  );
+                }
+                
+                // Interview bereits geplant
+                if (stage === 'interview_scheduled' || stage === 'interview') {
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="default" className="bg-purple-600 hover:bg-purple-700">
+                        <Video className="h-4 w-4 mr-2" />
+                        Interview starten
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowRejectDialog(true)}>
+                        <X className="h-4 w-4 mr-2" />
+                        Ablehnen
+                      </Button>
+                    </div>
+                  );
+                }
+                
+                // Standard: Noch kein Interview
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => setShowInterviewDialog(true)}>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Interview anfragen
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowRejectDialog(true)}>
+                      <X className="h-4 w-4 mr-2" />
+                      Ablehnen
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>
 
+        {/* ==================== INTERVIEW-STATUS BANNER ==================== */}
+        {stage === 'interview_requested' && (
+          <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <AlertDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="font-medium text-blue-800 dark:text-blue-200">
+                    Interview angefragt — Warten auf Kandidaten-Zustimmung
+                  </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    Der Kandidat wurde gebeten, der Weitergabe seiner Daten zuzustimmen. 
+                    Nach Bestätigung werden Name, Kontakt und Lebenslauf freigeschaltet.
+                  </p>
+                </div>
+                <Badge variant="outline" className="border-blue-400 text-blue-700 dark:text-blue-300 whitespace-nowrap shrink-0">
+                  Opt-In ausstehend
+                </Badge>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stage === 'candidate_opted_in' && (
+          <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30">
+            <CheckCircle className="h-4 w-4 text-emerald-600" />
+            <AlertDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="font-medium text-emerald-800 dark:text-emerald-200">
+                    Kandidat hat zugestimmt — Daten freigeschaltet
+                  </p>
+                  <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
+                    Sie können jetzt den Interview-Termin planen und haben Zugriff auf alle Kontaktdaten.
+                  </p>
+                </div>
+                <Button size="sm" onClick={() => setShowInterviewDialog(true)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Interview planen
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stage === 'interview_scheduled' && (
+          <Alert className="border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950/30">
+            <Video className="h-4 w-4 text-purple-600" />
+            <AlertDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="font-medium text-purple-800 dark:text-purple-200">
+                    Interview geplant
+                  </p>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
+                    Das Interview wurde bestätigt. Klicken Sie auf "Interview starten", um den Termin zu beginnen.
+                  </p>
+                </div>
+                <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                  <Video className="h-4 w-4 mr-2" />
+                  Interview starten
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stage === 'opt_in_declined' && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <p className="font-medium">Kandidat hat Datenfreigabe abgelehnt</p>
+              <p className="text-sm mt-1">
+                Der Kandidat möchte seine persönlichen Daten nicht teilen. 
+                Sie können einen alternativen Kandidaten in Betracht ziehen.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Readiness Warning Banner */}
-        {!hasRequiredData && (
+        {!hasRequiredData && stage !== 'interview_requested' && stage !== 'candidate_opted_in' && stage !== 'interview_scheduled' && (
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertDescription>
