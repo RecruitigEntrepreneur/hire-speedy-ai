@@ -41,10 +41,21 @@ interface CrawlResult {
   key_executives: KeyExecutive[];
   funding_stage?: string;
   funding_total?: string;
+  funding_date?: string;
   remote_policy?: string;
   awards: string[];
   linkedin_url?: string;
   employee_growth?: string;
+  // NEW: Extended intelligence data
+  technologies?: string[];
+  cloud_provider?: string;
+  development_tools?: string[];
+  kununu_score?: number;
+  kununu_reviews?: number;
+  glassdoor_score?: number;
+  glassdoor_reviews?: number;
+  revenue_range?: string;
+  company_culture?: string[];
 }
 
 function classifyHiringActivity(jobCount: number): 'hot' | 'active' | 'low' | 'none' {
@@ -197,6 +208,127 @@ function extractRemotePolicy(text: string): string | null {
   return null;
 }
 
+// NEW: Detect technologies from HTML source (BuiltWith-style)
+function detectTechnologiesFromHtml(html: string): string[] {
+  const technologies: string[] = [];
+  const lowerHtml = html.toLowerCase();
+  
+  // Frontend Frameworks
+  if (lowerHtml.includes('react') || lowerHtml.includes('_next')) technologies.push('React');
+  if (lowerHtml.includes('vue') || lowerHtml.includes('nuxt')) technologies.push('Vue.js');
+  if (lowerHtml.includes('angular')) technologies.push('Angular');
+  if (lowerHtml.includes('svelte')) technologies.push('Svelte');
+  if (lowerHtml.includes('gatsby')) technologies.push('Gatsby');
+  if (lowerHtml.includes('next.js') || lowerHtml.includes('_next')) technologies.push('Next.js');
+  
+  // Cloud Providers
+  if (lowerHtml.includes('amazonaws.com') || lowerHtml.includes('aws.')) technologies.push('AWS');
+  if (lowerHtml.includes('googleapis.com') || lowerHtml.includes('google-analytics') || lowerHtml.includes('gcp')) technologies.push('Google Cloud');
+  if (lowerHtml.includes('azure') || lowerHtml.includes('microsoft') || lowerHtml.includes('msft')) technologies.push('Azure');
+  
+  // Analytics & Marketing
+  if (lowerHtml.includes('google-analytics') || lowerHtml.includes('gtag') || lowerHtml.includes('ga(')) technologies.push('Google Analytics');
+  if (lowerHtml.includes('segment.com') || lowerHtml.includes('segment.io')) technologies.push('Segment');
+  if (lowerHtml.includes('hubspot')) technologies.push('HubSpot');
+  if (lowerHtml.includes('salesforce') || lowerHtml.includes('pardot')) technologies.push('Salesforce');
+  if (lowerHtml.includes('hotjar')) technologies.push('Hotjar');
+  if (lowerHtml.includes('mixpanel')) technologies.push('Mixpanel');
+  if (lowerHtml.includes('amplitude')) technologies.push('Amplitude');
+  if (lowerHtml.includes('intercom')) technologies.push('Intercom');
+  if (lowerHtml.includes('zendesk')) technologies.push('Zendesk');
+  
+  // CMS & Platforms
+  if (lowerHtml.includes('wordpress') || lowerHtml.includes('wp-content')) technologies.push('WordPress');
+  if (lowerHtml.includes('shopify')) technologies.push('Shopify');
+  if (lowerHtml.includes('contentful')) technologies.push('Contentful');
+  if (lowerHtml.includes('strapi')) technologies.push('Strapi');
+  if (lowerHtml.includes('typo3')) technologies.push('TYPO3');
+  if (lowerHtml.includes('drupal')) technologies.push('Drupal');
+  
+  // Infrastructure
+  if (lowerHtml.includes('cloudflare')) technologies.push('Cloudflare');
+  if (lowerHtml.includes('fastly')) technologies.push('Fastly');
+  if (lowerHtml.includes('akamai')) technologies.push('Akamai');
+  if (lowerHtml.includes('vercel')) technologies.push('Vercel');
+  if (lowerHtml.includes('netlify')) technologies.push('Netlify');
+  
+  // Enterprise
+  if (lowerHtml.includes('sap.')) technologies.push('SAP');
+  if (lowerHtml.includes('oracle')) technologies.push('Oracle');
+  if (lowerHtml.includes('workday')) technologies.push('Workday');
+  
+  // Dev Tools
+  if (lowerHtml.includes('sentry')) technologies.push('Sentry');
+  if (lowerHtml.includes('datadog')) technologies.push('Datadog');
+  if (lowerHtml.includes('newrelic')) technologies.push('New Relic');
+  
+  // Payment
+  if (lowerHtml.includes('stripe')) technologies.push('Stripe');
+  if (lowerHtml.includes('paypal')) technologies.push('PayPal');
+  if (lowerHtml.includes('klarna')) technologies.push('Klarna');
+  
+  return [...new Set(technologies)]; // Remove duplicates
+}
+
+// NEW: Parse Kununu score from search result
+function parseKununuScore(text: string): { score: number; reviews: number } | null {
+  // Pattern: "4,2 von 5" or "4.2/5" or "Score: 4.2"
+  const scoreMatch = text.match(/(\d[,.]?\d?)\s*(?:von|\/|out of)\s*5/i);
+  const reviewMatch = text.match(/(\d+)\s*(?:bewertung|review|rezension)/i);
+  
+  if (scoreMatch) {
+    const score = parseFloat(scoreMatch[1].replace(',', '.'));
+    const reviews = reviewMatch ? parseInt(reviewMatch[1]) : 0;
+    if (score > 0 && score <= 5) {
+      return { score, reviews };
+    }
+  }
+  return null;
+}
+
+// NEW: Parse revenue range from text
+function parseRevenueRange(text: string): string | null {
+  const lowerText = text.toLowerCase();
+  
+  // German patterns
+  if (lowerText.includes('mrd') || lowerText.includes('milliarden')) {
+    const match = text.match(/(\d+(?:[,.]?\d+)?)\s*(?:mrd|milliarden)/i);
+    if (match) return `€${match[1]}B+`;
+  }
+  if (lowerText.includes('mio') || lowerText.includes('million')) {
+    const match = text.match(/(\d+(?:[,.]?\d+)?)\s*(?:mio|million)/i);
+    if (match) {
+      const num = parseFloat(match[1].replace(',', '.'));
+      if (num >= 100) return '€100M+';
+      if (num >= 50) return '€50-100M';
+      if (num >= 10) return '€10-50M';
+      return '€1-10M';
+    }
+  }
+  
+  return null;
+}
+
+// NEW: Parse employee growth from text  
+function parseEmployeeGrowth(currentHeadcount: string | undefined, text: string): string | null {
+  // Look for growth indicators
+  const lowerText = text.toLowerCase();
+  
+  if (lowerText.includes('wachstum') || lowerText.includes('growth') || lowerText.includes('growing')) {
+    const percentMatch = text.match(/(\d+)\s*%/);
+    if (percentMatch) {
+      return `+${percentMatch[1]}%`;
+    }
+    return 'Growing';
+  }
+  
+  if (lowerText.includes('hiring') || lowerText.includes('expanding') || lowerText.includes('stellen')) {
+    return 'Expanding';
+  }
+  
+  return null;
+}
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
@@ -258,6 +390,9 @@ Deno.serve(async (req) => {
       recent_news: [],
       key_executives: [],
       awards: [],
+      technologies: [],
+      development_tools: [],
+      company_culture: [],
     };
 
     // Format domain for URL
@@ -266,8 +401,8 @@ Deno.serve(async (req) => {
       formattedDomain = `https://${formattedDomain}`;
     }
 
-    // Step 0: Scrape main website for company basics
-    console.log(`[Company Crawl] Step 0: Extracting company basics from ${formattedDomain}`);
+    // Step 0: Scrape main website for company basics + Tech Stack
+    console.log(`[Company Crawl] Step 0: Extracting company basics and tech stack from ${formattedDomain}`);
     
     try {
       const mainScrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -279,6 +414,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           url: formattedDomain,
           formats: [
+            'html', // Get HTML to detect technologies
             {
               type: 'json',
               schema: {
@@ -290,9 +426,15 @@ Deno.serve(async (req) => {
                   headquarters_country: { type: 'string' },
                   employee_count: { type: 'string' },
                   founded_year: { type: 'string' },
+                  technologies_mentioned: { 
+                    type: 'array', 
+                    items: { type: 'string' },
+                    description: 'Technologies, frameworks, or tools mentioned on the website'
+                  },
+                  cloud_provider: { type: 'string', description: 'AWS, GCP, Azure if mentioned' },
                 },
               },
-              prompt: 'Extract company information from this website: What industry/sector is this company in? Where is the headquarters (city and country)? How many employees does the company have (size/headcount)? When was it founded?',
+              prompt: 'Extract company information: industry/sector, headquarters city and country, employee count/headcount, founding year. Also extract any technologies, frameworks, programming languages, or cloud providers mentioned (e.g., React, Python, AWS, Kubernetes, SAP, Salesforce).',
             },
           ],
           onlyMainContent: true,
@@ -303,6 +445,7 @@ Deno.serve(async (req) => {
       if (mainScrapeResponse.ok) {
         const mainData = await mainScrapeResponse.json();
         const basics = mainData.data?.json || mainData.json;
+        const html = mainData.data?.html || mainData.html || '';
         
         if (basics) {
           if (basics.industry) result.industry = basics.industry;
@@ -310,7 +453,18 @@ Deno.serve(async (req) => {
           if (basics.headquarters_country) result.country = basics.headquarters_country;
           if (basics.employee_count) result.headcount = basics.employee_count;
           if (basics.founded_year) result.founded_year = basics.founded_year;
+          if (basics.cloud_provider) result.cloud_provider = basics.cloud_provider;
+          if (basics.technologies_mentioned && Array.isArray(basics.technologies_mentioned)) {
+            result.technologies = basics.technologies_mentioned.slice(0, 20);
+          }
           console.log(`[Company Crawl] Basics extracted: industry=${result.industry}, city=${result.city}, headcount=${result.headcount}`);
+        }
+        
+        // Tech Stack Detection from HTML (BuiltWith-style)
+        const detectedTech = detectTechnologiesFromHtml(html);
+        if (detectedTech.length > 0) {
+          result.technologies = [...new Set([...(result.technologies || []), ...detectedTech])].slice(0, 30);
+          console.log(`[Company Crawl] Technologies detected: ${result.technologies.join(', ')}`);
         }
       }
     } catch (basicsError) {
@@ -648,9 +802,196 @@ Deno.serve(async (req) => {
       } catch (extendedError) {
         console.error(`[Company Crawl] Extended data error:`, extendedError);
       }
+
+      // Step 5: Search for Key Executives
+      console.log(`[Company Crawl] Step 5: Searching for key executives at ${companyNameToUse}`);
+      
+      try {
+        const executivesQuery = `site:linkedin.com/in "${companyNameToUse}" CEO OR CTO OR CFO OR "Head of" OR Geschäftsführer OR "Managing Director"`;
+        const executivesResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: executivesQuery,
+            limit: 10,
+          }),
+        });
+
+        if (executivesResponse.ok) {
+          const executivesData = await executivesResponse.json();
+          const executivesResults = executivesData.data || [];
+          
+          const executives: KeyExecutive[] = [];
+          const seenNames = new Set<string>();
+          
+          for (const item of executivesResults) {
+            if (!item.url?.includes('linkedin.com/in')) continue;
+            
+            // Extract name from title (typically "Name - Title at Company")
+            const titleParts = (item.title || '').split(' - ');
+            if (titleParts.length >= 2) {
+              const name = titleParts[0].trim();
+              const roleMatch = titleParts[1].match(/(CEO|CTO|CFO|COO|CHRO|CMO|CPO|CIO|Head of [^|]+|Geschäftsführer|Managing Director|Director|VP|Vice President)/i);
+              
+              if (name && roleMatch && !seenNames.has(name.toLowerCase())) {
+                seenNames.add(name.toLowerCase());
+                executives.push({
+                  name: name,
+                  role: roleMatch[1],
+                  linkedin: item.url,
+                });
+              }
+            }
+          }
+          
+          result.key_executives = executives.slice(0, 5);
+          console.log(`[Company Crawl] Found ${result.key_executives.length} executives`);
+        }
+      } catch (execError) {
+        console.error(`[Company Crawl] Executives search error:`, execError);
+      }
+
+      // Step 6: Search for Employer Branding Scores (Kununu)
+      console.log(`[Company Crawl] Step 6: Searching for employer branding scores`);
+      
+      try {
+        const kununuQuery = `site:kununu.com "${companyNameToUse}"`;
+        const kununuResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: kununuQuery,
+            limit: 3,
+            lang: 'de',
+          }),
+        });
+
+        if (kununuResponse.ok) {
+          const kununuData = await kununuResponse.json();
+          const kununuResults = kununuData.data || [];
+          
+          for (const item of kununuResults) {
+            const text = (item.title || '') + ' ' + (item.description || '');
+            const scoreData = parseKununuScore(text);
+            if (scoreData) {
+              result.kununu_score = scoreData.score;
+              result.kununu_reviews = scoreData.reviews;
+              console.log(`[Company Crawl] Kununu score: ${result.kununu_score} (${result.kununu_reviews} reviews)`);
+              break;
+            }
+          }
+        }
+
+        // Search for Glassdoor
+        const glassdoorQuery = `site:glassdoor.de OR site:glassdoor.com "${companyNameToUse}"`;
+        const glassdoorResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: glassdoorQuery,
+            limit: 3,
+          }),
+        });
+
+        if (glassdoorResponse.ok) {
+          const glassdoorData = await glassdoorResponse.json();
+          const glassdoorResults = glassdoorData.data || [];
+          
+          for (const item of glassdoorResults) {
+            const text = (item.title || '') + ' ' + (item.description || '');
+            // Glassdoor uses similar scoring patterns
+            const scoreMatch = text.match(/(\d[,.]?\d?)\s*(?:von|\/|out of|stars?|sterne)/i);
+            if (scoreMatch) {
+              const score = parseFloat(scoreMatch[1].replace(',', '.'));
+              if (score > 0 && score <= 5) {
+                result.glassdoor_score = score;
+                console.log(`[Company Crawl] Glassdoor score: ${result.glassdoor_score}`);
+                break;
+              }
+            }
+          }
+        }
+      } catch (brandingError) {
+        console.error(`[Company Crawl] Employer branding error:`, brandingError);
+      }
+
+      // Step 7: Search for Revenue & Growth Signals
+      console.log(`[Company Crawl] Step 7: Searching for revenue and growth signals`);
+      
+      try {
+        const revenueQuery = `"${companyNameToUse}" umsatz OR revenue OR jahresumsatz OR turnover 2024 2025`;
+        const revenueResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: revenueQuery,
+            limit: 5,
+            lang: 'de',
+          }),
+        });
+
+        if (revenueResponse.ok) {
+          const revenueData = await revenueResponse.json();
+          const revenueResults = revenueData.data || [];
+          
+          for (const item of revenueResults) {
+            const text = (item.title || '') + ' ' + (item.description || '');
+            const revenueRange = parseRevenueRange(text);
+            if (revenueRange) {
+              result.revenue_range = revenueRange;
+              console.log(`[Company Crawl] Revenue range: ${result.revenue_range}`);
+              break;
+            }
+          }
+        }
+
+        // Employee growth signals
+        const growthQuery = `"${companyNameToUse}" wachstum OR growth OR expanding OR hiring 2024 2025`;
+        const growthResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: growthQuery,
+            limit: 5,
+            lang: 'de',
+          }),
+        });
+
+        if (growthResponse.ok) {
+          const growthData = await growthResponse.json();
+          const growthResults = growthData.data || [];
+          
+          for (const item of growthResults) {
+            const text = (item.title || '') + ' ' + (item.description || '');
+            const growth = parseEmployeeGrowth(result.headcount, text);
+            if (growth) {
+              result.employee_growth = growth;
+              console.log(`[Company Crawl] Employee growth: ${result.employee_growth}`);
+              break;
+            }
+          }
+        }
+      } catch (growthError) {
+        console.error(`[Company Crawl] Growth metrics error:`, growthError);
+      }
     }
 
-    // Calculate priority score
+    // Calculate priority score (enhanced with new signals)
     let priorityScore = 0;
     priorityScore += result.live_jobs_count * 2;
     priorityScore += result.recent_news.length * 3;
@@ -658,6 +999,11 @@ Deno.serve(async (req) => {
     if (result.funding_stage) priorityScore += 15;
     if (result.hiring_activity === 'hot') priorityScore += 20;
     else if (result.hiring_activity === 'active') priorityScore += 10;
+    // New scoring factors
+    if (result.key_executives.length > 0) priorityScore += 10;
+    if (result.kununu_score && result.kununu_score < 3.5) priorityScore += 8; // Low scores = hiring problems = opportunity
+    if (result.employee_growth) priorityScore += 5;
+    if (result.technologies && result.technologies.length > 5) priorityScore += 5;
 
     // Update company in database if company_id provided
     if (company_id) {
@@ -686,10 +1032,23 @@ Deno.serve(async (req) => {
       if (crawl_extended) {
         if (result.funding_stage) updateData.funding_stage = result.funding_stage;
         if (result.funding_total) updateData.funding_total = result.funding_total;
+        if (result.funding_date) updateData.recent_funding_date = result.funding_date;
         if (result.linkedin_url) updateData.linkedin_url = result.linkedin_url;
         if (result.remote_policy) updateData.remote_policy = result.remote_policy;
         if (result.awards.length > 0) updateData.awards = result.awards;
         if (result.key_executives.length > 0) updateData.key_executives = result.key_executives;
+        // NEW: Extended intelligence data
+        if (result.technologies && result.technologies.length > 0) updateData.technologies = result.technologies;
+        if (result.cloud_provider) updateData.cloud_provider = result.cloud_provider;
+        if (result.development_tools && result.development_tools.length > 0) updateData.development_tools = result.development_tools;
+        if (result.kununu_score) updateData.kununu_score = result.kununu_score;
+        if (result.glassdoor_score) updateData.glassdoor_score = result.glassdoor_score;
+        if (result.revenue_range) updateData.revenue_range = result.revenue_range;
+        if (result.employee_growth) updateData.employee_growth = result.employee_growth;
+        if (result.company_culture && result.company_culture.length > 0) updateData.company_culture = result.company_culture;
+        
+        // Update last_enriched_at for intelligence tracking
+        updateData.last_enriched_at = new Date().toISOString();
       }
 
       const { error: updateError } = await supabase

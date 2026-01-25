@@ -61,6 +61,20 @@ export interface OutreachCompany {
   last_enriched_at?: string | null;
   social_linkedin?: string | null;
   social_twitter?: string | null;
+  // Extended intelligence fields
+  cloud_provider?: string | null;
+  development_tools?: Json;
+  kununu_score?: number | null;
+  kununu_reviews?: number | null;
+  glassdoor_score?: number | null;
+  glassdoor_reviews?: number | null;
+  key_executives?: Json;
+  funding_total?: string | null;
+  funding_stage?: string | null;
+  funding_date?: string | null;
+  awards?: Json;
+  remote_policy?: string | null;
+  company_culture?: Json;
 }
 
 export interface CompanyWithLeads extends OutreachCompany {
