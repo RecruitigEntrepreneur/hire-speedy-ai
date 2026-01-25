@@ -11,8 +11,10 @@ import {
   Search,
   UserPlus,
   Star,
-  Filter
+  Filter,
+  ExternalLink
 } from 'lucide-react';
+import { LeadProfileDialog } from './LeadProfileDialog';
 import { OutreachCompany } from '@/hooks/useOutreachCompanies';
 import { useUpdateContactOutreach } from '@/hooks/useCompanyOutreach';
 import {
@@ -40,6 +42,7 @@ export function CompanyContactsTab({ company, leads }: CompanyContactsTabProps) 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   
   const updateContactMutation = useUpdateContactOutreach();
 
@@ -210,21 +213,33 @@ export function CompanyContactsTab({ company, leads }: CompanyContactsTabProps) 
               </TableHeader>
               <TableBody>
                 {filteredLeads.map((lead) => (
-                  <TableRow key={lead.id}>
+                  <TableRow 
+                    key={lead.id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setSelectedLeadId(lead.id)}
+                  >
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="icon"
                         className={`h-8 w-8 ${lead.is_primary_contact ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                        onClick={() => handlePrimaryToggle(lead.id, lead.is_primary_contact)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrimaryToggle(lead.id, lead.is_primary_contact);
+                        }}
                       >
                         <Star className="h-4 w-4" fill={lead.is_primary_contact ? 'currentColor' : 'none'} />
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{lead.contact_name || 'Unbekannt'}</p>
-                        <p className="text-sm text-muted-foreground">{lead.contact_title || lead.contact_email}</p>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <p className="font-medium flex items-center gap-1">
+                            {lead.contact_name || 'Unbekannt'}
+                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                          </p>
+                          <p className="text-sm text-muted-foreground">{lead.contact_title || lead.contact_email}</p>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -282,20 +297,39 @@ export function CompanyContactsTab({ company, leads }: CompanyContactsTabProps) 
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         {lead.contact_email && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8" 
+                            asChild
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <a href={`mailto:${lead.contact_email}`}>
                               <Mail className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
-                        {lead.linkedin_url && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                            <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer">
+                        {(lead.linkedin_url || lead.personal_linkedin_url) && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8" 
+                            asChild
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <a href={lead.linkedin_url || lead.personal_linkedin_url} target="_blank" rel="noopener noreferrer">
                               <Linkedin className="h-4 w-4" />
                             </a>
                           </Button>
                         )}
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedLeadId(lead.id);
+                          }}
+                        >
                           <Sparkles className="h-3 w-3 mr-1" />
                           E-Mail
                         </Button>
@@ -308,6 +342,14 @@ export function CompanyContactsTab({ company, leads }: CompanyContactsTabProps) 
           )}
         </CardContent>
       </Card>
+
+      {/* Lead Profile Dialog */}
+      {selectedLeadId && (
+        <LeadProfileDialog
+          leadId={selectedLeadId}
+          onClose={() => setSelectedLeadId(null)}
+        />
+      )}
     </div>
   );
 }
