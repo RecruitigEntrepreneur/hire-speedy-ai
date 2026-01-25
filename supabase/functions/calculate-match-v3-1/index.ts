@@ -471,6 +471,100 @@ interface MatchingConfig {
 }
 
 // ============================================
+// SYNONYM MAP BUILDER
+// ============================================
+
+interface SynonymEntry {
+  canonical_name: string;
+  synonym: string;
+  confidence: number;
+  bidirectional: boolean;
+}
+
+/**
+ * Builds a map of synonyms to their canonical names for fast lookup
+ * Bidirectional synonyms are mapped both ways
+ */
+function buildSynonymMap(synonyms: SynonymEntry[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  
+  for (const s of synonyms) {
+    const canonical = s.canonical_name.toLowerCase().trim();
+    const synonym = s.synonym.toLowerCase().trim();
+    
+    // Map synonym -> canonical
+    if (!map.has(synonym)) {
+      map.set(synonym, new Set());
+    }
+    map.get(synonym)!.add(canonical);
+    
+    // Add self-reference for canonical
+    if (!map.has(canonical)) {
+      map.set(canonical, new Set());
+    }
+    map.get(canonical)!.add(canonical);
+    
+    // Bidirectional: also map canonical -> synonym
+    if (s.bidirectional) {
+      map.get(canonical)!.add(synonym);
+      if (!map.has(synonym)) {
+        map.set(synonym, new Set());
+      }
+      map.get(synonym)!.add(synonym);
+    }
+  }
+  
+  return map;
+}
+
+// ============================================
+// KEYWORD EXTRACTION FOR LONG REQUIREMENTS
+// ============================================
+
+// Finance/Accounting keywords to extract from long requirement sentences
+const FINANCE_KEYWORDS = [
+  'buchhaltung', 'finanzbuchhaltung', 'lohnbuchhaltung', 'bilanzbuchhaltung',
+  'debitorenbuchhaltung', 'kreditorenbuchhaltung', 'anlagenbuchhaltung',
+  'rechnungswesen', 'rechnungslegung', 'bilanzierung', 'jahresabschluss',
+  'monatsabschluss', 'quartalsabschluss', 'controlling', 'finanzcontrolling',
+  'kostenrechnung', 'budgetierung', 'kalkulation', 'hgb', 'ifrs', 'gaap',
+  'datev', 'lexware', 'sage', 'addison', 'navision', 'sap fi', 'sap co',
+  'steuerrecht', 'steuererklärung', 'umsatzsteuer', 'einkommensteuer',
+  'lohnabrechnung', 'payroll', 'gehaltsabrechnung', 'entgeltabrechnung',
+  'mahnwesen', 'forderungsmanagement', 'zahlungsverkehr', 'treasury',
+  'accounts payable', 'accounts receivable', 'fibu', 'buchführung'
+];
+
+// IT keywords (already well-covered, but include for completeness)
+const IT_KEYWORDS = [
+  'java', 'python', 'react', 'javascript', 'typescript', 'aws', 'docker',
+  'kubernetes', 'postgresql', 'node.js', 'angular', 'vue', 'spring',
+  'c#', 'c++', 'go', 'rust', 'terraform', 'jenkins', 'gitlab', 'azure'
+];
+
+const ALL_SKILL_KEYWORDS = [...FINANCE_KEYWORDS, ...IT_KEYWORDS];
+
+/**
+ * Extracts skill keywords from long requirement sentences
+ * e.g., "Mehrjährige Berufserfahrung in der Buchhaltung" -> ["buchhaltung"]
+ */
+function extractSkillKeywords(requirement: string): string[] {
+  const lowerReq = requirement.toLowerCase();
+  const keywords: string[] = [];
+  
+  for (const keyword of ALL_SKILL_KEYWORDS) {
+    if (lowerReq.includes(keyword)) {
+      keywords.push(keyword);
+    }
+  }
+  
+  return keywords;
+}
+
+// Global synonym map (set during request processing)
+let globalSynonymMap: Map<string, Set<string>> = new Map();
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -536,6 +630,18 @@ serve(async (req) => {
     const { data: taxonomy } = await supabase
       .from('skill_taxonomy')
       .select('*');
+
+    // 5b. Fetch skill synonyms for enhanced matching
+    const { data: synonyms } = await supabase
+      .from('skill_synonyms')
+      .select('*')
+      .eq('active', true);
+
+    // Build synonym lookup map
+    const synonymMap = buildSynonymMap(synonyms || []);
+
+    // Set global synonym map for use in getSkillCredit
+    globalSynonymMap = synonymMap;
 
     // 6. Process each job
     const results: V31MatchResult[] = [];
@@ -1073,18 +1179,83 @@ function getSkillCredit(
   candidateSkills: string[],
   taxonomy: any[]
 ): { credit: number; matchType: 'direct' | 'transferable' | 'missing' } {
-  // Direct match
-  if (candidateSkills.some(cs => cs.includes(skillName) || skillName.includes(cs))) {
+  
+  // =============================================
+  // PHASE 1: KEYWORD EXTRACTION FOR LONG REQUIREMENTS
+  // If skillName is a long sentence, extract keywords first
+  // =============================================
+  const extractedKeywords = extractSkillKeywords(skillName);
+  
+  if (extractedKeywords.length > 0) {
+    // Try matching with extracted keywords
+    for (const keyword of extractedKeywords) {
+      const keywordResult = matchSingleSkill(keyword, candidateSkills, taxonomy);
+      if (keywordResult.matchType !== 'missing') {
+        return keywordResult;
+      }
+    }
+  }
+  
+  // Fall through to regular matching
+  return matchSingleSkill(skillName, candidateSkills, taxonomy);
+}
+
+/**
+ * Core skill matching logic - used for both raw skills and extracted keywords
+ */
+function matchSingleSkill(
+  skillName: string,
+  candidateSkills: string[],
+  taxonomy: any[]
+): { credit: number; matchType: 'direct' | 'transferable' | 'missing' } {
+  const normalizedSkill = skillName.toLowerCase().trim();
+  
+  // =============================================
+  // STEP 1: DIRECT SUBSTRING MATCH
+  // =============================================
+  if (candidateSkills.some(cs => cs.includes(normalizedSkill) || normalizedSkill.includes(cs))) {
     return { credit: 1.0, matchType: 'direct' };
   }
 
-  // Check taxonomy for transferability
-  const taxEntry = taxonomy.find(t => t.canonical_name?.toLowerCase() === skillName);
+  // =============================================
+  // STEP 2: SYNONYM MAP LOOKUP (from skill_synonyms table)
+  // =============================================
+  const skillSynonyms = globalSynonymMap.get(normalizedSkill);
+  if (skillSynonyms && skillSynonyms.size > 0) {
+    // Check if candidate has any synonym or the canonical form
+    for (const synonym of skillSynonyms) {
+      if (candidateSkills.some(cs => 
+        cs.includes(synonym) || synonym.includes(cs)
+      )) {
+        return { credit: 1.0, matchType: 'direct' };
+      }
+    }
+  }
+  
+  // Also check reverse: does any candidate skill map to the same canonical as the required skill?
+  for (const candidateSkill of candidateSkills) {
+    const candidateSynonyms = globalSynonymMap.get(candidateSkill);
+    if (candidateSynonyms && skillSynonyms) {
+      // Check if there's any overlap between the two synonym sets
+      for (const candSyn of candidateSynonyms) {
+        if (skillSynonyms.has(candSyn)) {
+          return { credit: 1.0, matchType: 'direct' };
+        }
+      }
+    }
+  }
+
+  // =============================================
+  // STEP 3: TAXONOMY ALIASES (from skill_taxonomy table)
+  // =============================================
+  const taxEntry = taxonomy.find(t => t.canonical_name?.toLowerCase() === normalizedSkill);
   if (taxEntry) {
     // Check aliases
     if (taxEntry.aliases) {
       const aliases = Array.isArray(taxEntry.aliases) ? taxEntry.aliases : [];
-      if (aliases.some((a: string) => candidateSkills.some(cs => cs.includes(a.toLowerCase())))) {
+      if (aliases.some((a: string) => candidateSkills.some(cs => 
+        cs.includes(a.toLowerCase()) || a.toLowerCase().includes(cs)
+      ))) {
         return { credit: 1.0, matchType: 'direct' };
       }
     }
@@ -1092,8 +1263,36 @@ function getSkillCredit(
     // Check transferability
     if (taxEntry.transferability_from && typeof taxEntry.transferability_from === 'object') {
       for (const [fromSkill, transferability] of Object.entries(taxEntry.transferability_from)) {
-        if (candidateSkills.some(cs => cs.includes(fromSkill.toLowerCase()))) {
+        const fromSkillLower = fromSkill.toLowerCase();
+        if (candidateSkills.some(cs => cs.includes(fromSkillLower) || fromSkillLower.includes(cs))) {
           return { credit: (transferability as number) / 100 * 0.7, matchType: 'transferable' };
+        }
+      }
+    }
+  }
+
+  // =============================================
+  // STEP 4: REVERSE TAXONOMY LOOKUP
+  // Check if any candidate skill has this required skill in its aliases
+  // =============================================
+  for (const candidateSkill of candidateSkills) {
+    const candidateTaxEntry = taxonomy.find(t => t.canonical_name?.toLowerCase() === candidateSkill);
+    if (candidateTaxEntry?.aliases) {
+      const aliases = Array.isArray(candidateTaxEntry.aliases) ? candidateTaxEntry.aliases : [];
+      if (aliases.some((a: string) => 
+        a.toLowerCase().includes(normalizedSkill) || normalizedSkill.includes(a.toLowerCase())
+      )) {
+        return { credit: 1.0, matchType: 'direct' };
+      }
+    }
+    
+    // Also check if candidate skill IS an alias for the required skill
+    for (const taxItem of taxonomy) {
+      if (taxItem.aliases && Array.isArray(taxItem.aliases)) {
+        const hasAsAlias = taxItem.aliases.some((a: string) => a.toLowerCase() === candidateSkill);
+        const isRequired = taxItem.canonical_name?.toLowerCase() === normalizedSkill;
+        if (hasAsAlias && isRequired) {
+          return { credit: 1.0, matchType: 'direct' };
         }
       }
     }
