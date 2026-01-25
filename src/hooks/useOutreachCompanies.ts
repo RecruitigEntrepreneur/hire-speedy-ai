@@ -75,6 +75,8 @@ export interface OutreachCompany {
   awards?: Json;
   remote_policy?: string | null;
   company_culture?: Json;
+  // Crawl source tracking
+  crawl_sources?: Json;
 }
 
 export interface CompanyWithLeads extends OutreachCompany {

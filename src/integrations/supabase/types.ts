@@ -5152,6 +5152,7 @@ export type Database = {
           company_notes: string | null
           company_updates: Json | null
           country: string | null
+          crawl_sources: Json | null
           created_at: string | null
           description: string | null
           development_tools: Json | null
@@ -5208,6 +5209,7 @@ export type Database = {
           company_notes?: string | null
           company_updates?: Json | null
           country?: string | null
+          crawl_sources?: Json | null
           created_at?: string | null
           description?: string | null
           development_tools?: Json | null
@@ -5264,6 +5266,7 @@ export type Database = {
           company_notes?: string | null
           company_updates?: Json | null
           country?: string | null
+          crawl_sources?: Json | null
           created_at?: string | null
           description?: string | null
           development_tools?: Json | null
