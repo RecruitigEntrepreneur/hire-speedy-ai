@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CompanyIntelligenceCard } from './company-profile/CompanyIntelligenceCard';
+import { CrawlSourcesWidget } from './company-profile/CrawlSourcesWidget';
 import { useCrawlCompanyData } from '@/hooks/useOutreachCompanies';
 
 interface CompanyOverviewTabProps {
@@ -258,6 +259,12 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
             </div>
           </CardContent>
         </Card>
+
+        {/* Crawl Sources Widget */}
+        <CrawlSourcesWidget 
+          crawlSources={company.crawl_sources}
+          lastCrawledAt={company.career_crawled_at || company.last_enriched_at}
+        />
 
         {/* Company Intelligence Card - Always visible */}
         <CompanyIntelligenceCard 

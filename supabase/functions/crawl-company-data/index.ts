@@ -93,11 +93,40 @@ interface CrawlResult {
   handelsregister?: string;
 }
 
+interface SourceTrackingEntry {
+  crawled_at: string | null;
+  status: 'success' | 'no_results' | 'error' | 'pending';
+  fields?: string[];
+  contacts_found?: number;
+  executives_found?: number;
+  jobs_found?: number;
+  error?: string;
+}
+
 function classifyHiringActivity(jobCount: number): 'hot' | 'active' | 'low' | 'none' {
   if (jobCount >= 10) return 'hot';
   if (jobCount >= 5) return 'active';
   if (jobCount >= 1) return 'low';
   return 'none';
+}
+
+// Generate unique placeholder email from name
+function generatePlaceholderEmail(name: string, domain: string): string {
+  const cleanName = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics (Umlaute)
+    .replace(/[^a-z\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  
+  if (cleanName.length >= 2) {
+    return `${cleanName[0]}.${cleanName[cleanName.length - 1]}@${domain}`;
+  } else if (cleanName.length === 1) {
+    return `${cleanName[0]}@${domain}`;
+  }
+  return `contact.${Date.now()}@${domain}`;
 }
 
 function findBestCareerUrl(links: string[], domain: string): string | null {
@@ -475,6 +504,9 @@ Deno.serve(async (req) => {
       company_culture: [],
     };
 
+    // Source tracking for dashboard widget
+    const sourceTracking: Record<string, SourceTrackingEntry> = {};
+
     // Format domain for URL
     let formattedDomain = companyDomain.trim().toLowerCase();
     if (!formattedDomain.startsWith('http')) {
@@ -525,25 +557,37 @@ Deno.serve(async (req) => {
         const basics = mainData.data?.json || mainData.json;
         const html = mainData.data?.html || mainData.html || '';
         
+        const fieldsExtracted: string[] = [];
         if (basics) {
-          if (basics.industry) result.industry = basics.industry;
-          if (basics.headquarters_city) result.city = basics.headquarters_city;
-          if (basics.headquarters_country) result.country = basics.headquarters_country;
-          if (basics.employee_count) result.headcount = basics.employee_count;
-          if (basics.founded_year) result.founded_year = basics.founded_year;
-          if (basics.cloud_provider) result.cloud_provider = basics.cloud_provider;
+          if (basics.industry) { result.industry = basics.industry; fieldsExtracted.push('industry'); }
+          if (basics.headquarters_city) { result.city = basics.headquarters_city; fieldsExtracted.push('city'); }
+          if (basics.headquarters_country) { result.country = basics.headquarters_country; fieldsExtracted.push('country'); }
+          if (basics.employee_count) { result.headcount = basics.employee_count; fieldsExtracted.push('headcount'); }
+          if (basics.founded_year) { result.founded_year = basics.founded_year; fieldsExtracted.push('founded_year'); }
+          if (basics.cloud_provider) { result.cloud_provider = basics.cloud_provider; fieldsExtracted.push('cloud_provider'); }
           if (basics.technologies_mentioned && Array.isArray(basics.technologies_mentioned)) {
             result.technologies = basics.technologies_mentioned.slice(0, 20);
+            fieldsExtracted.push('technologies');
           }
         }
         
         const detectedTech = detectTechnologiesFromHtml(html);
         if (detectedTech.length > 0) {
           result.technologies = [...new Set([...(result.technologies || []), ...detectedTech])].slice(0, 30);
+          if (!fieldsExtracted.includes('technologies')) fieldsExtracted.push('technologies');
         }
+
+        sourceTracking['website'] = {
+          crawled_at: new Date().toISOString(),
+          status: fieldsExtracted.length > 0 ? 'success' : 'no_results',
+          fields: fieldsExtracted
+        };
+      } else {
+        sourceTracking['website'] = { crawled_at: new Date().toISOString(), status: 'error' };
       }
     } catch (e) {
       console.error(`[Company Crawl] Source 1 error:`, e);
+      sourceTracking['website'] = { crawled_at: new Date().toISOString(), status: 'error', error: String(e) };
     }
 
     // SOURCE 2: Impressum (Legal Data + Executives)
@@ -557,6 +601,9 @@ Deno.serve(async (req) => {
         `${formattedDomain}/kontakt`,
         `${formattedDomain}/about/impressum`,
       ];
+      
+      let impressumSuccess = false;
+      let contactsFromImpressum = 0;
       
       for (const url of impressumUrls) {
         try {
@@ -606,10 +653,12 @@ Deno.serve(async (req) => {
                       role: 'Geschäftsführer',
                       source: 'impressum'
                     });
+                    contactsFromImpressum++;
                   }
                 }
                 console.log(`[Company Crawl] Impressum: Found ${json.geschaeftsfuehrer.length} executives`);
               }
+              impressumSuccess = true;
               break; // Found valid impressum, stop searching
             }
           }
@@ -617,11 +666,20 @@ Deno.serve(async (req) => {
           // Continue to next URL
         }
       }
+
+      sourceTracking['impressum'] = {
+        crawled_at: new Date().toISOString(),
+        status: impressumSuccess ? 'success' : 'no_results',
+        contacts_found: contactsFromImpressum
+      };
     }
 
     // SOURCE 3: Team/About Page
     if (crawl_all_sources) {
       console.log(`[Company Crawl] Source 3: Team/About pages`);
+      let teamPageSuccess = false;
+      let teamContactsFound = 0;
+      
       try {
         // First find team pages via map
         const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
@@ -687,6 +745,8 @@ Deno.serve(async (req) => {
                       bio: member.bio,
                       source: 'team_page'
                     });
+                    teamContactsFound++;
+                    teamPageSuccess = true;
                   }
                 }
                 console.log(`[Company Crawl] Team page ${url}: Found ${members.length} members`);
@@ -699,9 +759,16 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`[Company Crawl] Source 3 error:`, e);
       }
+
+      sourceTracking['team_page'] = {
+        crawled_at: new Date().toISOString(),
+        status: teamPageSuccess ? 'success' : 'no_results',
+        contacts_found: teamContactsFound
+      };
     }
 
     // SOURCE 4: LinkedIn Deep Search for Executives
+    let linkedinExecutivesFound = 0;
     if (crawl_extended && companyNameToUse) {
       console.log(`[Company Crawl] Source 4: LinkedIn executive search for ${companyNameToUse}`);
       
@@ -746,6 +813,7 @@ Deno.serve(async (req) => {
                     linkedin: r.url,
                     source: 'linkedin'
                   });
+                  linkedinExecutivesFound++;
                 }
               }
             }
@@ -755,6 +823,12 @@ Deno.serve(async (req) => {
         }
       }
       console.log(`[Company Crawl] LinkedIn: Found ${seenNames.size} executives`);
+
+      sourceTracking['linkedin_people'] = {
+        crawled_at: new Date().toISOString(),
+        status: linkedinExecutivesFound > 0 ? 'success' : 'no_results',
+        executives_found: linkedinExecutivesFound
+      };
     }
 
     // SOURCE 5: Xing Search
@@ -1190,6 +1264,11 @@ Deno.serve(async (req) => {
         updateData.last_enriched_at = new Date().toISOString();
       }
 
+      // Add source tracking
+      if (Object.keys(sourceTracking).length > 0) {
+        updateData.crawl_sources = sourceTracking;
+      }
+
       const { error: updateError } = await supabase
         .from('outreach_companies')
         .update(updateData)
@@ -1227,7 +1306,7 @@ Deno.serve(async (req) => {
               company_id: company_id,
               company_name: companyNameToUse,
               contact_name: exec.name,
-              contact_email: exec.email || `kontakt@${companyDomain || 'unbekannt.de'}`,
+              contact_email: exec.email || generatePlaceholderEmail(exec.name, companyDomain || 'unbekannt.de'),
               contact_role: exec.role, // FIXED: was contact_title
               personal_linkedin_url: exec.linkedin || null,
               lead_source: exec.source || 'multi_source_crawl',
