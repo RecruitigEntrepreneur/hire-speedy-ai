@@ -29,6 +29,32 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Dateiname sanitieren für Supabase Storage
+const sanitizeFileName = (fileName: string): string => {
+  const umlautMap: Record<string, string> = {
+    'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+    'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue'
+  };
+  
+  let sanitized = fileName;
+  
+  // Umlaute ersetzen
+  Object.entries(umlautMap).forEach(([umlaut, replacement]) => {
+    sanitized = sanitized.replace(new RegExp(umlaut, 'g'), replacement);
+  });
+  
+  // Leerzeichen durch Unterstriche ersetzen
+  sanitized = sanitized.replace(/\s+/g, '_');
+  
+  // Alle nicht-ASCII Zeichen entfernen
+  sanitized = sanitized.replace(/[^\x00-\x7F]/g, '');
+  
+  // Doppelte Unterstriche entfernen
+  sanitized = sanitized.replace(/_+/g, '_');
+  
+  return sanitized;
+};
+
 interface CvUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,8 +116,9 @@ export function CvUploadDialog({
       setUploading(true);
       setStep('extracting');
 
-      // Upload PDF to storage
-      const fileName = `${user.id}/${Date.now()}-${selectedFile.name}`;
+      // Upload PDF to storage (sanitize filename for Supabase)
+      const sanitizedName = sanitizeFileName(selectedFile.name);
+      const fileName = `${user.id}/${Date.now()}-${sanitizedName}`;
       const { error: uploadError } = await supabase.storage
         .from('cv-documents')
         .upload(fileName, selectedFile);
