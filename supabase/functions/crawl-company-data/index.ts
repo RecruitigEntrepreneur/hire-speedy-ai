@@ -100,6 +100,7 @@ interface SourceTrackingEntry {
   contacts_found?: number;
   executives_found?: number;
   jobs_found?: number;
+  items_found?: number;
   error?: string;
 }
 
@@ -832,6 +833,7 @@ Deno.serve(async (req) => {
     }
 
     // SOURCE 5: Xing Search
+    let xingContactsFound = 0;
     if (crawl_all_sources && companyNameToUse) {
       console.log(`[Company Crawl] Source 5: Xing search for ${companyNameToUse}`);
       
@@ -878,17 +880,26 @@ Deno.serve(async (req) => {
                 xing: r.url,
                 source: 'xing'
               });
+              xingContactsFound++;
             }
           }
         }
       } catch (e) {
         console.error(`[Company Crawl] Source 5 (Xing) error:`, e);
       }
+      
+      sourceTracking['xing'] = {
+        crawled_at: new Date().toISOString(),
+        status: xingContactsFound > 0 || result.xing_url ? 'success' : 'no_results',
+        contacts_found: xingContactsFound
+      };
     }
 
     // SOURCE 6: Crunchbase
     if (crawl_extended && companyNameToUse) {
       console.log(`[Company Crawl] Source 6: Crunchbase for ${companyNameToUse}`);
+      let crunchbaseSuccess = false;
+      const crunchbaseFields: string[] = [];
       
       try {
         const query = `site:crunchbase.com/organization "${companyNameToUse}"`;
@@ -909,8 +920,16 @@ Deno.serve(async (req) => {
             const fundingMatch = snippet.match(/\$[\d.]+[BMK]/);
             const roundMatch = snippet.match(/(Series [A-Z]|Seed|IPO|Pre-Seed)/i);
             
-            if (fundingMatch) result.funding_total = fundingMatch[0];
-            if (roundMatch) result.funding_stage = roundMatch[1];
+            if (fundingMatch) { 
+              result.funding_total = fundingMatch[0]; 
+              crunchbaseFields.push('funding_total');
+              crunchbaseSuccess = true;
+            }
+            if (roundMatch) { 
+              result.funding_stage = roundMatch[1]; 
+              crunchbaseFields.push('funding_stage');
+              crunchbaseSuccess = true;
+            }
             
             console.log(`[Company Crawl] Crunchbase: Funding ${result.funding_total || 'n/a'}, Stage ${result.funding_stage || 'n/a'}`);
           }
@@ -918,6 +937,12 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`[Company Crawl] Source 6 (Crunchbase) error:`, e);
       }
+      
+      sourceTracking['crunchbase'] = {
+        crawled_at: new Date().toISOString(),
+        status: crunchbaseSuccess ? 'success' : 'no_results',
+        fields: crunchbaseFields
+      };
     }
 
     // ======= CAREER PAGE CRAWLING (keep existing logic) =======
@@ -1075,6 +1100,13 @@ Deno.serve(async (req) => {
       result.career_page_status = 'error';
     }
 
+    // Career page source tracking
+    sourceTracking['career_page'] = {
+      crawled_at: new Date().toISOString(),
+      status: result.career_page_status === 'found' ? 'success' : 'no_results',
+      jobs_found: result.live_jobs_count
+    };
+
     // News search
     if (crawl_news && companyNameToUse) {
       console.log(`[Company Crawl] News search for ${companyNameToUse}`);
@@ -1112,6 +1144,12 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`[Company Crawl] News error:`, e);
       }
+      
+      sourceTracking['news'] = {
+        crawled_at: new Date().toISOString(),
+        status: result.recent_news.length > 0 ? 'success' : 'no_results',
+        items_found: result.recent_news.length
+      };
     }
 
     // Kununu / Glassdoor
@@ -1139,6 +1177,12 @@ Deno.serve(async (req) => {
         }
       } catch (e) {}
       
+      sourceTracking['kununu'] = {
+        crawled_at: new Date().toISOString(),
+        status: result.kununu_score ? 'success' : 'no_results',
+        fields: result.kununu_score ? ['kununu_score', 'kununu_reviews'] : []
+      };
+      
       try {
         const glassdoorQuery = `site:glassdoor.com "${companyNameToUse}"`;
         const glassdoorResponse = await fetch('https://api.firecrawl.dev/v1/search', {
@@ -1159,6 +1203,12 @@ Deno.serve(async (req) => {
           }
         }
       } catch (e) {}
+      
+      sourceTracking['glassdoor'] = {
+        crawled_at: new Date().toISOString(),
+        status: result.glassdoor_score ? 'success' : 'no_results',
+        fields: result.glassdoor_score ? ['glassdoor_score', 'glassdoor_reviews'] : []
+      };
     }
 
     // LinkedIn company URL
@@ -1267,7 +1317,17 @@ Deno.serve(async (req) => {
       // Add source tracking
       if (Object.keys(sourceTracking).length > 0) {
         updateData.crawl_sources = sourceTracking;
+        console.log(`[Company Crawl] Source tracking has ${Object.keys(sourceTracking).length} entries:`, 
+          Object.entries(sourceTracking).map(([k, v]) => `${k}:${v.status}`).join(', ')
+        );
+      } else {
+        console.log(`[Company Crawl] WARNING: Source tracking is EMPTY`);
       }
+
+      // Debug log: What we're about to update
+      console.log(`[Company Crawl] Updating company with fields:`, Object.keys(updateData).join(', '));
+      console.log(`[Company Crawl] Key values - industry: ${updateData.industry || 'n/a'}, city: ${updateData.city || 'n/a'}, headcount: ${updateData.headcount || 'n/a'}`);
+      console.log(`[Company Crawl] Jobs: ${updateData.live_jobs_count || 0}, Executives: ${result.key_executives.length}`);
 
       const { error: updateError } = await supabase
         .from('outreach_companies')
@@ -1275,7 +1335,9 @@ Deno.serve(async (req) => {
         .eq('id', company_id);
 
       if (updateError) {
-        console.error(`[Company Crawl] Update error:`, updateError);
+        console.error(`[Company Crawl] Update error:`, updateError.message, updateError.details);
+      } else {
+        console.log(`[Company Crawl] DB update SUCCESS for company ${company_id}`);
       }
     }
 

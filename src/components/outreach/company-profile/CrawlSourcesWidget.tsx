@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
@@ -30,6 +31,7 @@ interface CrawlSourceEntry {
 interface CrawlSourcesWidgetProps {
   crawlSources: Json | null | undefined;
   lastCrawledAt?: string | null;
+  isCrawling?: boolean;
 }
 
 const SOURCE_CONFIG: Record<string, { 
@@ -141,7 +143,7 @@ function formatSourceResult(source: CrawlSourceEntry): string {
   return parts.length > 0 ? parts.join(', ') : '';
 }
 
-export function CrawlSourcesWidget({ crawlSources, lastCrawledAt }: CrawlSourcesWidgetProps) {
+export function CrawlSourcesWidget({ crawlSources, lastCrawledAt, isCrawling }: CrawlSourcesWidgetProps) {
   // Parse crawl sources - handle both string and object formats
   let sources: Record<string, CrawlSourceEntry> = {};
   
@@ -172,13 +174,13 @@ export function CrawlSourcesWidget({ crawlSources, lastCrawledAt }: CrawlSources
             <Globe className="h-4 w-4" />
             Gecrawlte Quellen
           </CardTitle>
-          {lastCrawledAt && (
+          {lastCrawledAt && !isCrawling && (
             <span className="text-xs text-muted-foreground">
               Zuletzt: {formatDistanceToNow(new Date(lastCrawledAt), { addSuffix: true, locale: de })}
             </span>
           )}
         </div>
-        {hasSources && (
+        {hasSources && !isCrawling && (
           <div className="flex gap-2 mt-2">
             <Badge variant="secondary" className="text-xs">
               {crawledSources.length} erfolgreich
@@ -192,7 +194,15 @@ export function CrawlSourcesWidget({ crawlSources, lastCrawledAt }: CrawlSources
         )}
       </CardHeader>
       <CardContent className="pt-0">
-        {!hasSources ? (
+        {isCrawling ? (
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20">
+            <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+            <div>
+              <p className="text-sm font-medium">Quellen werden gecrawlt...</p>
+              <p className="text-xs text-muted-foreground">Dies kann 20-40 Sekunden dauern</p>
+            </div>
+          </div>
+        ) : !hasSources ? (
           <div className="text-center py-4 text-muted-foreground text-sm">
             <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>Noch keine Quellen gecrawlt</p>
