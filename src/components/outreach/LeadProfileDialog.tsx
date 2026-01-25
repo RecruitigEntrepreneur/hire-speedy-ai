@@ -453,14 +453,65 @@ export function LeadProfileDialog({
                     )}
 
                     {/* Meta Info */}
-                    <SectionCard title="Meta" icon={Shield}>
-                      <div className="grid grid-cols-2 gap-2">
-                        <InfoItem label="Score" value={lead.score} />
-                        <InfoItem label="Segment" value={lead.segment} />
-                        <InfoItem label="Quelle" value={lead.lead_source} />
-                        <InfoItem label="Sprache" value={lead.language} />
-                        <InfoItem label="Region" value={lead.region} />
-                        <InfoItem label="Liste" value={lead.list_name} />
+                    <SectionCard title="Quelle & Metadaten" icon={Shield}>
+                      <div className="space-y-3">
+                        {/* Lead Source with visual badge */}
+                        {lead.lead_source && (
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                            <span className="text-sm text-muted-foreground">Datenquelle</span>
+                            <Badge variant="outline" className={cn(
+                              "text-xs",
+                              lead.lead_source === 'linkedin' && "bg-blue-500/10 text-blue-600 border-blue-500/30",
+                              lead.lead_source === 'impressum' && "bg-green-500/10 text-green-600 border-green-500/30",
+                              lead.lead_source === 'website' && "bg-purple-500/10 text-purple-600 border-purple-500/30",
+                              lead.lead_source === 'xing' && "bg-teal-500/10 text-teal-600 border-teal-500/30",
+                              lead.lead_source === 'manual' && "bg-orange-500/10 text-orange-600 border-orange-500/30"
+                            )}>
+                              {lead.lead_source === 'linkedin' ? '🔗 LinkedIn' : 
+                               lead.lead_source === 'impressum' ? '📄 Impressum' :
+                               lead.lead_source === 'website' ? '🌐 Website' :
+                               lead.lead_source === 'xing' ? '📊 Xing' :
+                               lead.lead_source === 'manual' ? '✏️ Manuell' : 
+                               lead.lead_source}
+                            </Badge>
+                          </div>
+                        )}
+                        
+                        {/* Creation date */}
+                        {(lead as any).created_at && (
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                            <span className="text-sm text-muted-foreground">Hinzugefügt</span>
+                            <span className="text-sm font-medium">
+                              {new Date((lead as any).created_at).toLocaleDateString('de-DE', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Last contacted */}
+                        {(lead as any).last_contacted_at && (
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                            <span className="text-sm text-muted-foreground">Letzter Kontakt</span>
+                            <span className="text-sm font-medium">
+                              {new Date((lead as any).last_contacted_at).toLocaleDateString('de-DE', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <InfoItem label="Score" value={lead.score} />
+                          <InfoItem label="Segment" value={lead.segment} />
+                          <InfoItem label="Sprache" value={lead.language} />
+                          <InfoItem label="Region" value={lead.region} />
+                          <InfoItem label="Liste" value={lead.list_name} />
+                        </div>
                       </div>
                       {lead.notes && (
                         <div className="mt-2 pt-2 border-t">
