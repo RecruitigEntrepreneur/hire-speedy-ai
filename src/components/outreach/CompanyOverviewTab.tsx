@@ -15,9 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CompanyIntelligenceCard } from './company-profile/CompanyIntelligenceCard';
-import { CrawlSourcesWidget } from './company-profile/CrawlSourcesWidget';
-import { ExtractedDataWidget } from './company-profile/ExtractedDataWidget';
+import { ExtractedDataWidgetV2 } from './company-profile/ExtractedDataWidgetV2';
 import { useCrawlCompanyData } from '@/hooks/useOutreachCompanies';
 
 interface CompanyOverviewTabProps {
@@ -261,19 +259,10 @@ export function CompanyOverviewTab({ company, leads, onStatusChange }: CompanyOv
           </CardContent>
         </Card>
 
-        {/* Crawl Sources Widget */}
-        <CrawlSourcesWidget 
-          crawlSources={company.crawl_sources}
-          lastCrawledAt={company.career_crawled_at || company.last_enriched_at}
-          isCrawling={crawlMutation.isPending}
-        />
-
-        {/* Extracted Data Widget - shows all crawled info */}
-        <ExtractedDataWidget company={company} />
-
-        {/* Company Intelligence Card - Always visible */}
-        <CompanyIntelligenceCard 
-          company={company} 
+        {/* Consolidated Extracted Data Widget */}
+        <ExtractedDataWidgetV2 
+          company={company}
+          leads={leads}
           onCrawl={() => crawlMutation.mutate(company.id)}
           isCrawling={crawlMutation.isPending}
         />
