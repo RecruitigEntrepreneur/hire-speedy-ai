@@ -94,10 +94,24 @@ export function useCreateCompanyFromDomain() {
 
       if (createError) throw createError;
 
-      // Trigger job/news crawl in background
-      supabase.functions.invoke('crawl-company-data', {
+      // Trigger job/news crawl with visible feedback
+      const crawlPromise = supabase.functions.invoke('crawl-company-data', {
         body: { company_id: newCompany.id, domain: normalizedDomain, company_name: newCompany.name }
-      }).catch(err => console.error('Background crawl error:', err));
+      });
+
+      toast.promise(crawlPromise, {
+        loading: `🔍 Crawle Karriereseite & News für "${newCompany.name}"...`,
+        success: (result) => {
+          const data = result?.data?.data;
+          if (data) {
+            const jobCount = data.live_jobs_count || 0;
+            const newsCount = data.recent_news?.length || 0;
+            return `✅ ${jobCount} Jobs & ${newsCount} News gefunden`;
+          }
+          return `Crawl abgeschlossen`;
+        },
+        error: `Crawl fehlgeschlagen - manuell aktualisieren`
+      });
 
       return { 
         id: newCompany.id, 
