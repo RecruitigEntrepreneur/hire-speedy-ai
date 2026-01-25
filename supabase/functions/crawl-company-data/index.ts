@@ -99,6 +99,90 @@ function findBestCareerUrl(links: string[], domain: string): string | null {
   return scoredLinks.length > 0 ? scoredLinks[0].link : null;
 }
 
+// NEW: Find the best job listing URL within a career site (for multi-step career pages)
+function findBestJobListingUrl(links: string[], careerDomain: string): string | null {
+  const jobListPatterns = [
+    /\/positions\/?$/i,
+    /\/open-positions\/?$/i,
+    /\/all-positions\/?$/i,
+    /\/offene-stellen\/?$/i,
+    /\/stellenangebote\/?$/i,
+    /\/jobs\/?$/i,
+    /\/all-jobs\/?$/i,
+    /\/vacancies\/?$/i,
+    /\/openings\/?$/i,
+    /\/karriere\/stellen\/?$/i,
+  ];
+
+  const scoredLinks = links
+    .filter(link => {
+      try {
+        return link.startsWith(careerDomain) || new URL(link).origin === careerDomain;
+      } catch {
+        return false;
+      }
+    })
+    .map(link => {
+      let score = 0;
+      const lowerLink = link.toLowerCase();
+      
+      // Highest priority for explicit job listing pages
+      for (const pattern of jobListPatterns) {
+        if (pattern.test(lowerLink)) {
+          score += 20;
+          break;
+        }
+      }
+      
+      // Bonus for "all" or "open" in path
+      if (lowerLink.includes('/all') || lowerLink.includes('/open')) score += 5;
+      if (lowerLink.includes('position') || lowerLink.includes('job')) score += 3;
+      if (lowerLink.includes('stellen') || lowerLink.includes('vacanc')) score += 3;
+      
+      // Avoid landing pages that just have company/location names
+      if (lowerLink.match(/\/[a-z-]+\/?$/) && !lowerLink.includes('job') && !lowerLink.includes('position')) {
+        score -= 2;
+      }
+      
+      return { link, score };
+    })
+    .filter(item => item.score > 5) // Only consider links with meaningful scores
+    .sort((a, b) => b.score - a.score);
+
+  return scoredLinks.length > 0 ? scoredLinks[0].link : null;
+}
+
+// NEW: Extract job info from a URL
+function extractJobFromUrl(url: string): { title: string; url: string; location?: string } {
+  try {
+    const pathname = new URL(url).pathname;
+    const segments = pathname.split('/').filter(Boolean);
+    
+    // Find the job title segment (usually the last one)
+    let titleSegment = segments[segments.length - 1] || 'Position';
+    
+    // Remove IDs and format nicely
+    titleSegment = titleSegment
+      .replace(/[a-f0-9]{8,}/gi, '') // Remove UUIDs
+      .replace(/^\d+[-_]?/, '')      // Remove leading numbers
+      .replace(/[-_]/g, ' ')          // Dashes to spaces
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Extract location from URL segments
+    const locationPatterns = /berlin|munich|münchen|hamburg|frankfurt|stuttgart|cologne|köln|düsseldorf|croatia|zagreb|london|paris|amsterdam|vienna|wien|zurich|zürich/i;
+    const locationSegment = segments.find(s => locationPatterns.test(s));
+    
+    return {
+      title: titleSegment.charAt(0).toUpperCase() + titleSegment.slice(1) || 'Open Position',
+      url: url,
+      location: locationSegment ? locationSegment.charAt(0).toUpperCase() + locationSegment.slice(1).toLowerCase() : undefined,
+    };
+  } catch {
+    return { title: 'Open Position', url };
+  }
+}
+
 function extractRemotePolicy(text: string): string | null {
   const lowerText = text.toLowerCase();
   if (lowerText.includes('remote first') || lowerText.includes('remote-first') || lowerText.includes('vollständig remote')) {
@@ -261,8 +345,46 @@ Deno.serve(async (req) => {
           result.career_page_status = 'found';
           console.log(`[Company Crawl] Found career page: ${careerUrl}`);
 
-          // Step 2: Scrape career page for jobs
-          console.log(`[Company Crawl] Step 2: Scraping career page for jobs`);
+          // Step 1.5: Map the career subdomain to find job listing pages
+          // This handles multi-step career sites (like Rimac) where jobs are behind navigation
+          let careerSubpageLinks: string[] = [];
+          let bestJobListingUrl: string | null = null;
+          
+          try {
+            const careerDomain = new URL(careerUrl).origin;
+            console.log(`[Company Crawl] Step 1.5: Deep mapping career domain ${careerDomain}`);
+            
+            const careerMapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${firecrawlApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url: careerDomain,
+                search: 'jobs positions stellen openings vacancies karriere', // Filter for job-related URLs
+                limit: 300,
+              }),
+            });
+
+            if (careerMapResponse.ok) {
+              const careerMapData = await careerMapResponse.json();
+              careerSubpageLinks = careerMapData.links || [];
+              console.log(`[Company Crawl] Found ${careerSubpageLinks.length} career subpages`);
+              
+              // Find the best job listing URL (e.g., /positions, /open-positions, /all-jobs)
+              bestJobListingUrl = findBestJobListingUrl(careerSubpageLinks, careerDomain);
+              if (bestJobListingUrl) {
+                console.log(`[Company Crawl] Found job listing page: ${bestJobListingUrl}`);
+              }
+            }
+          } catch (careerMapError) {
+            console.error(`[Company Crawl] Career subdomain mapping error:`, careerMapError);
+          }
+
+          // Step 2: Scrape the best job listing page (or fall back to career landing page)
+          const urlToScrape = bestJobListingUrl || careerUrl;
+          console.log(`[Company Crawl] Step 2: Scraping job listing page: ${urlToScrape}`);
           
           const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
@@ -271,7 +393,7 @@ Deno.serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              url: careerUrl,
+              url: urlToScrape,
               formats: [
                 'markdown',
                 'links',
@@ -295,11 +417,11 @@ Deno.serve(async (req) => {
                       benefits: { type: 'array', items: { type: 'string' } },
                     },
                   },
-                  prompt: 'Extract all job listings from this career page. For each job, extract the title, location, and department if available. Also extract any mentioned remote/hybrid work policy and company benefits.',
+                  prompt: 'Extract all job listings from this career/jobs page. For each job, extract the title, location, and department if available. Also extract any mentioned remote/hybrid work policy and company benefits.',
                 },
               ],
               onlyMainContent: true,
-              waitFor: 3000, // Wait for JavaScript-rendered content
+              waitFor: 5000, // Longer wait for JS-heavy career sites
             }),
           });
 
@@ -318,34 +440,48 @@ Deno.serve(async (req) => {
                   l.toLowerCase().includes('job') || 
                   l.toLowerCase().includes('stelle') ||
                   l.toLowerCase().includes('position')
-                ) || careerUrl,
+                ) || urlToScrape,
               }));
+              console.log(`[Company Crawl] Extracted ${result.live_jobs.length} jobs from JSON`);
             }
             
-            // Fallback: If JSON extraction failed, try to detect jobs from links
+            // Fallback 1: Extract jobs from links on the scraped page
             if (result.live_jobs.length === 0 && pageLinks.length > 0) {
               const jobLinks = pageLinks.filter((l: string) => 
-                /\/job[s]?\/|\/stelle[n]?\/|\/position[s]?\/|\/career[s]?\/|\/opening[s]?\//i.test(l) &&
-                !l.endsWith('/jobs') && !l.endsWith('/careers') // Exclude main listing pages
+                /\/job[s]?\/[a-z0-9-]+|\/stelle[n]?\/[a-z0-9-]+|\/position[s]?\/[a-z0-9-]+|\/opening[s]?\/[a-z0-9-]+/i.test(l) &&
+                !l.endsWith('/jobs') && !l.endsWith('/careers') && !l.endsWith('/positions')
               );
               
               if (jobLinks.length > 0) {
-                console.log(`[Company Crawl] Fallback: Found ${jobLinks.length} job links`);
-                result.live_jobs = jobLinks.slice(0, 20).map((url: string, i: number) => {
-                  // Try to extract job title from URL
-                  const pathParts = new URL(url).pathname.split('/').filter(Boolean);
-                  const titlePart = pathParts[pathParts.length - 1] || `Position ${i + 1}`;
-                  const title = titlePart
-                    .replace(/-/g, ' ')
-                    .replace(/_/g, ' ')
-                    .replace(/\d+$/, '')
-                    .trim();
-                  
-                  return {
-                    title: title.charAt(0).toUpperCase() + title.slice(1),
-                    url: url,
-                  };
-                });
+                console.log(`[Company Crawl] Fallback 1: Found ${jobLinks.length} job links on page`);
+                result.live_jobs = jobLinks.slice(0, 50).map((url: string) => extractJobFromUrl(url));
+              }
+            }
+
+            // Fallback 2: Use career subpage links to find individual job postings
+            if (result.live_jobs.length === 0 && careerSubpageLinks.length > 0) {
+              console.log(`[Company Crawl] Fallback 2: Scanning ${careerSubpageLinks.length} career subpage URLs for jobs`);
+              
+              const individualJobLinks = careerSubpageLinks.filter((l: string) => {
+                const lowerLink = l.toLowerCase();
+                // Match individual job URLs (not listing pages)
+                return (
+                  /\/job[s]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
+                  /\/position[s]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
+                  /\/stelle[n]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
+                  /\/opening[s]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
+                  /\/vacancy\/[a-z0-9-]{5,}/i.test(lowerLink) ||
+                  /\/career[s]?\/[a-z0-9-]+\/[a-z0-9-]{5,}/i.test(lowerLink)
+                ) && 
+                !lowerLink.endsWith('/jobs') && 
+                !lowerLink.endsWith('/positions') &&
+                !lowerLink.endsWith('/careers') &&
+                !lowerLink.endsWith('/stellen');
+              });
+              
+              if (individualJobLinks.length > 0) {
+                console.log(`[Company Crawl] Fallback 2: Found ${individualJobLinks.length} individual job URLs`);
+                result.live_jobs = individualJobLinks.slice(0, 50).map((url: string) => extractJobFromUrl(url));
               }
             }
 
@@ -358,7 +494,7 @@ Deno.serve(async (req) => {
 
             result.live_jobs_count = result.live_jobs.length;
             result.hiring_activity = classifyHiringActivity(result.live_jobs_count);
-            console.log(`[Company Crawl] Found ${result.live_jobs_count} jobs - Activity: ${result.hiring_activity}`);
+            console.log(`[Company Crawl] Final result: ${result.live_jobs_count} jobs - Activity: ${result.hiring_activity}`);
           }
         }
       }
