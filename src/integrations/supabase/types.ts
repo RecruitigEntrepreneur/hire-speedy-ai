@@ -7499,6 +7499,7 @@ export type Database = {
           identity_revealed: boolean | null
           identity_unlocked: boolean | null
           job_id: string
+          match_policy: string | null
           match_score: number | null
           opt_in_requested_at: string | null
           opt_in_response: string | null
@@ -7527,6 +7528,7 @@ export type Database = {
           identity_revealed?: boolean | null
           identity_unlocked?: boolean | null
           job_id: string
+          match_policy?: string | null
           match_score?: number | null
           opt_in_requested_at?: string | null
           opt_in_response?: string | null
@@ -7555,6 +7557,7 @@ export type Database = {
           identity_revealed?: boolean | null
           identity_unlocked?: boolean | null
           job_id?: string
+          match_policy?: string | null
           match_score?: number | null
           opt_in_requested_at?: string | null
           opt_in_response?: string | null
