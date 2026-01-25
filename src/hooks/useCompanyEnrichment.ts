@@ -94,23 +94,26 @@ export function useCreateCompanyFromDomain() {
 
       if (createError) throw createError;
 
-      // Trigger job/news crawl with visible feedback
-      const crawlPromise = supabase.functions.invoke('crawl-company-data', {
-        body: { company_id: newCompany.id, domain: normalizedDomain, company_name: newCompany.name }
-      });
-
-      toast.promise(crawlPromise, {
-        loading: `🔍 Crawle Karriereseite & News für "${newCompany.name}"...`,
-        success: (result) => {
-          const data = result?.data?.data;
-          if (data) {
-            const jobCount = data.live_jobs_count || 0;
-            const newsCount = data.recent_news?.length || 0;
-            return `✅ ${jobCount} Jobs & ${newsCount} News gefunden`;
-          }
-          return `Crawl abgeschlossen`;
-        },
-        error: `Crawl fehlgeschlagen - manuell aktualisieren`
+      // FIRE-AND-FORGET: Automatic multi-source crawl runs in background
+      // No button click needed - crawl happens automatically
+      supabase.functions.invoke('crawl-company-data', {
+        body: { 
+          company_id: newCompany.id, 
+          domain: normalizedDomain, 
+          company_name: newCompany.name,
+          crawl_news: true,
+          crawl_extended: true,
+          crawl_all_sources: true // Enable multi-source crawling
+        }
+      }).then((result) => {
+        const data = result?.data?.data;
+        if (data) {
+          const jobCount = data.live_jobs_count || 0;
+          const execCount = data.key_executives?.length || 0;
+          console.log(`[Auto-Crawl] ${newCompany.name}: ${jobCount} Jobs, ${execCount} Executives gefunden`);
+        }
+      }).catch((err) => {
+        console.error(`[Auto-Crawl] ${newCompany.name}: Fehler -`, err);
       });
 
       return { 

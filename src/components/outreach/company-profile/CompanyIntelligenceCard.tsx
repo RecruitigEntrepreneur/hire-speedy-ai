@@ -82,7 +82,7 @@ export function CompanyIntelligenceCard({ company, onCrawl, isCrawling }: Compan
           company_name: company.name,
           contact_name: exec.name,
           contact_email: `kontakt@${company.domain}`,
-          contact_title: exec.role,
+          contact_role: exec.role, // FIXED: was contact_title
           personal_linkedin_url: exec.linkedin || null,
           lead_source: 'linkedin_crawl',
           segment: 'enterprise',
