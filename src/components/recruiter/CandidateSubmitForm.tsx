@@ -174,6 +174,62 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
     setChecking(false);
   };
 
+  // Keyword-Liste für Extraktion aus Sätzen
+  const SKILL_KEYWORDS = [
+    // Finance/Accounting
+    'buchhaltung', 'finanzbuchhaltung', 'lohnbuchhaltung', 'bilanzbuchhaltung',
+    'debitorenbuchhaltung', 'kreditorenbuchhaltung', 'anlagenbuchhaltung',
+    'rechnungswesen', 'rechnungslegung', 'bilanzierung', 'jahresabschluss',
+    'controlling', 'finanzcontrolling', 'kostenrechnung', 'budgetierung',
+    'datev', 'lexware', 'sage', 'sap', 'excel', 'hgb', 'ifrs',
+    'steuerrecht', 'umsatzsteuer', 'lohnsteuer',
+    // IT
+    'java', 'python', 'react', 'javascript', 'typescript', 'aws', 'docker',
+    'kubernetes', 'postgresql', 'node.js', 'angular', 'vue', 'c#', '.net'
+  ];
+
+  // Synonym-Gruppen für bidirektionales Matching
+  const SYNONYM_GROUPS = [
+    ['buchhaltung', 'finanzbuchhaltung', 'lohnbuchhaltung', 'bilanzbuchhaltung', 
+     'debitorenbuchhaltung', 'kreditorenbuchhaltung', 'anlagenbuchhaltung', 
+     'fibu', 'buchführung', 'buchhalter', 'buchhalterin', 'accounting', 'bookkeeping'],
+    ['rechnungswesen', 'rechnungslegung', 'bilanzierung', 'jahresabschluss', 'monatsabschluss'],
+    ['controlling', 'finanzcontrolling', 'kostenrechnung', 'budgetierung', 'controller'],
+    ['datev', 'datev unternehmen online'],
+    ['lexware', 'lexware buchhaltung'],
+    ['sage', 'sage 50', 'sage 100'],
+    ['sap', 'sap fi', 'sap co', 'sap s/4hana'],
+    ['excel', 'ms excel', 'microsoft excel', 'pivot', 'pivottabellen'],
+    ['hgb', 'handelsgesetzbuch'],
+    ['ifrs', 'international financial reporting standards'],
+    // IT Synonyms
+    ['javascript', 'js', 'ecmascript'],
+    ['typescript', 'ts'],
+    ['kubernetes', 'k8s'],
+    ['postgresql', 'postgres', 'psql'],
+    ['react', 'reactjs', 'react.js'],
+    ['node.js', 'nodejs', 'node']
+  ];
+
+  // Extrahiert Keywords aus langen Requirement-Sätzen
+  const extractKeywords = (sentence: string): string[] => {
+    const lower = sentence.toLowerCase();
+    return SKILL_KEYWORDS.filter(keyword => lower.includes(keyword));
+  };
+
+  // Prüft ob zwei Skills über Synonym-Gruppen matchen
+  const matchesViaSynonym = (skill1: string, skill2: string): boolean => {
+    const s1 = skill1.toLowerCase();
+    const s2 = skill2.toLowerCase();
+    
+    for (const group of SYNONYM_GROUPS) {
+      const s1InGroup = group.some(syn => s1.includes(syn) || syn.includes(s1));
+      const s2InGroup = group.some(syn => s2.includes(syn) || syn.includes(s2));
+      if (s1InGroup && s2InGroup) return true;
+    }
+    return false;
+  };
+
   const checkSkillsMatch = (candidateSkills: string[]) => {
     if (!mustHaves || mustHaves.length === 0) {
       setSkillsMatch({ matched: [], missing: [] });
@@ -185,7 +241,42 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
     const missing: string[] = [];
 
     mustHaves.forEach(mh => {
-      if (normalizedCandidateSkills.some(cs => cs.includes(mh.toLowerCase()) || mh.toLowerCase().includes(cs))) {
+      const mhLower = mh.toLowerCase();
+      let isMatched = false;
+
+      // 1. Keywords aus Must-Have-Satz extrahieren
+      const keywords = extractKeywords(mh);
+      
+      // 2. Für jeden extrahierten Keyword prüfen
+      for (const keyword of keywords) {
+        // 2a. Direkter Match mit Kandidaten-Skills
+        if (normalizedCandidateSkills.some(cs => cs.includes(keyword) || keyword.includes(cs))) {
+          isMatched = true;
+          break;
+        }
+        
+        // 2b. Synonym-Match
+        if (normalizedCandidateSkills.some(cs => matchesViaSynonym(keyword, cs))) {
+          isMatched = true;
+          break;
+        }
+      }
+      
+      // 3. Fallback: Original-Substring-Logik (falls keine Keywords gefunden)
+      if (!isMatched && keywords.length === 0) {
+        if (normalizedCandidateSkills.some(cs => cs.includes(mhLower) || mhLower.includes(cs))) {
+          isMatched = true;
+        }
+      }
+      
+      // 4. Erweiterter Fallback: Synonym-Check auf ganzen Satz
+      if (!isMatched) {
+        if (normalizedCandidateSkills.some(cs => matchesViaSynonym(mhLower, cs))) {
+          isMatched = true;
+        }
+      }
+
+      if (isMatched) {
         matched.push(mh);
       } else {
         missing.push(mh);
