@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
 import { QuickJobImport } from '@/components/dashboard/QuickJobImport';
-import { PremiumActionCenter } from '@/components/dashboard/PremiumActionCenter';
+import { IntegratedTalentSection } from '@/components/dashboard/IntegratedTalentSection';
 import { CompactJobCard } from '@/components/dashboard/CompactJobCard';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -51,12 +51,7 @@ export default function ClientDashboard() {
     );
   }
 
-  const { actions, liveJobs } = data || {
-    actions: [],
-    liveJobs: [],
-  };
-
-  const pendingCount = actions.length;
+  const { liveJobs } = data || { liveJobs: [] };
 
   return (
     <DashboardLayout>
@@ -68,22 +63,15 @@ export default function ClientDashboard() {
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground text-sm">
-            {pendingCount > 0 
-              ? `Sie haben ${pendingCount} ausstehende Entscheidung${pendingCount > 1 ? 'en' : ''}.`
-              : 'Willkommen zurück! Alle Aufgaben erledigt.'
-            }
+            Ihr Command Center für alle Kandidaten-Aktivitäten.
           </p>
         </div>
 
         {/* Quick Job Import */}
         <QuickJobImport />
 
-        {/* Premium Action Center */}
-        <PremiumActionCenter 
-          actions={actions} 
-          onActionComplete={handleActionComplete}
-          maxActions={6}
-        />
+        {/* Integrated Talent Section (replaces PremiumActionCenter + TalentHub) */}
+        <IntegratedTalentSection onActionComplete={handleActionComplete} />
 
         {/* Active Jobs */}
         <div className="space-y-4">

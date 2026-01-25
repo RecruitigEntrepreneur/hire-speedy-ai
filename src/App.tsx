@@ -163,20 +163,16 @@ function AppRoutes() {
           <ClientJobDetail />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/talent" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <TalentHub />
-        </ProtectedRoute>
-      } />
       <Route path="/dashboard/interviews" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientInterviews />
         </ProtectedRoute>
       } />
-      {/* Redirects for old routes */}
-      <Route path="/dashboard/pipeline" element={<Navigate to="/dashboard/talent?view=kanban" replace />} />
-      <Route path="/dashboard/pipeline/:jobId" element={<Navigate to="/dashboard/talent?view=kanban" replace />} />
-      <Route path="/dashboard/candidates" element={<Navigate to="/dashboard/talent" replace />} />
+      {/* Redirects for old routes - all point to main dashboard now */}
+      <Route path="/dashboard/talent" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/pipeline" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/pipeline/:jobId" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/candidates" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/command-center" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/candidates/:id" element={
         <ProtectedRoute allowedRoles={['client']}>
