@@ -22,6 +22,36 @@ interface KeyExecutive {
   name: string;
   role: string;
   linkedin?: string;
+  xing?: string;
+  email?: string;
+  phone?: string;
+  bio?: string;
+  source?: string;
+}
+
+interface SourceResult {
+  source: string;
+  confidence: number;
+  data: Partial<CompanyData>;
+  contacts: KeyExecutive[];
+  raw_url?: string;
+}
+
+interface CompanyData {
+  industry?: string;
+  city?: string;
+  country?: string;
+  address?: string;
+  headcount?: string;
+  founded_year?: string;
+  legal_name?: string;
+  handelsregister?: string;
+  phone?: string;
+  email?: string;
+  xing_url?: string;
+  crunchbase_url?: string;
+  funding_total?: string;
+  funding_stage?: string;
 }
 
 interface CrawlResult {
@@ -29,6 +59,7 @@ interface CrawlResult {
   industry?: string;
   city?: string;
   country?: string;
+  address?: string;
   headcount?: string;
   founded_year?: string;
   // Career data
@@ -46,7 +77,7 @@ interface CrawlResult {
   awards: string[];
   linkedin_url?: string;
   employee_growth?: string;
-  // NEW: Extended intelligence data
+  // Extended intelligence data
   technologies?: string[];
   cloud_provider?: string;
   development_tools?: string[];
@@ -56,6 +87,10 @@ interface CrawlResult {
   glassdoor_reviews?: number;
   revenue_range?: string;
   company_culture?: string[];
+  // Multi-source data
+  xing_url?: string;
+  legal_name?: string;
+  handelsregister?: string;
 }
 
 function classifyHiringActivity(jobCount: number): 'hot' | 'active' | 'low' | 'none' {
@@ -110,7 +145,6 @@ function findBestCareerUrl(links: string[], domain: string): string | null {
   return scoredLinks.length > 0 ? scoredLinks[0].link : null;
 }
 
-// NEW: Find the best job listing URL within a career site (for multi-step career pages)
 function findBestJobListingUrl(links: string[], careerDomain: string): string | null {
   const jobListPatterns = [
     /\/positions\/?$/i,
@@ -137,7 +171,6 @@ function findBestJobListingUrl(links: string[], careerDomain: string): string | 
       let score = 0;
       const lowerLink = link.toLowerCase();
       
-      // Highest priority for explicit job listing pages
       for (const pattern of jobListPatterns) {
         if (pattern.test(lowerLink)) {
           score += 20;
@@ -145,42 +178,36 @@ function findBestJobListingUrl(links: string[], careerDomain: string): string | 
         }
       }
       
-      // Bonus for "all" or "open" in path
       if (lowerLink.includes('/all') || lowerLink.includes('/open')) score += 5;
       if (lowerLink.includes('position') || lowerLink.includes('job')) score += 3;
       if (lowerLink.includes('stellen') || lowerLink.includes('vacanc')) score += 3;
       
-      // Avoid landing pages that just have company/location names
       if (lowerLink.match(/\/[a-z-]+\/?$/) && !lowerLink.includes('job') && !lowerLink.includes('position')) {
         score -= 2;
       }
       
       return { link, score };
     })
-    .filter(item => item.score > 5) // Only consider links with meaningful scores
+    .filter(item => item.score > 5)
     .sort((a, b) => b.score - a.score);
 
   return scoredLinks.length > 0 ? scoredLinks[0].link : null;
 }
 
-// NEW: Extract job info from a URL
 function extractJobFromUrl(url: string): { title: string; url: string; location?: string } {
   try {
     const pathname = new URL(url).pathname;
     const segments = pathname.split('/').filter(Boolean);
     
-    // Find the job title segment (usually the last one)
     let titleSegment = segments[segments.length - 1] || 'Position';
     
-    // Remove IDs and format nicely
     titleSegment = titleSegment
-      .replace(/[a-f0-9]{8,}/gi, '') // Remove UUIDs
-      .replace(/^\d+[-_]?/, '')      // Remove leading numbers
-      .replace(/[-_]/g, ' ')          // Dashes to spaces
+      .replace(/[a-f0-9]{8,}/gi, '')
+      .replace(/^\d+[-_]?/, '')
+      .replace(/[-_]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     
-    // Extract location from URL segments
     const locationPatterns = /berlin|munich|münchen|hamburg|frankfurt|stuttgart|cologne|köln|düsseldorf|croatia|zagreb|london|paris|amsterdam|vienna|wien|zurich|zürich/i;
     const locationSegment = segments.find(s => locationPatterns.test(s));
     
@@ -208,12 +235,10 @@ function extractRemotePolicy(text: string): string | null {
   return null;
 }
 
-// NEW: Detect technologies from HTML source (BuiltWith-style)
 function detectTechnologiesFromHtml(html: string): string[] {
   const technologies: string[] = [];
   const lowerHtml = html.toLowerCase();
   
-  // Frontend Frameworks
   if (lowerHtml.includes('react') || lowerHtml.includes('_next')) technologies.push('React');
   if (lowerHtml.includes('vue') || lowerHtml.includes('nuxt')) technologies.push('Vue.js');
   if (lowerHtml.includes('angular')) technologies.push('Angular');
@@ -221,12 +246,10 @@ function detectTechnologiesFromHtml(html: string): string[] {
   if (lowerHtml.includes('gatsby')) technologies.push('Gatsby');
   if (lowerHtml.includes('next.js') || lowerHtml.includes('_next')) technologies.push('Next.js');
   
-  // Cloud Providers
   if (lowerHtml.includes('amazonaws.com') || lowerHtml.includes('aws.')) technologies.push('AWS');
   if (lowerHtml.includes('googleapis.com') || lowerHtml.includes('google-analytics') || lowerHtml.includes('gcp')) technologies.push('Google Cloud');
   if (lowerHtml.includes('azure') || lowerHtml.includes('microsoft') || lowerHtml.includes('msft')) technologies.push('Azure');
   
-  // Analytics & Marketing
   if (lowerHtml.includes('google-analytics') || lowerHtml.includes('gtag') || lowerHtml.includes('ga(')) technologies.push('Google Analytics');
   if (lowerHtml.includes('segment.com') || lowerHtml.includes('segment.io')) technologies.push('Segment');
   if (lowerHtml.includes('hubspot')) technologies.push('HubSpot');
@@ -237,7 +260,6 @@ function detectTechnologiesFromHtml(html: string): string[] {
   if (lowerHtml.includes('intercom')) technologies.push('Intercom');
   if (lowerHtml.includes('zendesk')) technologies.push('Zendesk');
   
-  // CMS & Platforms
   if (lowerHtml.includes('wordpress') || lowerHtml.includes('wp-content')) technologies.push('WordPress');
   if (lowerHtml.includes('shopify')) technologies.push('Shopify');
   if (lowerHtml.includes('contentful')) technologies.push('Contentful');
@@ -245,34 +267,28 @@ function detectTechnologiesFromHtml(html: string): string[] {
   if (lowerHtml.includes('typo3')) technologies.push('TYPO3');
   if (lowerHtml.includes('drupal')) technologies.push('Drupal');
   
-  // Infrastructure
   if (lowerHtml.includes('cloudflare')) technologies.push('Cloudflare');
   if (lowerHtml.includes('fastly')) technologies.push('Fastly');
   if (lowerHtml.includes('akamai')) technologies.push('Akamai');
   if (lowerHtml.includes('vercel')) technologies.push('Vercel');
   if (lowerHtml.includes('netlify')) technologies.push('Netlify');
   
-  // Enterprise
   if (lowerHtml.includes('sap.')) technologies.push('SAP');
   if (lowerHtml.includes('oracle')) technologies.push('Oracle');
   if (lowerHtml.includes('workday')) technologies.push('Workday');
   
-  // Dev Tools
   if (lowerHtml.includes('sentry')) technologies.push('Sentry');
   if (lowerHtml.includes('datadog')) technologies.push('Datadog');
   if (lowerHtml.includes('newrelic')) technologies.push('New Relic');
   
-  // Payment
   if (lowerHtml.includes('stripe')) technologies.push('Stripe');
   if (lowerHtml.includes('paypal')) technologies.push('PayPal');
   if (lowerHtml.includes('klarna')) technologies.push('Klarna');
   
-  return [...new Set(technologies)]; // Remove duplicates
+  return [...new Set(technologies)];
 }
 
-// NEW: Parse Kununu score from search result
 function parseKununuScore(text: string): { score: number; reviews: number } | null {
-  // Pattern: "4,2 von 5" or "4.2/5" or "Score: 4.2"
   const scoreMatch = text.match(/(\d[,.]?\d?)\s*(?:von|\/|out of)\s*5/i);
   const reviewMatch = text.match(/(\d+)\s*(?:bewertung|review|rezension)/i);
   
@@ -286,11 +302,9 @@ function parseKununuScore(text: string): { score: number; reviews: number } | nu
   return null;
 }
 
-// NEW: Parse revenue range from text
 function parseRevenueRange(text: string): string | null {
   const lowerText = text.toLowerCase();
   
-  // German patterns
   if (lowerText.includes('mrd') || lowerText.includes('milliarden')) {
     const match = text.match(/(\d+(?:[,.]?\d+)?)\s*(?:mrd|milliarden)/i);
     if (match) return `€${match[1]}B+`;
@@ -309,9 +323,7 @@ function parseRevenueRange(text: string): string | null {
   return null;
 }
 
-// NEW: Parse employee growth from text  
 function parseEmployeeGrowth(currentHeadcount: string | undefined, text: string): string | null {
-  // Look for growth indicators
   const lowerText = text.toLowerCase();
   
   if (lowerText.includes('wachstum') || lowerText.includes('growth') || lowerText.includes('growing')) {
@@ -329,6 +341,74 @@ function parseEmployeeGrowth(currentHeadcount: string | undefined, text: string)
   return null;
 }
 
+// Determine decision level based on role
+function categorizeDecisionLevel(role: string): string {
+  const lowerRole = role.toLowerCase();
+  if (lowerRole.includes('ceo') || lowerRole.includes('geschäftsführer') || lowerRole.includes('managing director') ||
+      lowerRole.includes('cto') || lowerRole.includes('cfo') || lowerRole.includes('coo') || lowerRole.includes('chro') ||
+      lowerRole.includes('chief') || lowerRole.includes('founder') || lowerRole.includes('gründer') ||
+      lowerRole.includes('vorstand') || lowerRole.includes('inhaber') || lowerRole.includes('owner')) {
+    return 'entscheider';
+  } else if (lowerRole.includes('head of') || lowerRole.includes('director') || lowerRole.includes('vp') || 
+             lowerRole.includes('vice president') || lowerRole.includes('leiter') || lowerRole.includes('lead') ||
+             lowerRole.includes('prokurist')) {
+    return 'influencer';
+  }
+  return 'gatekeeper';
+}
+
+// Determine functional area based on role
+function categorizeFunctionalArea(role: string): string {
+  const lowerRole = role.toLowerCase();
+  if (lowerRole.includes('hr') || lowerRole.includes('people') || lowerRole.includes('chro') || 
+      lowerRole.includes('talent') || lowerRole.includes('personal') || lowerRole.includes('recruiting')) {
+    return 'HR';
+  } else if (lowerRole.includes('tech') || lowerRole.includes('cto') || lowerRole.includes('engineer') || 
+             lowerRole.includes('development') || lowerRole.includes('it ') || lowerRole.includes('software')) {
+    return 'Tech';
+  } else if (lowerRole.includes('marketing') || lowerRole.includes('cmo') || lowerRole.includes('brand')) {
+    return 'Marketing';
+  } else if (lowerRole.includes('sales') || lowerRole.includes('vertrieb') || lowerRole.includes('revenue') ||
+             lowerRole.includes('business development')) {
+    return 'Sales';
+  } else if (lowerRole.includes('finance') || lowerRole.includes('cfo') || lowerRole.includes('finanz') ||
+             lowerRole.includes('accounting')) {
+    return 'Finance';
+  } else if (lowerRole.includes('ceo') || lowerRole.includes('geschäftsführer') || lowerRole.includes('managing') || 
+             lowerRole.includes('founder') || lowerRole.includes('coo') || lowerRole.includes('vorstand')) {
+    return 'Leadership';
+  } else if (lowerRole.includes('operations') || lowerRole.includes('betrieb')) {
+    return 'Operations';
+  }
+  return 'Other';
+}
+
+// Deduplicate contacts by name
+function deduplicateContacts(contacts: KeyExecutive[]): KeyExecutive[] {
+  const seen = new Map<string, KeyExecutive>();
+  
+  for (const contact of contacts) {
+    const key = contact.name.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.set(key, { ...contact });
+    } else {
+      // Merge additional data from other sources
+      const existing = seen.get(key)!;
+      if (!existing.email && contact.email) existing.email = contact.email;
+      if (!existing.linkedin && contact.linkedin) existing.linkedin = contact.linkedin;
+      if (!existing.xing && contact.xing) existing.xing = contact.xing;
+      if (!existing.phone && contact.phone) existing.phone = contact.phone;
+      if (!existing.bio && contact.bio) existing.bio = contact.bio;
+      // Append source
+      if (contact.source && existing.source && !existing.source.includes(contact.source)) {
+        existing.source = `${existing.source}, ${contact.source}`;
+      }
+    }
+  }
+  
+  return Array.from(seen.values());
+}
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
@@ -337,7 +417,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { company_id, domain, company_name, crawl_news = true, crawl_extended = true } = await req.json();
+    const { company_id, domain, company_name, crawl_news = true, crawl_extended = true, crawl_all_sources = true } = await req.json();
 
     if (!company_id && !domain) {
       return new Response(
@@ -380,7 +460,7 @@ Deno.serve(async (req) => {
       companyNameToUse = company.name;
     }
 
-    console.log(`[Company Crawl] Starting crawl for ${companyNameToUse} (${companyDomain})`);
+    console.log(`[Company Crawl] Starting MULTI-SOURCE crawl for ${companyNameToUse} (${companyDomain})`);
 
     const result: CrawlResult = {
       career_page_status: 'not_found',
@@ -401,9 +481,11 @@ Deno.serve(async (req) => {
       formattedDomain = `https://${formattedDomain}`;
     }
 
-    // Step 0: Scrape main website for company basics + Tech Stack
-    console.log(`[Company Crawl] Step 0: Extracting company basics and tech stack from ${formattedDomain}`);
-    
+    // ======= MULTI-SOURCE CRAWLING =======
+    const allContacts: KeyExecutive[] = [];
+
+    // SOURCE 1: Main Website + Tech Stack
+    console.log(`[Company Crawl] Source 1: Main website ${formattedDomain}`);
     try {
       const mainScrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
         method: 'POST',
@@ -414,7 +496,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           url: formattedDomain,
           formats: [
-            'html', // Get HTML to detect technologies
+            'html',
             {
               type: 'json',
               schema: {
@@ -426,15 +508,11 @@ Deno.serve(async (req) => {
                   headquarters_country: { type: 'string' },
                   employee_count: { type: 'string' },
                   founded_year: { type: 'string' },
-                  technologies_mentioned: { 
-                    type: 'array', 
-                    items: { type: 'string' },
-                    description: 'Technologies, frameworks, or tools mentioned on the website'
-                  },
-                  cloud_provider: { type: 'string', description: 'AWS, GCP, Azure if mentioned' },
+                  technologies_mentioned: { type: 'array', items: { type: 'string' } },
+                  cloud_provider: { type: 'string' },
                 },
               },
-              prompt: 'Extract company information: industry/sector, headquarters city and country, employee count/headcount, founding year. Also extract any technologies, frameworks, programming languages, or cloud providers mentioned (e.g., React, Python, AWS, Kubernetes, SAP, Salesforce).',
+              prompt: 'Extract company information: industry/sector, headquarters city and country, employee count/headcount, founding year. Also extract any technologies, frameworks, programming languages, or cloud providers mentioned.',
             },
           ],
           onlyMainContent: true,
@@ -457,22 +535,319 @@ Deno.serve(async (req) => {
           if (basics.technologies_mentioned && Array.isArray(basics.technologies_mentioned)) {
             result.technologies = basics.technologies_mentioned.slice(0, 20);
           }
-          console.log(`[Company Crawl] Basics extracted: industry=${result.industry}, city=${result.city}, headcount=${result.headcount}`);
         }
         
-        // Tech Stack Detection from HTML (BuiltWith-style)
         const detectedTech = detectTechnologiesFromHtml(html);
         if (detectedTech.length > 0) {
           result.technologies = [...new Set([...(result.technologies || []), ...detectedTech])].slice(0, 30);
-          console.log(`[Company Crawl] Technologies detected: ${result.technologies.join(', ')}`);
         }
       }
-    } catch (basicsError) {
-      console.error(`[Company Crawl] Basics extraction error:`, basicsError);
+    } catch (e) {
+      console.error(`[Company Crawl] Source 1 error:`, e);
     }
 
-    // Step 1: Find career page using map
-    console.log(`[Company Crawl] Step 1: Mapping ${formattedDomain} for career pages`);
+    // SOURCE 2: Impressum (Legal Data + Executives)
+    if (crawl_all_sources) {
+      console.log(`[Company Crawl] Source 2: Impressum/Legal pages`);
+      const impressumUrls = [
+        `${formattedDomain}/impressum`,
+        `${formattedDomain}/legal`,
+        `${formattedDomain}/legal-notice`,
+        `${formattedDomain}/imprint`,
+        `${formattedDomain}/kontakt`,
+        `${formattedDomain}/about/impressum`,
+      ];
+      
+      for (const url of impressumUrls) {
+        try {
+          const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url,
+              formats: [{
+                type: 'json',
+                schema: {
+                  type: 'object',
+                  properties: {
+                    company_legal_name: { type: 'string' },
+                    geschaeftsfuehrer: { type: 'array', items: { type: 'string' } },
+                    handelsregister: { type: 'string' },
+                    ust_id: { type: 'string' },
+                    address: { type: 'string' },
+                    city: { type: 'string' },
+                    postal_code: { type: 'string' },
+                    phone: { type: 'string' },
+                    email: { type: 'string' },
+                  }
+                },
+                prompt: 'Extrahiere alle rechtlichen Informationen: Geschäftsführer, Vorstand, CEOs, Managing Directors, Handelsregister-Nummer, USt-ID, vollständige Adresse, Kontaktdaten.'
+              }],
+              waitFor: 2000,
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const json = data.data?.json;
+            
+            if (json) {
+              if (json.company_legal_name) result.legal_name = json.company_legal_name;
+              if (json.city && !result.city) result.city = json.city;
+              if (json.address) result.address = json.address;
+              if (json.handelsregister) result.handelsregister = json.handelsregister;
+              
+              // Extract executives from Impressum
+              if (json.geschaeftsfuehrer && Array.isArray(json.geschaeftsfuehrer)) {
+                for (const name of json.geschaeftsfuehrer) {
+                  if (name && typeof name === 'string' && name.length > 2) {
+                    allContacts.push({
+                      name: name.trim(),
+                      role: 'Geschäftsführer',
+                      source: 'impressum'
+                    });
+                  }
+                }
+                console.log(`[Company Crawl] Impressum: Found ${json.geschaeftsfuehrer.length} executives`);
+              }
+              break; // Found valid impressum, stop searching
+            }
+          }
+        } catch (e) {
+          // Continue to next URL
+        }
+      }
+    }
+
+    // SOURCE 3: Team/About Page
+    if (crawl_all_sources) {
+      console.log(`[Company Crawl] Source 3: Team/About pages`);
+      try {
+        // First find team pages via map
+        const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            url: formattedDomain, 
+            search: 'team leadership management führung vorstand about', 
+            limit: 30 
+          })
+        });
+        
+        if (mapResponse.ok) {
+          const mapData = await mapResponse.json();
+          const teamUrls = (mapData.links || []).filter((url: string) => 
+            /team|leadership|management|ueber-uns|about.*team|vorstand|geschaeft|fuehrung|founders/i.test(url)
+          ).slice(0, 3);
+          
+          for (const url of teamUrls) {
+            try {
+              const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  url,
+                  formats: [{
+                    type: 'json',
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        team_members: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              name: { type: 'string' },
+                              role: { type: 'string' },
+                              email: { type: 'string' },
+                              linkedin: { type: 'string' },
+                              bio: { type: 'string' },
+                            }
+                          }
+                        }
+                      }
+                    },
+                    prompt: 'Extrahiere ALLE Teammitglieder, Führungskräfte, Gründer, Vorstände mit Name, Rolle/Position, E-Mail, LinkedIn-URL und kurzer Bio.'
+                  }],
+                  waitFor: 3000,
+                })
+              });
+              
+              if (scrapeResponse.ok) {
+                const data = await scrapeResponse.json();
+                const members = data.data?.json?.team_members || [];
+                
+                for (const member of members) {
+                  if (member.name && typeof member.name === 'string') {
+                    allContacts.push({
+                      name: member.name.trim(),
+                      role: member.role || 'Team Member',
+                      email: member.email,
+                      linkedin: member.linkedin,
+                      bio: member.bio,
+                      source: 'team_page'
+                    });
+                  }
+                }
+                console.log(`[Company Crawl] Team page ${url}: Found ${members.length} members`);
+              }
+            } catch (e) {
+              // Continue
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Company Crawl] Source 3 error:`, e);
+      }
+    }
+
+    // SOURCE 4: LinkedIn Deep Search for Executives
+    if (crawl_extended && companyNameToUse) {
+      console.log(`[Company Crawl] Source 4: LinkedIn executive search for ${companyNameToUse}`);
+      
+      const roleQueries = [
+        `site:linkedin.com/in "${companyNameToUse}" CEO OR "Chief Executive" OR Geschäftsführer`,
+        `site:linkedin.com/in "${companyNameToUse}" CTO OR "Chief Technology" OR "VP Engineering"`,
+        `site:linkedin.com/in "${companyNameToUse}" CFO OR "Chief Financial" OR "Finance Director"`,
+        `site:linkedin.com/in "${companyNameToUse}" CHRO OR "Head of HR" OR "VP People" OR Personalleiter`,
+        `site:linkedin.com/in "${companyNameToUse}" CMO OR "Head of Marketing" OR "Marketing Director"`,
+        `site:linkedin.com/in "${companyNameToUse}" "Head of Sales" OR "Sales Director" OR Vertriebsleiter`,
+        `site:linkedin.com/in "${companyNameToUse}" COO OR "Operations Director"`,
+        `site:linkedin.com/in "${companyNameToUse}" Founder OR Gründer OR "Co-Founder"`,
+      ];
+      
+      const seenNames = new Set<string>();
+      
+      for (const query of roleQueries) {
+        try {
+          const response = await fetch('https://api.firecrawl.dev/v1/search', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, limit: 5 })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            for (const r of (data.data || [])) {
+              if (!r.url?.includes('linkedin.com/in')) continue;
+              
+              // Parse "Name - Title at Company | LinkedIn"
+              const titleMatch = r.title?.match(/^([^-–]+)\s*[-–]\s*([^|]+)/);
+              if (titleMatch) {
+                const name = titleMatch[1].trim();
+                const role = titleMatch[2].trim();
+                
+                if (name && name.length > 2 && !seenNames.has(name.toLowerCase())) {
+                  seenNames.add(name.toLowerCase());
+                  allContacts.push({
+                    name,
+                    role,
+                    linkedin: r.url,
+                    source: 'linkedin'
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Continue with next query
+        }
+      }
+      console.log(`[Company Crawl] LinkedIn: Found ${seenNames.size} executives`);
+    }
+
+    // SOURCE 5: Xing Search
+    if (crawl_all_sources && companyNameToUse) {
+      console.log(`[Company Crawl] Source 5: Xing search for ${companyNameToUse}`);
+      
+      try {
+        // Company page
+        const companyQuery = `site:xing.com/companies "${companyNameToUse}"`;
+        const companyResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: companyQuery, limit: 3 })
+        });
+        
+        if (companyResponse.ok) {
+          const data = await companyResponse.json();
+          const xingUrl = data.data?.find((r: any) => r.url?.includes('xing.com/companies'))?.url;
+          if (xingUrl) {
+            result.xing_url = xingUrl;
+            console.log(`[Company Crawl] Xing company URL: ${xingUrl}`);
+          }
+        }
+        
+        // People search on Xing
+        const peopleQuery = `site:xing.com/profile "${companyNameToUse}" Geschäftsführer OR CEO OR "Head of"`;
+        const peopleResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: peopleQuery, limit: 10 })
+        });
+        
+        if (peopleResponse.ok) {
+          const data = await peopleResponse.json();
+          
+          for (const r of (data.data || [])) {
+            if (!r.url?.includes('xing.com/profile')) continue;
+            
+            const name = r.title?.split('-')[0]?.split('–')[0]?.trim();
+            const roleMatch = r.description?.match(/(CEO|CTO|CFO|Geschäftsführer|Head of[^,]+|Director[^,]+|Leiter[^,]+)/i);
+            const role = roleMatch?.[1] || 'Executive';
+            
+            if (name && name.length > 2 && name.length < 50) {
+              allContacts.push({
+                name,
+                role,
+                xing: r.url,
+                source: 'xing'
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Company Crawl] Source 5 (Xing) error:`, e);
+      }
+    }
+
+    // SOURCE 6: Crunchbase
+    if (crawl_extended && companyNameToUse) {
+      console.log(`[Company Crawl] Source 6: Crunchbase for ${companyNameToUse}`);
+      
+      try {
+        const query = `site:crunchbase.com/organization "${companyNameToUse}"`;
+        const response = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, limit: 3 })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const crunchbaseResult = data.data?.find((r: any) => r.url?.includes('crunchbase.com/organization'));
+          
+          if (crunchbaseResult) {
+            const snippet = crunchbaseResult.description || '';
+            
+            // Extract funding from snippet
+            const fundingMatch = snippet.match(/\$[\d.]+[BMK]/);
+            const roundMatch = snippet.match(/(Series [A-Z]|Seed|IPO|Pre-Seed)/i);
+            
+            if (fundingMatch) result.funding_total = fundingMatch[0];
+            if (roundMatch) result.funding_stage = roundMatch[1];
+            
+            console.log(`[Company Crawl] Crunchbase: Funding ${result.funding_total || 'n/a'}, Stage ${result.funding_stage || 'n/a'}`);
+          }
+        }
+      } catch (e) {
+        console.error(`[Company Crawl] Source 6 (Crunchbase) error:`, e);
+      }
+    }
+
+    // ======= CAREER PAGE CRAWLING (keep existing logic) =======
+    console.log(`[Company Crawl] Step: Career page mapping ${formattedDomain}`);
     
     try {
       const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
@@ -499,14 +874,11 @@ Deno.serve(async (req) => {
           result.career_page_status = 'found';
           console.log(`[Company Crawl] Found career page: ${careerUrl}`);
 
-          // Step 1.5: Map the career subdomain to find job listing pages
-          // This handles multi-step career sites (like Rimac) where jobs are behind navigation
           let careerSubpageLinks: string[] = [];
           let bestJobListingUrl: string | null = null;
           
           try {
             const careerDomain = new URL(careerUrl).origin;
-            console.log(`[Company Crawl] Step 1.5: Deep mapping career domain ${careerDomain}`);
             
             const careerMapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
               method: 'POST',
@@ -516,7 +888,7 @@ Deno.serve(async (req) => {
               },
               body: JSON.stringify({
                 url: careerDomain,
-                search: 'jobs positions stellen openings vacancies karriere', // Filter for job-related URLs
+                search: 'jobs positions stellen openings vacancies karriere',
                 limit: 300,
               }),
             });
@@ -524,21 +896,13 @@ Deno.serve(async (req) => {
             if (careerMapResponse.ok) {
               const careerMapData = await careerMapResponse.json();
               careerSubpageLinks = careerMapData.links || [];
-              console.log(`[Company Crawl] Found ${careerSubpageLinks.length} career subpages`);
-              
-              // Find the best job listing URL (e.g., /positions, /open-positions, /all-jobs)
               bestJobListingUrl = findBestJobListingUrl(careerSubpageLinks, careerDomain);
-              if (bestJobListingUrl) {
-                console.log(`[Company Crawl] Found job listing page: ${bestJobListingUrl}`);
-              }
             }
-          } catch (careerMapError) {
-            console.error(`[Company Crawl] Career subdomain mapping error:`, careerMapError);
+          } catch (e) {
+            // Continue
           }
 
-          // Step 2: Scrape the best job listing page (or fall back to career landing page)
           const urlToScrape = bestJobListingUrl || careerUrl;
-          console.log(`[Company Crawl] Step 2: Scraping job listing page: ${urlToScrape}`);
           
           const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
@@ -568,14 +932,13 @@ Deno.serve(async (req) => {
                         },
                       },
                       remote_policy: { type: 'string' },
-                      benefits: { type: 'array', items: { type: 'string' } },
                     },
                   },
-                  prompt: 'Extract all job listings from this career/jobs page. For each job, extract the title, location, and department if available. Also extract any mentioned remote/hybrid work policy and company benefits.',
+                  prompt: 'Extract all job listings from this career/jobs page. For each job, extract the title, location, and department if available.',
                 },
               ],
               onlyMainContent: true,
-              waitFor: 5000, // Longer wait for JS-heavy career sites
+              waitFor: 5000,
             }),
           });
 
@@ -590,16 +953,10 @@ Deno.serve(async (req) => {
                 title: job.title || `Position ${index + 1}`,
                 location: job.location || undefined,
                 department: job.department || undefined,
-                url: pageLinks.find((l: string) => 
-                  l.toLowerCase().includes('job') || 
-                  l.toLowerCase().includes('stelle') ||
-                  l.toLowerCase().includes('position')
-                ) || urlToScrape,
+                url: urlToScrape,
               }));
-              console.log(`[Company Crawl] Extracted ${result.live_jobs.length} jobs from JSON`);
             }
             
-            // Fallback 1: Extract jobs from links on the scraped page
             if (result.live_jobs.length === 0 && pageLinks.length > 0) {
               const jobLinks = pageLinks.filter((l: string) => 
                 /\/job[s]?\/[a-z0-9-]+|\/stelle[n]?\/[a-z0-9-]+|\/position[s]?\/[a-z0-9-]+|\/opening[s]?\/[a-z0-9-]+/i.test(l) &&
@@ -607,125 +964,27 @@ Deno.serve(async (req) => {
               );
               
               if (jobLinks.length > 0) {
-                console.log(`[Company Crawl] Fallback 1: Found ${jobLinks.length} job links on page`);
                 result.live_jobs = jobLinks.slice(0, 50).map((url: string) => extractJobFromUrl(url));
               }
             }
 
-            // Fallback 2: Use career subpage links to find individual job postings
             if (result.live_jobs.length === 0 && careerSubpageLinks.length > 0) {
-              console.log(`[Company Crawl] Fallback 2: Scanning ${careerSubpageLinks.length} career subpage URLs for jobs`);
-              
               const individualJobLinks = careerSubpageLinks.filter((l: string) => {
                 const lowerLink = l.toLowerCase();
-                // Match individual job URLs (not listing pages)
                 return (
                   /\/job[s]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
                   /\/position[s]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
-                  /\/stelle[n]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
-                  /\/opening[s]?\/[a-z0-9-]{5,}/i.test(lowerLink) ||
-                  /\/vacancy\/[a-z0-9-]{5,}/i.test(lowerLink) ||
-                  /\/career[s]?\/[a-z0-9-]+\/[a-z0-9-]{5,}/i.test(lowerLink)
+                  /\/stelle[n]?\/[a-z0-9-]{5,}/i.test(lowerLink)
                 ) && 
                 !lowerLink.endsWith('/jobs') && 
-                !lowerLink.endsWith('/positions') &&
-                !lowerLink.endsWith('/careers') &&
-                !lowerLink.endsWith('/stellen');
+                !lowerLink.endsWith('/positions');
               });
               
               if (individualJobLinks.length > 0) {
-                console.log(`[Company Crawl] Fallback 2: Found ${individualJobLinks.length} individual job URLs`);
                 result.live_jobs = individualJobLinks.slice(0, 50).map((url: string) => extractJobFromUrl(url));
               }
             }
 
-            // Fallback 3: Extract jobs from markdown text (for sites like Rimac with text-only listings)
-            if (result.live_jobs.length === 0 && markdown) {
-              console.log(`[Company Crawl] Fallback 3: Extracting jobs from markdown text`);
-              
-              const extractedJobs: { title: string; location?: string }[] = [];
-              const lines = markdown.split('\n');
-              
-              for (const line of lines) {
-                // Pattern 1: Lines starting with bullet points (- or * or •)
-                const bulletMatch = line.match(/^[-*•]\s*(.+)/);
-                if (bulletMatch) {
-                  const content = bulletMatch[1].trim();
-                  // Skip navigation/menu items (too short or common words)
-                  if (content.length > 15 && content.length < 120 &&
-                      !content.toLowerCase().includes('open positions') &&
-                      !content.toLowerCase().includes('offene stellen') &&
-                      !content.toLowerCase().includes('apply now') &&
-                      !content.toLowerCase().includes('jetzt bewerben') &&
-                      !content.toLowerCase().includes('learn more') &&
-                      !content.toLowerCase().includes('read more') &&
-                      !content.toLowerCase().includes('view all') &&
-                      !content.toLowerCase().includes('alle anzeigen') &&
-                      !content.toLowerCase().includes('home') &&
-                      !content.toLowerCase().includes('about') &&
-                      !content.toLowerCase().includes('contact') &&
-                      // Check for job-like keywords
-                      (content.toLowerCase().includes('engineer') ||
-                       content.toLowerCase().includes('manager') ||
-                       content.toLowerCase().includes('developer') ||
-                       content.toLowerCase().includes('designer') ||
-                       content.toLowerCase().includes('analyst') ||
-                       content.toLowerCase().includes('specialist') ||
-                       content.toLowerCase().includes('lead') ||
-                       content.toLowerCase().includes('director') ||
-                       content.toLowerCase().includes('head of') ||
-                       content.toLowerCase().includes('senior') ||
-                       content.toLowerCase().includes('junior') ||
-                       content.toLowerCase().includes('(m/w/d)') ||
-                       content.toLowerCase().includes('(m/f/d)') ||
-                       content.toLowerCase().includes('(m/f/x)') ||
-                       content.match(/\s+[–-]\s+[A-Z][a-z]+/) || // Title - Location pattern
-                       content.match(/[,]\s*[A-Z][a-z]+(?:\s*,\s*[A-Z]{2,3})?$/))) { // Ends with City, Country
-                    
-                    // Try to split title and location
-                    const dashSplit = content.split(/\s+[–-]\s+(?=[A-Z])/);
-                    if (dashSplit.length >= 2) {
-                      extractedJobs.push({
-                        title: dashSplit[0].trim(),
-                        location: dashSplit.slice(1).join(' - ').trim()
-                      });
-                    } else {
-                      extractedJobs.push({ title: content });
-                    }
-                  }
-                }
-                
-                // Pattern 2: Lines with job title patterns but no bullet (e.g., headers)
-                const jobHeaderMatch = line.match(/^#+\s*(.+(?:Engineer|Manager|Developer|Designer|Analyst|Specialist|Lead|Director|m\/w\/d|m\/f\/d).+)$/i);
-                if (jobHeaderMatch && !extractedJobs.find(j => j.title === jobHeaderMatch[1].trim())) {
-                  const content = jobHeaderMatch[1].trim();
-                  if (content.length > 10 && content.length < 120) {
-                    extractedJobs.push({ title: content });
-                  }
-                }
-              }
-              
-              // Pattern 3: Look for job title blocks (multiple lines in a row that look like job titles)
-              const jobBlockPattern = /(?:^|\n)([A-Z][^.\n]{10,80}(?:Engineer|Manager|Developer|Designer|Analyst|Specialist|Lead|Director|\(m\/w\/d\)|\(m\/f\/d\))[^.\n]{0,40})(?:\n|$)/gi;
-              let blockMatch;
-              while ((blockMatch = jobBlockPattern.exec(markdown)) !== null) {
-                const title = blockMatch[1].trim();
-                if (!extractedJobs.find(j => j.title.toLowerCase() === title.toLowerCase())) {
-                  extractedJobs.push({ title });
-                }
-              }
-              
-              if (extractedJobs.length > 0) {
-                console.log(`[Company Crawl] Fallback 3: Extracted ${extractedJobs.length} jobs from markdown`);
-                result.live_jobs = extractedJobs.slice(0, 100).map(job => ({
-                  title: job.title,
-                  location: job.location,
-                  url: urlToScrape
-                }));
-              }
-            }
-
-            // Extract remote policy from markdown if not in JSON
             if (!jsonData?.remote_policy && markdown) {
               result.remote_policy = extractRemotePolicy(markdown) || undefined;
             } else if (jsonData?.remote_policy) {
@@ -734,18 +993,17 @@ Deno.serve(async (req) => {
 
             result.live_jobs_count = result.live_jobs.length;
             result.hiring_activity = classifyHiringActivity(result.live_jobs_count);
-            console.log(`[Company Crawl] Final result: ${result.live_jobs_count} jobs - Activity: ${result.hiring_activity}`);
           }
         }
       }
-    } catch (careerError) {
-      console.error(`[Company Crawl] Career page crawl error:`, careerError);
+    } catch (e) {
+      console.error(`[Company Crawl] Career page error:`, e);
       result.career_page_status = 'error';
     }
 
-    // Step 3: Search for company news (if enabled)
+    // News search
     if (crawl_news && companyNameToUse) {
-      console.log(`[Company Crawl] Step 3: Searching for news about ${companyNameToUse}`);
+      console.log(`[Company Crawl] News search for ${companyNameToUse}`);
       
       try {
         const searchQuery = `"${companyNameToUse}" news OR pressemitteilung OR announcement 2024 2025`;
@@ -776,330 +1034,127 @@ Deno.serve(async (req) => {
               summary: item.description || undefined,
               source: new URL(item.url).hostname.replace('www.', ''),
             }));
-
-          console.log(`[Company Crawl] Found ${result.recent_news.length} news items`);
         }
-      } catch (newsError) {
-        console.error(`[Company Crawl] News search error:`, newsError);
+      } catch (e) {
+        console.error(`[Company Crawl] News error:`, e);
       }
     }
 
-    // Step 4: Search for extended data (funding, executives, etc.)
+    // Kununu / Glassdoor
     if (crawl_extended && companyNameToUse) {
-      console.log(`[Company Crawl] Step 4: Searching for extended data about ${companyNameToUse}`);
-      
-      try {
-        // Search for funding information
-        const fundingQuery = `"${companyNameToUse}" funding OR finanzierung OR series site:techcrunch.com OR site:gruenderszene.de OR site:deutsche-startups.de 2024 2025`;
-        
-        const fundingResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: fundingQuery,
-            limit: 5,
-            lang: 'de',
-          }),
-        });
-
-        if (fundingResponse.ok) {
-          const fundingData = await fundingResponse.json();
-          const fundingResults = fundingData.data || [];
-          
-          // Parse funding info from search results
-          for (const item of fundingResults) {
-            const text = (item.title + ' ' + (item.description || '')).toLowerCase();
-            if (text.includes('series a')) result.funding_stage = 'Series A';
-            else if (text.includes('series b')) result.funding_stage = 'Series B';
-            else if (text.includes('series c')) result.funding_stage = 'Series C';
-            else if (text.includes('seed')) result.funding_stage = 'Seed';
-            else if (text.includes('ipo') || text.includes('börsengang')) result.funding_stage = 'Public';
-            
-            // Try to extract funding amount
-            const amountMatch = text.match(/(\d+(?:,\d+)?(?:\.\d+)?)\s*(million|mio|mrd|billion)/i);
-            if (amountMatch) {
-              result.funding_total = `${amountMatch[1]} ${amountMatch[2]}`;
-            }
-            
-            if (result.funding_stage) break;
-          }
-          
-          console.log(`[Company Crawl] Funding stage: ${result.funding_stage || 'not found'}`);
-        }
-
-        // Search for LinkedIn company page
-        const linkedinQuery = `site:linkedin.com/company "${companyNameToUse}"`;
-        const linkedinResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: linkedinQuery,
-            limit: 3,
-          }),
-        });
-
-        if (linkedinResponse.ok) {
-          const linkedinData = await linkedinResponse.json();
-          const linkedinResults = linkedinData.data || [];
-          
-          for (const item of linkedinResults) {
-            if (item.url && item.url.includes('linkedin.com/company')) {
-              result.linkedin_url = item.url;
-              break;
-            }
-          }
-          
-          console.log(`[Company Crawl] LinkedIn URL: ${result.linkedin_url || 'not found'}`);
-        }
-
-        // Search for awards
-        const awardsQuery = `"${companyNameToUse}" award OR auszeichnung OR "best employer" OR "top arbeitgeber" 2024 2025`;
-        const awardsResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: awardsQuery,
-            limit: 5,
-            lang: 'de',
-          }),
-        });
-
-        if (awardsResponse.ok) {
-          const awardsData = await awardsResponse.json();
-          const awardsResults = awardsData.data || [];
-          
-          result.awards = awardsResults
-            .filter((item: any) => item.title)
-            .slice(0, 3)
-            .map((item: any) => item.title);
-          
-          console.log(`[Company Crawl] Found ${result.awards.length} awards`);
-        }
-
-      } catch (extendedError) {
-        console.error(`[Company Crawl] Extended data error:`, extendedError);
-      }
-
-      // Step 5: Search for Key Executives
-      console.log(`[Company Crawl] Step 5: Searching for key executives at ${companyNameToUse}`);
-      
-      try {
-        const executivesQuery = `site:linkedin.com/in "${companyNameToUse}" CEO OR CTO OR CFO OR "Head of" OR Geschäftsführer OR "Managing Director"`;
-        const executivesResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: executivesQuery,
-            limit: 10,
-          }),
-        });
-
-        if (executivesResponse.ok) {
-          const executivesData = await executivesResponse.json();
-          const executivesResults = executivesData.data || [];
-          
-          const executives: KeyExecutive[] = [];
-          const seenNames = new Set<string>();
-          
-          for (const item of executivesResults) {
-            if (!item.url?.includes('linkedin.com/in')) continue;
-            
-            // Extract name from title (typically "Name - Title at Company")
-            const titleParts = (item.title || '').split(' - ');
-            if (titleParts.length >= 2) {
-              const name = titleParts[0].trim();
-              const roleMatch = titleParts[1].match(/(CEO|CTO|CFO|COO|CHRO|CMO|CPO|CIO|Head of [^|]+|Geschäftsführer|Managing Director|Director|VP|Vice President)/i);
-              
-              if (name && roleMatch && !seenNames.has(name.toLowerCase())) {
-                seenNames.add(name.toLowerCase());
-                executives.push({
-                  name: name,
-                  role: roleMatch[1],
-                  linkedin: item.url,
-                });
-              }
-            }
-          }
-          
-          result.key_executives = executives.slice(0, 5);
-          console.log(`[Company Crawl] Found ${result.key_executives.length} executives`);
-        }
-      } catch (execError) {
-        console.error(`[Company Crawl] Executives search error:`, execError);
-      }
-
-      // Step 6: Search for Employer Branding Scores (Kununu)
-      console.log(`[Company Crawl] Step 6: Searching for employer branding scores`);
+      console.log(`[Company Crawl] Employer branding scores for ${companyNameToUse}`);
       
       try {
         const kununuQuery = `site:kununu.com "${companyNameToUse}"`;
         const kununuResponse = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: kununuQuery,
-            limit: 3,
-            lang: 'de',
-          }),
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: kununuQuery, limit: 3 })
         });
-
+        
         if (kununuResponse.ok) {
-          const kununuData = await kununuResponse.json();
-          const kununuResults = kununuData.data || [];
-          
-          for (const item of kununuResults) {
-            const text = (item.title || '') + ' ' + (item.description || '');
-            const scoreData = parseKununuScore(text);
+          const data = await kununuResponse.json();
+          for (const r of (data.data || [])) {
+            const scoreData = parseKununuScore(r.description || r.title || '');
             if (scoreData) {
               result.kununu_score = scoreData.score;
               result.kununu_reviews = scoreData.reviews;
-              console.log(`[Company Crawl] Kununu score: ${result.kununu_score} (${result.kununu_reviews} reviews)`);
               break;
             }
           }
         }
-
-        // Search for Glassdoor
-        const glassdoorQuery = `site:glassdoor.de OR site:glassdoor.com "${companyNameToUse}"`;
-        const glassdoorResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: glassdoorQuery,
-            limit: 3,
-          }),
-        });
-
-        if (glassdoorResponse.ok) {
-          const glassdoorData = await glassdoorResponse.json();
-          const glassdoorResults = glassdoorData.data || [];
-          
-          for (const item of glassdoorResults) {
-            const text = (item.title || '') + ' ' + (item.description || '');
-            // Glassdoor uses similar scoring patterns
-            const scoreMatch = text.match(/(\d[,.]?\d?)\s*(?:von|\/|out of|stars?|sterne)/i);
-            if (scoreMatch) {
-              const score = parseFloat(scoreMatch[1].replace(',', '.'));
-              if (score > 0 && score <= 5) {
-                result.glassdoor_score = score;
-                console.log(`[Company Crawl] Glassdoor score: ${result.glassdoor_score}`);
-                break;
-              }
-            }
-          }
-        }
-      } catch (brandingError) {
-        console.error(`[Company Crawl] Employer branding error:`, brandingError);
-      }
-
-      // Step 7: Search for Revenue & Growth Signals
-      console.log(`[Company Crawl] Step 7: Searching for revenue and growth signals`);
+      } catch (e) {}
       
       try {
-        const revenueQuery = `"${companyNameToUse}" umsatz OR revenue OR jahresumsatz OR turnover 2024 2025`;
-        const revenueResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+        const glassdoorQuery = `site:glassdoor.com "${companyNameToUse}"`;
+        const glassdoorResponse = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: revenueQuery,
-            limit: 5,
-            lang: 'de',
-          }),
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: glassdoorQuery, limit: 3 })
         });
-
-        if (revenueResponse.ok) {
-          const revenueData = await revenueResponse.json();
-          const revenueResults = revenueData.data || [];
-          
-          for (const item of revenueResults) {
-            const text = (item.title || '') + ' ' + (item.description || '');
-            const revenueRange = parseRevenueRange(text);
-            if (revenueRange) {
-              result.revenue_range = revenueRange;
-              console.log(`[Company Crawl] Revenue range: ${result.revenue_range}`);
+        
+        if (glassdoorResponse.ok) {
+          const data = await glassdoorResponse.json();
+          for (const r of (data.data || [])) {
+            const scoreData = parseKununuScore(r.description || r.title || '');
+            if (scoreData) {
+              result.glassdoor_score = scoreData.score;
+              result.glassdoor_reviews = scoreData.reviews;
               break;
             }
           }
         }
-
-        // Employee growth signals
-        const growthQuery = `"${companyNameToUse}" wachstum OR growth OR expanding OR hiring 2024 2025`;
-        const growthResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: growthQuery,
-            limit: 5,
-            lang: 'de',
-          }),
-        });
-
-        if (growthResponse.ok) {
-          const growthData = await growthResponse.json();
-          const growthResults = growthData.data || [];
-          
-          for (const item of growthResults) {
-            const text = (item.title || '') + ' ' + (item.description || '');
-            const growth = parseEmployeeGrowth(result.headcount, text);
-            if (growth) {
-              result.employee_growth = growth;
-              console.log(`[Company Crawl] Employee growth: ${result.employee_growth}`);
-              break;
-            }
-          }
-        }
-      } catch (growthError) {
-        console.error(`[Company Crawl] Growth metrics error:`, growthError);
-      }
+      } catch (e) {}
     }
 
-    // Calculate priority score (enhanced with new signals)
-    let priorityScore = 0;
-    priorityScore += result.live_jobs_count * 2;
-    priorityScore += result.recent_news.length * 3;
-    priorityScore += result.awards.length * 5;
-    if (result.funding_stage) priorityScore += 15;
-    if (result.hiring_activity === 'hot') priorityScore += 20;
-    else if (result.hiring_activity === 'active') priorityScore += 10;
-    // New scoring factors
-    if (result.key_executives.length > 0) priorityScore += 10;
-    if (result.kununu_score && result.kununu_score < 3.5) priorityScore += 8; // Low scores = hiring problems = opportunity
-    if (result.employee_growth) priorityScore += 5;
-    if (result.technologies && result.technologies.length > 5) priorityScore += 5;
+    // LinkedIn company URL
+    if (crawl_extended && companyNameToUse && !result.linkedin_url) {
+      try {
+        const linkedinQuery = `site:linkedin.com/company "${companyNameToUse}"`;
+        const linkedinResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: linkedinQuery, limit: 3 })
+        });
+        
+        if (linkedinResponse.ok) {
+          const data = await linkedinResponse.json();
+          const linkedinUrl = data.data?.find((r: any) => r.url?.includes('linkedin.com/company'))?.url;
+          if (linkedinUrl) {
+            result.linkedin_url = linkedinUrl;
+          }
+        }
+      } catch (e) {}
+    }
 
-    // Update company in database if company_id provided
+    // Awards search
+    if (crawl_extended && companyNameToUse) {
+      try {
+        const awardsQuery = `"${companyNameToUse}" award OR auszeichnung OR "best employer" OR "top arbeitgeber" 2024 2025`;
+        const awardsResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: awardsQuery, limit: 5 })
+        });
+        
+        if (awardsResponse.ok) {
+          const data = await awardsResponse.json();
+          const awardTitles = (data.data || [])
+            .map((r: any) => r.title)
+            .filter((t: string) => t && /award|auszeichnung|best|top|winner/i.test(t))
+            .slice(0, 5);
+          
+          if (awardTitles.length > 0) {
+            result.awards = awardTitles;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ======= CONSOLIDATE & DEDUPLICATE CONTACTS =======
+    console.log(`[Company Crawl] Consolidating ${allContacts.length} contacts from all sources`);
+    result.key_executives = deduplicateContacts(allContacts);
+    console.log(`[Company Crawl] After dedup: ${result.key_executives.length} unique contacts`);
+
+    // Calculate priority score
+    let priorityScore = 0;
+    if (result.live_jobs_count >= 10) priorityScore += 30;
+    else if (result.live_jobs_count >= 5) priorityScore += 20;
+    else if (result.live_jobs_count >= 1) priorityScore += 10;
+    
+    if (result.recent_news.length > 0) priorityScore += 10;
+    if (result.funding_stage) priorityScore += 15;
+    if (result.key_executives.length > 0) priorityScore += 15;
+    if (result.kununu_score && result.kununu_score >= 4.0) priorityScore += 10;
+
+    // Update company in database
     if (company_id) {
       const updateData: Record<string, any> = {
-        // Company basics from Step 0
         ...(result.industry && { industry: result.industry }),
         ...(result.city && { city: result.city }),
         ...(result.country && { country: result.country }),
         ...(result.headcount && { headcount: result.headcount }),
-        // Career data
+        ...(result.address && { address: result.address }),
         career_page_url: result.career_page_url,
         career_page_status: result.career_page_status,
         live_jobs: result.live_jobs,
@@ -1123,7 +1178,6 @@ Deno.serve(async (req) => {
         if (result.remote_policy) updateData.remote_policy = result.remote_policy;
         if (result.awards.length > 0) updateData.awards = result.awards;
         if (result.key_executives.length > 0) updateData.key_executives = result.key_executives;
-        // NEW: Extended intelligence data
         if (result.technologies && result.technologies.length > 0) updateData.technologies = result.technologies;
         if (result.cloud_provider) updateData.cloud_provider = result.cloud_provider;
         if (result.development_tools && result.development_tools.length > 0) updateData.development_tools = result.development_tools;
@@ -1133,7 +1187,6 @@ Deno.serve(async (req) => {
         if (result.employee_growth) updateData.employee_growth = result.employee_growth;
         if (result.company_culture && result.company_culture.length > 0) updateData.company_culture = result.company_culture;
         
-        // Update last_enriched_at for intelligence tracking
         updateData.last_enriched_at = new Date().toISOString();
       }
 
@@ -1147,78 +1200,57 @@ Deno.serve(async (req) => {
       }
     }
 
-    // === AUTO-CREATE CONTACTS FROM KEY EXECUTIVES ===
-    if (crawl_extended && result.key_executives.length > 0 && company_id) {
-      console.log(`[Company Crawl] Creating ${result.key_executives.length} contacts from executives`);
+    // ======= AUTO-CREATE CONTACTS FROM ALL SOURCES =======
+    if (result.key_executives.length > 0 && company_id) {
+      console.log(`[Company Crawl] Auto-creating ${result.key_executives.length} contacts`);
       
       for (const exec of result.key_executives) {
-        if (!exec.name) continue;
+        if (!exec.name || exec.name.length < 2) continue;
         
-        // Check if contact already exists (by name + company)
-        const { data: existing } = await supabase
+        // Check if contact already exists (by name OR LinkedIn OR Xing)
+        let existingCheck = supabase
           .from('outreach_leads')
           .select('id')
           .eq('company_id', company_id)
-          .ilike('contact_name', exec.name)
-          .maybeSingle();
+          .ilike('contact_name', exec.name);
+        
+        const { data: existing } = await existingCheck.maybeSingle();
         
         if (!existing) {
-          // Determine decision level based on role
-          const role = (exec.role || '').toLowerCase();
-          let decisionLevel = 'gatekeeper';
-          if (role.includes('ceo') || role.includes('geschäftsführer') || role.includes('managing director') ||
-              role.includes('cto') || role.includes('cfo') || role.includes('coo') || role.includes('chro') ||
-              role.includes('chief') || role.includes('founder') || role.includes('gründer')) {
-            decisionLevel = 'entscheider';
-          } else if (role.includes('head of') || role.includes('director') || role.includes('vp') || 
-                     role.includes('vice president') || role.includes('leiter') || role.includes('lead')) {
-            decisionLevel = 'influencer';
-          }
+          const decisionLevel = categorizeDecisionLevel(exec.role || '');
+          const functionalArea = categorizeFunctionalArea(exec.role || '');
           
-          // Determine functional area
-          let functionalArea = 'Other';
-          if (role.includes('hr') || role.includes('people') || role.includes('chro') || role.includes('talent') || role.includes('personal')) {
-            functionalArea = 'HR';
-          } else if (role.includes('tech') || role.includes('cto') || role.includes('engineer') || role.includes('development')) {
-            functionalArea = 'Tech';
-          } else if (role.includes('marketing') || role.includes('cmo') || role.includes('brand')) {
-            functionalArea = 'Marketing';
-          } else if (role.includes('sales') || role.includes('vertrieb') || role.includes('revenue')) {
-            functionalArea = 'Sales';
-          } else if (role.includes('finance') || role.includes('cfo') || role.includes('finanz')) {
-            functionalArea = 'Finance';
-          } else if (role.includes('ceo') || role.includes('geschäftsführer') || role.includes('managing') || role.includes('founder')) {
-            functionalArea = 'Leadership';
-          }
-          
-          // Create new contact
+          // FIX: Use contact_role instead of contact_title
           const { error: insertError } = await supabase
             .from('outreach_leads')
             .insert({
               company_id: company_id,
               company_name: companyNameToUse,
               contact_name: exec.name,
-              contact_email: `kontakt@${domain || 'unbekannt.de'}`,
-              contact_title: exec.role,
+              contact_email: exec.email || `kontakt@${companyDomain || 'unbekannt.de'}`,
+              contact_role: exec.role, // FIXED: was contact_title
               personal_linkedin_url: exec.linkedin || null,
-              lead_source: 'linkedin_crawl',
+              lead_source: exec.source || 'multi_source_crawl',
               segment: 'enterprise',
               decision_level: decisionLevel,
               functional_area: functionalArea,
               status: 'neu',
               contact_outreach_status: 'nicht_kontaktiert',
+              notes: exec.bio ? `Bio: ${exec.bio}` : (exec.source ? `Quelle: ${exec.source}` : null),
             });
           
           if (insertError) {
-            console.error(`[Company Crawl] Failed to create contact for ${exec.name}:`, insertError.message);
+            console.error(`[Company Crawl] Failed to create contact ${exec.name}:`, insertError.message);
           } else {
-            console.log(`[Company Crawl] Created contact: ${exec.name} (${decisionLevel})`);
+            console.log(`[Company Crawl] Created contact: ${exec.name} (${decisionLevel}, ${functionalArea})`);
           }
+        } else {
+          console.log(`[Company Crawl] Contact already exists: ${exec.name}`);
         }
       }
     }
 
-    console.log(`[Company Crawl] Completed for ${companyNameToUse}`);
+    console.log(`[Company Crawl] Completed for ${companyNameToUse} - ${result.key_executives.length} executives, ${result.live_jobs_count} jobs`);
 
     return new Response(
       JSON.stringify({
