@@ -334,146 +334,174 @@ export default function JobsList() {
             </Card>
           ) : (
             <TooltipProvider>
-              <div className="grid gap-2">
+              <div className="grid gap-3">
                 {filteredJobs.map((job) => (
                   <Card 
                     key={job.id} 
-                    className="border-border/50 hover:border-primary/30 hover:bg-accent/30 transition-all group"
+                    className="border-border/50 hover:border-primary/30 hover:shadow-md transition-all group"
                   >
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-3">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
                         {/* Icon */}
                         <Link to={`/dashboard/jobs/${job.id}`} className="shrink-0">
-                          <div className="h-10 w-10 rounded-lg bg-gradient-navy flex items-center justify-center">
-                            <Briefcase className="h-5 w-5 text-primary-foreground" />
+                          <div className="h-12 w-12 rounded-xl bg-gradient-navy flex items-center justify-center shadow-navy">
+                            <Briefcase className="h-6 w-6 text-primary-foreground" />
                           </div>
                         </Link>
                         
                         {/* Main Content */}
-                        <Link to={`/dashboard/jobs/${job.id}`} className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold truncate">{job.title}</h3>
-                            {getStatusBadge(job)}
-                            <JobHealthIndicator 
-                              candidatesCount={job.submissions_count}
-                              interviewsCount={job.interviews_count}
-                              activeRecruiters={job.active_recruiters}
-                              daysOpen={job.days_open}
-                              status={job.status}
-                            />
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                            <span>{job.company_name}</span>
-                            {job.location && (
+                        <div className="flex-1 min-w-0">
+                          <Link to={`/dashboard/jobs/${job.id}`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-base hover:text-primary transition-colors">{job.title}</h3>
+                              {getStatusBadge(job)}
+                              <JobHealthIndicator 
+                                candidatesCount={job.submissions_count}
+                                interviewsCount={job.interviews_count}
+                                activeRecruiters={job.active_recruiters}
+                                daysOpen={job.days_open}
+                                status={job.status}
+                              />
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                              <span>{job.company_name}</span>
+                              {job.location && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {job.location}
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+
+                          {/* Pipeline Dots & Stats */}
+                          <div className="flex items-center gap-4 mt-3">
+                            {/* Pipeline Dots */}
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <div 
+                                  key={i}
+                                  className={`h-2 w-2 rounded-full ${
+                                    i < Math.min(job.submissions_count, 5) 
+                                      ? 'bg-primary' 
+                                      : 'bg-muted'
+                                  }`}
+                                />
+                              ))}
+                              <span className="text-xs text-muted-foreground ml-1">
+                                {job.submissions_count} Kandidaten
+                              </span>
+                            </div>
+                            <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {job.location}
+                                <Calendar className="h-3 w-3" />
+                                {job.interviews_count} Interviews
                               </span>
-                            )}
-                            {job.briefing_notes && (
-                              <span className="flex items-center gap-1 text-primary">
-                                <FileText className="h-3 w-3" />
-                                Briefing
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {job.days_open}d offen
                               </span>
-                            )}
-                          </div>
-                        </Link>
-
-                        {/* Compact Stats */}
-                        <div className="hidden lg:flex items-center gap-4 text-xs shrink-0">
-                          <div className="text-center">
-                            <span className="font-bold text-sm">{job.submissions_count}</span>
-                            <p className="text-muted-foreground">Kandidaten</p>
-                          </div>
-                          <div className="text-center">
-                            <span className="font-bold text-sm">{job.interviews_count}</span>
-                            <p className="text-muted-foreground">Interviews</p>
-                          </div>
-                          <div className="text-center">
-                            <span className="font-bold text-sm">{job.days_open}d</span>
-                            <p className="text-muted-foreground">Offen</p>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Salary & Date */}
-                        <div className="text-right shrink-0 hidden sm:block">
-                          <p className="font-medium text-sm">{formatSalary(job.salary_min, job.salary_max)}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(job.created_at)}</p>
-                        </div>
+                        {/* Salary & Quick Actions */}
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          {/* Salary */}
+                          <div className="text-right hidden sm:block">
+                            <p className="font-semibold text-sm">{formatSalary(job.salary_min, job.salary_max)}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(job.created_at)}</p>
+                          </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          {job.status === 'published' && !job.paused_at && (
+                          {/* Quick Actions - Always Visible */}
+                          <div className="flex items-center gap-1.5">
+                            {/* Boost Button */}
+                            {job.status === 'published' && !job.paused_at && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 px-2.5 text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setBoostDialog({ open: true, jobId: job.id, jobTitle: job.title });
+                                }}
+                              >
+                                <Zap className="h-3.5 w-3.5 mr-1" />
+                                <span className="hidden lg:inline">Boost</span>
+                              </Button>
+                            )}
+                            
+                            {/* Pause/Play Button */}
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              className="h-8 w-8 text-amber-500 hover:text-amber-600"
+                              className="h-8 w-8"
                               onClick={(e) => {
                                 e.preventDefault();
-                                setBoostDialog({ open: true, jobId: job.id, jobTitle: job.title });
+                                handlePauseToggle(job);
                               }}
                             >
-                              <Zap className="h-4 w-4" />
+                              {job.paused_at ? (
+                                <Play className="h-4 w-4 text-emerald-600" />
+                              ) : (
+                                <Pause className="h-4 w-4" />
+                              )}
                             </Button>
-                          )}
-                          
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link to={`/dashboard/pipeline?job=${job.id}`}>
-                                  <Users className="mr-2 h-4 w-4" />
-                                  Pipeline öffnen
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => setBriefingDialog({ 
+                            
+                            {/* Briefing Button */}
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className={`h-8 w-8 ${job.briefing_notes ? 'text-primary' : ''}`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setBriefingDialog({ 
                                   open: true, 
                                   jobId: job.id, 
                                   jobTitle: job.title,
                                   notes: job.briefing_notes || ''
-                                })}
-                              >
-                                <FileText className="mr-2 h-4 w-4" />
-                                Briefing Notes
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDuplicate(job)}>
-                                <Copy className="mr-2 h-4 w-4" />
-                                Duplizieren
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handlePauseToggle(job)}>
-                                {job.paused_at ? (
-                                  <>
-                                    <Play className="mr-2 h-4 w-4" />
-                                    Reaktivieren
-                                  </>
-                                ) : (
-                                  <>
-                                    <Pause className="mr-2 h-4 w-4" />
-                                    Pausieren
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => handleClose(job)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Schließen
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          <Link to={`/dashboard/jobs/${job.id}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <ArrowUpRight className="h-4 w-4" />
+                                });
+                              }}
+                            >
+                              <FileText className="h-4 w-4" />
                             </Button>
-                          </Link>
+
+                            {/* More Actions Dropdown */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link to={`/dashboard/pipeline?job=${job.id}`}>
+                                    <Users className="mr-2 h-4 w-4" />
+                                    Pipeline öffnen
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDuplicate(job)}>
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Duplizieren
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => handleClose(job)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Schließen
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Navigate Arrow */}
+                            <Link to={`/dashboard/jobs/${job.id}`}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <ArrowUpRight className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
