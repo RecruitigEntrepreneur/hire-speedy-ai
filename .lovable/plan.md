@@ -1,148 +1,177 @@
 
-# Plan: Job-Liste mit Reveal-Status + Company Profile Completeness
+# Plan: Erweiterte Revealed-Job Karte mit Firmenlogo und Details
 
-## Übersicht
+## Problem
 
-Zwei zusammenhängende Verbesserungen:
+Bei enthüllten Jobs im Dashboard und der Jobs-Liste wird aktuell nur angezeigt:
+- ✅ Firmenname
+- ✅ "Enthüllt" Badge
 
-1. **Job-Listen (RecruiterJobs.tsx + Dashboard)**: Zeige pro Job, ob der Recruiter eine Submission mit `company_revealed = true` hat - wenn ja, zeige den echten Firmennamen statt der anonymisierten Version
-2. **Company Profile Completeness**: Stelle sicher, dass Kunden die Partner Facts ausfüllen oder wir sie automatisch crawlen
+**Fehlend:**
+- ❌ Firmenlogo
+- ❌ Unternehmensgröße (Headcount)
+- ❌ Branche/Industrie
+- ❌ Skills (bereits vorhanden, aber nicht prominent)
+- ❌ Remote-Typ + Standort
 
----
+## Lösung: Erweiterte "Revealed Job Card"
 
-## Teil 1: Reveal-Status in Job-Listen
+### Design für enthüllte Jobs
 
-### Aktuelle Situation
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│  ┌────────┐   Referent Bereichsleitung IT          [Hybrid] [Enthüllt] │
+│  │  LOGO  │   Bayerische Versorgungskammer         ← Echter Name    │
+│  │  BVK   │   🏢 1000+ MA · 📍 München · 🏭 Technology               │
+│  └────────┘                                                          │
+│  ──────────────────────────────────────────────────────────────────  │
+│  SAP  Excel  Projektmanagement  +2                     €12.500 →    │
+│                                                        €85k-110k     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-| Datei | Problem |
-|-------|---------|
-| `RecruiterJobs.tsx` | Zeigt ALLE Jobs anonym - prüft nicht den Submission-Status |
-| `RecruiterDashboard.tsx` | Gleiches Problem bei "Available Jobs" |
+vs. Anonyme Jobs (unverändert):
 
-### Lösung: Zusätzlicher Query für Recruiter's revealed Jobs
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│  ┌────────┐   Senior Frontend Developer              [Remote] [🔥]  │
+│  │   💼   │   🔒 [FinTech | 200-500 MA | Series B | München]         │
+│  └────────┘                                                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Technische Umsetzung
+
+#### 1. Logo-Anzeige mit Fallback
+
+Da `logo_url` in `company_profiles` meist NULL ist, nutzen wir einen Logo-Service als Fallback:
 
 ```typescript
-// Neuer Hook oder Query in beiden Dateien:
-const { data: myRevealedJobs } = await supabase
-  .from('submissions')
-  .select('job_id')
-  .eq('recruiter_id', user.id)
-  .eq('company_revealed', true);
-
-const revealedJobIds = new Set(myRevealedJobs?.map(s => s.job_id) || []);
+// Generiere Logo-URL aus Website-Domain
+const getCompanyLogoUrl = (website: string | null, companyName: string): string => {
+  if (website) {
+    // Clearbit Logo API (kostenlos)
+    const domain = new URL(website).hostname;
+    return `https://logo.clearbit.com/${domain}`;
+  }
+  // Fallback: UI-Avatar mit Initialen
+  const initials = companyName.split(' ').map(w => w[0]).join('').slice(0, 2);
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=1e3a5f&color=fff&size=48`;
+};
 ```
 
-### UI-Änderung pro Job-Karte
+#### 2. Erweiterter Jobs-Query
 
-```text
-VORHER (immer anonym):
-┌──────────────────────────────────────────────────┐
-│  🔒 [FinTech | Startup | München]               │
-└──────────────────────────────────────────────────┘
+Die aktuelle Query muss erweitert werden um `company_profiles` Daten zu joinen:
 
-NACHHER (wenn revealed):
-┌──────────────────────────────────────────────────┐
-│  ✓ Bayerische Versorgungskammer                 │  ← Mit Checkmark
-│    [Interview bestätigt]                         │
-└──────────────────────────────────────────────────┘
+```typescript
+// In fetchJobs() - JOIN mit company_profiles
+const { data } = await supabase
+  .from('jobs')
+  .select(`
+    *,
+    company_profiles!jobs_client_id_fkey (
+      logo_url,
+      website,
+      headcount,
+      industry
+    )
+  `)
+  .eq('status', 'published')
+  .order('created_at', { ascending: false });
 ```
 
-### Technische Änderungen
+#### 3. Änderungen in `RecruiterJobs.tsx`
 
-**`src/pages/recruiter/RecruiterJobs.tsx`**:
-1. Import `useAuth` für User ID
-2. Neuer State: `revealedJobIds: Set<string>`
-3. Zusätzlicher Supabase Query für `submissions.company_revealed = true`
-4. In der Job-Karte: Conditional Rendering basierend auf `revealedJobIds.has(job.id)`
-5. Lock-Icon ersetzen durch Checkmark wenn revealed
-
-**`src/pages/recruiter/RecruiterDashboard.tsx`**:
-1. Gleiche Logik wie oben
-2. "Available Jobs" Sektion anpassen
-
----
-
-## Teil 2: Company Profile Completeness
-
-### Problem
-
-Die `company_profiles` Tabelle hat alle Felder, aber sie sind meist leer:
-
-| Feld | Aktuelle Befüllung |
-|------|-------------------|
-| `headcount` | 0% (alle NULL) |
-| `annual_revenue` | 0% (alle NULL) |
-| `founded_year` | 0% (alle NULL) |
-| `unique_selling_point` | 0% (alle NULL) |
-
-### Zwei-Wege-Lösung
-
-#### Weg 1: Client-Seite - Profile Completion Check
-
-In `ClientSettings.tsx` oder beim Job-Erstellen einen "Profile Completeness" Indikator anzeigen:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  ⚠️ Dein Profil ist zu 40% vollständig            │
-│                                                     │
-│  Fehlende Angaben:                                  │
-│  • Mitarbeiteranzahl                               │
-│  • Gründungsjahr                                   │
-│  • Jahresumsatz                                    │
-│                                                     │
-│  Diese Infos helfen Recruitern, dein Unternehmen   │
-│  besser zu präsentieren.                           │
-│                                                     │
-│  [Jetzt vervollständigen]                          │
-└─────────────────────────────────────────────────────┘
+**Job Interface erweitern:**
+```typescript
+interface Job {
+  // ... bestehende Felder
+  company_profiles?: {
+    logo_url: string | null;
+    website: string | null;
+    headcount: number | null;
+    industry: string | null;
+  } | null;
+}
 ```
 
-#### Weg 2: Auto-Enrichment via Crawler
+**Job-Karte für enthüllte Jobs:**
+```tsx
+{revealedJobIds.has(job.id) ? (
+  // REVEALED: Zeige Logo + alle Details
+  <>
+    <div className="h-12 w-12 rounded-xl overflow-hidden bg-white border border-border/50 flex items-center justify-center">
+      <img 
+        src={getCompanyLogoUrl(job.company_profiles?.website, job.company_name)}
+        alt={job.company_name}
+        className="h-10 w-10 object-contain"
+        onError={(e) => {
+          // Fallback zu Initialen-Avatar
+          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_name)}&background=1e3a5f&color=fff`;
+        }}
+      />
+    </div>
+    
+    <div className="flex-1">
+      <div className="flex items-center gap-2">
+        <h3 className="font-semibold">{job.title}</h3>
+        <Badge variant="outline" className="text-emerald">Enthüllt</Badge>
+      </div>
+      <p className="font-medium text-foreground">{job.company_name}</p>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+        {job.company_profiles?.headcount && (
+          <span>🏢 {formatHeadcount(job.company_profiles.headcount)}</span>
+        )}
+        <span>📍 {job.location}</span>
+        <span className="capitalize">{job.remote_type}</span>
+        {job.industry && <span>🏭 {job.industry}</span>}
+      </div>
+    </div>
+  </>
+) : (
+  // ANONYMOUS: Bestehende Darstellung
+  ...
+)}
+```
 
-Der bestehende `crawl-company-data` Edge Function kann bereits Firmendaten crawlen. Wir können:
+#### 4. Änderungen in `RecruiterDashboard.tsx`
 
-1. Bei Job-Erstellung oder Client-Login prüfen, ob `company_profiles` leer ist
-2. Automatisch den Crawler triggern, um Daten von der Website zu extrahieren
-3. `headcount`, `founded_year`, `annual_revenue` aus dem Crawler-Ergebnis übernehmen
+Gleiche Logik wie oben für die "Available Jobs" Sektion anwenden.
 
----
+### Helper-Funktion für Headcount-Formatierung
+
+```typescript
+const formatHeadcount = (count: number): string => {
+  if (count < 50) return '< 50 MA';
+  if (count < 200) return '50-200 MA';
+  if (count < 500) return '200-500 MA';
+  if (count < 1000) return '500-1000 MA';
+  return '1000+ MA';
+};
+```
 
 ## Dateien die geändert werden
 
-| Datei | Änderung |
-|-------|----------|
-| `src/pages/recruiter/RecruiterJobs.tsx` | + Revealed-Jobs Query, + Conditional Company Display |
-| `src/pages/recruiter/RecruiterDashboard.tsx` | + Revealed-Jobs Query, + Conditional Company Display |
-| `src/pages/dashboard/ClientSettings.tsx` | + Profile Completeness Banner |
-| `src/components/client/ProfileCompletenessCard.tsx` | NEU - Wiederverwendbare Komponente |
+| Datei | Änderungen |
+|-------|------------|
+| `src/pages/recruiter/RecruiterJobs.tsx` | Erweiterter Query mit company_profiles JOIN, Logo-Anzeige, erweiterte Revealed-Card |
+| `src/pages/recruiter/RecruiterDashboard.tsx` | Gleiche Erweiterungen für Available Jobs Sektion |
+| `src/lib/companyLogo.ts` | NEU: Helper für Logo-URL Generierung mit Fallbacks |
 
----
+## Daten-Abhängigkeiten
 
-## Beispiel: Revealed Job in der Liste
+Da `logo_url` und `headcount` in `company_profiles` meist NULL sind:
 
-```jsx
-// In RecruiterJobs.tsx - Job-Karte anpassen
-<div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-  {revealedJobIds.has(job.id) ? (
-    <>
-      <CheckCircle className="h-3 w-3 text-emerald" />
-      <span className="text-foreground font-medium">{job.company_name}</span>
-      <Badge variant="outline" className="ml-2 text-xs">Enthüllt</Badge>
-    </>
-  ) : (
-    <>
-      <Lock className="h-3 w-3" />
-      {formatAnonymousCompany({...})}
-    </>
-  )}
-</div>
-```
-
----
+1. **Logo:** Nutze Clearbit Logo API als Fallback (kostenlos, basiert auf Website-Domain)
+2. **Headcount:** Zeige nur wenn vorhanden, sonst auslassen
+3. **Industry:** Bereits in `jobs` Tabelle vorhanden - wird angezeigt
 
 ## Erwartetes Ergebnis
 
-1. **Job-Liste**: Der Job "Referent Bereichsleitung IT" zeigt jetzt "Bayerische Versorgungskammer" statt "[Technology | Konzern | München]"
-2. **Dashboard**: Gleiche Verbesserung in "Available Jobs"
-3. **Client Settings**: Warnung wenn Partner Facts fehlen + Aufforderung zum Ausfüllen
-4. **Langfristig**: Auto-Enrichment kann fehlende Daten automatisch crawlen
+| Element | Anonym | Enthüllt |
+|---------|--------|----------|
+| Logo | 💼 Icon (navy) | Firmenlogo oder Initialen |
+| Firmenname | `[FinTech \| München]` | "Bayerische Versorgungskammer" |
+| Details | Keine | 🏢 1000+ MA · 📍 München · Hybrid |
+| Badge | Keins | ✅ "Enthüllt" (grün) |
