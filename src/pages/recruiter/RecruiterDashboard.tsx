@@ -463,6 +463,10 @@ export default function RecruiterDashboard() {
                     <div className={`p-3 rounded-xl ${stat.color}`}>
                       {stat.icon}
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           {/* Performance Metrics */}
@@ -475,10 +479,6 @@ export default function RecruiterDashboard() {
 
           {/* Submissions Funnel Grid */}
           <SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
 
           {/* Available Jobs */}
           <Card className="border-border/50">
