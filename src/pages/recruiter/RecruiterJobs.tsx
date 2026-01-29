@@ -179,75 +179,91 @@ export default function RecruiterJobs() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-2">
-            {filteredJobs.map((job) => (
-              <Link key={job.id} to={`/recruiter/jobs/${job.id}`}>
-                <Card className="border-border/50 hover:border-emerald/40 hover:bg-accent/30 transition-all cursor-pointer group">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3">
-                      {/* Icon */}
-                      <div className="h-10 w-10 rounded-lg bg-gradient-navy flex items-center justify-center flex-shrink-0">
-                        <Briefcase className="h-5 w-5 text-primary-foreground" />
-                      </div>
-                      
-                      {/* Main Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold truncate">{job.title}</h3>
-                          <Badge variant="secondary" className="capitalize text-xs shrink-0">
-                            {job.remote_type}
-                          </Badge>
+          <div className="grid gap-4">
+            {filteredJobs.map((job, index) => {
+              const potentialEarning = calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
+              
+              return (
+                <Link key={job.id} to={`/recruiter/jobs/${job.id}`}>
+                  <Card 
+                    className="border-border/40 bg-card/80 backdrop-blur-sm hover:border-emerald/40 hover:shadow-lg hover:shadow-emerald/5 hover:scale-[1.01] transition-all duration-300 cursor-pointer group"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <CardContent className="p-5">
+                      <div className="space-y-3">
+                        {/* Row 1: Icon + Title + Badges */}
+                        <div className="flex items-start gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-gradient-navy flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow flex-shrink-0">
+                            <Briefcase className="h-6 w-6 text-primary-foreground" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-base">{job.title}</h3>
+                              <Badge variant="secondary" className="capitalize text-xs">
+                                {job.remote_type}
+                              </Badge>
+                              {job.hiring_urgency === 'urgent' && (
+                                <Badge className="bg-destructive/10 text-destructive border-destructive/20 animate-pulse text-xs">
+                                  🔥 Dringend
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                              <Lock className="h-3 w-3" />
+                              {formatAnonymousCompany({
+                                industry: job.industry,
+                                companySize: job.company_size_band,
+                                fundingStage: job.funding_stage,
+                                techStack: job.tech_environment,
+                                location: job.location,
+                                urgency: job.hiring_urgency,
+                                remoteType: job.remote_type,
+                              })}
+                            </p>
+                          </div>
+                          
+                          <ArrowUpRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Lock className="h-3 w-3 text-muted-foreground" />
-                            {formatAnonymousCompany({
-                              industry: job.industry,
-                              companySize: job.company_size_band,
-                              fundingStage: job.funding_stage,
-                              techStack: job.tech_environment,
-                              location: job.location,
-                              urgency: job.hiring_urgency,
-                              remoteType: job.remote_type,
-                            })}
-                          </span>
+                        
+                        {/* Row 2: Skills + Earning */}
+                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {job.skills?.slice(0, 4).map((skill) => (
+                              <Badge 
+                                key={skill} 
+                                variant="outline" 
+                                className="text-xs hover:bg-primary/10 transition-colors"
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                            {job.skills && job.skills.length > 4 && (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                +{job.skills.length - 4}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="text-right shrink-0">
+                            {potentialEarning ? (
+                              <p className="font-bold text-lg text-emerald">
+                                €{potentialEarning.toLocaleString('de-DE')}
+                              </p>
+                            ) : (
+                              <p className="font-medium text-muted-foreground">k.A.</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {formatSalary(job.salary_min, job.salary_max)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-
-                      {/* Skills - Compact */}
-                      <div className="hidden md:flex items-center gap-1.5 max-w-[250px]">
-                        {job.skills?.slice(0, 3).map((skill) => (
-                          <Badge key={skill} variant="outline" className="text-xs py-0">
-                            {skill}
-                          </Badge>
-                        ))}
-                        {job.skills && job.skills.length > 3 && (
-                          <Badge variant="outline" className="text-xs py-0 text-muted-foreground">
-                            +{job.skills.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Fee in € */}
-                      <div className="text-right shrink-0">
-                        {calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage) ? (
-                          <p className="font-bold text-emerald">
-                            €{calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)?.toLocaleString('de-DE')}
-                          </p>
-                        ) : (
-                          <p className="font-medium text-muted-foreground">k.A.</p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {formatSalary(job.salary_min, job.salary_max)}
-                        </p>
-                      </div>
-
-                      <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
