@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { RecruiterMetricsSection } from '@/components/recruiter/RecruiterMetricsSection';
+import { useRecruiterStats } from '@/hooks/useRecruiterStats';
 import {
   Table,
   TableBody,
@@ -58,6 +60,7 @@ export default function RecruiterEarnings() {
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [stats, setStats] = useState<EarningsStats>({ pending: 0, confirmed: 0, paid: 0, total: 0 });
   const [loading, setLoading] = useState(true);
+  const { stats: recruiterStats, platformAverages } = useRecruiterStats();
 
   useEffect(() => {
     if (user) {
@@ -228,6 +231,14 @@ export default function RecruiterEarnings() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance Metrics */}
+        <RecruiterMetricsSection
+          interviewInviteRate={recruiterStats.interviewInviteRate}
+          hireToInterviewRate={recruiterStats.hireToInterviewRate}
+          qcRejectionRate={recruiterStats.qcRejectionRate}
+          platformAverages={platformAverages}
+        />
 
         <Card>
           <CardHeader>

@@ -5,6 +5,8 @@ import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SubmissionsFunnelGrid } from '@/components/recruiter/SubmissionsFunnelGrid';
+import { useRecruiterStats } from '@/hooks/useRecruiterStats';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -183,6 +185,7 @@ export default function RecruiterSubmissions() {
   const [selectedPlaybookSubmission, setSelectedPlaybookSubmission] = useState<string | null>(null);
   const [selectedPlaybook, setSelectedPlaybook] = useState<any | null>(null);
   const [playbooks, setPlaybooks] = useState<any[]>([]);
+  const { stats: recruiterStats } = useRecruiterStats();
 
   useEffect(() => {
     if (user) {
@@ -317,6 +320,9 @@ export default function RecruiterSubmissions() {
               </Button>
             </div>
           </div>
+
+          {/* Submissions Funnel Overview */}
+          <SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
 
           {/* Filters */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
