@@ -18,18 +18,26 @@ import {
   Search, 
   Briefcase, 
   MapPin, 
-  Clock, 
   ArrowUpRight,
   Loader2,
-  Filter,
   Lock,
   CheckCircle,
-  Users
+  Users,
+  Building2
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import { getCompanyLogoUrl, formatHeadcount } from '@/lib/companyLogo';
+
+interface CompanyProfile {
+  logo_url: string | null;
+  website: string | null;
+  headcount: number | null;
+  industry: string | null;
+}
 
 interface Job {
   id: string;
+  client_id: string;
   title: string;
   company_name: string;
   location: string;
@@ -57,6 +65,7 @@ export default function RecruiterJobs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [remoteFilter, setRemoteFilter] = useState<string>('all');
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
+  const [companyProfiles, setCompanyProfiles] = useState<Record<string, CompanyProfile>>({});
 
   useEffect(() => {
     fetchJobs();
@@ -78,6 +87,28 @@ export default function RecruiterJobs() {
 
       if (!error && data) {
         setJobs(data);
+        
+        // Fetch company profiles for all client_ids
+        const clientIds = [...new Set(data.map(j => j.client_id).filter(Boolean))];
+        if (clientIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('company_profiles')
+            .select('user_id, logo_url, website, headcount, industry')
+            .in('user_id', clientIds);
+          
+          if (profiles) {
+            const profileMap: Record<string, CompanyProfile> = {};
+            profiles.forEach(p => {
+              profileMap[p.user_id] = {
+                logo_url: p.logo_url,
+                website: p.website,
+                headcount: p.headcount,
+                industry: p.industry,
+              };
+            });
+            setCompanyProfiles(profileMap);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -210,6 +241,7 @@ export default function RecruiterJobs() {
           <div className="grid gap-4">
             {filteredJobs.map((job, index) => {
               const potentialEarning = calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
+              const profile = companyProfiles[job.client_id];
               
               return (
                 <Link key={job.id} to={`/recruiter/jobs/${job.id}`}>
@@ -219,11 +251,30 @@ export default function RecruiterJobs() {
                   >
                     <CardContent className="p-5">
                       <div className="space-y-3">
-                        {/* Row 1: Icon + Title + Badges */}
+                        {/* Row 1: Icon/Logo + Title + Badges */}
                         <div className="flex items-start gap-4">
-                          <div className="h-12 w-12 rounded-xl bg-gradient-navy flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow flex-shrink-0">
-                            <Briefcase className="h-6 w-6 text-primary-foreground" />
-                          </div>
+                          {revealedJobIds.has(job.id) ? (
+                            // Revealed: Show company logo
+                            <div className="h-12 w-12 rounded-xl overflow-hidden bg-background border border-border/50 flex items-center justify-center flex-shrink-0">
+                              <img 
+                                src={getCompanyLogoUrl(
+                                  profile?.logo_url,
+                                  profile?.website,
+                                  job.company_name
+                                )}
+                                alt={job.company_name}
+                                className="h-10 w-10 object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_name)}&background=1e3a5f&color=fff&size=96&bold=true`;
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            // Anonymous: Show briefcase icon
+                            <div className="h-12 w-12 rounded-xl bg-gradient-navy flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow flex-shrink-0">
+                              <Briefcase className="h-6 w-6 text-primary-foreground" />
+                            </div>
+                          )}
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -231,36 +282,54 @@ export default function RecruiterJobs() {
                               <Badge variant="secondary" className="capitalize text-xs">
                                 {job.remote_type}
                               </Badge>
+                              {revealedJobIds.has(job.id) && (
+                                <Badge variant="outline" className="text-xs border-emerald/30 text-emerald">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Enthüllt
+                                </Badge>
+                              )}
                               {job.hiring_urgency === 'urgent' && (
                                 <Badge className="bg-destructive/10 text-destructive border-destructive/20 animate-pulse text-xs">
                                   🔥 Dringend
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                              {revealedJobIds.has(job.id) ? (
-                                <>
-                                  <CheckCircle className="h-3 w-3 text-emerald" />
-                                  <span className="text-foreground font-medium">{job.company_name}</span>
-                                  <Badge variant="outline" className="ml-2 text-xs border-emerald/30 text-emerald">
-                                    Enthüllt
-                                  </Badge>
-                                </>
-                              ) : (
-                                <>
-                                  <Lock className="h-3 w-3" />
-                                  {formatAnonymousCompany({
-                                    industry: job.industry,
-                                    companySize: job.company_size_band,
-                                    fundingStage: job.funding_stage,
-                                    techStack: job.tech_environment,
-                                    location: job.location,
-                                    urgency: job.hiring_urgency,
-                                    remoteType: job.remote_type,
-                                  })}
-                                </>
-                              )}
-                            </p>
+                            
+                            {revealedJobIds.has(job.id) ? (
+                              // Revealed: Show full company details
+                              <div className="mt-1">
+                                <p className="text-sm font-medium text-foreground">{job.company_name}</p>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                                  {formatHeadcount(profile?.headcount) && (
+                                    <span className="flex items-center gap-1">
+                                      <Building2 className="h-3 w-3" />
+                                      {formatHeadcount(profile?.headcount)}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {job.location}
+                                  </span>
+                                  {job.industry && (
+                                    <span>{job.industry}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              // Anonymous: Show anonymized company info
+                              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                                <Lock className="h-3 w-3" />
+                                {formatAnonymousCompany({
+                                  industry: job.industry,
+                                  companySize: job.company_size_band,
+                                  fundingStage: job.funding_stage,
+                                  techStack: job.tech_environment,
+                                  location: job.location,
+                                  urgency: job.hiring_urgency,
+                                  remoteType: job.remote_type,
+                                })}
+                              </p>
+                            )}
                           </div>
                           
                           <ArrowUpRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
