@@ -1,94 +1,163 @@
 
 
-# Plan: Dashboard aufräumen - Detailansichten auf Unterseiten verschieben
+# Plan: RecruiterJobs - Cutting-Edge UI Redesign
 
 ## Problem
 
-Die **"Deine Performance"** und **"Submissions Übersicht"** Sektionen nehmen zu viel Platz auf der Dashboard-Übersicht ein. Diese detaillierten Daten sind besser auf den spezialisierten Unterseiten aufgehoben.
+Die aktuelle Job-Liste sieht "gequetscht" aus:
+- Sehr kleine `p-3` Padding und `gap-2` zwischen Karten
+- Alles in einer horizontalen Zeile gepresst
+- Keine visuelle Hierarchie oder "breathing room"
+- Kein modernes Glassmorphism/Animation-Design
 
-## Lösung
+## Vision: Premium Job Marketplace Design
 
-Die detaillierten Komponenten auf die passenden Unterseiten verschieben und auf dem Dashboard nur kompakte Zusammenfassungen zeigen.
+Das neue Design nutzt moderne UI-Patterns für eine luftigere, professionellere Darstellung.
 
-### Verschiebungsplan
+## Design-Elemente
 
-| Komponente | Von | Nach | Begründung |
-|------------|-----|------|------------|
-| `RecruiterMetricsSection` | Dashboard | **Verdienste** (`/recruiter/earnings`) | Performance-KPIs passen thematisch zu Earnings |
-| `SubmissionsFunnelGrid` | Dashboard | **Pipeline** (`/recruiter/submissions`) | Detaillierte Status-Übersicht gehört zur Pipeline |
+### 1. Erweiterte Job-Karten mit mehr Platz
 
-### Neues Dashboard-Layout (kompakter)
+| Element | Aktuell | Neu |
+|---------|---------|-----|
+| Card Padding | `p-3` | `p-5` |
+| Grid Gap | `gap-2` | `gap-4` |
+| Icon Size | `h-10 w-10` | `h-12 w-12` |
+| Layout | Einzeilig horizontal | Zweizeilig mit klarer Hierarchie |
+
+### 2. Glassmorphism & Premium-Effekte
+
+- Glass-Card-Effekt mit Backdrop-Blur
+- Subtle Gradient-Overlays auf dem Icon
+- Hover-Glow-Effekte
+- Animierte Übergänge beim Hover
+
+### 3. Neue Kartenstruktur (zweizeilig)
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Stats Grid (bleibt - 4 Karten)                                 │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
-│  │Open Jobs │ │Candidates│ │Submissions│ │Earnings  │          │
-│  │    15    │ │    27    │ │    21     │ │   €0     │          │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
-├─────────────────────────────────────────────────────────────────┤
-│  ❌ Deine Performance → verschoben nach /recruiter/earnings    │
-├─────────────────────────────────────────────────────────────────┤
-│  ❌ Submissions Übersicht → verschoben nach /recruiter/submissions │
-├─────────────────────────────────────────────────────────────────┤
-│  Available Jobs (bleibt)                                        │
-├─────────────────────────────────────────────────────────────────┤
-│  Your Talent Pipeline (bleibt)                                  │
-├─────────────────────────────────────────────────────────────────┤
-│  Quick Actions (bleibt)                                         │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│  ┌────┐   Senior Frontend Engineer              [Remote] [🔥 Dringend] │
+│  │ 🏢 │   🔒 Fintech Startup · München · Series B                    │
+│  └────┘                                                              │
+│  ─────────────────────────────────────────────────────────────────── │
+│  React  TypeScript  Node.js  +2                     €12.5k  →       │
+│                                                     €85k-110k        │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-## Technische Änderungen
+**Zeile 1:** Titel + Badges (Remote, Urgency)
+**Zeile 2:** Anonyme Company-Info
+**Zeile 3 (Footer):** Skills links + Earning rechts
 
-### 1. `src/pages/recruiter/RecruiterDashboard.tsx`
+### 4. Visuelle Verbesserungen
 
-**Entfernen:**
-- Import von `RecruiterMetricsSection` und `SubmissionsFunnelGrid`
-- Import von `useRecruiterStats` (wird nicht mehr benötigt)
-- Die beiden Komponenten-Aufrufe in der JSX (Zeilen 472-481)
+- **Gradient Icon:** Navy-Gradient statt flacher Farbe
+- **Urgency Badge:** Pulsierendes Badge für dringende Jobs
+- **Skill Chips:** Mit Hover-Effekt und besserer Lesbarkeit
+- **Earning Highlight:** Grün mit leichtem Glow-Effekt
+- **Hover State:** Karte hebt sich an mit Shadow und Border-Glow
 
-**Ergebnis:** Dashboard wird deutlich kompakter
+### 5. Animationen
 
-### 2. `src/pages/recruiter/RecruiterSubmissions.tsx`
+- `animate-fade-in` beim Laden
+- `hover:scale-[1.01]` für subtile Vergrößerung
+- `transition-all duration-300` für smooth Transitions
+- Staggered Animation für die Liste
 
-**Hinzufügen:**
-- Import von `SubmissionsFunnelGrid` und `useRecruiterStats`
-- Die `SubmissionsFunnelGrid`-Komponente am Anfang der Seite
+## Technische Umsetzung
 
+### Datei: `src/pages/recruiter/RecruiterJobs.tsx`
+
+**Änderungen am Grid:**
 ```jsx
-// Am Anfang der Submissions-Seite
-<SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
+// Alt
+<div className="grid gap-2">
+
+// Neu
+<div className="grid gap-4">
 ```
 
-### 3. `src/pages/recruiter/RecruiterEarnings.tsx`
-
-**Hinzufügen:**
-- Import von `RecruiterMetricsSection` und `useRecruiterStats`
-- Die `RecruiterMetricsSection`-Komponente oben auf der Seite
-
+**Änderungen an der Job-Karte:**
 ```jsx
-// Nach den Earnings-Stats
-<RecruiterMetricsSection
-  interviewInviteRate={recruiterStats.interviewInviteRate}
-  hireToInterviewRate={recruiterStats.hireToInterviewRate}
-  qcRejectionRate={recruiterStats.qcRejectionRate}
-  platformAverages={platformAverages}
-/>
+<Card className="
+  border-border/40 
+  bg-card/80 
+  backdrop-blur-sm
+  hover:border-emerald/40 
+  hover:shadow-lg 
+  hover:shadow-emerald/5
+  hover:scale-[1.01]
+  transition-all 
+  duration-300 
+  cursor-pointer 
+  group
+">
+  <CardContent className="p-5">
+    {/* Zweizeiliges Layout */}
+    <div className="space-y-3">
+      
+      {/* Row 1: Icon + Title + Badges */}
+      <div className="flex items-start gap-4">
+        <div className="h-12 w-12 rounded-xl bg-gradient-navy 
+          flex items-center justify-center 
+          shadow-md group-hover:shadow-lg transition-shadow">
+          <Briefcase className="h-6 w-6 text-primary-foreground" />
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-base">{job.title}</h3>
+            <Badge variant="secondary">{job.remote_type}</Badge>
+            {job.hiring_urgency === 'urgent' && (
+              <Badge className="bg-destructive/10 text-destructive animate-pulse">
+                🔥 Dringend
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            🔒 {formatAnonymousCompany(...)}
+          </p>
+        </div>
+      </div>
+      
+      {/* Row 2: Skills + Earning */}
+      <div className="flex items-center justify-between pt-3 border-t border-border/50">
+        <div className="flex items-center gap-2 flex-wrap">
+          {job.skills?.slice(0, 4).map(skill => (
+            <Badge variant="outline" className="hover:bg-primary/10">
+              {skill}
+            </Badge>
+          ))}
+        </div>
+        
+        <div className="text-right">
+          <p className="font-bold text-lg text-emerald">
+            €{potentialEarning?.toLocaleString()}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {formatSalary(min, max)}
+          </p>
+        </div>
+      </div>
+    </div>
+  </CardContent>
+</Card>
 ```
 
-## Vorteile
+### Neue Features
 
-1. **Sauberere Übersicht** - Dashboard zeigt nur die wichtigsten Zahlen auf einen Blick
-2. **Kontext-passend** - Detaillierte Daten erscheinen dort, wo sie gebraucht werden
-3. **Schnellere Navigation** - User findet Submissions-Details unter "Pipeline", Performance unter "Verdienste"
-4. **Weniger Scrolling** - Dashboard passt besser auf einen Bildschirm
+1. **Urgency Badge** - Zeigt dringende Jobs mit pulsierendem Badge
+2. **Bessere Skill-Anzeige** - 4 Skills statt 3, mit Hover-Effekt
+3. **Größere Icons** - Professionellere Optik
+4. **Zweizeiliges Layout** - Mehr Platz für alle Infos
+5. **Glassmorphism** - Moderner Backdrop-Blur-Effekt
+6. **Hover-Animations** - Scale + Shadow + Border-Glow
 
-## Dateien die geändert werden
+## Erwartetes Ergebnis
 
-| Datei | Änderung |
-|-------|----------|
-| `src/pages/recruiter/RecruiterDashboard.tsx` | Entfernt: Metrics + Funnel Grid |
-| `src/pages/recruiter/RecruiterSubmissions.tsx` | Hinzufügt: Submissions Funnel Grid |
-| `src/pages/recruiter/RecruiterEarnings.tsx` | Hinzufügt: Performance Metrics |
+- Karten sind ~40% größer mit besserer Lesbarkeit
+- Moderne, premium Optik mit Glass-Effekten
+- Klare visuelle Hierarchie (Titel > Company > Skills > Earning)
+- Responsive: Funktioniert auf Desktop und Mobile
+- Performance: Nur CSS-basierte Animationen
 
