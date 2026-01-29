@@ -10,16 +10,13 @@ import {
   Users, 
   DollarSign, 
   FileText,
-  MapPin,
   Activity,
   Upload,
   ArrowUpRight,
-  Clock,
   Loader2,
   Lock
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
-import { BehaviorScoreBadge } from '@/components/behavior/BehaviorScoreBadge';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
@@ -28,8 +25,8 @@ import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { Candidate } from '@/components/candidates/CandidateCard';
-import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { toast } from 'sonner';
+import { RecentSubmissionsCard, RecentSubmission } from '@/components/recruiter/RecentSubmissionsCard';
 
 interface DashboardStats {
   openJobs: number;
@@ -52,6 +49,8 @@ export default function RecruiterDashboard() {
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
   const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
+  const [recentSubmissions, setRecentSubmissions] = useState<RecentSubmission[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(true);
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
@@ -61,6 +60,7 @@ export default function RecruiterDashboard() {
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchRecentSubmissions();
       fetchCandidateMapForAlerts();
     }
   }, [user, alerts]);
@@ -125,6 +125,119 @@ export default function RecruiterDashboard() {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRecentSubmissions = async () => {
+    try {
+      setSubmissionsLoading(true);
+      
+      // Fetch recent submissions
+      const { data: submissions, error } = await supabase
+        .from('submissions')
+        .select('id, status, stage, match_score, updated_at, recruiter_notes, candidate_id, job_id')
+        .eq('recruiter_id', user?.id)
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      if (submissions && submissions.length > 0) {
+        const candidateIds = submissions.map(s => s.candidate_id);
+        const jobIds = submissions.map(s => s.job_id);
+        const submissionIds = submissions.map(s => s.id);
+
+        // Fetch related data separately to avoid TypeScript deep instantiation
+        const candidatesRes = await supabase
+          .from('candidates')
+          .select('id, full_name, email, phone, job_title')
+          .in('id', candidateIds);
+          
+        const jobsRes = await supabase
+          .from('jobs')
+          .select('id, title, company_name')
+          .in('id', jobIds);
+          
+        // Fetch alerts for submissions
+        let alertData: { submission_id: string }[] = [];
+        for (const sid of submissionIds) {
+          const res = await supabase
+            .from('influence_alerts')
+            .select('submission_id')
+            .match({ submission_id: sid, status: 'active' });
+          if (res.data) alertData = [...alertData, ...res.data];
+        }
+
+        // Fetch scheduled interviews
+        let interviewData: { submission_id: string; scheduled_at: string }[] = [];
+        for (const sid of submissionIds) {
+          const res = await supabase
+            .from('interviews')
+            .select('submission_id, scheduled_at')
+            .match({ submission_id: sid, status: 'scheduled' });
+          if (res.data) interviewData = [...interviewData, ...res.data];
+        }
+
+        // Build lookup maps
+        const candidateMap: Record<string, any> = {};
+        candidatesRes.data?.forEach(c => { candidateMap[c.id] = c; });
+
+        const jobMap: Record<string, any> = {};
+        jobsRes.data?.forEach(j => { jobMap[j.id] = j; });
+
+        const alertCountMap: Record<string, number> = {};
+        alertData.forEach(a => {
+          alertCountMap[a.submission_id] = (alertCountMap[a.submission_id] || 0) + 1;
+        });
+
+        const interviewMap: Record<string, string> = {};
+        interviewData.forEach(i => {
+          if (!interviewMap[i.submission_id]) {
+            interviewMap[i.submission_id] = i.scheduled_at;
+          }
+        });
+
+        const mappedSubmissions: RecentSubmission[] = submissions.map((s) => ({
+          id: s.id,
+          status: s.status,
+          stage: s.stage,
+          match_score: s.match_score,
+          updated_at: s.updated_at,
+          recruiter_notes: s.recruiter_notes,
+          candidate: candidateMap[s.candidate_id] ? {
+            id: candidateMap[s.candidate_id].id,
+            full_name: candidateMap[s.candidate_id].full_name,
+            email: candidateMap[s.candidate_id].email,
+            phone: candidateMap[s.candidate_id].phone,
+            job_title: candidateMap[s.candidate_id].job_title,
+          } : {
+            id: s.candidate_id,
+            full_name: 'Unknown',
+            email: '',
+            phone: null,
+            job_title: null,
+          },
+          job: jobMap[s.job_id] ? {
+            id: jobMap[s.job_id].id,
+            title: jobMap[s.job_id].title,
+            company_name: jobMap[s.job_id].company_name,
+          } : {
+            id: s.job_id,
+            title: 'Unknown Job',
+            company_name: null,
+          },
+          alert_count: alertCountMap[s.id] || 0,
+          interview_date: interviewMap[s.id] || null,
+        }));
+
+        setRecentSubmissions(mappedSubmissions);
+      } else {
+        setRecentSubmissions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching recent submissions:', error);
+    } finally {
+      setSubmissionsLoading(false);
     }
   };
 
@@ -411,6 +524,12 @@ export default function RecruiterDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Recent Submissions */}
+          <RecentSubmissionsCard 
+            submissions={recentSubmissions} 
+            loading={submissionsLoading} 
+          />
 
           {/* Quick Actions */}
           <div className="grid gap-4 md:grid-cols-3">
