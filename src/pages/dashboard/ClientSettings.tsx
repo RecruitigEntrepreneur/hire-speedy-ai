@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { ProfileCompletenessCard } from '@/components/client/ProfileCompletenessCard';
 import {
   Select,
   SelectContent,
@@ -65,6 +66,7 @@ const INDUSTRIES = [
 export default function ClientSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const partnerFactsRef = useRef<HTMLDivElement>(null);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,6 +110,10 @@ export default function ClientSettings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const scrollToPartnerFacts = () => {
+    partnerFactsRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSave = async () => {
@@ -190,6 +196,12 @@ export default function ClientSettings() {
             <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
             <p className="text-muted-foreground">Verwalte dein Firmenprofil und Einstellungen</p>
           </div>
+
+          {/* Profile Completeness Banner */}
+          <ProfileCompletenessCard 
+            profile={profile} 
+            onScrollToSection={scrollToPartnerFacts}
+          />
 
           {/* Company Profile */}
           <Card>
@@ -322,7 +334,7 @@ export default function ClientSettings() {
           </Card>
 
           {/* Partner Facts for Recruiters */}
-          <Card>
+          <Card ref={partnerFactsRef}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
