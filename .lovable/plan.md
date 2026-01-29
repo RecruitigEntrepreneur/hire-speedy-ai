@@ -1,163 +1,69 @@
 
 
-# Plan: RecruiterJobs - Cutting-Edge UI Redesign
+# Plan: Testdaten für Company-Reveal aktivieren
 
-## Problem
+## Aktuelle Situation
 
-Die aktuelle Job-Liste sieht "gequetscht" aus:
-- Sehr kleine `p-3` Padding und `gap-2` zwischen Karten
-- Alles in einer horizontalen Zeile gepresst
-- Keine visuelle Hierarchie oder "breathing room"
-- Kein modernes Glassmorphism/Animation-Design
+Der eingeloggte Recruiter (Marko Benko) hat 5 Kandidaten im Interview-Status, aber bei **KEINEM** ist `company_revealed = true`:
 
-## Vision: Premium Job Marketplace Design
+| Kandidat | Job | Firma | company_revealed |
+|----------|-----|-------|------------------|
+| Horst Schmid | Referent IT | Bayerische Versorgungskammer | **false** |
+| Imran Türe | Buchhalter | FITSEVENELEVEN GmbH | **false** |
+| Ulf Jaeger | Java Developer | Trivium eSolutions GmbH | **false** |
+| Dmitrii Shadrin | Product Manager | InnoSoft Solutions | **false** |
+| Boris Becker | Java Developer | Trivium eSolutions GmbH | **false** |
 
-Das neue Design nutzt moderne UI-Patterns für eine luftigere, professionellere Darstellung.
+**Warum?** Der Trigger `reveal_company_on_opt_in()` setzt `company_revealed = true` nur wenn der Status auf `candidate_opted_in` wechselt. Die bestehenden Submissions wurden vermutlich direkt auf `interview` gesetzt.
 
-## Design-Elemente
+## Lösungsvorschlag
 
-### 1. Erweiterte Job-Karten mit mehr Platz
+Eine Datenmigration durchführen, die für die **"Bayerische Versorgungskammer"** Submission (Horst Schmid) den `company_revealed` Status auf `true` setzt.
 
-| Element | Aktuell | Neu |
-|---------|---------|-----|
-| Card Padding | `p-3` | `p-5` |
-| Grid Gap | `gap-2` | `gap-4` |
-| Icon Size | `h-10 w-10` | `h-12 w-12` |
-| Layout | Einzeilig horizontal | Zweizeilig mit klarer Hierarchie |
+### Migration
 
-### 2. Glassmorphism & Premium-Effekte
-
-- Glass-Card-Effekt mit Backdrop-Blur
-- Subtle Gradient-Overlays auf dem Icon
-- Hover-Glow-Effekte
-- Animierte Übergänge beim Hover
-
-### 3. Neue Kartenstruktur (zweizeilig)
-
-```text
-┌────────────────────────────────────────────────────────────────────┐
-│  ┌────┐   Senior Frontend Engineer              [Remote] [🔥 Dringend] │
-│  │ 🏢 │   🔒 Fintech Startup · München · Series B                    │
-│  └────┘                                                              │
-│  ─────────────────────────────────────────────────────────────────── │
-│  React  TypeScript  Node.js  +2                     €12.5k  →       │
-│                                                     €85k-110k        │
-└────────────────────────────────────────────────────────────────────┘
+```sql
+-- Setze company_revealed = true für die Horst Schmid Submission
+-- bei Bayerische Versorgungskammer (aktuell im Interview-Status)
+UPDATE public.submissions
+SET 
+  company_revealed = true,
+  company_revealed_at = NOW()
+WHERE id = '9671c2a0-cde6-43b0-9bdd-c5a861cc0c10';
 ```
 
-**Zeile 1:** Titel + Badges (Remote, Urgency)
-**Zeile 2:** Anonyme Company-Info
-**Zeile 3 (Footer):** Skills links + Earning rechts
+## Ergebnis nach Migration
 
-### 4. Visuelle Verbesserungen
+| Ort | Vorher | Nachher |
+|-----|--------|---------|
+| **Job-Liste** (`/recruiter/jobs`) | 🔒 [Technology \| Konzern \| Hybrid München] | **Bayerische Versorgungskammer** |
+| **Job-Detail** | 🔒 Anonymisiert | ✅ Firma sichtbar mit Badge "Unternehmen enthüllt" |
+| **Pipeline** | 🔒 Anonymisiert | ✅ Firmenname sichtbar |
 
-- **Gradient Icon:** Navy-Gradient statt flacher Farbe
-- **Urgency Badge:** Pulsierendes Badge für dringende Jobs
-- **Skill Chips:** Mit Hover-Effekt und besserer Lesbarkeit
-- **Earning Highlight:** Grün mit leichtem Glow-Effekt
-- **Hover State:** Karte hebt sich an mit Shadow und Border-Glow
+## Wichtiger Hinweis
 
-### 5. Animationen
+Die Job-Liste (`RecruiterJobs.tsx`) zeigt aktuell **ALLE** Jobs anonymisiert an - auch wenn der Recruiter bereits eine "revealed" Submission hat. Das ist **korrekt nach Triple-Blind Architektur**:
 
-- `animate-fade-in` beim Laden
-- `hover:scale-[1.01]` für subtile Vergrößerung
-- `transition-all duration-300` für smooth Transitions
-- Staggered Animation für die Liste
+- In der **Übersicht** bleiben Jobs anonym (andere Recruiter sollen den Firmennamen nicht sehen)
+- Erst in der **Detailansicht** wird geprüft ob DIESER Recruiter eine revealed Submission hat
 
-## Technische Umsetzung
+Um das korrekt zu testen, navigiere nach der Migration zu:
+1. `/recruiter/jobs` → Job "Referent Bereichsleitung IT" anklicken
+2. Auf der **Detailseite** sollte die Firma "Bayerische Versorgungskammer" sichtbar sein
 
-### Datei: `src/pages/recruiter/RecruiterJobs.tsx`
+## Alternative: Alle Interview-Submissions fixen
 
-**Änderungen am Grid:**
-```jsx
-// Alt
-<div className="grid gap-2">
+Falls gewünscht, kann ich auch ALLE bestehenden Interview-Submissions für diesen Recruiter fixen:
 
-// Neu
-<div className="grid gap-4">
+```sql
+UPDATE public.submissions
+SET 
+  company_revealed = true,
+  company_revealed_at = NOW()
+WHERE recruiter_id = '9ee0e9d4-2191-4ff3-b845-cef0305a5f39'
+  AND status IN ('interview', 'offer', 'hired')
+  AND company_revealed = false;
 ```
 
-**Änderungen an der Job-Karte:**
-```jsx
-<Card className="
-  border-border/40 
-  bg-card/80 
-  backdrop-blur-sm
-  hover:border-emerald/40 
-  hover:shadow-lg 
-  hover:shadow-emerald/5
-  hover:scale-[1.01]
-  transition-all 
-  duration-300 
-  cursor-pointer 
-  group
-">
-  <CardContent className="p-5">
-    {/* Zweizeiliges Layout */}
-    <div className="space-y-3">
-      
-      {/* Row 1: Icon + Title + Badges */}
-      <div className="flex items-start gap-4">
-        <div className="h-12 w-12 rounded-xl bg-gradient-navy 
-          flex items-center justify-center 
-          shadow-md group-hover:shadow-lg transition-shadow">
-          <Briefcase className="h-6 w-6 text-primary-foreground" />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-base">{job.title}</h3>
-            <Badge variant="secondary">{job.remote_type}</Badge>
-            {job.hiring_urgency === 'urgent' && (
-              <Badge className="bg-destructive/10 text-destructive animate-pulse">
-                🔥 Dringend
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            🔒 {formatAnonymousCompany(...)}
-          </p>
-        </div>
-      </div>
-      
-      {/* Row 2: Skills + Earning */}
-      <div className="flex items-center justify-between pt-3 border-t border-border/50">
-        <div className="flex items-center gap-2 flex-wrap">
-          {job.skills?.slice(0, 4).map(skill => (
-            <Badge variant="outline" className="hover:bg-primary/10">
-              {skill}
-            </Badge>
-          ))}
-        </div>
-        
-        <div className="text-right">
-          <p className="font-bold text-lg text-emerald">
-            €{potentialEarning?.toLocaleString()}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatSalary(min, max)}
-          </p>
-        </div>
-      </div>
-    </div>
-  </CardContent>
-</Card>
-```
-
-### Neue Features
-
-1. **Urgency Badge** - Zeigt dringende Jobs mit pulsierendem Badge
-2. **Bessere Skill-Anzeige** - 4 Skills statt 3, mit Hover-Effekt
-3. **Größere Icons** - Professionellere Optik
-4. **Zweizeiliges Layout** - Mehr Platz für alle Infos
-5. **Glassmorphism** - Moderner Backdrop-Blur-Effekt
-6. **Hover-Animations** - Scale + Shadow + Border-Glow
-
-## Erwartetes Ergebnis
-
-- Karten sind ~40% größer mit besserer Lesbarkeit
-- Moderne, premium Optik mit Glass-Effekten
-- Klare visuelle Hierarchie (Titel > Company > Skills > Earning)
-- Responsive: Funktioniert auf Desktop und Mobile
-- Performance: Nur CSS-basierte Animationen
+Dies würde alle 5 Interview-Submissions auf `company_revealed = true` setzen.
 
