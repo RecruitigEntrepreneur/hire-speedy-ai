@@ -27,9 +27,6 @@ import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog
 import { Candidate } from '@/components/candidates/CandidateCard';
 import { toast } from 'sonner';
 import { SubmissionsPipeline, PipelineSubmission } from '@/components/recruiter/SubmissionsPipeline';
-import { RecruiterMetricsSection } from '@/components/recruiter/RecruiterMetricsSection';
-import { SubmissionsFunnelGrid } from '@/components/recruiter/SubmissionsFunnelGrid';
-import { useRecruiterStats } from '@/hooks/useRecruiterStats';
 
 interface DashboardStats {
   openJobs: number;
@@ -57,7 +54,6 @@ export default function RecruiterDashboard() {
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
-  const { stats: recruiterStats, loading: statsLoading, platformAverages } = useRecruiterStats();
   
   usePageViewTracking('recruiter_dashboard');
 
@@ -335,25 +331,25 @@ export default function RecruiterDashboard() {
   const statCards = [
     {
       title: 'Open Jobs',
-      value: recruiterStats.openJobsCount,
+      value: stats.openJobs,
       icon: <Briefcase className="h-5 w-5" />,
       color: 'bg-navy/10 text-navy',
     },
     {
       title: 'My Candidates',
-      value: recruiterStats.candidatesCount,
+      value: stats.myCandidates,
       icon: <Users className="h-5 w-5" />,
       color: 'bg-emerald/10 text-emerald',
     },
     {
       title: 'Submissions',
-      value: recruiterStats.submissionsCount,
+      value: stats.submissions,
       icon: <FileText className="h-5 w-5" />,
       color: 'bg-primary/10 text-primary',
     },
     {
       title: 'Total Earnings',
-      value: `€${recruiterStats.totalEarnings.toLocaleString()}`,
+      value: `€${stats.earnings.toLocaleString()}`,
       icon: <DollarSign className="h-5 w-5" />,
       color: 'bg-amber-500/10 text-amber-600',
     },
@@ -468,17 +464,6 @@ export default function RecruiterDashboard() {
               </Card>
             ))}
           </div>
-
-          {/* Performance Metrics */}
-          <RecruiterMetricsSection
-            interviewInviteRate={recruiterStats.interviewInviteRate}
-            hireToInterviewRate={recruiterStats.hireToInterviewRate}
-            qcRejectionRate={recruiterStats.qcRejectionRate}
-            platformAverages={platformAverages}
-          />
-
-          {/* Submissions Funnel Grid */}
-          <SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
 
           {/* Available Jobs */}
           <Card className="border-border/50">
