@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { InfluenceAlert } from '@/hooks/useInfluenceAlerts';
 import { 
   Phone, 
@@ -8,7 +10,6 @@ import {
   Check, 
   AlertCircle, 
   AlertTriangle,
-  ChevronRight,
   CheckCircle,
   Clock
 } from 'lucide-react';
@@ -29,32 +30,141 @@ const priorityConfig = {
   critical: { 
     icon: AlertCircle, 
     label: 'Kritisch', 
-    bgColor: 'bg-destructive/10',
+    borderColor: 'border-l-destructive',
+    bgColor: 'bg-destructive/5',
     textColor: 'text-destructive',
-    borderColor: 'border-destructive/20'
   },
   high: { 
     icon: AlertTriangle, 
     label: 'Hoch', 
-    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-l-amber-500',
+    bgColor: 'bg-amber-500/5',
     textColor: 'text-amber-600',
-    borderColor: 'border-amber-500/20'
   },
   medium: { 
     icon: Clock, 
     label: 'Mittel', 
-    bgColor: 'bg-blue-500/10',
+    borderColor: 'border-l-blue-500',
+    bgColor: 'bg-blue-500/5',
     textColor: 'text-blue-600',
-    borderColor: 'border-blue-500/20'
   },
   low: { 
     icon: Clock, 
     label: 'Normal', 
-    bgColor: 'bg-muted',
+    borderColor: 'border-l-muted-foreground',
+    bgColor: 'bg-muted/50',
     textColor: 'text-muted-foreground',
-    borderColor: 'border-border'
   },
 };
+
+const getShortAction = (alertType: string): string => {
+  const actionMap: Record<string, string> = {
+    'opt_in_pending': 'Nachfassen',
+    'opt_in_pending_48h': 'Dringend nachfassen',
+    'opt_in_pending_24h': 'Sofort nachfassen',
+    'interview_prep_missing': 'Vorbereitung senden',
+    'interview_reminder': 'Interview bestätigen',
+    'salary_mismatch': 'Gehalt klären',
+    'ghosting_risk': 'Kontaktieren',
+    'engagement_drop': 'Reaktivieren',
+    'high_closing_probability': 'Closing nutzen',
+    'closing_opportunity': 'Closing vorbereiten',
+    'candidate_response': 'Antworten',
+    'no_activity': 'Aktivität prüfen',
+    'sla_warning': 'SLA beachten',
+    'follow_up_needed': 'Follow-up',
+  };
+  return actionMap[alertType] || 'Bearbeiten';
+};
+
+interface TaskCardProps {
+  alert: InfluenceAlert;
+  candidate?: { name: string; email: string; phone?: string; jobTitle?: string; companyName?: string };
+  onMarkDone: (alertId: string) => void;
+  onViewCandidate?: (submissionId: string, alertId?: string) => void;
+}
+
+function TaskCard({ alert, candidate, onMarkDone, onViewCandidate }: TaskCardProps) {
+  const config = priorityConfig[alert.priority];
+  const PriorityIcon = config.icon;
+
+  return (
+    <Card 
+      className={cn(
+        "flex-shrink-0 w-[200px] border-l-4 transition-all hover:shadow-md",
+        config.borderColor,
+        config.bgColor
+      )}
+    >
+      <CardContent className="p-3 space-y-2">
+        {/* Header: Priority Icon + Name */}
+        <div className="flex items-start gap-2">
+          <PriorityIcon className={cn("h-4 w-4 mt-0.5 shrink-0", config.textColor)} />
+          <button
+            onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
+            className="font-medium text-sm leading-tight hover:underline text-left line-clamp-2"
+          >
+            {candidate?.name || 'Kandidat'}
+          </button>
+        </div>
+
+        {/* Job Context */}
+        {(candidate?.jobTitle || candidate?.companyName) && (
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            {candidate?.jobTitle && (
+              <p className="line-clamp-1">{candidate.jobTitle}</p>
+            )}
+            {candidate?.companyName && (
+              <p className="line-clamp-1">@ {candidate.companyName}</p>
+            )}
+          </div>
+        )}
+
+        {/* Action Badge */}
+        <Badge variant="outline" className="text-xs w-full justify-center">
+          {getShortAction(alert.alert_type)}
+        </Badge>
+
+        {/* Quick Actions */}
+        <div className="flex items-center justify-between gap-1 pt-1 border-t">
+          <div className="flex items-center gap-1">
+            {candidate?.phone && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => window.location.href = `tel:${candidate.phone}`}
+                title="Anrufen"
+              >
+                <Phone className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {candidate?.email && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => window.location.href = `mailto:${candidate.email}`}
+                title="Email"
+              >
+                <Mail className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+            onClick={() => onMarkDone(alert.id)}
+            title="Erledigt"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function CompactTaskList({
   alerts,
@@ -62,7 +172,7 @@ export function CompactTaskList({
   onMarkDone,
   onViewCandidate,
   candidateMap = {},
-  maxItems = 5,
+  maxItems = 10,
   showViewAll = true,
   onViewAll,
 }: CompactTaskListProps) {
@@ -75,10 +185,16 @@ export function CompactTaskList({
 
   if (loading) {
     return (
-      <div className="space-y-2">
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-5 w-8" />
+        </div>
+        <div className="flex gap-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-[160px] w-[200px] shrink-0" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -93,105 +209,46 @@ export function CompactTaskList({
     );
   }
 
-  const renderTaskRow = (alert: InfluenceAlert) => {
-    const candidate = candidateMap[alert.submission_id];
-    const config = priorityConfig[alert.priority];
-    const PriorityIcon = config.icon;
-    
-    // Extract action from alert
-    const getShortAction = (alertType: string): string => {
-      const actionMap: Record<string, string> = {
-        'opt_in_pending': 'Nachfassen',
-        'opt_in_pending_48h': 'Dringend nachfassen',
-        'opt_in_pending_24h': 'Sofort nachfassen',
-        'interview_prep_missing': 'Vorbereitung senden',
-        'interview_reminder': 'Interview bestätigen',
-        'salary_mismatch': 'Gehalt klären',
-        'ghosting_risk': 'Kontaktieren',
-        'engagement_drop': 'Reaktivieren',
-        'high_closing_probability': 'Closing nutzen',
-        'closing_opportunity': 'Closing vorbereiten',
-        'candidate_response': 'Antworten',
-        'no_activity': 'Aktivität prüfen',
-        'sla_warning': 'SLA beachten',
-        'follow_up_needed': 'Follow-up',
-      };
-      return actionMap[alertType] || 'Bearbeiten';
-    };
+  const displayedAlerts = [...criticalAlerts, ...highAlerts, ...otherAlerts].slice(0, maxItems);
+  const hasMore = totalPending > maxItems;
 
-    // Build job context string
-    const jobContext = candidate?.jobTitle && candidate?.companyName 
-      ? `${candidate.jobTitle} @ ${candidate.companyName}`
-      : candidate?.jobTitle || candidate?.companyName || null;
+  const renderPrioritySection = (
+    sectionAlerts: InfluenceAlert[],
+    label: string,
+    Icon: typeof AlertCircle,
+    colorClass: string
+  ) => {
+    if (sectionAlerts.length === 0) return null;
+    
+    const displayedInSection = displayedAlerts.filter(a => sectionAlerts.some(sa => sa.id === a.id));
+    if (displayedInSection.length === 0) return null;
 
     return (
-      <div 
-        key={alert.id}
-        className={cn(
-          "flex items-center justify-between gap-2 p-2 rounded-md border transition-colors hover:bg-accent/50",
-          config.borderColor
-        )}
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <PriorityIcon className={cn("h-4 w-4 shrink-0", config.textColor)} />
-          <button
-            onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
-            className="font-medium text-sm truncate hover:underline text-left"
-          >
-            {candidate?.name || 'Kandidat'}
-          </button>
-          {jobContext && (
-            <>
-              <span className="text-muted-foreground text-sm hidden sm:inline">·</span>
-              <span className="text-xs text-muted-foreground truncate hidden sm:inline max-w-[150px]">
-                {jobContext}
-              </span>
-            </>
-          )}
-          <Badge variant="outline" className="text-xs shrink-0 ml-auto sm:ml-0">
-            {getShortAction(alert.alert_type)}
-          </Badge>
+      <div className="space-y-2">
+        <div className={cn("text-xs font-medium uppercase tracking-wide flex items-center gap-1", colorClass)}>
+          <Icon className="h-3 w-3" />
+          {label} ({sectionAlerts.length})
         </div>
-        
-        <div className="flex items-center gap-1 shrink-0">
-          {candidate?.phone && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => window.location.href = `tel:${candidate.phone}`}
-            >
-              <Phone className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {candidate?.email && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => window.location.href = `mailto:${candidate.email}`}
-            >
-              <Mail className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-            onClick={() => onMarkDone(alert.id)}
-          >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        <ScrollArea className="w-full">
+          <div className="flex gap-3 pb-3">
+            {displayedInSection.map(alert => (
+              <TaskCard
+                key={alert.id}
+                alert={alert}
+                candidate={candidateMap[alert.submission_id]}
+                onMarkDone={onMarkDone}
+                onViewCandidate={onViewCandidate}
+              />
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
     );
   };
 
-  const displayedAlerts = [...criticalAlerts, ...highAlerts, ...otherAlerts].slice(0, maxItems);
-  const hasMore = totalPending > maxItems;
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Header with counts */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold flex items-center gap-2">
@@ -214,36 +271,14 @@ export function CompactTaskList({
         </div>
       </div>
 
-      {/* Task list */}
-      <div className="space-y-1.5">
-        {/* Critical section */}
-        {criticalAlerts.length > 0 && displayedAlerts.some(a => a.priority === 'critical') && (
-          <div className="text-xs font-medium text-destructive uppercase tracking-wide pt-1 pb-0.5 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Kritisch
-          </div>
-        )}
-        {displayedAlerts.filter(a => a.priority === 'critical').map(renderTaskRow)}
-        
-        {/* High section */}
-        {highAlerts.length > 0 && displayedAlerts.some(a => a.priority === 'high') && (
-          <div className="text-xs font-medium text-amber-600 uppercase tracking-wide pt-2 pb-0.5 flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            Hoch
-          </div>
-        )}
-        {displayedAlerts.filter(a => a.priority === 'high').map(renderTaskRow)}
-        
-        {/* Other section */}
-        {otherAlerts.length > 0 && displayedAlerts.some(a => a.priority === 'medium' || a.priority === 'low') && (
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2 pb-0.5">
-            Weitere
-          </div>
-        )}
-        {displayedAlerts.filter(a => a.priority === 'medium' || a.priority === 'low').map(renderTaskRow)}
+      {/* Priority sections with horizontal cards */}
+      <div className="space-y-4">
+        {renderPrioritySection(criticalAlerts, 'Kritisch', AlertCircle, 'text-destructive')}
+        {renderPrioritySection(highAlerts, 'Hoch', AlertTriangle, 'text-amber-600')}
+        {renderPrioritySection(otherAlerts, 'Weitere', Clock, 'text-muted-foreground')}
       </div>
 
-      {/* View all */}
+      {/* View all button */}
       {showViewAll && hasMore && onViewAll && (
         <Button
           variant="ghost"
@@ -251,8 +286,7 @@ export function CompactTaskList({
           className="w-full"
           onClick={onViewAll}
         >
-          Alle {totalPending} Aufgaben anzeigen
-          <ChevronRight className="h-4 w-4 ml-1" />
+          Alle {totalPending} Aufgaben anzeigen →
         </Button>
       )}
     </div>
