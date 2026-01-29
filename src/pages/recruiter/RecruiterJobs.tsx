@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import {
   Loader2,
   Filter,
   Lock,
+  CheckCircle,
   Users
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
@@ -48,15 +50,23 @@ interface Job {
 }
 
 export default function RecruiterJobs() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [remoteFilter, setRemoteFilter] = useState<string>('all');
+  const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchRevealedJobs();
+    }
+  }, [user]);
 
   const fetchJobs = async () => {
     try {
@@ -73,6 +83,24 @@ export default function RecruiterJobs() {
       console.error('Error fetching jobs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRevealedJobs = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('job_id')
+        .eq('recruiter_id', user.id)
+        .eq('company_revealed', true);
+
+      if (!error && data) {
+        setRevealedJobIds(new Set(data.map(s => s.job_id)));
+      }
+    } catch (error) {
+      console.error('Error fetching revealed jobs:', error);
     }
   };
 
@@ -210,16 +238,28 @@ export default function RecruiterJobs() {
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                              <Lock className="h-3 w-3" />
-                              {formatAnonymousCompany({
-                                industry: job.industry,
-                                companySize: job.company_size_band,
-                                fundingStage: job.funding_stage,
-                                techStack: job.tech_environment,
-                                location: job.location,
-                                urgency: job.hiring_urgency,
-                                remoteType: job.remote_type,
-                              })}
+                              {revealedJobIds.has(job.id) ? (
+                                <>
+                                  <CheckCircle className="h-3 w-3 text-emerald" />
+                                  <span className="text-foreground font-medium">{job.company_name}</span>
+                                  <Badge variant="outline" className="ml-2 text-xs border-emerald/30 text-emerald">
+                                    Enthüllt
+                                  </Badge>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="h-3 w-3" />
+                                  {formatAnonymousCompany({
+                                    industry: job.industry,
+                                    companySize: job.company_size_band,
+                                    fundingStage: job.funding_stage,
+                                    techStack: job.tech_environment,
+                                    location: job.location,
+                                    urgency: job.hiring_urgency,
+                                    remoteType: job.remote_type,
+                                  })}
+                                </>
+                              )}
                             </p>
                           </div>
                           
