@@ -27,6 +27,9 @@ import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog
 import { Candidate } from '@/components/candidates/CandidateCard';
 import { toast } from 'sonner';
 import { SubmissionsPipeline, PipelineSubmission } from '@/components/recruiter/SubmissionsPipeline';
+import { RecruiterMetricsSection } from '@/components/recruiter/RecruiterMetricsSection';
+import { SubmissionsFunnelGrid } from '@/components/recruiter/SubmissionsFunnelGrid';
+import { useRecruiterStats } from '@/hooks/useRecruiterStats';
 
 interface DashboardStats {
   openJobs: number;
@@ -54,6 +57,7 @@ export default function RecruiterDashboard() {
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
+  const { stats: recruiterStats, loading: statsLoading, platformAverages } = useRecruiterStats();
   
   usePageViewTracking('recruiter_dashboard');
 
@@ -331,27 +335,27 @@ export default function RecruiterDashboard() {
   const statCards = [
     {
       title: 'Open Jobs',
-      value: stats.openJobs,
+      value: recruiterStats.openJobsCount,
       icon: <Briefcase className="h-5 w-5" />,
       color: 'bg-navy/10 text-navy',
     },
     {
       title: 'My Candidates',
-      value: stats.myCandidates,
+      value: recruiterStats.candidatesCount,
       icon: <Users className="h-5 w-5" />,
       color: 'bg-emerald/10 text-emerald',
     },
     {
       title: 'Submissions',
-      value: stats.submissions,
+      value: recruiterStats.submissionsCount,
       icon: <FileText className="h-5 w-5" />,
-      color: 'bg-blue-100 text-blue-600',
+      color: 'bg-primary/10 text-primary',
     },
     {
       title: 'Total Earnings',
-      value: `€${stats.earnings.toLocaleString()}`,
+      value: `€${recruiterStats.totalEarnings.toLocaleString()}`,
       icon: <DollarSign className="h-5 w-5" />,
-      color: 'bg-amber-100 text-amber-600',
+      color: 'bg-amber-500/10 text-amber-600',
     },
   ];
 
@@ -459,7 +463,18 @@ export default function RecruiterDashboard() {
                     <div className={`p-3 rounded-xl ${stat.color}`}>
                       {stat.icon}
                     </div>
-                  </div>
+          </div>
+
+          {/* Performance Metrics */}
+          <RecruiterMetricsSection
+            interviewInviteRate={recruiterStats.interviewInviteRate}
+            hireToInterviewRate={recruiterStats.hireToInterviewRate}
+            qcRejectionRate={recruiterStats.qcRejectionRate}
+            platformAverages={platformAverages}
+          />
+
+          {/* Submissions Funnel Grid */}
+          <SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
                 </CardContent>
               </Card>
             ))}
@@ -563,7 +578,7 @@ export default function RecruiterDashboard() {
 
             <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group" onClick={() => setHubspotDialogOpen(true)}>
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-primary-foreground transition-colors">
+                <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-primary-foreground transition-colors">
                   <Upload className="h-6 w-6" />
                 </div>
                 <div>
@@ -576,7 +591,7 @@ export default function RecruiterDashboard() {
             <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group">
               <Link to="/recruiter/submissions">
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-primary-foreground transition-colors">
+                  <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                     <FileText className="h-6 w-6" />
                   </div>
                   <div>
@@ -590,7 +605,7 @@ export default function RecruiterDashboard() {
             <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group">
               <Link to="/recruiter/earnings">
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-amber-100 text-amber-600 group-hover:bg-amber-600 group-hover:text-primary-foreground transition-colors">
+                  <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-primary-foreground transition-colors">
                     <DollarSign className="h-6 w-6" />
                   </div>
                   <div>
