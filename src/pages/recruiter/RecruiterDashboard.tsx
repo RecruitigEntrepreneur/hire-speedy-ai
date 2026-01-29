@@ -26,7 +26,7 @@ import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { Candidate } from '@/components/candidates/CandidateCard';
 import { toast } from 'sonner';
-import { RecentSubmissionsCard, RecentSubmission } from '@/components/recruiter/RecentSubmissionsCard';
+import { SubmissionsPipeline, PipelineSubmission } from '@/components/recruiter/SubmissionsPipeline';
 
 interface DashboardStats {
   openJobs: number;
@@ -49,7 +49,7 @@ export default function RecruiterDashboard() {
   const [behaviorScore, setBehaviorScore] = useState<any>(null);
   const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
-  const [recentSubmissions, setRecentSubmissions] = useState<RecentSubmission[]>([]);
+  const [recentSubmissions, setRecentSubmissions] = useState<PipelineSubmission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(true);
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
@@ -155,7 +155,7 @@ export default function RecruiterDashboard() {
           
         const jobsRes = await supabase
           .from('jobs')
-          .select('id, title, company_name')
+          .select('id, title, company_name, salary_min, salary_max, recruiter_fee_percentage')
           .in('id', jobIds);
           
         // Fetch alerts for submissions
@@ -197,38 +197,52 @@ export default function RecruiterDashboard() {
           }
         });
 
-        const mappedSubmissions: RecentSubmission[] = submissions.map((s) => ({
-          id: s.id,
-          status: s.status,
-          stage: s.stage,
-          match_score: s.match_score,
-          updated_at: s.updated_at,
-          recruiter_notes: s.recruiter_notes,
-          candidate: candidateMap[s.candidate_id] ? {
-            id: candidateMap[s.candidate_id].id,
-            full_name: candidateMap[s.candidate_id].full_name,
-            email: candidateMap[s.candidate_id].email,
-            phone: candidateMap[s.candidate_id].phone,
-            job_title: candidateMap[s.candidate_id].job_title,
-          } : {
-            id: s.candidate_id,
-            full_name: 'Unknown',
-            email: '',
-            phone: null,
-            job_title: null,
-          },
-          job: jobMap[s.job_id] ? {
-            id: jobMap[s.job_id].id,
-            title: jobMap[s.job_id].title,
-            company_name: jobMap[s.job_id].company_name,
-          } : {
-            id: s.job_id,
-            title: 'Unknown Job',
-            company_name: null,
-          },
-          alert_count: alertCountMap[s.id] || 0,
-          interview_date: interviewMap[s.id] || null,
-        }));
+        const mappedSubmissions: PipelineSubmission[] = submissions.map((s) => {
+          const job = jobMap[s.job_id];
+          const potentialEarning = job 
+            ? calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)
+            : null;
+          
+          return {
+            id: s.id,
+            status: s.status,
+            stage: s.stage,
+            match_score: s.match_score,
+            updated_at: s.updated_at,
+            recruiter_notes: s.recruiter_notes,
+            candidate: candidateMap[s.candidate_id] ? {
+              id: candidateMap[s.candidate_id].id,
+              full_name: candidateMap[s.candidate_id].full_name,
+              email: candidateMap[s.candidate_id].email,
+              phone: candidateMap[s.candidate_id].phone,
+              job_title: candidateMap[s.candidate_id].job_title,
+            } : {
+              id: s.candidate_id,
+              full_name: 'Unknown',
+              email: '',
+              phone: null,
+              job_title: null,
+            },
+            job: job ? {
+              id: job.id,
+              title: job.title,
+              company_name: job.company_name,
+              salary_min: job.salary_min,
+              salary_max: job.salary_max,
+              recruiter_fee_percentage: job.recruiter_fee_percentage,
+            } : {
+              id: s.job_id,
+              title: 'Unknown Job',
+              company_name: null,
+              salary_min: null,
+              salary_max: null,
+              recruiter_fee_percentage: null,
+            },
+            alert_count: alertCountMap[s.id] || 0,
+            interview_date: interviewMap[s.id] || null,
+            potential_earning: potentialEarning,
+          };
+        });
 
         setRecentSubmissions(mappedSubmissions);
       } else {
@@ -525,8 +539,8 @@ export default function RecruiterDashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Submissions */}
-          <RecentSubmissionsCard 
+          {/* Talent Pipeline */}
+          <SubmissionsPipeline 
             submissions={recentSubmissions} 
             loading={submissionsLoading} 
           />
