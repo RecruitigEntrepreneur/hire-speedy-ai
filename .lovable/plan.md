@@ -1,108 +1,94 @@
 
 
-# Plan: Fix Dashboard Layout - Doppelte Komponenten entfernen
+# Plan: Dashboard aufräumen - Detailansichten auf Unterseiten verschieben
 
 ## Problem
 
-Die Komponenten `RecruiterMetricsSection` und `SubmissionsFunnelGrid` werden **4 mal angezeigt** - einmal unter jeder Stats-Karte (Open Jobs, My Candidates, Submissions, Total Earnings).
-
-## Ursache
-
-In `src/pages/recruiter/RecruiterDashboard.tsx` (Zeilen 454-481) sind die schließenden Tags der Stats-Karten-Map-Schleife falsch verschachtelt:
-
-```text
-Zeile 454: <div className="grid">
-Zeile 455:   {statCards.map((stat) => (
-Zeile 456:     <Card>
-Zeile 457:       <CardContent>
-Zeile 458:         <div className="flex">
-Zeile 459-465:       ...content...
-Zeile 466:     </div>  ← PROBLEM: Schließt flex-div, aber...
-                       
-Zeile 468-477:   RecruiterMetricsSection + SubmissionsFunnelGrid
-                 ↑ Diese sind INNERHALB der map() Schleife!
-                       
-Zeile 478:       </CardContent>
-Zeile 479:     </Card>
-Zeile 480:   ))}  ← Map endet erst hier
-Zeile 481: </div>
-```
+Die **"Deine Performance"** und **"Submissions Übersicht"** Sektionen nehmen zu viel Platz auf der Dashboard-Übersicht ein. Diese detaillierten Daten sind besser auf den spezialisierten Unterseiten aufgehoben.
 
 ## Lösung
 
-Die schließenden Tags korrekt platzieren:
+Die detaillierten Komponenten auf die passenden Unterseiten verschieben und auf dem Dashboard nur kompakte Zusammenfassungen zeigen.
 
-| Zeile | Aktuell | Korrektur |
-|-------|---------|-----------|
-| 466 | `</div>` | Bleibt (schließt flex-div) |
-| 467-477 | RecruiterMetricsSection + SubmissionsFunnelGrid | **ENTFERNEN** (werden nach der Map eingefügt) |
-| 478 | `</CardContent>` | Bleibt |
-| 479 | `</Card>` | Bleibt |
-| 480 | `))}` | Bleibt |
-| 481 | `</div>` | Bleibt (schließt grid-div) |
-| NEU 482+ | - | `<RecruiterMetricsSection ... />` + `<SubmissionsFunnelGrid ... />` |
+### Verschiebungsplan
 
-## Technische Änderung
+| Komponente | Von | Nach | Begründung |
+|------------|-----|------|------------|
+| `RecruiterMetricsSection` | Dashboard | **Verdienste** (`/recruiter/earnings`) | Performance-KPIs passen thematisch zu Earnings |
+| `SubmissionsFunnelGrid` | Dashboard | **Pipeline** (`/recruiter/submissions`) | Detaillierte Status-Übersicht gehört zur Pipeline |
 
-### Datei: `src/pages/recruiter/RecruiterDashboard.tsx`
+### Neues Dashboard-Layout (kompakter)
 
-**Korrigierte Struktur:**
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Stats Grid (bleibt - 4 Karten)                                 │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │Open Jobs │ │Candidates│ │Submissions│ │Earnings  │          │
+│  │    15    │ │    27    │ │    21     │ │   €0     │          │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
+├─────────────────────────────────────────────────────────────────┤
+│  ❌ Deine Performance → verschoben nach /recruiter/earnings    │
+├─────────────────────────────────────────────────────────────────┤
+│  ❌ Submissions Übersicht → verschoben nach /recruiter/submissions │
+├─────────────────────────────────────────────────────────────────┤
+│  Available Jobs (bleibt)                                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Your Talent Pipeline (bleibt)                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Quick Actions (bleibt)                                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Technische Änderungen
+
+### 1. `src/pages/recruiter/RecruiterDashboard.tsx`
+
+**Entfernen:**
+- Import von `RecruiterMetricsSection` und `SubmissionsFunnelGrid`
+- Import von `useRecruiterStats` (wird nicht mehr benötigt)
+- Die beiden Komponenten-Aufrufe in der JSX (Zeilen 472-481)
+
+**Ergebnis:** Dashboard wird deutlich kompakter
+
+### 2. `src/pages/recruiter/RecruiterSubmissions.tsx`
+
+**Hinzufügen:**
+- Import von `SubmissionsFunnelGrid` und `useRecruiterStats`
+- Die `SubmissionsFunnelGrid`-Komponente am Anfang der Seite
 
 ```jsx
-{/* Stats Grid */}
-<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-  {statCards.map((stat) => (
-    <Card key={stat.title} className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{stat.title}</p>
-            <p className="text-3xl font-bold mt-1">{stat.value}</p>
-          </div>
-          <div className={`p-3 rounded-xl ${stat.color}`}>
-            {stat.icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  ))}
-</div>
+// Am Anfang der Submissions-Seite
+<SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
+```
 
-{/* Performance Metrics - JETZT AUSSERHALB DER MAP-SCHLEIFE */}
+### 3. `src/pages/recruiter/RecruiterEarnings.tsx`
+
+**Hinzufügen:**
+- Import von `RecruiterMetricsSection` und `useRecruiterStats`
+- Die `RecruiterMetricsSection`-Komponente oben auf der Seite
+
+```jsx
+// Nach den Earnings-Stats
 <RecruiterMetricsSection
   interviewInviteRate={recruiterStats.interviewInviteRate}
   hireToInterviewRate={recruiterStats.hireToInterviewRate}
   qcRejectionRate={recruiterStats.qcRejectionRate}
   platformAverages={platformAverages}
 />
-
-{/* Submissions Funnel Grid - JETZT AUSSERHALB DER MAP-SCHLEIFE */}
-<SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
 ```
 
-## Erwartetes Ergebnis
+## Vorteile
 
-Nach dem Fix wird das Dashboard wie folgt strukturiert sein:
+1. **Sauberere Übersicht** - Dashboard zeigt nur die wichtigsten Zahlen auf einen Blick
+2. **Kontext-passend** - Detaillierte Daten erscheinen dort, wo sie gebraucht werden
+3. **Schnellere Navigation** - User findet Submissions-Details unter "Pipeline", Performance unter "Verdienste"
+4. **Weniger Scrolling** - Dashboard passt besser auf einen Bildschirm
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Stats Grid (4 Karten nebeneinander)                           │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
-│  │Open Jobs │ │Candidates│ │Submissions│ │Earnings  │          │
-│  │    15    │ │    27    │ │    21     │ │   €0     │          │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
-├─────────────────────────────────────────────────────────────────┤
-│  Deine Performance (EINMAL)                                    │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐              │
-│  │ Interview   │ │ Hire-to-IV  │ │ QC Rejection│              │
-│  │ Invite Rate │ │ Rate        │ │ Rate        │              │
-│  │   38.1%     │ │    0.0%     │ │   28.6%     │              │
-│  └─────────────┘ └─────────────┘ └─────────────┘              │
-├─────────────────────────────────────────────────────────────────┤
-│  Submissions Übersicht (EINMAL)                                │
-│  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐     │
-│  │ 10 │ │ 0  │ │ 0  │ │ 0  │ │ 2  │ │ 4  │ │ 2  │ │ 2  │     │
-│  └────┘ └────┘ └────┘ └────┘ └────┘ └────┘ └────┘ └────┘     │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Dateien die geändert werden
+
+| Datei | Änderung |
+|-------|----------|
+| `src/pages/recruiter/RecruiterDashboard.tsx` | Entfernt: Metrics + Funnel Grid |
+| `src/pages/recruiter/RecruiterSubmissions.tsx` | Hinzufügt: Submissions Funnel Grid |
+| `src/pages/recruiter/RecruiterEarnings.tsx` | Hinzufügt: Performance Metrics |
 
