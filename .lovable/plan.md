@@ -1,51 +1,128 @@
 
-# Plan: check-config Action in Google Auth hinzufügen
+# Plan: OAuth Redirect URI auf FRONTEND_URL umstellen
 
-## Analyse
+## Problem
+Die Edge Functions bauen die Redirect URI aktuell auf Backend-Pfade (`/functions/v1/.../callback`), die keine GET-Requests mit Query Params verarbeiten können. Die Verwendung von `origin` aus Request-Headers ist unzuverlässig, da Preview- und Production-URLs unterschiedlich sind.
 
-### Microsoft Auth (microsoft-auth/index.ts)
-**Status: Bereits korrekt!**
-Der Code in Zeile 104 enthält bereits die richtige Logik:
+## Lösung: FRONTEND_URL als Environment Variable
+
+### Schritt 1: FRONTEND_URL als Secret hinzufügen
+
+**Wert:** `https://hire-speedy-ai.lovable.app`
+
+Dieses Secret wird in beiden Edge Functions verwendet, um eine konsistente Redirect URI zu generieren.
+
+---
+
+### Schritt 2: Edge Functions anpassen
+
+**Datei: `supabase/functions/microsoft-auth/index.ts`**
+
+Änderungen:
+- Zeile 13: `FRONTEND_URL` Environment Variable lesen
+- Zeile 15-18: `getRedirectUri()` ändern zu `${FRONTEND_URL}/oauth/callback`
+- Zeile 130: `offline_access` Scope hinzufügen für Refresh Token Support
+
 ```typescript
-const configured = !!MICROSOFT_CLIENT_ID && !!MICROSOFT_CLIENT_SECRET;
+// Zeile 13 - neue Variable
+const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://hire-speedy-ai.lovable.app';
+
+// Zeile 15-17 - neue Funktion
+const getRedirectUri = () => {
+  return `${FRONTEND_URL}/oauth/callback`;
+};
+
+// Zeile 130 - Scope erweitern
+scope: 'openid profile email offline_access User.Read OnlineMeetings.ReadWrite Calendars.ReadWrite',
 ```
-Keine Änderung erforderlich.
 
-### Google Auth (google-auth/index.ts)
-**Status: Fehlende Action**
-Die `check-config` Action fehlt komplett. Der Switch beginnt direkt mit `get-auth-url` (Zeile 45).
+**Datei: `supabase/functions/google-auth/index.ts`**
 
-## Geplante Änderung
-
-**Datei:** `supabase/functions/google-auth/index.ts`
-
-Die `check-config` Action als ersten Case im Switch-Statement hinzufügen (vor `get-auth-url`):
+Änderungen:
+- Zeile 13: `FRONTEND_URL` Environment Variable lesen
+- Zeile 14-17: `getRedirectUri()` ändern zu `${FRONTEND_URL}/oauth/callback`
 
 ```typescript
-switch (action) {
-  case 'check-config': {
-    const configured = !!GOOGLE_CLIENT_ID && !!GOOGLE_CLIENT_SECRET;
-    return new Response(
-      JSON.stringify({ configured, provider: 'google' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+// Zeile 13 - neue Variable
+const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://hire-speedy-ai.lovable.app';
 
-  case 'get-auth-url': {
-    // ... existing code
+// Zeile 14-17 - neue Funktion
+const getRedirectUri = () => {
+  return `${FRONTEND_URL}/oauth/callback`;
+};
 ```
 
-## Technische Details
+---
 
-| Aspekt | Details |
-|--------|---------|
-| Datei | `supabase/functions/google-auth/index.ts` |
-| Position | Nach Zeile 43 (`switch (action) {`), vor `case 'get-auth-url'` |
-| Änderungsumfang | 8 neue Zeilen hinzufügen |
+### Schritt 3: Route in App.tsx hinzufügen
+
+**Datei: `src/App.tsx`**
+
+Nach Zeile 440 (vor `{/* Settings */}`):
+
+```typescript
+{/* OAuth Callback */}
+<Route path="/oauth/callback" element={
+  <ProtectedRoute>
+    <OAuthCallback />
+  </ProtectedRoute>
+} />
+```
+
+Die Route muss mit `ProtectedRoute` geschützt sein, weil `exchange-code` den eingeloggten User benötigt.
+
+---
+
+### Schritt 4: useGoogleAuth oauth_return_path Support hinzufügen
+
+**Datei: `src/hooks/useGoogleAuth.ts`**
+
+In der `connectGoogle` Funktion (Zeile 58-72), vor `window.location.href`:
+
+```typescript
+sessionStorage.setItem('oauth_return_path', window.location.pathname);
+```
+
+Dies stellt sicher, dass nach dem Google OAuth der User zur ursprünglichen Seite zurückgeleitet wird (wie bei Microsoft bereits implementiert).
+
+---
+
+## Erforderliche Provider-Konfiguration
+
+### Microsoft Azure Portal
+
+1. Gehen Sie zu **Azure Portal → Microsoft Entra ID → App-Registrierungen**
+2. Öffnen Sie die App mit Client ID `175edabd-8e2b-4f0f-94d4-5bf5a05f16a6`
+3. **Authentifizierung → Redirect URIs**:
+   - **Hinzufügen:** `https://hire-speedy-ai.lovable.app/oauth/callback`
+   - **Entfernen:** `https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1/microsoft-auth/callback` (alte URI)
+4. Speichern
+
+### Google Cloud Console
+
+1. Gehen Sie zu **Google Cloud Console → APIs & Services → Credentials**
+2. Öffnen Sie den OAuth 2.0 Client
+3. **Authorized redirect URIs**:
+   - **Hinzufügen:** `https://hire-speedy-ai.lovable.app/oauth/callback`
+   - **Entfernen:** `https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1/google-auth/callback` (alte URI)
+4. Speichern
+
+---
+
+## Zusammenfassung der Änderungen
+
+| Datei | Änderung |
+|-------|----------|
+| Secret: `FRONTEND_URL` | Neu hinzufügen: `https://hire-speedy-ai.lovable.app` |
+| `supabase/functions/microsoft-auth/index.ts` | `getRedirectUri()` auf FRONTEND_URL umstellen, `offline_access` Scope |
+| `supabase/functions/google-auth/index.ts` | `getRedirectUri()` auf FRONTEND_URL umstellen |
+| `src/App.tsx` | Route `/oauth/callback` hinzufügen |
+| `src/hooks/useGoogleAuth.ts` | `oauth_return_path` Support hinzufügen |
 
 ## Erwartetes Ergebnis
 
-Nach der Änderung:
-- `CalendarConnectionCard.tsx` kann beide Provider-Konfigurationen abfragen
-- Google Calendar zeigt "Verbinden" statt "Nicht konfiguriert"
-- Microsoft 365 zeigt "Verbinden" (bereits funktionsfähig)
+Nach den Änderungen:
+- OAuth-Flow läuft über Frontend-URL (`/oauth/callback`)
+- Nur eine Redirect URI pro Provider nötig
+- Konsistente Rückleitung zur ursprünglichen Seite
+- Kein 403-Fehler mehr von Microsoft/Google
