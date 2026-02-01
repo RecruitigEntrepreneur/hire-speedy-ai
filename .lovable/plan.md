@@ -1,62 +1,89 @@
 
 
-# Plan: Google Calendar Secrets hinzufügen und aktivieren
+# Plan: Dashboard-Ladeprobleme beheben
 
-## Was wir haben
+## Problem-Analyse
 
-Sie haben die Google OAuth-Zugangsdaten hochgeladen:
-- **Client ID**: `620094094966-4u2b5vl3fue0bjp4qo205426ajmqq5h7.apps.googleusercontent.com`
-- **Client Secret**: `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`
-- **Redirect URI**: Bereits korrekt auf Ihr Projekt konfiguriert
+Nach eingehender Untersuchung habe ich folgende Probleme identifiziert:
 
-## Was ich mache
+### 1. React forwardRef Warnung (JobHealthIndicator)
+Die `Badge`-Komponente wird als `TooltipTrigger` mit `asChild` verwendet, aber `Badge` unterstützt keine Refs. Dies verursacht eine React-Warnung, blockiert aber nicht das Dashboard.
 
-### Schritt 1: Secrets hinzufügen
+**Betroffene Datei**: `src/components/jobs/JobHealthIndicator.tsx`
 
-Ich werde die zwei fehlenden Secrets zu Ihrem Projekt hinzufügen:
+### 2. useFunnelMetrics Query Problem  
+Die Query gibt `undefined` zurück wenn keine Daten gefunden werden, was React Query als Fehler behandelt.
 
-| Secret Name | Wert |
-|-------------|------|
-| `GOOGLE_CLIENT_ID` | `620094094966-4u2b5vl3fue0bjp4qo205426ajmqq5h7.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | `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` |
+**Betroffene Datei**: `src/hooks/useFunnelAnalytics.ts`
 
-### Schritt 2: Edge Function deployen
+### 3. Potentielles Auth-State Timing Problem
+Die `role` wird asynchron nach dem User geladen, was zu Rendering-Problemen führen kann.
 
-Nach dem Hinzufügen der Secrets wird die `google-auth` Edge Function neu deployed, damit sie die neuen Secrets erkennt.
+## Geplante Änderungen
 
-### Schritt 3: Testen
+### Schritt 1: Badge-Komponente mit forwardRef erweitern
 
-Danach können Sie:
-1. Im Interview-Wizard auf "Google verbinden" klicken
-2. Google OAuth-Consent-Screen erscheint
-3. Nach Zustimmung werden Sie zurückgeleitet
-4. Kalender ist verbunden!
+```text
+Datei: src/components/ui/badge.tsx
 
-## Erwartetes Ergebnis
+Änderung:
+- Umwandlung von function Badge zu React.forwardRef
+- Ermöglicht dass Radix UI Refs korrekt weiterleiten kann
+```
 
-Nach der Änderung:
-- Der "Google verbinden" Button im Interview-Wizard funktioniert
-- Sie werden zum Google Login weitergeleitet
-- Nach Zustimmung wird Ihr Kalender verknüpft
-- Termine können automatisch in Google Calendar eingetragen werden
+### Schritt 2: useFunnelMetrics Query-Fix
+
+```text
+Datei: src/hooks/useFunnelAnalytics.ts
+
+Änderung:
+- Rückgabewert von undefined zu null ändern
+- null ist ein erlaubter Wert in React Query, undefined nicht
+```
+
+### Schritt 3: Auth-State Absicherung (optional)
+
+Falls das Problem weiterhin besteht, können wir:
+- Loading-State in ProtectedRoute verbessern
+- Sicherstellen dass role geladen wird bevor Dashboard rendert
 
 ---
 
 ## Technische Details
 
-Der bestehende Code ist bereits vollständig implementiert:
+### Badge.tsx - Vorher:
+```typescript
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+}
+```
 
-**google-auth Edge Function** (bereits vorhanden):
-- `get-auth-url`: Generiert OAuth-URL für Google Login
-- `exchange-code`: Tauscht Authorization Code gegen Tokens
-- `refresh-token`: Erneuert abgelaufene Tokens
-- `get-free-busy`: Holt Kalender-Verfügbarkeit
-- `disconnect`: Trennt die Verbindung
+### Badge.tsx - Nachher:
+```typescript
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, ...props }, ref) => {
+    return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
+  }
+);
+Badge.displayName = "Badge";
+```
 
-**useGoogleAuth Hook** (bereits vorhanden):
-- Prüft Verbindungsstatus
-- Startet OAuth-Flow
-- Speichert Tokens in `user_integrations` Tabelle
+### useFunnelAnalytics.ts - Vorher:
+```typescript
+return data?.[0] as FunnelMetrics | null;
+```
 
-Einzige Änderung: Die zwei Secrets müssen hinzugefügt werden.
+### useFunnelAnalytics.ts - Nachher:
+```typescript
+return (data?.[0] ?? null) as FunnelMetrics | null;
+```
+
+---
+
+## Erwartetes Ergebnis
+
+Nach den Änderungen:
+- Keine React-Warnungen mehr in der Konsole
+- Dashboard lädt ohne Probleme
+- Query-Fehler werden vermieden
 
