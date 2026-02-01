@@ -44,15 +44,15 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<PlatformSettings>({
-    platform_name: 'TalentBridge',
+    platform_name: 'Matchunt',
     platform_logo_url: '',
     default_recruiter_fee: 20,
     platform_fee_percentage: 5,
     auto_approve_recruiters: false,
     require_opt_in: true,
     email_notifications_enabled: true,
-    sender_email: 'noreply@talentbridge.de',
-    sender_name: 'TalentBridge Team',
+    sender_email: 'noreply@matchunt.ai',
+    sender_name: 'Matchunt Team',
   });
   const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
 

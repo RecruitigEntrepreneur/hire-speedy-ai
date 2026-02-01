@@ -22,7 +22,7 @@ const Impressum = () => {
         <div className="prose prose-slate dark:prose-invert max-w-none space-y-8">
           <section>
             <p className="text-xl text-muted-foreground mb-8">
-              TalentBridge - eine Marke der bluewater & Bridge GmbH
+              Matchunt - eine Marke der bluewater & Bridge GmbH
             </p>
           </section>
 
