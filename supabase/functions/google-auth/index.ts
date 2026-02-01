@@ -34,6 +34,14 @@ serve(async (req) => {
     }
 
     switch (action) {
+      case 'check-config': {
+        const configured = !!GOOGLE_CLIENT_ID && !!GOOGLE_CLIENT_SECRET;
+        return new Response(
+          JSON.stringify({ configured, provider: 'google' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       case 'get-auth-url': {
         if (!GOOGLE_CLIENT_ID) {
           return new Response(
