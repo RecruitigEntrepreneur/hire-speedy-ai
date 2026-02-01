@@ -22,7 +22,7 @@ import { formatDistanceToNow, format, isToday, isPast } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
-import { InterviewSchedulingDialog } from './InterviewSchedulingDialog';
+import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
 import { QuickFeedbackInline } from './QuickFeedbackInline';
 
 interface InterviewDetails {
@@ -329,15 +329,16 @@ export function CandidateActionCard({
                     <Calendar className="h-3.5 w-3.5 mr-1" />
                     {candidate.stage === 'submitted' ? 'Interview 1' : 'Interview 2'}
                   </Button>
-                  <InterviewSchedulingDialog
+                  <ProfessionalInterviewWizard
                     open={showInterviewDialog}
                     onOpenChange={setShowInterviewDialog}
-                    candidate={{
-                      id: candidate.id,
-                      name: candidate.name,
-                      jobTitle: candidate.jobTitle
+                    submissionId={candidate.submissionId}
+                    candidateAnonymousId={candidate.name}
+                    jobTitle={candidate.jobTitle}
+                    onSuccess={() => {
+                      setShowInterviewDialog(false);
+                      // Trigger refresh via parent if needed
                     }}
-                    onSubmit={handleInterviewRequest}
                   />
                 </>
               ) : (
