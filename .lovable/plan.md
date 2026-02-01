@@ -1,89 +1,51 @@
 
+# Plan: check-config Action in Google Auth hinzufügen
 
-# Plan: Dashboard-Ladeprobleme beheben
+## Analyse
 
-## Problem-Analyse
-
-Nach eingehender Untersuchung habe ich folgende Probleme identifiziert:
-
-### 1. React forwardRef Warnung (JobHealthIndicator)
-Die `Badge`-Komponente wird als `TooltipTrigger` mit `asChild` verwendet, aber `Badge` unterstützt keine Refs. Dies verursacht eine React-Warnung, blockiert aber nicht das Dashboard.
-
-**Betroffene Datei**: `src/components/jobs/JobHealthIndicator.tsx`
-
-### 2. useFunnelMetrics Query Problem  
-Die Query gibt `undefined` zurück wenn keine Daten gefunden werden, was React Query als Fehler behandelt.
-
-**Betroffene Datei**: `src/hooks/useFunnelAnalytics.ts`
-
-### 3. Potentielles Auth-State Timing Problem
-Die `role` wird asynchron nach dem User geladen, was zu Rendering-Problemen führen kann.
-
-## Geplante Änderungen
-
-### Schritt 1: Badge-Komponente mit forwardRef erweitern
-
-```text
-Datei: src/components/ui/badge.tsx
-
-Änderung:
-- Umwandlung von function Badge zu React.forwardRef
-- Ermöglicht dass Radix UI Refs korrekt weiterleiten kann
+### Microsoft Auth (microsoft-auth/index.ts)
+**Status: Bereits korrekt!**
+Der Code in Zeile 104 enthält bereits die richtige Logik:
+```typescript
+const configured = !!MICROSOFT_CLIENT_ID && !!MICROSOFT_CLIENT_SECRET;
 ```
+Keine Änderung erforderlich.
 
-### Schritt 2: useFunnelMetrics Query-Fix
+### Google Auth (google-auth/index.ts)
+**Status: Fehlende Action**
+Die `check-config` Action fehlt komplett. Der Switch beginnt direkt mit `get-auth-url` (Zeile 45).
 
-```text
-Datei: src/hooks/useFunnelAnalytics.ts
+## Geplante Änderung
 
-Änderung:
-- Rückgabewert von undefined zu null ändern
-- null ist ein erlaubter Wert in React Query, undefined nicht
+**Datei:** `supabase/functions/google-auth/index.ts`
+
+Die `check-config` Action als ersten Case im Switch-Statement hinzufügen (vor `get-auth-url`):
+
+```typescript
+switch (action) {
+  case 'check-config': {
+    const configured = !!GOOGLE_CLIENT_ID && !!GOOGLE_CLIENT_SECRET;
+    return new Response(
+      JSON.stringify({ configured, provider: 'google' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  case 'get-auth-url': {
+    // ... existing code
 ```
-
-### Schritt 3: Auth-State Absicherung (optional)
-
-Falls das Problem weiterhin besteht, können wir:
-- Loading-State in ProtectedRoute verbessern
-- Sicherstellen dass role geladen wird bevor Dashboard rendert
-
----
 
 ## Technische Details
 
-### Badge.tsx - Vorher:
-```typescript
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
-}
-```
-
-### Badge.tsx - Nachher:
-```typescript
-const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant, ...props }, ref) => {
-    return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
-  }
-);
-Badge.displayName = "Badge";
-```
-
-### useFunnelAnalytics.ts - Vorher:
-```typescript
-return data?.[0] as FunnelMetrics | null;
-```
-
-### useFunnelAnalytics.ts - Nachher:
-```typescript
-return (data?.[0] ?? null) as FunnelMetrics | null;
-```
-
----
+| Aspekt | Details |
+|--------|---------|
+| Datei | `supabase/functions/google-auth/index.ts` |
+| Position | Nach Zeile 43 (`switch (action) {`), vor `case 'get-auth-url'` |
+| Änderungsumfang | 8 neue Zeilen hinzufügen |
 
 ## Erwartetes Ergebnis
 
-Nach den Änderungen:
-- Keine React-Warnungen mehr in der Konsole
-- Dashboard lädt ohne Probleme
-- Query-Fehler werden vermieden
-
+Nach der Änderung:
+- `CalendarConnectionCard.tsx` kann beide Provider-Konfigurationen abfragen
+- Google Calendar zeigt "Verbinden" statt "Nicht konfiguriert"
+- Microsoft 365 zeigt "Verbinden" (bereits funktionsfähig)
