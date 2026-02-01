@@ -50,7 +50,7 @@ import { ClientCandidateSummaryCard } from '@/components/candidates/ClientCandid
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { MatchScoreBreakdown } from '@/components/matching/MatchScoreBreakdown';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
-import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
+import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
 import { useClientCandidateView } from '@/hooks/useClientCandidateView';
 import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { cn } from '@/lib/utils';
@@ -1037,14 +1037,13 @@ export default function CandidateDetail() {
         }}
       />
 
-      {/* Professional Interview Dialog with Triple-Blind */}
-      <InterviewRequestWithOptInDialog
+      {/* Professional Interview Wizard */}
+      <ProfessionalInterviewWizard
         open={showInterviewDialog}
         onOpenChange={setShowInterviewDialog}
         submissionId={submissionId}
         candidateAnonymousId={displayName}
         jobTitle={jobTitle}
-        jobIndustry={jobIndustry}
         onSuccess={() => {
           setShowInterviewDialog(false);
           refetch();

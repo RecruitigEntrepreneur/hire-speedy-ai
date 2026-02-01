@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
-import { InterviewSchedulingDialog } from '@/components/talent/InterviewSchedulingDialog';
+// Interview dialog is handled by CandidateActionCard which uses ProfessionalInterviewWizard
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
