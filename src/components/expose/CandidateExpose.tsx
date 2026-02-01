@@ -123,12 +123,12 @@ export function CandidateExpose({
 
   return (
     <Card className={`overflow-hidden ${className}`}>
-      {/* Triple-Blind Badge */}
+      {/* Anonymization Badge */}
       {!showIdentity && (
         <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
           <span className="text-xs font-medium text-primary">
-            Triple-Blind Mode – Identität geschützt bis Opt-In
+            Anonymisiertes Profil – Identität wird bei Interview-Annahme freigegeben
           </span>
         </div>
       )}

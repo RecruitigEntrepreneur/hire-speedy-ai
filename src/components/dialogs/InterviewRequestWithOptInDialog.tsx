@@ -286,28 +286,28 @@ export function InterviewRequestWithOptInDialog({
 
   const renderStep2 = () => (
     <div className="space-y-4">
-      <Alert className="border-primary/20 bg-primary/5">
-        <Shield className="h-4 w-4 text-primary" />
-        <AlertDescription>
-          <strong className="text-primary">Triple-Blind Prozess (DSGVO-konform)</strong>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-              <span>Der Kandidat erhält eine <strong>anonyme Anfrage</strong> mit Ihren Terminvorschlägen</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-              <span>Er sieht nur: "Ein Unternehmen in <strong>[{jobIndustry}]</strong> sucht [{jobTitle}]"</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-              <span>Bei <strong>Zustimmung + Terminwahl</strong> werden alle Daten freigegeben</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-              <span>Termin wird <strong>automatisch</strong> für alle Parteien gebucht</span>
-            </li>
-          </ul>
+        <Alert className="border-primary/20 bg-primary/5">
+          <Shield className="h-4 w-4 text-primary" />
+          <AlertDescription>
+            <strong className="text-primary">Datenschutz-Hinweis (DSGVO-konform)</strong>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <span>Der Kandidat erhält Ihre <strong>Interview-Einladung</strong> mit Firmenname und Stelleninfos</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <span>Er kann entscheiden, ob er <strong>Ihr Unternehmen</strong> kennenlernen möchte</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <span>Erst bei <strong>Annahme</strong> werden die persönlichen Daten des Kandidaten für Sie sichtbar</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <span>Termin wird <strong>automatisch</strong> für alle Parteien gebucht</span>
+              </li>
+            </ul>
         </AlertDescription>
       </Alert>
 

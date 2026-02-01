@@ -66,6 +66,8 @@ export function useMicrosoftAuth() {
         // Store state in sessionStorage for callback verification
         sessionStorage.setItem('oauth_state', data.state);
         sessionStorage.setItem('oauth_provider', 'microsoft');
+        // Store return path for role-based redirect after OAuth
+        sessionStorage.setItem('oauth_return_path', window.location.pathname);
         window.location.href = data.url;
       }
     } catch (error) {
