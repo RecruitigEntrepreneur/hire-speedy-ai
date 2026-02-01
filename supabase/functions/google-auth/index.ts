@@ -10,10 +10,11 @@ const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID');
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://hire-speedy-ai.lovable.app';
 
+// Redirect URI points to frontend OAuth callback
 const getRedirectUri = () => {
-  const projectRef = SUPABASE_URL.match(/https:\/\/([^.]+)/)?.[1];
-  return `https://${projectRef}.supabase.co/functions/v1/google-auth/callback`;
+  return `${FRONTEND_URL}/oauth/callback`;
 };
 
 serve(async (req) => {

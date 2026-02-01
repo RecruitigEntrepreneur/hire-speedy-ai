@@ -439,6 +439,13 @@ function AppRoutes() {
       <Route path="/reference/:token" element={<ProvideReference />} />
       <Route path="/offer/accepted" element={<OfferAccepted />} />
       
+      {/* OAuth Callback */}
+      <Route path="/oauth/callback" element={
+        <ProtectedRoute>
+          <OAuthCallback />
+        </ProtectedRoute>
+      } />
+      
       {/* Settings */}
       <Route path="/settings" element={
         <ProtectedRoute>
