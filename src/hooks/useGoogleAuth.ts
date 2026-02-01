@@ -65,6 +65,7 @@ export function useGoogleAuth() {
       if (data?.url) {
         sessionStorage.setItem('oauth_state', data.state);
         sessionStorage.setItem('oauth_provider', 'google');
+        sessionStorage.setItem('oauth_return_path', window.location.pathname);
         window.location.href = data.url;
       }
     } catch (error) {

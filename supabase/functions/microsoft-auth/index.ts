@@ -10,11 +10,11 @@ const MICROSOFT_CLIENT_ID = Deno.env.get('MICROSOFT_CLIENT_ID');
 const MICROSOFT_CLIENT_SECRET = Deno.env.get('MICROSOFT_CLIENT_SECRET');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://hire-speedy-ai.lovable.app';
 
-// Determine redirect URI based on environment
+// Redirect URI points to frontend OAuth callback
 const getRedirectUri = () => {
-  const projectRef = SUPABASE_URL.match(/https:\/\/([^.]+)/)?.[1];
-  return `https://${projectRef}.supabase.co/functions/v1/microsoft-auth/callback`;
+  return `${FRONTEND_URL}/oauth/callback`;
 };
 
 // Helper to refresh token inline
@@ -127,7 +127,7 @@ serve(async (req) => {
           client_id: MICROSOFT_CLIENT_ID,
           response_type: 'code',
           redirect_uri: redirectUri,
-          scope: 'openid profile email User.Read OnlineMeetings.ReadWrite Calendars.ReadWrite',
+          scope: 'openid profile email offline_access User.Read OnlineMeetings.ReadWrite Calendars.ReadWrite',
           state,
           response_mode: 'query'
         });
