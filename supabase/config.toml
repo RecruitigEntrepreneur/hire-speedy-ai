@@ -200,5 +200,11 @@ verify_jwt = true
 [functions.generate-job-summary]
 verify_jwt = true
 
+[functions.send-interview-invitation]
+verify_jwt = true
+
+[functions.process-interview-response]
+verify_jwt = false
+
 [functions.client-dashboard-data]
 verify_jwt = true

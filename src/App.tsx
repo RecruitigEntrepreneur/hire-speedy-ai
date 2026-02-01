@@ -83,6 +83,7 @@ import RecruiterOnboarding from "./pages/onboarding/RecruiterOnboarding";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
+import InterviewResponsePage from "./pages/interview/InterviewResponsePage";
 import ClientOffers from "./pages/dashboard/ClientOffers";
 import ViewOffer from "./pages/offer/ViewOffer";
 import OfferAccepted from "./pages/offer/OfferAccepted";
@@ -432,6 +433,7 @@ function AppRoutes() {
       <Route path="/press" element={<Press />} />
       <Route path="/impressum" element={<Impressum />} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />
+      <Route path="/interview/respond/:token" element={<InterviewResponsePage />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
       <Route path="/reference/:token" element={<ProvideReference />} />

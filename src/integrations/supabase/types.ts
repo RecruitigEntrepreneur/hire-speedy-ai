@@ -3594,9 +3594,13 @@ export type Database = {
           cancelled_by: string | null
           candidate_confirmed: boolean | null
           candidate_confirmed_at: string | null
+          candidate_message: string | null
           client_confirmed: boolean | null
           client_confirmed_at: string | null
+          client_message: string | null
+          counter_slots: Json | null
           created_at: string
+          decline_reason: string | null
           duration_minutes: number | null
           feedback: string | null
           google_event_id: string | null
@@ -3605,18 +3609,21 @@ export type Database = {
           interview_type_id: string | null
           live_session_ended_at: string | null
           live_session_started_at: string | null
+          meeting_format: string | null
           meeting_link: string | null
           meeting_type: string | null
           no_show_by: string | null
           no_show_reported: boolean | null
           no_show_reported_at: string | null
           notes: string | null
+          onsite_address: string | null
           pending_opt_in: boolean | null
           proposed_slots: Json | null
           quick_scores: Json | null
           reminder_1h_sent: boolean | null
           reminder_24h_sent: boolean | null
           rescheduled_from: string | null
+          response_token: string | null
           scheduled_at: string | null
           selected_slot_index: number | null
           selection_token: string | null
@@ -3633,9 +3640,13 @@ export type Database = {
           cancelled_by?: string | null
           candidate_confirmed?: boolean | null
           candidate_confirmed_at?: string | null
+          candidate_message?: string | null
           client_confirmed?: boolean | null
           client_confirmed_at?: string | null
+          client_message?: string | null
+          counter_slots?: Json | null
           created_at?: string
+          decline_reason?: string | null
           duration_minutes?: number | null
           feedback?: string | null
           google_event_id?: string | null
@@ -3644,18 +3655,21 @@ export type Database = {
           interview_type_id?: string | null
           live_session_ended_at?: string | null
           live_session_started_at?: string | null
+          meeting_format?: string | null
           meeting_link?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
           no_show_reported?: boolean | null
           no_show_reported_at?: string | null
           notes?: string | null
+          onsite_address?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           quick_scores?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
           rescheduled_from?: string | null
+          response_token?: string | null
           scheduled_at?: string | null
           selected_slot_index?: number | null
           selection_token?: string | null
@@ -3672,9 +3686,13 @@ export type Database = {
           cancelled_by?: string | null
           candidate_confirmed?: boolean | null
           candidate_confirmed_at?: string | null
+          candidate_message?: string | null
           client_confirmed?: boolean | null
           client_confirmed_at?: string | null
+          client_message?: string | null
+          counter_slots?: Json | null
           created_at?: string
+          decline_reason?: string | null
           duration_minutes?: number | null
           feedback?: string | null
           google_event_id?: string | null
@@ -3683,18 +3701,21 @@ export type Database = {
           interview_type_id?: string | null
           live_session_ended_at?: string | null
           live_session_started_at?: string | null
+          meeting_format?: string | null
           meeting_link?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
           no_show_reported?: boolean | null
           no_show_reported_at?: string | null
           notes?: string | null
+          onsite_address?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           quick_scores?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
           rescheduled_from?: string | null
+          response_token?: string | null
           scheduled_at?: string | null
           selected_slot_index?: number | null
           selection_token?: string | null
