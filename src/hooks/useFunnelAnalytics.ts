@@ -72,7 +72,7 @@ export function useFunnelMetrics(
       const { data, error } = await query;
 
       if (error) throw error;
-      return data?.[0] as FunnelMetrics | null;
+      return (data?.[0] ?? null) as FunnelMetrics | null;
     },
   });
 }
