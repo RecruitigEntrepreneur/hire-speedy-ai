@@ -29,7 +29,7 @@ import {
 import { RecruitingHealthScore } from '@/components/dashboard/RecruitingHealthScore';
 import { ClientTaskWidget } from '@/components/dashboard/ClientTaskWidget';
 import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
-import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
+import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
 
 export default function JobCommandCenter() {
   const navigate = useNavigate();
@@ -230,15 +230,14 @@ export default function JobCommandCenter() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Interview Request Dialog */}
+      {/* Professional Interview Wizard */}
       {interviewDialog && (
-        <InterviewRequestWithOptInDialog
+        <ProfessionalInterviewWizard
           open={interviewDialog.open}
           onOpenChange={(open) => !open && setInterviewDialog(null)}
           submissionId={interviewDialog.submissionId}
           candidateAnonymousId={interviewDialog.candidateAnonymousId}
           jobTitle={interviewDialog.jobTitle}
-          jobIndustry={interviewDialog.jobIndustry}
           onSuccess={refetch}
         />
       )}
