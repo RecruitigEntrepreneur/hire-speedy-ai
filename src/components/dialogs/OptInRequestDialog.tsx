@@ -56,11 +56,11 @@ export function OptInRequestDialog({
           <Alert>
             <Shield className="h-4 w-4" />
             <AlertDescription>
-              <strong>Triple-Blind Prozess:</strong>
+              <strong>Datenschutz-Hinweis:</strong>
               <ul className="mt-2 space-y-1 text-sm">
-                <li>• Der Kandidat erhält eine anonyme Anfrage</li>
-                <li>• Er sieht nur: "Ein Unternehmen in [{jobIndustry}]"</li>
-                <li>• Erst bei Zustimmung werden alle Daten sichtbar</li>
+                <li>• Der Kandidat erhält Ihre Einladung mit Firmennamen und Jobdetails</li>
+                <li>• Er entscheidet, ob er Sie kennenlernen möchte</li>
+                <li>• Ihre Sicht: Kandidat bleibt anonym bis er das Interview annimmt</li>
               </ul>
             </AlertDescription>
           </Alert>

@@ -3617,6 +3617,7 @@ export type Database = {
           no_show_reported_at: string | null
           notes: string | null
           onsite_address: string | null
+          outlook_event_id: string | null
           pending_opt_in: boolean | null
           proposed_slots: Json | null
           quick_scores: Json | null
@@ -3663,6 +3664,7 @@ export type Database = {
           no_show_reported_at?: string | null
           notes?: string | null
           onsite_address?: string | null
+          outlook_event_id?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           quick_scores?: Json | null
@@ -3709,6 +3711,7 @@ export type Database = {
           no_show_reported_at?: string | null
           notes?: string | null
           onsite_address?: string | null
+          outlook_event_id?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           quick_scores?: Json | null

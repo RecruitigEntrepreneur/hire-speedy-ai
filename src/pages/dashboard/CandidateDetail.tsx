@@ -493,9 +493,9 @@ export default function CandidateDetail() {
             <div className="flex-1">
               <p className="font-medium text-sm">Anonymisiertes Profil</p>
               <p className="text-sm text-muted-foreground">
-                Persönliche Daten sind zum Schutz des Kandidaten verborgen. 
-                Nach Interview-Anfrage erhält der Kandidat eine Opt-In Anfrage. 
-                Bei Zustimmung werden Name, Kontaktdaten und Lebenslauf freigeschaltet.
+                Zum Schutz des Kandidaten sehen Sie ein anonymisiertes Profil. 
+                Der Kandidat erhält Ihre Interview-Einladung mit Ihrem Firmennamen. 
+                Erst wenn er das Interview annimmt, werden seine persönlichen Daten (Name, Kontakt, CV) für Sie sichtbar.
               </p>
             </div>
           </div>

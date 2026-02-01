@@ -6,8 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Settings2, History, Shield } from "lucide-react";
+import { AlertCircle, Settings2, History, Shield, Calendar } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CalendarConnectionCard } from "@/components/settings/CalendarConnectionCard";
 
 interface Integration {
   id: string;
@@ -133,11 +134,15 @@ export default function IntegrationSettings() {
           </p>
         </div>
 
-        <Tabs defaultValue="integrations" className="space-y-4">
+        <Tabs defaultValue="calendar" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="calendar" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Kalender
+            </TabsTrigger>
             <TabsTrigger value="integrations" className="gap-2">
               <Settings2 className="h-4 w-4" />
-              Integrationen
+              ATS-Systeme
             </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <History className="h-4 w-4" />
@@ -148,6 +153,10 @@ export default function IntegrationSettings() {
               Sicherheit
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="calendar">
+            <CalendarConnectionCard />
+          </TabsContent>
 
           <TabsContent value="integrations">
             <IntegrationList

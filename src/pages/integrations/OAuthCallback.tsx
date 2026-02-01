@@ -51,9 +51,11 @@ export default function OAuthCallback() {
 
         if (result?.success) {
           setStatus('success');
-          // Redirect after short delay
+          // Redirect after short delay - use stored return path or fallback to dashboard
+          const returnPath = sessionStorage.getItem('oauth_return_path');
+          sessionStorage.removeItem('oauth_return_path');
           setTimeout(() => {
-            navigate('/recruiter/integrations', { replace: true });
+            navigate(returnPath || '/dashboard/integrations', { replace: true });
           }, 2000);
         } else {
           setStatus('error');
@@ -116,7 +118,11 @@ export default function OAuthCallback() {
               </p>
               <Button 
                 variant="outline" 
-                onClick={() => navigate('/recruiter/integrations', { replace: true })}
+                onClick={() => {
+                  const returnPath = sessionStorage.getItem('oauth_return_path');
+                  sessionStorage.removeItem('oauth_return_path');
+                  navigate(returnPath || '/dashboard/integrations', { replace: true });
+                }}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Zurück zu Integrationen
