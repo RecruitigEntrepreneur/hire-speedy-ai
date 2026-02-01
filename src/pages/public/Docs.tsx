@@ -18,7 +18,7 @@ const docCategories = [
   },
   {
     title: "Integrations",
-    description: "Verbinden Sie TalentBridge mit Ihren bestehenden Tools.",
+    description: "Verbinden Sie Matchunt mit Ihren bestehenden Tools.",
     icon: Puzzle,
     articles: ["ATS Integration", "Calendar Sync", "HRIS Systeme"],
   },
@@ -44,7 +44,7 @@ export default function Docs() {
               Technische Dokumentation
             </h1>
             <p className="text-xl text-primary-foreground/80">
-              Alles, was Sie für die Integration und Nutzung von TalentBridge brauchen.
+              Alles, was Sie für die Integration und Nutzung von Matchunt brauchen.
             </p>
           </div>
         </div>

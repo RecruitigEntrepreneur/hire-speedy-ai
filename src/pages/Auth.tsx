@@ -158,7 +158,7 @@ export default function Auth() {
             </CardTitle>
             <CardDescription>
               {mode === 'signup' 
-                ? 'Join TalentBridge and start hiring or recruiting' 
+                ? 'Join Matchunt and start hiring or recruiting' 
                 : 'Sign in to access your dashboard'}
             </CardDescription>
           </CardHeader>

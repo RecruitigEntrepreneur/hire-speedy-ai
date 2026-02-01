@@ -153,7 +153,7 @@ export function Navbar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald">
             <Briefcase className="h-4 w-4 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">TalentBridge</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">Matchunt</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -291,7 +291,7 @@ export function Navbar() {
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald">
                         <Briefcase className="h-4 w-4 text-white" />
                       </div>
-                      <span className="text-slate-900">TalentBridge</span>
+                      <span className="text-slate-900">Matchunt</span>
                     </SheetTitle>
                   </SheetHeader>
                   

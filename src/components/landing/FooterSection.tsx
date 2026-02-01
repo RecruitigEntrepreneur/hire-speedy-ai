@@ -39,7 +39,7 @@ export const FooterSection = () => {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald">
                 <Briefcase className="h-4 w-4 text-white" />
               </div>
-              <span className="text-xl font-bold">TalentBridge</span>
+              <span className="text-xl font-bold">Matchunt</span>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed">
               The Recruiting Operating System. 
@@ -117,7 +117,7 @@ export const FooterSection = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-slate-500 text-sm">
-            © {new Date().getFullYear()} TalentBridge - eine Marke der bluewater & Bridge GmbH. Alle Rechte vorbehalten.
+            © {new Date().getFullYear()} Matchunt - eine Marke der bluewater & Bridge GmbH. Alle Rechte vorbehalten.
           </p>
           <div className="flex items-center gap-6">
             <Link to="/auth" className="text-slate-500 hover:text-slate-300 transition-colors text-sm">

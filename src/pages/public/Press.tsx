@@ -5,19 +5,19 @@ import { Download, Mail, ExternalLink, Calendar } from "lucide-react";
 
 const pressReleases = [
   {
-    title: "TalentBridge schließt Series A Finanzierung ab",
+    title: "Matchunt schließt Series A Finanzierung ab",
     date: "10. Nov 2024",
     excerpt: "Das Berliner HR-Tech Startup sichert sich 15 Millionen Euro für weiteres Wachstum.",
   },
   {
     title: "Launch des neuen AI Matching Systems",
     date: "15. Okt 2024",
-    excerpt: "TalentBridge revolutioniert Kandidaten-Matching mit fortschrittlicher künstlicher Intelligenz.",
+    excerpt: "Matchunt revolutioniert Kandidaten-Matching mit fortschrittlicher künstlicher Intelligenz.",
   },
   {
     title: "Expansion in den DACH-Markt",
     date: "1. Sep 2024",
-    excerpt: "TalentBridge erweitert Services nach Österreich und in die Schweiz.",
+    excerpt: "Matchunt erweitert Services nach Österreich und in die Schweiz.",
   },
 ];
 
@@ -106,7 +106,7 @@ export default function Press() {
             <p className="text-muted-foreground mb-4">
               Für Presseanfragen kontaktieren Sie bitte unser Kommunikationsteam.
             </p>
-            <p className="font-medium text-emerald mb-6">press@talentbridge.de</p>
+            <p className="font-medium text-emerald mb-6">press@matchunt.ai</p>
             <Button className="bg-emerald hover:bg-emerald-light text-white">
               Presseanfrage senden
             </Button>

@@ -5,7 +5,7 @@ import { ArrowRight, BookOpen, FileText, Video, Download } from "lucide-react";
 
 const guides = [
   {
-    title: "Erste Schritte mit TalentBridge",
+    title: "Erste Schritte mit Matchunt",
     description: "Lernen Sie die Grundlagen und starten Sie in wenigen Minuten.",
     icon: BookOpen,
     type: "Guide",
@@ -44,7 +44,7 @@ export default function Guides() {
               Anleitungen & Ressourcen
             </h1>
             <p className="text-xl text-primary-foreground/80">
-              Step-by-Step Guides für Ihren Erfolg mit TalentBridge.
+              Step-by-Step Guides für Ihren Erfolg mit Matchunt.
             </p>
           </div>
         </div>

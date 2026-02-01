@@ -96,7 +96,7 @@ export default function Help() {
               <div className="bg-card rounded-2xl p-6 border border-border/50">
                 <Mail className="w-10 h-10 text-emerald mx-auto mb-4" />
                 <h3 className="font-bold mb-2">E-Mail</h3>
-                <p className="text-sm text-muted-foreground mb-4">support@talentbridge.de</p>
+                <p className="text-sm text-muted-foreground mb-4">support@matchunt.ai</p>
                 <Button variant="outline" size="sm" asChild>
                   <Link to="/contact">E-Mail senden</Link>
                 </Button>

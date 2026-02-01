@@ -97,8 +97,8 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">E-Mail</h3>
-                    <p className="text-muted-foreground">hello@talentbridge.de</p>
-                    <p className="text-muted-foreground">support@talentbridge.de</p>
+                    <p className="text-muted-foreground">hello@matchunt.ai</p>
+                    <p className="text-muted-foreground">support@matchunt.ai</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4 p-6 bg-card rounded-xl border border-border/50">
@@ -117,7 +117,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Adresse</h3>
-                    <p className="text-muted-foreground">TalentBridge GmbH</p>
+                    <p className="text-muted-foreground">Matchunt GmbH</p>
                     <p className="text-muted-foreground">Musterstraße 123</p>
                     <p className="text-muted-foreground">10115 Berlin</p>
                   </div>
