@@ -243,6 +243,15 @@ export function CvUploadDialog({
     director: 'Director',
   };
 
+  // Defensive defaults: parser results may omit array fields (undefined/null)
+  // which would otherwise crash the UI when accessing `.length` or `.map`.
+  const cvAiBullets = Array.isArray(parsedData?.cv_ai_bullets) ? parsedData!.cv_ai_bullets : [];
+  const experiences = Array.isArray(parsedData?.experiences) ? parsedData!.experiences : [];
+  const educations = Array.isArray(parsedData?.educations) ? parsedData!.educations : [];
+  const skills = Array.isArray(parsedData?.skills) ? parsedData!.skills : [];
+  const languages = Array.isArray(parsedData?.languages) ? parsedData!.languages : [];
+  const targetRoles = Array.isArray(parsedData?.target_roles) ? parsedData!.target_roles : [];
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
@@ -443,9 +452,9 @@ export function CvUploadDialog({
                     ) : (
                       <p className="text-sm text-muted-foreground">{parsedData.cv_ai_summary}</p>
                     )}
-                    {parsedData.cv_ai_bullets && parsedData.cv_ai_bullets.length > 0 && (
+                    {cvAiBullets.length > 0 && (
                       <ul className="mt-3 space-y-1">
-                        {parsedData.cv_ai_bullets.map((bullet, i) => (
+                        {cvAiBullets.map((bullet, i) => (
                           <li key={i} className="text-sm flex items-start gap-2">
                             <span className="text-primary">•</span>
                             {bullet}
@@ -586,13 +595,13 @@ export function CvUploadDialog({
                 </TabsContent>
 
                 <TabsContent value="experience" className="space-y-4 mt-4">
-                  {parsedData.experiences.length === 0 ? (
+                  {experiences.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <AlertCircle className="h-8 w-8 mx-auto mb-2" />
                       <p>Keine Berufserfahrung extrahiert</p>
                     </div>
                   ) : (
-                    parsedData.experiences.map((exp, index) => (
+                    experiences.map((exp, index) => (
                       <Card key={index}>
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between">
@@ -622,13 +631,13 @@ export function CvUploadDialog({
                 </TabsContent>
 
                 <TabsContent value="education" className="space-y-4 mt-4">
-                  {parsedData.educations.length === 0 ? (
+                  {educations.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <AlertCircle className="h-8 w-8 mx-auto mb-2" />
                       <p>Keine Ausbildung extrahiert</p>
                     </div>
                   ) : (
-                    parsedData.educations.map((edu, index) => (
+                    educations.map((edu, index) => (
                       <Card key={index}>
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between">
@@ -655,9 +664,9 @@ export function CvUploadDialog({
 
                 <TabsContent value="skills" className="space-y-4 mt-4">
                   <div>
-                    <h4 className="font-medium mb-2">Skills ({parsedData.skills.length})</h4>
+                    <h4 className="font-medium mb-2">Skills ({skills.length})</h4>
                     <div className="flex flex-wrap gap-2">
-                      {parsedData.skills.map((skill, index) => (
+                      {skills.map((skill, index) => (
                         <Badge key={index} variant="secondary" className="flex items-center gap-1">
                           {skill.name}
                           {skill.level && (
@@ -671,9 +680,9 @@ export function CvUploadDialog({
                   <Separator />
 
                   <div>
-                    <h4 className="font-medium mb-2">Sprachen ({parsedData.languages.length})</h4>
+                    <h4 className="font-medium mb-2">Sprachen ({languages.length})</h4>
                     <div className="flex flex-wrap gap-2">
-                      {parsedData.languages.map((lang, index) => (
+                      {languages.map((lang, index) => (
                         <Badge key={index} variant="outline">
                           {lang.language} - {proficiencyLabels[lang.proficiency] || lang.proficiency}
                         </Badge>
@@ -681,13 +690,13 @@ export function CvUploadDialog({
                     </div>
                   </div>
 
-                  {parsedData.target_roles.length > 0 && (
+                  {targetRoles.length > 0 && (
                     <>
                       <Separator />
                       <div>
                         <h4 className="font-medium mb-2">Wunschrollen</h4>
                         <div className="flex flex-wrap gap-2">
-                          {parsedData.target_roles.map((role, index) => (
+                          {targetRoles.map((role, index) => (
                             <Badge key={index} variant="default">{role}</Badge>
                           ))}
                         </div>
