@@ -1,128 +1,147 @@
 
-# Plan: OAuth Redirect URI auf FRONTEND_URL umstellen
+# Interview-System vereinfachen: OAuth entfernen, E-Mail-Flow nutzen
 
-## Problem
-Die Edge Functions bauen die Redirect URI aktuell auf Backend-Pfade (`/functions/v1/.../callback`), die keine GET-Requests mit Query Params verarbeiten können. Die Verwendung von `origin` aus Request-Headers ist unzuverlässig, da Preview- und Production-URLs unterschiedlich sind.
+## Analyse: Was existiert bereits?
 
-## Lösung: FRONTEND_URL als Environment Variable
+Das Projekt hat bereits einen vollständigen E-Mail-basierten Interview-Flow:
 
-### Schritt 1: FRONTEND_URL als Secret hinzufügen
+### Bestehende Edge Functions (funktionieren!)
 
-**Wert:** `https://hire-speedy-ai.lovable.app`
+| Funktion | Beschreibung |
+|----------|-------------|
+| `send-interview-invitation` | Sendet gebrandete Interview-Einladung per E-Mail mit Accept/Counter/Decline-Buttons |
+| `process-interview-response` | Verarbeitet Kandidaten-Antwort und sendet Bestätigungs-E-Mails an alle Beteiligten |
 
-Dieses Secret wird in beiden Edge Functions verwendet, um eine konsistente Redirect URI zu generieren.
+### Bestehender Flow (bereits implementiert)
 
----
-
-### Schritt 2: Edge Functions anpassen
-
-**Datei: `supabase/functions/microsoft-auth/index.ts`**
-
-Änderungen:
-- Zeile 13: `FRONTEND_URL` Environment Variable lesen
-- Zeile 15-18: `getRedirectUri()` ändern zu `${FRONTEND_URL}/oauth/callback`
-- Zeile 130: `offline_access` Scope hinzufügen für Refresh Token Support
-
-```typescript
-// Zeile 13 - neue Variable
-const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://hire-speedy-ai.lovable.app';
-
-// Zeile 15-17 - neue Funktion
-const getRedirectUri = () => {
-  return `${FRONTEND_URL}/oauth/callback`;
-};
-
-// Zeile 130 - Scope erweitern
-scope: 'openid profile email offline_access User.Read OnlineMeetings.ReadWrite Calendars.ReadWrite',
+```text
+Client (ProfessionalInterviewWizard)
+  |
+  v
+[1] Wählt Format (Teams/Meet/Video/Phone/Onsite), Dauer, Slots, Nachricht
+  |
+  v
+[2] System sendet: send-interview-invitation
+  |
+  v
+[3] Kandidat erhält E-Mail mit:
+    - Anonymisiertes Unternehmen (z.B. "IT-Unternehmen")
+    - Position + Terminvorschläge
+    - Buttons: "Termin annehmen" / "Gegenvorschlag" / "Absagen"
+  |
+  v
+[4] Kandidat klickt Link -> InterviewResponsePage (/interview/respond/:token)
+  |
+  v
+[5] Bei Annahme: process-interview-response
+    - Aktualisiert Interview auf "scheduled"
+    - Sendet Bestätigungs-E-Mail AN KANDIDAT (mit iCal-Anhang)
+    - Sendet Bestätigungs-E-Mail AN RECRUITER
+    - Erstellt Notifications für Recruiter + Client
 ```
 
-**Datei: `supabase/functions/google-auth/index.ts`**
+## Was fehlt? (Erweiterungen)
 
-Änderungen:
-- Zeile 13: `FRONTEND_URL` Environment Variable lesen
-- Zeile 14-17: `getRedirectUri()` ändern zu `${FRONTEND_URL}/oauth/callback`
+### 1. Client erhält keine E-Mail-Bestätigung
+Der Client (Auftraggeber) erhält zwar eine **Notification**, aber **keine E-Mail**.
+
+### 2. E-Mail an Client mit vollständigen Kandidaten-Daten fehlt
+Nach Opt-In sollte der Client den echten Namen, Telefon, E-Mail etc. des Kandidaten bekommen.
+
+---
+
+## Umsetzungsplan
+
+### Teil A: OAuth-Code aufräumen (optional, aber empfohlen)
+
+Da wir keine direkte Kalender-Integration mehr brauchen, können wir den OAuth-Code entfernen:
+
+**Dateien zu entfernen:**
+- `supabase/functions/microsoft-auth/index.ts`
+- `supabase/functions/google-auth/index.ts`
+- `supabase/functions/create-teams-meeting/index.ts`
+- `supabase/functions/create-google-meeting/index.ts`
+- `src/hooks/useMicrosoftAuth.ts`
+- `src/hooks/useGoogleAuth.ts`
+- `src/pages/integrations/OAuthCallback.tsx`
+- Route `/oauth/callback` aus `App.tsx`
+
+**Dateien zu bereinigen (OAuth-Referenzen entfernen):**
+- `src/components/settings/CalendarConnectionCard.tsx`
+- `src/components/dialogs/interview-wizard/InterviewWizardStep2Slots.tsx`
+- `src/components/talent/InterviewSchedulingDialog.tsx`
+- `src/pages/recruiter/RecruiterIntegrations.tsx`
+- `supabase/config.toml` (Edge Function-Einträge entfernen)
+
+### Teil B: E-Mail-Bestätigung an Client hinzufügen
+
+**Datei:** `supabase/functions/process-interview-response/index.ts`
+
+Nach erfolgreicher Terminannahme (im `case 'accept'`-Block) eine zusätzliche E-Mail an den Client senden:
 
 ```typescript
-// Zeile 13 - neue Variable
-const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://hire-speedy-ai.lovable.app';
+// Im accept-Block nach Zeile ~213:
 
-// Zeile 14-17 - neue Funktion
-const getRedirectUri = () => {
-  return `${FRONTEND_URL}/oauth/callback`;
-};
+// Email to Client with FULL candidate data (identity reveal)
+if (job.client_id) {
+  const { data: clientProfile } = await supabase
+    .from('profiles')
+    .select('email, full_name')
+    .eq('user_id', job.client_id)
+    .single();
+
+  if (clientProfile?.email) {
+    await resend.emails.send({
+      from: "Matchunt <noreply@matchunt.ai>",
+      to: [clientProfile.email],
+      subject: `Interview bestätigt: ${candidate.full_name} für ${job.title}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px;">
+          <h2>Interview bestätigt</h2>
+          <p>Der Kandidat hat das Interview für <strong>${job.title}</strong> bestätigt.</p>
+          
+          <h3>Kandidaten-Details (freigeschaltet)</h3>
+          <div style="background: #f1f5f9; padding: 16px; border-radius: 8px;">
+            <p><strong>Name:</strong> ${candidate.full_name}</p>
+            <p><strong>E-Mail:</strong> ${candidate.email}</p>
+            ${candidate.phone ? `<p><strong>Telefon:</strong> ${candidate.phone}</p>` : ''}
+          </div>
+          
+          <h3>Termin-Details</h3>
+          <div style="background: #f1f5f9; padding: 16px; border-radius: 8px;">
+            <p><strong>Datum:</strong> ${formatDate(scheduledAt)}</p>
+            <p><strong>Uhrzeit:</strong> ${formatTime(scheduledAt)} Uhr</p>
+            <p><strong>Dauer:</strong> ${interview.duration_minutes} Minuten</p>
+            ${interview.meeting_link ? `<p><strong>Link:</strong> ${interview.meeting_link}</p>` : ''}
+          </div>
+          
+          <p style="margin-top: 24px;">Sie finden den Termin auch im angehängten Kalender-Event.</p>
+        </div>
+      `,
+      attachments: [{
+        filename: 'interview.ics',
+        content: btoa(icalContent),
+      }],
+    });
+  }
+}
 ```
 
 ---
 
-### Schritt 3: Route in App.tsx hinzufügen
+## Empfohlene Reihenfolge
 
-**Datei: `src/App.tsx`**
-
-Nach Zeile 440 (vor `{/* Settings */}`):
-
-```typescript
-{/* OAuth Callback */}
-<Route path="/oauth/callback" element={
-  <ProtectedRoute>
-    <OAuthCallback />
-  </ProtectedRoute>
-} />
-```
-
-Die Route muss mit `ProtectedRoute` geschützt sein, weil `exchange-code` den eingeloggten User benötigt.
+| Schritt | Beschreibung | Priorität |
+|---------|--------------|-----------|
+| 1 | E-Mail an Client in `process-interview-response` ergänzen | Hoch |
+| 2 | OAuth-Code entfernen (Cleanup) | Niedrig |
+| 3 | UI-Komponenten bereinigen (Kalender-Verbinden-Buttons entfernen) | Niedrig |
 
 ---
 
-### Schritt 4: useGoogleAuth oauth_return_path Support hinzufügen
+## Entscheidungsfrage
 
-**Datei: `src/hooks/useGoogleAuth.ts`**
-
-In der `connectGoogle` Funktion (Zeile 58-72), vor `window.location.href`:
-
-```typescript
-sessionStorage.setItem('oauth_return_path', window.location.pathname);
-```
-
-Dies stellt sicher, dass nach dem Google OAuth der User zur ursprünglichen Seite zurückgeleitet wird (wie bei Microsoft bereits implementiert).
-
----
-
-## Erforderliche Provider-Konfiguration
-
-### Microsoft Azure Portal
-
-1. Gehen Sie zu **Azure Portal → Microsoft Entra ID → App-Registrierungen**
-2. Öffnen Sie die App mit Client ID `175edabd-8e2b-4f0f-94d4-5bf5a05f16a6`
-3. **Authentifizierung → Redirect URIs**:
-   - **Hinzufügen:** `https://hire-speedy-ai.lovable.app/oauth/callback`
-   - **Entfernen:** `https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1/microsoft-auth/callback` (alte URI)
-4. Speichern
-
-### Google Cloud Console
-
-1. Gehen Sie zu **Google Cloud Console → APIs & Services → Credentials**
-2. Öffnen Sie den OAuth 2.0 Client
-3. **Authorized redirect URIs**:
-   - **Hinzufügen:** `https://hire-speedy-ai.lovable.app/oauth/callback`
-   - **Entfernen:** `https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1/google-auth/callback` (alte URI)
-4. Speichern
-
----
-
-## Zusammenfassung der Änderungen
-
-| Datei | Änderung |
-|-------|----------|
-| Secret: `FRONTEND_URL` | Neu hinzufügen: `https://hire-speedy-ai.lovable.app` |
-| `supabase/functions/microsoft-auth/index.ts` | `getRedirectUri()` auf FRONTEND_URL umstellen, `offline_access` Scope |
-| `supabase/functions/google-auth/index.ts` | `getRedirectUri()` auf FRONTEND_URL umstellen |
-| `src/App.tsx` | Route `/oauth/callback` hinzufügen |
-| `src/hooks/useGoogleAuth.ts` | `oauth_return_path` Support hinzufügen |
-
-## Erwartetes Ergebnis
-
-Nach den Änderungen:
-- OAuth-Flow läuft über Frontend-URL (`/oauth/callback`)
-- Nur eine Redirect URI pro Provider nötig
-- Konsistente Rückleitung zur ursprünglichen Seite
-- Kein 403-Fehler mehr von Microsoft/Google
+Möchtest du:
+1. **Nur die E-Mail-Bestätigung an den Client hinzufügen** (schnell, minimal)
+2. **Den gesamten OAuth-Code aufräumen** (sauberer, aber umfangreicher)
+3. **Beides** (empfohlen für langfristige Wartbarkeit)
