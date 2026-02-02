@@ -42,7 +42,6 @@ import RecruiterCandidateDetail from "./pages/recruiter/RecruiterCandidateDetail
 
 // Integration pages
 import IntegrationSettings from "./pages/dashboard/IntegrationSettings";
-import OAuthCallback from "./pages/integrations/OAuthCallback";
 
 // Organization pages
 import TeamManagement from "./pages/organization/TeamManagement";
@@ -438,13 +437,6 @@ function AppRoutes() {
       <Route path="/invite/:token" element={<AcceptInvite />} />
       <Route path="/reference/:token" element={<ProvideReference />} />
       <Route path="/offer/accepted" element={<OfferAccepted />} />
-      
-      {/* OAuth Callback */}
-      <Route path="/oauth/callback" element={
-        <ProtectedRoute>
-          <OAuthCallback />
-        </ProtectedRoute>
-      } />
       
       {/* Settings */}
       <Route path="/settings" element={

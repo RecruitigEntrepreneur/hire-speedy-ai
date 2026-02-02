@@ -6,12 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, addDays, setHours, setMinutes, isBefore, startOfToday } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { CalendarIcon, Sparkles, X, Clock, Plus, Loader2, ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { CalendarIcon, Sparkles, X, Clock } from 'lucide-react';
 import { InterviewWizardData } from './types';
-import { useCalendarAvailability } from '@/hooks/useCalendarAvailability';
-import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
-import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 interface Step2Props {
   data: InterviewWizardData;
@@ -26,12 +22,32 @@ const TIME_SLOTS = [
   '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'
 ];
 
+// Generate smart suggested slots (next 5 business days at common times)
+function generateSmartSlots(): Date[] {
+  const slots: Date[] = [];
+  const now = new Date();
+  const defaultTimes = ['10:00', '14:00', '11:00', '15:00', '09:30'];
+  let date = new Date(now);
+  let slotIndex = 0;
+  
+  while (slots.length < 5) {
+    date = addDays(date, 1);
+    const day = date.getDay();
+    // Skip weekends
+    if (day !== 0 && day !== 6) {
+      const [hours, minutes] = defaultTimes[slotIndex % defaultTimes.length].split(':').map(Number);
+      const slot = setMinutes(setHours(new Date(date), hours), minutes);
+      slots.push(slot);
+      slotIndex++;
+    }
+  }
+  
+  return slots;
+}
+
 export function InterviewWizardStep2Slots({ data, onChange, onNext, onBack }: Step2Props) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const { isConnected, provider, suggestedSlots } = useCalendarAvailability({ durationMinutes: data.durationMinutes });
-  const { connectMicrosoft, loading: msLoading } = useMicrosoftAuth();
-  const { connectGoogle, loading: googleLoading } = useGoogleAuth();
 
   const addSlot = (date: Date, time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -49,8 +65,7 @@ export function InterviewWizardStep2Slots({ data, onChange, onNext, onBack }: St
   };
 
   const smartSuggest = () => {
-    // Use suggested slots from calendar hook or generate defaults
-    const slots = suggestedSlots.slice(0, 5).map(s => s.datetime);
+    const slots = generateSmartSlots();
     onChange({ proposedSlots: slots });
   };
 
@@ -62,72 +77,13 @@ export function InterviewWizardStep2Slots({ data, onChange, onNext, onBack }: St
 
   return (
     <div className="space-y-6">
-      {/* Calendar Connection Banner */}
-      {!isConnected ? (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <span className="text-amber-600 dark:text-amber-400 mt-0.5 text-lg">⚠️</span>
-            <div className="flex-1">
-              <h4 className="font-medium text-amber-800 dark:text-amber-300">
-                Kein Kalender verbunden
-              </h4>
-              <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                Mit verbundenem Kalender sehen Sie belegte Zeiten und Termine werden automatisch eingetragen.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-3">
-                <Button 
-                  size="sm" 
-                  onClick={connectMicrosoft}
-                  disabled={msLoading || googleLoading}
-                  className="bg-[#0078d4] hover:bg-[#0078d4]/90 text-white"
-                >
-                  {msLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  <span className="mr-2">🔷</span> Outlook verbinden
-                </Button>
-                <Button 
-                  size="sm"
-                  variant="outline"
-                  onClick={connectGoogle}
-                  disabled={msLoading || googleLoading}
-                >
-                  {googleLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  <span className="mr-2">🟢</span> Google verbinden
-                </Button>
-              </div>
-              <Link 
-                to="/dashboard/integrations" 
-                className="text-xs text-amber-600 hover:underline mt-2 inline-flex items-center gap-1"
-              >
-                Später in Einstellungen verbinden
-                <ExternalLink className="h-3 w-3" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-green-700 dark:text-green-400">
-              Kalender verbunden: {provider === 'google' ? 'Google Calendar' : 'Microsoft Outlook'}
-            </span>
-          </div>
-          <Button variant="outline" size="sm" onClick={smartSuggest}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            Smart Suggest
-          </Button>
-        </div>
-      )}
-
-      {/* Smart Suggest button when not connected */}
-      {!isConnected && (
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={smartSuggest}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            Smart Suggest
-          </Button>
-        </div>
-      )}
+      {/* Smart Suggest button */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={smartSuggest}>
+          <Sparkles className="h-4 w-4 mr-2" />
+          Smart Suggest
+        </Button>
+      </div>
 
       {/* Date + Time Picker */}
       <div className="flex gap-4">

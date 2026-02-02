@@ -47,7 +47,6 @@ import {
   Link2,
   FileText,
   CalendarCheck,
-  AlertCircle,
   Plus,
   X,
   Users
@@ -55,25 +54,8 @@ import {
 import { format, setHours, setMinutes, addDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { useCalendarAvailability } from '@/hooks/useCalendarAvailability';
-import { useMicrosoftAuth } from '@/hooks/useMicrosoftAuth';
-import { useGoogleAuth } from '@/hooks/useGoogleAuth';
-import { useInterviewTypes, InterviewType } from '@/hooks/useInterviewTypes';
-import { useInterviewParticipants, ParticipantRole } from '@/hooks/useInterviewParticipants';
-
-// Microsoft Teams icon
-const TeamsIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M19.5 6.5h-3v-2a2.5 2.5 0 0 0-5 0v2h-3A2.5 2.5 0 0 0 6 9v9a2.5 2.5 0 0 0 2.5 2.5h11a2.5 2.5 0 0 0 2.5-2.5V9a2.5 2.5 0 0 0-2.5-2.5zm-6-2a1.5 1.5 0 0 1 1.5 1.5v2h-3v-2a1.5 1.5 0 0 1 1.5-1.5z"/>
-  </svg>
-);
-
-// Google Meet icon
-const MeetIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-    <path d="M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm7-6H5v7h14V8.5zm2-2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-  </svg>
-);
+import { useInterviewTypes } from '@/hooks/useInterviewTypes';
+import { ParticipantRole } from '@/hooks/useInterviewParticipants';
 
 interface CandidateInfo {
   id: string;
@@ -84,7 +66,7 @@ interface CandidateInfo {
 interface InterviewDetails {
   scheduledAt: Date;
   durationMinutes: number;
-  meetingType: 'video' | 'phone' | 'onsite' | 'teams' | 'meet';
+  meetingType: 'video' | 'phone' | 'onsite';
   meetingLink?: string;
   notes?: string;
   interviewTypeId?: string;
@@ -107,9 +89,7 @@ const TIME_SLOTS = [
 ];
 
 const MEETING_TYPES = [
-  { value: 'video', label: 'Video-Call', icon: Video, description: 'Eigener Video-Link' },
-  { value: 'teams', label: 'MS Teams', icon: TeamsIcon, description: 'Auto-generiert' },
-  { value: 'meet', label: 'Google Meet', icon: MeetIcon, description: 'Auto-generiert' },
+  { value: 'video', label: 'Video-Call', icon: Video, description: 'Video-Link angeben' },
   { value: 'phone', label: 'Telefon', icon: Phone, description: 'Telefoninterview' },
   { value: 'onsite', label: 'Vor-Ort', icon: MapPin, description: 'Persönlich' },
 ] as const;
@@ -145,7 +125,7 @@ export function InterviewSchedulingDialog({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>('10:00');
   const [duration, setDuration] = useState<number>(60);
-  const [meetingType, setMeetingType] = useState<'video' | 'phone' | 'onsite' | 'teams' | 'meet'>('video');
+  const [meetingType, setMeetingType] = useState<'video' | 'phone' | 'onsite'>('video');
   const [meetingLink, setMeetingLink] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [selectedInterviewType, setSelectedInterviewType] = useState<string>('');
@@ -156,11 +136,8 @@ export function InterviewSchedulingDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [participantPickerOpen, setParticipantPickerOpen] = useState(false);
   
-  // Integrations
-  const { isConnected: msConnected, loading: msLoading } = useMicrosoftAuth();
-  const { isConnected: googleConnected, loading: googleLoading } = useGoogleAuth();
+  // Hooks
   const { types: interviewTypes, loading: typesLoading } = useInterviewTypes();
-  const { isConnected: calendarConnected, provider, loading: calendarLoading } = useCalendarAvailability({ durationMinutes: duration });
 
   const suggestedDates = getSuggestedDates();
 
@@ -262,10 +239,6 @@ export function InterviewSchedulingDialog({
     setMeetingLink(`https://meet.google.com/${meetingId}`);
   };
 
-  // Check if Teams/Meet is available
-  const isTeamsAvailable = msConnected;
-  const isMeetAvailable = googleConnected;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
@@ -307,36 +280,6 @@ export function InterviewSchedulingDialog({
                 <p className="text-xs text-muted-foreground mt-1">
                   {interviewTypes.find(t => t.id === selectedInterviewType)?.description}
                 </p>
-              )}
-            </div>
-          )}
-
-          {/* Calendar Integration Status */}
-          {!calendarLoading && (
-            <div className={cn(
-              "flex items-center gap-2 p-3 rounded-lg text-sm",
-              calendarConnected ? "bg-green-50 text-green-700 border border-green-200" : "bg-muted"
-            )}>
-              {calendarConnected ? (
-                <>
-                  <CalendarCheck className="h-4 w-4" />
-                  <span>Kalender verbunden: {provider === 'google' ? 'Google Calendar' : 'Outlook'}</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Verbinde deinen Kalender für automatische Slot-Vorschläge
-                  </span>
-                  <Button 
-                    variant="link" 
-                    size="sm" 
-                    className="h-auto p-0 ml-auto text-xs"
-                    onClick={() => window.location.href = '/recruiter/integrations'}
-                  >
-                    Verbinden
-                  </Button>
-                </>
               )}
             </div>
           )}
@@ -445,19 +388,16 @@ export function InterviewSchedulingDialog({
                 </div>
               </div>
 
-              {/* Meeting Type - Extended */}
+              {/* Meeting Type */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">Meeting-Typ</Label>
                 <RadioGroup
                   value={meetingType}
                   onValueChange={(v) => setMeetingType(v as typeof meetingType)}
-                  className="grid grid-cols-5 gap-2"
+                  className="grid grid-cols-3 gap-2"
                 >
                   {MEETING_TYPES.map((type) => {
                     const Icon = type.icon;
-                    const isDisabled = 
-                      (type.value === 'teams' && !isTeamsAvailable) ||
-                      (type.value === 'meet' && !isMeetAvailable);
                     
                     return (
                       <div key={type.value}>
@@ -465,67 +405,25 @@ export function InterviewSchedulingDialog({
                           value={type.value} 
                           id={type.value} 
                           className="peer sr-only" 
-                          disabled={isDisabled}
                         />
                         <Label
                           htmlFor={type.value}
                           className={cn(
                             "flex flex-col items-center justify-center rounded-lg border-2 p-2.5 cursor-pointer transition-all text-center",
                             "hover:bg-accent hover:text-accent-foreground",
-                            meetingType === type.value && "border-primary bg-primary/5",
-                            isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                            meetingType === type.value && "border-primary bg-primary/5"
                           )}
                         >
-                          <Icon />
+                          <Icon className="h-5 w-5" />
                           <span className="text-[10px] mt-1 font-medium">{type.label}</span>
                         </Label>
                       </div>
                     );
                   })}
                 </RadioGroup>
-                
-                {/* Connection hints */}
-                {(meetingType === 'teams' && !isTeamsAvailable) && (
-                  <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
-                    <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
-                    Microsoft Teams nicht verbunden.{' '}
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="h-auto p-0 text-xs"
-                      onClick={() => window.location.href = '/recruiter/integrations'}
-                    >
-                      Jetzt verbinden
-                    </Button>
-                  </div>
-                )}
-                {(meetingType === 'meet' && !isMeetAvailable) && (
-                  <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
-                    <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
-                    Google Calendar nicht verbunden.{' '}
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="h-auto p-0 text-xs"
-                      onClick={() => window.location.href = '/recruiter/integrations'}
-                    >
-                      Jetzt verbinden
-                    </Button>
-                  </div>
-                )}
-                {(meetingType === 'teams' && isTeamsAvailable) && (
-                  <p className="text-xs text-green-600 mt-2">
-                    ✓ Teams-Meeting wird automatisch erstellt
-                  </p>
-                )}
-                {(meetingType === 'meet' && isMeetAvailable) && (
-                  <p className="text-xs text-green-600 mt-2">
-                    ✓ Google Meet-Link wird automatisch erstellt
-                  </p>
-                )}
               </div>
 
-              {/* Meeting Link (for manual video calls) */}
+              {/* Meeting Link (for video calls) */}
               {meetingType === 'video' && (
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Meeting-Link (optional)</Label>

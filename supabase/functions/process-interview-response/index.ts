@@ -211,6 +211,53 @@ const handler = async (req: Request): Promise<Response> => {
               `,
             });
           }
+
+          // Email to Client with FULL candidate data (identity reveal)
+          if (job.client_id) {
+            const { data: clientProfile } = await supabase
+              .from('profiles')
+              .select('email, full_name')
+              .eq('user_id', job.client_id)
+              .single();
+
+            if (clientProfile?.email) {
+              await resend.emails.send({
+                from: "Matchunt <noreply@matchunt.ai>",
+                to: [clientProfile.email],
+                subject: `Interview bestätigt: ${candidate.full_name} für ${job.title}`,
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #16a34a;">✅ Interview bestätigt</h2>
+                    <p>Der Kandidat hat das Interview für <strong>${job.title}</strong> bestätigt.</p>
+                    
+                    <h3 style="margin-top: 24px; font-size: 16px;">Kandidaten-Details (freigeschaltet)</h3>
+                    <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 12px 0;">
+                      <p style="margin: 0 0 8px 0;"><strong>Name:</strong> ${candidate.full_name}</p>
+                      <p style="margin: 0 0 8px 0;"><strong>E-Mail:</strong> ${candidate.email}</p>
+                      ${candidate.phone ? `<p style="margin: 0;"><strong>Telefon:</strong> ${candidate.phone}</p>` : ''}
+                    </div>
+                    
+                    <h3 style="margin-top: 24px; font-size: 16px;">Termin-Details</h3>
+                    <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; margin: 12px 0;">
+                      <p style="margin: 0 0 8px 0;"><strong>📅 Datum:</strong> ${formatDate(scheduledAt)}</p>
+                      <p style="margin: 0 0 8px 0;"><strong>⏰ Uhrzeit:</strong> ${formatTime(scheduledAt)} Uhr</p>
+                      <p style="margin: 0 0 8px 0;"><strong>⏱️ Dauer:</strong> ${interview.duration_minutes} Minuten</p>
+                      ${interview.meeting_link ? `<p style="margin: 0;"><strong>🔗 Link:</strong> <a href="${interview.meeting_link}">${interview.meeting_link}</a></p>` : ''}
+                      ${interview.onsite_address ? `<p style="margin: 0;"><strong>📍 Adresse:</strong> ${interview.onsite_address}</p>` : ''}
+                    </div>
+                    
+                    <p style="margin-top: 24px; font-size: 14px; color: #64748b;">
+                      Sie finden den Termin auch im angehängten Kalender-Event (.ics).
+                    </p>
+                  </div>
+                `,
+                attachments: [{
+                  filename: 'interview.ics',
+                  content: btoa(icalContent),
+                }],
+              });
+            }
+          }
         }
 
         // Create notifications
