@@ -443,7 +443,7 @@ export function CvUploadDialog({
                     ) : (
                       <p className="text-sm text-muted-foreground">{parsedData.cv_ai_summary}</p>
                     )}
-                    {parsedData.cv_ai_bullets.length > 0 && (
+                    {parsedData.cv_ai_bullets && parsedData.cv_ai_bullets.length > 0 && (
                       <ul className="mt-3 space-y-1">
                         {parsedData.cv_ai_bullets.map((bullet, i) => (
                           <li key={i} className="text-sm flex items-start gap-2">
