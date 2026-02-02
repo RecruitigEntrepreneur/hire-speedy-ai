@@ -6,9 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Settings2, History, Shield, Calendar } from "lucide-react";
+import { AlertCircle, Settings2, History, Shield, Calendar, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CalendarConnectionCard } from "@/components/settings/CalendarConnectionCard";
 
 interface Integration {
   id: string;
@@ -155,7 +154,55 @@ export default function IntegrationSettings() {
           </TabsList>
 
           <TabsContent value="calendar">
-            <CalendarConnectionCard />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Interview-Termine per E-Mail
+                </CardTitle>
+                <CardDescription>
+                  Interview-Termine werden automatisch per E-Mail mit Kalender-Anhang versendet
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-green-800 dark:text-green-300">
+                        E-Mail-basiertes Terminmanagement aktiv
+                      </h4>
+                      <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                        Kandidaten erhalten automatisch Interview-Einladungen per E-Mail und können 
+                        direkt zusagen, absagen oder Alternativtermine vorschlagen.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h5 className="text-sm font-medium">So funktioniert es:</h5>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      Kandidaten erhalten gebrandete E-Mail-Einladungen
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      Terminbestätigungen enthalten iCal-Dateien (.ics)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      Alle Beteiligten erhalten automatische Benachrichtigungen
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      Erinnerungen werden automatisch versendet
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="integrations">
