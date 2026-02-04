@@ -9,26 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
   ArrowLeft,
-  Mail,
-  Phone,
-  Linkedin,
-  Edit,
-  Download,
-  RefreshCw,
   Loader2,
-  MapPin,
-  Briefcase,
-  CheckCircle,
-  XCircle,
-  Building2,
-  Clock,
   User,
   BarChart3,
 } from 'lucide-react';
@@ -44,9 +26,9 @@ import { Candidate } from '@/components/candidates/CandidateCard';
 import { AddActivityDialog } from '@/components/candidates/AddActivityDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
-import { CandidateStagePipeline } from '@/components/candidates/CandidateStagePipeline';
 import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
 import { CandidatePlaybookPanel } from '@/components/candidates/CandidatePlaybookPanel';
+import { CandidateHeroHeader } from '@/components/candidates/CandidateHeroHeader';
 
 // New Tab Components
 import { CandidateProfileTab } from '@/components/candidates/CandidateProfileTab';
@@ -397,189 +379,19 @@ export default function RecruiterCandidateDetail() {
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24">
-        {/* Compact Hero Header */}
-        <div className="rounded-xl bg-gradient-to-br from-primary/5 via-background to-emerald/5 border shadow-sm overflow-hidden">
-          {/* Back Button Row */}
-          <div className="px-6 py-3 border-b bg-background/50">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/recruiter/candidates')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Zurück zu Kandidaten
-            </Button>
-          </div>
-          
-          {/* Main Hero Content */}
-          <div className="p-6">
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Avatar */}
-              <Avatar className="h-16 w-16 border-2 border-primary/20 shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-xl font-semibold">
-                  {candidate.full_name.split(' ').map((n) => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              
-              {/* Info Block */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                  <div className="min-w-0">
-                    <h1 className="text-2xl font-bold truncate">{candidate.full_name}</h1>
-                    
-                    {/* Compact Meta Line */}
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        {candidate.job_title || 'Keine Position'}
-                      </span>
-                      {candidate.city && (
-                        <>
-                          <span>·</span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {candidate.city}
-                          </span>
-                        </>
-                      )}
-                      {candidate.experience_years && (
-                        <>
-                          <span>·</span>
-                          <span>{candidate.experience_years}J</span>
-                        </>
-                      )}
-                      {salaryText && (
-                        <>
-                          <span>·</span>
-                          <span className="text-success">{salaryText}</span>
-                        </>
-                      )}
-                    </div>
-                    
-                    {/* Badges Row */}
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      {readiness?.isReady && (
-                        <Badge className="bg-success/10 text-success">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Exposé-Ready
-                        </Badge>
-                      )}
-                      {!readiness?.isReady && readiness && (
-                        <Badge variant="outline" className="text-warning border-warning/50">
-                          {readiness.score}% vollständig
-                        </Badge>
-                      )}
-                      {availabilityText && (
-                        <Badge variant="outline">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {availabilityText}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Quick Actions */}
-                  <TooltipProvider delayDuration={300}>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {candidate.phone && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" onClick={() => window.location.href = `tel:${candidate.phone}`}>
-                              <Phone className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Anrufen</TooltipContent>
-                        </Tooltip>
-                      )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => window.location.href = `mailto:${candidate.email}`}>
-                            <Mail className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>E-Mail senden</TooltipContent>
-                      </Tooltip>
-                      {candidate.linkedin_url && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" onClick={() => window.open(candidate.linkedin_url!, '_blank')}>
-                              <Linkedin className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>LinkedIn öffnen</TooltipContent>
-                        </Tooltip>
-                      )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => setCvUploadOpen(true)}>
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>CV aktualisieren</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={() => setFormDialogOpen(true)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Profil bearbeiten</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TooltipProvider>
-                </div>
-                
-                {/* Stage Pipeline */}
-                {currentStatus !== 'rejected' && (
-                  <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
-                    <CandidateStagePipeline
-                      currentStage={currentStatus}
-                      onStageChange={(stage) => statusMutation.mutate(stage)}
-                      disabled={statusMutation.isPending}
-                    />
-                  </div>
-                )}
-
-                {/* Active Submissions */}
-                {activeSubmissions.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {activeSubmissions.slice(0, 3).map(sub => (
-                      <Link
-                        key={sub.id}
-                        to={`/recruiter/jobs/${sub.job.id}`}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors text-sm group"
-                      >
-                        <Building2 className="h-3.5 w-3.5 text-primary" />
-                        <span className="font-medium group-hover:text-primary transition-colors">
-                          {sub.job.title}
-                        </span>
-                        <Badge variant="outline" className="h-5 text-xs">
-                          {statusLabels[sub.status] || sub.status}
-                        </Badge>
-                      </Link>
-                    ))}
-                    {activeSubmissions.length > 3 && (
-                      <Badge variant="secondary">+{activeSubmissions.length - 3} weitere</Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Rejected Alert */}
-          {currentStatus === 'rejected' && (
-            <div className="px-6 py-3 bg-destructive/10 border-t flex items-center justify-between">
-              <div className="flex items-center gap-2 text-destructive">
-                <XCircle className="h-4 w-4" />
-                <span className="font-medium">Kandidat abgesagt</span>
-              </div>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => statusMutation.mutate('new')}
-                disabled={statusMutation.isPending}
-              >
-                Reaktivieren
-              </Button>
-            </div>
-          )}
-        </div>
+        {/* Hero Header */}
+        <CandidateHeroHeader
+          candidate={candidate}
+          readiness={readiness}
+          currentStatus={currentStatus}
+          onStatusChange={(stage) => statusMutation.mutate(stage)}
+          onEdit={() => setFormDialogOpen(true)}
+          onCvUpload={() => setCvUploadOpen(true)}
+          submissions={submissions || []}
+          statusMutationPending={statusMutation.isPending}
+          availabilityText={availabilityText}
+          salaryText={salaryText}
+        />
 
         {/* Playbook Panel (if from alert context) */}
         {playbook && (
