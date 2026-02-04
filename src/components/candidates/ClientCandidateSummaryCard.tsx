@@ -1,25 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Sparkles, 
-  RefreshCw, 
-  ChevronDown, 
   AlertTriangle, 
   CheckCircle2, 
   Clock, 
   TrendingUp,
-  Briefcase,
   Target,
   ThumbsUp,
   ThumbsDown,
   Minus,
   Loader2
 } from 'lucide-react';
-import { useClientCandidateSummary, RiskFactor, PositiveFactor } from '@/hooks/useClientCandidateSummary';
+import { useClientCandidateSummary } from '@/hooks/useClientCandidateSummary';
 import { cn } from '@/lib/utils';
 
 interface ClientCandidateSummaryCardProps {
@@ -30,8 +25,6 @@ interface ClientCandidateSummaryCardProps {
 
 export function ClientCandidateSummaryCard({ candidateId, submissionId, className }: ClientCandidateSummaryCardProps) {
   const { summary, loading, generating, generateSummary } = useClientCandidateSummary(candidateId, submissionId);
-  const [risksOpen, setRisksOpen] = useState(false);
-  const [strengthsOpen, setStrengthsOpen] = useState(false);
   const hasTriedGenerate = useRef(false);
 
   // Auto-generate summary if none exists
@@ -50,22 +43,22 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
   if (loading || (!summary && generating)) {
     return (
       <Card className={className}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-primary" />
-            AI-Analyse
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="font-semibold">KI-Einschätzung</span>
             {generating && (
               <Badge variant="secondary" className="ml-auto gap-1 text-xs">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Wird erstellt...
               </Badge>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-8 w-3/4" />
+          </div>
+          <Skeleton className="h-24 w-full" />
+          <div className="grid grid-cols-2 gap-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -74,13 +67,11 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
   if (!summary) {
     return (
       <Card className={className}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-primary" />
-            AI-Analyse
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="font-semibold">KI-Einschätzung</span>
+          </div>
           <p className="text-sm text-muted-foreground text-center py-4">
             Analyse konnte nicht erstellt werden.
           </p>
@@ -89,20 +80,62 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
     );
   }
 
-  const getRecommendationStyle = (rec: string) => {
+  const getRecommendationConfig = (rec: string) => {
     switch (rec) {
       case 'strong_yes':
-        return { bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-600', label: 'Starke Empfehlung', icon: ThumbsUp };
+        return { 
+          gradient: 'from-emerald-500 to-emerald-600', 
+          bg: 'bg-emerald-500/10',
+          text: 'text-emerald-700 dark:text-emerald-400', 
+          label: 'Starke Empfehlung', 
+          sublabel: 'Ausgezeichnete Passung',
+          icon: ThumbsUp 
+        };
       case 'yes':
-        return { bg: 'bg-green-500/10 border-green-500/30', text: 'text-green-600', label: 'Empfehlung', icon: ThumbsUp };
+        return { 
+          gradient: 'from-green-500 to-green-600', 
+          bg: 'bg-green-500/10',
+          text: 'text-green-700 dark:text-green-400', 
+          label: 'Empfehlung', 
+          sublabel: 'Gute Passung',
+          icon: ThumbsUp 
+        };
       case 'maybe':
-        return { bg: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-600', label: 'Mit Vorbehalt', icon: Minus };
+        return { 
+          gradient: 'from-amber-500 to-amber-600', 
+          bg: 'bg-amber-500/10',
+          text: 'text-amber-700 dark:text-amber-400', 
+          label: 'Mit Vorbehalt', 
+          sublabel: 'Teilweise passend',
+          icon: Minus 
+        };
       case 'no':
-        return { bg: 'bg-orange-500/10 border-orange-500/30', text: 'text-orange-600', label: 'Nicht empfohlen', icon: ThumbsDown };
+        return { 
+          gradient: 'from-orange-500 to-orange-600', 
+          bg: 'bg-orange-500/10',
+          text: 'text-orange-700 dark:text-orange-400', 
+          label: 'Nicht empfohlen', 
+          sublabel: 'Geringe Passung',
+          icon: ThumbsDown 
+        };
       case 'strong_no':
-        return { bg: 'bg-red-500/10 border-red-500/30', text: 'text-red-600', label: 'Nicht geeignet', icon: ThumbsDown };
+        return { 
+          gradient: 'from-red-500 to-red-600', 
+          bg: 'bg-red-500/10',
+          text: 'text-red-700 dark:text-red-400', 
+          label: 'Nicht geeignet', 
+          sublabel: 'Keine Passung',
+          icon: ThumbsDown 
+        };
       default:
-        return { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Keine Bewertung', icon: Minus };
+        return { 
+          gradient: 'from-muted to-muted', 
+          bg: 'bg-muted',
+          text: 'text-muted-foreground', 
+          label: 'Keine Bewertung', 
+          sublabel: '',
+          icon: Minus 
+        };
     }
   };
 
@@ -113,169 +146,194 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
     switch (concern_level) {
       case 'high':
         return (
-          <Badge variant="destructive" className="gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            Jobhopper (Ø {years}J)
-          </Badge>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <div>
+              <div className="text-xs font-medium text-destructive">Jobhopper</div>
+              <div className="text-xs text-muted-foreground">Ø {years} Jahre</div>
+            </div>
+          </div>
         );
       case 'medium':
         return (
-          <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-600 bg-amber-500/10">
-            <Clock className="h-3 w-3" />
-            Wechselfreudig (Ø {years}J)
-          </Badge>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <Clock className="h-4 w-4 text-amber-600" />
+            <div>
+              <div className="text-xs font-medium text-amber-700 dark:text-amber-400">Wechselfreudig</div>
+              <div className="text-xs text-muted-foreground">Ø {years} Jahre</div>
+            </div>
+          </div>
         );
       default:
         return (
-          <Badge variant="outline" className="gap-1 border-emerald-500/50 text-emerald-600 bg-emerald-500/10">
-            <CheckCircle2 className="h-3 w-3" />
-            Stabil (Ø {years}J)
-          </Badge>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <div>
+              <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Stabil</div>
+              <div className="text-xs text-muted-foreground">Ø {years} Jahre</div>
+            </div>
+          </div>
         );
     }
   };
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return <div className="w-2 h-2 rounded-full bg-red-500" />;
-      case 'medium':
-        return <div className="w-2 h-2 rounded-full bg-amber-500" />;
-      default:
-        return <div className="w-2 h-2 rounded-full bg-blue-500" />;
-    }
-  };
+  const recConfig = getRecommendationConfig(summary.recommendation);
+  const RecIcon = recConfig.icon;
 
-  const getStrengthIcon = (strength: string) => {
-    switch (strength) {
-      case 'high':
-        return <div className="w-2 h-2 rounded-full bg-emerald-500" />;
-      case 'medium':
-        return <div className="w-2 h-2 rounded-full bg-green-500" />;
-      default:
-        return <div className="w-2 h-2 rounded-full bg-teal-500" />;
-    }
-  };
-
-  const recStyle = getRecommendationStyle(summary.recommendation);
-  const RecIcon = recStyle.icon;
-
-  const highRisks = summary.risk_factors.filter(r => r.severity === 'high').length;
-  const mediumRisks = summary.risk_factors.filter(r => r.severity === 'medium').length;
+  const highRisks = summary.risk_factors.filter(r => r.severity === 'high');
+  const mediumRisks = summary.risk_factors.filter(r => r.severity === 'medium');
+  const lowRisks = summary.risk_factors.filter(r => r.severity === 'low');
+  
+  const highStrengths = summary.positive_factors.filter(f => f.strength === 'high');
+  const otherStrengths = summary.positive_factors.filter(f => f.strength !== 'high');
 
   return (
     <Card className={cn('overflow-hidden', className)}>
-      <CardHeader className={cn('border-b', recStyle.bg)}>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            KI-Einschätzung
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {/* Score removed - V3.1 Match Engine is the single source of truth */}
-            <Badge className={cn('gap-1', recStyle.bg, recStyle.text, 'border')}>
-              <RecIcon className="h-3 w-3" />
-              {recStyle.label}
-            </Badge>
+      <CardContent className="p-0">
+        {/* Recommendation Banner */}
+        <div className={cn('p-4', recConfig.bg)}>
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-primary shrink-0" />
+            <span className="font-semibold text-sm">KI-Einschätzung</span>
+          </div>
+          
+          {/* Large Recommendation Badge */}
+          <div className={cn(
+            'mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r text-white font-semibold shadow-lg',
+            recConfig.gradient
+          )}>
+            <RecIcon className="h-5 w-5" />
+            <div>
+              <div className="text-sm">{recConfig.label}</div>
+              {recConfig.sublabel && (
+                <div className="text-xs opacity-90">{recConfig.sublabel}</div>
+              )}
+            </div>
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="p-4 space-y-4">
         {/* Executive Summary */}
-        <div className="p-3 bg-muted/50 rounded-lg">
-          <p className="text-sm leading-relaxed">{summary.executive_summary}</p>
+        <div className="p-4 border-b">
+          <p className="text-sm leading-relaxed text-foreground">
+            {summary.executive_summary}
+          </p>
         </div>
 
-        {/* Key Selling Points & Jobhopper Badge */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {getJobHopperBadge()}
-          {summary.key_selling_points.slice(0, 3).map((point, idx) => (
-            <Badge key={idx} variant="outline" className="gap-1">
-              <Target className="h-3 w-3" />
-              {point}
-            </Badge>
-          ))}
+        {/* Key Insights Row */}
+        <div className="p-4 border-b bg-muted/30">
+          <div className="flex flex-wrap gap-2">
+            {getJobHopperBadge()}
+            {summary.key_selling_points.slice(0, 3).map((point, idx) => (
+              <div 
+                key={idx} 
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10"
+              >
+                <Target className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-medium">{point}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Change Motivation */}
         {summary.change_motivation_summary && (
-          <div className="flex items-start gap-2 p-2 bg-blue-500/5 rounded-lg border border-blue-500/20">
-            <TrendingUp className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-            <div>
-              <span className="text-xs font-medium text-blue-600">Wechselmotivation</span>
-              <p className="text-sm text-muted-foreground">{summary.change_motivation_summary}</p>
+          <div className="p-4 border-b bg-blue-500/5">
+            <div className="flex items-start gap-2">
+              <TrendingUp className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Wechselmotivation</span>
+                <p className="text-sm text-muted-foreground mt-0.5">{summary.change_motivation_summary}</p>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Risk Factors */}
-        <Collapsible open={risksOpen} onOpenChange={setRisksOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between h-auto py-2 px-3 hover:bg-red-500/5">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-                <span className="font-medium">Risikofaktoren</span>
-                {highRisks > 0 && (
-                  <Badge variant="destructive" className="h-5 px-1.5 text-xs">
-                    {highRisks} hoch
-                  </Badge>
-                )}
-                {mediumRisks > 0 && (
-                  <Badge variant="outline" className="h-5 px-1.5 text-xs border-amber-500/50 text-amber-600">
-                    {mediumRisks} mittel
-                  </Badge>
-                )}
-              </div>
-              <ChevronDown className={cn('h-4 w-4 transition-transform', risksOpen && 'rotate-180')} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-2">
-            {summary.risk_factors.map((risk, idx) => (
-              <div key={idx} className="flex items-start gap-2 p-2 bg-muted/30 rounded text-sm">
-                {getSeverityIcon(risk.severity)}
-                <div>
-                  <span className="font-medium">{risk.factor}</span>
-                  <p className="text-muted-foreground text-xs">{risk.detail}</p>
+        {/* Strengths & Risks Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+          {/* Strengths Column */}
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <span className="font-medium text-sm">Stärken</span>
+              <Badge variant="outline" className="h-5 px-1.5 text-xs border-emerald-500/50 text-emerald-600 bg-emerald-500/10">
+                {summary.positive_factors.length}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {highStrengths.slice(0, 2).map((factor, idx) => (
+                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-500/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{factor.factor}</span>
+                    <p className="text-xs text-muted-foreground truncate">{factor.detail}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {summary.risk_factors.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-2">Keine Risikofaktoren identifiziert</p>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+              ))}
+              {otherStrengths.slice(0, 2).map((factor, idx) => (
+                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{factor.factor}</span>
+                    <p className="text-xs text-muted-foreground truncate">{factor.detail}</p>
+                  </div>
+                </div>
+              ))}
+              {summary.positive_factors.length === 0 && (
+                <p className="text-sm text-muted-foreground">Keine Stärken identifiziert</p>
+              )}
+            </div>
+          </div>
 
-        {/* Positive Factors */}
-        <Collapsible open={strengthsOpen} onOpenChange={setStrengthsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between h-auto py-2 px-3 hover:bg-emerald-500/5">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span className="font-medium">Stärken</span>
-                <Badge variant="outline" className="h-5 px-1.5 text-xs border-emerald-500/50 text-emerald-600">
-                  {summary.positive_factors.length}
+          {/* Risks Column */}
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="font-medium text-sm">Risiken</span>
+              {highRisks.length > 0 && (
+                <Badge variant="destructive" className="h-5 px-1.5 text-xs">
+                  {highRisks.length} hoch
                 </Badge>
-              </div>
-              <ChevronDown className={cn('h-4 w-4 transition-transform', strengthsOpen && 'rotate-180')} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-2">
-            {summary.positive_factors.map((factor, idx) => (
-              <div key={idx} className="flex items-start gap-2 p-2 bg-muted/30 rounded text-sm">
-                {getStrengthIcon(factor.strength)}
-                <div>
-                  <span className="font-medium">{factor.factor}</span>
-                  <p className="text-muted-foreground text-xs">{factor.detail}</p>
+              )}
+              {mediumRisks.length > 0 && (
+                <Badge variant="outline" className="h-5 px-1.5 text-xs border-amber-500/50 text-amber-600 bg-amber-500/10">
+                  {mediumRisks.length} mittel
+                </Badge>
+              )}
+            </div>
+            <div className="space-y-2">
+              {highRisks.slice(0, 2).map((risk, idx) => (
+                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-destructive/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{risk.factor}</span>
+                    <p className="text-xs text-muted-foreground truncate">{risk.detail}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {summary.positive_factors.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-2">Keine Stärken identifiziert</p>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
-
+              ))}
+              {mediumRisks.slice(0, 2).map((risk, idx) => (
+                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{risk.factor}</span>
+                    <p className="text-xs text-muted-foreground truncate">{risk.detail}</p>
+                  </div>
+                </div>
+              ))}
+              {lowRisks.slice(0, 1).map((risk, idx) => (
+                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{risk.factor}</span>
+                    <p className="text-xs text-muted-foreground truncate">{risk.detail}</p>
+                  </div>
+                </div>
+              ))}
+              {summary.risk_factors.length === 0 && (
+                <p className="text-sm text-muted-foreground">Keine Risiken identifiziert</p>
+              )}
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
