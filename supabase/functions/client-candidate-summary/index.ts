@@ -135,7 +135,7 @@ serve(async (req) => {
   }
 
   try {
-    const { candidateId, submissionId } = await req.json();
+    const { candidateId, submissionId, force } = await req.json();
 
     if (!candidateId) {
       return new Response(JSON.stringify({ error: "candidateId is required" }), {
@@ -147,6 +147,13 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // First, check if existing summary is still valid (smart caching)
+    const { data: existingSummary } = await supabase
+      .from("candidate_client_summary")
+      .select("generated_at")
+      .eq("candidate_id", candidateId)
+      .maybeSingle();
 
     // Fetch all candidate data + job data via submission
     const [candidateResult, experiencesResult, interviewNotesResult, aiAssessmentResult, behaviorResult, submissionResult] = await Promise.all([
@@ -169,6 +176,29 @@ serve(async (req) => {
     const behavior = behaviorResult.data;
     const job = submissionResult.data?.jobs as any || null;
     const hasInterview = !!interviewNotes;
+
+    // Smart caching: Skip regeneration if source data hasn't changed
+    if (existingSummary && !force) {
+      const summaryDate = new Date(existingSummary.generated_at);
+      const candidateUpdated = new Date(candidate.updated_at);
+      const interviewUpdated = interviewNotes ? new Date(interviewNotes.updated_at) : null;
+      
+      const sourceDataNewer = 
+        candidateUpdated > summaryDate ||
+        (interviewUpdated && interviewUpdated > summaryDate);
+        
+      if (!sourceDataNewer) {
+        console.log("[client-candidate-summary] Summary is up to date, skipping regeneration for:", candidateId);
+        return new Response(JSON.stringify({ 
+          success: true, 
+          cached: true,
+          message: "Summary ist aktuell - keine Änderungen an Quelldaten"
+        }), { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      console.log("[client-candidate-summary] Source data changed, regenerating for:", candidateId);
+    }
 
     console.log("[client-candidate-summary] Job context loaded:", job?.title || "No job context");
 

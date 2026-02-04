@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Sparkles, 
@@ -12,10 +13,13 @@ import {
   ThumbsUp,
   ThumbsDown,
   Minus,
-  Loader2
+  Loader2,
+  RefreshCcw
 } from 'lucide-react';
 import { useClientCandidateSummary } from '@/hooks/useClientCandidateSummary';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 interface ClientCandidateSummaryCardProps {
   candidateId: string;
@@ -27,11 +31,11 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
   const { summary, loading, generating, generateSummary } = useClientCandidateSummary(candidateId, submissionId);
   const hasTriedGenerate = useRef(false);
 
-  // Auto-generate summary if none exists
+  // Auto-generate ONLY if no summary exists at all (not for outdated ones)
   useEffect(() => {
     if (!loading && !summary && !generating && candidateId && !hasTriedGenerate.current) {
       hasTriedGenerate.current = true;
-      generateSummary();
+      generateSummary({ silent: true });
     }
   }, [loading, summary, generating, candidateId, generateSummary]);
 
@@ -39,6 +43,10 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
   useEffect(() => {
     hasTriedGenerate.current = false;
   }, [candidateId]);
+
+  const handleRefresh = () => {
+    generateSummary({ force: true });
+  };
 
   if (loading || (!summary && generating)) {
     return (
@@ -192,9 +200,32 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
       <CardContent className="p-0">
         {/* Recommendation Banner */}
         <div className={cn('p-4', recConfig.bg)}>
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 text-primary shrink-0" />
-            <span className="font-semibold text-sm">KI-Einschätzung</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-primary shrink-0" />
+              <span className="font-semibold text-sm">KI-Einschätzung</span>
+              {summary.generated_at && (
+                <span className="text-xs text-muted-foreground">
+                  Erstellt am {format(new Date(summary.generated_at), 'dd.MM.yyyy', { locale: de })}
+                </span>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={generating}
+              className="h-7 px-2 text-xs"
+            >
+              {generating ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCcw className="h-3 w-3 mr-1" />
+                  Aktualisieren
+                </>
+              )}
+            </Button>
           </div>
           
           {/* Large Recommendation Badge */}
