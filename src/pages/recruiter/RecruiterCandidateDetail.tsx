@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Tooltip,
   TooltipContent,
@@ -21,14 +22,15 @@ import {
   Edit,
   Download,
   RefreshCw,
-  Plus,
-  Clock,
   Loader2,
   MapPin,
   Briefcase,
   CheckCircle,
   XCircle,
   Building2,
+  Clock,
+  User,
+  BarChart3,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -39,24 +41,18 @@ import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
 import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
 
 import { Candidate } from '@/components/candidates/CandidateCard';
-import { CandidateStatusDropdown } from '@/components/candidates/CandidateStatusDropdown';
 import { AddActivityDialog } from '@/components/candidates/AddActivityDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
-import { CandidateTasksSection } from '@/components/candidates/CandidateTasksSection';
 import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
-
-// Layout components
-import { CandidateKeyFactsCard } from '@/components/candidates/CandidateKeyFactsCard';
-import { QuickInterviewSummary } from '@/components/candidates/QuickInterviewSummary';
-import { CandidateJobMatchingV3 } from '@/components/candidates/CandidateJobMatchingV3';
-import { ClientCandidateSummaryCard } from '@/components/candidates/ClientCandidateSummaryCard';
-import { CandidateActivityTimeline } from '@/components/candidates/CandidateActivityTimeline';
-import { CandidateJobsOverview } from '@/components/candidates/CandidateJobsOverview';
-import { CandidateDocumentsManager } from '@/components/candidates/CandidateDocumentsManager';
-import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
 import { CandidateStagePipeline } from '@/components/candidates/CandidateStagePipeline';
+import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
 import { CandidatePlaybookPanel } from '@/components/candidates/CandidatePlaybookPanel';
-import { SimilarCandidates } from '@/components/candidates/SimilarCandidates';
+
+// New Tab Components
+import { CandidateProfileTab } from '@/components/candidates/CandidateProfileTab';
+import { CandidateProcessTab } from '@/components/candidates/CandidateProcessTab';
+import { CandidateActionBar } from '@/components/candidates/CandidateActionBar';
+import { InterviewCardSlider } from '@/components/candidates/InterviewCardSlider';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -73,10 +69,11 @@ function getStatusLabel(status: string): string {
 export default function RecruiterCandidateDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeTaskId = searchParams.get('task') || undefined;
   const alertId = searchParams.get('alert') || undefined;
   const playbookId = searchParams.get('playbook') || undefined;
+  const initialTab = searchParams.get('tab') || 'profile';
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -86,7 +83,9 @@ export default function RecruiterCandidateDetail() {
   const [cvUploadOpen, setCvUploadOpen] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [showFullInterview, setShowFullInterview] = useState(false);
+  const [interviewSliderOpen, setInterviewSliderOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const { tags, getCandidateTags } = useCandidateTags();
   const candidateTags = candidate ? getCandidateTags(candidate.id) : [];
@@ -189,6 +188,35 @@ export default function RecruiterCandidateDetail() {
     }
   }, [candidate?.candidate_status]);
 
+  // Handle tab change with URL persistence
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', newTab);
+    setSearchParams(newParams, { replace: true });
+  };
+
+  // Keyboard navigation for tabs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if ((e.key === '1' || e.key.toLowerCase() === 'p') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleTabChange('profile');
+      } else if ((e.key === '2' || e.key.toLowerCase() === 'r') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleTabChange('process');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchParams]);
+
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       if (!candidate) return;
@@ -269,6 +297,25 @@ export default function RecruiterCandidateDetail() {
     }
   };
 
+  // Action Bar handlers
+  const handleViewExpose = () => {
+    if (candidate) {
+      window.open(`/expose/${candidate.id}`, '_blank');
+    }
+  };
+
+  const handleStartInterview = () => {
+    setInterviewSliderOpen(true);
+  };
+
+  const handleSubmitToJob = () => {
+    handleTabChange('process');
+    // Scroll to matching section
+    setTimeout(() => {
+      document.getElementById('job-matching-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -293,7 +340,7 @@ export default function RecruiterCandidateDetail() {
     );
   }
 
-  // Full Interview Mode
+  // Full Interview Mode (legacy - for detailed view)
   if (showFullInterview) {
     return (
       <DashboardLayout>
@@ -324,11 +371,11 @@ export default function RecruiterCandidateDetail() {
     if (extCandidate?.notice_period) {
       const labels: Record<string, string> = {
         immediate: 'Sofort verfügbar',
-        '2_weeks': '2 Wochen Kündigungsfrist',
-        '1_month': '1 Monat Kündigungsfrist',
-        '2_months': '2 Monate Kündigungsfrist',
-        '3_months': '3 Monate Kündigungsfrist',
-        '6_months': '6 Monate Kündigungsfrist',
+        '2_weeks': '2 Wochen',
+        '1_month': '1 Monat',
+        '2_months': '2 Monate',
+        '3_months': '3 Monate',
+        '6_months': '6 Monate',
       };
       return labels[extCandidate.notice_period] || extCandidate.notice_period;
     }
@@ -346,12 +393,11 @@ export default function RecruiterCandidateDetail() {
 
   const availabilityText = getAvailabilityText();
   const salaryText = getSalaryText();
-  const topSkills = candidate?.skills?.slice(0, 3) || [];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Hero Header Card */}
+      <div className="space-y-6 pb-24">
+        {/* Compact Hero Header */}
         <div className="rounded-xl bg-gradient-to-br from-primary/5 via-background to-emerald/5 border shadow-sm overflow-hidden">
           {/* Back Button Row */}
           <div className="px-6 py-3 border-b bg-background/50">
@@ -365,8 +411,8 @@ export default function RecruiterCandidateDetail() {
           <div className="p-6">
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Avatar */}
-              <Avatar className="h-20 w-20 border-2 border-primary/20 shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-2xl font-semibold">
+              <Avatar className="h-16 w-16 border-2 border-primary/20 shrink-0">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-xl font-semibold">
                   {candidate.full_name.split(' ').map((n) => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
@@ -376,29 +422,53 @@ export default function RecruiterCandidateDetail() {
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   <div className="min-w-0">
                     <h1 className="text-2xl font-bold truncate">{candidate.full_name}</h1>
-                    <p className="text-lg text-muted-foreground truncate">
-                      {candidate.job_title || 'Keine Position angegeben'}
-                    </p>
                     
-                    {/* Meta Row */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                    {/* Compact Meta Line */}
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {candidate.job_title || 'Keine Position'}
+                      </span>
                       {candidate.city && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {candidate.city}
-                        </span>
-                      )}
-                      {availabilityText && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {availabilityText}
-                        </span>
+                        <>
+                          <span>·</span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {candidate.city}
+                          </span>
+                        </>
                       )}
                       {candidate.experience_years && (
-                        <span className="flex items-center gap-1">
-                          <Briefcase className="h-3.5 w-3.5" />
-                          {candidate.experience_years}+ Jahre
-                        </span>
+                        <>
+                          <span>·</span>
+                          <span>{candidate.experience_years}J</span>
+                        </>
+                      )}
+                      {salaryText && (
+                        <>
+                          <span>·</span>
+                          <span className="text-success">{salaryText}</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Badges Row */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {readiness?.isReady && (
+                        <Badge className="bg-success/10 text-success">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Exposé-Ready
+                        </Badge>
+                      )}
+                      {!readiness?.isReady && readiness && (
+                        <Badge variant="outline" className="text-warning border-warning/50">
+                          {readiness.score}% vollständig
+                        </Badge>
+                      )}
+                      {availabilityText && (
+                        <Badge variant="outline">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {availabilityText}
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -436,14 +506,6 @@ export default function RecruiterCandidateDetail() {
                       )}
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon" onClick={handleExport}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Profil exportieren</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
                           <Button variant="outline" size="icon" onClick={() => setCvUploadOpen(true)}>
                             <RefreshCw className="h-4 w-4" />
                           </Button>
@@ -462,7 +524,7 @@ export default function RecruiterCandidateDetail() {
                   </TooltipProvider>
                 </div>
                 
-                {/* Stage Pipeline - Prominent */}
+                {/* Stage Pipeline */}
                 {currentStatus !== 'rejected' && (
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
                     <CandidateStagePipeline
@@ -472,34 +534,11 @@ export default function RecruiterCandidateDetail() {
                     />
                   </div>
                 )}
-                
-                {/* Key Badges Row */}
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  {readiness?.isReady && (
-                    <Badge className="bg-success/10 text-success">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Exposé-Ready
-                    </Badge>
-                  )}
-                  {!readiness?.isReady && readiness && (
-                    <Badge variant="outline" className="text-warning border-warning/50">
-                      {readiness.score}% vollständig
-                    </Badge>
-                  )}
-                  {salaryText && (
-                    <Badge variant="outline">{salaryText}</Badge>
-                  )}
-                  {topSkills.length > 0 && (
-                    <Badge variant="secondary" className="font-normal">
-                      {topSkills.join(', ')}
-                    </Badge>
-                  )}
-                </div>
 
-                {/* Active Submissions - Prominent in Header */}
+                {/* Active Submissions */}
                 {activeSubmissions.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-4">
-                    {activeSubmissions.map(sub => (
+                    {activeSubmissions.slice(0, 3).map(sub => (
                       <Link
                         key={sub.id}
                         to={`/recruiter/jobs/${sub.job.id}`}
@@ -509,16 +548,14 @@ export default function RecruiterCandidateDetail() {
                         <span className="font-medium group-hover:text-primary transition-colors">
                           {sub.job.title}
                         </span>
-                        <span className="text-muted-foreground">@</span>
-                        <span className="text-muted-foreground">{sub.job.company_name}</span>
-                        <Badge variant="outline" className="h-5 text-xs ml-1">
+                        <Badge variant="outline" className="h-5 text-xs">
                           {statusLabels[sub.status] || sub.status}
                         </Badge>
-                        <span className="text-muted-foreground text-xs">
-                          {formatDistanceToNow(new Date(sub.submitted_at), { addSuffix: true, locale: de })}
-                        </span>
                       </Link>
                     ))}
+                    {activeSubmissions.length > 3 && (
+                      <Badge variant="secondary">+{activeSubmissions.length - 3} weitere</Badge>
+                    )}
                   </div>
                 )}
               </div>
@@ -544,108 +581,100 @@ export default function RecruiterCandidateDetail() {
           )}
         </div>
 
-        {/* Tasks */}
-        <CandidateTasksSection candidateId={candidate.id} activeTaskId={activeTaskId} />
+        {/* Playbook Panel (if from alert context) */}
+        {playbook && (
+          <CandidatePlaybookPanel
+            playbook={playbook}
+            alertTitle={alertTitle}
+            candidateName={candidate.full_name}
+            companyName={extCandidate?.company}
+          />
+        )}
 
-        {/* 2-Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
-          {/* LEFT COLUMN - Main Content */}
-          <div className="space-y-6 min-w-0">
-            {/* Key Facts */}
-            <CandidateKeyFactsCard 
-              candidate={{
-                ...candidate,
-                salary_expectation_min: extCandidate.salary_expectation_min,
-                salary_expectation_max: extCandidate.salary_expectation_max,
-                remote_preference: extCandidate.remote_preference,
-                certifications: extCandidate.certifications,
-              }} 
-              tags={candidateTags} 
-            />
+        {/* Tab Navigation */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="profile" className="gap-2">
+              <User className="h-4 w-4" />
+              Profil
+            </TabsTrigger>
+            <TabsTrigger value="process" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Prozess
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Job Matching */}
-            <CandidateJobMatchingV3 
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="mt-6">
+            <CandidateProfileTab 
               candidate={{
                 id: candidate.id,
-                skills: candidate.skills,
-                experience_years: candidate.experience_years,
-                expected_salary: candidate.expected_salary,
-                salary_expectation_min: extCandidate.salary_expectation_min,
-                salary_expectation_max: extCandidate.salary_expectation_max,
-                city: candidate.city,
-                seniority: candidate.seniority,
-                target_roles: extCandidate.target_roles,
                 job_title: candidate.job_title,
-                full_name: candidate.full_name,
-                max_commute_minutes: extCandidate.max_commute_minutes,
-                commute_mode: extCandidate.commute_mode,
-                address_lat: extCandidate.address_lat,
-                address_lng: extCandidate.address_lng,
-                email: candidate.email,
-                phone: candidate.phone,
-                availability_date: extCandidate.availability_date,
-                notice_period: extCandidate.notice_period,
-                cv_ai_summary: extCandidate.cv_ai_summary,
-                cv_ai_bullets: extCandidate.cv_ai_bullets,
+                seniority: candidate.seniority,
+                experience_years: candidate.experience_years,
+                city: candidate.city,
+                expected_salary: candidate.expected_salary,
+                salary_expectation_min: extCandidate?.salary_expectation_min,
+                salary_expectation_max: extCandidate?.salary_expectation_max,
+                current_salary: candidate.current_salary,
+                notice_period: extCandidate?.notice_period,
+                availability_date: extCandidate?.availability_date,
+                remote_possible: candidate.remote_possible,
+                remote_preference: extCandidate?.remote_preference,
+                skills: candidate.skills,
+                certifications: extCandidate?.certifications,
               }}
+              tags={candidateTags}
+              onViewFullInterview={() => setShowFullInterview(true)}
             />
+          </TabsContent>
 
-            {/* Client Summary */}
-            <ClientCandidateSummaryCard candidateId={candidate.id} />
-
-            {/* Submissions */}
-            <CandidateJobsOverview candidateId={candidate.id} />
-          </div>
-
-          {/* RIGHT COLUMN - Context & History */}
-          <div className="space-y-6 min-w-0">
-            {/* Coaching Playbook - Only show if we have one from alert context */}
-            {playbook && (
-              <CandidatePlaybookPanel
-                playbook={playbook}
-                alertTitle={alertTitle}
-                candidateName={candidate.full_name}
-                companyName={extCandidate?.company}
+          {/* Process Tab */}
+          <TabsContent value="process" className="mt-6">
+            <div id="job-matching-section">
+              <CandidateProcessTab 
+                candidate={{
+                  id: candidate.id,
+                  full_name: candidate.full_name,
+                  email: candidate.email,
+                  phone: candidate.phone,
+                  job_title: candidate.job_title,
+                  skills: candidate.skills,
+                  experience_years: candidate.experience_years,
+                  expected_salary: candidate.expected_salary,
+                  salary_expectation_min: extCandidate?.salary_expectation_min,
+                  salary_expectation_max: extCandidate?.salary_expectation_max,
+                  city: candidate.city,
+                  seniority: candidate.seniority,
+                  target_roles: extCandidate?.target_roles,
+                  max_commute_minutes: extCandidate?.max_commute_minutes,
+                  commute_mode: extCandidate?.commute_mode,
+                  address_lat: extCandidate?.address_lat,
+                  address_lng: extCandidate?.address_lng,
+                  availability_date: extCandidate?.availability_date,
+                  notice_period: extCandidate?.notice_period,
+                  cv_ai_summary: extCandidate?.cv_ai_summary,
+                  cv_ai_bullets: extCandidate?.cv_ai_bullets,
+                }}
+                activeTaskId={activeTaskId}
+                activities={activities}
+                activitiesLoading={activitiesLoading}
+                onAddActivity={() => setAddActivityOpen(true)}
               />
-            )}
-
-            {/* Interview Summary */}
-            <QuickInterviewSummary 
-              candidateId={candidate.id}
-              onViewDetails={() => setShowFullInterview(true)}
-            />
-
-            {/* Documents */}
-            <CandidateDocumentsManager candidateId={candidate.id} />
-
-            {/* Similar Candidates */}
-            <SimilarCandidates candidateId={candidate.id} limit={5} />
-
-            {/* Activities */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Letzte Aktivitäten
-                </h3>
-                <Button variant="ghost" size="sm" onClick={() => setAddActivityOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <CandidateActivityTimeline
-                activities={activities.slice(0, 5)}
-                loading={activitiesLoading}
-              />
-              {activities.length > 5 && (
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  +{activities.length - 5} weitere Aktivitäten
-                </p>
-              )}
             </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
+      {/* Sticky Action Bar */}
+      <CandidateActionBar
+        onViewExpose={handleViewExpose}
+        onStartInterview={handleStartInterview}
+        onSubmitToJob={handleSubmitToJob}
+        exposeReady={readiness?.isReady}
+      />
+
+      {/* Dialogs */}
       <AddActivityDialog
         open={addActivityOpen}
         onOpenChange={setAddActivityOpen}
@@ -658,7 +687,6 @@ export default function RecruiterCandidateDetail() {
         existingCandidateId={candidate?.id}
         onCandidateCreated={async () => {
           setCvUploadOpen(false);
-          // Refetch candidate data
           const { data } = await supabase
             .from('candidates')
             .select('*')
@@ -676,6 +704,14 @@ export default function RecruiterCandidateDetail() {
         candidate={candidate}
         onSave={handleSaveCandidate}
         processing={processing}
+      />
+
+      {/* Interview Card Slider */}
+      <InterviewCardSlider
+        open={interviewSliderOpen}
+        onOpenChange={setInterviewSliderOpen}
+        candidateId={candidate.id}
+        candidateName={candidate.full_name}
       />
     </DashboardLayout>
   );
