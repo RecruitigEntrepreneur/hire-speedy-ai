@@ -132,6 +132,31 @@ const TECH_DOMAINS: Record<string, {
 };
 
 // ============================================
+// PROFILE COMPLETENESS CHECK
+// ============================================
+
+function isProfileMinimallyComplete(candidate: any): {
+  complete: boolean;
+  missingFields: string[];
+} {
+  const missing: string[] = [];
+  
+  const hasSkills = Array.isArray(candidate.skills) && candidate.skills.length > 0;
+  const hasExperience = typeof candidate.experience_years === 'number' && candidate.experience_years > 0;
+  const hasJobTitle = !!candidate.job_title?.trim();
+  const hasSalary = (candidate.expected_salary > 0) || (candidate.salary_expectation_min > 0);
+  
+  if (!hasSkills) missing.push('Skills');
+  if (!hasExperience) missing.push('Erfahrung');
+  if (!hasSalary) missing.push('Gehalt');
+  
+  // Minimal: mindestens Skills ODER (JobTitle + Experience)
+  const complete = hasSkills || (hasJobTitle && hasExperience);
+  
+  return { complete, missingFields: missing };
+}
+
+// ============================================
 // DOMAIN DETECTION FUNCTIONS
 // ============================================
 
@@ -753,6 +778,55 @@ function calculateMatch(
 ): V31MatchResult {
   const jobId = job.id;
 
+  // PROFILE COMPLETENESS GATE
+  // Check if candidate profile has minimum data for meaningful matching
+  const profileCheck = isProfileMinimallyComplete(candidate);
+  if (!profileCheck.complete) {
+    return {
+      version: 'v3.1',
+      jobId,
+      overall: 0,
+      killed: false,
+      excluded: true,
+      mustHaveCoverage: 0,
+      gateMultiplier: 0,
+      policy: 'hidden',
+      gates: {
+        hardKills: { visa: false, language: false, onsite: false, license: false, techDomain: false },
+        dealbreakers: { salary: 1, startDate: 1, seniority: 1, workModel: 1, techDomain: 1 },
+        multiplier: 0
+      },
+      fit: {
+        score: 0,
+        breakdown: { skills: 0, experience: 0, seniority: 0, industry: 0 },
+        details: { skills: { matched: [], transferable: [], missing: [], mustHaveMissing: [] } }
+      },
+      constraints: {
+        score: 0,
+        breakdown: { salary: 0, commute: 0, startDate: 0 }
+      },
+      explainability: {
+        topReasons: [],
+        topRisks: ['Profil nicht auswertbar'],
+        whyNot: `Profil unvollständig: ${profileCheck.missingFields.join(', ')} fehlen`,
+        nextAction: 'Profil vervollständigen',
+        enhancedReasons: [],
+        enhancedRisks: [{
+          text: 'Keine auswertbaren Profildaten',
+          severity: 'critical',
+          mitigatable: true,
+          mitigation: 'Skills und Erfahrung ergänzen',
+          category: 'skills'
+        }],
+        recruiterAction: {
+          recommendation: 'skip',
+          priority: 'low',
+          nextSteps: ['Profil vervollständigen']
+        }
+      }
+    };
+  }
+
   // Stage A: Hard Kills
   const hardKill = evaluateHardKills(candidate, job, config.hard_kill_defaults);
   
@@ -1159,8 +1233,16 @@ function calculateSkillScore(
     }
   }
 
-  const mustHaveCoverage = mustHaveWeight > 0 ? mustHaveCredit / mustHaveWeight : 1.0;
-  const overallScore = totalWeight > 0 ? (totalCredit / totalWeight) * 100 : 50;
+  // FIX: When candidate has no skills AND job requires some, coverage should be 0 not 1.0
+  // This prevents empty profiles from getting inflated scores
+  const mustHaveCoverage = mustHaveWeight > 0 
+    ? mustHaveCredit / mustHaveWeight 
+    : (candidateSkills.length === 0 ? 0 : 1.0);
+  
+  // FIX: When no weights exist, score should be 0 for empty profiles, not 50
+  const overallScore = totalWeight > 0 
+    ? (totalCredit / totalWeight) * 100 
+    : (candidateSkills.length > 0 ? 50 : 0);
 
   return {
     score: Math.round(overallScore),
