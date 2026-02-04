@@ -1,290 +1,162 @@
 
-# Plan: Fix CV-Anzeige & Karriere-Timeline Parsing
+# Plan: Fix Karriere-Timeline Datums-Parsing
 
-## Analyse der Probleme
+## Problem-Analyse
 
-### Problem 1: "Bucket not found" Fehler
-**Ursache gefunden:**
-- Der Bucket `cv-documents` ist **privat** (`public: false`)
-- Der Code verwendet `getPublicUrl()` zum Generieren der URLs
-- Private Buckets erlauben keine Public URLs - daher der 404 Fehler
-
-**Datenbank-Beweis:**
-```sql
--- Bucket ist privat:
-SELECT public FROM storage.buckets WHERE name = 'cv-documents'
--- Ergebnis: public = false
-
--- RLS Policies existieren für authentifizierte Nutzer:
--- "Users can read CV documents" (SELECT) für authenticated role
+### Fehler im Console Log
+```
+Error inserting experiences: {
+  "code": "22007",
+  "message": "invalid input syntax for type date: \"2023-06\""
+}
 ```
 
-### Problem 2: Abgeschnittener Job-Titel
-**Ursache:** `truncate` CSS-Klasse in `CandidateKeyFactsGrid.tsx` Zeile 175
-
-### Problem 3: Leere Karriere-Timeline
-**Ursache:** CV wurde geparst, aber Experiences wurden nicht in die Datenbank gespeichert. Es gibt keine Einträge in `candidate_experiences` für diesen Kandidaten.
-
----
+### Ursache
+1. Die `candidate_experiences` Tabelle hat `start_date` und `end_date` als **DATE**-Typ
+2. PostgreSQL DATE erwartet das Format `YYYY-MM-DD`
+3. Die AI gibt Daten wie `"2023-06"` (YYYY-MM) zurück
+4. PostgreSQL kann "2023-06" nicht parsen → Insert schlägt fehl → Experiences werden nicht gespeichert
 
 ## Lösung
 
-### 1. Signed URLs statt Public URLs verwenden
+Die Datumsfelder vor dem Speichern normalisieren - unvollständige Daten zu gültigen Dates konvertieren:
 
-**Datei:** `src/hooks/useCandidateDocuments.ts`
+| AI-Output | Konvertiert zu |
+|-----------|----------------|
+| `"2023-06"` | `"2023-06-01"` |
+| `"2023"` | `"2023-01-01"` |
+| `"Juni 2023"` | `"2023-06-01"` |
+| `null` | `null` |
 
-Statt `getPublicUrl()` eine Funktion nutzen, die signierte URLs generiert:
+## Änderungen
+
+### Datei: `src/hooks/useCvParsing.ts`
+
+1. **Neue Helper-Funktion für Datums-Normalisierung:**
 
 ```typescript
-// NEU: Helper-Funktion für signierte URLs
-const getSignedUrl = async (filePath: string): Promise<string | null> => {
-  const { data, error } = await supabase.storage
-    .from('cv-documents')
-    .createSignedUrl(filePath, 3600); // 1 Stunde gültig
+const normalizeDate = (dateStr: string | null | undefined): string | null => {
+  if (!dateStr) return null;
   
-  if (error) {
-    console.error('Error creating signed URL:', error);
-    return null;
+  // Bereits im YYYY-MM-DD Format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
   }
-  return data.signedUrl;
+  
+  // YYYY-MM Format → YYYY-MM-01
+  if (/^\d{4}-\d{2}$/.test(dateStr)) {
+    return `${dateStr}-01`;
+  }
+  
+  // YYYY Format → YYYY-01-01
+  if (/^\d{4}$/.test(dateStr)) {
+    return `${dateStr}-01-01`;
+  }
+  
+  // Deutsche Monatsnamen: "Juni 2023" oder "Jun 2023"
+  const monthMap: Record<string, string> = {
+    'januar': '01', 'jan': '01',
+    'februar': '02', 'feb': '02',
+    'märz': '03', 'mär': '03', 'mar': '03',
+    'april': '04', 'apr': '04',
+    'mai': '05',
+    'juni': '06', 'jun': '06',
+    'juli': '07', 'jul': '07',
+    'august': '08', 'aug': '08',
+    'september': '09', 'sep': '09',
+    'oktober': '10', 'okt': '10', 'oct': '10',
+    'november': '11', 'nov': '11',
+    'dezember': '12', 'dez': '12', 'dec': '12'
+  };
+  
+  const germanMatch = dateStr.toLowerCase().match(/(\w+)\s+(\d{4})/);
+  if (germanMatch) {
+    const month = monthMap[germanMatch[1]];
+    const year = germanMatch[2];
+    if (month && year) {
+      return `${year}-${month}-01`;
+    }
+  }
+  
+  // Fallback: null wenn nicht parsebar
+  console.warn(`Could not parse date: ${dateStr}`);
+  return null;
 };
 ```
 
-**Änderung in `fetchDocuments`:**
-```typescript
-const fetchDocuments = useCallback(async () => {
-  if (!candidateId) return;
-  setLoading(true);
-  try {
-    const { data, error } = await supabase
-      .from('candidate_documents')
-      .select('*')
-      .eq('candidate_id', candidateId)
-      .order('document_type')
-      .order('version', { ascending: false });
+2. **Anwendung beim Speichern der Experiences (Zeile 225-235):**
 
-    if (error) throw error;
-    
-    // NEU: Signierte URLs für alle Dokumente generieren
-    const docsWithSignedUrls = await Promise.all(
-      (data || []).map(async (doc) => {
-        // Extrahiere den Pfad aus der gespeicherten URL
-        const urlPath = doc.file_url.split('/cv-documents/')[1];
-        if (urlPath) {
-          const signedUrl = await getSignedUrl(decodeURIComponent(urlPath));
-          return { ...doc, file_url: signedUrl || doc.file_url };
-        }
-        return doc;
-      })
-    );
-    
-    setDocuments(docsWithSignedUrls as CandidateDocument[]);
-  } catch (error) {
-    console.error('Error fetching documents:', error);
-  } finally {
-    setLoading(false);
+```typescript
+// VORHER:
+const experiencesData = parsedData.experiences.map((exp, index) => ({
+  candidate_id: candidateId,
+  company_name: exp.company_name,
+  job_title: exp.job_title,
+  location: exp.location,
+  start_date: exp.start_date,          // "2023-06" → FEHLER!
+  end_date: exp.end_date,               // "2023-06" → FEHLER!
+  is_current: exp.is_current,
+  description: exp.description,
+  sort_order: index,
+}));
+
+// NACHHER:
+const experiencesData = parsedData.experiences.map((exp, index) => ({
+  candidate_id: candidateId,
+  company_name: exp.company_name,
+  job_title: exp.job_title,
+  location: exp.location,
+  start_date: normalizeDate(exp.start_date),   // "2023-06" → "2023-06-01" ✓
+  end_date: normalizeDate(exp.end_date),       // "2023-06" → "2023-06-01" ✓
+  is_current: exp.is_current,
+  description: exp.description,
+  sort_order: index,
+}));
+```
+
+3. **Logging verbessern für Debugging:**
+
+```typescript
+if (parsedData.experiences.length > 0) {
+  console.log(`Inserting ${parsedData.experiences.length} experiences for candidate ${candidateId}`);
+  
+  const experiencesData = parsedData.experiences.map((exp, index) => ({
+    // ...
+  }));
+  
+  console.log('Experience dates normalized:', experiencesData.map(e => ({
+    company: e.company_name,
+    start: e.start_date,
+    end: e.end_date
+  })));
+
+  const { error: expError } = await supabase
+    .from('candidate_experiences')
+    .insert(experiencesData);
+
+  if (expError) {
+    console.error('Error inserting experiences:', expError);
+  } else {
+    console.log('Experiences inserted successfully');
   }
-}, [candidateId]);
-```
-
-**Änderung in `uploadDocument`:** Speichere den Pfad, nicht die Public URL:
-```typescript
-// Statt:
-const { data: { publicUrl } } = supabase.storage
-  .from('cv-documents')
-  .getPublicUrl(fileName);
-
-// Speichere den Storage-Pfad:
-const storageUrl = `https://dngycrrhbnwdohbftpzq.supabase.co/storage/v1/object/cv-documents/${fileName}`;
-```
-
----
-
-### 2. Job-Titel mit Tooltip und Mehrzeiligkeit
-
-**Datei:** `src/components/candidates/CandidateKeyFactsGrid.tsx`
-
-```typescript
-// Import hinzufügen
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-// Interface erweitern
-interface KeyFactTile {
-  icon: LucideIcon;
-  label: string;
-  value: string | null;
-  fullValue?: string | null; // NEU: Voller Wert für Tooltip
-  missing?: boolean;
-  highlight?: 'green' | 'blue' | 'amber';
-}
-
-// Helper-Funktion
-const truncateText = (text: string, maxLength: number) => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trim() + '...';
-};
-
-// Tile-Definition anpassen
-{ 
-  icon: User, 
-  label: 'Rolle', 
-  value: candidate.job_title ? truncateText(candidate.job_title, 25) : null,
-  fullValue: candidate.job_title, // Für Tooltip
-  missing: !candidate.job_title 
-}
-
-// Rendering mit Tooltip (ersetze die p-Zeile):
-<TooltipProvider delayDuration={300}>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <p className={cn(
-        "text-sm font-medium mt-0.5 line-clamp-2",
-        tile.missing && "text-amber-600 dark:text-amber-400"
-      )}>
-        {tile.value || 'Fehlt'}
-      </p>
-    </TooltipTrigger>
-    {tile.fullValue && tile.fullValue !== tile.value && (
-      <TooltipContent side="bottom" className="max-w-[200px]">
-        <p className="text-sm">{tile.fullValue}</p>
-      </TooltipContent>
-    )}
-  </Tooltip>
-</TooltipProvider>
-```
-
----
-
-### 3. Re-Parse Button für Karriere-Timeline
-
-**Datei:** `src/components/candidates/CandidateExperienceTimeline.tsx`
-
-Props erweitern und Re-Parse-Funktion hinzufügen:
-
-```typescript
-interface CandidateExperienceTimelineProps {
-  candidateId: string;
-  onReparse?: () => void; // NEU: Callback für Re-Parse
-}
-
-// Besserer Leer-Zustand mit Button:
-if (!experiences || experiences.length === 0) {
-  return (
-    <div className="text-center py-6 text-muted-foreground space-y-3">
-      <Building2 className="h-10 w-10 mx-auto opacity-40" />
-      <div className="space-y-1">
-        <p className="text-sm font-medium">Keine Berufserfahrung hinterlegt</p>
-        <p className="text-xs">
-          Die Karriere-Stationen wurden nicht aus dem CV extrahiert
-        </p>
-      </div>
-      {onReparse && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onReparse}
-          className="mt-2"
-        >
-          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-          CV erneut parsen
-        </Button>
-      )}
-    </div>
-  );
 }
 ```
 
-**Datei:** `src/components/candidates/CandidateProfileTab.tsx`
-
-Re-Parse-Handler implementieren:
-
-```typescript
-// Import useCvParsing Hook
-import { useCvParsing } from '@/hooks/useCvParsing';
-
-// Im Component:
-const { parseCV, extractTextFromPdf, saveParsedCandidate, parsing } = useCvParsing();
-
-const handleReparse = async () => {
-  // Hole aktuelles CV-Dokument
-  const { data: docs } = await supabase
-    .from('candidate_documents')
-    .select('*')
-    .eq('candidate_id', candidate.id)
-    .eq('document_type', 'cv')
-    .eq('is_current', true)
-    .single();
-  
-  if (!docs) {
-    toast.error('Kein CV zum Parsen gefunden');
-    return;
-  }
-  
-  // Extrahiere Pfad und parse
-  const urlPath = docs.file_url.split('/cv-documents/')[1];
-  if (!urlPath) return;
-  
-  const text = await extractTextFromPdf(decodeURIComponent(urlPath));
-  if (!text) return;
-  
-  const parsed = await parseCV(text);
-  if (!parsed) return;
-  
-  // Speichere mit existierender Kandidaten-ID
-  await saveParsedCandidate(parsed, text, user.id, candidate.id);
-  
-  // Query invalidieren
-  queryClient.invalidateQueries(['candidate-experiences', candidate.id]);
-};
-
-// In der Timeline-Komponente:
-<CandidateExperienceTimeline 
-  candidateId={candidate.id} 
-  onReparse={handleReparse}
-/>
-```
-
----
-
-## Dateien die geändert werden
+## Dateien
 
 | Datei | Änderung |
 |-------|----------|
-| `src/hooks/useCandidateDocuments.ts` | Signed URLs statt Public URLs |
-| `src/components/candidates/CandidateKeyFactsGrid.tsx` | Tooltip + line-clamp-2 für Job-Titel |
-| `src/components/candidates/CandidateExperienceTimeline.tsx` | Re-Parse Button im Leer-Zustand |
-| `src/components/candidates/CandidateProfileTab.tsx` | Re-Parse Handler implementieren |
+| `src/hooks/useCvParsing.ts` | Helper-Funktion `normalizeDate()` hinzufügen und bei Experience-Insert anwenden |
 
----
+## Test nach Implementierung
 
-## Technische Details
-
-### Signed URL Generierung
-
-Die `createSignedUrl` Funktion erstellt eine temporäre URL mit Authentifizierung:
-- Gültig für 1 Stunde (3600 Sekunden)
-- Funktioniert mit privaten Buckets
-- Erfordert authentifizierten Supabase-Client
-
-### Pfad-Extraktion
-
-Die gespeicherte `file_url` enthält den vollen Public-URL-Pfad:
-```
-https://dngycrrhbnwdohbftpzq.supabase.co/storage/v1/object/public/cv-documents/9ee0e9d4.../file.pdf
-```
-
-Daraus extrahieren wir:
-```
-9ee0e9d4.../file.pdf
-```
-
-Und generieren eine signierte URL dafür.
-
----
+1. Kandidat "Juliane Hotarek" öffnen
+2. "CV erneut parsen" Button klicken
+3. Karriere-Timeline sollte jetzt die Berufserfahrung anzeigen
 
 ## Erwartetes Ergebnis
 
-1. **CV öffnet sich** - Signierte URLs funktionieren mit privatem Bucket
-2. **Job-Titel lesbar** - 2 Zeilen erlaubt + Tooltip zeigt vollen Text
-3. **Re-Parse möglich** - Button in leerer Timeline startet CV-Parsing erneut
-4. **Experiences werden gespeichert** - Nach Re-Parse sind Karriere-Stationen sichtbar
+- Datumsfelder wie "2023-06" werden zu "2023-06-01" normalisiert
+- PostgreSQL akzeptiert das Format
+- Experiences werden erfolgreich gespeichert
+- Karriere-Timeline zeigt die Stationen an
