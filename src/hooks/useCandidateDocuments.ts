@@ -25,6 +25,24 @@ export function useCandidateDocuments(candidateId?: string) {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Helper function to generate signed URLs for private bucket
+  const getSignedUrl = async (filePath: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('cv-documents')
+        .createSignedUrl(filePath, 3600); // 1 hour validity
+      
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        return null;
+      }
+      return data.signedUrl;
+    } catch (err) {
+      console.error('Error in getSignedUrl:', err);
+      return null;
+    }
+  };
+
   const fetchDocuments = useCallback(async () => {
     if (!candidateId) return;
 
@@ -38,7 +56,21 @@ export function useCandidateDocuments(candidateId?: string) {
         .order('version', { ascending: false });
 
       if (error) throw error;
-      setDocuments(data as CandidateDocument[] || []);
+      
+      // Generate signed URLs for all documents (private bucket)
+      const docsWithSignedUrls = await Promise.all(
+        (data || []).map(async (doc) => {
+          // Extract path from stored URL
+          const urlPath = doc.file_url.split('/cv-documents/')[1];
+          if (urlPath) {
+            const signedUrl = await getSignedUrl(decodeURIComponent(urlPath));
+            return { ...doc, file_url: signedUrl || doc.file_url };
+          }
+          return doc;
+        })
+      );
+      
+      setDocuments(docsWithSignedUrls as CandidateDocument[]);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {

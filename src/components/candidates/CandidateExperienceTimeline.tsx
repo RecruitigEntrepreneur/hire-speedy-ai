@@ -3,12 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, MapPin, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building2, MapPin, Calendar, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface CandidateExperienceTimelineProps {
   candidateId: string;
+  onReparse?: () => void;
+  isReparsing?: boolean;
 }
 
 interface Experience {
@@ -23,7 +27,7 @@ interface Experience {
   sort_order: number;
 }
 
-export function CandidateExperienceTimeline({ candidateId }: CandidateExperienceTimelineProps) {
+export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing }: CandidateExperienceTimelineProps) {
   const { data: experiences, isLoading } = useQuery({
     queryKey: ['candidate-experiences', candidateId],
     queryFn: async () => {
@@ -42,7 +46,7 @@ export function CandidateExperienceTimeline({ candidateId }: CandidateExperience
     if (!dateStr) return '?';
     try {
       return format(new Date(dateStr), 'MMM yyyy', { locale: de });
-    } catch {
+    } catch (e) {
       return dateStr;
     }
   };
@@ -65,9 +69,26 @@ export function CandidateExperienceTimeline({ candidateId }: CandidateExperience
 
   if (!experiences || experiences.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-        <p>Keine Berufserfahrung hinterlegt</p>
+      <div className="text-center py-6 text-muted-foreground space-y-3">
+        <Building2 className="h-10 w-10 mx-auto opacity-40" />
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Keine Berufserfahrung hinterlegt</p>
+          <p className="text-xs">
+            Die Karriere-Stationen wurden nicht aus dem CV extrahiert
+          </p>
+        </div>
+        {onReparse && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onReparse}
+            disabled={isReparsing}
+            className="mt-2"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isReparsing && "animate-spin")} />
+            {isReparsing ? 'Parsing...' : 'CV erneut parsen'}
+          </Button>
+        )}
       </div>
     );
   }
