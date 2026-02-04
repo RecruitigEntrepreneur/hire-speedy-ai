@@ -42,6 +42,7 @@ REGELN:
 - Seniority: "junior", "mid", "senior", "lead", "director"
 - Sprach-Proficiency: "native", "fluent", "advanced", "intermediate", "basic"
 - Skills kategorisieren: "programming", "tool", "soft_skill", "process", "domain"
+- Experience-Beschreibungen: MAX 3-4 Bullet Points (mit •), kurz und prägnant. KEINE langen Fließtexte!
 
 cv_ai_summary: Schreibe eine prägnante Zusammenfassung (max 150 Wörter) für Recruiter.
 cv_ai_bullets: Erstelle 4-6 Bullet Points für die wichtigsten Stärken.
@@ -90,7 +91,10 @@ expose_summary: Schreibe ein Kurzprofil (max 100 Wörter) für externe Kunden`;
                         start_date: { type: "string" },
                         end_date: { type: "string" },
                         is_current: { type: "boolean" },
-                        description: { type: "string" }
+                        description: { 
+                          type: "string",
+                          description: "Fasse die Tätigkeit in MAX 3-4 kurzen Stichpunkten zusammen (Bullet Points mit •). Keine langen Fließtexte!"
+                        }
                       },
                       required: ["company_name", "job_title", "description"]
                     }

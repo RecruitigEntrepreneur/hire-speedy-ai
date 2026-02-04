@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Building2, MapPin, Calendar, RefreshCw } from 'lucide-react';
+import { Building2, MapPin, Calendar, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,20 @@ interface Experience {
 }
 
 export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing }: CandidateExperienceTimelineProps) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const { data: experiences, isLoading } = useQuery({
     queryKey: ['candidate-experiences', candidateId],
     queryFn: async () => {
@@ -138,9 +153,60 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
               </div>
               
               {exp.description && (
-                <p className="text-sm text-muted-foreground mt-3 whitespace-pre-line">
-                  {exp.description}
-                </p>
+                <div className="mt-3">
+                  {exp.description.includes('•') || exp.description.includes('- ') ? (
+                    // Bullet Points anzeigen
+                    <>
+                      <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                        {exp.description
+                          .split(/[•]|\n-\s/)
+                          .filter(item => item.trim())
+                          .slice(0, expandedIds.has(exp.id) ? undefined : 3)
+                          .map((item, i) => (
+                            <li key={i} className="text-sm">{item.trim()}</li>
+                          ))}
+                      </ul>
+                      {exp.description.split(/[•]|\n-\s/).filter(item => item.trim()).length > 3 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
+                          onClick={() => toggleExpanded(exp.id)}
+                        >
+                          {expandedIds.has(exp.id) ? (
+                            <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                          ) : (
+                            <>Mehr anzeigen <ChevronDown className="h-3 w-3 ml-1" /></>
+                          )}
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    // Fließtext mit line-clamp
+                    <>
+                      <p className={cn(
+                        "text-sm text-muted-foreground",
+                        !expandedIds.has(exp.id) && "line-clamp-2"
+                      )}>
+                        {exp.description}
+                      </p>
+                      {exp.description.length > 150 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
+                          onClick={() => toggleExpanded(exp.id)}
+                        >
+                          {expandedIds.has(exp.id) ? (
+                            <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                          ) : (
+                            <>Mehr anzeigen <ChevronDown className="h-3 w-3 ml-1" /></>
+                          )}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
