@@ -625,7 +625,7 @@ export default function RecruiterCandidateDetail() {
                 certifications: extCandidate?.certifications,
               }}
               tags={candidateTags}
-              onViewFullInterview={() => setShowFullInterview(true)}
+              onViewFullInterview={() => setInterviewSliderOpen(true)}
             />
           </TabsContent>
 
