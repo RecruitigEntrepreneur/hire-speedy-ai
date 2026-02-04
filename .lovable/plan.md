@@ -1,305 +1,129 @@
 
-# Plan: Interview-Karten-Slider mit vollständigem Gesprächsleitfaden und Coaching-Playbook
+# Plan: KI-Einschätzung - Smart Caching mit Änderungserkennung
 
-## Zusammenfassung
+## Das Problem
 
-Das aktuelle Interview-UI hat zwei Probleme:
-1. Der Klick auf "Interview jetzt starten" in der `QuickInterviewSummary` ruft noch das alte Accordion-Format auf
-2. Der neue `InterviewCardSlider` ist unvollständig - es fehlen Fragen und der Gesprächsleitfaden
+Die KI-Einschätzung (`ClientCandidateSummaryCard`) wird derzeit bei **jedem Laden** automatisch neu generiert, wenn sie als "outdated" erkannt wird. Das führt zu:
+- Ständig wechselnden Einschätzungen ohne Datenänderung
+- Unnötigem API-Verbrauch
+- Inkonsistenten Anzeigen für Recruiter
 
-Der Plan ist, den `InterviewCardSlider` zu vervollständigen und ihn korrekt zu verknüpfen.
+## Die Lösung
 
----
-
-## Aktueller Zustand
-
-| Komponente | Status |
-|------------|--------|
-| `InterviewCardSlider.tsx` | Existiert, aber unvollständig - nur 4 Karten, kein Skript, keine Follow-up-Fragen |
-| `QuickInterviewSummary.tsx` | Ruft `onViewDetails` auf (führt zum alten Interview-Tab) |
-| `CandidateProfileTab.tsx` | Leitet `onViewFullInterview` weiter |
-| `RecruiterCandidateDetail.tsx` | Öffnet entweder `showFullInterview` (altes Format) ODER `interviewSliderOpen` (neues Format) |
+Implementiere ein intelligentes Caching-System das nur dann regeneriert, wenn sich die Quelldaten tatsächlich geändert haben.
 
 ---
 
-## Geplante Änderungen
+## Änderungen
 
-### 1. InterviewCardSlider.tsx - Erweitern
+### 1. Edge Function - Änderungserkennung
 
-**5 Karten statt 4** (mit allen Fragen aus dem Original):
+**Datei:** `supabase/functions/client-candidate-summary/index.ts`
 
-| # | Karte | Inhalte |
-|---|-------|---------|
-| 0 | **Gesprächsleitfaden** | Begrüßungstext, Coaching-Playbook (optional) |
-| 1 | **Karriereziele** | Ultimate Goal, 3-5 Jahre, Was unternommen?, Was funktioniert/nicht |
-| 2 | **Situation & Motivation** | Positiv, Negativ, Motivation, Tags, Follow-ups (Vorfall, Häufigkeit, Würde bleiben?, Warum jetzt?, Frühere Prozesse, Intern angesprochen?) |
-| 3 | **Gehalt & Konditionen** | Aktuell, Wunsch, Minimum, 3 Must-Haves für Angebot |
-| 4 | **Verfügbarkeit & Abschluss** | Kündigungsfrist, Start, Empfehlung, Abschluss-Text, Notizen, Zusammenfassung für Kunden |
-
-**Neue Features:**
-- Gesprächsleitfaden mit dynamischen Platzhaltern (Kandidatenname, Recruiter-Name, Firma)
-- Integration des `CandidatePlaybookPanel` als collapsible Sidebar
-- Alle Felder aus `useInterviewNotes` Hook abgedeckt
-- Zusammenfassung für Kunden am Ende
-
-### 2. RecruiterCandidateDetail.tsx - Korrigieren
-
-Aktuell gibt es zwei parallele Flows:
-- `showFullInterview` → altes `CandidateInterviewTab`
-- `interviewSliderOpen` → neuer `InterviewCardSlider`
-
-**Änderung:** 
-- `onViewFullInterview` soll den neuen Slider öffnen, nicht das alte Format
-- Das alte Format (`showFullInterview`) bleibt als Fallback für detaillierte Ansicht
-
-### 3. Felder die im Slider fehlen (müssen hinzugefügt werden)
-
-Aus dem Hook `useInterviewNotes`:
-
-**Karriereziele (fehlt):**
-- `career_actions_taken` - "Was haben Sie bisher unternommen?"
-
-**Situation (fehlen):**
-- `specific_incident` - "Ist da etwas Spezifisches vorgefallen?"
-- `frequency_of_issues` - "Wie oft kommt das vor?"
-- `would_stay_if_matched` - "Würden Sie bleiben, wenn Ihr Arbeitgeber das Angebot matcht?"
-- `why_now` - "Warum jetzt — und nicht letztes Jahr?"
-- `previous_process_issues` - "Woran ist es bei früheren Bewerbungsprozessen gescheitert?"
-- `discussed_internally` - "Haben Sie dies intern angesprochen?"
-
-**Abschluss (fehlen):**
-- `summary_motivation` - Zusammenfassung Motivation
-- `summary_salary` - Zusammenfassung Gehalt
-- `summary_notice` - Zusammenfassung Kündigungsfrist
-- `summary_key_requirements` - Key Requirements
-- `summary_cultural_fit` - Cultural Fit
-
----
-
-## Detaillierte Änderungen
-
-### Datei 1: `src/components/candidates/InterviewCardSlider.tsx`
-
-**Erweitern mit:**
-
-1. **Neue Props:**
-   - `candidateData` für dynamische Platzhalter (Name, Firma)
-   - Optional: `playbook: CoachingPlaybook | null` für Coaching-Integration
-
-2. **5 Slides statt 4:**
+Bevor die KI aufgerufen wird, prüfen ob Quelldaten neuer sind als das existierende Summary:
 
 ```typescript
-const SLIDES = [
-  { id: 'guide', title: 'Gesprächsleitfaden', icon: MessageSquare },
-  { id: 'career', title: 'Karriereziele', icon: Target },
-  { id: 'motivation', title: 'Situation & Motivation', icon: TrendingUp },
-  { id: 'salary', title: 'Gehalt & Konditionen', icon: Euro },
-  { id: 'closing', title: 'Abschluss & Zusammenfassung', icon: CheckCircle2 },
-] as const;
+// Prüfe ob Summary existiert und ob Quelldaten neuer sind
+const { data: existingSummary } = await supabase
+  .from('candidate_client_summary')
+  .select('generated_at')
+  .eq('candidate_id', candidateId)
+  .maybeSingle();
+
+if (existingSummary && !force) {
+  const summaryDate = new Date(existingSummary.generated_at);
+  
+  // Prüfe ob Kandidat/Interview neuer als Summary
+  const candidateUpdated = new Date(candidate.updated_at);
+  const interviewUpdated = interviewNotes ? new Date(interviewNotes.updated_at) : null;
+  
+  const sourceDataNewer = 
+    candidateUpdated > summaryDate ||
+    (interviewUpdated && interviewUpdated > summaryDate);
+    
+  if (!sourceDataNewer) {
+    // Daten nicht geändert - verwende existierendes Summary
+    return new Response(JSON.stringify({ 
+      success: true, 
+      cached: true,
+      message: 'Summary ist aktuell'
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+  }
+}
 ```
 
-3. **Slide 0 (Gesprächsleitfaden):**
-   - Begrüßungstext mit Platzhaltern
-   - Collapsible Coaching-Playbook Panel (wenn vorhanden)
-   - Quick-Checklist
-   - Talking Points
+### 2. Hook - Kein Auto-Regenerate mehr
 
-4. **Slide 1 (Karriereziele) - Erweitern:**
-   - Hinzufügen: "Was haben Sie bisher unternommen?" (`career_actions_taken`)
+**Datei:** `src/hooks/useClientCandidateSummary.ts`
 
-5. **Slide 2 (Situation) - Erweitern:**
-   - Collapsible "Weiterführende Fragen" Bereich mit:
-     - Spezifischer Vorfall
-     - Häufigkeit
-     - Würde bleiben wenn gematcht?
-     - Warum jetzt?
-     - Frühere Prozess-Probleme
-     - Intern angesprochen?
-
-6. **Slide 4 (Abschluss) - Erweitern:**
-   - Abschluss-Skript anzeigen
-   - Zusammenfassung für Kunden (collapsible):
-     - Summary Motivation
-     - Summary Gehalt
-     - Summary Kündigungsfrist
-     - Key Requirements
-     - Cultural Fit
-
-### Datei 2: `src/pages/recruiter/RecruiterCandidateDetail.tsx`
+- Auto-Regeneration komplett entfernen
+- Nur noch manuelles Regenerieren mit "Force"-Option
+- Alter-Check bleibt für UI-Hinweis (z.B. "Letzte Aktualisierung vor 30 Tagen")
 
 **Änderungen:**
+- Zeile 129-133: `isOutdated` Logik entfernen
+- Hook gibt nur noch `summary` zurück, keine Auto-Regeneration
 
-1. Interview-Playbook laden:
+### 3. Component - Nur einmal generieren wenn neu
+
+**Datei:** `src/components/candidates/ClientCandidateSummaryCard.tsx`
+
+- Auto-Generate nur wenn **kein** Summary existiert (erstes Mal)
+- Button "Aktualisieren" für manuelle Regenerierung hinzufügen
+- Anzeige wann zuletzt generiert wurde
+
+**Änderungen:**
 ```typescript
-// Lade ein Interview-spezifisches Playbook wenn vorhanden
-const { playbook: interviewPlaybook } = useCoachingPlaybook('interview_qualification');
-```
+// Nur generieren wenn KEIN Summary existiert (nicht bei "outdated")
+useEffect(() => {
+  if (!loading && !summary && !generating && candidateId && !hasTriedGenerate.current) {
+    hasTriedGenerate.current = true;
+    generateSummary({ silent: true });
+  }
+}, [loading, summary, generating, candidateId]);
 
-2. `onViewFullInterview` ändern:
-```typescript
-// ALT:
-const onViewFullInterview = () => setShowFullInterview(true);
+// Manueller Refresh-Button
+<Button 
+  variant="ghost" 
+  size="sm" 
+  onClick={() => generateSummary({ force: true })}
+>
+  <RefreshCcw className="h-3 w-3 mr-1" />
+  Aktualisieren
+</Button>
 
-// NEU:
-const onViewFullInterview = () => setInterviewSliderOpen(true);
-```
-
-3. Playbook an Slider übergeben:
-```typescript
-<InterviewCardSlider
-  open={interviewSliderOpen}
-  onOpenChange={setInterviewSliderOpen}
-  candidateId={candidate.id}
-  candidateName={candidate.full_name}
-  candidateData={{
-    job_title: candidate.job_title,
-  }}
-  playbook={interviewPlaybook}
-/>
+// Anzeige: "Erstellt am {datum}"
+<span className="text-xs text-muted-foreground">
+  Erstellt {format(new Date(summary.generated_at), 'dd.MM.yyyy')}
+</span>
 ```
 
 ---
 
-## UI-Mockup: Neuer Gesprächsleitfaden-Slide
+## Zusammenfassung der Logik
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│  [✕]                    Interview mit Max Mustermann                   │
-│                                                                        │
-│  ● ○ ○ ○ ○  Karte 1 von 5: Gesprächsleitfaden                         │
-│                                                                        │
-│  ┌────────────────────────────────────────────────────────────────────┐│
-│  │                                                                    ││
-│  │  💬 Begrüßung                                                      ││
-│  │  ┌────────────────────────────────────────────────────────────────┐││
-│  │  │ „Hallo Herr Mustermann, ich bin [Recruiter] von [Firma].       │││
-│  │  │  Wie geht es Ihnen heute?"                                     │││
-│  │  │                                                                │││
-│  │  │ „Bitte erlauben Sie, dass ich mich kurz vorstelle..."          │││
-│  │  └────────────────────────────────────────────────────────────────┘││
-│  │                                                                    ││
-│  │  ┌────────────────────────────────────────────────────────────────┐││
-│  │  │ 📘 Coaching-Playbook                            [Einblenden ▼] │││
-│  │  │                                                                │││
-│  │  │ ✅ Quick-Checklist:                                            │││
-│  │  │ ☐ Profil vor dem Gespräch geprüft                             │││
-│  │  │ ☐ LinkedIn-Profil angeschaut                                  │││
-│  │  │ ☐ CV gelesen                                                  │││
-│  │  │                                                                │││
-│  │  │ 💡 Talking Points:                                             │││
-│  │  │ • Auf aktuelle Projekte eingehen                              │││
-│  │  │ • Wechselmotivation vertiefen                                 │││
-│  │  └────────────────────────────────────────────────────────────────┘││
-│  │                                                                    ││
-│  └────────────────────────────────────────────────────────────────────┘│
-│                                                                        │
-│                                                    [Weiter →]          │
-└────────────────────────────────────────────────────────────────────────┘
-```
+| Situation | Aktion |
+|-----------|--------|
+| Kein Summary vorhanden | Auto-Generieren (einmalig) |
+| Summary existiert, keine Datenänderung | Bestehendes anzeigen |
+| Summary existiert, Kandidat/Interview geändert | Edge Function regeneriert |
+| Benutzer klickt "Aktualisieren" | Force-Regenerierung |
 
 ---
 
-## UI-Mockup: Erweiterter Situation-Slide
-
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                                                                        │
-│  📈 Situation & Motivation                                             │
-│                                                                        │
-│  ┌─────────────────────────┐  ┌─────────────────────────┐              │
-│  │ 👍 Was läuft gut?       │  │ 👎 Was stört Sie?       │              │
-│  │ [Textarea]              │  │ [Textarea]              │              │
-│  └─────────────────────────┘  └─────────────────────────┘              │
-│                                                                        │
-│  ❓ Woher kommt Ihre Wechselmotivation konkret?                        │
-│  [Textarea]                                                            │
-│                                                                        │
-│  🏷️ Motivations-Tags                                                   │
-│  [Gehalt] [Karriere] [Work-Life-Balance] [Führung] ...                 │
-│                                                                        │
-│  ┌────────────────────────────────────────────────────────────────────┐│
-│  │ [▼ Weiterführende Fragen einblenden]                               ││
-│  │                                                                    ││
-│  │ • Ist da etwas Spezifisches vorgefallen?  [Textarea]              ││
-│  │ • Wie oft kommt das vor?  [Textarea]                              ││
-│  │ • Würden Sie bleiben wenn gematcht?  [Switch]                     ││
-│  │ • Warum jetzt — nicht letztes Jahr?  [Textarea]                   ││
-│  │ • Frühere Prozess-Probleme?  [Textarea]                           ││
-│  │ • Intern angesprochen?  [Textarea]                                ││
-│  └────────────────────────────────────────────────────────────────────┘│
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Zusammenfassung der Dateien
+## Dateien die geändert werden
 
 | Datei | Änderung |
 |-------|----------|
-| `src/components/candidates/InterviewCardSlider.tsx` | Erweitern: 5 Slides, alle Felder, Gesprächsleitfaden, Playbook-Integration |
-| `src/pages/recruiter/RecruiterCandidateDetail.tsx` | Interview-Playbook laden, Slider korrekt verknüpfen |
+| `supabase/functions/client-candidate-summary/index.ts` | Änderungserkennung (`updated_at` Vergleich), Skip wenn aktuell |
+| `src/hooks/useClientCandidateSummary.ts` | Auto-Regeneration entfernen |
+| `src/components/candidates/ClientCandidateSummaryCard.tsx` | Refresh-Button, Datum-Anzeige |
 
 ---
 
-## Beibehaltene Original-Fragen (exakter Wortlaut)
+## Erwartetes Verhalten nach Änderung
 
-Alle Fragen aus `CandidateInterviewTab.tsx` werden übernommen:
-
-**Karriereziele:**
-- "Was wollen Sie ultimativ beruflich erreichen?"
-- "Was wünschen Sie sich für die nächsten 3–5 Jahre?"
-- "Was haben Sie bisher unternommen, um dieses Ziel zu erreichen?"
-- "Was hat gut funktioniert?" / "Was hat weniger gut funktioniert?"
-
-**Situation & Motivation:**
-- "Was gefällt Ihnen an Ihrer aktuellen Situation besonders gut?"
-- "Was gefällt Ihnen weniger? Was stört Sie?"
-- "Woher kommt Ihre Wechselmotivation konkret?"
-- "Ist da etwas Spezifisches vorgefallen?"
-- "Wie oft kommt das vor?"
-- "Würden Sie bleiben, wenn Ihr Arbeitgeber das Angebot matcht?"
-- "Warum jetzt — und nicht letztes Jahr?"
-- "Woran ist es bei früheren Bewerbungsprozessen gescheitert?"
-- "Haben Sie dies intern angesprochen? Wie wurde es aufgenommen?"
-
-**Gehalt:**
-- "Wo liegen Sie aktuell?"
-- "Wo möchten Sie gerne hin?"
-- "Was ist Ihre Schmerzgrenze?"
-- "Welche 3 Punkte müsste ein Angebot erfüllen, damit Sie es annehmen?"
-
-**Vertragsrahmen & Abschluss:**
-- Kündigungsfrist
-- Frühester Starttermin
-- Empfehlung auf LinkedIn/Google?
-- Notizen zum Abschluss
-
-**Zusammenfassung für Kunden:**
-- Wechselmotivation
-- Gehaltsrahmen
-- Kündigungsfrist
-- Key Requirements
-- Cultural Fit
-
----
-
-## Gesprächsleitfaden-Text (Original, wird übernommen)
-
-```text
-Begrüßung:
-„Hallo [Anrede] [Nachname], ich bin [Recruiter-Name] von [Firma]. Wie geht es Ihnen heute?"
-
-„Bitte erlauben Sie, dass ich mich kurz vorstelle: Ich bin [Recruiter-Name], [Recruiter-Rolle] bei [Firma]. In den letzten 6 Jahren habe ich über 400 Menschen erfolgreich vermittelt."
-
-„Ich sage immer: Es gibt weder den perfekten Bewerber noch das perfekte Unternehmen, sondern nur Menschen mit eigenen Werten und Zielen. Und nur wenn diese im Einklang sind, entsteht eine langfristige Zusammenarbeit."
-
-„Um herauszufinden, ob die Werte und Ziele meines Kunden mit Ihren im Einklang stehen, müsste ich Ihnen ein paar Fragen stellen. Ist das für Sie in Ordnung?"
-
-„Super — bevor ich starte, haben Sie vorab Fragen an mich?"
-```
-
-```text
-Abschluss:
-„Basierend auf dem, was Sie mir erzählt haben, passen Sie hervorragend auf die Position. Die nächsten Schritte sind sehr einfach: Ich leite Ihr Profil anonymisiert weiter und melde mich, sobald wir Feedback haben."
-```
+1. **Erster Besuch**: KI-Einschätzung wird automatisch erstellt
+2. **Wiederholte Besuche**: Bestehendes Summary wird angezeigt (keine Regenerierung)
+3. **Nach Interview-Änderung**: Nächster API-Call erkennt `interview.updated_at > summary.generated_at` und regeneriert
+4. **Manuell**: Recruiter kann "Aktualisieren" klicken für Force-Regenerierung
