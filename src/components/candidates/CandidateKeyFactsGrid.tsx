@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { LucideIcon } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CandidateKeyFactsGridProps {
   candidate: {
@@ -33,9 +34,16 @@ interface KeyFactTile {
   icon: LucideIcon;
   label: string;
   value: string | null;
+  fullValue?: string | null; // Full value for tooltip
   missing?: boolean;
   highlight?: 'green' | 'blue' | 'amber';
 }
+
+// Helper to truncate text with ellipsis
+const truncateText = (text: string, maxLength: number) => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
+};
 
 const seniorityLabels: Record<string, string> = {
   junior: 'Junior',
@@ -102,7 +110,8 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
     { 
       icon: User, 
       label: 'Rolle', 
-      value: candidate.job_title || null,
+      value: candidate.job_title ? truncateText(candidate.job_title, 25) : null,
+      fullValue: candidate.job_title, // Full value for tooltip
       missing: !candidate.job_title 
     },
     { 
@@ -171,12 +180,23 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
               tile.missing ? "text-amber-500" : "text-primary"
             )} />
             <p className="text-xs text-muted-foreground">{tile.label}</p>
-            <p className={cn(
-              "text-sm font-medium mt-0.5 truncate",
-              tile.missing && "text-amber-600 dark:text-amber-400"
-            )}>
-              {tile.value || 'Fehlt'}
-            </p>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className={cn(
+                    "text-sm font-medium mt-0.5 line-clamp-2",
+                    tile.missing && "text-amber-600 dark:text-amber-400"
+                  )}>
+                    {tile.value || 'Fehlt'}
+                  </p>
+                </TooltipTrigger>
+                {tile.fullValue && tile.fullValue !== tile.value && (
+                  <TooltipContent side="bottom" className="max-w-[200px]">
+                    <p className="text-sm">{tile.fullValue}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         );
       })}
