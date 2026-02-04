@@ -623,6 +623,8 @@ export default function RecruiterCandidateDetail() {
                 remote_preference: extCandidate?.remote_preference,
                 skills: candidate.skills,
                 certifications: extCandidate?.certifications,
+                cv_ai_summary: extCandidate?.cv_ai_summary,
+                cv_ai_bullets: extCandidate?.cv_ai_bullets,
               }}
               tags={candidateTags}
               onViewFullInterview={() => setInterviewSliderOpen(true)}
