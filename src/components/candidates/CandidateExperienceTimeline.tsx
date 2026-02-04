@@ -154,58 +154,78 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
               
               {exp.description && (
                 <div className="mt-3">
-                  {exp.description.includes('•') || exp.description.includes('- ') ? (
-                    // Bullet Points anzeigen
-                    <>
-                      <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                        {exp.description
-                          .split(/[•]|\n-\s/)
-                          .filter(item => item.trim())
-                          .slice(0, expandedIds.has(exp.id) ? undefined : 3)
-                          .map((item, i) => (
-                            <li key={i} className="text-sm">{item.trim()}</li>
-                          ))}
-                      </ul>
-                      {exp.description.split(/[•]|\n-\s/).filter(item => item.trim()).length > 3 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
-                          onClick={() => toggleExpanded(exp.id)}
-                        >
-                          {expandedIds.has(exp.id) ? (
-                            <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
-                          ) : (
-                            <>Mehr anzeigen <ChevronDown className="h-3 w-3 ml-1" /></>
+                  {(() => {
+                    // Prüfe ob bereits Bullet Points vorhanden
+                    const hasBullets = exp.description.includes('•') || exp.description.includes('\n- ');
+                    
+                    // Oder: Mehrere Sätze → als Bullets formatieren
+                    const sentences = exp.description
+                      .split(/[.;]/)
+                      .map(s => s.trim())
+                      .filter(s => s.length > 10);
+                    
+                    const shouldFormatAsBullets = hasBullets || sentences.length >= 3;
+                    
+                    if (shouldFormatAsBullets) {
+                      const items = hasBullets 
+                        ? exp.description.split(/[•]|\n-\s/).filter(s => s.trim())
+                        : sentences;
+                      
+                      const visibleItems = expandedIds.has(exp.id) ? items : items.slice(0, 3);
+                      
+                      return (
+                        <>
+                          <ul className="text-sm text-muted-foreground space-y-1.5">
+                            {visibleItems.map((item, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="text-primary mt-0.5">•</span>
+                                <span>{item.trim()}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          {items.length > 3 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
+                              onClick={() => toggleExpanded(exp.id)}
+                            >
+                              {expandedIds.has(exp.id) ? (
+                                <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                              ) : (
+                                <>{items.length - 3} weitere <ChevronDown className="h-3 w-3 ml-1" /></>
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                      )}
-                    </>
-                  ) : (
-                    // Fließtext mit line-clamp
-                    <>
-                      <p className={cn(
-                        "text-sm text-muted-foreground",
-                        !expandedIds.has(exp.id) && "line-clamp-2"
-                      )}>
-                        {exp.description}
-                      </p>
-                      {exp.description.length > 150 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
-                          onClick={() => toggleExpanded(exp.id)}
-                        >
-                          {expandedIds.has(exp.id) ? (
-                            <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
-                          ) : (
-                            <>Mehr anzeigen <ChevronDown className="h-3 w-3 ml-1" /></>
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <p className={cn(
+                            "text-sm text-muted-foreground",
+                            !expandedIds.has(exp.id) && "line-clamp-2"
+                          )}>
+                            {exp.description}
+                          </p>
+                          {exp.description.length > 150 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
+                              onClick={() => toggleExpanded(exp.id)}
+                            >
+                              {expandedIds.has(exp.id) ? (
+                                <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                              ) : (
+                                <>Mehr anzeigen <ChevronDown className="h-3 w-3 ml-1" /></>
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                      )}
-                    </>
-                  )}
+                        </>
+                      );
+                    }
+                  })()}
                 </div>
               )}
             </CardContent>
