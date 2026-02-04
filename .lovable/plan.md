@@ -1,150 +1,157 @@
 
 
-# Plan: Karriere-Timeline Beschreibung kürzen
+# Fix: Fließtext automatisch als Bullet Points formatieren
 
 ## Problem
 
-Die Job-Beschreibung im CV wird als langer Fließtext angezeigt:
+Die Karriere-Timeline zeigt **keinen formatierten Text**, weil:
 
-> "Etablierung von Scrum und Kanban in zwei Entwicklungsteams und Weiterentwicklung der Teams durch alle Team-Phasen. Optimierung der Team-Performance durch proaktive Beseitigung von Impediments..."
+1. **Die Daten enthalten Fließtext** - keine `•` oder `- ` Zeichen
+2. Die Frontend-Logik (Zeile 157) erkennt nur explizite Bullet-Marker
+3. Der Text wird als Fließtext mit `line-clamp-2` angezeigt
 
-Das ist zu viel für eine Timeline-Übersicht. Details kann man im CV selbst nachlesen.
+**Datenbankinhalt für Juliane Hotarek:**
+```
+"Etablierung von Scrum und Kanban in zwei Entwicklungsteams und Weiterentwicklung 
+der Teams durch alle Team-Phasen. Optimierung der Team-Performance durch 
+proaktive Beseitigung von Impediments..."
+```
+
+→ Kein `•`, kein `- ` → Frontend zeigt Fließtext statt Bullet Points
 
 ---
 
-## Lösung: Zwei Maßnahmen
+## Lösung: Intelligente Satz-Erkennung
 
-### 1. AI-Prompt anpassen (Quelle)
+### Änderung in `CandidateExperienceTimeline.tsx`
 
-**Datei:** `supabase/functions/parse-cv/index.ts`
-
-Im Schema für `description` eine klare Anweisung hinzufügen:
+Auch **Sätze** (getrennt durch `. `) als Bullet Points behandeln:
 
 ```typescript
-// Zeile 83-94 ändern:
-experiences: {
-  type: "array",
-  items: {
-    type: "object",
-    properties: {
-      company_name: { type: "string" },
-      job_title: { type: "string" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      is_current: { type: "boolean" },
-      description: { 
-        type: "string",
-        description: "Fasse die Tätigkeit in MAX 3-4 kurzen Stichpunkten zusammen (Bullet Points mit •). Keine langen Fließtexte!"
-      }
-    },
-    required: ["company_name", "job_title", "description"]
-  }
-}
-```
+// Zeile 155-210 ersetzen mit verbesserter Logik:
 
-**Zusätzlich im System-Prompt (Zeile 36-49) ergänzen:**
-
-```typescript
-const systemPrompt = `Du bist ein erfahrener HR-Experte und CV-Parser...
-
-REGELN:
-...
-- Experience-Beschreibungen: MAX 3-4 Bullet Points (•), kurz und prägnant. KEINE Fließtexte!
-...`;
-```
-
-### 2. Frontend mit Collapsible (Fallback)
-
-**Datei:** `src/components/candidates/CandidateExperienceTimeline.tsx`
-
-Falls die AI doch längere Texte liefert, zeige nur die ersten 2-3 Zeilen mit "Mehr anzeigen":
-
-```typescript
-// Neuer State für expandierte Items
-const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-// Render-Logik für Beschreibung
 {exp.description && (
   <div className="mt-3">
-    {/* Beschreibung als Bullet Points formatieren oder kürzen */}
-    {exp.description.includes('•') || exp.description.includes('-') ? (
-      // Bullet Points direkt anzeigen
-      <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-        {exp.description
-          .split(/[•\-]/)
-          .filter(item => item.trim())
-          .slice(0, expandedIds.has(exp.id) ? undefined : 3)
-          .map((item, i) => (
-            <li key={i} className="text-sm">{item.trim()}</li>
-          ))}
-      </ul>
-    ) : (
-      // Fließtext: Kürzen auf 150 Zeichen
-      <p className={cn(
-        "text-sm text-muted-foreground",
-        !expandedIds.has(exp.id) && "line-clamp-2"
-      )}>
-        {exp.description}
-      </p>
-    )}
-    
-    {/* "Mehr/Weniger" Button */}
-    {exp.description.length > 150 && (
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="p-0 h-auto text-xs mt-1"
-        onClick={() => toggleExpanded(exp.id)}
-      >
-        {expandedIds.has(exp.id) ? 'Weniger' : 'Mehr anzeigen'}
-      </Button>
-    )}
+    {(() => {
+      // Prüfe ob bereits Bullet Points vorhanden
+      const hasBullets = exp.description.includes('•') || exp.description.includes('\n- ');
+      
+      // Oder: Mehrere Sätze → als Bullets formatieren
+      const sentences = exp.description
+        .split(/[.;]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 10);  // Nur sinnvolle Sätze
+      
+      const shouldFormatAsBullets = hasBullets || sentences.length >= 3;
+      
+      if (shouldFormatAsBullets) {
+        // Bullet Points aus • oder Sätzen
+        const items = hasBullets 
+          ? exp.description.split(/[•]|\n-\s/).filter(s => s.trim())
+          : sentences;
+        
+        const visibleItems = expandedIds.has(exp.id) ? items : items.slice(0, 3);
+        
+        return (
+          <>
+            <ul className="text-sm text-muted-foreground space-y-1.5">
+              {visibleItems.map((item, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="text-primary mt-1">•</span>
+                  <span>{item.trim()}</span>
+                </li>
+              ))}
+            </ul>
+            {items.length > 3 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-0 h-auto text-xs mt-2 text-muted-foreground"
+                onClick={() => toggleExpanded(exp.id)}
+              >
+                {expandedIds.has(exp.id) ? (
+                  <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                ) : (
+                  <>{items.length - 3} weitere <ChevronDown className="h-3 w-3 ml-1" /></>
+                )}
+              </Button>
+            )}
+          </>
+        );
+      } else {
+        // Kurzer Text: als Fließtext mit line-clamp
+        return (
+          <>
+            <p className={cn(
+              "text-sm text-muted-foreground",
+              !expandedIds.has(exp.id) && "line-clamp-2"
+            )}>
+              {exp.description}
+            </p>
+            {exp.description.length > 150 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-0 h-auto text-xs mt-2"
+                onClick={() => toggleExpanded(exp.id)}
+              >
+                {expandedIds.has(exp.id) ? 'Weniger' : 'Mehr anzeigen'}
+              </Button>
+            )}
+          </>
+        );
+      }
+    })()}
   </div>
 )}
 ```
 
 ---
 
-## Dateien
+## Logik-Zusammenfassung
+
+| Text-Typ | Erkennung | Anzeige |
+|----------|-----------|---------|
+| Bullet Points (`•`) | `includes('•')` | Als `<ul>` mit max 3 Items |
+| Markdown (`- `) | `includes('\n- ')` | Als `<ul>` mit max 3 Items |
+| Sätze (≥3 Sätze) | `split(/[.;]/).length >= 3` | Als `<ul>` mit max 3 Items |
+| Kurzer Text | < 3 Sätze | Fließtext mit `line-clamp-2` |
+
+---
+
+## Datei
 
 | Datei | Änderung |
 |-------|----------|
-| `supabase/functions/parse-cv/index.ts` | Prompt-Anweisung für kurze Bullet Points |
-| `src/components/candidates/CandidateExperienceTimeline.tsx` | Collapsible + Bullet Point Formatierung |
+| `src/components/candidates/CandidateExperienceTimeline.tsx` | Intelligente Satz-Erkennung für Bullet-Formatierung |
 
 ---
 
 ## Erwartetes Ergebnis
 
-### Vorher:
+### Vorher (aktuell):
 ```
-Scrum Master & Agile Coach
-Team Internet AG | Juni 2023 – Heute
-
 Etablierung von Scrum und Kanban in zwei Entwicklungsteams und 
-Weiterentwicklung der Teams durch alle Team-Phasen. Optimierung 
-der Team-Performance durch proaktive Beseitigung von Impediments 
-und Flow-Optimierung. Moderation und Facilitation...
-[sehr langer Text]
+Weiterentwicklung der Teams durch alle Team-Phasen. Optimierung...
+[Mehr anzeigen]
 ```
 
 ### Nachher:
 ```
-Scrum Master & Agile Coach  
-Team Internet AG | Juni 2023 – Heute
+• Etablierung von Scrum und Kanban in zwei Entwicklungsteams
+• Optimierung der Team-Performance durch Impediment-Management
+• Moderation und Facilitation mit starker Methodenkompetenz
 
-• Scrum & Kanban für 2 Entwicklungsteams etabliert
-• Team-Performance durch Impediment-Management optimiert
-• PO-Coaching (Story-Splitting, Priorisierung, Backlogs)
-
-[Mehr anzeigen] ← falls mehr als 3 Punkte
+[4 weitere ▼]
 ```
 
 ---
 
-## Nach Implementierung
+## Alternative Option
 
-Für bestehende Kandidaten mit langen Beschreibungen:
-- **"CV erneut parsen"** Button klicken → AI generiert neue, kurze Bullet Points
-- Alternativ: Frontend kürzt automatisch mit "Mehr anzeigen"
+Falls du lieber möchtest, dass die **AI die Daten neu generiert** (mit echten Bullet Points):
+
+→ Klicke auf **"CV erneut parsen"** für Juliane Hotarek
+
+Der neue Prompt fordert jetzt explizit `MAX 3-4 Stichpunkte mit •` an.
 
