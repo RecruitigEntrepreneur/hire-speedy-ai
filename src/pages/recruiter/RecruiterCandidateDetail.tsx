@@ -462,8 +462,19 @@ export default function RecruiterCandidateDetail() {
                   </TooltipProvider>
                 </div>
                 
-                {/* Badges Row with Stage Pipeline */}
-                <div className="flex flex-wrap items-center gap-2 mt-4">
+                {/* Stage Pipeline - Prominent */}
+                {currentStatus !== 'rejected' && (
+                  <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
+                    <CandidateStagePipeline
+                      currentStage={currentStatus}
+                      onStageChange={(stage) => statusMutation.mutate(stage)}
+                      disabled={statusMutation.isPending}
+                    />
+                  </div>
+                )}
+                
+                {/* Key Badges Row */}
+                <div className="flex flex-wrap items-center gap-2 mt-3">
                   {readiness?.isReady && (
                     <Badge className="bg-success/10 text-success">
                       <CheckCircle className="h-3 w-3 mr-1" />
@@ -482,17 +493,6 @@ export default function RecruiterCandidateDetail() {
                     <Badge variant="secondary" className="font-normal">
                       {topSkills.join(', ')}
                     </Badge>
-                  )}
-                  
-                  {/* Compact Stage Pipeline */}
-                  {currentStatus !== 'rejected' && (
-                    <div className="ml-auto">
-                      <CandidateStagePipeline
-                        currentStage={currentStatus}
-                        onStageChange={(stage) => statusMutation.mutate(stage)}
-                        disabled={statusMutation.isPending}
-                      />
-                    </div>
                   )}
                 </div>
 
