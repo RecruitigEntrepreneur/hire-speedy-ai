@@ -1,378 +1,290 @@
 
-# Plan: Profil-Tab Frontend-Optimierungen
+# Plan: Fix CV-Anzeige & Karriere-Timeline Parsing
 
-## Zusammenfassung
+## Analyse der Probleme
 
-Der aktuelle Profil-Tab zeigt die Daten unstrukturiert und nutzt vorhandene Komponenten nicht. Dieser Plan optimiert die Darstellung durch:
-1. Fehlende Daten durchreichen (cv_ai_summary, experiences)
-2. Vorhandene Komponenten einbinden (CandidateExperienceTimeline)
-3. Bessere visuelle Hierarchie und Leer-Zustande
+### Problem 1: "Bucket not found" Fehler
+**Ursache gefunden:**
+- Der Bucket `cv-documents` ist **privat** (`public: false`)
+- Der Code verwendet `getPublicUrl()` zum Generieren der URLs
+- Private Buckets erlauben keine Public URLs - daher der 404 Fehler
+
+**Datenbank-Beweis:**
+```sql
+-- Bucket ist privat:
+SELECT public FROM storage.buckets WHERE name = 'cv-documents'
+-- Ergebnis: public = false
+
+-- RLS Policies existieren für authentifizierte Nutzer:
+-- "Users can read CV documents" (SELECT) für authenticated role
+```
+
+### Problem 2: Abgeschnittener Job-Titel
+**Ursache:** `truncate` CSS-Klasse in `CandidateKeyFactsGrid.tsx` Zeile 175
+
+### Problem 3: Leere Karriere-Timeline
+**Ursache:** CV wurde geparst, aber Experiences wurden nicht in die Datenbank gespeichert. Es gibt keine Einträge in `candidate_experiences` für diesen Kandidaten.
 
 ---
 
-## Analyse: Was existiert bereits
+## Lösung
 
-| Feature | Komponente | Status |
-|---------|------------|--------|
-| Karriere-Timeline | `CandidateExperienceTimeline.tsx` | Existiert, nicht verwendet |
-| AI CV Summary | `cv_ai_summary` Feld | Wird nur an ProcessTab ubergeben |
-| Profil-Vollstandigkeit | `useExposeReadiness` Hook | Im Header, ohne Details |
-| Skills mit Kategorien | Einfache Badge-Liste | Keine Priorisierung |
+### 1. Signed URLs statt Public URLs verwenden
+
+**Datei:** `src/hooks/useCandidateDocuments.ts`
+
+Statt `getPublicUrl()` eine Funktion nutzen, die signierte URLs generiert:
+
+```typescript
+// NEU: Helper-Funktion für signierte URLs
+const getSignedUrl = async (filePath: string): Promise<string | null> => {
+  const { data, error } = await supabase.storage
+    .from('cv-documents')
+    .createSignedUrl(filePath, 3600); // 1 Stunde gültig
+  
+  if (error) {
+    console.error('Error creating signed URL:', error);
+    return null;
+  }
+  return data.signedUrl;
+};
+```
+
+**Änderung in `fetchDocuments`:**
+```typescript
+const fetchDocuments = useCallback(async () => {
+  if (!candidateId) return;
+  setLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from('candidate_documents')
+      .select('*')
+      .eq('candidate_id', candidateId)
+      .order('document_type')
+      .order('version', { ascending: false });
+
+    if (error) throw error;
+    
+    // NEU: Signierte URLs für alle Dokumente generieren
+    const docsWithSignedUrls = await Promise.all(
+      (data || []).map(async (doc) => {
+        // Extrahiere den Pfad aus der gespeicherten URL
+        const urlPath = doc.file_url.split('/cv-documents/')[1];
+        if (urlPath) {
+          const signedUrl = await getSignedUrl(decodeURIComponent(urlPath));
+          return { ...doc, file_url: signedUrl || doc.file_url };
+        }
+        return doc;
+      })
+    );
+    
+    setDocuments(docsWithSignedUrls as CandidateDocument[]);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+  } finally {
+    setLoading(false);
+  }
+}, [candidateId]);
+```
+
+**Änderung in `uploadDocument`:** Speichere den Pfad, nicht die Public URL:
+```typescript
+// Statt:
+const { data: { publicUrl } } = supabase.storage
+  .from('cv-documents')
+  .getPublicUrl(fileName);
+
+// Speichere den Storage-Pfad:
+const storageUrl = `https://dngycrrhbnwdohbftpzq.supabase.co/storage/v1/object/cv-documents/${fileName}`;
+```
 
 ---
 
-## Anderungen
+### 2. Job-Titel mit Tooltip und Mehrzeiligkeit
 
-### 1. CandidateProfileTab Props erweitern
-
-**Datei:** `src/components/candidates/CandidateProfileTab.tsx`
-
-Fehlende Daten zum Interface hinzufugen:
+**Datei:** `src/components/candidates/CandidateKeyFactsGrid.tsx`
 
 ```typescript
-interface CandidateProfileTabProps {
-  candidate: {
-    id: string;
-    job_title?: string | null;
-    seniority?: string | null;
-    experience_years?: number | null;
-    city?: string | null;
-    expected_salary?: number | null;
-    salary_expectation_min?: number | null;
-    salary_expectation_max?: number | null;
-    current_salary?: number | null;
-    notice_period?: string | null;
-    availability_date?: string | null;
-    remote_possible?: boolean | null;
-    remote_preference?: string | null;
-    skills?: string[] | null;
-    certifications?: string[] | null;
-    // NEU: Fehlende Felder
-    cv_ai_summary?: string | null;
-    cv_ai_bullets?: string[] | null;
-  };
-  tags: CandidateTag[];
-  onViewFullInterview: () => void;
-}
-```
+// Import hinzufügen
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-### 2. RecruiterCandidateDetail: Mehr Daten ubergeben
-
-**Datei:** `src/pages/recruiter/RecruiterCandidateDetail.tsx`
-
-Im CandidateProfileTab-Aufruf die fehlenden Props hinzufugen:
-
-```typescript
-<CandidateProfileTab 
-  candidate={{
-    // ... bestehende Felder
-    cv_ai_summary: extCandidate?.cv_ai_summary,
-    cv_ai_bullets: extCandidate?.cv_ai_bullets,
-  }}
-  // ...
-/>
-```
-
-### 3. Neues Layout fur CandidateProfileTab
-
-**Datei:** `src/components/candidates/CandidateProfileTab.tsx`
-
-Neues, strukturiertes Layout mit klarer Hierarchie:
-
-```text
-+------------------------------------------------------------------+
-|  ECKDATEN-GRID (8 Kacheln mit Icons)                             |
-|  [Rolle] [Erfahrung] [Seniority] [Standort]                      |
-|  [Gehalt] [Verfugbar] [Remote] [Fuhrung]                         |
-+------------------------------------------------------------------+
-
-+--------------------------------+  +-------------------------------+
-|  SKILLS & EXPERTISE            |  |  KARRIERE-TIMELINE            |
-|                                |  |                               |
-|  Kernkompetenzen (Top 6)       |  |  o Senior Director Finance    |
-|  [Skill1] [Skill2] [Skill3]    |  |  |  Company ABC | 2020-heute  |
-|  [Skill4] [Skill5] [Skill6]    |  |  o Finance Manager            |
-|                                |  |  |  Company XYZ | 2015-2020   |
-|  Weitere: [+14 mehr]           |  |                               |
-|                                |  |  [Mehr laden]                 |
-|  Zertifizierungen              |  |                               |
-|  [AWS] [SAP]                   |  |                               |
-+--------------------------------+  +-------------------------------+
-
-+--------------------------------+  +-------------------------------+
-|  AI-ZUSAMMENFASSUNG (CV)       |  |  INTERVIEW-ERKENNTNISSE       |
-|                                |  |                               |
-|  "Erfahrener Finance Director  |  |  Noch kein Interview gefuhrt  |
-|  mit 25 Jahren Erfahrung..."   |  |                               |
-|                                |  |  Fur ein vollstandiges Expose |
-|  o Highlight 1                 |  |  fehlen:                      |
-|  o Highlight 2                 |  |  x Gehaltsvorstellung         |
-|  o Highlight 3                 |  |  x Wechselmotivation          |
-|                                |  |  x Verfugbarkeit              |
-|  [Mehr anzeigen]               |  |                               |
-+--------------------------------+  |  [Interview starten]          |
-                                    +-------------------------------+
-
-+--------------------------------+  +-------------------------------+
-|  DOKUMENTE (kompakt)           |  |  AHNLICHE KANDIDATEN          |
-|                                |  |                               |
-|  Lebenslauf.pdf                |  |  Berechnung lauft...          |
-|  v1 - 428 KB - 28.01.          |  |  [========    ] 75%           |
-|  [Ansehen] [Download]          |  |                               |
-|                                |  |  Oder: Keine gefunden         |
-|  [+ Hochladen]                 |  |  [Skills anpassen]            |
-+--------------------------------+  +-------------------------------+
-```
-
-### 4. Neue Komponente: CandidateKeyFactsGrid
-
-**Datei:** `src/components/candidates/CandidateKeyFactsGrid.tsx` (NEU)
-
-Ein 8-Kachel Grid fur die wichtigsten Eckdaten:
-
-```typescript
+// Interface erweitern
 interface KeyFactTile {
   icon: LucideIcon;
   label: string;
   value: string | null;
+  fullValue?: string | null; // NEU: Voller Wert für Tooltip
   missing?: boolean;
   highlight?: 'green' | 'blue' | 'amber';
 }
 
-const tiles: KeyFactTile[] = [
-  { icon: User, label: 'Rolle', value: candidate.job_title },
-  { icon: Briefcase, label: 'Erfahrung', value: `${candidate.experience_years}J` },
-  { icon: TrendingUp, label: 'Seniority', value: seniorityLabels[candidate.seniority] },
-  { icon: MapPin, label: 'Standort', value: candidate.city },
-  { icon: Euro, label: 'Gehalt', value: salaryRange, highlight: 'green', missing: !salaryRange },
-  { icon: Clock, label: 'Verfugbar', value: availabilityText, missing: !availabilityText },
-  { icon: Home, label: 'Remote', value: remoteText, highlight: 'blue' },
-  { icon: Users, label: 'Fuhrung', value: leadershipText },
-];
-```
+// Helper-Funktion
+const truncateText = (text: string, maxLength: number) => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
+};
 
-**Features:**
-- Fehlende Werte: Orange Badge "Fehlt"
-- Quellenindikator-Icon unten rechts (CV/Interview)
-- Hover zeigt "Im Interview erfassen"
-
-### 5. Neue Komponente: CandidateCvAiSummaryCard
-
-**Datei:** `src/components/candidates/CandidateCvAiSummaryCard.tsx` (NEU)
-
-Zeigt das AI-Summary aus dem CV-Parsing:
-
-```typescript
-interface Props {
-  summary: string | null;
-  bullets: string[] | null;
+// Tile-Definition anpassen
+{ 
+  icon: User, 
+  label: 'Rolle', 
+  value: candidate.job_title ? truncateText(candidate.job_title, 25) : null,
+  fullValue: candidate.job_title, // Für Tooltip
+  missing: !candidate.job_title 
 }
 
-// Kompakte Karte mit:
-// - Collapsible fur lange Summaries
-// - Bullet-Points als Liste
-// - "Sparkles" Icon fur AI-Indikator
+// Rendering mit Tooltip (ersetze die p-Zeile):
+<TooltipProvider delayDuration={300}>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <p className={cn(
+        "text-sm font-medium mt-0.5 line-clamp-2",
+        tile.missing && "text-amber-600 dark:text-amber-400"
+      )}>
+        {tile.value || 'Fehlt'}
+      </p>
+    </TooltipTrigger>
+    {tile.fullValue && tile.fullValue !== tile.value && (
+      <TooltipContent side="bottom" className="max-w-[200px]">
+        <p className="text-sm">{tile.fullValue}</p>
+      </TooltipContent>
+    )}
+  </Tooltip>
+</TooltipProvider>
 ```
-
-### 6. Verbesserte QuickInterviewSummary (Leer-Zustand)
-
-**Datei:** `src/components/candidates/QuickInterviewSummary.tsx`
-
-Wenn kein Interview existiert, zeige eine Checkliste was fehlt:
-
-```typescript
-// Ersetze:
-<p className="text-sm text-muted-foreground">
-  Noch kein Interview gefuhrt...
-</p>
-
-// Mit:
-<div className="space-y-2">
-  <p className="text-sm font-medium">
-    Fur ein vollstandiges Expose fehlen:
-  </p>
-  <ul className="text-sm space-y-1">
-    <li className="flex items-center gap-2 text-muted-foreground">
-      <XCircle className="h-3 w-3 text-amber-500" />
-      Gehaltsvorstellung (Wunsch + Minimum)
-    </li>
-    <li className="flex items-center gap-2 text-muted-foreground">
-      <XCircle className="h-3 w-3 text-amber-500" />
-      Wechselmotivation
-    </li>
-    <li className="flex items-center gap-2 text-muted-foreground">
-      <XCircle className="h-3 w-3 text-amber-500" />
-      Verfugbarkeit / Kundigungsfrist
-    </li>
-    <li className="flex items-center gap-2 text-muted-foreground">
-      <XCircle className="h-3 w-3 text-amber-500" />
-      Deine Einschatzung & Empfehlung
-    </li>
-  </ul>
-</div>
-```
-
-### 7. Verbesserte SimilarCandidates (Loading/Leer)
-
-**Datei:** `src/components/candidates/SimilarCandidates.tsx`
-
-**Loading-Zustand:**
-```typescript
-// Ersetze Skeleton mit Progress-Bar
-<div className="space-y-2">
-  <p className="text-sm text-muted-foreground">AI-Analyse lauft...</p>
-  <Progress value={75} className="h-1.5" />
-</div>
-```
-
-**Leer-Zustand:**
-```typescript
-<div className="text-center py-4">
-  <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-  <p className="text-sm text-muted-foreground mb-2">
-    Keine ahnlichen Kandidaten gefunden
-  </p>
-  <p className="text-xs text-muted-foreground">
-    Mehr Skills hinzufugen fur bessere Matches
-  </p>
-</div>
-```
-
-### 8. Kompaktere CandidateDocumentsManager
-
-**Datei:** `src/components/candidates/CandidateDocumentsManager.tsx`
-
-Vereinfachtes Layout fur den Profil-Tab:
-
-- Header kleiner machen
-- Upload-Bereich nur als Button (nicht als volle Section)
-- Dokument-Liste ohne Collapsible wenn nur 1-2 Dokumente
-- Inline Actions (Ansehen, Download, Loschen) in einer Zeile
 
 ---
 
-## Dateien
+### 3. Re-Parse Button für Karriere-Timeline
 
-| Datei | Aktion |
-|-------|--------|
-| `src/pages/recruiter/RecruiterCandidateDetail.tsx` | ANDERN - cv_ai_summary Props durchreichen |
-| `src/components/candidates/CandidateProfileTab.tsx` | ANDERN - Neues Layout, mehr Props |
-| `src/components/candidates/CandidateKeyFactsGrid.tsx` | NEU - 8-Kachel Eckdaten-Grid |
-| `src/components/candidates/CandidateCvAiSummaryCard.tsx` | NEU - AI-Summary Anzeige |
-| `src/components/candidates/QuickInterviewSummary.tsx` | ANDERN - Besserer Leer-Zustand |
-| `src/components/candidates/SimilarCandidates.tsx` | ANDERN - Loading/Leer-Zustande |
-| `src/components/candidates/CandidateDocumentsManager.tsx` | ANDERN - Kompakteres Design |
+**Datei:** `src/components/candidates/CandidateExperienceTimeline.tsx`
+
+Props erweitern und Re-Parse-Funktion hinzufügen:
+
+```typescript
+interface CandidateExperienceTimelineProps {
+  candidateId: string;
+  onReparse?: () => void; // NEU: Callback für Re-Parse
+}
+
+// Besserer Leer-Zustand mit Button:
+if (!experiences || experiences.length === 0) {
+  return (
+    <div className="text-center py-6 text-muted-foreground space-y-3">
+      <Building2 className="h-10 w-10 mx-auto opacity-40" />
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Keine Berufserfahrung hinterlegt</p>
+        <p className="text-xs">
+          Die Karriere-Stationen wurden nicht aus dem CV extrahiert
+        </p>
+      </div>
+      {onReparse && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onReparse}
+          className="mt-2"
+        >
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          CV erneut parsen
+        </Button>
+      )}
+    </div>
+  );
+}
+```
+
+**Datei:** `src/components/candidates/CandidateProfileTab.tsx`
+
+Re-Parse-Handler implementieren:
+
+```typescript
+// Import useCvParsing Hook
+import { useCvParsing } from '@/hooks/useCvParsing';
+
+// Im Component:
+const { parseCV, extractTextFromPdf, saveParsedCandidate, parsing } = useCvParsing();
+
+const handleReparse = async () => {
+  // Hole aktuelles CV-Dokument
+  const { data: docs } = await supabase
+    .from('candidate_documents')
+    .select('*')
+    .eq('candidate_id', candidate.id)
+    .eq('document_type', 'cv')
+    .eq('is_current', true)
+    .single();
+  
+  if (!docs) {
+    toast.error('Kein CV zum Parsen gefunden');
+    return;
+  }
+  
+  // Extrahiere Pfad und parse
+  const urlPath = docs.file_url.split('/cv-documents/')[1];
+  if (!urlPath) return;
+  
+  const text = await extractTextFromPdf(decodeURIComponent(urlPath));
+  if (!text) return;
+  
+  const parsed = await parseCV(text);
+  if (!parsed) return;
+  
+  // Speichere mit existierender Kandidaten-ID
+  await saveParsedCandidate(parsed, text, user.id, candidate.id);
+  
+  // Query invalidieren
+  queryClient.invalidateQueries(['candidate-experiences', candidate.id]);
+};
+
+// In der Timeline-Komponente:
+<CandidateExperienceTimeline 
+  candidateId={candidate.id} 
+  onReparse={handleReparse}
+/>
+```
 
 ---
 
-## Reihenfolge der Implementierung
+## Dateien die geändert werden
 
-1. **Props erweitern** - RecruiterCandidateDetail + CandidateProfileTab Interface
-2. **CandidateKeyFactsGrid** erstellen - Ersetzt CandidateKeyFactsCard
-3. **CandidateCvAiSummaryCard** erstellen - Zeigt AI-Summary
-4. **CandidateProfileTab Layout** - Neues Grid mit allen Komponenten
-5. **QuickInterviewSummary** - Leer-Zustand verbessern
-6. **SimilarCandidates** - Loading/Leer verbessern
-7. **CandidateDocumentsManager** - Kompakteres Design
+| Datei | Änderung |
+|-------|----------|
+| `src/hooks/useCandidateDocuments.ts` | Signed URLs statt Public URLs |
+| `src/components/candidates/CandidateKeyFactsGrid.tsx` | Tooltip + line-clamp-2 für Job-Titel |
+| `src/components/candidates/CandidateExperienceTimeline.tsx` | Re-Parse Button im Leer-Zustand |
+| `src/components/candidates/CandidateProfileTab.tsx` | Re-Parse Handler implementieren |
 
 ---
 
 ## Technische Details
 
-### Grid-Layout fur CandidateProfileTab
+### Signed URL Generierung
 
-```tsx
-<div className="space-y-6">
-  {/* Eckdaten-Grid - Volle Breite */}
-  <CandidateKeyFactsGrid candidate={candidate} />
-  
-  {/* Zwei-Spalten Layout */}
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    {/* Linke Spalte */}
-    <div className="space-y-6">
-      {/* Skills Card */}
-      <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
-      
-      {/* AI Summary aus CV */}
-      {candidate.cv_ai_summary && (
-        <CandidateCvAiSummaryCard 
-          summary={candidate.cv_ai_summary} 
-          bullets={candidate.cv_ai_bullets} 
-        />
-      )}
-      
-      {/* Dokumente (kompakt) */}
-      <CandidateDocumentsManager candidateId={candidate.id} compact />
-    </div>
-    
-    {/* Rechte Spalte */}
-    <div className="space-y-6">
-      {/* Karriere-Timeline */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Karriere-Timeline
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CandidateExperienceTimeline candidateId={candidate.id} />
-        </CardContent>
-      </Card>
-      
-      {/* Interview-Erkenntnisse */}
-      <QuickInterviewSummary 
-        candidateId={candidate.id}
-        onViewDetails={onViewFullInterview}
-      />
-      
-      {/* Ahnliche Kandidaten */}
-      <SimilarCandidates candidateId={candidate.id} limit={3} />
-    </div>
-  </div>
-</div>
+Die `createSignedUrl` Funktion erstellt eine temporäre URL mit Authentifizierung:
+- Gültig für 1 Stunde (3600 Sekunden)
+- Funktioniert mit privaten Buckets
+- Erfordert authentifizierten Supabase-Client
+
+### Pfad-Extraktion
+
+Die gespeicherte `file_url` enthält den vollen Public-URL-Pfad:
+```
+https://dngycrrhbnwdohbftpzq.supabase.co/storage/v1/object/public/cv-documents/9ee0e9d4.../file.pdf
 ```
 
-### CandidateKeyFactsGrid Styling
-
-```tsx
-<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-  {tiles.map((tile, i) => (
-    <div 
-      key={i}
-      className={cn(
-        "p-3 rounded-lg border text-center",
-        tile.missing && "border-dashed border-amber-300 bg-amber-50/50",
-        tile.highlight === 'green' && "bg-green-50/50 border-green-200",
-        tile.highlight === 'blue' && "bg-blue-50/50 border-blue-200",
-        !tile.missing && !tile.highlight && "bg-card"
-      )}
-    >
-      <tile.icon className={cn(
-        "h-5 w-5 mx-auto mb-1",
-        tile.missing ? "text-amber-500" : "text-primary"
-      )} />
-      <p className="text-xs text-muted-foreground">{tile.label}</p>
-      <p className={cn(
-        "text-sm font-medium mt-0.5",
-        tile.missing && "text-amber-600"
-      )}>
-        {tile.value || 'Fehlt'}
-      </p>
-    </div>
-  ))}
-</div>
+Daraus extrahieren wir:
 ```
+9ee0e9d4.../file.pdf
+```
+
+Und generieren eine signierte URL dafür.
 
 ---
 
 ## Erwartetes Ergebnis
 
-Nach der Implementierung:
-
-1. **Eckdaten auf einen Blick** - 8 Kacheln zeigen sofort alle wichtigen Fakten
-2. **Fehlende Daten sichtbar** - Orange markierte Kacheln zeigen was fehlt
-3. **AI-Summary sichtbar** - CV-Parsing-Ergebnisse werden angezeigt
-4. **Karriere-Timeline** - Berufserfahrung als Timeline dargestellt
-5. **Actionable Leer-Zustande** - Interview-Box zeigt genau was fehlt
-6. **Kompaktere Dokumente** - Weniger Platz fur 1-2 Dokumente
+1. **CV öffnet sich** - Signierte URLs funktionieren mit privatem Bucket
+2. **Job-Titel lesbar** - 2 Zeilen erlaubt + Tooltip zeigt vollen Text
+3. **Re-Parse möglich** - Button in leerer Timeline startet CV-Parsing erneut
+4. **Experiences werden gespeichert** - Nach Re-Parse sind Karriere-Stationen sichtbar
