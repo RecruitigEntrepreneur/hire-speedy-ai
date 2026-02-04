@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -14,7 +15,12 @@ import {
   Euro, 
   Calendar,
   CheckCircle2,
-  X
+  X,
+  MessageSquare,
+  ChevronDown,
+  Copy,
+  Check,
+  Lightbulb
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInterviewNotes, InterviewNotesFormData } from '@/hooks/useInterviewNotes';
@@ -38,13 +44,47 @@ const OFFER_REQUIREMENTS = [
 ];
 
 const SLIDES = [
+  { id: 'guide', title: 'Gesprächsleitfaden', icon: MessageSquare },
   { id: 'career', title: 'Karriereziele', icon: Target },
   { id: 'motivation', title: 'Situation & Motivation', icon: TrendingUp },
   { id: 'salary', title: 'Gehalt & Konditionen', icon: Euro },
-  { id: 'availability', title: 'Verfügbarkeit & Abschluss', icon: Calendar },
+  { id: 'closing', title: 'Abschluss & Zusammenfassung', icon: CheckCircle2 },
 ] as const;
 
 type SlideId = typeof SLIDES[number]['id'];
+
+// Script content component with copy functionality
+function ScriptBlock({ 
+  text, 
+  className 
+}: { 
+  text: string; 
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className={cn("relative group", className)}>
+      <div className="p-4 rounded-lg bg-muted/50 border text-sm italic leading-relaxed">
+        „{text}"
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={handleCopy}
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+      </Button>
+    </div>
+  );
+}
 
 export function InterviewCardSlider({ 
   open, 
@@ -56,6 +96,12 @@ export function InterviewCardSlider({
   const { notes, loading, saving, saveNotes, getFormData, emptyFormData } = useInterviewNotes(candidateId);
   const [localNotes, setLocalNotes] = useState<InterviewNotesFormData>(emptyFormData);
   const [isDirty, setIsDirty] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // Extract last name for formal address
+  const lastName = candidateName.split(' ').slice(-1)[0];
+  const salutation = `Herr/Frau ${lastName}`;
 
   // Sync local notes when notes load
   useEffect(() => {
@@ -64,6 +110,13 @@ export function InterviewCardSlider({
       setIsDirty(false);
     }
   }, [notes, getFormData]);
+
+  // Reset to first slide when opening
+  useEffect(() => {
+    if (open) {
+      setCurrentSlide(0);
+    }
+  }, [open]);
 
   // Auto-save on slide change
   const handleSlideChange = useCallback(async (newSlide: number) => {
@@ -130,7 +183,7 @@ export function InterviewCardSlider({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl h-[85vh] flex flex-col p-0">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between">
@@ -173,8 +226,70 @@ export function InterviewCardSlider({
             <h2 className="text-xl font-semibold">{SLIDES[currentSlide].title}</h2>
           </div>
 
-          {/* Career Goals Slide */}
+          {/* Guide Slide */}
           {currentSlide === 0 && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Lightbulb className="h-4 w-4" />
+                  <span className="text-sm">Klicken Sie auf die Textblöcke, um sie zu kopieren</span>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">👋 Begrüßung</Label>
+                  <ScriptBlock 
+                    text={`Hallo ${salutation}, ich bin [Ihr Name] von [Firma]. Wie geht es Ihnen heute?`}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">📝 Vorstellung</Label>
+                  <ScriptBlock 
+                    text="Bitte erlauben Sie, dass ich mich kurz vorstelle: Ich bin [Ihr Name], [Ihre Rolle] bei [Firma]. In den letzten Jahren habe ich viele Fach- und Führungskräfte erfolgreich vermittelt."
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">💡 Philosophie</Label>
+                  <ScriptBlock 
+                    text="Ich sage immer: Es gibt weder den perfekten Bewerber noch das perfekte Unternehmen, sondern nur Menschen mit eigenen Werten und Zielen. Und nur wenn diese im Einklang sind, entsteht eine langfristige Zusammenarbeit."
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">🎯 Überleitung</Label>
+                  <ScriptBlock 
+                    text="Um herauszufinden, ob die Werte und Ziele meines Kunden mit Ihren im Einklang stehen, müsste ich Ihnen ein paar Fragen stellen. Ist das für Sie in Ordnung?"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">❓ Vorab-Check</Label>
+                  <ScriptBlock 
+                    text="Super — bevor ich starte, haben Sie vorab Fragen an mich?"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">Quick-Checklist vor dem Gespräch</p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>☐ Profil & CV vorab durchgelesen</li>
+                      <li>☐ LinkedIn-Profil angeschaut</li>
+                      <li>☐ Aktuelle Projekte/Position notiert</li>
+                      <li>☐ Passende Jobs im Kopf</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Career Goals Slide */}
+          {currentSlide === 1 && (
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-base font-medium">
@@ -190,7 +305,7 @@ export function InterviewCardSlider({
 
               <div className="space-y-2">
                 <Label className="text-base font-medium">
-                  📅 Wo sehen Sie sich in 3-5 Jahren?
+                  📅 Was wünschen Sie sich für die nächsten 3–5 Jahre?
                 </Label>
                 <Textarea
                   placeholder="Mittelfristige Ziele..."
@@ -200,9 +315,21 @@ export function InterviewCardSlider({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-base font-medium">
+                  🚀 Was haben Sie bisher unternommen, um dieses Ziel zu erreichen?
+                </Label>
+                <Textarea
+                  placeholder="Bisherige Schritte, Maßnahmen..."
+                  value={localNotes.career_actions_taken || ''}
+                  onChange={(e) => updateField('career_actions_taken', e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>✅ Was hat bisher funktioniert?</Label>
+                  <Label>✅ Was hat gut funktioniert?</Label>
                   <Textarea
                     placeholder="Erfolge, gute Entscheidungen..."
                     value={localNotes.career_what_worked || ''}
@@ -211,7 +338,7 @@ export function InterviewCardSlider({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>❌ Was hat nicht funktioniert?</Label>
+                  <Label>❌ Was hat weniger gut funktioniert?</Label>
                   <Textarea
                     placeholder="Fehlentscheidungen, Learnings..."
                     value={localNotes.career_what_didnt_work || ''}
@@ -224,12 +351,12 @@ export function InterviewCardSlider({
           )}
 
           {/* Motivation Slide */}
-          {currentSlide === 1 && (
+          {currentSlide === 2 && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-base font-medium">
-                    👍 Was läuft gut im aktuellen Job?
+                    👍 Was gefällt Ihnen an Ihrer aktuellen Situation besonders gut?
                   </Label>
                   <Textarea
                     placeholder="Positive Aspekte..."
@@ -240,7 +367,7 @@ export function InterviewCardSlider({
                 </div>
                 <div className="space-y-2">
                   <Label className="text-base font-medium">
-                    👎 Was stört Sie?
+                    👎 Was gefällt Ihnen weniger? Was stört Sie?
                   </Label>
                   <Textarea
                     placeholder="Negative Aspekte..."
@@ -253,7 +380,7 @@ export function InterviewCardSlider({
 
               <div className="space-y-2">
                 <Label className="text-base font-medium">
-                  ❓ Warum jetzt wechseln?
+                  ❓ Woher kommt Ihre Wechselmotivation konkret?
                 </Label>
                 <Textarea
                   placeholder="Auslöser für den Wechsel..."
@@ -280,15 +407,92 @@ export function InterviewCardSlider({
                   ))}
                 </div>
               </div>
+
+              {/* Follow-up Questions (Collapsible) */}
+              <Collapsible open={followUpOpen} onOpenChange={setFollowUpOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4" />
+                      Weiterführende Fragen
+                    </span>
+                    <ChevronDown className={cn(
+                      "h-4 w-4 transition-transform",
+                      followUpOpen && "rotate-180"
+                    )} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>🔍 Ist da etwas Spezifisches vorgefallen?</Label>
+                    <Textarea
+                      placeholder="Konkrete Vorfälle, Auslöser..."
+                      value={localNotes.specific_incident || ''}
+                      onChange={(e) => updateField('specific_incident', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>📊 Wie oft kommt das vor?</Label>
+                    <Textarea
+                      placeholder="Häufigkeit der Probleme..."
+                      value={localNotes.frequency_of_issues || ''}
+                      onChange={(e) => updateField('frequency_of_issues', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                    <div>
+                      <Label>💰 Würden Sie bleiben, wenn Ihr Arbeitgeber das Angebot matcht?</Label>
+                    </div>
+                    <Switch
+                      checked={localNotes.would_stay_if_matched || false}
+                      onCheckedChange={(checked) => updateField('would_stay_if_matched', checked)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>⏰ Warum jetzt — und nicht letztes Jahr?</Label>
+                    <Textarea
+                      placeholder="Timing des Wechsels..."
+                      value={localNotes.why_now || ''}
+                      onChange={(e) => updateField('why_now', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>❌ Woran ist es bei früheren Bewerbungsprozessen gescheitert?</Label>
+                    <Textarea
+                      placeholder="Frühere Prozess-Probleme..."
+                      value={localNotes.previous_process_issues || ''}
+                      onChange={(e) => updateField('previous_process_issues', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>💬 Haben Sie dies intern angesprochen? Wie wurde es aufgenommen?</Label>
+                    <Textarea
+                      placeholder="Interne Kommunikation..."
+                      value={localNotes.discussed_internally || ''}
+                      onChange={(e) => updateField('discussed_internally', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           )}
 
           {/* Salary Slide */}
-          {currentSlide === 2 && (
+          {currentSlide === 3 && (
             <div className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">💰 Aktuelles Gehalt</Label>
+                  <Label className="text-base font-medium">💰 Wo liegen Sie aktuell?</Label>
                   <Input
                     placeholder="z.B. 65.000"
                     value={localNotes.salary_current || ''}
@@ -296,7 +500,7 @@ export function InterviewCardSlider({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">🎯 Wunschgehalt</Label>
+                  <Label className="text-base font-medium">🎯 Wo möchten Sie gerne hin?</Label>
                   <Input
                     placeholder="z.B. 75.000"
                     value={localNotes.salary_desired || ''}
@@ -304,7 +508,7 @@ export function InterviewCardSlider({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">⚠️ Minimum</Label>
+                  <Label className="text-base font-medium">⚠️ Was ist Ihre Schmerzgrenze?</Label>
                   <Input
                     placeholder="z.B. 70.000"
                     value={localNotes.salary_minimum || ''}
@@ -315,7 +519,7 @@ export function InterviewCardSlider({
 
               <div className="space-y-2">
                 <Label className="text-base font-medium">
-                  📋 3 Must-Haves für ein Angebot
+                  📋 Welche 3 Punkte müsste ein Angebot erfüllen, damit Sie es annehmen?
                 </Label>
                 <p className="text-sm text-muted-foreground">
                   Maximal 3 auswählen
@@ -344,12 +548,7 @@ export function InterviewCardSlider({
                   })}
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Availability Slide */}
-          {currentSlide === 3 && (
-            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-base font-medium">⏰ Kündigungsfrist</Label>
@@ -360,7 +559,7 @@ export function InterviewCardSlider({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">📅 Frühester Start</Label>
+                  <Label className="text-base font-medium">📅 Frühester Starttermin</Label>
                   <Input
                     type="date"
                     value={localNotes.earliest_start_date || ''}
@@ -368,13 +567,27 @@ export function InterviewCardSlider({
                   />
                 </div>
               </div>
+            </div>
+          )}
 
+          {/* Closing Slide */}
+          {currentSlide === 4 && (
+            <div className="space-y-6">
+              {/* Closing Script */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">📝 Abschluss-Skript</Label>
+                <ScriptBlock 
+                  text={`Basierend auf dem, was Sie mir erzählt haben, passen Sie hervorragend auf die Position. Die nächsten Schritte sind sehr einfach: Ich leite Ihr Profil anonymisiert weiter und melde mich, sobald wir Feedback haben.`}
+                />
+              </div>
+
+              {/* Recommendation */}
               <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-base font-medium">👍 Würden Sie empfehlen?</Label>
+                    <Label className="text-base font-medium">👍 Würden Sie diesen Kandidaten empfehlen?</Label>
                     <p className="text-sm text-muted-foreground">
-                      Ihre persönliche Einschätzung zum Kandidaten
+                      Ihre persönliche Einschätzung
                     </p>
                   </div>
                   <Switch
@@ -404,9 +617,76 @@ export function InterviewCardSlider({
                   placeholder="Sonstige Beobachtungen, wichtige Details..."
                   value={localNotes.additional_notes || ''}
                   onChange={(e) => updateField('additional_notes', e.target.value)}
-                  className="min-h-[100px]"
+                  className="min-h-[80px]"
                 />
               </div>
+
+              {/* Customer Summary (Collapsible) */}
+              <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Target className="h-4 w-4" />
+                      Zusammenfassung für Kunden
+                    </span>
+                    <ChevronDown className={cn(
+                      "h-4 w-4 transition-transform",
+                      summaryOpen && "rotate-180"
+                    )} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>💡 Wechselmotivation (Zusammenfassung)</Label>
+                    <Textarea
+                      placeholder="Kurze Zusammenfassung der Motivation für Kunden..."
+                      value={localNotes.summary_motivation || ''}
+                      onChange={(e) => updateField('summary_motivation', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>💰 Gehaltsrahmen</Label>
+                    <Textarea
+                      placeholder="Zusammenfassung Gehaltsvorstellungen..."
+                      value={localNotes.summary_salary || ''}
+                      onChange={(e) => updateField('summary_salary', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>⏰ Verfügbarkeit & Kündigungsfrist</Label>
+                    <Textarea
+                      placeholder="Zusammenfassung Verfügbarkeit..."
+                      value={localNotes.summary_notice || ''}
+                      onChange={(e) => updateField('summary_notice', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>🎯 Key Requirements</Label>
+                    <Textarea
+                      placeholder="Wichtigste Anforderungen des Kandidaten..."
+                      value={localNotes.summary_key_requirements || ''}
+                      onChange={(e) => updateField('summary_key_requirements', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>🤝 Cultural Fit</Label>
+                    <Textarea
+                      placeholder="Einschätzung zur kulturellen Passung..."
+                      value={localNotes.summary_cultural_fit || ''}
+                      onChange={(e) => updateField('summary_cultural_fit', e.target.value)}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           )}
         </div>
