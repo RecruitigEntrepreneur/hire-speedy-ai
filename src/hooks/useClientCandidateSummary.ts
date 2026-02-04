@@ -125,20 +125,13 @@ export function useClientCandidateSummary(candidateId?: string, submissionId?: s
         };
 
         setSummary(parsedSummary);
-        
-        // Check if summary is outdated and needs regeneration
-        const isOutdated = 
-          parsedSummary.model_version !== TARGET_VERSION ||
-          !parsedSummary.career_goals ||
-          (submissionId && parsedSummary.submission_id !== submissionId);
-        
-        return { summary: parsedSummary, isOutdated };
+        return { summary: parsedSummary };
       }
       
-      return { summary: null, isOutdated: true };
+      return { summary: null };
     } catch (error) {
       console.error('Error fetching client summary:', error);
-      return { summary: null, isOutdated: true };
+      return { summary: null };
     } finally {
       setLoading(false);
     }
