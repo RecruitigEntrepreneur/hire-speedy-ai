@@ -3,8 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   FileText, 
@@ -87,49 +85,33 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <FileText className="h-5 w-5" />
-          Dokumentenverwaltung
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            Dokumente
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="h-7 text-xs"
+          >
+            <Upload className="h-3 w-3 mr-1" />
+            {uploading ? 'Laden...' : 'Hochladen'}
+          </Button>
         </CardTitle>
+        <Input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleUpload}
+          className="hidden"
+          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+        />
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Upload Section */}
-        <div className="flex items-end gap-3 p-4 bg-muted/50 rounded-lg">
-          <div className="flex-1 space-y-2">
-            <Label>Dokumenttyp</Label>
-            <Select value={selectedType} onValueChange={(v) => setSelectedType(v as CandidateDocument['document_type'])}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {documentTypes.map(type => (
-                  <SelectItem key={type} value={type}>
-                    {documentTypeLabels[type].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleUpload}
-              className="hidden"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-            />
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {uploading ? 'Hochladen...' : 'Hochladen'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Document List by Type */}
+      <CardContent className="space-y-2">
+        {/* Document List - Compact */}
         <div className="space-y-2">
           {documentTypes.map(type => {
             const typeDocs = getDocumentsByType(type);

@@ -69,19 +69,37 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
 
   if (!notes) {
     return (
-      <Card className="border-dashed border-primary/30 bg-primary/5">
+      <Card className="border-dashed border-amber-300/50 bg-amber-50/30 dark:bg-amber-900/10">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-primary" />
+            <MessageSquare className="h-4 w-4 text-amber-600" />
             Interview-Erkenntnisse
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Noch kein Interview geführt – erfasse wichtige Erkenntnisse für bessere Matches.
+          <p className="text-sm font-medium text-foreground">
+            Für ein vollständiges Exposé fehlen:
           </p>
+          <ul className="text-sm space-y-1.5">
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              Gehaltsvorstellung (Wunsch + Minimum)
+            </li>
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              Wechselmotivation
+            </li>
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              Verfügbarkeit / Kündigungsfrist
+            </li>
+            <li className="flex items-center gap-2 text-muted-foreground">
+              <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              Deine Einschätzung & Empfehlung
+            </li>
+          </ul>
           {onViewDetails && (
-            <Button size="sm" onClick={onViewDetails} className="w-full">
+            <Button size="sm" onClick={onViewDetails} className="w-full mt-2">
               <MessageSquare className="h-4 w-4 mr-2" />
               Interview jetzt starten
             </Button>

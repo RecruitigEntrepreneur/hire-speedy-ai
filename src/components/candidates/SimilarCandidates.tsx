@@ -1,7 +1,7 @@
 import { useSimilarCandidates } from "@/hooks/useSimilarCandidates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Users, MapPin, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -23,20 +23,13 @@ export function SimilarCandidates({ candidateId, limit = 5, className }: Similar
       <Card className={className}>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Sparkles className="h-4 w-4 text-primary" />
             Ähnliche Kandidaten
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="space-y-1.5 flex-1">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            </div>
-          ))}
+          <p className="text-sm text-muted-foreground">AI-Analyse läuft...</p>
+          <Progress value={75} className="h-1.5" />
         </CardContent>
       </Card>
     );
@@ -51,9 +44,13 @@ export function SimilarCandidates({ candidateId, limit = 5, className }: Similar
             Ähnliche Kandidaten
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Keine ähnlichen Kandidaten gefunden. Embeddings werden möglicherweise noch generiert.
+        <CardContent className="text-center py-4">
+          <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground mb-1">
+            Keine ähnlichen Kandidaten gefunden
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Mehr Skills hinzufügen für bessere Matches
           </p>
         </CardContent>
       </Card>
