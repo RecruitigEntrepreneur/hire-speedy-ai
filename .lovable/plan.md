@@ -1,106 +1,149 @@
 
-# Plan: Interview-Erkenntnisse nach oben verschieben
+
+# Fix: Interview-Erkenntnisse in rechte Spalte des Profil-Tabs verschieben
 
 ## Problem
 
-Die `QuickInterviewSummary` (Interview-Erkenntnisse) ist aktuell:
+Aktuell haben wir ein **3-Spalten-Layout** auf Page-Level:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Hero Header                                  │
+└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────┬─────────────────┬──────────────────────┐
+│                            │                 │  Interview-          │
+│   Tabs (2/3)               │                 │  Erkenntnisse        │
+│                            │                 │                      │
+└────────────────────────────┴─────────────────┴──────────────────────┘
+                 ↑ Das ist falsch - 3 Spalten!
+```
 
-1. **Versteckt im Profil-Tab** - innerhalb der rechten Spalte des Two-Column-Layouts
-2. **Ganz unten** - nach Karriere-Timeline, vor Similar Candidates
-3. **Nicht sofort sichtbar** - User müssen scrollen
+## Lösung
 
-Das widerspricht dem Ziel, Interview-Daten prominent zu platzieren, da diese für das Exposé essentiell sind.
-
----
-
-## Lösung: Neue Position direkt unter Hero
-
-Die `QuickInterviewSummary` wird aus dem Tab herausgeholt und direkt unter der Hero-Section platziert, in einem neuen Two-Column-Layout:
+Die `QuickInterviewSummary` gehört **in die rechte Spalte des Profil-Tabs** (50/50 Layout), direkt **über** der Karriere-Timeline:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        Hero Header                                   │
-│  [Avatar] Juliane Hotarek · Scrum Master · 14J                      │
-│  [Stage Pipeline] [Stats Bar]                                        │
+│                         Hero Header                                  │
 └─────────────────────────────────────────────────────────────────────┘
-                                ↓
-┌────────────────────────────────────┬────────────────────────────────┐
-│                                    │  Interview-Erkenntnisse        │
-│  [Tabs: Profil | Prozess]          │  ┌───────────────────────────┐ │
-│                                    │  │ Für Exposé fehlen:        │ │
-│  Profil-Inhalt...                  │  │ ✗ Gehaltsvorstellung      │ │
-│                                    │  │ ✗ Wechselmotivation       │ │
-│                                    │  │ ✗ Verfügbarkeit           │ │
-│                                    │  │ ✗ Einschätzung            │ │
-│                                    │  │ [Interview jetzt starten] │ │
-│                                    │  └───────────────────────────┘ │
-└────────────────────────────────────┴────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│   [Tabs: Profil | Prozess]                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                           Profil Tab (50/50)                        │
+│  ┌────────────────────────────┬────────────────────────────────────┐│
+│  │  Skills Card               │  Interview-Erkenntnisse  ← NEU     ││
+│  │                            │  [Interview jetzt starten]         ││
+│  │  AI Summary                ├────────────────────────────────────┤│
+│  │                            │  Karriere-Timeline                 ││
+│  │  Documents                 │                                    ││
+│  │                            │  Similar Candidates                ││
+│  └────────────────────────────┴────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Technische Umsetzung
+## Technische Änderungen
 
 ### Datei 1: `src/pages/recruiter/RecruiterCandidateDetail.tsx`
 
-1. **Import hinzufügen**: `QuickInterviewSummary` importieren
-2. **Neues Layout erstellen**: Nach Hero ein Two-Column-Grid
-   - Linke Spalte (2/3): Tabs + Tab-Content
-   - Rechte Spalte (1/3): QuickInterviewSummary + optional weitere Cards (sticky)
+**Änderung**: 3-Spalten-Grid zurück auf normales Layout ändern
+
+Zeilen 407-504 (aktuelles Grid) vereinfachen:
+- Entferne `grid-cols-3` Layout
+- Entferne die separate rechte Sidebar mit `QuickInterviewSummary`
+- Tabs bleiben volle Breite
 
 ```typescript
-// Nach dem Hero Header (Zeile ~394):
+// Vorher (Zeile 407-408):
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  {/* Main Content - 2/3 */}
   <div className="lg:col-span-2">
-    <Tabs value={activeTab} onValueChange={handleTabChange}>
-      ...
-    </Tabs>
-  </div>
-  
-  {/* Right Sidebar - 1/3 */}
-  <div className="space-y-4">
-    <div className="lg:sticky lg:top-4">
-      <QuickInterviewSummary 
-        candidateId={candidate.id}
-        onViewDetails={() => setInterviewSliderOpen(true)}
-      />
-    </div>
-  </div>
-</div>
+
+// Nachher:
+<div>
+  {/* Keine separate Sidebar mehr - QuickInterviewSummary wandert in CandidateProfileTab */}
 ```
 
 ### Datei 2: `src/components/candidates/CandidateProfileTab.tsx`
 
-1. **QuickInterviewSummary entfernen** aus dem Right Column (Zeile 151-155)
-2. Die rechte Spalte enthält dann nur noch: Karriere-Timeline + Similar Candidates
+**Änderung**: `QuickInterviewSummary` in die rechte Spalte einfügen, über der Karriere-Timeline
+
+```typescript
+interface CandidateProfileTabProps {
+  candidate: { ... };
+  tags: CandidateTag[];
+  onViewFullInterview?: () => void;  // ← NEU: Callback hinzufügen
+}
+
+export function CandidateProfileTab({ candidate, tags, onViewFullInterview }: CandidateProfileTabProps) {
+  // ...
+
+  return (
+    <div className="space-y-6">
+      {/* Key Facts Grid - Full Width */}
+      <CandidateKeyFactsGrid candidate={candidate} />
+      
+      {/* Two-Column Layout (50/50) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column */}
+        <div className="space-y-6">
+          <CandidateSkillsCard ... />
+          <CandidateCvAiSummaryCard ... />
+          <CandidateDocumentsManager ... />
+        </div>
+        
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* NEU: Interview-Erkenntnisse OBEN */}
+          <QuickInterviewSummary 
+            candidateId={candidate.id}
+            onViewDetails={onViewFullInterview}
+          />
+          
+          {/* Karriere-Timeline (darunter) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Karriere-Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CandidateExperienceTimeline ... />
+            </CardContent>
+          </Card>
+          
+          {/* Similar Candidates */}
+          <SimilarCandidates ... />
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+### Datei 3: `src/pages/RecruiterCandidateDetail.tsx` (Prop weitergeben)
+
+```typescript
+<CandidateProfileTab 
+  candidate={...}
+  tags={candidateTags}
+  onViewFullInterview={() => setInterviewSliderOpen(true)}  // ← NEU
+/>
+```
 
 ---
 
-## Vorteile der neuen Position
-
-| Aspekt | Vorher | Nachher |
-|--------|--------|---------|
-| Sichtbarkeit | Versteckt im Tab | Sofort sichtbar |
-| Position | Nach Karriere-Timeline | Neben Hero |
-| Verhalten | Scrollt mit Content | Sticky in Sidebar |
-| CTA | Leicht übersehen | Prominent oben rechts |
-
----
-
-## Dateien
+## Zusammenfassung der Änderungen
 
 | Datei | Änderung |
 |-------|----------|
-| `src/pages/recruiter/RecruiterCandidateDetail.tsx` | Neues Grid-Layout mit rechter Sidebar |
-| `src/components/candidates/CandidateProfileTab.tsx` | QuickInterviewSummary entfernen |
+| `RecruiterCandidateDetail.tsx` | 3-Spalten-Grid entfernen, normales Layout |
+| `CandidateProfileTab.tsx` | `QuickInterviewSummary` in rechte Spalte einfügen (über Timeline) |
+| `CandidateProfileTab.tsx` | Neues Prop `onViewFullInterview` für Interview-Slider |
 
 ---
 
 ## Erwartetes Ergebnis
 
-Die "Interview-Erkenntnisse" Card mit dem "Interview jetzt starten" Button erscheint nun:
-- Direkt unter dem Hero Header
-- Auf der rechten Seite (1/3 Breite)
-- Sticky beim Scrollen
-- Auf allen Tabs sichtbar (nicht nur im Profil-Tab)
+- **2 Spalten (50/50)** im Profil-Tab bleiben erhalten
+- **Interview-Erkenntnisse** erscheint ganz oben in der rechten Spalte
+- **Karriere-Timeline** direkt darunter
+- **Kein 3-Spalten-Layout** mehr auf Page-Level
+
