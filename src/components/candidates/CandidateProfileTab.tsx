@@ -5,7 +5,6 @@ import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
 import { CandidateSkillsCard } from './CandidateSkillsCard';
 import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
-import { QuickInterviewSummary } from './QuickInterviewSummary';
 import { SimilarCandidates } from './SimilarCandidates';
 import { CandidateExperienceTimeline } from './CandidateExperienceTimeline';
 import { CandidateTag } from '@/hooks/useCandidateTags';
@@ -36,10 +35,9 @@ interface CandidateProfileTabProps {
     cv_ai_bullets?: unknown | null;
   };
   tags: CandidateTag[];
-  onViewFullInterview: () => void;
 }
 
-export function CandidateProfileTab({ candidate, tags, onViewFullInterview }: CandidateProfileTabProps) {
+export function CandidateProfileTab({ candidate, tags }: CandidateProfileTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { parseCV, extractTextFromPdf, saveParsedCandidate, parsing, extractingPdf } = useCvParsing();
@@ -147,12 +145,6 @@ export function CandidateProfileTab({ candidate, tags, onViewFullInterview }: Ca
               />
             </CardContent>
           </Card>
-          
-          {/* Interview Insights */}
-          <QuickInterviewSummary 
-            candidateId={candidate.id}
-            onViewDetails={onViewFullInterview}
-          />
           
           {/* Similar Candidates */}
           <SimilarCandidates candidateId={candidate.id} limit={3} />
