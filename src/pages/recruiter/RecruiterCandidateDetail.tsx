@@ -35,6 +35,7 @@ import { CandidateProfileTab } from '@/components/candidates/CandidateProfileTab
 import { CandidateProcessTab } from '@/components/candidates/CandidateProcessTab';
 import { CandidateActionBar } from '@/components/candidates/CandidateActionBar';
 import { InterviewCardSlider } from '@/components/candidates/InterviewCardSlider';
+import { QuickInterviewSummary } from '@/components/candidates/QuickInterviewSummary';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -403,81 +404,95 @@ export default function RecruiterCandidateDetail() {
           />
         )}
 
-        {/* Tab Navigation */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="profile" className="gap-2">
-              <User className="h-4 w-4" />
-              Profil
-            </TabsTrigger>
-            <TabsTrigger value="process" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Prozess
-            </TabsTrigger>
-          </TabsList>
+        {/* Two-Column Layout: Tabs + Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content - 2/3 */}
+          <div className="lg:col-span-2">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+              <TabsList className="grid w-full max-w-md grid-cols-2">
+                <TabsTrigger value="profile" className="gap-2">
+                  <User className="h-4 w-4" />
+                  Profil
+                </TabsTrigger>
+                <TabsTrigger value="process" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Prozess
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="mt-6">
-            <CandidateProfileTab 
-              candidate={{
-                id: candidate.id,
-                job_title: candidate.job_title,
-                seniority: candidate.seniority,
-                experience_years: candidate.experience_years,
-                city: candidate.city,
-                expected_salary: candidate.expected_salary,
-                salary_expectation_min: extCandidate?.salary_expectation_min,
-                salary_expectation_max: extCandidate?.salary_expectation_max,
-                current_salary: candidate.current_salary,
-                notice_period: extCandidate?.notice_period,
-                availability_date: extCandidate?.availability_date,
-                remote_possible: candidate.remote_possible,
-                remote_preference: extCandidate?.remote_preference,
-                skills: candidate.skills,
-                certifications: extCandidate?.certifications,
-                cv_ai_summary: extCandidate?.cv_ai_summary,
-                cv_ai_bullets: extCandidate?.cv_ai_bullets,
-              }}
-              tags={candidateTags}
-              onViewFullInterview={() => setInterviewSliderOpen(true)}
-            />
-          </TabsContent>
+              {/* Profile Tab */}
+              <TabsContent value="profile" className="mt-6">
+                <CandidateProfileTab 
+                  candidate={{
+                    id: candidate.id,
+                    job_title: candidate.job_title,
+                    seniority: candidate.seniority,
+                    experience_years: candidate.experience_years,
+                    city: candidate.city,
+                    expected_salary: candidate.expected_salary,
+                    salary_expectation_min: extCandidate?.salary_expectation_min,
+                    salary_expectation_max: extCandidate?.salary_expectation_max,
+                    current_salary: candidate.current_salary,
+                    notice_period: extCandidate?.notice_period,
+                    availability_date: extCandidate?.availability_date,
+                    remote_possible: candidate.remote_possible,
+                    remote_preference: extCandidate?.remote_preference,
+                    skills: candidate.skills,
+                    certifications: extCandidate?.certifications,
+                    cv_ai_summary: extCandidate?.cv_ai_summary,
+                    cv_ai_bullets: extCandidate?.cv_ai_bullets,
+                  }}
+                  tags={candidateTags}
+                />
+              </TabsContent>
 
-          {/* Process Tab */}
-          <TabsContent value="process" className="mt-6">
-            <div id="job-matching-section">
-              <CandidateProcessTab 
-                candidate={{
-                  id: candidate.id,
-                  full_name: candidate.full_name,
-                  email: candidate.email,
-                  phone: candidate.phone,
-                  job_title: candidate.job_title,
-                  skills: candidate.skills,
-                  experience_years: candidate.experience_years,
-                  expected_salary: candidate.expected_salary,
-                  salary_expectation_min: extCandidate?.salary_expectation_min,
-                  salary_expectation_max: extCandidate?.salary_expectation_max,
-                  city: candidate.city,
-                  seniority: candidate.seniority,
-                  target_roles: extCandidate?.target_roles,
-                  max_commute_minutes: extCandidate?.max_commute_minutes,
-                  commute_mode: extCandidate?.commute_mode,
-                  address_lat: extCandidate?.address_lat,
-                  address_lng: extCandidate?.address_lng,
-                  availability_date: extCandidate?.availability_date,
-                  notice_period: extCandidate?.notice_period,
-                  cv_ai_summary: extCandidate?.cv_ai_summary,
-                  cv_ai_bullets: extCandidate?.cv_ai_bullets,
-                }}
-                activeTaskId={activeTaskId}
-                activities={activities}
-                activitiesLoading={activitiesLoading}
-                onAddActivity={() => setAddActivityOpen(true)}
+              {/* Process Tab */}
+              <TabsContent value="process" className="mt-6">
+                <div id="job-matching-section">
+                  <CandidateProcessTab 
+                    candidate={{
+                      id: candidate.id,
+                      full_name: candidate.full_name,
+                      email: candidate.email,
+                      phone: candidate.phone,
+                      job_title: candidate.job_title,
+                      skills: candidate.skills,
+                      experience_years: candidate.experience_years,
+                      expected_salary: candidate.expected_salary,
+                      salary_expectation_min: extCandidate?.salary_expectation_min,
+                      salary_expectation_max: extCandidate?.salary_expectation_max,
+                      city: candidate.city,
+                      seniority: candidate.seniority,
+                      target_roles: extCandidate?.target_roles,
+                      max_commute_minutes: extCandidate?.max_commute_minutes,
+                      commute_mode: extCandidate?.commute_mode,
+                      address_lat: extCandidate?.address_lat,
+                      address_lng: extCandidate?.address_lng,
+                      availability_date: extCandidate?.availability_date,
+                      notice_period: extCandidate?.notice_period,
+                      cv_ai_summary: extCandidate?.cv_ai_summary,
+                      cv_ai_bullets: extCandidate?.cv_ai_bullets,
+                    }}
+                    activeTaskId={activeTaskId}
+                    activities={activities}
+                    activitiesLoading={activitiesLoading}
+                    onAddActivity={() => setAddActivityOpen(true)}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Right Sidebar - 1/3 */}
+          <div className="space-y-4">
+            <div className="lg:sticky lg:top-4">
+              <QuickInterviewSummary 
+                candidateId={candidate.id}
+                onViewDetails={() => setInterviewSliderOpen(true)}
               />
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
 
       {/* Sticky Action Bar */}
