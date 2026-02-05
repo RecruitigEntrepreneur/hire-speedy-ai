@@ -7,6 +7,7 @@ import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { SimilarCandidates } from './SimilarCandidates';
 import { CandidateExperienceTimeline } from './CandidateExperienceTimeline';
+import { QuickInterviewSummary } from './QuickInterviewSummary';
 import { CandidateTag } from '@/hooks/useCandidateTags';
 import { Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,9 +36,10 @@ interface CandidateProfileTabProps {
     cv_ai_bullets?: unknown | null;
   };
   tags: CandidateTag[];
+  onViewFullInterview?: () => void;
 }
 
-export function CandidateProfileTab({ candidate, tags }: CandidateProfileTabProps) {
+export function CandidateProfileTab({ candidate, tags, onViewFullInterview }: CandidateProfileTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { parseCV, extractTextFromPdf, saveParsedCandidate, parsing, extractingPdf } = useCvParsing();
@@ -129,6 +131,12 @@ export function CandidateProfileTab({ candidate, tags }: CandidateProfileTabProp
         
         {/* Right Column */}
         <div className="space-y-6">
+          {/* Interview-Erkenntnisse - Top of right column */}
+          <QuickInterviewSummary 
+            candidateId={candidate.id}
+            onViewDetails={onViewFullInterview}
+          />
+          
           {/* Career Timeline */}
           <Card>
             <CardHeader className="pb-2">
