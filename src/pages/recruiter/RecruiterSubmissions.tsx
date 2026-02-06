@@ -567,7 +567,22 @@ export default function RecruiterSubmissions() {
                               <Link to={`/recruiter/jobs/${sub.job_id}`} className="font-medium hover:underline">
                                 {sub.jobs?.title}
                               </Link>
-                              <p className="text-sm text-muted-foreground">{sub.jobs?.company_name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {getDisplayCompanyName(
+                                  sub.jobs?.company_name || '',
+                                  sub.jobs?.industry,
+                                  sub.company_revealed,
+                                  {
+                                    industry: sub.jobs?.industry,
+                                    companySize: sub.jobs?.company_size_band,
+                                    fundingStage: sub.jobs?.funding_stage,
+                                    techStack: sub.jobs?.tech_environment,
+                                    location: sub.jobs?.location,
+                                    urgency: sub.jobs?.hiring_urgency,
+                                    remoteType: sub.jobs?.remote_type,
+                                  }
+                                )}
+                              </p>
                             </div>
                             <div className="hidden lg:block text-sm text-muted-foreground">
                               {formatDate(sub.updated_at)}
@@ -655,7 +670,24 @@ export default function RecruiterSubmissions() {
             setSelectedPlaybookSubmission(null);
           }}
           candidateName={selectedPlaybookSubmission ? submissions.find(s => s.id === selectedPlaybookSubmission)?.candidates?.full_name : undefined}
-          companyName={selectedPlaybookSubmission ? submissions.find(s => s.id === selectedPlaybookSubmission)?.jobs?.company_name : undefined}
+          companyName={selectedPlaybookSubmission ? (() => {
+            const sub = submissions.find(s => s.id === selectedPlaybookSubmission);
+            if (!sub) return undefined;
+            return getDisplayCompanyName(
+              sub.jobs?.company_name || '',
+              sub.jobs?.industry,
+              sub.company_revealed,
+              {
+                industry: sub.jobs?.industry,
+                companySize: sub.jobs?.company_size_band,
+                fundingStage: sub.jobs?.funding_stage,
+                techStack: sub.jobs?.tech_environment,
+                location: sub.jobs?.location,
+                urgency: sub.jobs?.hiring_urgency,
+                remoteType: sub.jobs?.remote_type,
+              }
+            );
+          })() : undefined}
         />
       </div>
     </DashboardLayout>

@@ -312,7 +312,7 @@ export default function RecruiterDashboard() {
     // Fetch submissions with candidates and jobs
     const { data: submissions } = await supabase
       .from('submissions')
-      .select('id, candidate_id, job_id, candidates(id, full_name, email, phone, experience_years, expected_salary, current_salary, skills, summary, cv_url, linkedin_url, availability_date, notice_period, created_at, recruiter_id), jobs(title, company_name)')
+      .select('id, candidate_id, job_id, company_revealed, candidates(id, full_name, email, phone, experience_years, expected_salary, current_salary, skills, summary, cv_url, linkedin_url, availability_date, notice_period, created_at, recruiter_id), jobs(title, company_name, industry)')
       .in('id', submissionIds);
     
     if (submissions) {
@@ -326,7 +326,8 @@ export default function RecruiterDashboard() {
             candidateId: s.candidates.id,
             candidateData: s.candidates as Candidate,
             jobTitle: s.jobs?.title || undefined,
-            companyName: s.jobs?.company_name || undefined,
+            // Triple-Blind: Only pass company name if revealed
+            companyName: s.company_revealed ? (s.jobs?.company_name || undefined) : (s.jobs?.industry ? `[${s.jobs.industry}]` : undefined),
           };
         }
       });

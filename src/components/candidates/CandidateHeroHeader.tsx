@@ -29,7 +29,7 @@ interface CandidateHeroHeaderProps {
   onStatusChange: (status: string) => void;
   onEdit: () => void;
   onCvUpload: () => void;
-  submissions: { id: string; status: string; submitted_at: string; job: { id: string; title: string; company_name: string } }[];
+  submissions: { id: string; status: string; submitted_at: string; job: { id: string; title: string } }[];
   statusMutationPending: boolean;
   availabilityText: string | null;
   salaryText: string | null;

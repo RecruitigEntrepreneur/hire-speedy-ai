@@ -85,12 +85,12 @@ export default function RecruiterCandidateDetail() {
           id,
           status,
           submitted_at,
-          job:jobs(id, title, company_name)
+          job:jobs(id, title)
         `)
         .eq('candidate_id', id!)
         .order('submitted_at', { ascending: false });
       if (error) throw error;
-      return data as { id: string; status: string; submitted_at: string; job: { id: string; title: string; company_name: string } }[];
+      return data as { id: string; status: string; submitted_at: string; job: { id: string; title: string } }[];
     },
     enabled: !!id
   });
