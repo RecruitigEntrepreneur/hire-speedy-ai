@@ -65,7 +65,6 @@ interface CandidateJobMatchingV3Props {
 interface JobInfo {
   id: string;
   title: string;
-  company_name: string;
   industry: string | null;
   company_size_band: string | null;
   funding_stage: string | null;
@@ -88,6 +87,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
   const [jobs, setJobs] = useState<JobInfo[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [matchResults, setMatchResults] = useState<V31MatchResult[]>([]);
+  const [revealedMap, setRevealedMap] = useState<Map<string, string>>(new Map());
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [commuteDialog, setCommuteDialog] = useState<{
@@ -114,18 +114,34 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
     async function loadJobsAndMatches() {
       setJobsLoading(true);
       try {
-        // Fetch published jobs with additional fields for anonymization
-        const { data: jobsData, error: jobsError } = await supabase
-          .from('jobs')
-          .select('id, title, company_name, industry, company_size_band, funding_stage, tech_environment, location, salary_max, salary_min, remote_type')
-          .eq('status', 'published')
-          .order('created_at', { ascending: false })
-          .limit(50);
+        // Fetch published jobs WITHOUT company_name (Triple-Blind) + revealed submissions in parallel
+        const [jobsRes, revealedRes] = await Promise.all([
+          supabase
+            .from('jobs')
+            .select('id, title, industry, company_size_band, funding_stage, tech_environment, location, salary_max, salary_min, remote_type')
+            .eq('status', 'published')
+            .order('created_at', { ascending: false })
+            .limit(50),
+          supabase
+            .from('submissions')
+            .select('job_id, jobs(company_name)')
+            .eq('recruiter_id', user!.id)
+            .eq('company_revealed', true)
+        ]);
 
-        if (jobsError) throw jobsError;
+        if (jobsRes.error) throw jobsRes.error;
         
-        const fetchedJobs = jobsData || [];
+        const fetchedJobs = jobsRes.data || [];
         setJobs(fetchedJobs);
+
+        // Build revealed map: job_id → company_name (only for revealed submissions)
+        const map = new Map<string, string>();
+        revealedRes.data?.forEach((s: any) => {
+          if (s.jobs?.company_name) {
+            map.set(s.job_id, s.jobs.company_name);
+          }
+        });
+        setRevealedMap(map);
 
         if (fetchedJobs.length > 0) {
           // Calculate batch matches - use 'preview' mode to show more results
@@ -163,6 +179,21 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
 
   const getJobInfo = (jobId: string): JobInfo | undefined => {
     return jobs.find(j => j.id === jobId);
+  };
+
+  // Triple-Blind: Display helper – show real name only if revealed, otherwise anonymized
+  const getJobDisplayName = (jobId: string, job: JobInfo): string => {
+    const revealedName = revealedMap.get(jobId);
+    if (revealedName) return revealedName;
+
+    return formatAnonymousCompany({
+      industry: job.industry,
+      companySize: job.company_size_band,
+      fundingStage: job.funding_stage,
+      techStack: job.tech_environment,
+      location: job.location,
+      remoteType: job.remote_type,
+    });
   };
 
   const handleSubmitToJob = async (job: JobInfo, result: V31MatchResult) => {
@@ -357,6 +388,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       submitting={submitting === result.jobId}
                       isReady={readiness.isReady}
                       candidateId={candidate.id}
+                      getJobDisplayName={getJobDisplayName}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -390,6 +422,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       submitting={submitting === result.jobId}
                       isReady={readiness.isReady}
                       candidateId={candidate.id}
+                      getJobDisplayName={getJobDisplayName}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -423,6 +456,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
                       submitting={submitting === result.jobId}
                       isReady={readiness.isReady}
                       candidateId={candidate.id}
+                      getJobDisplayName={getJobDisplayName}
                       getPolicyColor={getPolicyColor}
                       getPolicyLabel={getPolicyLabel}
                       getPolicyIcon={getPolicyIcon}
@@ -457,7 +491,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
           job={{
             id: commuteDialog.job.id,
             title: commuteDialog.job.title,
-            company_name: commuteDialog.job.company_name,
+            company_name: getJobDisplayName(commuteDialog.job.id, commuteDialog.job),
             location: commuteDialog.job.location || '',
           }}
           travelTime={commuteDialog.travelTime}
@@ -478,6 +512,7 @@ function JobMatchRow({
   submitting,
   isReady,
   candidateId,
+  getJobDisplayName,
   getPolicyColor,
   getPolicyLabel,
   getPolicyIcon,
@@ -490,6 +525,7 @@ function JobMatchRow({
   submitting: boolean;
   isReady: boolean;
   candidateId: string;
+  getJobDisplayName: (jobId: string, job: JobInfo) => string;
   getPolicyColor: (policy: V31MatchResult['policy']) => string;
   getPolicyLabel: (policy: V31MatchResult['policy']) => string;
   getPolicyIcon: (policy: V31MatchResult['policy']) => string;
@@ -572,19 +608,9 @@ function JobMatchRow({
             {job.title}
           </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            {/* Triple-Blind: Anonymisierter Firmenname */}
+            {/* Triple-Blind: Show revealed name or anonymized company */}
             <span className="font-medium text-muted-foreground">
-              {job.industry || job.company_size_band || job.funding_stage || job.tech_environment?.length
-                ? formatAnonymousCompany({
-                    industry: job.industry,
-                    companySize: job.company_size_band,
-                    fundingStage: job.funding_stage,
-                    techStack: job.tech_environment,
-                    location: job.location,
-                    remoteType: job.remote_type,
-                  })
-                : formatSimpleAnonymousCompany(job.industry)
-              }
+              {getJobDisplayName(job.id, job)}
             </span>
             {(job.salary_min || job.salary_max) && (
               <span className="flex items-center gap-1">
