@@ -57,6 +57,7 @@ export default function RecruiterDashboard() {
   const [recentSubmissions, setRecentSubmissions] = useState<PipelineSubmission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
+  const [revealedCompanyNames, setRevealedCompanyNames] = useState<Map<string, string>>(new Map());
   const [companyProfiles, setCompanyProfiles] = useState<Record<string, { logo_url: string | null; website: string | null; headcount: number | null; industry: string | null }>>({});
   
   const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
@@ -79,12 +80,21 @@ export default function RecruiterDashboard() {
     try {
       const { data, error } = await supabase
         .from('submissions')
-        .select('job_id')
+        .select('job_id, jobs(company_name)')
         .eq('recruiter_id', user.id)
         .eq('company_revealed', true);
 
       if (!error && data) {
-        setRevealedJobIds(new Set(data.map(s => s.job_id)));
+        const ids = new Set<string>();
+        const nameMap = new Map<string, string>();
+        data.forEach((s: any) => {
+          ids.add(s.job_id);
+          if (s.jobs?.company_name) {
+            nameMap.set(s.job_id, s.jobs.company_name);
+          }
+        });
+        setRevealedJobIds(ids);
+        setRevealedCompanyNames(nameMap);
       }
     } catch (error) {
       console.error('Error fetching revealed jobs:', error);
@@ -96,7 +106,7 @@ export default function RecruiterDashboard() {
       // Fetch published jobs available to recruiters
       const { data: jobs, error: jobsError } = await supabase
         .from('jobs')
-        .select('*')
+        .select('id, title, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, client_id, created_at')
         .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(5);
@@ -203,7 +213,7 @@ export default function RecruiterDashboard() {
           
         const jobsRes = await supabase
           .from('jobs')
-          .select('id, title, company_name, salary_min, salary_max, recruiter_fee_percentage')
+          .select('id, title, salary_min, salary_max, recruiter_fee_percentage')
           .in('id', jobIds);
           
         // Fetch alerts for submissions
@@ -274,14 +284,12 @@ export default function RecruiterDashboard() {
             job: job ? {
               id: job.id,
               title: job.title,
-              company_name: job.company_name,
               salary_min: job.salary_min,
               salary_max: job.salary_max,
               recruiter_fee_percentage: job.recruiter_fee_percentage,
             } : {
               id: s.job_id,
               title: 'Unknown Job',
-              company_name: null,
               salary_min: null,
               salary_max: null,
               recruiter_fee_percentage: null,
@@ -554,12 +562,13 @@ export default function RecruiterDashboard() {
                                 src={getCompanyLogoUrl(
                                   profile?.logo_url,
                                   profile?.website,
-                                  job.company_name
+                                  revealedCompanyNames.get(job.id) || ''
                                 )}
-                                alt={job.company_name}
+                                alt={revealedCompanyNames.get(job.id) || 'Company'}
                                 className="h-8 w-8 object-contain"
                                 onError={(e) => {
-                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_name)}&background=1e3a5f&color=fff&size=96&bold=true`;
+                                  const name = revealedCompanyNames.get(job.id) || 'U';
+                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1e3a5f&color=fff&size=96&bold=true`;
                                 }}
                               />
                             </div>
@@ -582,7 +591,7 @@ export default function RecruiterDashboard() {
                             {revealedJobIds.has(job.id) ? (
                               // Revealed: Show full company details
                               <div>
-                                <p className="text-sm font-medium text-foreground">{job.company_name}</p>
+                                <p className="text-sm font-medium text-foreground">{revealedCompanyNames.get(job.id) || job.title}</p>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                   {formatHeadcount(profile?.headcount) && (
                                     <span className="flex items-center gap-1">
