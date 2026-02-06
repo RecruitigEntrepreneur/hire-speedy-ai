@@ -35,7 +35,6 @@ export interface PipelineSubmission {
   job: {
     id: string;
     title: string;
-    company_name: string | null;
     salary_min: number | null;
     salary_max: number | null;
     recruiter_fee_percentage: number | null;

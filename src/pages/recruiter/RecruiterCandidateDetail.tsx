@@ -88,11 +88,12 @@ export default function RecruiterCandidateDetail() {
           job:jobs(id, title)
         `)
         .eq('candidate_id', id!)
+        .eq('recruiter_id', user!.id)
         .order('submitted_at', { ascending: false });
       if (error) throw error;
       return data as { id: string; status: string; submitted_at: string; job: { id: string; title: string } }[];
     },
-    enabled: !!id
+    enabled: !!id && !!user
   });
 
   const activeSubmissions = submissions?.filter(s => !['rejected', 'hired'].includes(s.status)) || [];
