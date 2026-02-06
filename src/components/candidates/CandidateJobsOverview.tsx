@@ -7,6 +7,7 @@ import { Briefcase, Clock, Building2, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { formatSimpleAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 
 interface CandidateJobsOverviewProps {
   candidateId: string;
@@ -16,10 +17,12 @@ interface JobSubmission {
   id: string;
   status: string;
   submitted_at: string;
+  company_revealed: boolean;
   job: {
     id: string;
     title: string;
     company_name: string;
+    industry: string | null;
     status: string;
   };
 }
@@ -43,7 +46,8 @@ export function CandidateJobsOverview({ candidateId }: CandidateJobsOverviewProp
           id,
           status,
           submitted_at,
-          job:jobs(id, title, company_name, status)
+          company_revealed,
+          job:jobs(id, title, company_name, industry, status)
         `)
         .eq('candidate_id', candidateId)
         .order('submitted_at', { ascending: false });
@@ -109,7 +113,12 @@ export function CandidateJobsOverview({ candidateId }: CandidateJobsOverviewProp
                   </div>
                   <div>
                     <p className="font-medium">{submission.job.title}</p>
-                    <p className="text-sm text-muted-foreground">{submission.job.company_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {submission.company_revealed 
+                        ? submission.job.company_name 
+                        : formatSimpleAnonymousCompany(submission.job.industry)
+                      }
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
