@@ -72,7 +72,7 @@ export function SimilarCandidates({ candidateId, limit = 5, className }: Similar
         {similar.map((candidate) => (
           <Link
             key={candidate.id}
-            to={`/dashboard/candidates/${candidate.id}`}
+            to={`/recruiter/candidates/${candidate.id}`}
             className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
           >
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm shrink-0">
