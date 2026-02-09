@@ -1,45 +1,57 @@
 
-# Zurueck zum einheitlichen Grid (ohne Kanban-Spalten)
+# Fix: Dashboard-Import leitet korrekt zum ausgefuellten Formular weiter
 
-## Was wird geaendert
+## Das Problem
 
-Die Kanban-Spalten werden in beiden Dateien entfernt und durch ein einfaches, einheitliches Grid ersetzt. Die gleichmaessige Kartenhoehe (via `h-full`, `flex flex-col`, `mt-auto`) bleibt erhalten -- nur das Spalten-Layout geht weg.
+Der `QuickJobImport` auf dem Dashboard parst die Stellenanzeige erfolgreich, speichert die Daten in `sessionStorage.setItem('prefillJobData', ...)` und navigiert zu `/dashboard/jobs/new?prefill=true`. Aber `CreateJob.tsx` liest diese Daten **nie aus** -- es gibt keinen einzigen Verweis auf `sessionStorage`, `prefill` oder `searchParams` in der Datei.
 
-## Aenderungen
+Der Kunde sieht deshalb nach dem Import wieder den leeren Import-Bildschirm.
 
-### Datei 1: `src/pages/dashboard/TalentHub.tsx`
+---
 
-**1. `candidatesByStage` Memo entfernen** (Zeilen 317-326)
-- Die Gruppierungslogik wird nicht mehr gebraucht.
+## Loesung: 2 kleine Aenderungen
 
-**2. Rendering vereinfachen** (Zeilen 631-709)
-- Die Verzweigung `stageFilter === 'all' ? Kanban : Grid` wird entfernt.
-- Stattdessen wird immer ein einheitliches Grid gerendert:
+### Aenderung 1: CreateJob.tsx -- Prefill-Daten beim Laden konsumieren
 
-```
-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4
-```
+**Was sich aendert:**
+- `useSearchParams` aus `react-router-dom` importieren
+- Ein `useEffect` wird ergaenzt, der beim Mount:
+  1. Prueft ob `?prefill=true` in der URL steht
+  2. `sessionStorage.getItem('prefillJobData')` ausliest und parst
+  3. Die Daten durch die bereits existierende `applyParsedData()` Funktion (Zeile 201) schickt
+  4. `sessionStorage.removeItem('prefillJobData')` aufrauemt
+  5. Falls SessionStorage leer ist (z.B. Seite neu geladen), bleibt der normale Import-Bildschirm sichtbar
 
-- `candidatesWithInterviews` wird direkt im Grid gemappt (wie es vorher bei der "single stage"-Ansicht schon der Fall war).
-- Multi-Select-Checkbox und alle Interaktionen bleiben identisch.
+**Ergebnis:** Der Kunde landet direkt im ausgefuellten Formular mit KI-Enrichment im Hintergrund.
 
-### Datei 2: `src/components/dashboard/IntegratedTalentSection.tsx`
+### Aenderung 2: QuickJobImport.tsx -- Doppelten Toast entfernen
 
-**1. `candidatesByStage` Memo entfernen** (Zeilen 284-292)
-
-**2. Rendering vereinfachen** (Zeilen 542-621)
-- Gleiche Aenderung: Kanban-Verzweigung raus, einheitliches Grid rein.
-- Multi-Select-Checkbox und alle Interaktionen bleiben identisch.
-
-### Datei 3: `src/components/talent/CandidateActionCard.tsx`
-
-Keine Aenderung -- die einheitliche Kartenhoehe (`h-full`, `flex flex-col`, `mt-auto`, `min-h-[28px]` fuer Skills) bleibt bestehen.
+**Was sich aendert:**
+- Der Toast `toast.success('Stellenausschreibung erfolgreich importiert')` in `QuickJobImport` wird entfernt (Zeilen 54, 82, 96)
+- Der Toast kommt stattdessen erst auf der `CreateJob`-Seite nach erfolgreichem Prefill
+- Dadurch sieht der Kunde nur eine einzige Erfolgsmeldung, nicht zwei
 
 ---
 
 ## Ergebnis
 
-- Alle Kandidaten erscheinen in einem gleichmaessigen Grid
-- Karten sind alle gleich hoch (Action-Buttons immer unten)
-- Stage-Tabs filtern wie gewohnt (kein Scrollen zu Spalten mehr)
-- Kein verschwendeter Platz durch leere Kanban-Spalten
+```text
+Vorher:
+Dashboard [URL eingeben] --> Toast 1 "Analysiert" --> Toast 2 "Importiert"
+  --> CreateJob: Leerer Import-Screen (Daten ignoriert)
+
+Nachher:
+Dashboard [URL eingeben] --> Toast "Analysiert"
+  --> CreateJob: Formular mit allen Feldern ausgefuellt
+                 + Toast "Job erfolgreich importiert"
+                 + KI-Enrichment laeuft automatisch
+```
+
+## Dateien
+
+| Datei | Aenderung | Aufwand |
+|-------|-----------|--------|
+| `src/pages/dashboard/CreateJob.tsx` | `useEffect` mit `useSearchParams` fuer SessionStorage-Prefill | S |
+| `src/components/dashboard/QuickJobImport.tsx` | Redundante Toasts entfernen | S |
+
+Keine Datenbank-Aenderungen. Keine neuen Abhaengigkeiten.
