@@ -1,183 +1,62 @@
 
+# Fix: Pipeline nicht klickbar in Client Job Detail
 
-# T-003 + T-004: Defense-in-Depth und Dashboard-Leak beheben
+## Problem
 
----
+Alle Pipeline-bezogenen Links und Buttons in der Job-Detail-Ansicht fuehren zu `/dashboard/pipeline?job=...`. Diese Route wurde entfernt und leitet zum Haupt-Dashboard weiter. Dadurch:
 
-## T-003: Submissions-Query ohne recruiter_id-Filter
+- Der "Verwalten"-Button in der Pipeline-Karte funktioniert nicht
+- Der "Pipeline oeffnen"-Button im Hero funktioniert nicht
+- "Alle Kandidaten ansehen" funktioniert nicht
+- "Alle vergleichen" funktioniert nicht
+- "Kalender" funktioniert nicht
+- Die Pipeline-Stufen (Neu, Pruefung, Interview, etc.) sind nicht klickbar
 
-### Problem
-In `RecruiterCandidateDetail.tsx` (Zeile 82-91) filtert die Submissions-Query nur nach `candidate_id`, nicht nach `recruiter_id`. Die Sicherheit haengt ausschliesslich an RLS.
+## Loesung
 
-### Fix
-Eine Zeile hinzufuegen: `.eq('recruiter_id', user!.id)` zur Query. Kostet nichts, schuetzt gegen zukuenftige RLS-Aenderungen.
-
-**Datei: `src/pages/recruiter/RecruiterCandidateDetail.tsx`**
-
-Vorher:
-```typescript
-const { data, error } = await supabase
-  .from('submissions')
-  .select(`id, status, submitted_at, job:jobs(id, title)`)
-  .eq('candidate_id', id!)
-  .order('submitted_at', { ascending: false });
-```
-
-Nachher:
-```typescript
-const { data, error } = await supabase
-  .from('submissions')
-  .select(`id, status, submitted_at, job:jobs(id, title)`)
-  .eq('candidate_id', id!)
-  .eq('recruiter_id', user!.id)
-  .order('submitted_at', { ascending: false });
-```
-
-Zusaetzlich: `enabled: !!id` aendern zu `enabled: !!id && !!user` damit die Query nicht feuert bevor `user` geladen ist.
+Die tote `/dashboard/pipeline?job=...` Route wird ueberall durch `/dashboard/command/:jobId` ersetzt (Command Center), das bereits volle Pipeline-Verwaltung bietet. Zusaetzlich werden die Pipeline-Stufen klickbar gemacht, sodass sie direkt zum Command Center navigieren koennen.
 
 ---
 
-## T-004: Dashboard zeigt company_name im Client-State
+## Aenderungen
 
-### Analyse-Ergebnis
+### Datei 1: `src/components/client/PipelineSnapshotCard.tsx`
 
-Die **Render-Logik** im Available Jobs Abschnitt ist bereits **korrekt**:
-- Zeile 550-565: `revealedJobIds.has(job.id)` → zeigt Logo + company_name
-- Zeile 566-616: Nicht revealed → zeigt Briefcase-Icon + `formatAnonymousCompany()`
-- `formatAnonymousCompany()` verwendet korrekt nur industry/size/funding/techStack/location -- **kein company_name Leak**
+**Was:** "Verwalten"-Link reparieren und Stage-Bars klickbar machen
 
-Das Problem ist der **Client-State-Leak**:
+- Zeile 58: Link aendern von `/dashboard/pipeline?job=${jobId}` zu `/dashboard/command/${jobId}`
+- Stage-Bars (Zeile 87-103): Die Zeilen in klickbare `Link`-Elemente wrappen, die zum Command Center navigieren
+- `useNavigate` importieren fuer Navigation bei Klick auf Stages
 
-| Stelle | Problem |
-|--------|---------|
-| Zeile 98-99: `select('*')` | Laedt `company_name` fuer ALLE Jobs in React State (sichtbar in DevTools) |
-| Zeile 206: `fetchRecentSubmissions` | Laedt `company_name` via Jobs-Join und gibt es an SubmissionsPipeline weiter |
-| SubmissionsPipeline.tsx Z.38 | Hat `company_name` im Interface, rendert es aber nirgends |
+### Datei 2: `src/components/client/ClientJobHero.tsx`
 
-### Fix 1: Jobs-Query explizite Spalten statt `select('*')`
+**Was:** "Pipeline oeffnen"-Button reparieren
 
-**Datei: `src/pages/recruiter/RecruiterDashboard.tsx`**
+- Zeile 218: Link aendern von `/dashboard/pipeline?job=${job.id}` zu `/dashboard/command/${job.id}`
 
-Vorher (Zeile 97-102):
-```typescript
-const { data: jobs, error: jobsError } = await supabase
-  .from('jobs')
-  .select('*')
-  .eq('status', 'published')
-  .order('created_at', { ascending: false })
-  .limit(5);
-```
+### Datei 3: `src/pages/dashboard/ClientJobDetail.tsx`
 
-Nachher:
-```typescript
-const { data: jobs, error: jobsError } = await supabase
-  .from('jobs')
-  .select('id, title, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, client_id, created_at')
-  .eq('status', 'published')
-  .order('created_at', { ascending: false })
-  .limit(5);
-```
+**Was:** Alle `navigate`-Aufrufe mit toter Pipeline-Route reparieren
 
-`company_name` ist NICHT in der Liste. Nur revealed Jobs (via `revealedJobIds`) brauchen den Namen -- und die werden bereits korrekt ueber den Revealed-Branch im Render behandelt.
+- Zeile 477: `onViewCandidates` aendern von `navigate(\`/dashboard/pipeline?job=${job.id}\`)` zu `navigate(\`/dashboard/command/${job.id}\`)`
+- Zeile 504: `onViewAll` (TopCandidatesCard) aendern zu `navigate(\`/dashboard/command/${job.id}\`)`
+- Zeile 526: `onViewAll` (UpcomingInterviewsCard) aendern zu `navigate(\`/dashboard/command/${job.id}\`)`
 
-Aber Moment: Im Revealed-Branch (Zeile 585) wird `job.company_name` direkt gerendert. Wenn wir es aus dem Query entfernen, bricht das. Loesung: `company_name` fuer revealed Jobs separat laden, analog zum Pattern in CandidateJobMatchingV3.
+### Datei 4: `src/pages/dashboard/JobsList.tsx`
 
-Erweiterter Fix: `fetchRevealedJobs` auch `company_name` laden lassen:
+**Was:** Dropdown-Link in der Jobs-Liste reparieren
 
-```typescript
-const fetchRevealedJobs = async () => {
-  if (!user) return;
-  try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('job_id, jobs(company_name)')
-      .eq('recruiter_id', user.id)
-      .eq('company_revealed', true);
-
-    if (!error && data) {
-      const ids = new Set<string>();
-      const nameMap = new Map<string, string>();
-      data.forEach((s: any) => {
-        ids.add(s.job_id);
-        if (s.jobs?.company_name) {
-          nameMap.set(s.job_id, s.jobs.company_name);
-        }
-      });
-      setRevealedJobIds(ids);
-      setRevealedCompanyNames(nameMap);
-    }
-  } catch (error) {
-    console.error('Error fetching revealed jobs:', error);
-  }
-};
-```
-
-State hinzufuegen:
-```typescript
-const [revealedCompanyNames, setRevealedCompanyNames] = useState<Map<string, string>>(new Map());
-```
-
-Render-Logik (Zeile 585) aendern:
-```tsx
-<p className="text-sm font-medium text-foreground">
-  {revealedCompanyNames.get(job.id) || job.title}
-</p>
-```
-
-Und Logo-Fallback (Zeile 554-563) ebenfalls:
-```tsx
-src={getCompanyLogoUrl(
-  profile?.logo_url,
-  profile?.website,
-  revealedCompanyNames.get(job.id) || ''
-)}
-alt={revealedCompanyNames.get(job.id) || 'Company'}
-onError={(e) => {
-  const name = revealedCompanyNames.get(job.id) || 'U';
-  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1e3a5f&color=fff&size=96&bold=true`;
-}}
-```
-
-### Fix 2: fetchRecentSubmissions - company_name entfernen
-
-**Datei: `src/pages/recruiter/RecruiterDashboard.tsx`**
-
-Zeile 206 aendern:
-```typescript
-// Vorher
-.select('id, title, company_name, salary_min, salary_max, recruiter_fee_percentage')
-// Nachher
-.select('id, title, salary_min, salary_max, recruiter_fee_percentage')
-```
-
-Zeile 277 aendern:
-```typescript
-// Vorher
-company_name: job.company_name,
-// Nachher
-company_name: null,  // Triple-Blind: not loaded
-```
-
-### Fix 3: SubmissionsPipeline Interface bereinigen
-
-**Datei: `src/components/recruiter/SubmissionsPipeline.tsx`**
-
-`company_name` aus dem PipelineSubmission-Interface entfernen (Zeile 38). Da es nirgends gerendert wird, ist das ein reiner Cleanup.
+- Zeile 478: Link aendern von `/dashboard/pipeline?job=${job.id}` zu `/dashboard/command/${job.id}`
 
 ---
 
-## Dateien-Uebersicht
+## Zusammenfassung
 
 | Datei | Aenderung | Aufwand |
 |-------|-----------|--------|
-| `src/pages/recruiter/RecruiterCandidateDetail.tsx` | `.eq('recruiter_id', user!.id)` hinzufuegen, `enabled` erweitern | XS |
-| `src/pages/recruiter/RecruiterDashboard.tsx` | `select('*')` durch explizite Spalten ersetzen, `revealedCompanyNames` Map fuer Revealed-Branch, `company_name` aus fetchRecentSubmissions entfernen | S |
-| `src/components/recruiter/SubmissionsPipeline.tsx` | `company_name` aus Interface entfernen | XS |
+| `PipelineSnapshotCard.tsx` | Link-Fix + Stages klickbar machen | S |
+| `ClientJobHero.tsx` | Link-Fix (1 Zeile) | XS |
+| `ClientJobDetail.tsx` | 3x navigate-Fix | XS |
+| `JobsList.tsx` | Link-Fix (1 Zeile) | XS |
 
-## Nicht veraendert
-
-- DB-Trigger
-- Edge Functions
-- `formatAnonymousCompany()` (korrekt, kein Leak)
-- Reveal-Flow (unveraendert)
-
+Keine DB-Aenderungen noetig. Keine neuen Abhaengigkeiten.
