@@ -1,52 +1,70 @@
 
-# Fix: Pipeline nicht klickbar in Client Job Detail
+# Kanban-Board Layout fuer Talent Hub
 
 ## Problem
-
-Alle Pipeline-bezogenen Links und Buttons in der Job-Detail-Ansicht fuehren zu `/dashboard/pipeline?job=...`. Diese Route wurde entfernt und leitet zum Haupt-Dashboard weiter. Dadurch:
-
-- Der "Verwalten"-Button in der Pipeline-Karte funktioniert nicht
-- Der "Pipeline oeffnen"-Button im Hero funktioniert nicht
-- "Alle Kandidaten ansehen" funktioniert nicht
-- "Alle vergleichen" funktioniert nicht
-- "Kalender" funktioniert nicht
-- Die Pipeline-Stufen (Neu, Pruefung, Interview, etc.) sind nicht klickbar
+Aktuell werden alle Kandidaten in einem flachen Grid untereinander angezeigt. Der Kunde wuenscht sich eine horizontale Aufteilung nach Stages -- wie ein Kanban-Board mit Spalten nebeneinander: **Neu | Interview 1 | Interview 2 | Angebot | Eingestellt**.
 
 ## Loesung
 
-Die tote `/dashboard/pipeline?job=...` Route wird ueberall durch `/dashboard/command/:jobId` ersetzt (Command Center), das bereits volle Pipeline-Verwaltung bietet. Zusaetzlich werden die Pipeline-Stufen klickbar gemacht, sodass sie direkt zum Command Center navigieren koennen.
+Das Grid wird durch ein horizontales Spalten-Layout ersetzt. Jede Pipeline-Stage bekommt eine eigene Spalte mit Header (Stage-Name + Anzahl) und vertikal scrollbaren Karten darunter. Leere Spalten werden mit einem Platzhalter angezeigt.
+
+```text
++------------+------------+------------+----------+-------------+
+| Neu (6)    | Int. 1 (2) | Int. 2 (1) | Angebot  | Eingestellt |
+|            |            |            | (2)      | (1)         |
++------------+------------+------------+----------+-------------+
+| [Card]     | [Card]     | [Card]     | [Card]   | [Card]      |
+| [Card]     | [Card]     |            | [Card]   |             |
+| [Card]     |            |            |          |             |
+| [Card]     |            |            |          |             |
+| [Card]     |            |            |          |             |
+| [Card]     |            |            |          |             |
++------------+------------+------------+----------+-------------+
+         <-- horizontal scroll if needed -->
+```
 
 ---
 
-## Aenderungen
+## Technische Aenderungen
 
-### Datei 1: `src/components/client/PipelineSnapshotCard.tsx`
+### Datei 1: `src/pages/dashboard/TalentHub.tsx`
 
-**Was:** "Verwalten"-Link reparieren und Stage-Bars klickbar machen
+**Gruppierungslogik hinzufuegen (nach Zeile 316):**
 
-- Zeile 58: Link aendern von `/dashboard/pipeline?job=${jobId}` zu `/dashboard/command/${jobId}`
-- Stage-Bars (Zeile 87-103): Die Zeilen in klickbare `Link`-Elemente wrappen, die zum Command Center navigieren
-- `useNavigate` importieren fuer Navigation bei Klick auf Stages
+Ein neues `useMemo` gruppiert `candidatesWithInterviews` nach Stage:
+```typescript
+const candidatesByStage = useMemo(() => {
+  const grouped: Record<string, typeof candidatesWithInterviews> = {};
+  PIPELINE_STAGES.forEach(stage => {
+    grouped[stage.key] = candidatesWithInterviews.filter(c => c.stage === stage.key);
+  });
+  return grouped;
+}, [candidatesWithInterviews]);
+```
 
-### Datei 2: `src/components/client/ClientJobHero.tsx`
+**Rendering aendern (Zeilen 610-668):**
 
-**Was:** "Pipeline oeffnen"-Button reparieren
+Das bisherige `grid grid-cols-4` wird ersetzt durch ein horizontales Kanban-Layout:
 
-- Zeile 218: Link aendern von `/dashboard/pipeline?job=${job.id}` zu `/dashboard/command/${job.id}`
+- Aeusserer Container: `flex gap-4 overflow-x-auto` mit horizontalem Scroll
+- Pro Stage eine Spalte: `flex-shrink-0 w-[300px]` (feste Breite, kein Zusammenstauchen)
+- Spalten-Header: Stage-Name mit farbigem Dot + Kandidaten-Anzahl als Badge
+- Karten vertikal gestapelt innerhalb jeder Spalte: `flex flex-col gap-3`
+- Leere Spalten: Grauer Platzhalter-Text "Keine Kandidaten"
+- Wenn ein bestimmter Stage-Filter aktiv ist (nicht "Alle"), wird nur diese eine Spalte angezeigt -- breiter, als Grid wie bisher
 
-### Datei 3: `src/pages/dashboard/ClientJobDetail.tsx`
+**Stage-Tabs behalten ihre Filter-Funktion:**
+- "Alle" → Kanban-Board mit allen Spalten
+- Einzelner Stage-Tab → Nur diese Spalte, volle Breite, Cards im Grid-Layout wie bisher
 
-**Was:** Alle `navigate`-Aufrufe mit toter Pipeline-Route reparieren
+### Datei 2: `src/components/talent/CandidateActionCard.tsx`
 
-- Zeile 477: `onViewCandidates` aendern von `navigate(\`/dashboard/pipeline?job=${job.id}\`)` zu `navigate(\`/dashboard/command/${job.id}\`)`
-- Zeile 504: `onViewAll` (TopCandidatesCard) aendern zu `navigate(\`/dashboard/command/${job.id}\`)`
-- Zeile 526: `onViewAll` (UpcomingInterviewsCard) aendern zu `navigate(\`/dashboard/command/${job.id}\`)`
+**Einheitliche Kartenhoehe:**
 
-### Datei 4: `src/pages/dashboard/JobsList.tsx`
-
-**Was:** Dropdown-Link in der Jobs-Liste reparieren
-
-- Zeile 478: Link aendern von `/dashboard/pipeline?job=${job.id}` zu `/dashboard/command/${job.id}`
+- Card (Zeile 178): `h-full flex flex-col` hinzufuegen
+- CardContent (Zeile 187): `flex flex-col flex-1` hinzufuegen
+- Skills-Bereich (ca. Zeile 247): `min-h-[28px]` hinzufuegen damit Karten ohne Skills gleich hoch bleiben
+- Action-Buttons Container (ca. Zeile 296): `mt-auto` hinzufuegen damit Buttons immer am unteren Rand kleben
 
 ---
 
@@ -54,9 +72,7 @@ Die tote `/dashboard/pipeline?job=...` Route wird ueberall durch `/dashboard/com
 
 | Datei | Aenderung | Aufwand |
 |-------|-----------|--------|
-| `PipelineSnapshotCard.tsx` | Link-Fix + Stages klickbar machen | S |
-| `ClientJobHero.tsx` | Link-Fix (1 Zeile) | XS |
-| `ClientJobDetail.tsx` | 3x navigate-Fix | XS |
-| `JobsList.tsx` | Link-Fix (1 Zeile) | XS |
+| `TalentHub.tsx` | Kanban-Spalten-Layout statt Grid | M |
+| `CandidateActionCard.tsx` | Einheitliche Kartenhoehe via Flex | S |
 
-Keine DB-Aenderungen noetig. Keine neuen Abhaengigkeiten.
+Keine DB-Aenderungen. Keine neuen Abhaengigkeiten.
