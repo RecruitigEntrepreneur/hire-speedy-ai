@@ -215,7 +215,7 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost }: Cl
               </Button>
             )}
             <Button asChild variant="outline" size="sm">
-              <Link to={`/dashboard/pipeline?job=${job.id}`}>
+              <Link to={`/dashboard/command/${job.id}`}>
                 <Users className="h-4 w-4 mr-2" />
                 Pipeline öffnen
               </Link>

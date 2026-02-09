@@ -475,7 +475,7 @@ export default function JobsList() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link to={`/dashboard/pipeline?job=${job.id}`}>
+                                  <Link to={`/dashboard/command/${job.id}`}>
                                     <Users className="mr-2 h-4 w-4" />
                                     Pipeline öffnen
                                   </Link>

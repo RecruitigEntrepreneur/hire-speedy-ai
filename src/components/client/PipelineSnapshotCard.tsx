@@ -55,7 +55,7 @@ export function PipelineSnapshotCard({ jobId, submissions, className }: Pipeline
             Pipeline Fortschritt
           </span>
           <Button variant="ghost" size="sm" asChild className="text-xs h-7">
-            <Link to={`/dashboard/pipeline?job=${jobId}`}>
+            <Link to={`/dashboard/command/${jobId}`}>
               Verwalten
               <ArrowRight className="h-3 w-3 ml-1" />
             </Link>
@@ -84,7 +84,11 @@ export function PipelineSnapshotCard({ jobId, submissions, className }: Pipeline
             const barWidth = maxStageCount > 0 ? (count / maxStageCount) * 100 : 0;
             
             return (
-              <div key={stage.key} className="flex items-center gap-3">
+              <Link 
+                key={stage.key} 
+                to={`/dashboard/command/${jobId}`}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+              >
                 <div className="w-20 text-xs text-muted-foreground truncate">
                   {stage.label}
                 </div>
@@ -99,7 +103,7 @@ export function PipelineSnapshotCard({ jobId, submissions, className }: Pipeline
                     </span>
                   )}
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
