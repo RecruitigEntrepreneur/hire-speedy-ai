@@ -177,14 +177,14 @@ export function CandidateActionCard({
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all hover:shadow-lg hover:border-primary/40 relative",
+        "group cursor-pointer transition-all hover:shadow-lg hover:border-primary/40 relative h-full flex flex-col",
         isSelected && "ring-2 ring-primary border-primary",
         isUrgent && "border-l-4 border-l-destructive",
         isWarning && !isUrgent && "border-l-4 border-l-amber-500"
       )}
       onClick={onSelect}
     >
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex flex-col flex-1">
         {/* Header: Avatar + Anonymous ID + Policy Badge */}
         <div className="flex items-start gap-3 mb-3">
           <div className="relative">
@@ -244,8 +244,9 @@ export function CandidateActionCard({
         </div>
 
         {/* Skills Badges */}
+        <div className="min-h-[28px] mb-3">
         {candidate.skills && candidate.skills.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
+          <div className="flex flex-wrap gap-1">
             {candidate.skills.slice(0, 3).map((skill, i) => (
               <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
                 {skill}
@@ -258,6 +259,7 @@ export function CandidateActionCard({
             )}
           </div>
         )}
+        </div>
 
         {/* Time in Stage & Interview Status */}
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -296,7 +298,7 @@ export function CandidateActionCard({
         {/* Action Buttons - 2-Column Layout */}
         {candidate.stage !== 'hired' && !showFeedback && (
           <div 
-            className="pt-3 border-t"
+            className="pt-3 border-t mt-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Feedback Button (if pending) */}

@@ -315,6 +315,15 @@ export default function TalentHub() {
     });
   }, [filteredCandidates, interviews]);
 
+  // Group candidates by stage for Kanban view
+  const candidatesByStage = useMemo(() => {
+    const grouped: Record<string, typeof candidatesWithInterviews> = {};
+    PIPELINE_STAGES.forEach(stage => {
+      grouped[stage.key] = candidatesWithInterviews.filter(c => c.stage === stage.key);
+    });
+    return grouped;
+  }, [candidatesWithInterviews]);
+
   const handleMove = async (submissionId: string, newStage: string) => {
     setProcessing(true);
     try {
@@ -607,7 +616,7 @@ export default function TalentHub() {
             </div>
           </div>
 
-          {/* Full Width Candidate Grid */}
+          {/* Kanban Board / Filtered Grid */}
           <ScrollArea className="flex-1">
             <div className="p-4">
               {candidatesWithInterviews.length === 0 ? (
@@ -619,11 +628,90 @@ export default function TalentHub() {
                       : 'Noch keine Kandidaten vorhanden'}
                   </p>
                 </div>
+              ) : stageFilter === 'all' ? (
+                /* Kanban Board - horizontal columns */
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {PIPELINE_STAGES.map(stage => {
+                    const stageCandidates = candidatesByStage[stage.key] || [];
+                    return (
+                      <div key={stage.key} className="flex-shrink-0 w-[300px] flex flex-col">
+                        {/* Column Header */}
+                        <div className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-t-lg border-t-2 bg-muted/30",
+                          stage.color
+                        )}>
+                          <div className={cn("w-2 h-2 rounded-full", stage.dotColor)} />
+                          <span className="text-xs font-semibold uppercase tracking-wider">
+                            {stage.label}
+                          </span>
+                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-auto">
+                            {stageCandidates.length}
+                          </Badge>
+                        </div>
+                        
+                        {/* Column Cards */}
+                        <div className="flex-1 bg-muted/10 rounded-b-lg border border-t-0 border-border/50 p-2 min-h-[200px]">
+                          {stageCandidates.length === 0 ? (
+                            <div className="flex items-center justify-center h-[120px] text-center">
+                              <p className="text-[11px] text-muted-foreground/50">Keine Kandidaten</p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-3">
+                              {stageCandidates.map(candidate => (
+                                <div key={candidate.submissionId} className="relative group">
+                                  {/* Multi-select checkbox */}
+                                  <div 
+                                    className={cn(
+                                      "absolute top-2 left-2 z-10 transition-opacity",
+                                      selectedIds.length > 0 || "opacity-0 group-hover:opacity-100"
+                                    )}
+                                  >
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (selectedIds.includes(candidate.submissionId)) {
+                                          setSelectedIds(prev => prev.filter(id => id !== candidate.submissionId));
+                                        } else if (selectedIds.length < 3) {
+                                          setSelectedIds(prev => [...prev, candidate.submissionId]);
+                                        } else {
+                                          toast.error('Maximal 3 Kandidaten zum Vergleichen');
+                                        }
+                                      }}
+                                      className={cn(
+                                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                                        selectedIds.includes(candidate.submissionId)
+                                          ? "bg-primary border-primary text-primary-foreground"
+                                          : "bg-background border-muted-foreground/30 hover:border-primary"
+                                      )}
+                                    >
+                                      {selectedIds.includes(candidate.submissionId) && (
+                                        <Check className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  </div>
+                                  <CandidateActionCard
+                                    candidate={candidate}
+                                    onSelect={() => handleSelectCandidate(candidate)}
+                                    onMove={handleMove}
+                                    onReject={handleReject}
+                                    onInterviewRequest={handleInterviewRequest}
+                                    onFeedback={handleFeedback}
+                                    isProcessing={processing}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
+                /* Single stage filtered - wide grid */
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {candidatesWithInterviews.map(candidate => (
                     <div key={candidate.submissionId} className="relative group">
-                      {/* Multi-select checkbox */}
                       <div 
                         className={cn(
                           "absolute top-2 left-2 z-10 transition-opacity",
