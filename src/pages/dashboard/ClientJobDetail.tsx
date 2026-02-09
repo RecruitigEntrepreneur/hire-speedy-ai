@@ -474,7 +474,7 @@ export default function ClientJobDetail() {
               totalSubmissions={totalSubmissions}
               lastSubmissionAt={lastSubmissionAt}
               weeklySubmissions={weeklySubmissions}
-              onViewCandidates={() => navigate(`/dashboard/pipeline?job=${job.id}`)}
+              onViewCandidates={() => navigate(`/dashboard/command/${job.id}`)}
             />
           </div>
 
@@ -501,7 +501,7 @@ export default function ClientJobDetail() {
               setShowCandidateView(true);
             }
           }}
-          onViewAll={() => navigate(`/dashboard/pipeline?job=${job.id}`)}
+          onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
         />
 
         {/* Bottom Row - Interviews & Company */}
@@ -523,7 +523,7 @@ export default function ClientJobDetail() {
                 setShowCandidateView(true);
               }
             }}
-            onViewAll={() => navigate(`/dashboard/pipeline?job=${job.id}`)}
+            onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
           />
           <CompanyInfoCard
             companyName={job.company_name}
