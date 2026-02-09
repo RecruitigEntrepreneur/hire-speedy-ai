@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { useClientVerification } from '@/hooks/useClientVerification';
@@ -71,6 +71,7 @@ type ImportMethod = 'pdf' | 'text' | 'url' | null;
 export default function CreateJob() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { parseJobUrl, parseJobText, parsing } = useJobParsing();
   const { uploadAndParsePdf, parseJobText: parseJobPdfText, isLoading: pdfParsing } = useJobPdfParsing();
   const { enrichJobData, enriching, enrichmentData } = useJobEnrichment();
@@ -279,6 +280,23 @@ export default function CreateJob() {
       }
     }
   };
+
+  // Prefill from dashboard QuickJobImport
+  useEffect(() => {
+    if (searchParams.get('prefill') === 'true') {
+      const stored = sessionStorage.getItem('prefillJobData');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored) as ParsedJobData;
+          sessionStorage.removeItem('prefillJobData');
+          applyParsedData(data);
+          toast.success('Stellenausschreibung erfolgreich importiert');
+        } catch {
+          // Invalid data, show normal import screen
+        }
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImportFromUrl = async () => {
     if (!jobUrl.trim()) {

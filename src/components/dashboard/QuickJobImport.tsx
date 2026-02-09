@@ -47,7 +47,6 @@ export function QuickJobImport({ className }: QuickJobImportProps) {
     if (result) {
       sessionStorage.setItem('prefillJobData', JSON.stringify(result));
       navigate('/dashboard/jobs/new?prefill=true');
-      toast.success('Stellenausschreibung erfolgreich importiert');
     }
   };
 
@@ -79,7 +78,6 @@ export function QuickJobImport({ className }: QuickJobImportProps) {
       setTextModalOpen(false);
       setJobText('');
       navigate('/dashboard/jobs/new?prefill=true');
-      toast.success('Stellenausschreibung erfolgreich importiert');
     }
   };
 
@@ -95,7 +93,6 @@ export function QuickJobImport({ className }: QuickJobImportProps) {
       setUrlModalOpen(false);
       setJobUrl('');
       navigate('/dashboard/jobs/new?prefill=true');
-      toast.success('Stellenausschreibung erfolgreich importiert');
     }
   };
 
