@@ -281,14 +281,6 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
     });
   }, [filteredCandidates, interviews]);
 
-  // Group candidates by stage for Kanban view
-  const candidatesByStage = useMemo(() => {
-    const grouped: Record<string, typeof candidatesWithInterviews> = {};
-    PIPELINE_STAGES.forEach(stage => {
-      grouped[stage.key] = candidatesWithInterviews.filter(c => c.stage === stage.key);
-    });
-    return grouped;
-  }, [candidatesWithInterviews]);
 
   const handleMove = async (submissionId: string, newStage: string) => {
     setProcessing(true);
@@ -528,7 +520,7 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
             </Select>
           </div>
 
-          {/* Candidate Kanban / Grid */}
+          {/* Candidate Grid */}
           <ScrollArea className="max-h-[600px]">
             {candidatesWithInterviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 text-center">
@@ -539,88 +531,7 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
                     : 'Noch keine Kandidaten vorhanden'}
                 </p>
               </div>
-            ) : stageFilter === 'all' ? (
-              /* Kanban Board – horizontal columns per stage */
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {PIPELINE_STAGES.map(stage => {
-                  const stageCandidates = candidatesByStage[stage.key] || [];
-                  return (
-                    <div key={stage.key} className="flex-shrink-0 w-[300px] flex flex-col">
-                      {/* Column Header */}
-                      <div
-                        className="flex items-center gap-2 px-3 py-2 rounded-t-lg bg-muted/30"
-                        style={{ borderTop: `3px solid ${stage.color}` }}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: stage.color }}
-                        />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {stage.label}
-                        </span>
-                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                          {stageCandidates.length}
-                        </Badge>
-                      </div>
-                      {/* Column Body */}
-                      <div className="flex-1 bg-muted/10 rounded-b-lg border border-t-0 border-border/50 p-2 space-y-3 min-h-[200px]">
-                        {stageCandidates.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-8">
-                            Keine Kandidaten
-                          </p>
-                        ) : (
-                          stageCandidates.map(candidate => (
-                            <div key={candidate.submissionId} className="relative group">
-                              <div
-                                className={cn(
-                                  "absolute top-2 left-2 z-10 transition-opacity",
-                                  selectedIds.length > 0 || "opacity-0 group-hover:opacity-100"
-                                )}
-                              >
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (selectedIds.includes(candidate.submissionId)) {
-                                      setSelectedIds(prev => prev.filter(id => id !== candidate.submissionId));
-                                    } else if (selectedIds.length < 3) {
-                                      setSelectedIds(prev => [...prev, candidate.submissionId]);
-                                    } else {
-                                      toast.error('Maximal 3 Kandidaten zum Vergleichen');
-                                    }
-                                  }}
-                                  className={cn(
-                                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                                    selectedIds.includes(candidate.submissionId)
-                                      ? "bg-primary border-primary text-primary-foreground"
-                                      : "bg-background border-muted-foreground/30 hover:border-primary"
-                                  )}
-                                >
-                                  {selectedIds.includes(candidate.submissionId) && (
-                                    <Check className="h-3 w-3" />
-                                  )}
-                                </button>
-                              </div>
-                              <CandidateActionCard
-                                candidate={candidate}
-                                isSelected={selectedIds.includes(candidate.submissionId)}
-                                onSelect={() => handleSelectCandidate(candidate)}
-                                onMove={handleMove}
-                                onReject={handleReject}
-                                onInterviewRequest={async (submissionId) => {
-                                  handleInterviewRequest(submissionId);
-                                }}
-                                isProcessing={processing}
-                              />
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             ) : (
-              /* Single stage filter – wide grid */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {candidatesWithInterviews.map(candidate => (
                   <div key={candidate.submissionId} className="relative group">
