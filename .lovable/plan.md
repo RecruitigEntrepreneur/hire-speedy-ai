@@ -1,76 +1,45 @@
 
-# Kanban-Board auch fuer IntegratedTalentSection (Dashboard)
+# Zurueck zum einheitlichen Grid (ohne Kanban-Spalten)
 
-## Problem
+## Was wird geaendert
 
-Das Kanban-Board wurde nur in `TalentHub.tsx` implementiert. Auf dem Haupt-Dashboard (`/dashboard`) wird aber die `IntegratedTalentSection` angezeigt -- und diese nutzt weiterhin das alte flache Grid-Layout ohne Stage-Gruppierung.
+Die Kanban-Spalten werden in beiden Dateien entfernt und durch ein einfaches, einheitliches Grid ersetzt. Die gleichmaessige Kartenhoehe (via `h-full`, `flex flex-col`, `mt-auto`) bleibt erhalten -- nur das Spalten-Layout geht weg.
 
-## Loesung
+## Aenderungen
 
-Die gleiche Kanban-Logik aus `TalentHub.tsx` wird in `IntegratedTalentSection.tsx` uebernommen:
+### Datei 1: `src/pages/dashboard/TalentHub.tsx`
 
-- Kandidaten werden per `PIPELINE_STAGES` gruppiert
-- Bei "Alle"-Ansicht: horizontale Spalten nebeneinander (Kanban-Board)
-- Bei Einzel-Stage-Filter: breites Grid wie bisher
-- Leere Spalten zeigen einen Platzhalter
+**1. `candidatesByStage` Memo entfernen** (Zeilen 317-326)
+- Die Gruppierungslogik wird nicht mehr gebraucht.
 
-## Technische Aenderungen
+**2. Rendering vereinfachen** (Zeilen 631-709)
+- Die Verzweigung `stageFilter === 'all' ? Kanban : Grid` wird entfernt.
+- Stattdessen wird immer ein einheitliches Grid gerendert:
 
-### Datei: `src/components/dashboard/IntegratedTalentSection.tsx`
-
-**1. Gruppierungslogik hinzufuegen (nach Zeile 282):**
-
-```typescript
-const candidatesByStage = useMemo(() => {
-  const grouped: Record<string, typeof candidatesWithInterviews> = {};
-  PIPELINE_STAGES.forEach(stage => {
-    grouped[stage.key] = candidatesWithInterviews.filter(c => c.stage === stage.key);
-  });
-  return grouped;
-}, [candidatesWithInterviews]);
+```
+grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4
 ```
 
-**2. Rendering ersetzen (Zeilen 522-582):**
+- `candidatesWithInterviews` wird direkt im Grid gemappt (wie es vorher bei der "single stage"-Ansicht schon der Fall war).
+- Multi-Select-Checkbox und alle Interaktionen bleiben identisch.
 
-Das bisherige flache Grid (Zeilen 534-581) wird ersetzt durch eine Verzweigung:
+### Datei 2: `src/components/dashboard/IntegratedTalentSection.tsx`
 
-- `stageFilter === 'all'` → Kanban-Board mit horizontalen Spalten
-- Einzelner Stage-Filter → Breites Grid wie bisher
+**1. `candidatesByStage` Memo entfernen** (Zeilen 284-292)
 
-Kanban-Layout (identisch zu TalentHub.tsx):
-```tsx
-<div className="flex gap-4 overflow-x-auto pb-4">
-  {PIPELINE_STAGES.map(stage => {
-    const stageCandidates = candidatesByStage[stage.key] || [];
-    return (
-      <div key={stage.key} className="flex-shrink-0 w-[300px] flex flex-col">
-        {/* Column Header mit Stage-Farbe, Label, Count */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-t-lg border-t-2 bg-muted/30 {stage.color}">
-          <div className="w-2 h-2 rounded-full {stage.dotColor}" />
-          <span className="text-xs font-semibold uppercase">{stage.label}</span>
-          <Badge>{stageCandidates.length}</Badge>
-        </div>
-        {/* Karten vertikal gestapelt */}
-        <div className="flex-1 bg-muted/10 rounded-b-lg border border-t-0 p-2 min-h-[200px]">
-          {stageCandidates.length === 0
-            ? <p>Keine Kandidaten</p>
-            : stageCandidates.map(candidate => <CandidateActionCard ... />)
-          }
-        </div>
-      </div>
-    );
-  })}
-</div>
-```
+**2. Rendering vereinfachen** (Zeilen 542-621)
+- Gleiche Aenderung: Kanban-Verzweigung raus, einheitliches Grid rein.
+- Multi-Select-Checkbox und alle Interaktionen bleiben identisch.
 
-Multi-Select-Checkbox und alle bestehenden Interaktionen (Interview, Reject, Navigate) bleiben erhalten.
+### Datei 3: `src/components/talent/CandidateActionCard.tsx`
+
+Keine Aenderung -- die einheitliche Kartenhoehe (`h-full`, `flex flex-col`, `mt-auto`, `min-h-[28px]` fuer Skills) bleibt bestehen.
 
 ---
 
-## Zusammenfassung
+## Ergebnis
 
-| Datei | Aenderung | Aufwand |
-|-------|-----------|--------|
-| `IntegratedTalentSection.tsx` | `candidatesByStage` Memo + Kanban-Rendering | M |
-
-Keine DB-Aenderungen. Keine neuen Abhaengigkeiten. Das Pattern ist identisch zu `TalentHub.tsx`.
+- Alle Kandidaten erscheinen in einem gleichmaessigen Grid
+- Karten sind alle gleich hoch (Action-Buttons immer unten)
+- Stage-Tabs filtern wie gewohnt (kein Scrollen zu Spalten mehr)
+- Kein verschwendeter Platz durch leere Kanban-Spalten
