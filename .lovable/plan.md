@@ -1,37 +1,25 @@
 
-# Kanban-Board Layout fuer Talent Hub
+# Kanban-Board auch fuer IntegratedTalentSection (Dashboard)
 
 ## Problem
-Aktuell werden alle Kandidaten in einem flachen Grid untereinander angezeigt. Der Kunde wuenscht sich eine horizontale Aufteilung nach Stages -- wie ein Kanban-Board mit Spalten nebeneinander: **Neu | Interview 1 | Interview 2 | Angebot | Eingestellt**.
+
+Das Kanban-Board wurde nur in `TalentHub.tsx` implementiert. Auf dem Haupt-Dashboard (`/dashboard`) wird aber die `IntegratedTalentSection` angezeigt -- und diese nutzt weiterhin das alte flache Grid-Layout ohne Stage-Gruppierung.
 
 ## Loesung
 
-Das Grid wird durch ein horizontales Spalten-Layout ersetzt. Jede Pipeline-Stage bekommt eine eigene Spalte mit Header (Stage-Name + Anzahl) und vertikal scrollbaren Karten darunter. Leere Spalten werden mit einem Platzhalter angezeigt.
+Die gleiche Kanban-Logik aus `TalentHub.tsx` wird in `IntegratedTalentSection.tsx` uebernommen:
 
-```text
-+------------+------------+------------+----------+-------------+
-| Neu (6)    | Int. 1 (2) | Int. 2 (1) | Angebot  | Eingestellt |
-|            |            |            | (2)      | (1)         |
-+------------+------------+------------+----------+-------------+
-| [Card]     | [Card]     | [Card]     | [Card]   | [Card]      |
-| [Card]     | [Card]     |            | [Card]   |             |
-| [Card]     |            |            |          |             |
-| [Card]     |            |            |          |             |
-| [Card]     |            |            |          |             |
-| [Card]     |            |            |          |             |
-+------------+------------+------------+----------+-------------+
-         <-- horizontal scroll if needed -->
-```
-
----
+- Kandidaten werden per `PIPELINE_STAGES` gruppiert
+- Bei "Alle"-Ansicht: horizontale Spalten nebeneinander (Kanban-Board)
+- Bei Einzel-Stage-Filter: breites Grid wie bisher
+- Leere Spalten zeigen einen Platzhalter
 
 ## Technische Aenderungen
 
-### Datei 1: `src/pages/dashboard/TalentHub.tsx`
+### Datei: `src/components/dashboard/IntegratedTalentSection.tsx`
 
-**Gruppierungslogik hinzufuegen (nach Zeile 316):**
+**1. Gruppierungslogik hinzufuegen (nach Zeile 282):**
 
-Ein neues `useMemo` gruppiert `candidatesWithInterviews` nach Stage:
 ```typescript
 const candidatesByStage = useMemo(() => {
   const grouped: Record<string, typeof candidatesWithInterviews> = {};
@@ -42,29 +30,40 @@ const candidatesByStage = useMemo(() => {
 }, [candidatesWithInterviews]);
 ```
 
-**Rendering aendern (Zeilen 610-668):**
+**2. Rendering ersetzen (Zeilen 522-582):**
 
-Das bisherige `grid grid-cols-4` wird ersetzt durch ein horizontales Kanban-Layout:
+Das bisherige flache Grid (Zeilen 534-581) wird ersetzt durch eine Verzweigung:
 
-- Aeusserer Container: `flex gap-4 overflow-x-auto` mit horizontalem Scroll
-- Pro Stage eine Spalte: `flex-shrink-0 w-[300px]` (feste Breite, kein Zusammenstauchen)
-- Spalten-Header: Stage-Name mit farbigem Dot + Kandidaten-Anzahl als Badge
-- Karten vertikal gestapelt innerhalb jeder Spalte: `flex flex-col gap-3`
-- Leere Spalten: Grauer Platzhalter-Text "Keine Kandidaten"
-- Wenn ein bestimmter Stage-Filter aktiv ist (nicht "Alle"), wird nur diese eine Spalte angezeigt -- breiter, als Grid wie bisher
+- `stageFilter === 'all'` → Kanban-Board mit horizontalen Spalten
+- Einzelner Stage-Filter → Breites Grid wie bisher
 
-**Stage-Tabs behalten ihre Filter-Funktion:**
-- "Alle" → Kanban-Board mit allen Spalten
-- Einzelner Stage-Tab → Nur diese Spalte, volle Breite, Cards im Grid-Layout wie bisher
+Kanban-Layout (identisch zu TalentHub.tsx):
+```tsx
+<div className="flex gap-4 overflow-x-auto pb-4">
+  {PIPELINE_STAGES.map(stage => {
+    const stageCandidates = candidatesByStage[stage.key] || [];
+    return (
+      <div key={stage.key} className="flex-shrink-0 w-[300px] flex flex-col">
+        {/* Column Header mit Stage-Farbe, Label, Count */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-t-lg border-t-2 bg-muted/30 {stage.color}">
+          <div className="w-2 h-2 rounded-full {stage.dotColor}" />
+          <span className="text-xs font-semibold uppercase">{stage.label}</span>
+          <Badge>{stageCandidates.length}</Badge>
+        </div>
+        {/* Karten vertikal gestapelt */}
+        <div className="flex-1 bg-muted/10 rounded-b-lg border border-t-0 p-2 min-h-[200px]">
+          {stageCandidates.length === 0
+            ? <p>Keine Kandidaten</p>
+            : stageCandidates.map(candidate => <CandidateActionCard ... />)
+          }
+        </div>
+      </div>
+    );
+  })}
+</div>
+```
 
-### Datei 2: `src/components/talent/CandidateActionCard.tsx`
-
-**Einheitliche Kartenhoehe:**
-
-- Card (Zeile 178): `h-full flex flex-col` hinzufuegen
-- CardContent (Zeile 187): `flex flex-col flex-1` hinzufuegen
-- Skills-Bereich (ca. Zeile 247): `min-h-[28px]` hinzufuegen damit Karten ohne Skills gleich hoch bleiben
-- Action-Buttons Container (ca. Zeile 296): `mt-auto` hinzufuegen damit Buttons immer am unteren Rand kleben
+Multi-Select-Checkbox und alle bestehenden Interaktionen (Interview, Reject, Navigate) bleiben erhalten.
 
 ---
 
@@ -72,7 +71,6 @@ Das bisherige `grid grid-cols-4` wird ersetzt durch ein horizontales Kanban-Layo
 
 | Datei | Aenderung | Aufwand |
 |-------|-----------|--------|
-| `TalentHub.tsx` | Kanban-Spalten-Layout statt Grid | M |
-| `CandidateActionCard.tsx` | Einheitliche Kartenhoehe via Flex | S |
+| `IntegratedTalentSection.tsx` | `candidatesByStage` Memo + Kanban-Rendering | M |
 
-Keine DB-Aenderungen. Keine neuen Abhaengigkeiten.
+Keine DB-Aenderungen. Keine neuen Abhaengigkeiten. Das Pattern ist identisch zu `TalentHub.tsx`.
