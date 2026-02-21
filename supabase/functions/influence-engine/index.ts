@@ -167,7 +167,8 @@ Deno.serve(async (req) => {
             .eq('submission_id', alert.submission_id)
             .eq('alert_type', alert.alert_type)
             .eq('is_dismissed', false)
-            .single();
+            .limit(1)
+            .maybeSingle();
 
           if (!existingAlert) {
             const { error: alertError } = await supabase
