@@ -107,7 +107,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
     experience_level: 'mid',
     salary_min: '',
     salary_max: '',
-    fee_percentage: '20',
+    desired_timeframe: 'normal',
     skills: '',
     must_haves: '',
     nice_to_haves: '',
@@ -115,7 +115,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
     office_address: '',
     remote_policy: 'hybrid',
     onsite_days_required: '3',
-    urgency: 'normal',
     industry: '',
   });
 
@@ -132,7 +131,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
         experience_level: job.experience_level || 'mid',
         salary_min: job.salary_min?.toString() || '',
         salary_max: job.salary_max?.toString() || '',
-        fee_percentage: job.fee_percentage?.toString() || '20',
+        desired_timeframe: job.urgency || 'normal',
         skills: job.skills?.join(', ') || '',
         must_haves: job.must_haves?.join(', ') || '',
         nice_to_haves: job.nice_to_haves?.join(', ') || '',
@@ -140,7 +139,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
         office_address: job.office_address || '',
         remote_policy: job.remote_policy || 'hybrid',
         onsite_days_required: job.onsite_days_required?.toString() || '3',
-        urgency: job.urgency || 'normal',
         industry: job.industry || '',
       });
     }
@@ -181,7 +179,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
           experience_level: formData.experience_level,
           salary_min: formData.salary_min ? parseInt(formData.salary_min) : null,
           salary_max: formData.salary_max ? parseInt(formData.salary_max) : null,
-          fee_percentage: formData.fee_percentage ? parseInt(formData.fee_percentage) : 20,
+          urgency: formData.desired_timeframe,
           skills: skillsArray,
           must_haves: mustHavesArray,
           nice_to_haves: niceToHavesArray,
@@ -189,7 +187,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
           office_address: formData.office_address || null,
           remote_policy: formData.remote_policy,
           onsite_days_required: formData.remote_policy === 'hybrid' ? parseInt(formData.onsite_days_required) : null,
-          urgency: formData.urgency,
           industry: formData.industry || null,
         })
         .eq('id', job.id);
@@ -216,7 +213,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
       
       switch (action) {
         case 'publish':
-          updates = { status: 'published', paused_at: null };
+          updates = { status: 'pending_approval', paused_at: null };
           break;
         case 'pause':
           updates = { paused_at: new Date().toISOString() };
@@ -238,7 +235,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
       if (error) throw error;
 
       toast({ 
-        title: action === 'publish' ? 'Job veröffentlicht' :
+        title: action === 'publish' ? 'Zur Prüfung eingereicht' :
                action === 'pause' ? 'Job pausiert' :
                action === 'resume' ? 'Job reaktiviert' :
                'Job geschlossen'
@@ -380,19 +377,19 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Dringlichkeit</Label>
+                    <Label>Gewünschter Einstellungszeitraum</Label>
                     <Select
-                      value={formData.urgency}
-                      onValueChange={(v) => handleInputChange('urgency', v)}
+                      value={formData.desired_timeframe}
+                      onValueChange={(v) => handleInputChange('desired_timeframe', v)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Niedrig</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="high">Hoch</SelectItem>
-                        <SelectItem value="urgent">Dringend</SelectItem>
+                        <SelectItem value="low">Keine Eile</SelectItem>
+                        <SelectItem value="normal">Innerhalb 3 Monate</SelectItem>
+                        <SelectItem value="high">Schnellstmöglich</SelectItem>
+                        <SelectItem value="urgent">Sofort</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -575,33 +572,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label>Vermittlungsfee: {formData.fee_percentage}%</Label>
-                  <Slider
-                    value={[parseInt(formData.fee_percentage) || 20]}
-                    onValueChange={([v]) => handleInputChange('fee_percentage', v.toString())}
-                    min={10}
-                    max={30}
-                    step={1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>10%</span>
-                    <span>30%</span>
-                  </div>
-                </div>
-
-                {formData.salary_min && formData.fee_percentage && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Geschätzte Vermittlungsgebühr</p>
-                    <p className="text-xl font-bold">
-                      €{Math.round((parseInt(formData.salary_min) || 0) * (parseInt(formData.fee_percentage) || 20) / 100).toLocaleString()}
-                      {formData.salary_max && (
-                        <span className="text-muted-foreground"> - €{Math.round((parseInt(formData.salary_max) || 0) * (parseInt(formData.fee_percentage) || 20) / 100).toLocaleString()}</span>
-                      )}
-                    </p>
-                  </div>
-                )}
               </TabsContent>
             </ScrollArea>
           </Tabs>
@@ -618,7 +588,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                   className="text-green-600 border-green-200 hover:bg-green-50"
                 >
                   <Play className="h-4 w-4 mr-2" />
-                  Veröffentlichen
+                  Zur Prüfung einreichen
                 </Button>
               )}
               {!isDraft && !isClosed && (
