@@ -158,33 +158,6 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditField, className }
           </div>
         )}
 
-        {/* Recruiter-Checkliste */}
-        <div className="space-y-1.5 pt-2 border-t border-border/50">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Recruiter-Checkliste</p>
-          {[
-            { label: 'Gehalt angegeben', ok: hasSalary, tab: 'conditions' },
-            { label: 'Skills definiert', ok: hasSkills, tab: 'skills' },
-            { label: 'Beschreibung vorhanden', ok: descLength > 50, tab: 'basics' },
-            { label: 'Benefits beschrieben', ok: hasBenefits, tab: 'basics' },
-            { label: 'Branche angegeben', ok: hasIndustry, tab: 'basics' },
-            { label: 'Remote-Type gesetzt', ok: hasRemoteType, tab: 'conditions' },
-            { label: 'Standort angegeben', ok: hasLocation, tab: 'basics' },
-          ].map((item, i) => (
-            <div 
-              key={i} 
-              className={`flex items-center gap-2 text-sm ${!item.ok ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
-              onClick={() => !item.ok && onEditField(item.tab)}
-            >
-              {item.ok ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              ) : (
-                <span className="h-3.5 w-3.5 rounded-full border border-muted-foreground/30 flex items-center justify-center text-[9px] text-muted-foreground">✕</span>
-              )}
-              <span className={item.ok ? 'text-foreground' : 'text-muted-foreground'}>{item.label}</span>
-            </div>
-          ))}
-        </div>
-
         {/* All good state */}
         {suggestions.length === 0 && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
