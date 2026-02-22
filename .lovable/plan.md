@@ -1,179 +1,131 @@
 
 
-# Kandidatenseite: Interview-Sektion + Externes Interview eintragen
+# Interview-Erkenntnisse: Freitext-Notizen + AI-Extraktion
 
-## Uebersicht
+## Idee
 
-Die Kandidatenseite bekommt eine neue Interview-Sektion, die alle Interviews (geplante + manuell eingetragene) anzeigt. Dazu kommt ein minimales Formular zum Eintragen externer Interviews.
+Statt strukturierter Formularfelder bekommt der Recruiter ein **einziges grosses Textfeld**, in das er seine Interview-Notizen frei eintippt oder reinkopiert. Beim Speichern werden die Notizen gespeichert und die **AI extrahiert automatisch** die strukturierten Daten (Gehalt, Motivation, Verfuegbarkeit, Empfehlung) daraus -- genau wie beim Interview-Wizard, nur ohne den Wizard.
 
-## Aktueller Zustand
-
-Fuer Marko Benko existiert bereits ein Interview in der Datenbank:
+## Ablauf
 
 ```text
-Interview: 50c0aec9...
-  - scheduled_at: NULL (noch kein Termin)
-  - status: pending_response
-  - pending_opt_in: true
-  - meeting_type: teams
-  - Job: "Data & Dashboard Engineer"
+Recruiter tippt frei:
+"Telefonat mit Marko am 20.02. - will 90k, minimum 80k.
+ Kuendigung 3 Monate. Motivation: will mehr Verantwortung.
+ Sehr guter Eindruck, wuerde ich empfehlen."
+
+         |
+         v
+
+[Speichern] --> Freitext in candidate_interview_notes.additional_notes
+         |
+         v
+
+AI (process-interview-notes) extrahiert automatisch:
+  - salary_desired: 90.000
+  - salary_minimum: 80.000
+  - notice_period: 3 Monate
+  - change_motivation: Mehr Verantwortung
+  - would_recommend: true
+  - recommendation: "Sehr guter Eindruck"
+
+         |
+         v
+
+Karte wechselt zur Anzeige mit extrahierten Daten
 ```
 
-Dieses Interview wird auf der Kandidatenseite **nirgends** angezeigt. Der Recruiter sieht nur:
-- Die Pipeline-Stage "Interview" im Hero-Header
-- Eine Aufgabe in der CandidateTasksSection (wenn Alert existiert)
-- ABER: Kein Interview-Eintrag mit Details
+## UI-Aenderung in QuickInterviewSummary
 
-## Was gebaut wird
-
-### 1. Neue Komponente: `CandidateInterviewsCard`
-
-Eine kompakte Karte, die alle Interviews fuer diesen Kandidaten anzeigt.
+### Vorher (nur Checkliste + "Interview starten")
 
 ```text
 +------------------------------------------------------------------+
-| [Calendar] Interviews                                      (2)   |
-+------------------------------------------------------------------+
-| [Teams]  Data & Dashboard Engineer                               |
-|          Ausstehend -- Warte auf Opt-In                          |
-|          Angefragt am 22.02.2026                                 |
-+------------------------------------------------------------------+
-| [Phone]  Buchhalter @ FITSEVENELEVEN        [Manuell]            |
-|          20.02.2026, 30 Min -- Kennenlernen                      |
-|          Erstgespräch gefuehrt, positiver Eindruck               |
-+------------------------------------------------------------------+
-| [+] Externes Interview eintragen                                 |
-+------------------------------------------------------------------+
-```
-
-**Pro Eintrag wird angezeigt:**
-- Meeting-Typ-Icon (Video/Telefon/Vor Ort)
-- Job-Titel (als Link wenn moeglich)
-- Interview-Typ (Kennenlernen, Fachinterview, etc.)
-- Status-Badge: Ausstehend / Geplant / Abgeschlossen / Abgesagt
-- Datum & Uhrzeit (wenn vorhanden, sonst "Angefragt am...")
-- Bei manuellen Eintraegen: "Manuell"-Badge
-- Optionale Notizen (gekuerzt, 1 Zeile)
-
-**Keine Quick-Actions** -- nur informativ. Der Recruiter wird informiert, aber kann hier nichts aendern.
-
-### 2. Minimales Formular: "Externes Interview eintragen"
-
-Ein kompakter Inline-Dialog (kein separater Dialog, sondern Collapsible am Ende der Karte):
-
-```text
-+------------------------------------------------------------------+
-| [v] Externes Interview eintragen                                 |
+| Interview-Erkenntnisse                                           |
+| Fuer ein vollstaendiges Expose fehlen:                           |
+| [x] Gehaltsvorstellung                                          |
+| [x] Wechselmotivation                                           |
+| [x] Verfuegbarkeit                                               |
+| [x] Einschaetzung                                                |
 |                                                                  |
-|  Datum:  [22.02.2026]    Interview-Typ: [Kennenlernen v]         |
-|  Notizen: [Erstgespraech per Telefon gefuehrt]                   |
-|                                              [Speichern]         |
+| [Interview jetzt starten]                                        |
 +------------------------------------------------------------------+
 ```
 
-**Felder:**
-- Datum (Pflicht) -- Date-Picker, Default: heute
-- Interview-Typ (Optional) -- Select aus `interview_types` Tabelle (Kennenlernen, Fachinterview, Case Study, Culture Fit, Abschlussgespraech)
-- Notizen (Optional) -- kurzer Freitext
-
-**Was passiert beim Speichern:**
-- Neuer Eintrag in `interviews` Tabelle mit `status: 'completed'`, `scheduled_at: gewaehltes Datum`, `meeting_type: 'phone'` (Default), `notes: Freitext`
-- Braucht eine `submission_id` -- wenn der Kandidat nur eine aktive Submission hat, wird diese automatisch gewaehlt. Bei mehreren: Dropdown zur Auswahl des Jobs.
-
-### 3. Platzierung auf der Kandidatenseite
-
-**Profil-Tab (kompakt):**
-- Die `CandidateInterviewsCard` wird im **rechten Spalte** eingefuegt, zwischen `QuickInterviewSummary` und `Karriere-Timeline`
-- Zeigt maximal 3 Interviews, mit "Alle X anzeigen" Link zum Prozess-Tab
-
-**Prozess-Tab (ausfuehrlich):**
-- Gleiche Komponente, aber alle Interviews sichtbar
-- Direkt unter der `CandidateTasksSection`
-- Mit dem "Externes Interview eintragen"-Formular
-
-### 4. Daten-Flow
+### Nachher (Freitext-Option dazu)
 
 ```text
-interviews Tabelle
-  |
-  +-- submission_id --> submissions --> jobs (fuer Job-Titel)
-  |
-  +-- interview_type_id --> interview_types (fuer Typ-Label)
-  |
-  +-- scheduled_at, status, meeting_type, notes
++------------------------------------------------------------------+
+| Interview-Erkenntnisse                                           |
+| Fuer ein vollstaendiges Expose fehlen:                           |
+| [x] Gehaltsvorstellung                                          |
+| [x] Wechselmotivation                                           |
+| [x] Verfuegbarkeit                                               |
+| [x] Einschaetzung                                                |
+|                                                                  |
+| [Interview jetzt starten]  [Notizen eintragen]                  |
++------------------------------------------------------------------+
 ```
 
-Query: Alle Interviews fuer Submissions dieses Kandidaten, sortiert nach `created_at DESC`.
+Klick auf **"Notizen eintragen"** oeffnet das Freifeld:
+
+```text
++------------------------------------------------------------------+
+| Interview-Erkenntnisse                                           |
+|                                                                  |
+| Trage deine Interview-Notizen ein. Die AI extrahiert             |
+| automatisch Gehalt, Motivation und Verfuegbarkeit.               |
+|                                                                  |
+| +--------------------------------------------------------------+ |
+| | Telefonat mit Marko am 20.02. Er will 90k, minimum 80k.     | |
+| | Kuendigung 3 Monate zum Monatsende. Fruehester Start Juni.   | |
+| | Motivation: will mehr strategische Verantwortung, aktuell    | |
+| | nur operativ. Sehr guter Eindruck, empfehle ich weiter.      | |
+| |                                                              | |
+| +--------------------------------------------------------------+ |
+|                                                                  |
+|                          [Abbrechen]  [Speichern & Analysieren]  |
++------------------------------------------------------------------+
+```
+
+Nach dem Speichern: Spinner waehrend AI verarbeitet, dann zeigt die Karte die extrahierten Daten an (Wechselmotivation, Gehalt, Empfehlung etc.).
 
 ## Technische Umsetzung
 
-### Dateien
+### Datei 1: `src/components/candidates/QuickInterviewSummary.tsx`
 
-| Datei | Aenderung |
-|---|---|
-| `src/components/candidates/CandidateInterviewsCard.tsx` | **NEU** -- Kompakte Interview-Liste + minimales Formular fuer externe Interviews |
-| `src/components/candidates/CandidateProfileTab.tsx` | Interview-Karte in rechte Spalte einfuegen (zwischen QuickInterviewSummary und Karriere-Timeline), max 3 Eintraege |
-| `src/components/candidates/CandidateProcessTab.tsx` | Vollstaendige Interview-Karte unter Tasks einfuegen, mit Formular |
+**Aenderungen:**
 
-### `CandidateInterviewsCard` -- Komponente
+1. Neuer State: `showFreeText` (boolean), `freeText` (string), `saving` (boolean)
+2. Import `useAuth` fuer `recruiter_id`
+3. Import `Textarea` und `Loader2`
+4. Zweiter Button neben "Interview jetzt starten": **"Notizen eintragen"** (variant="outline", size="sm")
+5. Wenn `showFreeText = true`: Textarea + Hinweistext + "Abbrechen"/"Speichern & Analysieren"-Buttons
+6. `handleSave`:
+   - Insert in `candidate_interview_notes` mit `additional_notes: freeText`, `status: 'completed'`, `candidate_id`, `recruiter_id`
+   - Dann Edge Function `process-interview-notes` aufrufen mit `{ candidateId, interviewNotes: { additional_notes: freeText }, candidateData: {} }`
+   - Die Edge Function extrahiert strukturierte Daten und speichert AI-Assessment
+   - Nach Erfolg: Notes neu laden (refetch), Karte wechselt zur Anzeige-Ansicht
+7. Die bestehende Edge Function `process-interview-notes` wird unveraendert genutzt -- sie akzeptiert bereits Freitext in `additionalNotes`
 
-**Props:**
+### Datei 2: `src/components/candidates/CandidateInterviewsCard.tsx`
+
+**Fix Zeile 108:** Anfuehrungszeichen im `.not()` Filter entfernen damit die Submissions korrekt gefunden werden.
+
 ```text
-interface CandidateInterviewsCardProps {
-  candidateId: string;
-  maxItems?: number;          // undefined = alle, 3 = kompakt
-  showAddForm?: boolean;      // false im Profil-Tab, true im Prozess-Tab
-  onViewAll?: () => void;     // Link zum Prozess-Tab
-}
+Vorher:  .not('status', 'in', '("rejected","withdrawn","hired","client_rejected")')
+Nachher: .not('status', 'in', '(rejected,withdrawn,hired,client_rejected)')
 ```
-
-**Daten laden:**
-- Query: `interviews` JOIN `submissions` JOIN `jobs` WHERE `submissions.candidate_id = candidateId`
-- Zusaetzlich: `interview_types` fuer Typ-Labels
-- Sortierung: `scheduled_at DESC NULLS LAST`, dann `created_at DESC`
-
-**Interview-Typ-Labels aus DB:**
-- Kennenlernen (30 Min)
-- Fachinterview (60 Min)
-- Case Study (90 Min)
-- Culture Fit (45 Min)
-- Abschlussgespraech (30 Min)
-
-**Status-Mapping:**
-```text
-'pending'           -> Badge "Ausstehend" (gelb)
-'pending_response'  -> Badge "Warte auf Antwort" (blau)
-'scheduled'         -> Badge "Geplant" (gruen)
-'completed'         -> Badge "Abgeschlossen" (grau)
-'cancelled'         -> Badge "Abgesagt" (rot)
-'no_show'           -> Badge "Nicht erschienen" (rot)
-```
-
-Fuer `pending_opt_in: true` wird zusaetzlich "(Opt-In ausstehend)" angezeigt.
-
-**Minimales Formular (Collapsible):**
-- Nutzt `interview_types` Select
-- Default-Submission: automatisch die erste aktive Submission; bei mehreren ein Select-Dropdown
-- Insert in `interviews`: `{ submission_id, scheduled_at, status: 'completed', meeting_type: 'phone', notes, interview_type_id }`
-
-### Profil-Tab Aenderung
-
-Rechte Spalte wird:
-1. QuickInterviewSummary (bleibt)
-2. **CandidateInterviewsCard** (NEU, maxItems=3, showAddForm=false)
-3. Karriere-Timeline (bleibt)
-4. Similar Candidates (bleibt)
-
-### Prozess-Tab Aenderung
-
-Unter CandidateTasksSection:
-- **CandidateInterviewsCard** (NEU, alle Interviews, showAddForm=true)
 
 ## Zusammenfassung
 
-- 1 neue Datei: `CandidateInterviewsCard.tsx`
-- 2 geaenderte Dateien: `CandidateProfileTab.tsx`, `CandidateProcessTab.tsx`
-- Keine Datenbank-Aenderungen -- alles nutzt die bestehende `interviews` + `interview_types` Tabellen
-- Kein neuer Hook -- Query direkt in der Komponente
-- Nur informativ -- keine Quick-Actions, der Recruiter sieht die Interview-Daten aber kann hier nichts aendern
+| Datei | Aenderung |
+|---|---|
+| `QuickInterviewSummary.tsx` | "Notizen eintragen"-Button + Freitext-Textarea + Speichern ruft AI-Extraktion auf |
+| `CandidateInterviewsCard.tsx` | Fix: Anfuehrungszeichen in `.not()` Filter entfernen |
+
+- Kein neuer Wizard, kein strukturiertes Formular
+- Ein Freifeld, AI macht den Rest
+- Bestehende Edge Function wird wiederverwendet
+- Keine DB-Aenderungen noetig
 
