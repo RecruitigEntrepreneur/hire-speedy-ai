@@ -261,6 +261,10 @@ export function CandidateHeroHeader({
               candidateId={candidateId}
               activeTaskId={activeTaskId}
               candidate={{
+                full_name: candidate.full_name,
+                email: candidate.email,
+                phone: candidate.phone,
+                job_title: candidate.job_title,
                 skills: candidate.skills,
                 experience_years: candidate.experience_years,
                 expected_salary: candidate.expected_salary,
@@ -269,8 +273,6 @@ export function CandidateHeroHeader({
                 city: candidate.city,
                 cv_ai_summary: (candidate as any)?.cv_ai_summary,
                 cv_ai_bullets: (candidate as any)?.cv_ai_bullets,
-                phone: candidate.phone,
-                email: candidate.email,
               }}
               onEdit={onEdit}
               onCvUpload={onCvUpload}

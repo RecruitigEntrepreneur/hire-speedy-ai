@@ -28,6 +28,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 
 import { Candidate } from './CandidateCard';
@@ -76,9 +77,28 @@ export function CandidateDetailSheet({
   
   const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
 
-  // Compute readiness for exposé
+  // Load interview notes for readiness check
   const extCandidate = candidate as any;
+  const { data: interviewNotes } = useQuery({
+    queryKey: ['candidate-interview-readiness', candidate?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('candidate_interview_notes')
+        .select('change_motivation, would_recommend')
+        .eq('candidate_id', candidate!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!candidate?.id,
+  });
+
   const readiness = candidate ? getExposeReadiness({
+    full_name: candidate.full_name,
+    email: candidate.email,
+    phone: candidate.phone,
+    job_title: candidate.job_title,
     skills: candidate.skills,
     experience_years: candidate.experience_years,
     expected_salary: candidate.expected_salary,
@@ -87,6 +107,8 @@ export function CandidateDetailSheet({
     city: candidate.city,
     cv_ai_summary: extCandidate?.cv_ai_summary,
     cv_ai_bullets: extCandidate?.cv_ai_bullets,
+    change_motivation: interviewNotes?.change_motivation,
+    would_recommend: interviewNotes?.would_recommend,
   }) : null;
 
   const statusMutation = useMutation({

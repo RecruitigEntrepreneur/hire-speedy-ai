@@ -50,6 +50,10 @@ interface CandidateTasksSectionProps {
   candidateId: string;
   activeTaskId?: string;
   candidate?: {
+    full_name?: string | null;
+    email?: string;
+    phone?: string | null;
+    job_title?: string | null;
     skills?: string[] | null;
     experience_years?: number | null;
     expected_salary?: number | null;
@@ -58,8 +62,8 @@ interface CandidateTasksSectionProps {
     city?: string | null;
     cv_ai_summary?: string | null;
     cv_ai_bullets?: unknown[] | null;
-    phone?: string | null;
-    email?: string;
+    change_motivation?: string | null;
+    would_recommend?: boolean | null;
   } | null;
   onEdit?: () => void;
   onCvUpload?: () => void;
@@ -94,9 +98,11 @@ const priorityConfig = {
 };
 
 // Fields covered by CV upload - don't show individually if CV is missing
-const CV_FIELDS = ['Skills', 'Erfahrung', 'CV Summary', 'CV Highlights', 'Standort'];
+const CV_FIELDS = ['Skills', 'Erfahrung', 'CV Summary', 'CV Highlights'];
 // Fields covered by Interview - don't show individually if interview is missing
-const INTERVIEW_FIELDS = ['Gehalt', 'Verfügbarkeit'];
+const INTERVIEW_FIELDS = ['Gehalt', 'Verfügbarkeit', 'Wechselmotivation', 'Empfehlung'];
+// Profile/Stammdaten fields - shown as individual edit tasks
+const PROFILE_FIELDS = ['Name', 'E-Mail', 'Telefon', 'Jobtitel', 'Standort'];
 
 function buildExposeTasks(
   candidate: CandidateTasksSectionProps['candidate'],
@@ -140,13 +146,22 @@ function buildExposeTasks(
   });
 
   const fieldTaskMap: Record<string, { title: string; description: string; actions: ExposeTask['actions'] }> = {
+    // Stammdaten
+    'Name': { title: 'Name eintragen', description: 'Der Name des Kandidaten fehlt.', actions: ['edit'] },
+    'E-Mail': { title: 'E-Mail eintragen', description: 'E-Mail-Adresse des Kandidaten fehlt.', actions: ['edit'] },
+    'Telefon': { title: 'Telefonnummer eintragen', description: 'Telefonnummer des Kandidaten fehlt.', actions: ['edit'] },
+    'Jobtitel': { title: 'Jobtitel eintragen', description: 'Aktuelle Position/Jobtitel fehlt.', actions: ['edit'] },
+    'Standort': { title: 'Standort eintragen', description: 'Stadt/Standort des Kandidaten fehlt.', actions: ['edit'] },
+    // CV residual
     'Gehalt': { title: 'Gehaltsvorstellung erfragen', description: 'Für das Exposé wird eine Gehaltsvorstellung benötigt.', actions: ['call', 'edit'] },
     'Verfügbarkeit': { title: 'Verfügbarkeit klären', description: 'Verfügbarkeitsdatum oder Kündigungsfrist eintragen.', actions: ['call', 'edit'] },
     'Skills': { title: 'Skills ergänzen (mind. 3)', description: 'Mindestens 3 Skills werden für das Exposé benötigt.', actions: ['edit'] },
     'Erfahrung': { title: 'Berufserfahrung eintragen', description: 'Erfahrungsjahre für das Exposé eintragen.', actions: ['edit'] },
-    'Standort': { title: 'Standort eintragen', description: 'Stadt/Standort des Kandidaten fehlt.', actions: ['edit'] },
     'CV Summary': { title: 'CV hochladen', description: 'CV-Zusammenfassung fehlt.', actions: ['cv_upload'] },
     'CV Highlights': { title: 'CV hochladen', description: 'CV-Highlights fehlen.', actions: ['cv_upload'] },
+    // Interview residual
+    'Wechselmotivation': { title: 'Wechselmotivation erfragen', description: 'Warum will der Kandidat wechseln?', actions: ['call', 'interview'] },
+    'Empfehlung': { title: 'Empfehlung abgeben', description: 'Recruiter-Empfehlung im Interview eintragen.', actions: ['interview'] },
   };
 
   for (const field of residual) {
