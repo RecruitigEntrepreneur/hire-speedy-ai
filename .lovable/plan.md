@@ -1,79 +1,37 @@
 
 
-# Kandidatenseite: Tab-Navigation unter dem Hero
+# Karriere-Timeline in den Uebersicht-Tab verschieben
 
-## Konzept
+## Aktuelle Situation
+Die Karriere-Timeline sitzt im **Historie**-Tab -- der Recruiter muss extra dorthin wechseln um die CV-Stationen zu sehen. Die Daten stammen aus dem automatischen CV-Parsing (KI extrahiert Berufsstationen beim Upload).
 
-Die Sidebar wird entfernt. Stattdessen kommen **4 Tabs** direkt unter den Hero-Header. Jeder Tab gruppiert zusammengehoerenden Inhalt -- der Recruiter klickt sich sauber durch statt endlos zu scrollen.
+## Aenderung
 
-```text
-+------------------------------------------------------------------+
-| HERO (Avatar, Name, Meta, Pipeline)                               |
-+------------------------------------------------------------------+
-| [Uebersicht] [Prozess] [Matching] [Historie]                     |
-+------------------------------------------------------------------+
-|                                                                    |
-|  Tab-Inhalt (nur der aktive Tab wird angezeigt)                   |
-|                                                                    |
-+------------------------------------------------------------------+
-| ACTION BAR (kontextabhaengig)                                     |
-+------------------------------------------------------------------+
+Die `CandidateExperienceTimeline` wird aus dem Historie-Tab entfernt und in den Uebersicht-Tab verschoben -- in die rechte Spalte des 2-Column-Grids, unter Dokumente und Tags.
+
+### Datei: `CandidateMainContent.tsx`
+
+**Im Uebersicht-Tab (Zeile 119, rechte Spalte):** Karriere-Timeline Card einfuegen nach dem Tags-Block:
+```
+<Card>
+  <CardHeader className="pb-2">
+    <CardTitle className="text-sm flex items-center gap-2">
+      <Building2 className="h-4 w-4 text-primary" />
+      Karriere-Timeline
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <CandidateExperienceTimeline candidateId={candidate.id} />
+  </CardContent>
+</Card>
 ```
 
-## Tab-Aufteilung
-
-### Tab 1: Uebersicht (Default)
-- Key Facts Grid (8 Tiles)
-- Skills + Zertifikate (aus Sidebar)
-- AI CV-Zusammenfassung (aus Sidebar)
-- Dokumente (aus Sidebar)
-- Tags (aus Sidebar)
-
-### Tab 2: Prozess
-- Interview-Erkenntnisse (mit "Notizen eintragen" + "Interview starten")
-- Interviews (alle, mit externem Eintrag-Formular)
-- Offene Aufgaben (CandidateTasksSection)
-
-### Tab 3: Matching
-- Job Matching V3.1
-- KI-Einschaetzung (ClientCandidateSummaryCard)
-- Alle Bewerbungen (CandidateJobsOverview)
-
-### Tab 4: Historie
-- Karriere-Timeline
-- Aehnliche Kandidaten
-- Letzte Aktivitaeten
-
-## Tab-State
-
-- Gespeichert in URL via `?tab=overview|process|matching|history`
-- Default: `overview`
-- Keyboard-Shortcuts: 1/2/3/4
-- Wenn `?task=...` in URL -> automatisch Tab "Prozess" oeffnen
-
-## Technische Aenderungen
-
-### Datei 1: `CandidateMainContent.tsx` -- KOMPLETT NEU
-- Importiert `Tabs, TabsList, TabsTrigger, TabsContent` von `@/components/ui/tabs`
-- Nimmt neuen Prop `activeTab` und `onTabChange` entgegen
-- Die Sidebar-Inhalte (Skills, AI-Summary, Dokumente, Tags) wandern in Tab "Uebersicht"
-- Braucht zusaetzliche Props: `skills`, `certifications`, `cv_ai_summary`, `cv_ai_bullets`, `tags`
-
-### Datei 2: `RecruiterCandidateDetail.tsx` -- AENDERN
-- Sidebar-Komponente und `flex-row` Layout komplett entfernen
-- Tab-State aus URL lesen: `searchParams.get('tab') || 'overview'`
-- Wenn `activeTaskId` vorhanden -> `tab = 'process'`
-- `CandidateMainContent` bekommt die Sidebar-Props (skills, tags, etc.)
-
-### Datei 3: `CandidateSidebar.tsx` -- LOESCHEN
-- Wird nicht mehr gebraucht, alle Inhalte wandern in Tab "Uebersicht"
+**Im Historie-Tab (Zeile 191-202):** Den Karriere-Timeline Card-Block entfernen. Der Historie-Tab behaelt nur noch "Aehnliche Kandidaten" und "Letzte Aktivitaeten".
 
 ### Zusammenfassung
 
-| Datei | Aktion |
+| Datei | Aenderung |
 |---|---|
-| `CandidateMainContent.tsx` | Komplett neu: 4 Tabs statt Sektionen |
-| `RecruiterCandidateDetail.tsx` | Sidebar entfernen, Tab-State aus URL |
-| `CandidateSidebar.tsx` | Loeschen |
+| `CandidateMainContent.tsx` | Timeline aus Historie-Tab entfernen, in Uebersicht-Tab (rechte Spalte) einfuegen |
 
-Keine neuen Dateien, keine DB-Aenderungen.
+Keine neuen Dateien, keine DB-Aenderungen. Eine einzige Datei wird geaendert.
