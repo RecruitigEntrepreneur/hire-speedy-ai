@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface ParsedJobProfile {
   title: string;
@@ -35,12 +36,10 @@ export function useJobPdfParsing() {
     setUploading(true);
 
     try {
-      // Generate unique file path
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `uploads/${fileName}`;
 
-      // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from('job-documents')
         .upload(filePath, file);
@@ -52,7 +51,6 @@ export function useJobPdfParsing() {
       setUploading(false);
       setParsing(true);
 
-      // Call edge function to parse
       const { data, error: parseError } = await supabase.functions.invoke('parse-job-pdf', {
         body: { pdfPath: filePath }
       });
@@ -70,6 +68,7 @@ export function useJobPdfParsing() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
       setError(message);
+      toast.error(message);
       return null;
     } finally {
       setUploading(false);
@@ -99,6 +98,7 @@ export function useJobPdfParsing() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
       setError(message);
+      toast.error(message);
       return null;
     } finally {
       setParsing(false);
