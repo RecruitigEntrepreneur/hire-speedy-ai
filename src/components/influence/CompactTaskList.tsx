@@ -1,8 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent } from '@/components/ui/card';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { InfluenceAlert } from '@/hooks/useInfluenceAlerts';
 import { 
   Phone, 
@@ -11,9 +9,12 @@ import {
   AlertCircle, 
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 interface CompactTaskListProps {
   alerts: InfluenceAlert[];
@@ -26,143 +27,131 @@ interface CompactTaskListProps {
   onViewAll?: () => void;
 }
 
-const priorityConfig = {
-  critical: { 
-    icon: AlertCircle, 
-    label: 'Kritisch', 
-    borderColor: 'border-l-destructive',
-    bgColor: 'bg-destructive/5',
-    textColor: 'text-destructive',
-  },
-  high: { 
-    icon: AlertTriangle, 
-    label: 'Hoch', 
-    borderColor: 'border-l-amber-500',
-    bgColor: 'bg-amber-500/5',
-    textColor: 'text-amber-600',
-  },
-  medium: { 
-    icon: Clock, 
-    label: 'Mittel', 
-    borderColor: 'border-l-blue-500',
-    bgColor: 'bg-blue-500/5',
-    textColor: 'text-blue-600',
-  },
-  low: { 
-    icon: Clock, 
-    label: 'Normal', 
-    borderColor: 'border-l-muted-foreground',
-    bgColor: 'bg-muted/50',
-    textColor: 'text-muted-foreground',
-  },
-};
-
-const getShortAction = (alertType: string): string => {
-  const actionMap: Record<string, string> = {
-    'opt_in_pending': 'Opt-In einholen',
-    'opt_in_pending_48h': 'Dringend nachfassen',
-    'opt_in_pending_24h': 'Sofort nachfassen',
-    'interview_prep_missing': 'Vorbereitung senden',
-    'interview_reminder': 'Interview bestätigen',
-    'salary_mismatch': 'Gehalt klären',
-    'ghosting_risk': 'Kontaktieren',
-    'engagement_drop': 'Reaktivieren',
-    'high_closing_probability': 'Closing nutzen',
-    'closing_opportunity': 'Closing vorbereiten',
-    'candidate_response': 'Antworten',
-    'no_activity': 'Aktivität prüfen',
-    'sla_warning': 'SLA beachten',
-    'follow_up_needed': 'Follow-up',
+const getAlertTypeLabel = (alertType: string): { label: string; color: string } => {
+  const map: Record<string, { label: string; color: string }> = {
+    'opt_in_pending': { label: 'Interview-Anfrage', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    'opt_in_pending_48h': { label: 'Opt-In überfällig', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    'opt_in_pending_24h': { label: 'Opt-In dringend', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'interview_reminder': { label: 'Interview-Erinnerung', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    'salary_mismatch': { label: 'Gehaltsabweichung', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'ghosting_risk': { label: 'Ghosting-Risiko', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+    'engagement_drop': { label: 'Engagement gesunken', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'high_closing_probability': { label: 'Closing-Chance', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    'closing_opportunity': { label: 'Closing vorbereiten', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    'candidate_response': { label: 'Antwort erhalten', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    'no_activity': { label: 'Keine Aktivität', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
+    'sla_warning': { label: 'SLA-Warnung', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   };
-  return actionMap[alertType] || 'Bearbeiten';
+  return map[alertType] || { label: 'Aufgabe', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' };
 };
 
-interface TaskCardProps {
+const getRelativeTime = (dateStr: string): string => {
+  try {
+    return formatDistanceToNow(new Date(dateStr), { locale: de, addSuffix: false });
+  } catch {
+    return '';
+  }
+};
+
+interface TaskRowProps {
   alert: InfluenceAlert;
   candidate?: { name: string; email: string; phone?: string; jobTitle?: string; companyName?: string };
   onMarkDone: (alertId: string) => void;
   onViewCandidate?: (submissionId: string, alertId?: string) => void;
+  isUrgent: boolean;
 }
 
-function TaskCard({ alert, candidate, onMarkDone, onViewCandidate }: TaskCardProps) {
-  const config = priorityConfig[alert.priority];
-  const PriorityIcon = config.icon;
+function TaskRow({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }: TaskRowProps) {
+  const typeInfo = getAlertTypeLabel(alert.alert_type);
+  const timeAgo = getRelativeTime(alert.created_at);
 
   return (
-    <Card 
+    <div
       className={cn(
-        "flex-shrink-0 w-[200px] border-l-4 transition-all hover:shadow-md",
-        config.borderColor,
-        config.bgColor
+        "border-l-4 rounded-lg px-4 py-3 transition-colors hover:bg-accent/50",
+        isUrgent
+          ? "border-l-destructive bg-destructive/5"
+          : "border-l-muted-foreground/30 bg-muted/30"
       )}
     >
-      <CardContent className="p-3 space-y-2">
-        {/* Header: Priority Icon + Name */}
-        <div className="flex items-start gap-2">
-          <PriorityIcon className={cn("h-4 w-4 mt-0.5 shrink-0", config.textColor)} />
+      {/* Row 1: Name + Type Badge + Time */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {isUrgent ? (
+            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
           <button
             onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
-            className="font-medium text-sm leading-tight hover:underline text-left line-clamp-2"
+            className="font-semibold text-sm hover:underline truncate text-foreground"
           >
             {candidate?.name || 'Kandidat'}
           </button>
         </div>
-
-        {/* Job Context */}
-        {(candidate?.jobTitle || candidate?.companyName) && (
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            {candidate?.jobTitle && (
-              <p className="line-clamp-1">{candidate.jobTitle}</p>
-            )}
-            {candidate?.companyName && (
-              <p className="line-clamp-1">@ {candidate.companyName}</p>
-            )}
-          </div>
-        )}
-
-        {/* Action Badge */}
-        <Badge variant="outline" className="text-xs w-full justify-center">
-          {getShortAction(alert.alert_type)}
-        </Badge>
-
-        {/* Quick Actions */}
-        <div className="flex items-center justify-between gap-1 pt-1 border-t">
-          <div className="flex items-center gap-1">
-            {candidate?.phone && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => window.location.href = `tel:${candidate.phone}`}
-                title="Anrufen"
-              >
-                <Phone className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            {candidate?.email && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => window.location.href = `mailto:${candidate.email}`}
-                title="Email"
-              >
-                <Mail className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-            onClick={() => onMarkDone(alert.id)}
-            title="Erledigt"
-          >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge className={cn("text-[10px] font-medium px-2 py-0.5 border-0", typeInfo.color)}>
+            {typeInfo.label}
+          </Badge>
+          {timeAgo && (
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap">{timeAgo}</span>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Row 2: Job context */}
+      {(candidate?.jobTitle || candidate?.companyName) && (
+        <p className="text-xs text-muted-foreground mt-1 ml-6 truncate">
+          {candidate?.jobTitle}{candidate?.jobTitle && candidate?.companyName ? ' @ ' : ''}{candidate?.companyName}
+        </p>
+      )}
+
+      {/* Row 3: Message / reason */}
+      {alert.message && (
+        <p className="text-xs text-muted-foreground mt-1 ml-6 line-clamp-1 italic">
+          „{alert.message}"
+        </p>
+      )}
+
+      {/* Row 4: Actions */}
+      <div className="flex items-center justify-between mt-2 ml-6">
+        <div className="flex items-center gap-1">
+          {candidate?.phone && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => window.location.href = `tel:${candidate.phone}`}
+            >
+              <Phone className="h-3 w-3 mr-1" />
+              Anrufen
+            </Button>
+          )}
+          {candidate?.email && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => window.location.href = `mailto:${candidate.email}`}
+            >
+              <Mail className="h-3 w-3 mr-1" />
+              Email
+            </Button>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+          onClick={() => onMarkDone(alert.id)}
+        >
+          <Check className="h-3 w-3 mr-1" />
+          Erledigt
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -176,30 +165,23 @@ export function CompactTaskList({
   showViewAll = true,
   onViewAll,
 }: CompactTaskListProps) {
-  // Group alerts by priority
-  const criticalAlerts = alerts.filter(a => a.priority === 'critical' && !a.action_taken);
-  const highAlerts = alerts.filter(a => a.priority === 'high' && !a.action_taken);
-  const otherAlerts = alerts.filter(a => (a.priority === 'medium' || a.priority === 'low') && !a.action_taken);
-  
-  const totalPending = criticalAlerts.length + highAlerts.length + otherAlerts.length;
+  const pendingAlerts = alerts.filter(a => !a.action_taken);
+  const urgentAlerts = pendingAlerts.filter(a => a.priority === 'critical');
+  const openAlerts = pendingAlerts.filter(a => a.priority !== 'critical');
+  const totalPending = pendingAlerts.length;
 
   if (loading) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-5 w-8" />
-        </div>
-        <div className="flex gap-3">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-[160px] w-[200px] shrink-0" />
-          ))}
-        </div>
+        <Skeleton className="h-6 w-32" />
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
       </div>
     );
   }
 
-  if (alerts.length === 0 || totalPending === 0) {
+  if (totalPending === 0) {
     return (
       <div className="py-8 text-center">
         <CheckCircle className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
@@ -209,84 +191,79 @@ export function CompactTaskList({
     );
   }
 
-  const displayedAlerts = [...criticalAlerts, ...highAlerts, ...otherAlerts].slice(0, maxItems);
-  const hasMore = totalPending > maxItems;
+  const displayedUrgent = urgentAlerts.slice(0, maxItems);
+  const remainingSlots = Math.max(0, maxItems - displayedUrgent.length);
+  const displayedOpen = openAlerts.slice(0, remainingSlots);
 
-  const renderPrioritySection = (
-    sectionAlerts: InfluenceAlert[],
-    label: string,
-    Icon: typeof AlertCircle,
-    colorClass: string
-  ) => {
-    if (sectionAlerts.length === 0) return null;
-    
-    const displayedInSection = displayedAlerts.filter(a => sectionAlerts.some(sa => sa.id === a.id));
-    if (displayedInSection.length === 0) return null;
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          Aufgaben
+          <Badge variant="secondary" className="text-xs">{totalPending}</Badge>
+        </h3>
+        {urgentAlerts.length > 0 && (
+          <Badge variant="destructive" className="text-xs">
+            {urgentAlerts.length} dringend
+          </Badge>
+        )}
+      </div>
 
-    return (
-      <div className="space-y-2">
-        <div className={cn("text-xs font-medium uppercase tracking-wide flex items-center gap-1", colorClass)}>
-          <Icon className="h-3 w-3" />
-          {label} ({sectionAlerts.length})
-        </div>
-        <ScrollArea className="w-full">
-          <div className="flex gap-3 pb-3">
-            {displayedInSection.map(alert => (
-              <TaskCard
+      {/* Urgent section */}
+      {displayedUrgent.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wider text-destructive flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Dringend ({urgentAlerts.length})
+          </p>
+          <div className="space-y-2">
+            {displayedUrgent.map(alert => (
+              <TaskRow
                 key={alert.id}
                 alert={alert}
                 candidate={candidateMap[alert.submission_id]}
                 onMarkDone={onMarkDone}
                 onViewCandidate={onViewCandidate}
+                isUrgent
               />
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      </div>
-    );
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Header with counts */}
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold flex items-center gap-2">
-          Heute zu tun
-          <Badge variant="secondary" className="text-xs">
-            {totalPending}
-          </Badge>
-        </h3>
-        <div className="flex items-center gap-2">
-          {criticalAlerts.length > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              {criticalAlerts.length} kritisch
-            </Badge>
-          )}
-          {highAlerts.length > 0 && (
-            <Badge className="bg-amber-100 text-amber-700 text-xs hover:bg-amber-100">
-              {highAlerts.length} hoch
-            </Badge>
-          )}
         </div>
-      </div>
+      )}
 
-      {/* Priority sections with horizontal cards */}
-      <div className="space-y-4">
-        {renderPrioritySection(criticalAlerts, 'Kritisch', AlertCircle, 'text-destructive')}
-        {renderPrioritySection(highAlerts, 'Hoch', AlertTriangle, 'text-amber-600')}
-        {renderPrioritySection(otherAlerts, 'Weitere', Clock, 'text-muted-foreground')}
-      </div>
+      {/* Open section */}
+      {displayedOpen.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            Offen ({openAlerts.length})
+          </p>
+          <div className="space-y-2">
+            {displayedOpen.map(alert => (
+              <TaskRow
+                key={alert.id}
+                alert={alert}
+                candidate={candidateMap[alert.submission_id]}
+                onMarkDone={onMarkDone}
+                onViewCandidate={onViewCandidate}
+                isUrgent={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* View all button */}
-      {showViewAll && hasMore && onViewAll && (
+      {/* View all */}
+      {showViewAll && totalPending > maxItems && onViewAll && (
         <Button
           variant="ghost"
           size="sm"
-          className="w-full"
+          className="w-full text-muted-foreground"
           onClick={onViewAll}
         >
-          Alle {totalPending} Aufgaben anzeigen →
+          Alle {totalPending} Aufgaben anzeigen
+          <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
       )}
     </div>
