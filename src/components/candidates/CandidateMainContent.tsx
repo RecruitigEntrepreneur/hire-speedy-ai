@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Clock, Building2, Tag, LayoutGrid, Briefcase, BarChart3, History } from 'lucide-react';
 
 
+import { CandidateHeroMatching } from './CandidateHeroMatching';
 import { CandidateSkillsCard } from './CandidateSkillsCard';
 import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
@@ -112,6 +113,7 @@ export function CandidateMainContent({
       <TabsContent value="overview" className="space-y-6 mt-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
+            <CandidateHeroMatching candidateId={candidate.id} onNavigateToMatching={() => onTabChange('matching')} />
             <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
             <CandidateCvAiSummaryCard summary={candidate.cv_ai_summary || null} bullets={candidate.cv_ai_bullets} />
           </div>
