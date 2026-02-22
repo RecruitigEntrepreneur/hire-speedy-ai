@@ -339,9 +339,10 @@ export default function CreateJob() {
       // Delay to let onChange fire first if a file was selected
       setTimeout(() => {
         setAwaitingFileSelection(prev => {
-          if (prev) {
-            // User cancelled the file picker
-            return false;
+           if (prev) {
+             // User cancelled the file picker
+             setModeHandled(true);
+             return false;
           }
           return prev;
         });
