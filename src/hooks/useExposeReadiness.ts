@@ -57,7 +57,6 @@ export function useExposeReadiness(candidate: CandidateData | null): ReadinessRe
       { field: 'Gehalt', valid: candidate.expected_salary != null && candidate.expected_salary > 0 },
       { field: 'Verfügbarkeit', valid: !!(candidate.availability_date || candidate.notice_period) },
       { field: 'Wechselmotivation', valid: !!candidate.change_motivation },
-      { field: 'Empfehlung', valid: candidate.would_recommend != null },
     ];
 
     const validCount = checks.filter(c => c.valid).length;
@@ -121,15 +120,14 @@ export function getExposeReadiness(candidate: CandidateData | null): ReadinessRe
     // Interview-basiert
     { field: 'Gehalt', valid: candidate.expected_salary != null && candidate.expected_salary > 0 },
     { field: 'Verfügbarkeit', valid: !!(candidate.availability_date || candidate.notice_period) },
-    { field: 'Wechselmotivation', valid: !!candidate.change_motivation },
-    { field: 'Empfehlung', valid: candidate.would_recommend != null },
-  ];
+      { field: 'Wechselmotivation', valid: !!candidate.change_motivation },
+    ];
 
-  const validCount = checks.filter(c => c.valid).length;
-  const score = Math.round((validCount / checks.length) * 100);
-  const missingFields = checks.filter(c => !c.valid).map(c => c.field);
+    const validCount = checks.filter(c => c.valid).length;
+    const score = Math.round((validCount / checks.length) * 100);
+    const missingFields = checks.filter(c => !c.valid).map(c => c.field);
 
-  if (score >= 85) {
+    if (score >= 85) {
     return {
       isReady: true,
       score,

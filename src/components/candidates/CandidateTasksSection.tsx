@@ -100,7 +100,7 @@ const priorityConfig = {
 // Fields covered by CV upload - don't show individually if CV is missing
 const CV_FIELDS = ['Skills', 'Erfahrung', 'CV Summary', 'CV Highlights'];
 // Fields covered by Interview - don't show individually if interview is missing
-const INTERVIEW_FIELDS = ['Gehalt', 'Verfügbarkeit', 'Wechselmotivation', 'Empfehlung'];
+const INTERVIEW_FIELDS = ['Gehalt', 'Verfügbarkeit', 'Wechselmotivation'];
 // Profile/Stammdaten fields - shown as individual edit tasks
 const PROFILE_FIELDS = ['Name', 'E-Mail', 'Telefon', 'Jobtitel', 'Standort'];
 
@@ -161,7 +161,6 @@ function buildExposeTasks(
     'CV Highlights': { title: 'CV hochladen', description: 'CV-Highlights fehlen.', actions: ['cv_upload'] },
     // Interview residual
     'Wechselmotivation': { title: 'Wechselmotivation erfragen', description: 'Warum will der Kandidat wechseln?', actions: ['call', 'interview'] },
-    'Empfehlung': { title: 'Empfehlung abgeben', description: 'Recruiter-Empfehlung im Interview eintragen.', actions: ['interview'] },
   };
 
   for (const field of residual) {
