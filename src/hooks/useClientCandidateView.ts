@@ -40,6 +40,15 @@ export interface ClientCandidateViewData {
   // Skills (immer sichtbar)
   topSkills: string[];
   
+  // Erweiterte Profildaten (NEU - für gruppierte Anzeige)
+  certifications: string[];
+  languageSkills: { language: string; level: string }[];
+  industryExperience: string[];
+  targetRoles: string[];
+  careerGoals: string | null;
+  relocationWilling: boolean | null;
+  remoteDaysPreferred: number | null;
+  
   // Matching (zentral berechnet)
   matchScore: number;
   fitLabel: FitLabel;
@@ -60,7 +69,10 @@ export interface ClientCandidateViewData {
   keySellingPoints: string[];
   riskFactors: any[];
   positiveFactors: any[];
-  careerGoals: string | null;
+  
+  // AI Metadata (EU AI Act)
+  modelVersion: string | null;
+  generatedAt: string | null;
   
   // Recruiter Info
   recruiterNotes: string | null;
@@ -203,7 +215,13 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
               availability_date,
               seniority,
               cv_url,
-              linkedin_url
+              linkedin_url,
+              language_skills,
+              certifications,
+              industry_experience,
+              target_roles,
+              relocation_willing,
+              remote_days_preferred
             ),
             jobs!inner (
               id,
@@ -308,6 +326,48 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         keySellingPoints = summary.key_selling_points as string[];
       }
 
+      // Parse language_skills JSON
+      let languageSkills: { language: string; level: string }[] = [];
+      if (candidate.language_skills) {
+        try {
+          const raw = typeof candidate.language_skills === 'string' 
+            ? JSON.parse(candidate.language_skills) 
+            : candidate.language_skills;
+          if (Array.isArray(raw)) {
+            languageSkills = raw.map((ls: any) => ({
+              language: ls.language || ls.name || String(ls),
+              level: ls.level || ls.proficiency || ''
+            }));
+          }
+        } catch { /* ignore parse errors */ }
+      }
+
+      // Parse industry_experience JSON
+      let industryExperience: string[] = [];
+      if (candidate.industry_experience) {
+        try {
+          const raw = typeof candidate.industry_experience === 'string'
+            ? JSON.parse(candidate.industry_experience)
+            : candidate.industry_experience;
+          if (Array.isArray(raw)) {
+            industryExperience = raw.map((ie: any) => typeof ie === 'string' ? ie : (ie.industry || ie.name || String(ie)));
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Parse target_roles JSON
+      let targetRoles: string[] = [];
+      if (candidate.target_roles) {
+        try {
+          const raw = typeof candidate.target_roles === 'string'
+            ? JSON.parse(candidate.target_roles)
+            : candidate.target_roles;
+          if (Array.isArray(raw)) {
+            targetRoles = raw.map((tr: any) => typeof tr === 'string' ? tr : (tr.role || tr.title || String(tr)));
+          }
+        } catch { /* ignore */ }
+      }
+
       // Build final view data
       const viewData: ClientCandidateViewData = {
         // Identity
@@ -338,6 +398,15 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         // Skills
         topSkills: candidate.skills || [],
         
+        // Erweiterte Profildaten
+        certifications: candidate.certifications || [],
+        languageSkills,
+        industryExperience,
+        targetRoles,
+        careerGoals: summary?.career_goals || null,
+        relocationWilling: candidate.relocation_willing ?? null,
+        remoteDaysPreferred: candidate.remote_days_preferred ?? null,
+        
         // Matching - V3.1 Engine is the SINGLE SOURCE OF TRUTH
         // matchScore is only used as fallback, V3.1 should always be preferred in UI
         matchScore: submission.match_score || 0, // Legacy fallback, V3.1 takes precedence
@@ -360,7 +429,10 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         keySellingPoints,
         riskFactors: (summary?.risk_factors as any[]) || [],
         positiveFactors: (summary?.positive_factors as any[]) || [],
-        careerGoals: summary?.career_goals || null,
+        
+        // AI Metadata (EU AI Act)
+        modelVersion: summary?.model_version || null,
+        generatedAt: summary?.generated_at || null,
         
         // Recruiter Info
         recruiterNotes: submission.recruiter_notes,

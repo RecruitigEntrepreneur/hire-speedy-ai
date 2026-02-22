@@ -201,12 +201,13 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
         {/* Recommendation Banner */}
         <div className={cn('p-4', recConfig.bg)}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Sparkles className="h-5 w-5 text-primary shrink-0" />
-              <span className="font-semibold text-sm">KI-Einschätzung</span>
+              <span className="font-semibold text-sm">KI-gestützte Einschätzung</span>
               {summary.generated_at && (
                 <span className="text-xs text-muted-foreground">
-                  Erstellt am {format(new Date(summary.generated_at), 'dd.MM.yyyy', { locale: de })}
+                  Automatisiert erstellt am {format(new Date(summary.generated_at), 'dd.MM.yyyy', { locale: de })}
+                  {summary.model_version && ` · Modell: ${summary.model_version}`}
                 </span>
               )}
             </div>
@@ -364,6 +365,13 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
               )}
             </div>
           </div>
+        </div>
+
+        {/* EU AI Act Disclaimer */}
+        <div className="p-3 border-t bg-muted/20">
+          <p className="text-xs text-muted-foreground/70 text-center">
+            Hinweis gemäß EU AI Act: Diese Einschätzung wurde automatisiert erstellt und dient ausschließlich als Entscheidungshilfe. Die finale Personalentscheidung obliegt Ihnen.
+          </p>
         </div>
       </CardContent>
     </Card>

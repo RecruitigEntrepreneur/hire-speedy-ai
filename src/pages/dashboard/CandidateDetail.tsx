@@ -27,6 +27,7 @@ import {
   Send,
   Lock,
   User,
+  Scale,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -36,6 +37,55 @@ import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
 import { useClientCandidateView } from '@/hooks/useClientCandidateView';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// Profile Group Component - renders a labeled group of fields
+// Empty groups are hidden automatically
+// ============================================================================
+function ProfileGroup({ 
+  label, 
+  children 
+}: { 
+  label: string; 
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+      <div className="space-y-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ProfileField({ label, value, faded }: { label: string; value: string; faded?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      <span className={cn("text-sm text-right", faded ? "text-muted-foreground/50" : "font-medium")}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// Helper: is value a semantic placeholder?
+const isPlaceholder = (val: string) => {
+  const placeholders = ['Nicht angegeben', 'Ausstehend', 'Unbekannt', 'Flexibel',
+    'Noch nicht besprochen', 'CV-Analyse ausstehend', 'Wird im Interview besprochen',
+    'Wird basierend auf CV ermittelt', 'Präferenz noch nicht erfasst', 'Fachkraft',
+    'Vom Kandidaten noch nicht freigegeben', 'Standort nicht angegeben'];
+  return placeholders.some(p => val.includes(p));
+};
+
+// Build enriched work model label
+function buildWorkModelLabel(workModel: string, remoteDays: number | null, relocation: boolean | null): string {
+  const parts = [workModel];
+  if (remoteDays && remoteDays > 0) parts.push(`${remoteDays} Tage Remote`);
+  if (relocation === true) parts.push('umzugsbereit');
+  return parts.join(', ');
+}
 
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -122,18 +172,12 @@ export default function CandidateDetail() {
     displayName, identityUnlocked, currentRole, experience, seniority,
     salaryRange, availability, region, workModel, topSkills,
     status, stage, jobTitle, jobId, recruiterNotes,
-    email, phone, cvUrl, linkedinUrl, hasInterview,
-    candidateId, submissionId
+    email, phone, cvUrl, linkedinUrl,
+    candidateId, submissionId,
+    // New extended fields
+    certifications, languageSkills, industryExperience, targetRoles,
+    careerGoals, relocationWilling, remoteDaysPreferred,
   } = candidateView;
-
-  // Helper: is value a semantic placeholder?
-  const isPlaceholder = (val: string) => {
-    const placeholders = ['Nicht angegeben', 'Ausstehend', 'Unbekannt', 'Flexibel',
-      'Noch nicht besprochen', 'CV-Analyse ausstehend', 'Wird im Interview besprochen',
-      'Wird basierend auf CV ermittelt', 'Präferenz noch nicht erfasst', 'Fachkraft',
-      'Vom Kandidaten noch nicht freigegeben', 'Standort nicht angegeben'];
-    return placeholders.some(p => val.includes(p));
-  };
 
   const getStatusLabel = (s: string | null): string => {
     const labels: Record<string, string> = {
@@ -154,17 +198,14 @@ export default function CandidateDetail() {
     return labels[s || 'submitted'] || 'Eingereicht';
   };
 
-  // Profile fields config
-  const profileFields = [
-    { label: 'Aktuelle Rolle', value: currentRole },
-    { label: 'Hintergrund', value: topSkills.length > 0 ? topSkills.slice(0, 3).join(', ') : null },
-    { label: 'Seniorität', value: seniority },
-    { label: 'Region', value: region },
-    { label: 'Arbeitsmodell', value: workModel },
-    { label: 'Verfügbarkeit', value: availability },
-    { label: 'Erfahrung', value: experience },
-    { label: 'Gehalt', value: salaryRange },
-  ].filter(f => f.value);
+  // Enriched work model
+  const enrichedWorkModel = buildWorkModelLabel(workModel, remoteDaysPreferred, relocationWilling);
+
+  // Determine which profile groups have data
+  const hasGroupA = true; // always show role/seniority
+  const hasGroupB = topSkills.length > 0 || certifications.length > 0 || languageSkills.length > 0;
+  const hasGroupC = true; // always show region/availability/salary
+  const hasGroupD = targetRoles.length > 0 || !!careerGoals;
 
   return (
     <DashboardLayout>
@@ -181,7 +222,6 @@ export default function CandidateDetail() {
         {/* ==================== 1. HEADER ==================== */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-start gap-4">
-            {/* Avatar */}
             <div className={cn(
               "h-14 w-14 rounded-full flex items-center justify-center text-lg font-semibold shrink-0",
               identityUnlocked 
@@ -267,50 +307,104 @@ export default function CandidateDetail() {
 
         {/* ==================== 3. PROFIL + NOTIZEN (60/40) ==================== */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Profile */}
+          {/* Profile Card with Groups */}
           <Card className="lg:col-span-3">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Profil</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {profileFields.map((field) => {
-                  const faded = isPlaceholder(field.value!);
-                  return (
-                    <div key={field.label} className="flex items-baseline justify-between gap-4">
-                      <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
-                      <span className={cn(
-                        "text-sm text-right",
-                        faded ? "text-muted-foreground/50" : "font-medium"
-                      )}>
-                        {field.value}
-                      </span>
+            <CardContent className="space-y-5">
+              {/* Gruppe A: Berufliches Profil */}
+              {hasGroupA && (
+                <ProfileGroup label="Berufliches Profil">
+                  <ProfileField label="Aktuelle Rolle" value={currentRole} faded={isPlaceholder(currentRole)} />
+                  <ProfileField label="Seniorität" value={seniority} faded={isPlaceholder(seniority)} />
+                  {industryExperience.length > 0 && (
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-sm text-muted-foreground shrink-0">Branchenerfahrung</span>
+                      <span className="text-sm font-medium text-right">{industryExperience.join(', ')}</span>
                     </div>
-                  );
-                })}
+                  )}
+                  <ProfileField label="Erfahrung" value={experience} faded={isPlaceholder(experience)} />
+                </ProfileGroup>
+              )}
 
-                {/* Skills as badges if present */}
-                {topSkills.length > 0 && (
-                  <>
-                    <Separator className="my-2" />
-                    <div>
-                      <span className="text-sm text-muted-foreground">Skills</span>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {topSkills.slice(0, 8).map((skill: string, idx: number) => (
-                          <Badge key={idx} variant="secondary" className="text-xs font-normal">
-                            {skill}
-                          </Badge>
-                        ))}
-                        {topSkills.length > 8 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{topSkills.length - 8}
-                          </Badge>
-                        )}
+              {/* Gruppe B: Kompetenzen */}
+              {hasGroupB && (
+                <>
+                  <Separator />
+                  <ProfileGroup label="Kompetenzen">
+                    {topSkills.length > 0 && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Skills</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {topSkills.slice(0, 8).map((skill: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs font-normal">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {topSkills.length > 8 && (
+                            <Badge variant="outline" className="text-xs">+{topSkills.length - 8}</Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                    )}
+                    {certifications.length > 0 && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Zertifizierungen</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {certifications.map((cert, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs font-normal">
+                              {cert}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {languageSkills.length > 0 && (
+                      <div className="flex items-baseline justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Sprachen</span>
+                        <span className="text-sm font-medium text-right">
+                          {languageSkills.map(ls => ls.level ? `${ls.language} (${ls.level})` : ls.language).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </ProfileGroup>
+                </>
+              )}
+
+              {/* Gruppe C: Rahmenbedingungen */}
+              {hasGroupC && (
+                <>
+                  <Separator />
+                  <ProfileGroup label="Rahmenbedingungen">
+                    <ProfileField label="Region" value={region} faded={isPlaceholder(region)} />
+                    <ProfileField label="Arbeitsmodell" value={enrichedWorkModel} faded={isPlaceholder(workModel)} />
+                    <ProfileField label="Verfügbarkeit" value={availability} faded={isPlaceholder(availability)} />
+                    <ProfileField label="Gehaltsband" value={salaryRange} faded={isPlaceholder(salaryRange)} />
+                  </ProfileGroup>
+                </>
+              )}
+
+              {/* Gruppe D: Karriereziele (nur wenn Daten vorhanden) */}
+              {hasGroupD && (
+                <>
+                  <Separator />
+                  <ProfileGroup label="Karriereziele">
+                    {targetRoles.length > 0 && (
+                      <div className="flex items-baseline justify-between gap-4">
+                        <span className="text-sm text-muted-foreground shrink-0">Ziel-Rollen</span>
+                        <span className="text-sm font-medium text-right">{targetRoles.join(', ')}</span>
+                      </div>
+                    )}
+                    {careerGoals && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Karriereziele</span>
+                        <p className="text-sm mt-1">{careerGoals}</p>
+                      </div>
+                    )}
+                  </ProfileGroup>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -403,12 +497,16 @@ export default function CandidateDetail() {
           </Card>
         )}
 
-        {/* ==================== 5. ANONYMITÄTS-HINWEIS (dezent) ==================== */}
-        {!identityUnlocked && (
-          <p className="text-xs text-muted-foreground/60 text-center py-2">
-            Anonymisiertes Profil — Nach Interview-Zustimmung werden Name, Kontakt und CV freigeschaltet.
+        {/* ==================== 5. COMPLIANCE-FOOTER ==================== */}
+        <div className="text-xs text-muted-foreground/60 text-center py-3 space-y-1">
+          {!identityUnlocked && (
+            <p>Anonymisiertes Profil — Nach Interview-Zustimmung werden Name, Kontakt und CV freigeschaltet.</p>
+          )}
+          <p className="flex items-center justify-center gap-1">
+            <Scale className="h-3 w-3" />
+            Die KI-Einschätzung auf dieser Seite wird gemäß EU AI Act (Verordnung 2024/1689) als Hochrisiko-KI-System betrieben. Bei Fragen wenden Sie sich an Ihren Ansprechpartner.
           </p>
-        )}
+        </div>
       </div>
 
       {/* Dialoge */}
