@@ -6,6 +6,7 @@ import { CandidateSkillsCard } from './CandidateSkillsCard';
 import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { SimilarCandidates } from './SimilarCandidates';
+import { CandidateInterviewsCard } from './CandidateInterviewsCard';
 import { CandidateExperienceTimeline } from './CandidateExperienceTimeline';
 import { QuickInterviewSummary } from './QuickInterviewSummary';
 import { CandidateTag } from '@/hooks/useCandidateTags';
@@ -135,6 +136,13 @@ export function CandidateProfileTab({ candidate, tags, onViewFullInterview }: Ca
           <QuickInterviewSummary 
             candidateId={candidate.id}
             onViewDetails={onViewFullInterview}
+          />
+
+          {/* Interviews */}
+          <CandidateInterviewsCard 
+            candidateId={candidate.id}
+            maxItems={3}
+            showAddForm={false}
           />
           
           {/* Career Timeline */}

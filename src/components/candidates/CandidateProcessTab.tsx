@@ -3,6 +3,7 @@ import { CandidateJobMatchingV3 } from './CandidateJobMatchingV3';
 import { ClientCandidateSummaryCard } from './ClientCandidateSummaryCard';
 import { CandidateJobsOverview } from './CandidateJobsOverview';
 import { CandidateActivityTimeline } from './CandidateActivityTimeline';
+import { CandidateInterviewsCard } from './CandidateInterviewsCard';
 import { Button } from '@/components/ui/button';
 import { Plus, Clock } from 'lucide-react';
 
@@ -47,6 +48,12 @@ export function CandidateProcessTab({
     <div className="space-y-6">
       {/* Tasks Section - Prominent at top */}
       <CandidateTasksSection candidateId={candidate.id} activeTaskId={activeTaskId} />
+
+      {/* Interviews */}
+      <CandidateInterviewsCard 
+        candidateId={candidate.id}
+        showAddForm={true}
+      />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
