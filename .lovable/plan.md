@@ -1,70 +1,36 @@
 
-# Benefits-Feld und bessere Beispiele im Edit-Dialog
 
-## Problem
+# Client Job-Formular bereinigen: Admin-Felder entfernen und Workflow korrigieren
 
-Beim Klick auf "Benefits beschreiben" oder "Skills definieren" in der Quality-Score-Karte oeffnet zwar der richtige Tab, aber:
+## Analyse
 
-1. **Benefits**: Es gibt gar kein Benefits-Feld im Edit-Dialog (und auch keine Spalte in der Datenbank). Der Nutzer landet auf "Grunddaten" und weiss nicht, wo er Benefits eintragen soll.
-2. **Skills**: Das Feld existiert, aber die Platzhalter-Texte koennten hilfreicher sein mit konkreten Beispielen.
+Beim Durchgehen des gesamten `JobEditDialog.tsx` (das Client-Formular) fallen mehrere Probleme auf:
 
-## Loesung
+### 1. Vermittlungsfee (Zeilen 578-604) -- FALSCH im Client-Formular
+Der Vermittlungsfee-Slider (10-30%) inkl. der Gebuehrenberechnung wird dem Client angezeigt. Laut Workflow wird die Fee ausschliesslich vom Admin im `JobApprovalDialog` festgelegt. Der Client sollte weder sehen noch aendern koennen, wie hoch die Vermittlungsgebuehr ist.
 
-### 1. Neue `benefits`-Spalte in der `jobs`-Tabelle
+**Aenderung:** Vermittlungsfee-Slider und Gebuehrenberechnung komplett aus dem Conditions-Tab entfernen.
 
-- Migration: `ALTER TABLE public.jobs ADD COLUMN benefits text[] DEFAULT '{}';`
-- Speichert Benefits als Array von Strings (gleiche Logik wie `skills`)
+### 2. Dringlichkeit (Zeilen 382-398) -- FRAGWUERDIG im Client-Formular
+Laut dem Approval-Workflow setzt der Admin die Dringlichkeit (Standard/Urgent/Hot). Der Client gibt zwar an, wie dringend es fuer ihn ist, aber die offizielle Urgency fuer Recruiter wird vom Admin gesetzt. Es kann Sinn machen, dem Client trotzdem eine Dringlichkeits-Angabe zu lassen (als Input fuer den Admin), aber die Werte sollten client-freundlicher benannt sein.
 
-### 2. Benefits-Feld im Edit-Dialog hinzufuegen
+**Aenderung:** Dringlichkeit im Client-Formular als "Wunsch-Zeitrahmen" umbenennen mit verstaendlicheren Optionen (z.B. "Keine Eile", "Innerhalb 3 Monate", "Schnellstmoeglich", "Sofort").
+
+### 3. "Veroeffentlichen"-Button (Zeile 614-622) -- FALSCH
+Der Client kann aktuell direkt "Veroeffentlichen" klicken, was den Status auf `published` setzt und den Admin-Approval-Workflow umgeht. Der korrekte Flow waere: Client reicht den Job zur Pruefung ein (Status: `pending_approval`), der Admin genehmigt.
+
+**Aenderung:** "Veroeffentlichen"-Button in "Zur Pruefung einreichen" umbenennen und Status auf `pending_approval` statt `published` setzen.
+
+## Zusammenfassung der Aenderungen
 
 **`src/components/jobs/JobEditDialog.tsx`**
 
-- Neues `benefits`-Feld in `formData` (kommagetrennt wie Skills)
-- Im **Basics-Tab** (oder besser: im **Conditions-Tab**, da Benefits zu Konditionen gehoeren) ein neues Textarea einfuegen:
-  - Label: "Benefits & Zusatzleistungen"
-  - Placeholder mit konkreten Beispielen: "z.B. 30 Tage Urlaub, Firmenwagen, betriebliche Altersvorsorge, Weiterbildungsbudget..."
-  - Darunter Vorschlags-Chips zum Anklicken (haeufige Benefits), die sich per Klick ins Feld einfuegen
-- `handleSave` erweitern: `benefits`-Array in die DB schreiben
-
-### 3. Vorschlags-Chips fuer Benefits
-
-Haeufige Benefits als klickbare Badges unter dem Textfeld:
-- 30 Tage Urlaub
-- Home Office
-- Firmenwagen
-- Weiterbildungsbudget
-- Betriebliche Altersvorsorge
-- Jobrad
-- Flexible Arbeitszeiten
-- Obstkorb & Getraenke
-
-Beim Klick wird der Chip ins Textfeld uebernommen (falls noch nicht vorhanden).
-
-### 4. Skills-Tab: Bessere Platzhalter
-
-Die Platzhalter-Texte im Skills-Tab verbessern mit konkreteren Beispielen:
-- Skills: "z.B. React, TypeScript, Node.js, PostgreSQL, Docker..."
-- Must-Haves: "z.B. 5+ Jahre React, Erfahrung mit CI/CD, Teamfuehrung..."
-- Nice-to-Haves: "z.B. Kubernetes-Kenntnisse, Open-Source-Beitraege..."
-
-### 5. Quality-Score: Benefits-Suggestion auf richtigen Tab zeigen
-
-**`src/components/client/JobQualityScoreCard.tsx`**
-- Benefits-Suggestion Tab von `'basics'` auf `'conditions'` aendern (da das Feld dort landet)
-
-### 6. hasBenefits-Logik anpassen
-
-**`src/pages/dashboard/ClientJobDetail.tsx`**
-- `hasBenefits` zusaetzlich pruefen ob `job.benefits` (neues DB-Feld) gefuellt ist, nicht nur `job_summary.benefits_extracted`
-
-## Technische Details
-
-### Dateien die geaendert werden
-
-| Datei | Aenderung |
+| Was | Aenderung |
 |---|---|
-| DB Migration | `benefits text[]` Spalte hinzufuegen |
-| `JobEditDialog.tsx` | Benefits-Textarea mit Vorschlags-Chips im Conditions-Tab |
-| `JobEditDialog.tsx` | Bessere Platzhalter fuer Skills/Must-Haves/Nice-to-Haves |
-| `JobQualityScoreCard.tsx` | Benefits-Tab-Referenz auf `conditions` aendern |
-| `ClientJobDetail.tsx` | `hasBenefits`-Check um `job.benefits` erweitern |
+| Vermittlungsfee-Slider (Zeile 578-592) | Komplett entfernen |
+| Gebuehren-Vorschau (Zeile 594-604) | Komplett entfernen |
+| `fee_percentage` aus formData | Entfernen (nicht mehr im Update-Query) |
+| `fee_percentage` aus handleSave | Entfernen (Admin setzt das) |
+| Dringlichkeit (Zeile 382-398) | Umbenennen zu "Gewuenschter Einstellungszeitraum" mit client-freundlichen Optionen |
+| "Veroeffentlichen"-Button | Text zu "Zur Pruefung einreichen", Status `pending_approval` statt `published` |
+
