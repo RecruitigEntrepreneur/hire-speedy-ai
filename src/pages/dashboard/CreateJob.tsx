@@ -317,10 +317,11 @@ export default function CreateJob() {
 
   // Mode parameter handling (replaces sessionStorage prefill)
   const [modeHandled, setModeHandled] = useState(false);
+  const [awaitingFileSelection, setAwaitingFileSelection] = useState(false);
   useEffect(() => {
     const mode = searchParams.get('mode') as ImportMethod;
     if (mode === 'pdf') {
-      setModeHandled(true);
+      setAwaitingFileSelection(true);
       setTimeout(() => fileInputRef.current?.click(), 100);
     } else if (mode === 'text') {
       setModeHandled(true);
@@ -330,6 +331,25 @@ export default function CreateJob() {
       setShowUrlModal(true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Detect file picker cancel via window focus
+  useEffect(() => {
+    if (!awaitingFileSelection) return;
+    const handleFocus = () => {
+      // Delay to let onChange fire first if a file was selected
+      setTimeout(() => {
+        setAwaitingFileSelection(prev => {
+          if (prev) {
+            // User cancelled the file picker
+            return false;
+          }
+          return prev;
+        });
+      }, 300);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [awaitingFileSelection]);
 
   const startParsingSteps = (method: ImportMethod) => {
     const steps: ParsingStep[] = [];
@@ -649,6 +669,22 @@ export default function CreateJob() {
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto space-y-6 pb-28">
+        {/* Hidden file input - always in DOM */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setAwaitingFileSelection(false);
+              setModeHandled(true);
+              handleFileUpload(file);
+            }
+          }}
+          disabled={isImporting}
+        />
         {/* Header */}
         <div>
           <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
@@ -719,7 +755,7 @@ export default function CreateJob() {
         )}
 
         {/* Import Selection */}
-        {(flowState === 'import-selection' || flowState === 'importing') && !modeHandled && (
+        {(flowState === 'import-selection' || flowState === 'importing') && !modeHandled && !awaitingFileSelection && (
           <div className="space-y-6">
             <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-3")}>
               {/* PDF Upload */}
@@ -738,17 +774,6 @@ export default function CreateJob() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <CardContent className={cn("text-center relative", isMobile ? "py-4 flex items-center gap-4" : "py-8")}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
-                    }}
-                    disabled={isImporting}
-                  />
                   {isImporting && pdfParsing ? (
                     <Loader2 className={cn("text-primary animate-spin", isMobile ? "h-8 w-8" : "h-12 w-12 mx-auto")} />
                   ) : (
@@ -913,8 +938,19 @@ export default function CreateJob() {
           </div>
         )}
 
+        {/* Awaiting file selection hint */}
+        {awaitingFileSelection && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-6 text-center space-y-2">
+              <FileUp className="h-8 w-8 text-primary mx-auto" />
+              <p className="font-medium">Bitte wähle eine PDF-Datei aus...</p>
+              <p className="text-sm text-muted-foreground">Der Datei-Dialog sollte sich geöffnet haben</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Fallback after mode-handled error */}
-        {modeHandled && flowState === 'import-selection' && !isImporting && (
+        {modeHandled && !awaitingFileSelection && flowState === 'import-selection' && !isImporting && (
           <Card className="border-border/50">
             <CardContent className="py-6 text-center space-y-4">
               <p className="text-muted-foreground">Import abgebrochen oder fehlgeschlagen.</p>
