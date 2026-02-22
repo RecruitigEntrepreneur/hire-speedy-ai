@@ -81,12 +81,19 @@ interface JobEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
+  initialTab?: string;
 }
 
-export function JobEditDialog({ job, open, onOpenChange, onSave }: JobEditDialogProps) {
+export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: JobEditDialogProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('basics');
+  const [activeTab, setActiveTab] = useState(initialTab || 'basics');
+
+  useEffect(() => {
+    if (open && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   
   const [formData, setFormData] = useState({
