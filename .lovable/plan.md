@@ -1,92 +1,66 @@
 
-# ASCII-Art Haende: Echte Hand-Silhouetten aus Zeichen
 
-## Das Konzept
+# Sichtbare ASCII-Haende: SVG-Mask + Code-Zeichen
 
-Die Michelangelo "Creation of Adam" Haende werden als **grosse ASCII-Art** dargestellt -- jede Hand ist ein Raster aus Zeichen (`x`, `X`, `#`, `@`, `.`, `:`, `*`, `/`, `\`) die zusammen die Form einer echten Hand ergeben. Wie Pixel-Art, aber mit Text-Symbolen.
+## Das Problem (Screenshot-Beweis)
 
-**Aktuell**: Kaputte Rechtecke aus Box-Drawing-Zeichen, 7% Opacity, 11px -- unsichtbar.
-**Neu**: Grosse, erkennbare Hand-Silhouetten aus Symbolen, ~15% Opacity, gut lesbar.
+Die aktuellen "Haende" sind **unsichtbar**. Was man sieht: verstreute `x`, `X`, `#` Zeichen bei 8px Font und 14% Opacity. Das sieht aus wie zufaelliges Rauschen -- niemand erkennt darin Haende. Wir haben das jetzt 4x versucht und es funktioniert nicht, weil:
 
----
+- ASCII-Art aus Einzelzeichen braucht mindestens 20-30px Font-Size um als Form erkennbar zu sein
+- Bei der noetige Groesse wuerden die Haende die gesamte Hero-Section ueberdecken
+- Die Zeichen-Arrays sind zu klein (23 Zeilen x ~40 Zeichen) fuer erkennbare Silhouetten
 
-## Die ASCII-Haende
+## Die Loesung: Anderer Ansatz
 
-Jede Hand wird als mehrzeiliger String definiert -- ca. 25-30 Zeilen hoch, 35-45 Zeichen breit. Die Zeichen werden nach "Dichte" gewaehlt:
-- **Dunkle Bereiche** (Handflaeche): `X`, `#`, `@`, `%`
-- **Mittlere Bereiche** (Finger): `x`, `*`, `+`, `=`
-- **Helle Bereiche** (Raender): `.`, `:`, `-`, `~`
-- **Leere Bereiche**: Leerzeichen
+Statt zu versuchen, Zeichen so anzuordnen dass sie wie Haende aussehen, drehen wir es um:
 
-Die **linke Hand** zeigt mit ausgestrecktem Zeigefinger nach rechts (Gottes Hand).
-Die **rechte Hand** zeigt mit ausgestrecktem Zeigefinger nach links (Adams Hand).
-Zwischen den Fingerspitzen ist ein kleiner Gap -- der "Funke".
+**SVG-Pfade definieren die Hand-Form als Clip-Mask. Innerhalb dieser Maske werden Code-Zeichen angezeigt.**
 
-Beispiel-Ausschnitt (vereinfacht):
-
-```
-Linke Hand:                          Rechte Hand:
-                  . x x                  x x .
-              . x X X x .          . x X X x .
-          x x X X X X x          x X X X X x x
-        x X X X X # x              x # X X X X x
-      x X X # # x .                  . x # # X X x
-    x X X # x .                          . x # X X x
-    x X x .           * . *           . x X x
-    x X x           . * * * .           x X x
-    x X X x x x x x X X X X x x x x x X X x
-      x X X X X X X X # # X X X X X X X X x
-        . x x X X X X X X X X X X x x .
-              . x x x x x x x x .
-```
+Das Ergebnis: Zwei perfekte Hand-Silhouetten, gefuellt mit fallendem/scrollendem Code-Text. Sofort als Haende erkennbar. 100% ASCII/Code-Aesthetic.
 
 ---
+
+## Wie es aussieht
+
+Stell dir zwei grosse Hand-Silhouetten vor (Michelangelo "Creation of Adam"), die wie Fenster in eine Code-Matrix sind. Innerhalb der Hand-Formen sieht man Zeichen wie `{ } => fn() match() hire() 0 1 return`. Die Zeichen scrollen langsam nach unten (wie Matrix Rain, aber subtil). Die Haende selbst bewegen sich langsam aufeinander zu.
 
 ## Technische Umsetzung
 
 ### `src/components/landing/AsciiHandsArt.tsx` -- Komplett neu
 
-**Struktur:**
-- `LEFT_HAND`: Array von ~28 Strings, formt die linke Hand-Silhouette aus Symbolen
-- `RIGHT_HAND`: Array von ~28 Strings, formt die rechte Hand-Silhouette (gespiegelt)
-- Zwischen den Haenden: Ein schmaler Spark-Bereich mit flackernden Zeichen (`*`, `+`, `.`)
-
-**Styling:**
-- Font: `font-mono` (monospace ist Pflicht fuer ASCII-Art)
-- Font-Size: `text-xs sm:text-sm md:text-base lg:text-lg` -- deutlich groesser als aktuell
-- Farbe: `text-foreground` mit Opacity 0.12-0.18 -- subtil aber **sichtbar**
-- Die Haende sollen als Hintergrund-Element erkennbar sein, nicht dominant
-
-**Animationen:**
-- **Drift aufeinander zu**: Linke Hand `translateX(0 -> 10px)`, rechte Hand `translateX(0 -> -10px)`, 6s ease-in-out infinite -- sie bewegen sich staendig aufeinander zu und zurueck
-- **Atem-Puls**: Gesamte Opacity pulsiert leicht (0.12 -> 0.18 -> 0.12, 4s Zyklus)
-- **Spark zwischen Fingerspitzen**: Der Bereich zwischen den Fingerspitzen flackert mit wechselnden Zeichen (`*`, `+`, `x`, `.`) -- wie ein Datentransfer. Opacity springt gelegentlich kurz hoch (Flash-Effekt)
-
-**Position:**
-- `absolute`, zentriert, im oberen Bereich der Hero-Section (`top-4 md:top-12`)
-- `pointer-events-none`, `z-[5]`
-- Fade-Gradienten an den Raendern (oben/unten) fuer weichen Uebergang
+1. **Zwei SVG clipPath-Definitionen**: Linke und rechte Hand als SVG-Pfade (aus dem zuvor hochgeladenen SVG abgeleitet -- vereinfachte Konturen)
+2. **Code-Text-Spalten**: Innerhalb jeder Hand-Maske laufen vertikale Spalten von Code-Zeichen (`{`, `}`, `=>`, `fn`, `()`, `0`, `1`, `match`, `hire`) langsam nach unten
+3. **Animations**:
+   - Haende driften aufeinander zu: `translateX(0 -> 8px)` links, `translateX(0 -> -8px)` rechts, 6s Zyklus
+   - Code-Rain innerhalb der Haende: `translateY` Animation, 15s Zyklus, verschiedene Geschwindigkeiten pro Spalte
+   - Puls: Opacity 0.12 -> 0.22 -> 0.12, 4s Zyklus
+   - Spark zwischen Fingerspitzen: Glow-Punkt pulsiert
+4. **Styling**:
+   - `font-mono`, `text-foreground` mit Opacity 0.15-0.25
+   - Haende nehmen ca. 60-70% der Viewport-Breite ein
+   - Position: `absolute`, zentriert, oberer Bereich
+   - Fade-Gradienten an den Raendern
 
 ### `src/components/landing/HeroSection.tsx` -- Keine Aenderung
 
-Die Komponente importiert weiterhin `AsciiHandsArt` -- nur der Inhalt der Komponente aendert sich.
+Import bleibt gleich.
 
 ---
 
-## Warum dieser Ansatz funktioniert
+## Warum das diesmal funktioniert
 
-1. **Erkennbare Haende**: Durch die Pixel-Art-Technik sieht man sofort zwei Haende die sich entgegenstrecken
-2. **ASCII-Aesthetic**: Monospace-Font + Symbole = der gewuenschte "Code/Hacker"-Look
-3. **Kein Font-Rendering-Problem**: Normale ASCII-Zeichen (`x`, `#`, `.`) rendern auf jedem System gleich -- im Gegensatz zu Box-Drawing-Characters
-4. **Skalierbar**: Groessere Font-Size = groessere Haende, ohne Qualitaetsverlust
-5. **Die Bewegung erzaehlt die Story**: Die Haende bewegen sich aufeinander zu = "Recruiter und Unternehmen finden zusammen"
-
----
+| Bisheriger Ansatz | Neuer Ansatz |
+|---|---|
+| Zeichen muessen die Form bilden -- funktioniert nur bei riesiger Font-Size | SVG-Pfade bilden die Form -- pixel-perfekt auf jeder Groesse |
+| 23 Zeilen x 40 Zeichen = zu wenig Aufloesung | SVG skaliert beliebig |
+| Opacity 0.14 bei 8px = unsichtbar | Opacity 0.15-0.25 innerhalb klarer Konturen = erkennbar |
+| Kein Mensch erkennt die Haende | Sofort als Haende erkennbar dank SVG-Clip |
 
 ## Dateiaenderungen
 
 | Datei | Aenderung |
 |---|---|
-| `src/components/landing/AsciiHandsArt.tsx` | Komplett neu: Echte Hand-Silhouetten aus ASCII-Zeichen, Drift-Animation aufeinander zu, Atem-Puls, Spark-Gap |
+| `src/components/landing/AsciiHandsArt.tsx` | Komplett neu: SVG-Clip-Mask Haende gefuellt mit Code-Zeichen, Drift + Rain + Puls Animationen |
 
-Eine einzige Datei. Keine weiteren Aenderungen noetig.
+Eine einzige Datei.
+
