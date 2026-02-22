@@ -1,41 +1,47 @@
 
 
-# Anonymes Expose: Vom Client-Dashboard zum Recruiter-Bereich verschieben
+# Verbesserungsvorschlaege direkt umsetzbar machen
 
-## Was wird geaendert
+## Problem
 
-Das "Anonymes Expose generieren"-Feature gehoert in die Haende der Recruiter, nicht der Clients. Die Recruiter nutzen es, um Kandidaten anzusprechen -- der Client hat damit nichts zu tun.
+Aktuell oeffnen alle Verbesserungsvorschlaege im Quality Score den JobEditDialog immer auf dem ersten Tab ("Grunddaten"). Wenn der Nutzer "Gehaltsrahmen ergaenzen" klickt, muss er sich erst zum Tab "Konditionen" durchklicken. Das ist umstaendlich und die Vorschlaege wirken nicht wirklich actionable.
 
-## Konkrete Schritte
+## Loesung
 
-### 1. Client-Seite: Expose-Button entfernen
+Jeder Verbesserungsvorschlag oeffnet den Edit-Dialog direkt auf dem richtigen Tab:
 
-**`src/components/client/SellingPointsCard.tsx`**
-- Den "Anonymes Expose generieren"-Button und die `onGenerateExpose`-Prop entfernen
-- Die Karte zeigt weiterhin die USPs, aber ohne den Expose-CTA
+| Vorschlag | Ziel-Tab im Dialog |
+|---|---|
+| Gehaltsrahmen ergaenzen | `conditions` (Konditionen) |
+| Benefits beschreiben | `basics` (Grunddaten / Beschreibung) |
+| Skills definieren | `skills` |
+| Beschreibung erweitern | `basics` (Grunddaten) |
+
+## Technische Aenderungen
+
+### 1. JobEditDialog: Initialen Tab von aussen steuerbar machen
+
+**`src/components/jobs/JobEditDialog.tsx`**
+- Neue optionale Prop `initialTab?: string` hinzufuegen
+- Den `activeTab`-State mit `initialTab` initialisieren und bei Aenderung aktualisieren (useEffect)
+
+### 2. JobQualityScoreCard: Feld-spezifische Callbacks
+
+**`src/components/client/JobQualityScoreCard.tsx`**
+- Die `onEditIntake`-Prop aendern zu `onEditField: (tab: string) => void`
+- Jeder Suggestion bekommt seinen eigenen Tab-Key:
+  - `!hasSalary` -> `onEditField('conditions')`
+  - `!hasBenefits` -> `onEditField('basics')`
+  - `!hasSkills` -> `onEditField('skills')`
+  - `descLength < 200` -> `onEditField('basics')`
+- Der "Details ergaenzen"-Button unten ruft weiterhin den ersten fehlenden Tab auf
+- Die Checklisten-Items (Gehalt, Skills, etc.) werden ebenfalls klickbar -- fehlende Items oeffnen den passenden Tab
+
+### 3. ClientJobDetail: Verbindung herstellen
 
 **`src/pages/dashboard/ClientJobDetail.tsx`**
-- Den `AnonymousExposeDialog`-Import und die Verwendung entfernen
-- Den `showExposeDialog`-State und die zugehoerige Logik entfernen
-- Die `onGenerateExpose`-Prop aus der SellingPointsCard-Nutzung entfernen
-
-### 2. Recruiter-Seite: Expose-Button hinzufuegen
-
-**`src/components/recruiter/SellingPointsCard.tsx`**
-- Einen "Anonymes Expose generieren"-Button unten in die bestehende Recruiter-SellingPointsCard einbauen
-- Die `jobId`-Prop hinzufuegen fuer die Edge-Function
-
-**`src/pages/recruiter/JobDetail.tsx`**
-- Den `AnonymousExposeDialog` importieren und einbinden (wird aus `src/components/client/` verschoben nach `src/components/recruiter/` oder als Shared-Component)
-- State fuer den Dialog hinzufuegen (`showExposeDialog`)
-- Die `jobId` an die SellingPointsCard und den Dialog durchreichen
-
-### 3. AnonymousExposeDialog verschieben
-
-**`src/components/client/AnonymousExposeDialog.tsx`** wird verschoben/kopiert nach einer gemeinsamen Stelle oder direkt unter `src/components/recruiter/AnonymousExposeDialog.tsx`, da es jetzt primaer ein Recruiter-Feature ist.
-
-### Was bleibt unveraendert
-- Die Edge Function `generate-job-expose` bleibt wie sie ist
-- Die Client-SellingPointsCard zeigt weiterhin USPs (nur ohne Expose-Button)
-- Die Recruiter-SellingPointsCard behaelt ihr bestehendes Design
+- Neuen State `editDialogTab` hinzufuegen
+- `onEditField`-Handler: setzt `editDialogTab` und oeffnet den Dialog
+- Den `JobEditDialog` bekommt `initialTab={editDialogTab}`
+- Beim Schliessen des Dialogs wird `editDialogTab` zurueckgesetzt
 
