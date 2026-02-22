@@ -63,7 +63,7 @@ export const HeroSection = () => {
           <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">Bereits 500+ erfolgreiche Placements</p>
         </div>
 
-        {/* Dashboard Preview */}
+        {/* Dashboard Preview – extra spacing */}
         <DashboardPreview />
 
         {/* Scroll Indicator */}
