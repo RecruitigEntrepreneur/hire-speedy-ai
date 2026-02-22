@@ -1,47 +1,60 @@
 
 
-# Verbesserungsvorschlaege direkt umsetzbar machen
+# Job-Qualitaetsscore: Realistischere Berechnung
 
 ## Problem
 
-Aktuell oeffnen alle Verbesserungsvorschlaege im Quality Score den JobEditDialog immer auf dem ersten Tab ("Grunddaten"). Wenn der Nutzer "Gehaltsrahmen ergaenzen" klickt, muss er sich erst zum Tab "Konditionen" durchklicken. Das ist umstaendlich und die Vorschlaege wirken nicht wirklich actionable.
+Der Score zeigt 30/100 obwohl der Job gut ausgefuellt ist (Gehalt, 2.500+ Zeichen Beschreibung, Branche, Remote-Type). Das liegt an zwei Ursachen:
 
-## Loesung
+1. **`intake_completeness` ist NULL** und zaehlt 40% -- der groesste Brocken faellt komplett weg
+2. **Viele ausgefuellte Felder werden ignoriert**: Industry, Remote-Type, Employment-Type, Location fliessen nicht in den Score ein
+3. **Skills ist ein leeres Array** obwohl im Text Skills beschrieben sind
 
-Jeder Verbesserungsvorschlag oeffnet den Edit-Dialog direkt auf dem richtigen Tab:
+## Loesung: Scoring-Formel ueberarbeiten
 
-| Vorschlag | Ziel-Tab im Dialog |
-|---|---|
-| Gehaltsrahmen ergaenzen | `conditions` (Konditionen) |
-| Benefits beschreiben | `basics` (Grunddaten / Beschreibung) |
-| Skills definieren | `skills` |
-| Beschreibung erweitern | `basics` (Grunddaten) |
+Statt sich auf `intake_completeness` zu verlassen (das oft NULL ist), berechnen wir den Score aus den tatsaechlich vorhandenen Feldern.
 
-## Technische Aenderungen
+### Neue Gewichtung (100 Punkte gesamt)
 
-### 1. JobEditDialog: Initialen Tab von aussen steuerbar machen
+| Kriterium | Punkte | Logik |
+|-----------|--------|-------|
+| Gehalt angegeben | 20 | salary_min oder salary_max vorhanden |
+| Beschreibung | 15 | >200 Zeichen: 15, >50: 10, sonst 0 |
+| Anforderungen | 10 | requirements vorhanden und >50 Zeichen |
+| Skills definiert | 15 | skills Array hat Eintraege |
+| Benefits | 10 | hasBenefits = true |
+| Branche angegeben | 5 | industry nicht leer |
+| Remote-Type angegeben | 5 | remote_type nicht leer |
+| Beschaeftigungsart | 5 | employment_type nicht leer |
+| Standort angegeben | 5 | location nicht leer |
+| Intake-Daten | 10 | intake_completeness > 0 (Bonus, nicht Pflicht) |
 
-**`src/components/jobs/JobEditDialog.tsx`**
-- Neue optionale Prop `initialTab?: string` hinzufuegen
-- Den `activeTab`-State mit `initialTab` initialisieren und bei Aenderung aktualisieren (useEffect)
-
-### 2. JobQualityScoreCard: Feld-spezifische Callbacks
+### Aenderungen
 
 **`src/components/client/JobQualityScoreCard.tsx`**
-- Die `onEditIntake`-Prop aendern zu `onEditField: (tab: string) => void`
-- Jeder Suggestion bekommt seinen eigenen Tab-Key:
-  - `!hasSalary` -> `onEditField('conditions')`
-  - `!hasBenefits` -> `onEditField('basics')`
-  - `!hasSkills` -> `onEditField('skills')`
-  - `descLength < 200` -> `onEditField('basics')`
-- Der "Details ergaenzen"-Button unten ruft weiterhin den ersten fehlenden Tab auf
-- Die Checklisten-Items (Gehalt, Skills, etc.) werden ebenfalls klickbar -- fehlende Items oeffnen den passenden Tab
 
-### 3. ClientJobDetail: Verbindung herstellen
+- Interface erweitern: `industry`, `remote_type`, `employment_type`, `location` als optionale Props aufnehmen
+- `calculateQualityScore` komplett ueberarbeiten mit der neuen Gewichtung
+- Neue Checklist-Items hinzufuegen: Branche, Remote-Type, Standort
+- Suggestions ergaenzen fuer fehlende Felder
 
 **`src/pages/dashboard/ClientJobDetail.tsx`**
-- Neuen State `editDialogTab` hinzufuegen
-- `onEditField`-Handler: setzt `editDialogTab` und oeffnet den Dialog
-- Den `JobEditDialog` bekommt `initialTab={editDialogTab}`
-- Beim Schliessen des Dialogs wird `editDialogTab` zurueckgesetzt
+
+- Die neuen Felder (`industry`, `remote_type`, `employment_type`, `location`) an die `JobQualityScoreCard` durchreichen -- diese sind bereits im `job`-Objekt vorhanden
+
+### Erwartetes Ergebnis fuer den aktuellen Job
+
+Mit der neuen Formel:
+- Gehalt: +20
+- Beschreibung (2.500+ Zeichen): +15
+- Anforderungen (980 Zeichen): +10
+- Remote-Type (onsite): +5
+- Employment-Type (full-time): +5
+- Branche (Militar, Maschinenbau): +5
+- Skills (leer): +0
+- Benefits: +0 oder +10
+- Intake: +0
+- Location (leer): +0
+
+**Neuer Score: 60-70 statt 30** -- deutlich realistischer.
 
