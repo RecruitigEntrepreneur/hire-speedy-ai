@@ -20,14 +20,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CandidateStagePipeline } from './CandidateStagePipeline';
 import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
 import { CandidateTasksSection } from './CandidateTasksSection';
+import { CandidateActiveProcesses } from './CandidateActiveProcesses';
 import { Candidate } from './CandidateCard';
 
 interface CandidateHeroHeaderProps {
   candidate: Candidate;
-  readiness: { score: number; isReady: boolean } | null;
+  readiness: { score: number; isReady: boolean; missingFields?: string[] } | null;
   currentStatus: string;
   candidateId: string;
   activeTaskId?: string;
@@ -100,7 +106,7 @@ export function CandidateHeroHeader({
                       </>
                     )}
                   </div>
-                  {/* Inline Badges */}
+                  {/* Inline Badges with Tooltip */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {readiness?.isReady ? (
                       <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
@@ -108,10 +114,22 @@ export function CandidateHeroHeader({
                         Exposé-Ready
                       </Badge>
                     ) : readiness && (
-                      <Badge variant="outline" className="text-amber-600 border-amber-500/50 text-xs">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {readiness.score}%
-                      </Badge>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-amber-600 border-amber-500/50 text-xs cursor-help">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            {readiness.score}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[220px]">
+                          <p className="text-xs font-medium">Exposé-Vollständigkeit</p>
+                          {readiness.missingFields && readiness.missingFields.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Fehlend: {readiness.missingFields.join(', ')}
+                            </p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
@@ -183,6 +201,11 @@ export function CandidateHeroHeader({
               <span className="text-sm text-destructive font-medium">Kandidat abgesagt</span>
             </div>
           )}
+
+          {/* Active Processes */}
+          <div className="mt-4 pt-3 border-t">
+            <CandidateActiveProcesses candidateId={candidateId} />
+          </div>
 
           {/* Key Facts Grid */}
           <div className="mt-4 pt-3 border-t">
