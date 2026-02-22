@@ -110,6 +110,10 @@ export function CandidateMainContent({
 
       {/* Tab 1: Übersicht */}
       <TabsContent value="overview" className="space-y-6 mt-4">
+        <QuickInterviewSummary
+          candidateId={candidate.id}
+          onViewDetails={onStartInterview}
+        />
         <CandidateKeyFactsGrid candidate={candidate} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
@@ -154,10 +158,6 @@ export function CandidateMainContent({
 
       {/* Tab 2: Prozess */}
       <TabsContent value="process" className="space-y-6 mt-4">
-        <QuickInterviewSummary
-          candidateId={candidate.id}
-          onViewDetails={onStartInterview}
-        />
         <CandidateInterviewsCard
           candidateId={candidate.id}
           showAddForm={true}
