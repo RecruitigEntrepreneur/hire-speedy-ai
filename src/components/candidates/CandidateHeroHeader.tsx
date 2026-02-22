@@ -22,12 +22,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CandidateStagePipeline } from './CandidateStagePipeline';
 import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
+import { CandidateTasksSection } from './CandidateTasksSection';
 import { Candidate } from './CandidateCard';
 
 interface CandidateHeroHeaderProps {
   candidate: Candidate;
   readiness: { score: number; isReady: boolean } | null;
   currentStatus: string;
+  candidateId: string;
+  activeTaskId?: string;
   onEdit: () => void;
   onCvUpload: () => void;
 }
@@ -36,6 +39,8 @@ export function CandidateHeroHeader({
   candidate,
   readiness,
   currentStatus,
+  candidateId,
+  activeTaskId,
   onEdit,
   onCvUpload,
 }: CandidateHeroHeaderProps) {
@@ -182,6 +187,11 @@ export function CandidateHeroHeader({
           {/* Key Facts Grid */}
           <div className="mt-4 pt-3 border-t">
             <CandidateKeyFactsGrid candidate={candidate} />
+          </div>
+
+          {/* Tasks */}
+          <div className="mt-4 pt-3 border-t">
+            <CandidateTasksSection candidateId={candidateId} activeTaskId={activeTaskId} />
           </div>
         </div>
       </div>

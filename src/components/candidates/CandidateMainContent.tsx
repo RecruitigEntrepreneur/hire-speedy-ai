@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Clock, Building2, Tag, LayoutGrid, Briefcase, BarChart3, History } from 'lucide-react';
 
-import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
+
 import { CandidateSkillsCard } from './CandidateSkillsCard';
 import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
@@ -110,17 +110,16 @@ export function CandidateMainContent({
 
       {/* Tab 1: Übersicht */}
       <TabsContent value="overview" className="space-y-6 mt-4">
-        <QuickInterviewSummary
-          candidateId={candidate.id}
-          onViewDetails={onStartInterview}
-        />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
             <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
             <CandidateCvAiSummaryCard summary={candidate.cv_ai_summary || null} bullets={candidate.cv_ai_bullets} />
           </div>
           <div className="space-y-6">
-            <CandidateDocumentsManager candidateId={candidate.id} />
+            <QuickInterviewSummary
+              candidateId={candidate.id}
+              onViewDetails={onStartInterview}
+            />
             {tags.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
@@ -151,6 +150,7 @@ export function CandidateMainContent({
                 <CandidateExperienceTimeline candidateId={candidate.id} />
               </CardContent>
             </Card>
+            <CandidateDocumentsManager candidateId={candidate.id} />
           </div>
         </div>
       </TabsContent>
