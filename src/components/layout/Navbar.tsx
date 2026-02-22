@@ -27,12 +27,13 @@ import {
   LogOut,
   Settings,
   LayoutDashboard,
-  Briefcase,
   ChevronDown,
   Menu,
   ArrowRight,
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
+import { MatchuntLogo } from '@/components/ui/MatchuntLogo';
 import { scrollToSection } from '@/lib/scroll';
 import { cn } from '@/lib/utils';
 
@@ -141,19 +142,16 @@ export function Navbar() {
   return (
     <nav 
       className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-300 bg-white",
+        "sticky top-0 z-50 w-full transition-all duration-300 bg-background",
         isScrolled 
-          ? "shadow-sm border-b border-slate-200/60" 
+          ? "shadow-sm border-b border-border" 
           : "border-b border-transparent"
       )}
     >
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald">
-            <Briefcase className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">Matchunt</span>
+        <Link to="/" className="flex items-center group">
+          <MatchuntWordmark size="md" />
         </Link>
 
         {/* Desktop Navigation */}
@@ -170,8 +168,8 @@ export function Navbar() {
                     className={cn(
                       "flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors",
                       activeDropdown === item.label 
-                        ? "text-slate-900 bg-slate-100" 
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                        ? "text-foreground bg-accent" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
                     )}
                   >
                     {item.label}
@@ -184,18 +182,18 @@ export function Navbar() {
                   {/* Dropdown Menu */}
                   {activeDropdown === item.label && (
                     <div className="absolute top-full left-0 pt-2 z-50">
-                      <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-2 min-w-[280px] animate-fade-in">
+                      <div className="bg-card rounded-xl border border-border shadow-lg p-2 min-w-[280px] animate-fade-in">
                         <div className="grid gap-1">
                           {item.items.map((subItem) => (
                             <Link
                               key={subItem.name}
                               to={subItem.href.startsWith('/#') ? '#' : subItem.href}
                               onClick={(e) => handleNavClick(subItem.href, e)}
-                              className="flex flex-col gap-0.5 p-3 rounded-lg hover:bg-slate-50 transition-colors"
+                              className="flex flex-col gap-0.5 p-3 rounded-lg hover:bg-accent transition-colors"
                             >
-                              <p className="font-medium text-sm text-slate-900">{subItem.name}</p>
+                              <p className="font-medium text-sm text-foreground">{subItem.name}</p>
                               {subItem.description && (
-                                <p className="text-xs text-slate-500">{subItem.description}</p>
+                                <p className="text-xs text-muted-foreground">{subItem.description}</p>
                               )}
                             </Link>
                           ))}
@@ -208,7 +206,7 @@ export function Navbar() {
                 <Link
                   to={item.href?.startsWith('/#') ? '#' : item.href || '/'}
                   onClick={(e) => item.href && handleNavClick(item.href, e)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                 >
                   {item.label}
                 </Link>
@@ -221,8 +219,7 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              
-              <Button variant="ghost" asChild className="hidden md:flex text-slate-600 hover:text-slate-900">
+              <Button variant="ghost" asChild className="hidden md:flex text-muted-foreground hover:text-foreground">
                 <Link to={getDashboardLink()}>
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
@@ -233,16 +230,16 @@ export function Navbar() {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="rounded-full border-slate-200">
-                    <User className="h-4 w-4 text-slate-600" />
+                  <Button variant="outline" size="icon" className="rounded-full">
+                    <User className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200">
+                <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-slate-900">{user.email}</p>
-                    <p className="text-xs text-slate-500 capitalize">{role}</p>
+                    <p className="text-sm font-medium">{user.email}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{role}</p>
                   </div>
-                  <DropdownMenuSeparator className="bg-slate-100" />
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link to={getDashboardLink()} className="cursor-pointer">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -255,8 +252,8 @@ export function Navbar() {
                       Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-slate-100" />
-                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
                   </DropdownMenuItem>
@@ -267,10 +264,10 @@ export function Navbar() {
             <>
               {/* Desktop CTAs */}
               <div className="hidden lg:flex items-center gap-3">
-                <Button variant="ghost" asChild className="text-slate-600 hover:text-slate-900">
+                <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
                   <Link to="/auth">Sign in</Link>
                 </Button>
-                <Button asChild className="bg-emerald hover:bg-emerald-light text-white">
+                <Button asChild>
                   <Link to="/auth?mode=signup">
                     Start now
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -281,17 +278,15 @@ export function Navbar() {
               {/* Mobile Menu Button */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild className="lg:hidden">
-                  <Button variant="ghost" size="icon" className="text-slate-600">
+                  <Button variant="ghost" size="icon">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-full sm:w-[400px] p-0 bg-white">
-                  <SheetHeader className="p-6 border-b border-slate-100">
+                <SheetContent side="right" className="w-full sm:w-[400px] p-0">
+                  <SheetHeader className="p-6 border-b border-border">
                     <SheetTitle className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald">
-                        <Briefcase className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="text-slate-900">Matchunt</span>
+                      <MatchuntLogo size={32} />
+                      <span>Matchunt.ai</span>
                     </SheetTitle>
                   </SheetHeader>
                   
@@ -301,7 +296,7 @@ export function Navbar() {
                         {navigationItems.map((item) => (
                           item.items ? (
                             <AccordionItem key={item.label} value={item.label} className="border-none">
-                              <AccordionTrigger className="px-4 py-3 rounded-lg hover:bg-slate-50 hover:no-underline text-slate-900">
+                              <AccordionTrigger className="px-4 py-3 rounded-lg hover:bg-accent hover:no-underline">
                                 {item.label}
                               </AccordionTrigger>
                               <AccordionContent className="pb-0">
@@ -311,9 +306,9 @@ export function Navbar() {
                                       key={subItem.name}
                                       to={subItem.href.startsWith('/#') ? '#' : subItem.href}
                                       onClick={(e) => handleNavClick(subItem.href, e)}
-                                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors"
+                                      className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-colors"
                                     >
-                                      <span className="text-sm text-slate-700">{subItem.name}</span>
+                                      <span className="text-sm text-muted-foreground">{subItem.name}</span>
                                     </Link>
                                   ))}
                                 </div>
@@ -324,7 +319,7 @@ export function Navbar() {
                               key={item.label}
                               to={item.href?.startsWith('/#') ? '#' : item.href || '/'}
                               onClick={(e) => item.href && handleNavClick(item.href, e)}
-                              className="flex items-center px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors font-medium text-slate-900"
+                              className="flex items-center px-4 py-3 rounded-lg hover:bg-accent transition-colors font-medium"
                             >
                               {item.label}
                             </Link>
@@ -334,13 +329,13 @@ export function Navbar() {
                     </div>
 
                     {/* Mobile CTAs */}
-                    <div className="p-4 border-t border-slate-100 space-y-3">
-                      <Button variant="outline" className="w-full border-slate-200 text-slate-700" asChild>
+                    <div className="p-4 border-t border-border space-y-3">
+                      <Button variant="outline" className="w-full" asChild>
                         <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
                           Sign in
                         </Link>
                       </Button>
-                      <Button className="w-full bg-emerald hover:bg-emerald-light text-white" asChild>
+                      <Button className="w-full" asChild>
                         <Link to="/auth?mode=signup" onClick={() => setMobileMenuOpen(false)}>
                           Start now
                           <ArrowRight className="ml-2 h-4 w-4" />

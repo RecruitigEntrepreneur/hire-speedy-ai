@@ -30,6 +30,8 @@ import {
   Keyboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,11 +141,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           {/* Logo */}
-          <Link to={getDashboardHome()} className="flex items-center space-x-2 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Briefcase className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">Matchunt</span>
+          <Link to={getDashboardHome()} className="flex items-center group">
+            <MatchuntWordmark size="md" />
           </Link>
 
           {/* Search */}
@@ -208,7 +207,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               })}
             </nav>
 
-            <div className="border-t border-border pt-4">
+            <div className="border-t border-border pt-4 space-y-1">
               <Link
                 to={settingsHref}
                 className={cn(
@@ -221,6 +220,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Settings className="h-4 w-4" />
                 Einstellungen
               </Link>
+              <div className="flex items-center gap-3 px-3 py-1">
+                <ThemeToggle />
+                <span className="text-xs text-muted-foreground">Theme</span>
+              </div>
             </div>
           </div>
         </aside>
