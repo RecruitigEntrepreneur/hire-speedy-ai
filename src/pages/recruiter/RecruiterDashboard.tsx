@@ -71,8 +71,51 @@ export default function RecruiterDashboard() {
       fetchRecentSubmissions();
       fetchCandidateMapForAlerts();
       fetchRevealedJobs();
+      ensureInterviewAlerts();
     }
   }, [user, alerts]);
+
+  // Backfill: Create missing alerts for interview_requested submissions
+  const ensureInterviewAlerts = async () => {
+    if (!user) return;
+    try {
+      // 1. Find all interview_requested submissions for this recruiter
+      const { data: irSubmissions } = await supabase
+        .from('submissions')
+        .select('id, candidate_id, job_id, candidates(full_name), jobs(title)')
+        .eq('recruiter_id', user.id)
+        .eq('stage', 'interview_requested');
+
+      if (!irSubmissions || irSubmissions.length === 0) return;
+
+      // 2. Find existing opt_in_pending alerts for this recruiter
+      const { data: existingAlerts } = await supabase
+        .from('influence_alerts')
+        .select('submission_id')
+        .eq('recruiter_id', user.id)
+        .eq('alert_type', 'opt_in_pending');
+
+      const existingSubmissionIds = new Set((existingAlerts || []).map(a => a.submission_id));
+
+      // 3. Create missing alerts
+      const missing = irSubmissions.filter(s => !existingSubmissionIds.has(s.id));
+      for (const s of missing) {
+        const candidateName = (s as any).candidates?.full_name || 'Kandidat';
+        const jobTitle = (s as any).jobs?.title || 'Position';
+        await supabase.from('influence_alerts').insert({
+          submission_id: s.id,
+          recruiter_id: user.id,
+          alert_type: 'opt_in_pending',
+          priority: 'critical' as any,
+          title: `Interview-Anfrage: ${candidateName} – ${jobTitle}`,
+          message: `Ein Kunde möchte ${candidateName} für "${jobTitle}" interviewen. Opt-In einholen.`,
+          recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
+        });
+      }
+    } catch (err) {
+      console.error('Error ensuring interview alerts:', err);
+    }
+  };
 
   const fetchRevealedJobs = async () => {
     if (!user) return;
