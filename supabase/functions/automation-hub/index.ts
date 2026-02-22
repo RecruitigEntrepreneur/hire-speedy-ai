@@ -13,6 +13,97 @@ interface AutomationEvent {
   old_record?: Record<string, unknown>;
 }
 
+// Stage hierarchy for auto-pipeline
+const STAGE_PRIORITY: Record<string, number> = {
+  new: 0,
+  contacted: 1,
+  interview: 2,
+  offer: 3,
+  placed: 4,
+};
+
+// deno-lint-ignore no-explicit-any
+async function syncCandidateStatus(supabase: any, candidateId: string) {
+  // Get all submissions for this candidate
+  const { data: submissions, error } = await supabase
+    .from("submissions")
+    .select("status, candidate_id")
+    .eq("candidate_id", candidateId);
+
+  if (error) {
+    console.error("syncCandidateStatus: fetch submissions error:", error);
+    return;
+  }
+
+  if (!submissions || submissions.length === 0) return;
+
+  // Check if there are any active (non-terminal) submissions
+  const terminalStatuses = ["rejected", "withdrawn", "expired", "client_rejected"];
+  const activeSubmissions = submissions.filter(
+    (s: { status: string }) => !terminalStatuses.includes(s.status)
+  );
+
+  // If all submissions are rejected/withdrawn, set candidate to rejected
+  if (activeSubmissions.length === 0) {
+    await supabase
+      .from("candidates")
+      .update({ candidate_status: "rejected" })
+      .eq("id", candidateId);
+    return;
+  }
+
+  // Map submission statuses to candidate stages
+  let highestStage = "contacted"; // Any submission means at least contacted
+  let highestPriority = STAGE_PRIORITY["contacted"];
+
+  for (const sub of activeSubmissions) {
+    let mappedStage = "contacted";
+    const s = sub.status as string;
+
+    if (s === "hired") {
+      mappedStage = "placed";
+    } else if (s === "offer") {
+      mappedStage = "offer";
+    } else if (
+      s === "interview" ||
+      s === "interview_1" ||
+      s === "interview_2" ||
+      s === "interview_scheduled"
+    ) {
+      mappedStage = "interview";
+    } else {
+      // submitted, accepted, in_review, etc. -> contacted
+      mappedStage = "contacted";
+    }
+
+    const priority = STAGE_PRIORITY[mappedStage] ?? 0;
+    if (priority > highestPriority) {
+      highestPriority = priority;
+      highestStage = mappedStage;
+    }
+  }
+
+  // Only update if new stage is higher than current
+  const { data: candidate } = await supabase
+    .from("candidates")
+    .select("candidate_status")
+    .eq("id", candidateId)
+    .single();
+
+  if (candidate) {
+    const currentPriority = STAGE_PRIORITY[candidate.candidate_status] ?? 0;
+    if (highestPriority > currentPriority) {
+      await supabase
+        .from("candidates")
+        .update({ candidate_status: highestStage })
+        .eq("id", candidateId);
+      console.log(
+        `Auto-pipeline: candidate ${candidateId} -> ${highestStage}`
+      );
+    }
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,6 +129,9 @@ const handler = async (req: Request): Promise<Response> => {
         break;
       case "interviews":
         await handleInterviewEvent(supabase, event);
+        break;
+      case "offers":
+        await handleOfferEvent(supabase, event);
         break;
       default:
         console.log("Unhandled table:", event.table);
@@ -78,12 +172,17 @@ async function handleSubmissionEvent(supabase: any, event: AutomationEvent) {
         related_id: record.id as string,
       });
     }
+
+    // Auto-pipeline: submission created -> at least "contacted"
+    if (record.candidate_id) {
+      await syncCandidateStatus(supabase, record.candidate_id as string);
+    }
   }
 
   if (event.type === "UPDATE" && oldRecord?.status !== record.status) {
     const { data: submission } = await supabase
       .from("submissions")
-      .select("recruiter_id")
+      .select("recruiter_id, candidate_id")
       .eq("id", record.id)
       .single();
 
@@ -96,6 +195,9 @@ async function handleSubmissionEvent(supabase: any, event: AutomationEvent) {
         related_type: "submission",
         related_id: record.id as string,
       });
+
+      // Auto-pipeline: sync on any status change
+      await syncCandidateStatus(supabase, submission.candidate_id as string);
     }
   }
 }
@@ -112,7 +214,7 @@ async function handlePlacementEvent(supabase: any, event: AutomationEvent) {
     if (placement) {
       const { data: submission } = await supabase
         .from("submissions")
-        .select("recruiter_id, job_id")
+        .select("recruiter_id, job_id, candidate_id")
         .eq("id", placement.submission_id)
         .single();
 
@@ -125,6 +227,9 @@ async function handlePlacementEvent(supabase: any, event: AutomationEvent) {
           related_type: "placement",
           related_id: event.record.id as string,
         });
+
+        // Auto-pipeline: placement -> "placed"
+        await syncCandidateStatus(supabase, submission.candidate_id as string);
       }
     }
   }
@@ -146,7 +251,7 @@ async function handlePayoutEvent(supabase: any, event: AutomationEvent) {
 
 // deno-lint-ignore no-explicit-any
 async function handleInterviewEvent(supabase: any, event: AutomationEvent) {
-  if (event.type === "INSERT" && event.record.scheduled_at) {
+  if (event.type === "INSERT") {
     const { data: interview } = await supabase
       .from("interviews")
       .select("submission_id")
@@ -161,50 +266,52 @@ async function handleInterviewEvent(supabase: any, event: AutomationEvent) {
         .single();
 
       if (submission) {
-        // Get candidate and job details for better notification
-        const { data: candidate } = await supabase
-          .from("candidates")
-          .select("full_name")
-          .eq("id", submission.candidate_id)
-          .single();
+        // Auto-pipeline: interview -> "interview"
+        await syncCandidateStatus(supabase, submission.candidate_id as string);
 
-        const { data: job } = await supabase
-          .from("jobs")
-          .select("title, client_id")
-          .eq("id", submission.job_id)
-          .single();
+        if (event.record.scheduled_at) {
+          const { data: candidate } = await supabase
+            .from("candidates")
+            .select("full_name")
+            .eq("id", submission.candidate_id)
+            .single();
 
-        const scheduledAt = new Date(event.record.scheduled_at as string);
-        const formattedDate = scheduledAt.toLocaleDateString('de-DE', { 
-          weekday: 'long', 
-          day: 'numeric', 
-          month: 'long' 
-        });
-        const formattedTime = scheduledAt.toLocaleTimeString('de-DE', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        });
+          const { data: job } = await supabase
+            .from("jobs")
+            .select("title, client_id")
+            .eq("id", submission.job_id)
+            .single();
 
-        // Notify recruiter
-        await createNotification(supabase, {
-          user_id: submission.recruiter_id,
-          type: "interview_scheduled",
-          title: "Interview geplant",
-          message: `Interview mit ${candidate?.full_name || 'Kandidat'} am ${formattedDate} um ${formattedTime}`,
-          related_type: "interview",
-          related_id: event.record.id as string,
-        });
+          const scheduledAt = new Date(event.record.scheduled_at as string);
+          const formattedDate = scheduledAt.toLocaleDateString("de-DE", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          });
+          const formattedTime = scheduledAt.toLocaleTimeString("de-DE", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
 
-        // Notify client
-        if (job?.client_id) {
           await createNotification(supabase, {
-            user_id: job.client_id,
+            user_id: submission.recruiter_id,
             type: "interview_scheduled",
             title: "Interview geplant",
-            message: `Interview für ${job.title} mit ${candidate?.full_name || 'Kandidat'} am ${formattedDate} um ${formattedTime}`,
+            message: `Interview mit ${candidate?.full_name || "Kandidat"} am ${formattedDate} um ${formattedTime}`,
             related_type: "interview",
             related_id: event.record.id as string,
           });
+
+          if (job?.client_id) {
+            await createNotification(supabase, {
+              user_id: job.client_id,
+              type: "interview_scheduled",
+              title: "Interview geplant",
+              message: `Interview für ${job.title} mit ${candidate?.full_name || "Kandidat"} am ${formattedDate} um ${formattedTime}`,
+              related_type: "interview",
+              related_id: event.record.id as string,
+            });
+          }
         }
       }
     }
@@ -212,14 +319,41 @@ async function handleInterviewEvent(supabase: any, event: AutomationEvent) {
 }
 
 // deno-lint-ignore no-explicit-any
-async function createNotification(supabase: any, notification: {
-  user_id: string;
-  type: string;
-  title: string;
-  message: string;
-  related_type?: string;
-  related_id?: string;
-}) {
+async function handleOfferEvent(supabase: any, event: AutomationEvent) {
+  if (event.type === "INSERT") {
+    const { data: offer } = await supabase
+      .from("offers")
+      .select("submission_id")
+      .eq("id", event.record.id)
+      .single();
+
+    if (offer) {
+      const { data: submission } = await supabase
+        .from("submissions")
+        .select("candidate_id")
+        .eq("id", offer.submission_id)
+        .single();
+
+      if (submission) {
+        // Auto-pipeline: offer -> "offer"
+        await syncCandidateStatus(supabase, submission.candidate_id as string);
+      }
+    }
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+async function createNotification(
+  supabase: any,
+  notification: {
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    related_type?: string;
+    related_id?: string;
+  }
+) {
   const { error } = await supabase.from("notifications").insert(notification);
   if (error) console.error("Notification create error:", error);
 }
