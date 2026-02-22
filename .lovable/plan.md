@@ -1,72 +1,64 @@
 
 
-# Expose-kritische Aufgaben in der Hero-Sektion
+# Expose-Readiness umfassend erweitern
 
-## Kernidee
+## Problem
 
-Statt jedes einzelne Feld als separate Aufgabe anzuzeigen, werden die fehlenden Daten auf **zwei Haupt-Aktionen** reduziert, weil CV-Upload und Interview den Grossteil der Expose-Daten automatisch befuellen:
+Aktuell prueft `useExposeReadiness` nur 7 Felder. Ein CV-Upload allein genuegt fuer 86% (6/7) und markiert den Kandidaten faelschlicherweise als "Expose-Ready" -- obwohl Name, Telefon, E-Mail, Gehaltsvorstellung, Jobtitel und Interview-Daten fehlen koennen.
 
-1. **"CV hochladen und analysieren lassen"** -- fehlt wenn `cv_ai_summary` oder `cv_ai_bullets` leer sind. Befuellt automatisch: Skills, Erfahrung, Standort, CV Summary, CV Highlights.
-2. **"Interview durchfuehren"** -- fehlt wenn keine `candidate_interview_notes` vorhanden sind. Befuellt automatisch: Gehaltsvorstellung, Wechselmotivation, Verfuegbarkeit, Empfehlung.
+## Neuer Feldkatalog
 
-Falls **nach** CV + Interview trotzdem noch einzelne Felder fehlen (z.B. Gehalt wurde im Interview nicht besprochen), erscheinen diese als zusaetzliche Einzel-Aufgaben.
+Der Readiness-Check wird auf **13 Pflichtfelder** erweitert, gruppiert nach Quelle:
 
-## Layout
+### Stammdaten (manuell/Import)
+| Feld | Check | Aufgabe wenn fehlt |
+|---|---|---|
+| Name (`full_name`) | nicht leer | "Name eintragen" -> Bearbeiten |
+| E-Mail (`email`) | nicht leer | "E-Mail eintragen" -> Bearbeiten |
+| Telefon (`phone`) | nicht leer | "Telefonnummer eintragen" -> Bearbeiten |
+| Jobtitel (`job_title`) | nicht leer | "Jobtitel eintragen" -> Bearbeiten |
+| Standort (`city`) | nicht leer | "Standort eintragen" -> Bearbeiten |
 
-```text
-+---------------------------------------------------+
-| Aufgaben                              2 offen      |
-| ! Opt-In bestaetigen (DB-Task, falls vorhanden)    |
-| i CV hochladen und analysieren lassen              |
-|   [CV hochladen]                                   |
-| i Interview durchfuehren                           |
-|   [Interview starten]                              |
-+---------------------------------------------------+
-```
+### CV-basiert (automatisch via CV-Upload)
+| Feld | Check | Aufgabe wenn fehlt |
+|---|---|---|
+| Skills (`skills`) | mind. 3 | Zusammengefasst als "CV hochladen" |
+| Erfahrung (`experience_years`) | > 0 | Zusammengefasst als "CV hochladen" |
+| CV Summary (`cv_ai_summary`) | nicht leer | Zusammengefasst als "CV hochladen" |
+| CV Highlights (`cv_ai_bullets`) | mind. 1 | Zusammengefasst als "CV hochladen" |
 
-Nach CV + Interview, falls z.B. Gehalt immer noch fehlt:
+### Interview-basiert (automatisch via Interview)
+| Feld | Check | Aufgabe wenn fehlt |
+|---|---|---|
+| Gehalt (`expected_salary`) | > 0 | Zusammengefasst als "Interview durchfuehren" |
+| Verfuegbarkeit (`availability_date` oder `notice_period`) | eins davon gesetzt | Zusammengefasst als "Interview durchfuehren" |
+| Wechselmotivation (`change_motivation`) | nicht leer | Zusammengefasst als "Interview durchfuehren" |
+| Empfehlung (`would_recommend`) | nicht null | Zusammengefasst als "Interview durchfuehren" |
 
-```text
-+---------------------------------------------------+
-| Aufgaben                              1 offen      |
-| i Gehaltsvorstellung erfragen                      |
-|   [Anrufen] [Bearbeiten]                           |
-+---------------------------------------------------+
-```
+### Neuer Schwellenwert
 
-Wenn alles vollstaendig ist, erscheinen keine Expose-Aufgaben.
+- 13 Felder total, 85%-Schwelle = mind. 12 von 13 muessen erfuellt sein
+- Damit ist ein Kandidat erst "Expose-Ready" wenn Stammdaten, CV UND Interview komplett sind
 
-## Logik
+## Auswirkung auf Tasks-Sektion
 
-1. Pruefe ob `cv_ai_summary` ODER `cv_ai_bullets` fehlen --> eine Aufgabe "CV hochladen"
-2. Pruefe ob `candidate_interview_notes` fuer diesen Kandidaten existieren --> falls nein, eine Aufgabe "Interview durchfuehren"
-3. Falls CV und Interview vorhanden, aber `expected_salary`, `availability_date`/`notice_period` oder `city` trotzdem leer --> Einzel-Aufgaben fuer die verbleibenden Luecken
-4. Die Expose-Aufgaben erscheinen **nach** den bestehenden DB-Tasks (Influence Alerts) in der gleichen Liste
-5. Blaues Info-Icon statt amber/rot, um sie optisch von kritischen DB-Tasks zu unterscheiden
+Die `CandidateTasksSection` gruppiert die fehlenden Felder weiterhin smart:
+
+1. **Stammdaten-Luecken** -> Einzel-Aufgaben mit "Bearbeiten"-Button
+2. **CV fehlt** -> eine Aufgabe "CV hochladen und analysieren lassen"
+3. **Interview fehlt** -> eine Aufgabe "Interview durchfuehren"
+4. **Residuale Luecken** (CV/Interview da, aber Feld trotzdem leer) -> Einzel-Aufgaben
+
+Die neuen Felder `change_motivation` und `would_recommend` werden aus `candidate_interview_notes` geladen und dem Readiness-Check uebergeben.
 
 ## Technische Umsetzung
 
-### `CandidateTasksSection.tsx`
-- Neue Props: `candidate` (Kandidaten-Objekt mit den Expose-relevanten Feldern), `onEdit` (Profil bearbeiten), `onCvUpload` (CV-Dialog oeffnen), `onStartInterview` (Interview-Slider oeffnen)
-- Nutzt `getExposeReadiness(candidate)` um fehlende Felder zu ermitteln
-- Laedt zusaetzlich `candidate_interview_notes` (count-Check, ob mindestens eine Zeile existiert)
-- Generiert Pseudo-Tasks: zuerst die zwei grossen (CV / Interview), dann Einzel-Reste
-- CV Summary + CV Highlights werden zu einer Aufgabe zusammengefasst
-- Skills + Erfahrung werden der CV-Aufgabe zugeordnet (nicht separat angezeigt, wenn CV fehlt)
-- Gehalt + Verfuegbarkeit werden der Interview-Aufgabe zugeordnet (nicht separat, wenn Interview fehlt)
-
-### `CandidateHeroHeader.tsx`
-- Uebergibt `candidate`, `onEdit`, `onCvUpload` an `CandidateTasksSection`
-- Neues Prop `onStartInterview` wird durchgereicht
-
-### `RecruiterCandidateDetail.tsx`
-- Uebergibt `onStartInterview` (oeffnet Interview-Slider) an `CandidateHeroHeader`
-
 | Datei | Aenderung |
 |---|---|
-| `src/components/candidates/CandidateTasksSection.tsx` | Neue Props, Expose-Readiness-Check, Interview-Notes-Check, Pseudo-Tasks |
-| `src/components/candidates/CandidateHeroHeader.tsx` | Neue Props durchreichen an TasksSection |
-| `src/pages/recruiter/RecruiterCandidateDetail.tsx` | `onStartInterview` Callback uebergeben |
+| `src/hooks/useExposeReadiness.ts` | `CandidateData` um 6 Felder erweitern (`full_name`, `email`, `phone`, `job_title`, `change_motivation`, `would_recommend`). 6 neue Checks in beiden Funktionen. |
+| `src/components/candidates/CandidateTasksSection.tsx` | `CV_FIELDS` und `INTERVIEW_FIELDS` um neue Felder erweitern. Neues Array `PROFILE_FIELDS` fuer Stammdaten. `candidate`-Interface um neue Felder erweitern. `fieldTaskMap` um 6 neue Eintraege. |
+| `src/pages/recruiter/RecruiterCandidateDetail.tsx` | Interview-Notes laden (`change_motivation`, `would_recommend`) und ans Readiness-Objekt uebergeben. |
+| `src/components/candidates/CandidateDetailSheet.tsx` | Gleiche Interview-Notes-Erweiterung fuer die Sheet-Ansicht. |
 
 Keine DB-Aenderungen, keine neuen Dependencies.
 
