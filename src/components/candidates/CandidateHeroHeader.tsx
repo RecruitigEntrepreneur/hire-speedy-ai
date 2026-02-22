@@ -12,7 +12,6 @@ import {
   MapPin,
   CheckCircle,
   TrendingUp,
-  Clock,
   MoreHorizontal,
 } from 'lucide-react';
 import {
@@ -28,24 +27,16 @@ interface CandidateHeroHeaderProps {
   candidate: Candidate;
   readiness: { score: number; isReady: boolean } | null;
   currentStatus: string;
-  onStatusChange: (status: string) => void;
   onEdit: () => void;
   onCvUpload: () => void;
-  statusMutationPending: boolean;
-  availabilityText: string | null;
-  salaryText: string | null;
 }
 
 export function CandidateHeroHeader({
   candidate,
   readiness,
   currentStatus,
-  onStatusChange,
   onEdit,
   onCvUpload,
-  statusMutationPending,
-  availabilityText,
-  salaryText,
 }: CandidateHeroHeaderProps) {
   const initials = candidate.full_name.split(' ').map((n) => n[0]).join('');
 
@@ -116,17 +107,6 @@ export function CandidateHeroHeader({
                         {readiness.score}%
                       </Badge>
                     )}
-                    {availabilityText && (
-                      <Badge variant="outline" className="text-xs">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {availabilityText}
-                      </Badge>
-                    )}
-                    {salaryText && (
-                      <Badge variant="outline" className="text-xs text-green-600 border-green-500/50">
-                        {salaryText}
-                      </Badge>
-                    )}
                   </div>
                 </div>
                 
@@ -182,29 +162,19 @@ export function CandidateHeroHeader({
             </div>
           </div>
           
-          {/* Pipeline - compact */}
+          {/* Pipeline - read-only */}
           {currentStatus !== 'rejected' && (
             <div className="mt-4 pt-3 border-t">
               <CandidateStagePipeline
                 currentStage={currentStatus}
-                onStageChange={onStatusChange}
-                disabled={statusMutationPending}
               />
             </div>
           )}
 
           {/* Rejected Alert */}
           {currentStatus === 'rejected' && (
-            <div className="mt-4 pt-3 border-t flex items-center justify-between">
+            <div className="mt-4 pt-3 border-t">
               <span className="text-sm text-destructive font-medium">Kandidat abgesagt</span>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => onStatusChange('new')}
-                disabled={statusMutationPending}
-              >
-                Reaktivieren
-              </Button>
             </div>
           )}
         </div>

@@ -11,18 +11,13 @@ const CANDIDATE_STAGES = [
 
 interface CandidateStagePipelineProps {
   currentStage: string;
-  onStageChange?: (stage: string) => void;
-  disabled?: boolean;
 }
 
 export function CandidateStagePipeline({ 
   currentStage, 
-  onStageChange,
-  disabled = false 
 }: CandidateStagePipelineProps) {
   const currentIndex = CANDIDATE_STAGES.findIndex(s => s.key === currentStage);
 
-  // Don't show pipeline for rejected status
   if (currentStage === 'rejected') {
     return null;
   }
@@ -36,22 +31,17 @@ export function CandidateStagePipeline({
 
         return (
           <div key={stage.key} className="flex items-center flex-1">
-            {/* Stage Button */}
-            <button
-              onClick={() => !disabled && onStageChange?.(stage.key)}
-              disabled={disabled}
+            <div
               className={cn(
                 "relative flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 min-w-0",
                 isPast && "bg-primary text-primary-foreground",
                 isCurrent && "bg-primary/10 text-primary ring-2 ring-primary ring-offset-1",
                 !isPast && !isCurrent && "bg-muted text-muted-foreground",
-                !disabled && "hover:scale-105 cursor-pointer"
               )}
-              aria-label={stage.label}
             >
               {isPast && <Check className="h-3 w-3 shrink-0" />}
               <span className="truncate">{stage.label}</span>
-            </button>
+            </div>
 
             {/* Connector Line */}
             {!isLast && (
