@@ -105,7 +105,7 @@ export function CandidateInterviewsCard({ candidateId, maxItems, showAddForm = f
         .from('submissions')
         .select('id, jobs ( id, title, companies ( name ) )')
         .eq('candidate_id', candidateId)
-        .not('status', 'in', '("rejected","withdrawn","hired","client_rejected")');
+        .not('status', 'in', '(rejected,withdrawn,hired,client_rejected)');
       if (error) throw error;
       return data || [];
     },
