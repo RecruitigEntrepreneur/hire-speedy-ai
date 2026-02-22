@@ -1,4 +1,14 @@
+import { useEffect } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Clock, Building2, Tag, LayoutGrid, Briefcase, BarChart3, History } from 'lucide-react';
+
 import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
+import { CandidateSkillsCard } from './CandidateSkillsCard';
+import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
+import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { QuickInterviewSummary } from './QuickInterviewSummary';
 import { CandidateInterviewsCard } from './CandidateInterviewsCard';
 import { CandidateTasksSection } from './CandidateTasksSection';
@@ -8,9 +18,7 @@ import { CandidateJobsOverview } from './CandidateJobsOverview';
 import { CandidateExperienceTimeline } from './CandidateExperienceTimeline';
 import { SimilarCandidates } from './SimilarCandidates';
 import { CandidateActivityTimeline } from './CandidateActivityTimeline';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, Clock, Building2, BarChart3, Briefcase, History } from 'lucide-react';
+import { CandidateTag } from '@/hooks/useCandidateTags';
 
 interface CandidateMainContentProps {
   candidate: {
@@ -40,6 +48,9 @@ interface CandidateMainContentProps {
     cv_ai_summary?: string | null;
     cv_ai_bullets?: unknown | null;
   };
+  tags: CandidateTag[];
+  activeTab: string;
+  onTabChange: (tab: string) => void;
   activeTaskId?: string;
   activities: any[];
   activitiesLoading: boolean;
@@ -47,34 +58,91 @@ interface CandidateMainContentProps {
   onStartInterview: () => void;
 }
 
-function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
-  return (
-    <div className="flex items-center gap-2 pb-1">
-      <Icon className="h-4 w-4 text-primary" />
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
-    </div>
-  );
-}
+const TAB_ICONS: Record<string, React.ElementType> = {
+  overview: LayoutGrid,
+  process: Briefcase,
+  matching: BarChart3,
+  history: History,
+};
 
 export function CandidateMainContent({
   candidate,
+  tags,
+  activeTab,
+  onTabChange,
   activeTaskId,
   activities,
   activitiesLoading,
   onAddActivity,
   onStartInterview,
 }: CandidateMainContentProps) {
-  return (
-    <div className="flex-1 min-w-0 space-y-8">
-      {/* Section 1: Übersicht */}
-      <section className="space-y-4">
-        <SectionHeader icon={BarChart3} title="Übersicht" />
-        <CandidateKeyFactsGrid candidate={candidate} />
-      </section>
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      const map: Record<string, string> = { '1': 'overview', '2': 'process', '3': 'matching', '4': 'history' };
+      if (map[e.key]) onTabChange(map[e.key]);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onTabChange]);
 
-      {/* Section 2: Interview & Prozess */}
-      <section className="space-y-4">
-        <SectionHeader icon={Briefcase} title="Interview & Prozess" />
+  return (
+    <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+      <TabsList className="w-full justify-start h-11 bg-muted/50 rounded-lg p-1">
+        <TabsTrigger value="overview" className="gap-1.5 text-sm">
+          <LayoutGrid className="h-3.5 w-3.5" />
+          Übersicht
+        </TabsTrigger>
+        <TabsTrigger value="process" className="gap-1.5 text-sm">
+          <Briefcase className="h-3.5 w-3.5" />
+          Prozess
+        </TabsTrigger>
+        <TabsTrigger value="matching" className="gap-1.5 text-sm">
+          <BarChart3 className="h-3.5 w-3.5" />
+          Matching
+        </TabsTrigger>
+        <TabsTrigger value="history" className="gap-1.5 text-sm">
+          <History className="h-3.5 w-3.5" />
+          Historie
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Tab 1: Übersicht */}
+      <TabsContent value="overview" className="space-y-6 mt-4">
+        <CandidateKeyFactsGrid candidate={candidate} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
+            <CandidateCvAiSummaryCard summary={candidate.cv_ai_summary || null} bullets={candidate.cv_ai_bullets} />
+          </div>
+          <div className="space-y-6">
+            <CandidateDocumentsManager candidateId={candidate.id} />
+            {tags.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-primary" />
+                    Tags
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map(tag => (
+                      <Badge key={tag.id} variant="secondary" className="text-xs" style={tag.color ? { backgroundColor: tag.color + '20', color: tag.color, borderColor: tag.color + '40' } : undefined}>
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </TabsContent>
+
+      {/* Tab 2: Prozess */}
+      <TabsContent value="process" className="space-y-6 mt-4">
         <QuickInterviewSummary
           candidateId={candidate.id}
           onViewDetails={onStartInterview}
@@ -84,11 +152,10 @@ export function CandidateMainContent({
           showAddForm={true}
         />
         <CandidateTasksSection candidateId={candidate.id} activeTaskId={activeTaskId} />
-      </section>
+      </TabsContent>
 
-      {/* Section 3: Matching & Bewerbungen */}
-      <section className="space-y-4">
-        <SectionHeader icon={BarChart3} title="Matching & Bewerbungen" />
+      {/* Tab 3: Matching */}
+      <TabsContent value="matching" className="space-y-6 mt-4">
         <div id="job-matching-section">
           <CandidateJobMatchingV3
             candidate={{
@@ -118,11 +185,10 @@ export function CandidateMainContent({
         </div>
         <ClientCandidateSummaryCard candidateId={candidate.id} />
         <CandidateJobsOverview candidateId={candidate.id} />
-      </section>
+      </TabsContent>
 
-      {/* Section 4: Historie */}
-      <section className="space-y-4">
-        <SectionHeader icon={History} title="Historie" />
+      {/* Tab 4: Historie */}
+      <TabsContent value="history" className="space-y-6 mt-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -155,7 +221,7 @@ export function CandidateMainContent({
             </p>
           )}
         </div>
-      </section>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
