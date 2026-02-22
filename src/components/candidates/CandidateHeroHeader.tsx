@@ -206,6 +206,32 @@ export function CandidateHeroHeader({
             </div>
           </div>
           
+          {/* Key Facts Grid - compact inline */}
+          <div className="mt-4 pt-3 border-t">
+            <CandidateKeyFactsGrid candidate={candidate} />
+          </div>
+
+          {/* Skills & Expertise Badges */}
+          {(candidate.skills?.length || (candidate as any).certifications?.length) && (
+            <div className="flex flex-wrap items-center gap-1 mt-2 px-0">
+              {candidate.skills?.slice(0, 8).map((skill) => (
+                <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+                  {skill}
+                </Badge>
+              ))}
+              {(candidate.skills?.length ?? 0) > 8 && (
+                <span className="text-[10px] text-muted-foreground ml-0.5">
+                  +{(candidate.skills?.length ?? 0) - 8}
+                </span>
+              )}
+              {(candidate as any).certifications?.map((cert: string) => (
+                <Badge key={cert} variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-amber-600 border-amber-400/50">
+                  {cert}
+                </Badge>
+              ))}
+            </div>
+          )}
+
           {/* Pipeline - read-only */}
           {currentStatus !== 'rejected' && (
             <div className="mt-4 pt-3 border-t">
@@ -225,11 +251,6 @@ export function CandidateHeroHeader({
           {/* Active Processes */}
           <div className="mt-4 pt-3 border-t">
             <CandidateActiveProcesses candidateId={candidateId} />
-          </div>
-
-          {/* Key Facts Grid */}
-          <div className="mt-4 pt-3 border-t">
-            <CandidateKeyFactsGrid candidate={candidate} />
           </div>
 
           {/* Tasks */}
