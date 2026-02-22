@@ -1,41 +1,47 @@
 
+# KI-Matching V3.1 im Uebersicht-Tab
 
-# Key Facts ueber Pipeline + Skills-Badges in Hero
+## Genaues Layout
 
-## Aenderungen
-
-### 1. Key Facts UEBER die Pipeline-Statusleiste verschieben
-Aktuell ist die Reihenfolge: Avatar/Name -> Pipeline -> Active Processes -> **Key Facts** -> Tasks.
-Neu: Avatar/Name -> **Key Facts** -> Pipeline -> Active Processes -> Tasks.
-
-Die kompakte Inline-Zeile `Seniority: Director · Gehalt: 185k-220k EUR · ...` wird direkt unter die Badges (Expose-Ready) verschoben, noch vor die Pipeline. So sieht der Recruiter die harten Fakten sofort.
-
-### 2. Skills & Expertise inline in der Hero-Sektion
-Unter der Key-Facts-Zeile wird eine kompakte Skills-Zeile eingefuegt:
-- Zeigt `candidate.skills` als kleine Badges (max 8, dann "+N")
-- Zeigt `candidate.certificates` als Amber-Badges (falls vorhanden)
-- Kein eigener Card-Container, sondern direkt inline im Hero-Block
-- Stil: `flex flex-wrap gap-1` mit `text-[11px]` Badges
+So wird die linke Spalte im Uebersicht-Tab aussehen -- die neue Matching-Card erscheint **direkt ueber** der bestehenden Skills-Card:
 
 ```text
-+------------------------------------------------------------------+
-| Avatar | Name, Rolle bei Firma . Ort . 30J     | Tel Mail LI CV  |
-|        | [Expose-Ready 71%]                      |                 |
-|        | Seniority: Director · Gehalt: 185k€ · Verfuegbar: ...    |
-|        | [React] [TypeScript] [Node.js] [AWS] +4                   |
-+------------------------------------------------------------------+
-| Pipeline: [Neu] [Kontakt] [>>Interview<<] ...                    |
-+------------------------------------------------------------------+
-| Aktive Prozesse (kompakt)                                        |
-+------------------------------------------------------------------+
-| Aufgaben                                                          |
-+------------------------------------------------------------------+
++---------------------------------------------------+
+| KI-Matching V3.1                    [Alle zeigen >]|
+|                                                     |
+| 🔥 3 Hot   ✓ 2 Standard   ? 1 Maybe               |
+|                                                     |
+| Senior Developer        ████████░░  87%            |
+| PM Lead                 ████████░░  82%            |
+| Solution Architect      ███████░░░  79%            |
++---------------------------------------------------+
+| Skills & Expertise                   [38 Skills]   |
+| Kernkompetenzen                                     |
+| [Corporate Strategy] [M&A] [Due Diligence] ...     |
+| +32 weitere Skills                                  |
++---------------------------------------------------+
+| CV AI Summary                                       |
+| ...                                                 |
++---------------------------------------------------+
 ```
 
-## Technische Details
+### Details der Matching-Card
+
+- **Titel**: "KI-Matching V3.1" mit BarChart3-Icon, rechts ein "Alle anzeigen"-Link der zum Matching-Tab wechselt
+- **Tier-Zeile**: Farbige Badges -- Gruen fuer Hot, Blau fuer Standard, Amber fuer Maybe -- jeweils mit Anzahl
+- **Top-3 Liste**: Die 3 besten Matches mit Job-Titel (anonymisiert falls noetig), kleinem Fortschrittsbalken und Prozentzahl
+- **Ladezustand**: Skeleton-Animation waehrend die Berechnung laeuft
+- **Leerzustand**: "Keine offenen Jobs" Hinweis falls keine published Jobs existieren
+
+### Stil
+- Gleicher Card-Stil wie die Skills-Card darunter (gleiche Rundung, Border, Padding)
+- Kompakt gehalten -- keine ueberfluessigen Abstande
+
+## Technische Umsetzung
 
 | Datei | Aenderung |
 |---|---|
-| `CandidateHeroHeader.tsx` | Key Facts Block von nach Pipeline auf vor Pipeline verschieben. Skills-Badges-Zeile einfuegen (nutzt `candidate.skills` und `candidate.certificates`). |
+| `src/components/candidates/CandidateHeroMatching.tsx` | **Neue Datei** -- Card-Komponente mit `useMatchScoreV31()`, laedt Jobs, zeigt Tier-Counts + Top-3 |
+| `src/components/candidates/CandidateMainContent.tsx` | Import + Einbau vor `CandidateSkillsCard` in Zeile 115 der linken Spalte |
 
-Keine neuen Dateien, keine neuen Abhaengigkeiten, keine DB-Aenderungen.
+Keine DB-Aenderungen, keine neuen Dependencies.
