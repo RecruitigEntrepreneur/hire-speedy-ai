@@ -23,7 +23,7 @@ interface JobQualityScoreCardProps {
     intake_completeness: number | null;
   };
   hasBenefits: boolean;
-  onEditIntake: () => void;
+  onEditField: (tab: string) => void;
   className?: string;
 }
 
@@ -51,7 +51,7 @@ function getScoreConfig(score: number) {
   return { label: 'Basis', color: 'text-muted-foreground', stroke: 'stroke-muted-foreground', bg: 'bg-muted' };
 }
 
-export function JobQualityScoreCard({ job, hasBenefits, onEditIntake, className }: JobQualityScoreCardProps) {
+export function JobQualityScoreCard({ job, hasBenefits, onEditField, className }: JobQualityScoreCardProps) {
   const hasSalary = !!(job.salary_min || job.salary_max);
   const hasSkills = !!(job.skills && job.skills.length > 0);
   const descLength = (job.description?.length || 0) + (job.requirements?.length || 0);
@@ -61,11 +61,11 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditIntake, className 
   const config = getScoreConfig(score);
 
   // Build improvement suggestions
-  const suggestions: { icon: React.ReactNode; text: string; impact: string }[] = [];
-  if (!hasSalary) suggestions.push({ icon: <DollarSign className="h-4 w-4" />, text: 'Gehaltsrahmen ergänzen', impact: 'Hoher Impact' });
-  if (!hasBenefits) suggestions.push({ icon: <Gift className="h-4 w-4" />, text: 'Benefits beschreiben', impact: 'Mittlerer Impact' });
-  if (!hasSkills) suggestions.push({ icon: <Code2 className="h-4 w-4" />, text: 'Skills definieren', impact: 'Hoher Impact' });
-  if (descLength < 200) suggestions.push({ icon: <FileText className="h-4 w-4" />, text: 'Beschreibung erweitern', impact: 'Niedriger Impact' });
+  const suggestions: { icon: React.ReactNode; text: string; impact: string; tab: string }[] = [];
+  if (!hasSalary) suggestions.push({ icon: <DollarSign className="h-4 w-4" />, text: 'Gehaltsrahmen ergänzen', impact: 'Hoher Impact', tab: 'conditions' });
+  if (!hasBenefits) suggestions.push({ icon: <Gift className="h-4 w-4" />, text: 'Benefits beschreiben', impact: 'Mittlerer Impact', tab: 'basics' });
+  if (!hasSkills) suggestions.push({ icon: <Code2 className="h-4 w-4" />, text: 'Skills definieren', impact: 'Hoher Impact', tab: 'skills' });
+  if (descLength < 200) suggestions.push({ icon: <FileText className="h-4 w-4" />, text: 'Beschreibung erweitern', impact: 'Niedriger Impact', tab: 'basics' });
 
   // SVG circle params
   const radius = 40;
@@ -121,7 +121,7 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditIntake, className 
             {suggestions.slice(0, 3).map((s, i) => (
               <div 
                 key={i}
-                onClick={onEditIntake}
+                onClick={() => onEditField(s.tab)}
                 className="flex items-center gap-3 p-2.5 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-accent/50 cursor-pointer transition-all group"
               >
                 <div className="text-muted-foreground group-hover:text-primary transition-colors">
@@ -140,12 +140,16 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditIntake, className 
         <div className="space-y-1.5 pt-2 border-t border-border/50">
           <p className="text-xs font-medium text-muted-foreground mb-2">Recruiter-Checkliste</p>
           {[
-            { label: 'Gehalt angegeben', ok: hasSalary },
-            { label: 'Skills definiert', ok: hasSkills },
-            { label: 'Beschreibung vorhanden', ok: descLength > 50 },
-            { label: 'Benefits beschrieben', ok: hasBenefits },
+            { label: 'Gehalt angegeben', ok: hasSalary, tab: 'conditions' },
+            { label: 'Skills definiert', ok: hasSkills, tab: 'skills' },
+            { label: 'Beschreibung vorhanden', ok: descLength > 50, tab: 'basics' },
+            { label: 'Benefits beschrieben', ok: hasBenefits, tab: 'basics' },
           ].map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
+            <div 
+              key={i} 
+              className={`flex items-center gap-2 text-sm ${!item.ok ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+              onClick={() => !item.ok && onEditField(item.tab)}
+            >
               {item.ok ? (
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
               ) : (
@@ -165,7 +169,7 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditIntake, className 
         )}
 
         {suggestions.length > 0 && (
-          <Button variant="outline" size="sm" onClick={onEditIntake} className="w-full">
+          <Button variant="outline" size="sm" onClick={() => onEditField(suggestions[0]?.tab || 'basics')} className="w-full">
             Details ergänzen
             <ArrowRight className="h-3.5 w-3.5 ml-2" />
           </Button>

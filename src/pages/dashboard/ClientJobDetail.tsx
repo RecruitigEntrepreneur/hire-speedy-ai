@@ -162,6 +162,7 @@ export default function ClientJobDetail() {
   
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editDialogTab, setEditDialogTab] = useState<string | undefined>(undefined);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [showCandidateView, setShowCandidateView] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -475,7 +476,7 @@ export default function ClientJobDetail() {
               <JobQualityScoreCard
                 job={job}
                 hasBenefits={hasBenefits}
-                onEditIntake={() => setShowEditDialog(true)}
+                onEditField={(tab) => { setEditDialogTab(tab); setShowEditDialog(true); }}
               />
               <NextStepsCard
                 jobStatus={job.status}
@@ -602,8 +603,9 @@ export default function ClientJobDetail() {
       <JobEditDialog 
         job={job}
         open={showEditDialog}
-        onOpenChange={setShowEditDialog}
+        onOpenChange={(open) => { setShowEditDialog(open); if (!open) setEditDialogTab(undefined); }}
         onSave={fetchJobData}
+        initialTab={editDialogTab}
       />
 
       {/* Candidate Quick View */}
