@@ -128,6 +128,38 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
     updateField('offer_requirements', current.filter((_, i) => i !== index));
   };
 
+  const parseSalaryNumber = (val: string | null): number | null => {
+    if (!val) return null;
+    const cleaned = val.replace(/[^0-9.,]/g, '').replace(',', '.');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? null : Math.round(num > 1000 ? num : num * 1000);
+  };
+
+  const syncInterviewToCandidate = async (data: InterviewNotesFormData) => {
+    const updates: Record<string, unknown> = {};
+
+    const desired = parseSalaryNumber(data.salary_desired);
+    const minimum = parseSalaryNumber(data.salary_minimum);
+
+    if (desired) {
+      updates.expected_salary = desired;
+      updates.salary_expectation_max = Math.round(desired * 1.1);
+    }
+    if (minimum) updates.salary_expectation_min = minimum;
+    if (data.notice_period) updates.notice_period = data.notice_period;
+
+    if (Object.keys(updates).length === 0) return;
+
+    const { error } = await supabase
+      .from('candidates')
+      .update(updates)
+      .eq('id', candidate.id);
+
+    if (error) {
+      console.error('Sync interview→candidate failed:', error);
+    }
+  };
+
   const handleSave = async (markComplete = false) => {
     const dataToSave = {
       ...formData,
@@ -138,6 +170,10 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
     const success = await saveNotes(dataToSave);
     if (success) {
       toast.success(markComplete ? 'Interview abgeschlossen' : 'Notizen gespeichert');
+
+      // Sync salary & notice_period to candidates table
+      await syncInterviewToCandidate(dataToSave);
+
       onNotesUpdated?.();
       
       // Auto-trigger AI analysis when interview is completed
