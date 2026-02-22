@@ -3936,6 +3936,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          benefits: string[] | null
           bonus_structure: string | null
           briefing_notes: string | null
           candidates_dropped_reason: string | null
@@ -4022,6 +4023,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          benefits?: string[] | null
           bonus_structure?: string | null
           briefing_notes?: string | null
           candidates_dropped_reason?: string | null
@@ -4108,6 +4110,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          benefits?: string[] | null
           bonus_structure?: string | null
           briefing_notes?: string | null
           candidates_dropped_reason?: string | null

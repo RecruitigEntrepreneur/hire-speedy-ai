@@ -111,6 +111,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
     skills: '',
     must_haves: '',
     nice_to_haves: '',
+    benefits: '',
     office_address: '',
     remote_policy: 'hybrid',
     onsite_days_required: '3',
@@ -135,6 +136,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
         skills: job.skills?.join(', ') || '',
         must_haves: job.must_haves?.join(', ') || '',
         nice_to_haves: job.nice_to_haves?.join(', ') || '',
+        benefits: (job as any).benefits?.join(', ') || '',
         office_address: job.office_address || '',
         remote_policy: job.remote_policy || 'hybrid',
         onsite_days_required: job.onsite_days_required?.toString() || '3',
@@ -162,6 +164,9 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
       const niceToHavesArray = formData.nice_to_haves
         ? formData.nice_to_haves.split(',').map(s => s.trim()).filter(Boolean)
         : null;
+      const benefitsArray = formData.benefits
+        ? formData.benefits.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
 
       const { error } = await supabase
         .from('jobs')
@@ -180,6 +185,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
           skills: skillsArray,
           must_haves: mustHavesArray,
           nice_to_haves: niceToHavesArray,
+          benefits: benefitsArray,
           office_address: formData.office_address || null,
           remote_policy: formData.remote_policy,
           onsite_days_required: formData.remote_policy === 'hybrid' ? parseInt(formData.onsite_days_required) : null,
@@ -469,7 +475,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                     id="skills"
                     value={formData.skills}
                     onChange={(e) => handleInputChange('skills', e.target.value)}
-                    placeholder="Kommagetrennt: React, TypeScript, Node.js..."
+                    placeholder="z.B. React, TypeScript, Node.js, PostgreSQL, Docker..."
                     rows={3}
                   />
                   {formData.skills && (
@@ -493,7 +499,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                     id="must_haves"
                     value={formData.must_haves}
                     onChange={(e) => handleInputChange('must_haves', e.target.value)}
-                    placeholder="Unverzichtbare Anforderungen..."
+                    placeholder="z.B. 5+ Jahre React, Erfahrung mit CI/CD, Teamführung..."
                     rows={3}
                   />
                 </div>
@@ -504,7 +510,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                     id="nice_to_haves"
                     value={formData.nice_to_haves}
                     onChange={(e) => handleInputChange('nice_to_haves', e.target.value)}
-                    placeholder="Wünschenswerte Zusatzqualifikationen..."
+                    placeholder="z.B. Kubernetes-Kenntnisse, Open-Source-Beiträge, AWS-Zertifizierung..."
                     rows={3}
                   />
                 </div>
@@ -512,6 +518,40 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
 
               {/* Conditions Tab */}
               <TabsContent value="conditions" className="mt-0 space-y-4">
+                {/* Benefits Section */}
+                <div className="space-y-2">
+                  <Label htmlFor="benefits">Benefits & Zusatzleistungen</Label>
+                  <Textarea
+                    id="benefits"
+                    value={formData.benefits}
+                    onChange={(e) => handleInputChange('benefits', e.target.value)}
+                    placeholder="z.B. 30 Tage Urlaub, Firmenwagen, betriebliche Altersvorsorge, Weiterbildungsbudget..."
+                    rows={3}
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {['30 Tage Urlaub', 'Home Office', 'Firmenwagen', 'Weiterbildungsbudget', 'Betriebliche Altersvorsorge', 'Jobrad', 'Flexible Arbeitszeiten', 'Obstkorb & Getränke'].map((benefit) => {
+                      const isSelected = formData.benefits.split(',').map(b => b.trim()).includes(benefit);
+                      return (
+                        <Badge
+                          key={benefit}
+                          variant={isSelected ? 'default' : 'outline'}
+                          className={`text-xs cursor-pointer transition-colors ${isSelected ? '' : 'hover:bg-accent'}`}
+                          onClick={() => {
+                            if (isSelected) return;
+                            const current = formData.benefits.trim();
+                            const newVal = current ? `${current}, ${benefit}` : benefit;
+                            handleInputChange('benefits', newVal);
+                          }}
+                        >
+                          {isSelected ? '✓ ' : '+ '}{benefit}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Separator />
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="salary_min">Gehalt Min (€/Jahr)</Label>

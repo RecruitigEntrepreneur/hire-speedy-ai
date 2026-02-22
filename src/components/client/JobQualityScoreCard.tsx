@@ -86,7 +86,7 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditField, className }
   const suggestions: { icon: React.ReactNode; text: string; impact: string; tab: string }[] = [];
   if (!hasSalary) suggestions.push({ icon: <DollarSign className="h-4 w-4" />, text: 'Gehaltsrahmen ergänzen', impact: 'Hoher Impact', tab: 'conditions' });
   if (!hasSkills) suggestions.push({ icon: <Code2 className="h-4 w-4" />, text: 'Skills definieren', impact: 'Hoher Impact', tab: 'skills' });
-  if (!hasBenefits) suggestions.push({ icon: <Gift className="h-4 w-4" />, text: 'Benefits beschreiben', impact: 'Mittlerer Impact', tab: 'basics' });
+  if (!hasBenefits) suggestions.push({ icon: <Gift className="h-4 w-4" />, text: 'Benefits beschreiben', impact: 'Mittlerer Impact', tab: 'conditions' });
   if (descLength < 200) suggestions.push({ icon: <FileText className="h-4 w-4" />, text: 'Beschreibung erweitern', impact: 'Niedriger Impact', tab: 'basics' });
 
   // SVG circle params

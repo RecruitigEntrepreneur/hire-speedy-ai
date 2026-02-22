@@ -424,7 +424,7 @@ export default function ClientJobDetail() {
   // Phase detection
   const hasCandidates = totalSubmissions > 0;
   const hasInterviews = interviews.length > 0;
-  const hasBenefits = !!(job?.job_summary?.benefits_extracted && job.job_summary.benefits_extracted.length > 0);
+  const hasBenefits = !!((job as any)?.benefits && (job as any).benefits.length > 0) || !!(job?.job_summary?.benefits_extracted && job.job_summary.benefits_extracted.length > 0);
 
   if (loading) {
     return (
