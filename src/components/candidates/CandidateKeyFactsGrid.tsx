@@ -1,10 +1,7 @@
 import { cn } from '@/lib/utils';
 import { 
-  User, 
-  MapPin, 
   Euro, 
   Clock, 
-  Briefcase, 
   Home, 
   TrendingUp,
   Users 
@@ -108,29 +105,10 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
 
   const tiles: KeyFactTile[] = [
     { 
-      icon: User, 
-      label: 'Rolle', 
-      value: candidate.job_title ? truncateText(candidate.job_title, 25) : null,
-      fullValue: candidate.job_title, // Full value for tooltip
-      missing: !candidate.job_title 
-    },
-    { 
-      icon: Briefcase, 
-      label: 'Erfahrung', 
-      value: candidate.experience_years ? `${candidate.experience_years} Jahre` : null,
-      missing: !candidate.experience_years 
-    },
-    { 
       icon: TrendingUp, 
       label: 'Seniority', 
       value: candidate.seniority ? seniorityLabels[candidate.seniority] || candidate.seniority : null,
       missing: !candidate.seniority 
-    },
-    { 
-      icon: MapPin, 
-      label: 'Standort', 
-      value: candidate.city || null,
-      missing: !candidate.city 
     },
     { 
       icon: Euro, 
@@ -161,7 +139,7 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {tiles.map((tile, i) => {
         const IconComponent = tile.icon;
         return (

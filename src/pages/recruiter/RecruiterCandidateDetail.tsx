@@ -209,6 +209,8 @@ export default function RecruiterCandidateDetail() {
           candidate={candidate}
           readiness={readiness}
           currentStatus={currentStatus}
+          candidateId={candidate.id}
+          activeTaskId={activeTaskId}
           onEdit={() => setFormDialogOpen(true)}
           onCvUpload={() => setCvUploadOpen(true)}
         />
