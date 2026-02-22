@@ -1,182 +1,179 @@
 
 
-# Fix: Marko Benko fehlt in Aufgaben + Professionelles Task-Design
+# Kandidatenseite: Interview-Sektion + Externes Interview eintragen
 
-## Analyse: 3 Probleme gefunden
+## Uebersicht
 
-### Problem 1: Kein Alert existiert fuer Marko Benko
+Die Kandidatenseite bekommt eine neue Interview-Sektion, die alle Interviews (geplante + manuell eingetragene) anzeigt. Dazu kommt ein minimales Formular zum Eintragen externer Interviews.
 
-Die Datenbank zeigt: Fuer Marko Benkos Submission (`876e791f...`) existiert **kein einziger** `influence_alert`. Die Interview-Anfrage wurde gestellt **bevor** wir den Alert-Code in die Edge Function eingebaut haben. Der Alert wurde also nie erstellt.
+## Aktueller Zustand
 
-**Loesung:** Beim Laden des Dashboards pruefen, ob Submissions im Status `interview_requested` existieren, fuer die KEIN `influence_alert` vom Typ `opt_in_pending` vorhanden ist. Falls ja: automatisch nachholen.
-
-### Problem 2: Pipeline zeigt falsche Stage-Zuordnung
-
-Die `SubmissionsPipeline` mappt Stages so:
+Fuer Marko Benko existiert bereits ein Interview in der Datenbank:
 
 ```text
-Interview-Spalte: statuses: ['interview']
+Interview: 50c0aec9...
+  - scheduled_at: NULL (noch kein Termin)
+  - status: pending_response
+  - pending_opt_in: true
+  - meeting_type: teams
+  - Job: "Data & Dashboard Engineer"
 ```
 
-Marko Benkos Stage ist aber `interview_requested` -- das matcht auf `interview` weil sein `status` = `'interview'` ist. Er erscheint also in der Pipeline korrekt. Aber der Zusammenhang zur Aufgabe fehlt komplett.
+Dieses Interview wird auf der Kandidatenseite **nirgends** angezeigt. Der Recruiter sieht nur:
+- Die Pipeline-Stage "Interview" im Hero-Header
+- Eine Aufgabe in der CandidateTasksSection (wenn Alert existiert)
+- ABER: Kein Interview-Eintrag mit Details
 
-### Problem 3: Task-Karten zeigen keinen Aufgabengrund
+## Was gebaut wird
 
-Aktuell sehen die Karten so aus:
+### 1. Neue Komponente: `CandidateInterviewsCard`
+
+Eine kompakte Karte, die alle Interviews fuer diesen Kandidaten anzeigt.
 
 ```text
-+------------------+
-| [!] Jens E.      |
-|                   |
-| [Kontaktieren]   |  <-- Nur generischer Action-Text
-| [Tel] [Mail] [v] |
-+------------------+
++------------------------------------------------------------------+
+| [Calendar] Interviews                                      (2)   |
++------------------------------------------------------------------+
+| [Teams]  Data & Dashboard Engineer                               |
+|          Ausstehend -- Warte auf Opt-In                          |
+|          Angefragt am 22.02.2026                                 |
++------------------------------------------------------------------+
+| [Phone]  Buchhalter @ FITSEVENELEVEN        [Manuell]            |
+|          20.02.2026, 30 Min -- Kennenlernen                      |
+|          Erstgespräch gefuehrt, positiver Eindruck               |
++------------------------------------------------------------------+
+| [+] Externes Interview eintragen                                 |
++------------------------------------------------------------------+
 ```
 
-Es fehlt:
-- **Warum** die Aufgabe existiert (z.B. "Seit 5 Tagen keine Reaktion")
-- **Farbliche Konsistenz** mit dem Design-System
-- **Zeitangabe** wann die Aufgabe erstellt wurde
+**Pro Eintrag wird angezeigt:**
+- Meeting-Typ-Icon (Video/Telefon/Vor Ort)
+- Job-Titel (als Link wenn moeglich)
+- Interview-Typ (Kennenlernen, Fachinterview, etc.)
+- Status-Badge: Ausstehend / Geplant / Abgeschlossen / Abgesagt
+- Datum & Uhrzeit (wenn vorhanden, sonst "Angefragt am...")
+- Bei manuellen Eintraegen: "Manuell"-Badge
+- Optionale Notizen (gekuerzt, 1 Zeile)
 
-## Professionelles Wireframe
+**Keine Quick-Actions** -- nur informativ. Der Recruiter wird informiert, aber kann hier nichts aendern.
 
-### Aktuell (unprofessionell)
+### 2. Minimales Formular: "Externes Interview eintragen"
+
+Ein kompakter Inline-Dialog (kein separater Dialog, sondern Collapsible am Ende der Karte):
 
 ```text
-+--------------------------------------------------------------------+
-| Heute zu tun                                              [9]      |
-|                                                                    |
-| KRITISCH (1)                                                       |
-| +------------------+                                               |
-| | [!] Philipp N.   |                                               |
-| |                   |  <-- Kein Grund, keine Zeitangabe            |
-| | [Kontaktieren]   |  <-- Generischer Text                        |
-| | [Tel] [Mail] [v] |                                               |
-| +------------------+                                               |
-|                                                                    |
-| HOCH (8)                                                           |
-| +------------------+ +------------------+ +------------------+     |
-| | [!] Jens E.      | | [!] Vladislav C. | | [!] Horst S.     |    |
-| | [Kontaktieren]   | | [Kontaktieren]   | | [Kontaktieren]   |    |
-| | [Tel] [Mail] [v] | | [Tel] [Mail] [v] | | [Tel] [Mail] [v] |    |
-| +------------------+ +------------------+ +------------------+     |
-|                                                                    |
-| Alle Karten sehen identisch aus -- kein Kontext, kein Grund        |
-+--------------------------------------------------------------------+
++------------------------------------------------------------------+
+| [v] Externes Interview eintragen                                 |
+|                                                                  |
+|  Datum:  [22.02.2026]    Interview-Typ: [Kennenlernen v]         |
+|  Notizen: [Erstgespraech per Telefon gefuehrt]                   |
+|                                              [Speichern]         |
++------------------------------------------------------------------+
 ```
 
-### Neu (professionell)
+**Felder:**
+- Datum (Pflicht) -- Date-Picker, Default: heute
+- Interview-Typ (Optional) -- Select aus `interview_types` Tabelle (Kennenlernen, Fachinterview, Case Study, Culture Fit, Abschlussgespraech)
+- Notizen (Optional) -- kurzer Freitext
+
+**Was passiert beim Speichern:**
+- Neuer Eintrag in `interviews` Tabelle mit `status: 'completed'`, `scheduled_at: gewaehltes Datum`, `meeting_type: 'phone'` (Default), `notes: Freitext`
+- Braucht eine `submission_id` -- wenn der Kandidat nur eine aktive Submission hat, wird diese automatisch gewaehlt. Bei mehreren: Dropdown zur Auswahl des Jobs.
+
+### 3. Platzierung auf der Kandidatenseite
+
+**Profil-Tab (kompakt):**
+- Die `CandidateInterviewsCard` wird im **rechten Spalte** eingefuegt, zwischen `QuickInterviewSummary` und `Karriere-Timeline`
+- Zeigt maximal 3 Interviews, mit "Alle X anzeigen" Link zum Prozess-Tab
+
+**Prozess-Tab (ausfuehrlich):**
+- Gleiche Komponente, aber alle Interviews sichtbar
+- Direkt unter der `CandidateTasksSection`
+- Mit dem "Externes Interview eintragen"-Formular
+
+### 4. Daten-Flow
 
 ```text
-+--------------------------------------------------------------------+
-| Aufgaben                                                 [10]      |
-|                                                                    |
-| DRINGEND                                                           |
-| +----------------------------------------------------------------+ |
-| | [!!] Marko Benko                     Interview-Anfrage   2 Std | |
-| |      Data & Dashboard Engineer @ [Analytics]                    | |
-| |      "Kunde moechte ein Interview -- Opt-In einholen"          | |
-| |      [Anrufen] [Email]                    [Opt-In best.] [OK]  | |
-| +----------------------------------------------------------------+ |
-| | [!!] Philipp Numberger               Ghosting-Risiko     2 Tg | |
-| |      Buchhalter @ FITSEVENELEVEN                                | |
-| |      "Seit 2 Tagen keine Reaktion auf Anfrage"                 | |
-| |      [Anrufen] [Email]                             [Erledigt]  | |
-| +----------------------------------------------------------------+ |
-|                                                                    |
-| OFFEN (8)                                                          |
-| +----------------------------------------------------------------+ |
-| | [!] Jens Eyrich                      Ghosting-Risiko    1 Wo  | |
-| |     Buchhalter -- "Seit 7 Tagen keine Reaktion"                | |
-| |     [Anrufen] [Email]                              [Erledigt]  | |
-| +----------------------------------------------------------------+ |
-| | [!] Vladislav Chelakov               Ghosting-Risiko    1 Wo  | |
-| |     "Seit 8 Tagen keine Reaktion"                              | |
-| |     [Anrufen] [Email]                              [Erledigt]  | |
-| +----------------------------------------------------------------+ |
-| | ... weitere 6 Aufgaben ...                                     | |
-| +----------------------------------------------------------------+ |
-|                                                                    |
-| [Alle 10 Aufgaben anzeigen -->]                                    |
-+--------------------------------------------------------------------+
+interviews Tabelle
+  |
+  +-- submission_id --> submissions --> jobs (fuer Job-Titel)
+  |
+  +-- interview_type_id --> interview_types (fuer Typ-Label)
+  |
+  +-- scheduled_at, status, meeting_type, notes
 ```
 
-### Unterschiede zum aktuellen Design
-
-| Aspekt | Aktuell | Neu |
-|---|---|---|
-| Layout | Horizontale Karten (200px breit, scrollen) | Vertikale Liste (volle Breite, scanbar) |
-| Aufgabengrund | Fehlt komplett | Alert-`message` wird angezeigt |
-| Zeitangabe | Fehlt | Relative Zeit ("2 Std", "1 Wo") |
-| Job-Kontext | Nur teilweise | Immer: Jobtitel + Firma |
-| Alert-Typ | Nur als Badge-Text | Als farbiges Label rechts oben |
-| Gruppierung | Nach Priority (Kritisch/Hoch/Weitere) | Nach Dringlichkeit (Dringend/Offen) -- vereinfacht |
-| Farben | `bg-destructive/5` mit `border-l-destructive` | Konsistent: Rot-Toene fuer dringend, Slate fuer offen |
+Query: Alle Interviews fuer Submissions dieses Kandidaten, sortiert nach `created_at DESC`.
 
 ## Technische Umsetzung
 
-### Aenderung 1: Fehlende Alerts nachholen
-
-**Datei: `src/pages/recruiter/RecruiterDashboard.tsx`**
-
-Neue Funktion `ensureInterviewAlerts()` die beim Dashboard-Load prueft:
-
-```text
-1. Lade alle Submissions mit stage = 'interview_requested' fuer den Recruiter
-2. Lade alle influence_alerts mit alert_type = 'opt_in_pending' fuer den Recruiter
-3. Fuer jede Submission OHNE passenden Alert: Alert erstellen
-```
-
-Dies wird in `fetchCandidateMapForAlerts()` integriert oder als separater `useEffect` ausgefuehrt. So werden bestehende Interview-Anfragen (wie Marko Benko) nachtraeglich erfasst.
-
-### Aenderung 2: CompactTaskList komplett umbauen
-
-**Datei: `src/components/influence/CompactTaskList.tsx`**
-
-Kompletter Umbau von horizontalen Karten zu vertikaler Liste:
-
-**Neue TaskRow-Komponente (statt TaskCard):**
-- Volle Breite statt 200px Karte
-- Zeigt: Priority-Icon | Kandidatenname | Aufgabengrund (`alert.message`) | Alert-Typ-Label | Zeitangabe
-- Quick Actions rechts: Anrufen/Email/Typ-spezifisch/Erledigt
-- Fuer `opt_in_pending`: zusaetzlich "Opt-In bestaetigen"-Button
-- Hover-Effekt statt Card-Shadow
-
-**Vereinfachte Gruppierung:**
-- "Dringend": `priority === 'critical'` (roter Akzent)
-- "Offen": alles andere (neutraler Akzent)
-- Keine separaten Sektionen fuer high/medium/low
-
-**Zeitangabe berechnen:**
-- Aus `alert.created_at` relative Zeit berechnen ("vor 2 Std", "vor 1 Tag", "vor 1 Wo")
-- Zeigt an wie lange die Aufgabe schon offen ist
-
-**Farbsystem:**
-- Dringend: `border-l-red-500 bg-red-50/50` (konsistent mit Design)
-- Offen: `border-l-slate-300 bg-slate-50/30`
-- Kein `bg-destructive/5` oder `bg-amber-500/5` mehr -- stattdessen die Projekt-Farbpalette
-
-### Aenderung 3: getShortAction durch getAlertTypeLabel ersetzen
-
-In `CompactTaskList.tsx` wird die Action-Map erweitert um lesbare Labels:
-
-```text
-'opt_in_pending'    -> 'Interview-Anfrage'
-'ghosting_risk'     -> 'Ghosting-Risiko'
-'follow_up_needed'  -> 'Follow-up'
-'sla_warning'       -> 'SLA-Warnung'
-'no_activity'       -> 'Keine Aktivitaet'
-...
-```
-
-Diese Labels werden als farbige Badges rechts in der Zeile angezeigt.
-
-## Zusammenfassung
+### Dateien
 
 | Datei | Aenderung |
 |---|---|
-| `src/pages/recruiter/RecruiterDashboard.tsx` | `ensureInterviewAlerts()`: Prueft ob fuer `interview_requested`-Submissions Alerts existieren, erstellt fehlende |
-| `src/components/influence/CompactTaskList.tsx` | Kompletter Umbau: Vertikale Liste statt horizontale Karten, mit Aufgabengrund, Zeitangabe, Alert-Typ-Label und konsistenten Farben |
+| `src/components/candidates/CandidateInterviewsCard.tsx` | **NEU** -- Kompakte Interview-Liste + minimales Formular fuer externe Interviews |
+| `src/components/candidates/CandidateProfileTab.tsx` | Interview-Karte in rechte Spalte einfuegen (zwischen QuickInterviewSummary und Karriere-Timeline), max 3 Eintraege |
+| `src/components/candidates/CandidateProcessTab.tsx` | Vollstaendige Interview-Karte unter Tasks einfuegen, mit Formular |
 
-Keine neuen Dateien, keine neuen Hooks. Bestehende Daten (`alert.message`, `alert.created_at`, `alert.alert_type`) werden einfach endlich angezeigt.
+### `CandidateInterviewsCard` -- Komponente
+
+**Props:**
+```text
+interface CandidateInterviewsCardProps {
+  candidateId: string;
+  maxItems?: number;          // undefined = alle, 3 = kompakt
+  showAddForm?: boolean;      // false im Profil-Tab, true im Prozess-Tab
+  onViewAll?: () => void;     // Link zum Prozess-Tab
+}
+```
+
+**Daten laden:**
+- Query: `interviews` JOIN `submissions` JOIN `jobs` WHERE `submissions.candidate_id = candidateId`
+- Zusaetzlich: `interview_types` fuer Typ-Labels
+- Sortierung: `scheduled_at DESC NULLS LAST`, dann `created_at DESC`
+
+**Interview-Typ-Labels aus DB:**
+- Kennenlernen (30 Min)
+- Fachinterview (60 Min)
+- Case Study (90 Min)
+- Culture Fit (45 Min)
+- Abschlussgespraech (30 Min)
+
+**Status-Mapping:**
+```text
+'pending'           -> Badge "Ausstehend" (gelb)
+'pending_response'  -> Badge "Warte auf Antwort" (blau)
+'scheduled'         -> Badge "Geplant" (gruen)
+'completed'         -> Badge "Abgeschlossen" (grau)
+'cancelled'         -> Badge "Abgesagt" (rot)
+'no_show'           -> Badge "Nicht erschienen" (rot)
+```
+
+Fuer `pending_opt_in: true` wird zusaetzlich "(Opt-In ausstehend)" angezeigt.
+
+**Minimales Formular (Collapsible):**
+- Nutzt `interview_types` Select
+- Default-Submission: automatisch die erste aktive Submission; bei mehreren ein Select-Dropdown
+- Insert in `interviews`: `{ submission_id, scheduled_at, status: 'completed', meeting_type: 'phone', notes, interview_type_id }`
+
+### Profil-Tab Aenderung
+
+Rechte Spalte wird:
+1. QuickInterviewSummary (bleibt)
+2. **CandidateInterviewsCard** (NEU, maxItems=3, showAddForm=false)
+3. Karriere-Timeline (bleibt)
+4. Similar Candidates (bleibt)
+
+### Prozess-Tab Aenderung
+
+Unter CandidateTasksSection:
+- **CandidateInterviewsCard** (NEU, alle Interviews, showAddForm=true)
+
+## Zusammenfassung
+
+- 1 neue Datei: `CandidateInterviewsCard.tsx`
+- 2 geaenderte Dateien: `CandidateProfileTab.tsx`, `CandidateProcessTab.tsx`
+- Keine Datenbank-Aenderungen -- alles nutzt die bestehende `interviews` + `interview_types` Tabellen
+- Kein neuer Hook -- Query direkt in der Komponente
+- Nur informativ -- keine Quick-Actions, der Recruiter sieht die Interview-Daten aber kann hier nichts aendern
 
