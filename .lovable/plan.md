@@ -1,138 +1,155 @@
 
 
-# Job Detail Page: Maximales UI/UX Upgrade
+# Job Detail Page: Finales UI/UX Upgrade
 
-## Analyse des Ist-Zustands
+## Zusammenfassung eurer Entscheidungen
 
-Die Seite hat alle richtigen Daten, aber die Struktur ist nicht optimal:
-
-1. **Hero-Section ist ueberladen** -- Stats-Bar mit 5 Nullen ("0 Kandidaten, 0 In Bearbeitung...") wirkt leer und demotivierend bei neuen Jobs
-2. **Bento Grid ist unbalanciert** -- Pipeline + Recruiter Aktivitaet links (schmal), Executive Summary rechts (breit) -- aber bei neuen Jobs sind links zwei fast leere Karten
-3. **Executive Summary dominiert** -- nimmt 2/3 der Breite ein, obwohl es die wertvollste Info ist, koennte sie prominenter und besser strukturiert sein
-4. **Leere States wirken deprimierend** -- "Noch keine Kandidaten", "Keine Interviews", "Wenig Aktivitaet" alles auf einer Seite
-5. **Company Info Card am Ende** ist fast wertlos -- zeigt nur Name + Branche, obwohl viel mehr Daten verfuegbar waeren
-6. **Kein klarer CTA** -- was soll der Client als naechstes tun?
-
----
-
-## Neues Layout-Konzept: Phasen-adaptiv
-
-Die Seite passt sich dem Lebenszyklus des Jobs an:
-
-**Phase 1: Entwurf/Frisch (0 Kandidaten)** -- Fokus auf Job-Qualitaet + Naechste Schritte
-**Phase 2: Aktiv (1+ Kandidaten)** -- Fokus auf Pipeline + Top-Kandidaten
-**Phase 3: Fortgeschritten (Interviews laufen)** -- Fokus auf Interviews + Entscheidungen
+- **Hero**: Mit Fortschrittsanzeige (Lebenszyklus-Stepper)
+- **Leerer Zustand**: Alles gleichwertig (Quality Score, Next Steps, Summary)
+- **Neue Komponenten**: Kommunikations-Log + weitere sinnvolle Ergaenzungen
+- **Bei Kandidaten**: Kandidaten-zentriert (Top-3 gross, Pipeline kompakt)
+- **Executive Summary**: Tabs beibehalten
+- **Company Info**: In Hero integrieren (separate Karte entfernen)
+- **Recruiter-Hilfe**: Selling Points/USPs + anonymes Expose das generiert und versendet werden kann
+- **Quality Score**: Beibehalten wie jetzt
 
 ---
 
-## Konkrete Aenderungen
+## Aenderungen im Detail
 
-### 1. Hero Section verschlanken (ClientJobHero.tsx)
+### 1. Hero Section: Fortschrittsanzeige + Company Info Integration
 
-- Stats-Bar nur anzeigen wenn mindestens 1 Kandidat vorhanden
-- Bei 0 Kandidaten: stattdessen ein "Naechste Schritte"-Banner mit klaren CTAs
-  - "Job veroeffentlichen" (wenn Entwurf)
-  - "Intake verbessern" (wenn Completeness niedrig)
-  - "Recruiter werden bald aktiv" (wenn published)
-- Aktions-Buttons besser gruppieren: Primaer-Aktion hervorheben
+**Datei: `src/components/client/ClientJobHero.tsx`**
 
-### 2. Bento Grid Restructuring (ClientJobDetail.tsx)
+- Einen horizontalen Lifecycle-Stepper unter den Titel einbauen:
+  ```text
+  [Entwurf] --> [Aktiv] --> [Kandidaten] --> [Interviews] --> [Besetzt]
+  ```
+  Der aktuelle Schritt wird farbig hervorgehoben, vergangene Schritte erhalten ein Haekchen
+- Company-Info (Branche, Standort, Remote-Type, Beschaeftigungsart) direkt unter den Stepper als kleine Badge-Reihe integrieren -- die separate CompanyInfoCard entfaellt dadurch
+- Logik: Der Stepper-Schritt wird aus `job.status`, `totalSubmissions`, `interviews.length` und `hired` abgeleitet
 
-Neues Layout je nach Phase:
+### 2. Leerer Zustand: Gleichwertiges 3-Spalten-Layout
 
-**Bei 0 Kandidaten (Entwurf/Frisch):**
+**Datei: `src/pages/dashboard/ClientJobDetail.tsx`**
 
-```text
-[  Job-Qualitaets-Score Card  |  Naechste Schritte Card  ]
-[        Executive Summary (volle Breite)                 ]
-[  Recruiter Aktivitaet       |  Unternehmensinfo         ]
-```
-
-**Bei 1+ Kandidaten:**
+Bei 0 Kandidaten (Phase 1) das Layout aendern auf:
 
 ```text
-[ Pipeline Snapshot | Recruiter Aktivitaet | Quick Stats  ]
-[   Top Kandidaten (volle Breite)                         ]
-[   Executive Summary (volle Breite)                      ]
-[   Interviews              |  Unternehmensinfo           ]
+[ Job-Qualitaet (1/3) | Naechste Schritte (1/3) | Selling Points (1/3) ]
+[                Executive Summary (volle Breite)                       ]
+[        Kommunikations-Log (1/2)  |  Recruiter Aktivitaet (1/2)       ]
 ```
 
-### 3. Neue Komponente: JobQualityScore (src/components/client/JobQualityScoreCard.tsx)
+- Alle drei oberen Karten gleich gross (lg:grid-cols-3)
+- CompanyInfoCard wird entfernt (ist jetzt im Hero)
+- Selling Points Card und Kommunikations-Log kommen dazu
 
-Kombiniert Intake-Completeness mit einer Bewertung der Job-Attraktivitaet:
+### 3. Kandidaten-Phase: Kandidaten-zentriert
 
-- Kreisfoermiger Score (0-100) berechnet aus:
-  - Intake Completeness (40% Gewicht)
-  - Gehalt vorhanden (20%)
-  - Benefits vorhanden (15%)
-  - Skills definiert (15%)
-  - Beschreibung Laenge (10%)
-- Darunter: 2-3 konkrete Verbesserungsvorschlaege
-  - "Gehaltsrahmen ergaenzen" mit direktem Link zum Edit
-  - "Mehr Benefits beschreiben"
-- Zeigt dem Client sofort, wie "verkaufbar" der Job ist
+**Datei: `src/pages/dashboard/ClientJobDetail.tsx`**
 
-### 4. Neue Komponente: NextStepsCard (src/components/client/NextStepsCard.tsx)
+Bei 1+ Kandidaten (Phase 2) das Layout aendern auf:
 
-Kontextabhaengige Handlungsempfehlungen:
+```text
+[          Top Kandidaten (volle Breite, prominent)                    ]
+[ Pipeline (1/3) kompakt  | Recruiter Aktivitaet (1/3) | Next Steps (1/3) ]
+[                Executive Summary (volle Breite)                       ]
+[        Kommunikations-Log (1/2)  |  Interviews (1/2)                  ]
+```
 
-- **Entwurf:** "Veroeffentlichen Sie den Job, damit Recruiter ihn sehen"
-- **Published, 0 Kandidaten:** "Recruiter werden benachrichtigt. Verbessern Sie Ihr Profil fuer schnellere Matches"
-- **Kandidaten vorhanden:** "Pruefen Sie die neuen Einreichungen"
-- **Interviews geplant:** "Naechstes Interview in X Stunden vorbereiten"
+- TopCandidatesCard wandert nach ganz oben, direkt unter Hero
+- Pipeline wird kompakter dargestellt (eine der drei Spalten)
+- CompanyInfoCard entfaellt (ist im Hero)
 
-Jeder Schritt hat einen klaren Button/Link.
+### 4. Neue Komponente: SellingPointsCard
 
-### 5. Executive Summary: Volle Breite + Tabs (JobExecutiveSummary.tsx)
+**Neue Datei: `src/components/client/SellingPointsCard.tsx`**
 
-- Auf volle Breite umstellen statt 2/3
-- Collapsibles ersetzen durch horizontale Tabs: "Aufgaben | Anforderungen | Benefits | KI-Analyse"
-- Intake-Status aus der Summary herausnehmen (ist jetzt im JobQualityScore)
-- Key Facts Grid kompakter: max 4-5 Facts in einer Zeile
+Auto-generierte USPs basierend auf den vorhandenen Job-Daten:
 
-### 6. Pipeline Card aufwerten (PipelineSnapshotCard.tsx)
+- Gehalt vorhanden und ueber 50k? --> "Wettbewerbsfaehige Verguetung"
+- Remote/Hybrid? --> "Flexibles Arbeitsmodell"  
+- Skills definiert? --> "Klares technisches Profil"
+- Benefits in Summary? --> "Attraktives Benefits-Paket"
+- Bekannte Branche? --> "Etablierte Branche: [Branche]"
 
-- Bei 0 Kandidaten: Anstatt leere Balken, ein motivierender Zustand zeigen
-  - "Ihre Stelle wird gerade an Recruiter verteilt"
-  - Animierter Puls-Indikator
-- Bei Kandidaten: Horizontaler Funnel statt vertikale Liste (visuell staerker)
+Darstellung: Card mit Stern-Icon im Header, USPs als Chips/Pills. Darunter ein CTA-Button "Anonymes Expose generieren" der das Expose per KI erstellt.
 
-### 7. Company Info Card aufwerten (CompanyInfoCard.tsx)
+Props: `job` (Gehalt, Skills, Remote-Type, Branche), `hasBenefits`, `onGenerateExpose`
 
-- Mehr Daten aus dem Job holen: `industry`, `remote_type`, `employment_type`
-- "Profil verbessern" CTA einbauen der zum Company Settings fuehrt
-- Wenn wenig Daten: konkreter Hinweis "Recruiter sehen nur: [Name + Branche]. Ergaenzen Sie Ihr Profil."
+### 5. Neue Komponente: CommunicationLogCard
 
-### 8. Leere States mit Persoenlichkeit (alle Cards)
+**Neue Datei: `src/components/client/CommunicationLogCard.tsx`**
 
-Alle "keine Daten" Zustaende bekommen:
-- Ein passendes, dezentes Icon
-- Einen ermutigenden Text statt eines trockenen "Keine Daten"
-- Einen klaren CTA wo moeglich
+Chronologischer Log aller Ereignisse und Nachrichten fuer diesen Job:
+
+- Zeigt automatische Events: "Job erstellt", "Summary generiert", "Status geaendert"
+- Zeigt Recruiter-Interaktionen: "Recruiter hat Kandidat eingereicht", "Kandidat in Interview-Phase verschoben"
+- Leerer Zustand: "Noch keine Aktivitaeten -- sobald Recruiter aktiv werden, sehen Sie hier alle Updates"
+
+Datenquelle: Zusammengesetzt aus `submissions` (submitted_at, stage changes) und `job` (created_at, paused_at). Keine neue DB-Tabelle noetig fuer V1 -- wir leiten die Events aus den vorhandenen Daten ab.
+
+Props: `job` (created_at, status, paused_at), `submissions` (submitted_at, stage, candidate anonymous ID), `interviews` (scheduled_at)
+
+### 6. Neue Komponente: AnonymousExposeDialog
+
+**Neue Datei: `src/components/client/AnonymousExposeDialog.tsx`**
+
+Ein Dialog/Modal das ein anonymes Kandidaten-Expose generiert:
+
+- Nutzt die Executive Summary + Job-Daten
+- Generiert per KI (Lovable AI / Gemini Flash) ein professionelles 1-Seiten Expose
+- Anonymisiert: Kein Firmenname, stattdessen Branchen-Beschreibung ("Fuehrender Hersteller im Bereich Militaer & Maschinenbau")
+- Inhalte: Rolle, Aufgaben (kompakt), Anforderungen, Benefits, USPs
+- Copy-to-Clipboard Button + "Als PDF" Option (spaeter)
+
+**Neue Edge Function: `supabase/functions/generate-job-expose/index.ts`**
+
+- Nimmt jobId entgegen
+- Laed Job-Daten + Summary aus der DB
+- Generiert per Lovable AI ein anonymisiertes Expose
+- Gibt formatierten Text zurueck
+
+### 7. CompanyInfoCard entfernen
+
+**Datei: `src/pages/dashboard/ClientJobDetail.tsx`**
+
+- CompanyInfoCard Import und beide Verwendungen (Phase 1 + Phase 2) entfernen
+- Die relevanten Infos (Branche, Standort, Remote, Employment-Type) werden stattdessen im Hero angezeigt
+
+### 8. Recruiter-Checkliste im Quality Score
+
+**Datei: `src/components/client/JobQualityScoreCard.tsx`**
+
+Kleine Ergaenzung: Unter den Verbesserungsvorschlaegen eine "Recruiter-Checkliste" mit Haekchen:
+- Gehalt angegeben
+- Skills definiert
+- Beschreibung vorhanden
+- Benefits beschrieben
+
+Bereits erfuellte Punkte erhalten ein gruenes Haekchen, fehlende ein graues X. Das macht den Score transparenter.
 
 ---
 
 ## Technische Uebersicht
 
-| Datei | Aenderung |
-|-------|-----------|
-| `src/pages/dashboard/ClientJobDetail.tsx` | Bento Grid Restructuring, phasen-adaptives Layout, Executive Summary auf volle Breite |
-| `src/components/client/ClientJobHero.tsx` | Stats-Bar nur bei Kandidaten > 0, Next-Steps-Banner bei Entwurf/leer |
-| `src/components/client/JobQualityScoreCard.tsx` | **Neue Komponente**: Kreisfoermiger Score + Verbesserungsvorschlaege |
-| `src/components/client/NextStepsCard.tsx` | **Neue Komponente**: Kontextabhaengige CTAs |
-| `src/components/client/PipelineSnapshotCard.tsx` | Leerer State aufwerten, horizontaler Funnel |
-| `src/components/client/RecruiterActivityCard.tsx` | Leerer State aufwerten |
-| `src/components/client/CompanyInfoCard.tsx` | Mehr Daten anzeigen, Profil-CTA |
-| `src/components/client/TopCandidatesCard.tsx` | Leerer State aufwerten |
-| `src/components/client/UpcomingInterviewsCard.tsx` | Leerer State aufwerten |
-| `src/components/jobs/JobExecutiveSummary.tsx` | Volle Breite, Tabs statt Collapsibles, Intake-Status entfernen |
+| Datei | Aenderung | Aufwand |
+|-------|-----------|--------|
+| `src/components/client/ClientJobHero.tsx` | Lifecycle-Stepper + Company-Info Badges | M |
+| `src/pages/dashboard/ClientJobDetail.tsx` | Layout-Umbau (gleichwertig / kandidaten-zentriert), CompanyInfoCard entfernen | M |
+| `src/components/client/SellingPointsCard.tsx` | **Neue Komponente**: Auto-USPs + Expose-CTA | S |
+| `src/components/client/CommunicationLogCard.tsx` | **Neue Komponente**: Event-Timeline aus vorhandenen Daten | M |
+| `src/components/client/AnonymousExposeDialog.tsx` | **Neue Komponente**: KI-generiertes anonymes Expose | M |
+| `supabase/functions/generate-job-expose/index.ts` | **Neue Edge Function**: Expose-Generierung via Lovable AI | M |
+| `src/components/client/JobQualityScoreCard.tsx` | Recruiter-Checkliste ergaenzen | S |
 
 ### Implementierungsreihenfolge
 
-1. Neue Komponenten erstellen (JobQualityScoreCard, NextStepsCard)
-2. ClientJobDetail.tsx Layout umbauen (phasen-adaptiv)
-3. ClientJobHero.tsx verschlanken
-4. Executive Summary auf Tabs umstellen
-5. Alle leeren States aufwerten
-6. CompanyInfoCard erweitern
+1. Hero umbauen (Stepper + Company-Info Integration)
+2. Neue Komponenten erstellen (SellingPointsCard, CommunicationLogCard)
+3. ClientJobDetail.tsx Layout umbauen + CompanyInfoCard entfernen
+4. Edge Function fuer Expose erstellen
+5. AnonymousExposeDialog bauen + in SellingPointsCard integrieren
+6. JobQualityScoreCard mit Recruiter-Checkliste erweitern
 
