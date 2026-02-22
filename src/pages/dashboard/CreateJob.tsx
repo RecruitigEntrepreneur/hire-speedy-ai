@@ -316,14 +316,17 @@ export default function CreateJob() {
   };
 
   // Mode parameter handling (replaces sessionStorage prefill)
+  const [modeHandled, setModeHandled] = useState(false);
   useEffect(() => {
     const mode = searchParams.get('mode') as ImportMethod;
     if (mode === 'pdf') {
-      // Small delay to ensure ref is mounted
+      setModeHandled(true);
       setTimeout(() => fileInputRef.current?.click(), 100);
     } else if (mode === 'text') {
+      setModeHandled(true);
       setShowTextModal(true);
     } else if (mode === 'url') {
+      setModeHandled(true);
       setShowUrlModal(true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -716,7 +719,7 @@ export default function CreateJob() {
         )}
 
         {/* Import Selection */}
-        {(flowState === 'import-selection' || flowState === 'importing') && (
+        {(flowState === 'import-selection' || flowState === 'importing') && !modeHandled && (
           <div className="space-y-6">
             <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-3")}>
               {/* PDF Upload */}
@@ -869,6 +872,63 @@ export default function CreateJob() {
               </>
             )}
           </div>
+        )}
+
+        {/* Parsing animation when navigated via mode param */}
+        {modeHandled && isImporting && (
+          <div className="space-y-6">
+            {parsingSteps.length > 0 ? (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="py-6">
+                  <div className="space-y-3">
+                    {parsingSteps.map((step, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        {step.status === 'done' && <CheckCircle2 className="h-5 w-5 text-emerald shrink-0" />}
+                        {step.status === 'active' && <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />}
+                        {step.status === 'pending' && <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
+                        <span className={cn(
+                          "text-sm",
+                          step.status === 'active' && "font-medium text-foreground",
+                          step.status === 'done' && "text-muted-foreground",
+                          step.status === 'pending' && "text-muted-foreground/50"
+                        )}>{step.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="py-6">
+                  <div className="flex items-center justify-center gap-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <div>
+                      <p className="font-medium">KI analysiert die Stellenanzeige...</p>
+                      <p className="text-sm text-muted-foreground">Titel, Skills, Gehalt und mehr werden extrahiert</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Fallback after mode-handled error */}
+        {modeHandled && flowState === 'import-selection' && !isImporting && (
+          <Card className="border-border/50">
+            <CardContent className="py-6 text-center space-y-4">
+              <p className="text-muted-foreground">Import abgebrochen oder fehlgeschlagen.</p>
+              <div className="flex justify-center gap-3">
+                <Button variant="outline" onClick={() => setModeHandled(false)}>
+                  Andere Methode wählen
+                </Button>
+                <Button variant="ghost" onClick={handleManualCreate}>
+                  <PenLine className="mr-2 h-4 w-4" />
+                  Manuell erstellen
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Review Section */}
