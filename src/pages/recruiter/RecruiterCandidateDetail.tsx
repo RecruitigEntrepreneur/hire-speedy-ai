@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +20,6 @@ import { CandidateInterviewTab } from '@/components/candidates/CandidateIntervie
 import { CandidatePlaybookPanel } from '@/components/candidates/CandidatePlaybookPanel';
 import { CandidateHeroHeader } from '@/components/candidates/CandidateHeroHeader';
 import { CandidateActionBar } from '@/components/candidates/CandidateActionBar';
-import { CandidateSidebar } from '@/components/candidates/CandidateSidebar';
 import { CandidateMainContent } from '@/components/candidates/CandidateMainContent';
 import { InterviewCardSlider } from '@/components/candidates/InterviewCardSlider';
 
@@ -35,12 +34,22 @@ function getStatusLabel(status: string): string {
 export default function RecruiterCandidateDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeTaskId = searchParams.get('task') || undefined;
   const alertId = searchParams.get('alert') || undefined;
   const playbookId = searchParams.get('playbook') || undefined;
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Tab state from URL
+  const activeTab = activeTaskId ? 'process' : (searchParams.get('tab') || 'overview');
+  const handleTabChange = useCallback((tab: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +65,6 @@ export default function RecruiterCandidateDetail() {
 
   const { activities, loading: activitiesLoading, logActivity, refetch: refetchActivities } = useCandidateActivityLog(candidate?.id);
 
-  // Fetch submissions
   const { data: submissions } = useQuery({
     queryKey: ['candidate-submissions-header', id],
     queryFn: async () => {
@@ -86,7 +94,6 @@ export default function RecruiterCandidateDetail() {
     }
   }, [alertId]);
 
-  // Fetch candidate
   useEffect(() => {
     if (!id || !user) return;
     const fetchCandidate = async () => {
@@ -125,7 +132,6 @@ export default function RecruiterCandidateDetail() {
     if (candidate?.candidate_status) setCurrentStatus(candidate.candidate_status);
   }, [candidate?.candidate_status]);
 
-
   const handleAddActivity = async (activityType: string, title: string, description: string) => {
     if (!candidate) return;
     await logActivity(candidate.id, activityType as any, title, description);
@@ -149,11 +155,11 @@ export default function RecruiterCandidateDetail() {
   const handleViewExpose = () => { if (candidate) window.open(`/expose/${candidate.id}`, '_blank'); };
   const handleStartInterview = () => setInterviewSliderOpen(true);
   const handleSubmitToJob = () => {
+    handleTabChange('matching');
     setTimeout(() => {
       document.getElementById('job-matching-section')?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
-
 
   if (loading) {
     return (
@@ -179,7 +185,6 @@ export default function RecruiterCandidateDetail() {
     );
   }
 
-  // Full Interview Mode (legacy)
   if (showFullInterview) {
     return (
       <DashboardLayout>
@@ -200,7 +205,6 @@ export default function RecruiterCandidateDetail() {
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24">
-        {/* Compact Hero */}
         <CandidateHeroHeader
           candidate={candidate}
           readiness={readiness}
@@ -209,7 +213,6 @@ export default function RecruiterCandidateDetail() {
           onCvUpload={() => setCvUploadOpen(true)}
         />
 
-        {/* Playbook Panel */}
         {playbook && (
           <CandidatePlaybookPanel
             playbook={playbook}
@@ -219,57 +222,45 @@ export default function RecruiterCandidateDetail() {
           />
         )}
 
-        {/* CRM Layout: Sidebar + Main */}
-        <div className="flex flex-col lg:flex-row gap-6">
-        <CandidateSidebar
-            candidate={{
-              id: candidate.id,
-              skills: candidate.skills,
-              certifications: extCandidate?.certifications,
-              cv_ai_summary: extCandidate?.cv_ai_summary,
-              cv_ai_bullets: extCandidate?.cv_ai_bullets,
-            }}
-            tags={candidateTags}
-          />
-
-          <CandidateMainContent
-            candidate={{
-              id: candidate.id,
-              full_name: candidate.full_name,
-              email: candidate.email,
-              phone: candidate.phone,
-              job_title: candidate.job_title,
-              seniority: candidate.seniority,
-              experience_years: candidate.experience_years,
-              city: candidate.city,
-              expected_salary: candidate.expected_salary,
-              salary_expectation_min: extCandidate?.salary_expectation_min,
-              salary_expectation_max: extCandidate?.salary_expectation_max,
-              current_salary: candidate.current_salary,
-              notice_period: extCandidate?.notice_period,
-              availability_date: extCandidate?.availability_date,
-              remote_possible: candidate.remote_possible,
-              remote_preference: extCandidate?.remote_preference,
-              skills: candidate.skills,
-              certifications: extCandidate?.certifications,
-              target_roles: extCandidate?.target_roles,
-              max_commute_minutes: extCandidate?.max_commute_minutes,
-              commute_mode: extCandidate?.commute_mode,
-              address_lat: extCandidate?.address_lat,
-              address_lng: extCandidate?.address_lng,
-              cv_ai_summary: extCandidate?.cv_ai_summary,
-              cv_ai_bullets: extCandidate?.cv_ai_bullets,
-            }}
-            activeTaskId={activeTaskId}
-            activities={activities}
-            activitiesLoading={activitiesLoading}
-            onAddActivity={() => setAddActivityOpen(true)}
-            onStartInterview={handleStartInterview}
-          />
-        </div>
+        <CandidateMainContent
+          candidate={{
+            id: candidate.id,
+            full_name: candidate.full_name,
+            email: candidate.email,
+            phone: candidate.phone,
+            job_title: candidate.job_title,
+            seniority: candidate.seniority,
+            experience_years: candidate.experience_years,
+            city: candidate.city,
+            expected_salary: candidate.expected_salary,
+            salary_expectation_min: extCandidate?.salary_expectation_min,
+            salary_expectation_max: extCandidate?.salary_expectation_max,
+            current_salary: candidate.current_salary,
+            notice_period: extCandidate?.notice_period,
+            availability_date: extCandidate?.availability_date,
+            remote_possible: candidate.remote_possible,
+            remote_preference: extCandidate?.remote_preference,
+            skills: candidate.skills,
+            certifications: extCandidate?.certifications,
+            target_roles: extCandidate?.target_roles,
+            max_commute_minutes: extCandidate?.max_commute_minutes,
+            commute_mode: extCandidate?.commute_mode,
+            address_lat: extCandidate?.address_lat,
+            address_lng: extCandidate?.address_lng,
+            cv_ai_summary: extCandidate?.cv_ai_summary,
+            cv_ai_bullets: extCandidate?.cv_ai_bullets,
+          }}
+          tags={candidateTags}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          activeTaskId={activeTaskId}
+          activities={activities}
+          activitiesLoading={activitiesLoading}
+          onAddActivity={() => setAddActivityOpen(true)}
+          onStartInterview={handleStartInterview}
+        />
       </div>
 
-      {/* Context-aware Action Bar */}
       <CandidateActionBar
         onViewExpose={handleViewExpose}
         onStartInterview={handleStartInterview}
@@ -278,7 +269,6 @@ export default function RecruiterCandidateDetail() {
         currentStatus={currentStatus}
       />
 
-      {/* Dialogs */}
       <AddActivityDialog open={addActivityOpen} onOpenChange={setAddActivityOpen} onSubmit={handleAddActivity} />
       <CvUploadDialog
         open={cvUploadOpen}
