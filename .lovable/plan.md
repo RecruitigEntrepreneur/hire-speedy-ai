@@ -1,42 +1,34 @@
 
 
-# Realistische Testdaten fuer Marko Benko: Interview + Interview-Notizen
+# Readiness-Score Fix: Interview-Daten in Stammdaten uebernehmen
 
-## Was wird gemacht
+## Problem
+Marko Benko hat 71% statt 100%, weil zwei Felder in der `candidates`-Tabelle leer sind:
+- `expected_salary` = null (Interview sagt: 200.000 EUR Wunschgehalt)
+- `notice_period` = null (Interview sagt: 6 Monate zum Quartalsende)
 
-Zwei Datensaetze werden fuer Marko Benko eingefuegt, damit die gesamte Interview-Ansicht sauber getestet werden kann:
+Die Daten existieren in `candidate_interview_notes`, wurden aber nie in die Stammdaten synchronisiert.
 
-### 1. Interview-Eintrag (Tabelle `interviews`)
-Ein geplantes Interview mit realistischen Daten:
-- **Format:** Video (Microsoft Teams)
-- **Termin:** 26. Februar 2026, 10:00 Uhr
-- **Dauer:** 60 Minuten
-- **Status:** scheduled (bestaetigt)
-- **Meeting-Link:** https://teams.microsoft.com/l/meetup-join/example-link
-- Verknuepft mit Submission `876e791f-de1b-4cc6-b004-57e1c27dd8d9`
+## Loesung
 
-### 2. Interview-Notizen (Tabelle `candidate_interview_notes`)
-Alle Felder des 5-Karten-Sliders ausgefuellt mit realistischen Muster-Antworten passend zu Marko Benkos CEO-Profil:
+### Schritt 1: Marko Benkos Stammdaten aktualisieren (Datenbank)
+SQL-Update um die fehlenden Felder zu fuellen:
+- `expected_salary` = 200000
+- `salary_expectation_min` = 185000
+- `salary_expectation_max` = 220000
+- `notice_period` = '6_months'
 
-**Karriereziele:**
-- Ultimatives Ziel: Beiratsmandat und Aufbau eines eigenen Beratungsportfolios
-- 3-5 Jahresplan: Operative Geschaeftsfuehrung in einem PE-backed Mittelstaendler mit klarem Exit-Horizont
-- Was hat funktioniert / nicht funktioniert
+Damit springt der Score sofort auf 100%.
 
-**Situation & Motivation:**
-- Positive/negative Aspekte der aktuellen Rolle
-- Wechselmotivation: Strategische Neuausrichtung, weniger operative Last
-- Tags: Karriereschritt, Fuehrungsverantwortung, Gehalt, Work-Life-Balance
+### Schritt 2: Interview-Save synchronisiert Stammdaten (Code-Aenderung)
+Damit das Problem nicht bei jedem Kandidaten erneut auftritt, wird die `handleSave`-Funktion im `CandidateInterviewTab.tsx` erweitert: Wenn der Recruiter das Interview abschliesst, werden Gehalt und Kuendigungsfrist automatisch in die `candidates`-Tabelle geschrieben.
 
-**Gehalt & Konditionen:**
-- Aktuell: 180.000 EUR fix + 40.000 EUR variabel
-- Wunsch: 200.000 EUR fix + Performance-Bonus
-- Minimum: 185.000 EUR all-in
-- Must-Haves: Dienstwagen, flexible Arbeitszeiten, Beteiligung
+**Datei: `CandidateInterviewTab.tsx`**
+- Nach dem erfolgreichen Speichern der Interview-Notizen: Supabase-Update auf `candidates` mit den relevanten Feldern (Gehalt, Kuendigungsfrist), sofern diese in den Notizen ausgefuellt sind und in den Stammdaten noch fehlen.
 
-**Abschluss:**
-- Kuendigungsfrist: 6 Monate zum Quartalsende
-- Empfehlung: Ja
-- Zusammenfassung fuer Kunden
+| Aenderung | Datei |
+|---|---|
+| Marko Benkos Stammdaten fuellen | SQL-Migration (einmalig) |
+| Interview-Save synchronisiert Stammdaten | `CandidateInterviewTab.tsx` |
 
-Keine Code-Aenderungen noetig -- es werden nur Daten in bestehende Tabellen eingefuegt.
+Keine neuen Tabellen, keine Schema-Aenderungen.
