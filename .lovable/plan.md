@@ -1,169 +1,80 @@
 
+# Hero Section Overhaul: ASCII-Haende + Interaktives Dashboard
 
-# Landing Page Komplett-Redesign: Next-Level 2026
+## Probleme (Screenshot-basiert)
 
-## Vision
-
-Die Haende sollen nicht als Hintergrundbild existieren, sondern als **ASCII-Art** gerendert werden -- die Haende bestehen aus Code-Zeichen, bewegen sich aufeinander zu und "atmen". Darunter kommt ein **Dashboard-Demo-Screenshot** der echten Plattform als perspektivisches, schwebendes Element. Die gesamte Seite bekommt moderne Scroll-Animationen, sanfte Uebergaenge zwischen Sektionen, und interaktive Elemente.
-
----
-
-## Phase 1: Infrastruktur + Grundlagen
-
-### `src/App.css` -- Bereinigen
-- `#root { max-width: 1280px; padding: 2rem; text-align: center }` komplett entfernen -- das beschneidet die gesamte Seite
-
-### Neue Hooks erstellen
-- **`src/hooks/useScrollReveal.ts`**: IntersectionObserver-Hook, gibt `ref` + `isVisible` zurueck. Jede Sektion nutzt diesen fuer scroll-triggered Einblendungen
-- **`src/hooks/useCountUp.ts`**: Animierter Zaehler (0 -> Zielwert) der erst startet wenn sichtbar
-- **`src/hooks/useParallax.ts`**: Scroll-basierter Parallax-Effekt fuer Hintergrund-Elemente und das Dashboard-Mockup
-
-### `src/index.css` -- Neue Animations-Klassen
-- `.reveal` / `.reveal-visible`: Opacity 0->1, translateY 40px->0 mit konfigurierbarem Delay via CSS-Variable
-- `.text-stroke`: Text mit transparentem Fill und sichtbarem Stroke (fuer "Perfect Hire.")
-- `.perspective-tilt`: 3D-Perspektive fuer das Dashboard-Mockup
-- `.section-transition`: Weiche Uebergaenge zwischen Sektionen via Gradient-Overlaps
+1. **ASCII-Haende unsichtbar**: Font-Size 8-12px, Opacity 0.12 -- man sieht praktisch nichts. Die Box-Drawing-Characters sind zu fein fuer den Zweck
+2. **Positionierung falsch**: Die Haende sind `absolute inset-0` zentriert und landen direkt hinter/unter den CTAs -- nicht als eigenstaendiges visuelles Element sichtbar
+3. **Dashboard statisch**: Sieht gut aus, aber null Interaktivitaet -- man kann nichts klicken
 
 ---
 
-## Phase 2: Hero Section -- Komplett Neukonzept
+## Loesung
 
-### `src/components/landing/AsciiHandsArt.tsx` (NEU)
-**Das Herzstück**: Die Michelangelo-Haende werden als **ASCII-Art** gerendert:
-- Zwei Hand-Silhouetten bestehend aus Code-Zeichen (`{ } [ ] < > / \ | 0 1`)
-- Linke Hand und rechte Hand bewegen sich langsam aufeinander zu (CSS animation, ~3px hin und her)
-- Der Raum zwischen den Haenden "flimmert" mit zufaelligen Zeichen -- wie ein Datentransfer
-- Die Haende sind gross, zentriert, semi-transparent (opacity 0.15-0.25)
-- Dunkler Hintergrund (`bg-background`), kein Weiss
+### 1. ASCII-Haende komplett neu (`AsciiHandsArt.tsx`)
 
-### `src/components/landing/CreationHandsBackground.tsx` -- Entfernen/Ersetzen
-- Wird nicht mehr gebraucht, das PNG-Bild wird durch die ASCII-Haende ersetzt
+**Was sich aendert:**
+- **Groessere Schrift**: Von `text-[8px]/[10px]/[12px]` auf `text-[14px]/[18px]/[22px]` -- die Haende muessen sichtbar sein
+- **Hoehere Opacity**: Von `0.12` auf `0.06-0.08` fuer die Haende, aber dafuer mit einem **animierten Glow-Effekt** der periodisch auf `0.15` hochfaehrt -- wie ein "Puls"
+- **Bessere ASCII-Art**: Die aktuellen Box-Drawing-Haende sehen zu technisch/steif aus. Neue Hand-Silhouetten die organischer wirken, mit mehr Code-Zeichen im Inneren (`function()`, `return`, `match()`, `hire()`, `</>`, `=>`)
+- **Groesserer Spark-Gap**: Der Bereich zwischen den Haenden wird breiter (w-32 md:w-48) mit staerkerem Flicker-Effekt und gelegentlichen "Blitz"-Momenten wo die Opacity kurz auf 0.3 springt
+- **Position**: Leicht nach oben versetzt (`translateY(-120px)` statt `-40px`) damit die Haende im oberen Bereich der Hero-Section schweben, UEBER der Headline -- nicht dahinter versteckt
+- **Skalierung responsive**: Auf Mobile kleiner aber immer noch sichtbar, auf Desktop gross und praesent
 
-### `src/components/landing/AsciiCodeOverlay.tsx` -- Entfernen
-- Der zufaellige ASCII-Overlay wird nicht mehr gebraucht, da die Haende selbst aus ASCII bestehen
+### 2. Dashboard interaktiv machen (`DashboardPreview.tsx`)
 
-### `src/components/landing/DashboardPreview.tsx` (NEU)
-**Dashboard-Demo unter dem Hero**:
-- Ein statischer Screenshot/Mockup des echten Dashboards (gebaut als React-Komponente, nicht als Bild)
-- Zeigt: Sidebar-Ausschnitt, Kandidaten-Pipeline, Match-Score-Karten, Funnel-Chart
-- In einem Browser-Chrome-Rahmen (dunkel, mit Dots oben links rot/gelb/gruen)
-- **Perspektivisch geneigt**: `perspective(1200px) rotateX(8deg)` -- sieht aus als "schwebt" es
-- Subtle Glow darunter (`box-shadow` + blur)
-- Beim Scrollen richtet sich das Dashboard langsam auf (rotateX geht auf 0) via `useParallax`
-- Monochrom: `bg-card`, `border-border`, `text-foreground/muted-foreground`
+**Interaktive Elemente:**
+- **Sidebar-Navigation klickbar**: Beim Klick auf "Jobs", "Kandidaten", "Analytics" wechselt der Hauptbereich zu einer anderen Demo-Ansicht (3 vordefinierte States)
+  - **Dashboard**: Aktueller Zustand (Metriken + Pipeline) -- Default
+  - **Jobs**: Eine Mini-Job-Liste mit Status-Badges (Aktiv, Pause, Geschlossen)
+  - **Kandidaten**: Match-Score-Karten mit Profilbildern und Skill-Tags
+- **Hover-Effekte auf Kandidaten-Zeilen**: Beim Hover leuchtet die Zeile auf (`bg-foreground/5`), der Score-Balken animiert sich
+- **Metriken-Karten**: Zahlen zaehlen kurz hoch beim ersten Sichtbar-werden (mini countUp, schnell)
+- **Cursor aendert sich**: `pointer-events-auto` statt `none` auf dem Dashboard, Custom-Cursor oder zumindest Pointer auf interaktiven Elementen
+- **Klick-Feedback**: Beim Klick auf Sidebar-Items gibt es eine subtile Uebergangs-Animation (fade/slide)
 
-### `src/components/landing/HeroSection.tsx` -- Komplett neu
-**Layout:**
-1. Dunkler Hintergrund (`bg-background`), KEIN weisser Hintergrund
-2. ASCII-Haende als Hintergrund-Element (statt PNG + ASCII-Overlay)
-3. Badge: Monochrom (`bg-foreground/5 border-border/30 text-muted-foreground`)
-4. **"Perfect Match."** in grosser weisser Schrift
-5. **"Perfect Hire."** als **Stroke-Text** -- nur der Outline ist sichtbar, mit einer animierten Gradient-Linie die durch den Stroke fliesst (CSS `background-clip: text` + `stroke` Trick)
-6. Subheadline: Schlichter, `text-muted-foreground`
-7. CTAs: Primaer = `bg-foreground text-background` (weiss/schwarz invertiert), Sekundaer = `border-foreground/20`
-8. Weg mit den fake Firmennamen ("TechCorp" etc.) -- nur "500+ erfolgreiche Placements"
-9. **Dashboard-Preview** statt MatchingVisualization
-10. Scroll-Indicator am unteren Rand: animierter Chevron/Maus-Icon
+### 3. Hero-Section Layout-Anpassung (`HeroSection.tsx`)
 
-### `src/components/landing/MatchingVisualization.tsx` -- Verschieben
-- Wird aus dem Hero entfernt und in die Engine-Section integriert (dort passt es thematisch)
-- Alle Farben monochrom umstellen
+- **Spacing**: Mehr Abstand zwischen Headline und Dashboard -- das Dashboard soll als eigenstaendiger Block wirken
+- **ASCII-Haende Z-Index**: z-[5] bleibt, aber die Position wird so angepasst dass die Haende UEBER der Headline schweben, nicht dahinter verschwinden
 
 ---
 
-## Phase 3: Sektions-Uebergaenge + Scroll-Reveals
+## Technische Details
 
-Jede Sektion bekommt:
-- **Scroll-triggered Reveal**: Elemente erscheinen mit Stagger-Delay beim Scrollen
-- **Weiche Uebergaenge**: Gradient-Overlaps am Anfang/Ende jeder Sektion statt harter Farbwechsel
-- **Alternierende Hintergruende**: `bg-background` (dunkel) und `bg-muted/30` (leicht heller) im Wechsel
+### `src/components/landing/AsciiHandsArt.tsx` -- Komplett neu
+
+Neue ASCII-Art mit groesseren, organischeren Hand-Formen:
+- Linke Hand zeigt nach rechts, besteht aus Zeichen wie `{ } ( ) => fn match()`
+- Rechte Hand zeigt nach links, besteht aus `hire() <> [] return true`
+- Zwischen den Haenden: Spark-Bereich mit zufaellig wechselnden Code-Snippets
+- **Puls-Animation**: Alle 4 Sekunden faehrt die Opacity der gesamten Haende kurz hoch (0.06 -> 0.12 -> 0.06)
+- **Bewegung bleibt**: translateX 6px/-6px Hin-und-Her-Bewegung
+- Font-Size: `text-sm sm:text-base md:text-lg lg:text-xl` (deutlich groesser)
+- Position: `top-8 md:top-16` statt vertikal zentriert -- Haende im oberen Drittel
+
+### `src/components/landing/DashboardPreview.tsx` -- Interaktiv
+
+Neuer State-basierter Aufbau:
+- `useState` fuer `activeTab` ("dashboard" | "jobs" | "kandidaten")
+- Sidebar-Items bekommen `onClick` Handler + `cursor-pointer`
+- Drei Content-Panels die per `activeTab` gerendert werden
+- Uebergangs-Animation: `transition-opacity duration-300` beim Wechsel
+- Hover-States auf allen Zeilen/Karten
+- Mini-CountUp fuer die Metriken-Zahlen (nur beim initialen Render)
+- `pointer-events-auto` auf dem gesamten Dashboard-Container
+
+### `src/components/landing/HeroSection.tsx` -- Minimal
+
+- `mt-16` auf DashboardPreview wird `mt-20 md:mt-24` fuer mehr Breathing Room
+- Kein weiterer struktureller Umbau noetig
 
 ---
 
-## Phase 4: Alle Sektionen -- Monochrom + Modern
+## Dateiaenderungen
 
-### Farb-Cleanup (betrifft ALLE Sektionen)
-Jede Datei wird durchgegangen und ersetzt:
-- `bg-slate-50` -> `bg-muted/30`
-- `bg-white` -> `bg-background` oder `bg-card`
-- `text-slate-900` -> `text-foreground`
-- `text-slate-600` -> `text-muted-foreground`
-- `text-slate-400/500` -> `text-muted-foreground`
-- `bg-emerald`, `text-emerald`, `from-emerald`, `border-emerald/*` -> `bg-foreground`, `text-foreground`, `border-foreground/20`
-- `bg-red-50`, `bg-orange-50`, `bg-amber-50` -> `bg-muted/50`
-- `text-red-500`, `text-orange-500`, `text-amber-500` -> `text-foreground`
-- `shadow-emerald/*` -> `shadow-foreground/10`
-- `hover:border-emerald/*` -> `hover:border-foreground/20`
-- `bg-emerald/10` -> `bg-foreground/5`
-- `hover:text-emerald` -> `hover:text-foreground`
-
-### Betroffene Dateien:
-| Datei | Hauptaenderungen |
+| Datei | Art der Aenderung |
 |---|---|
-| `SocialProofSection.tsx` | Counter-Animation mit `useCountUp`, Marquee-Band, monochrom |
-| `ProblemSection.tsx` | `bg-muted/30`, monochrome Pain-Cards, scroll-reveal, kein Emerald |
-| `EngineSection.tsx` | Monochrome Ringe/Core, MatchingVisualization hier integrieren, scroll-stagger |
-| `HowItWorksSection.tsx` | `bg-muted/30`, monochrome Timeline, scroll-reveal fuer Steps |
-| `FeaturesSection.tsx` | Monochrome Icons/Bars, scroll-reveal pro Feature-Block |
-| `ForCompaniesSection.tsx` | `bg-muted/30`, monochrome Benefit-Cards |
-| `ForRecruitersSection.tsx` | Monochrome Recruiter-Card, keine farbigen Badges |
-| `AnalyticsSection.tsx` | `bg-muted/30`, monochrom Dashboard-Mockup, perspective-tilt |
-| `CaseStudiesSection.tsx` | `bg-background`, monochrome Icon-Boxen |
-| `PricingSection.tsx` | Monochrome Badge/CTA |
-| `TrustSecuritySection.tsx` | `bg-background`, monochrome Grid/Cards |
-| `FAQSection.tsx` | Label-Fix (`text-muted-foreground`) |
-| `FinalCTASection.tsx` | `bg-background`, keine Emerald-Elemente, Shine-Effekt auf CTA |
-| `FooterSection.tsx` | `bg-card`, `border-border`, `text-muted-foreground`, MatchuntLogo statt Briefcase |
-
----
-
-## Phase 5: Spezial-Effekte
-
-### Social Proof -- Animated Counter + Marquee
-- Metriken ("3.8 Tage", "+42%", "12.000+") zaehlen mit `useCountUp` hoch wenn sichtbar
-- Neues **Marquee-Band** zwischen Metriken und Testimonial: Endlos-Lauftext "Schneller. Praeziser. Fairer. Ergebnisorientiert." in grosser, leicht transparenter Schrift
-
-### Engine Section -- MatchingVisualization Integration
-- Die Animation aus dem Hero wird hier platziert (thematisch passend: "The Recruiting OS")
-- Alle Farben monochrom
-
-### Analytics Section -- Dashboard-Tilt
-- Das Dashboard-Mockup bekommt `perspective(1200px) rotateX(5deg)` und richtet sich beim Scrollen auf
-
-### Final CTA -- Shine-Effekt
-- Ein weisser Lichtstreifen gleitet periodisch ueber den CTA-Button
-
----
-
-## Zusammenfassung der Dateien
-
-| Datei | Typ |
-|---|---|
-| `src/App.css` | Bereinigen |
-| `src/hooks/useScrollReveal.ts` | Neu |
-| `src/hooks/useCountUp.ts` | Neu |
-| `src/hooks/useParallax.ts` | Neu |
-| `src/index.css` | Erweitern (neue Utility-Klassen) |
-| `src/components/landing/AsciiHandsArt.tsx` | Neu -- ASCII-Haende |
-| `src/components/landing/DashboardPreview.tsx` | Neu -- Demo-Dashboard |
-| `src/components/landing/HeroSection.tsx` | Komplett neu |
-| `src/components/landing/CreationHandsBackground.tsx` | Entfernen (durch ASCII ersetzt) |
-| `src/components/landing/AsciiCodeOverlay.tsx` | Entfernen (in Haende integriert) |
-| `src/components/landing/MatchingVisualization.tsx` | Monochrom + in EngineSection verschieben |
-| `src/components/landing/SocialProofSection.tsx` | Counter, Marquee, monochrom |
-| `src/components/landing/ProblemSection.tsx` | Monochrom, scroll-reveal |
-| `src/components/landing/EngineSection.tsx` | Monochrom, Visualization integriert |
-| `src/components/landing/HowItWorksSection.tsx` | Monochrom, scroll-reveal |
-| `src/components/landing/FeaturesSection.tsx` | Monochrom, scroll-reveal |
-| `src/components/landing/ForCompaniesSection.tsx` | Monochrom |
-| `src/components/landing/ForRecruitersSection.tsx` | Monochrom |
-| `src/components/landing/AnalyticsSection.tsx` | Monochrom, perspective-tilt |
-| `src/components/landing/CaseStudiesSection.tsx` | Monochrom |
-| `src/components/landing/PricingSection.tsx` | Monochrom |
-| `src/components/landing/TrustSecuritySection.tsx` | Monochrom |
-| `src/components/landing/FAQSection.tsx` | Label-Fix |
-| `src/components/landing/FinalCTASection.tsx` | Monochrom, Shine-CTA |
-| `src/components/landing/FooterSection.tsx` | Monochrom, MatchuntLogo |
-
-**25 Dateien, 3 neue Hooks, 2 neue Komponenten.** Jede Sektion bekommt scroll-triggered Reveals. Die Hero-Section wird zum cinematischen Einstieg mit ASCII-Haenden und schwebendem Dashboard-Preview.
-
+| `src/components/landing/AsciiHandsArt.tsx` | Komplett neu: groessere Schrift, bessere Art, Puls-Animation, neue Position |
+| `src/components/landing/DashboardPreview.tsx` | Interaktiv: klickbare Sidebar, 3 Views, Hover-States, CountUp |
+| `src/components/landing/HeroSection.tsx` | Spacing-Anpassung (mt-20) |
