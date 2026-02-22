@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -125,25 +125,6 @@ export default function RecruiterCandidateDetail() {
     if (candidate?.candidate_status) setCurrentStatus(candidate.candidate_status);
   }, [candidate?.candidate_status]);
 
-  const statusMutation = useMutation({
-    mutationFn: async (newStatus: string) => {
-      if (!candidate) return;
-      const { error } = await supabase
-        .from('candidates')
-        .update({ candidate_status: newStatus })
-        .eq('id', candidate.id);
-      if (error) throw error;
-      return newStatus;
-    },
-    onSuccess: async (newStatus) => {
-      if (!candidate || !newStatus) return;
-      setCurrentStatus(newStatus);
-      await logActivity(candidate.id, 'status_change', `Status geändert zu "${getStatusLabel(newStatus)}"`, undefined, { oldStatus: currentStatus, newStatus });
-      toast.success('Status aktualisiert');
-      queryClient.invalidateQueries({ queryKey: ['candidates'] });
-    },
-    onError: () => toast.error('Fehler beim Aktualisieren des Status'),
-  });
 
   const handleAddActivity = async (activityType: string, title: string, description: string) => {
     if (!candidate) return;
@@ -173,25 +154,6 @@ export default function RecruiterCandidateDetail() {
     }, 100);
   };
 
-  // Format helpers
-  const getAvailabilityText = () => {
-    if (extCandidate?.availability_date) {
-      const d = new Date(extCandidate.availability_date);
-      return d <= new Date() ? 'Sofort verfügbar' : `Ab ${d.toLocaleDateString('de-DE', { month: 'short', year: 'numeric' })}`;
-    }
-    if (extCandidate?.notice_period) {
-      const labels: Record<string, string> = { immediate: 'Sofort verfügbar', '2_weeks': '2 Wochen', '1_month': '1 Monat', '2_months': '2 Monate', '3_months': '3 Monate', '6_months': '6 Monate' };
-      return labels[extCandidate.notice_period] || extCandidate.notice_period;
-    }
-    return null;
-  };
-  const getSalaryText = () => {
-    const min = extCandidate?.salary_expectation_min;
-    const max = extCandidate?.salary_expectation_max;
-    if (min && max) return `${Math.round(min / 1000)}k - ${Math.round(max / 1000)}k €`;
-    if (candidate?.expected_salary) return `${Math.round(candidate.expected_salary / 1000)}k €`;
-    return null;
-  };
 
   if (loading) {
     return (
@@ -243,12 +205,8 @@ export default function RecruiterCandidateDetail() {
           candidate={candidate}
           readiness={readiness}
           currentStatus={currentStatus}
-          onStatusChange={(stage) => statusMutation.mutate(stage)}
           onEdit={() => setFormDialogOpen(true)}
           onCvUpload={() => setCvUploadOpen(true)}
-          statusMutationPending={statusMutation.isPending}
-          availabilityText={getAvailabilityText()}
-          salaryText={getSalaryText()}
         />
 
         {/* Playbook Panel */}
@@ -263,17 +221,9 @@ export default function RecruiterCandidateDetail() {
 
         {/* CRM Layout: Sidebar + Main */}
         <div className="flex flex-col lg:flex-row gap-6">
-          <CandidateSidebar
+        <CandidateSidebar
             candidate={{
               id: candidate.id,
-              seniority: candidate.seniority,
-              expected_salary: candidate.expected_salary,
-              salary_expectation_min: extCandidate?.salary_expectation_min,
-              salary_expectation_max: extCandidate?.salary_expectation_max,
-              notice_period: extCandidate?.notice_period,
-              availability_date: extCandidate?.availability_date,
-              remote_possible: candidate.remote_possible,
-              remote_preference: extCandidate?.remote_preference,
               skills: candidate.skills,
               certifications: extCandidate?.certifications,
               cv_ai_summary: extCandidate?.cv_ai_summary,
