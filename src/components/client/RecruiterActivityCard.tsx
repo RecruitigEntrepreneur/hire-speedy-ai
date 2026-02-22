@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Target, Clock, Send, TrendingUp } from 'lucide-react';
+import { ArrowRight, Target, Clock, Send, TrendingUp, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -32,10 +32,44 @@ export function RecruiterActivityCard({
   const activityConfig = {
     high: { label: 'Hohe Aktivität', color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
     medium: { label: 'Normale Aktivität', color: 'text-blue-600', bg: 'bg-blue-500/10' },
-    low: { label: 'Wenig Aktivität', color: 'text-muted-foreground', bg: 'bg-muted' },
+    low: { label: 'Startphase', color: 'text-muted-foreground', bg: 'bg-muted' },
   };
 
   const config = activityConfig[activityLevel];
+
+  // Enhanced empty state
+  if (activityLevel === 'low' && totalSubmissions === 0) {
+    return (
+      <Card className={className}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              Recruiter Aktivität
+            </span>
+            <Badge variant="outline" className={`${config.bg} ${config.color} border-0`}>
+              {config.label}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">
+            <div className="relative mx-auto mb-3 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Search className="h-5 w-5 text-primary" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary" />
+              </span>
+            </div>
+            <p className="text-sm font-medium">Recruiter werden benachrichtigt</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Passende Recruiter sehen Ihre Stelle und beginnen mit der Suche
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={className}>

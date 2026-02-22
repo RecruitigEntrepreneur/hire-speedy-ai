@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowRight, Users } from 'lucide-react';
-import { getPipelineStageColor, getPipelineStageLabel } from '@/lib/jobPipelineStatus';
+import { ArrowRight, Users, Rocket } from 'lucide-react';
+import { getPipelineStageColor } from '@/lib/jobPipelineStatus';
 
 interface Submission {
   id: string;
@@ -35,7 +35,6 @@ export function PipelineSnapshotCard({ jobId, submissions, className }: Pipeline
   const totalActive = activeSubmissions.length;
   const maxStageCount = Math.max(...PIPELINE_STAGES.map(s => getCountByStage(s.key)), 1);
 
-  // Calculate progress percentage
   const hiredCount = getCountByStage('hired');
   const offerCount = getCountByStage('offer');
   const interviewCount = getCountByStage('interview') + getCountByStage('second_interview');
@@ -45,6 +44,37 @@ export function PipelineSnapshotCard({ jobId, submissions, className }: Pipeline
   else if (offerCount > 0) progressPercentage = 80;
   else if (interviewCount > 0) progressPercentage = 50;
   else if (submissions.length > 0) progressPercentage = 20;
+
+  // Empty state - no candidates at all
+  if (submissions.length === 0) {
+    return (
+      <Card className={className}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Pipeline
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <div className="relative mx-auto mb-3 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Rocket className="h-6 w-6 text-primary" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary" />
+              </span>
+            </div>
+            <p className="text-sm font-medium">Recruiter suchen aktiv</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ihre Stelle wird an passende Recruiter verteilt
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={className}>

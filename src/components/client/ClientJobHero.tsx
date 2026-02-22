@@ -46,9 +46,10 @@ interface ClientJobHeroProps {
   onEdit: () => void;
   onPauseToggle: () => void;
   onBoost?: () => void;
+  showStats?: boolean;
 }
 
-export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost }: ClientJobHeroProps) {
+export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost, showStats = true }: ClientJobHeroProps) {
   const isPaused = !!job.paused_at;
   const healthStatus = getJobHealthStatus(
     stats.totalSubmissions,
@@ -96,18 +97,15 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost }: Cl
 
       {/* Hero Card */}
       <div className="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-card via-card to-accent/20">
-        {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent" />
         
         <div className="relative p-6 md:p-8">
           {/* Top Row: Logo + Title + Status */}
           <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
-            {/* Logo */}
             <div className="h-16 w-16 md:h-20 md:w-20 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0 shadow-navy">
               <Briefcase className="h-8 w-8 md:h-10 md:w-10 text-primary-foreground" />
             </div>
 
-            {/* Title & Company */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{job.title}</h1>
@@ -153,7 +151,6 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost }: Cl
               </div>
             </div>
 
-            {/* Status Badge */}
             <div className="flex items-center gap-2">
               <Badge 
                 variant={
@@ -170,37 +167,39 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost }: Cl
             </div>
           </div>
 
-          {/* Stats Bar */}
-          <div className="mt-6 p-4 rounded-lg bg-background/60 backdrop-blur-sm border border-border/50">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold">{stats.totalSubmissions}</p>
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                  <Users className="h-3 w-3" />
-                  Kandidaten
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">{stats.inProcess}</p>
-                <p className="text-xs text-muted-foreground">In Bearbeitung</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">{stats.interviewed}</p>
-                <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Interviewt
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-600">{stats.hired}</p>
-                <p className="text-xs text-muted-foreground">Eingestellt</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">{stats.activeRecruiters}</p>
-                <p className="text-xs text-muted-foreground">Recruiter aktiv</p>
+          {/* Stats Bar - only show when there are candidates */}
+          {showStats && (
+            <div className="mt-6 p-4 rounded-lg bg-background/60 backdrop-blur-sm border border-border/50">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{stats.totalSubmissions}</p>
+                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    <Users className="h-3 w-3" />
+                    Kandidaten
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{stats.inProcess}</p>
+                  <p className="text-xs text-muted-foreground">In Bearbeitung</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{stats.interviewed}</p>
+                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Interviewt
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{stats.hired}</p>
+                  <p className="text-xs text-muted-foreground">Eingestellt</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{stats.activeRecruiters}</p>
+                  <p className="text-xs text-muted-foreground">Recruiter aktiv</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Actions */}
           <div className="mt-6 flex flex-wrap items-center gap-3">

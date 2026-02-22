@@ -9,8 +9,12 @@ import {
   MapPin, 
   ExternalLink,
   Factory,
-  Calendar
+  Calendar,
+  Briefcase,
+  Monitor,
+  ArrowRight
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface CompanyInfoCardProps {
   companyName: string;
@@ -21,8 +25,23 @@ interface CompanyInfoCardProps {
   linkedinUrl?: string | null;
   foundedYear?: number | null;
   description?: string | null;
+  remoteType?: string | null;
+  employmentType?: string | null;
   className?: string;
 }
+
+const REMOTE_LABELS: Record<string, string> = {
+  onsite: 'Vor Ort',
+  hybrid: 'Hybrid',
+  remote: 'Full Remote',
+};
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  fulltime: 'Vollzeit',
+  parttime: 'Teilzeit',
+  contract: 'Freelance',
+  internship: 'Praktikum',
+};
 
 export function CompanyInfoCard({
   companyName,
@@ -33,10 +52,14 @@ export function CompanyInfoCard({
   linkedinUrl,
   foundedYear,
   description,
+  remoteType,
+  employmentType,
   className
 }: CompanyInfoCardProps) {
   const hasLinks = website || linkedinUrl;
-  const hasDetails = industry || location || employeeCount || foundedYear;
+  const hasDetails = industry || location || employeeCount || foundedYear || remoteType || employmentType;
+  const detailCount = [industry, location, employeeCount, foundedYear, remoteType, employmentType, website, linkedinUrl, description].filter(Boolean).length;
+  const isMinimalProfile = detailCount <= 2;
 
   return (
     <Card className={className}>
@@ -50,16 +73,30 @@ export function CompanyInfoCard({
         {/* Company Name & Industry */}
         <div>
           <h3 className="font-semibold text-lg">{companyName}</h3>
-          {industry && (
-            <Badge variant="secondary" className="mt-1">
-              <Factory className="h-3 w-3 mr-1" />
-              {industry}
-            </Badge>
-          )}
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {industry && (
+              <Badge variant="secondary">
+                <Factory className="h-3 w-3 mr-1" />
+                {industry}
+              </Badge>
+            )}
+            {remoteType && (
+              <Badge variant="outline">
+                <Monitor className="h-3 w-3 mr-1" />
+                {REMOTE_LABELS[remoteType] || remoteType}
+              </Badge>
+            )}
+            {employmentType && (
+              <Badge variant="outline">
+                <Briefcase className="h-3 w-3 mr-1" />
+                {EMPLOYMENT_LABELS[employmentType] || employmentType}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Details Grid */}
-        {hasDetails && (
+        {(location || employeeCount || foundedYear) && (
           <div className="grid grid-cols-2 gap-3">
             {location && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -113,11 +150,13 @@ export function CompanyInfoCard({
           </div>
         )}
 
-        {/* Fallback when minimal info */}
-        {!hasDetails && !description && !hasLinks && (
-          <p className="text-sm text-muted-foreground text-center py-2">
-            Keine weiteren Informationen verfügbar
-          </p>
+        {/* Minimal profile hint */}
+        {isMinimalProfile && (
+          <div className="p-3 rounded-lg border border-dashed border-border bg-muted/30">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Tipp:</span> Recruiter sehen nur wenige Infos über Ihr Unternehmen. Ein vollständigeres Profil hilft bei der Kandidatenansprache.
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>
