@@ -1,37 +1,25 @@
 
-
-# Karriere-Timeline in den Uebersicht-Tab verschieben
-
-## Aktuelle Situation
-Die Karriere-Timeline sitzt im **Historie**-Tab -- der Recruiter muss extra dorthin wechseln um die CV-Stationen zu sehen. Die Daten stammen aus dem automatischen CV-Parsing (KI extrahiert Berufsstationen beim Upload).
+# Interview-Erkenntnisse in den Uebersicht-Tab verschieben
 
 ## Aenderung
 
-Die `CandidateExperienceTimeline` wird aus dem Historie-Tab entfernt und in den Uebersicht-Tab verschoben -- in die rechte Spalte des 2-Column-Grids, unter Dokumente und Tags.
+Die `QuickInterviewSummary`-Komponente wird aus dem **Prozess**-Tab in den **Uebersicht**-Tab verschoben -- prominent ganz oben, direkt vor dem Key Facts Grid. So sieht der Recruiter sofort, was fuer ein vollstaendiges Expose noch fehlt (Interview-Daten + CV).
 
 ### Datei: `CandidateMainContent.tsx`
 
-**Im Uebersicht-Tab (Zeile 119, rechte Spalte):** Karriere-Timeline Card einfuegen nach dem Tags-Block:
+**Uebersicht-Tab (vor Key Facts Grid):** QuickInterviewSummary einfuegen:
 ```
-<Card>
-  <CardHeader className="pb-2">
-    <CardTitle className="text-sm flex items-center gap-2">
-      <Building2 className="h-4 w-4 text-primary" />
-      Karriere-Timeline
-    </CardTitle>
-  </CardHeader>
-  <CardContent>
-    <CandidateExperienceTimeline candidateId={candidate.id} />
-  </CardContent>
-</Card>
+<QuickInterviewSummary
+  candidateId={candidate.id}
+  onViewDetails={onStartInterview}
+/>
+<CandidateKeyFactsGrid candidate={candidate} />
 ```
 
-**Im Historie-Tab (Zeile 191-202):** Den Karriere-Timeline Card-Block entfernen. Der Historie-Tab behaelt nur noch "Aehnliche Kandidaten" und "Letzte Aktivitaeten".
-
-### Zusammenfassung
+**Prozess-Tab:** QuickInterviewSummary entfernen. Der Prozess-Tab behaelt nur noch Interviews und Offene Aufgaben.
 
 | Datei | Aenderung |
 |---|---|
-| `CandidateMainContent.tsx` | Timeline aus Historie-Tab entfernen, in Uebersicht-Tab (rechte Spalte) einfuegen |
+| `CandidateMainContent.tsx` | QuickInterviewSummary aus Prozess-Tab entfernen, in Uebersicht-Tab ganz oben einfuegen |
 
-Keine neuen Dateien, keine DB-Aenderungen. Eine einzige Datei wird geaendert.
+Keine neuen Dateien, keine DB-Aenderungen.
