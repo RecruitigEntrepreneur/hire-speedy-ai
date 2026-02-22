@@ -1,105 +1,139 @@
 
 
-# Haende mit Dot-Grid Textur (inspiriert von IMG_1469 + IMG_1468)
+# Dashboard Kandidaten-Sektion: Redesign zur "Bewerbungsmappe"
 
-## Problem
+## Zusammenfassung
 
-Die Haende sind im aktuellen Zustand kaum sichtbar. Die Code-Rain-Spalten mit 80 Columns und 0.20 Opacity erzeugen zu wenig Dichte und wirken duenn/lueckenhaft auf dem dunklen Hintergrund.
-
-## Loesung: CSS Dot-Grid statt Code-Rain
-
-Statt animierter Code-Rain-Spalten mit DOM-Elementen wird ein **CSS-basiertes Dot-Grid Pattern** verwendet (inspiriert von IMG_1469). Das ist:
-- Viel dichter (lueckenloses Raster)
-- Performanter (ein einziges CSS Background statt 80x75 = 6000 DOM-Elemente pro Hand)
-- Eleganter und moderner
+Die Kandidaten-Karten werden radikal vereinfacht zu einer **kompakten, klickbaren Bewerbungsmappe**. Keine CTAs, keine Scores, keine Wertungen, keine bunten Badges. Jede Karte ist ein Eintrag den der Kunde anklickt um die Detail-Seite zu oeffnen und dort seine Entscheidung trifft.
 
 ## Was sich aendert
 
-### 1. Dot-Grid als CSS Background Pattern
+### Entfernt (von jeder Karte)
+- "Einstellen" + "Absage" Buttons
+- Match-Score Zahl (36, 85, 79, 92, 63...)
+- Policy-Badges ("Hot", "Standard", "Nicht geeignet")
+- Score-Ring am Avatar
+- "Feedback geben" Button
+- Skill-Badges (React, Next.js, SAP, +38...)
+- Gruene/Rote/Orange Farbakzente
+- Vergleichen-Checkbox
+- Vergleichen-Button im Header
 
-Statt der `CodeRainColumns` Komponente mit tausenden `<span>` Elementen wird ein reines CSS `radial-gradient` Pattern verwendet:
+### Beibehalten + Vereinfacht
+- Avatar mit Initialen (neutral, ohne farbigen Ring)
+- Anonyme ID (PR-EFDF50) -- kleiner, dezenter
+- **Aktuelle Rolle** (prominent)
+- **Pfeil + Ziel-Job** (wohin vorgeschlagen)
+- Standort + Erfahrungsjahre (wenn vorhanden)
+- Wartezeit ("etwa 1 Monat", "28 Tage")
+- Klick navigiert zu `/dashboard/candidates/:submissionId`
 
-```text
-background-image: radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px);
-background-size: 8px 8px;
-```
-
-Das erzeugt ein gleichmaessiges Punkt-Raster wie in IMG_1469 -- dicht, sauber, monochrom.
-
-### 2. Subtile Animation beibehalten
-
-Statt Code-Rain wird eine langsame **Drift-Animation** auf dem Dot-Grid angewendet:
-
-```text
-@keyframes dot-drift {
-  0% { background-position: 0 0; }
-  100% { background-position: 8px 16px; }
-}
-```
-
-Die Punkte "wandern" unmerklich -- gibt dem Effekt Leben ohne abzulenken.
-
-### 3. Radiale Opacity-Variation (inspiriert von IMG_1468)
-
-Ein zusaetzlicher `radial-gradient` als Overlay erzeugt variierende Dichte:
-- Mitte der Handflaeche: volle Opacity (0.35)
-- Raender/Finger: geringere Opacity (0.15)
-- Erzeugt natuerlichen Volumen-Effekt wie in IMG_1468
-
-### 4. Zweite Schicht: Vereinzelte groessere Dots
-
-Ueber dem feinen Dot-Grid eine zweite CSS-Pattern-Schicht mit groesseren, selteneren Punkten:
+### Neues Design pro Karte (~60px hoch)
 
 ```text
-background-image: radial-gradient(circle, rgba(255,255,255,0.12) 2px, transparent 2px);
-background-size: 24px 24px;
++------------------------------------------------------------------+
+| [EF]  Senior Fullstack Developer / Tech Lead                 >  |
+|       -> Senior Java & AWS Lead Developer  |  Muenchen  |  10J  |
+|       etwa 1 Monat                                              |
++------------------------------------------------------------------+
+
+| [15]  Scrum Master und Entwickler                             >  |
+|       -> Senior Java & AWS Lead Developer  |  Valley  |  24J    |
+|       etwa 1 Monat                                              |
++------------------------------------------------------------------+
+
+| [E1]  Group-Director Finance and Accounting                   >  |
+|       -> Buchhalter (m/w/d)  |  Weiden  |  25J                  |
+|       28 Tage                                                   |
++------------------------------------------------------------------+
+
+| [02]  Buchhalter                                              >  |
+|       -> Buchhalter (m/w/d)  |  Muenchen  |  20J                |
+|       26 Tage                                                   |
++------------------------------------------------------------------+
 ```
 
-Erzeugt Tiefe durch zwei verschiedene "Frequenzen" -- wie die Dichte-Variation in IMG_1468.
+### Header vereinfacht
 
-### 5. Erhoehte Gesamt-Sichtbarkeit
+Aktuell:
+```text
+Kandidaten  13  [1 Hot]  [7 ueberfaellig]
+Alle (13) | Neu (7) | Eingestellt (1)
+[Suche...]  [Alle Jobs v]  [Wartezeit v]
+```
 
-- Basis-Hintergrund der Haende: `bg-foreground/[0.06]` (sichtbare Grundflaeche)
-- Dot-Grid Opacity: 0.35 (deutlich sichtbar)
-- Staerkerer unterer Fade: `h-48` statt `h-32`
+Neu:
+```text
+Bewerbungen  13 eingegangen
+[Suche...]  [Alle Jobs v]  [Sortieren v]
+Alle (13) | Neu (7) | Im Prozess (5) | Eingestellt (1)
+```
 
-### 6. Code-Rain-Animation entfernt
-
-- Die gesamte `generateCodeColumns` Funktion, `CODE_CHARS` Array und `CodeRainColumns` Komponente werden entfernt
-- Keine `useMemo` fuer Spalten-Generierung mehr noetig
-- Ergebnis: ~6000 weniger DOM-Elemente pro Hand = massive Performance-Verbesserung
+Entfernt aus Header:
+- "Hot" Badge
+- "ueberfaellig" Badge
+- Vergleichen-Button
 
 ## Technische Details
 
-### Datei: `src/components/landing/AsciiHandsArt.tsx`
+### Datei: `src/components/dashboard/IntegratedTalentSection.tsx`
 
-Folgende Teile werden **entfernt**:
-- `CODE_CHARS` Array
-- `generateCodeColumns` Funktion
-- `CodeRainColumns` Komponente
-- `leftColumns` / `rightColumns` useMemo Aufrufe
-- `@keyframes code-rain` CSS
+Aenderungen:
+1. **CandidateActionCard** wird durch eine neue, minimale Inline-Komponente ersetzt (direkt in der Datei, ~30 Zeilen). Kein separates File noetig.
+2. Jede Karte ist ein `Link` zu `/dashboard/candidates/${submissionId}` -- die gesamte Karte ist klickbar.
+3. `quickStats` Section wird entfernt (Hot-Count, Overdue-Count, Interview-Today-Count).
+4. `selectedIds`, `compareOpen`, `CandidateCompareView` -- alles entfernt.
+5. Grid wechselt von `grid-cols-4` zu `grid-cols-1` (eine Karte pro Zeile, volle Breite).
+6. Stage-Tabs bleiben, aber ohne farbige Punkte -- nur Text + Count.
+7. Filter (Suche, Job-Filter, Sortierung) bleiben.
+8. Alle Interview/Reject/Move Handler werden entfernt -- keine Aktionen auf Dashboard-Ebene.
+9. `RejectionDialog`, `InterviewRequestWithOptInDialog` Importe werden entfernt.
+10. `CandidateActionCard` Import wird entfernt.
 
-Folgende Teile werden **hinzugefuegt**:
-- `DotGridFill` Komponente: Rendert zwei `<div>` Schichten mit CSS `radial-gradient` Patterns
-- `@keyframes dot-drift` CSS: Langsame Background-Position Animation
-- Radiale Opacity-Maske innerhalb der Handflaechen
+### Neue Card-Komponente (inline)
 
-Folgende Teile **bleiben unveraendert**:
-- SVG Hand-Pfade (`RIGHT_HAND_PATHS`, `LEFT_HAND_PATHS`)
-- `buildMaskSvg` Funktion
-- Hand-Positionierung und mask-image Technik
-- Drift-Animationen der Haende (`hand-drift-left`, `hand-drift-right`)
-- Spark zwischen den Fingerspitzen
-- Fade-Gradienten an den Raendern
+Minimale Karte mit:
+- `Link to={/dashboard/candidates/${submissionId}}`
+- Avatar (neutral `bg-muted`, keine Farbringe)
+- Rolle als Haupttext (`font-medium`)
+- Ziel-Job mit Pfeil (`text-muted-foreground text-sm`)
+- Ort + Jahre inline (`text-xs text-muted-foreground`)
+- Wartezeit rechts unten (`text-xs text-muted-foreground`)
+- Chevron-Right Icon rechts (dezent, `text-muted-foreground`)
+- Hover: `hover:bg-muted/50` -- dezent, kein Shadow
 
-### Resultat
+### Farbschema
 
-Die Haende werden als **dichte, gleichmaessige Punkt-Raster** sichtbar -- modern, elegant, deutlich erkennbar. Zwei Schichten (fein + grob) erzeugen Tiefe. Radiale Opacity-Variation gibt den Handflaechen Volumen. Alles monochrom, keine Farben.
+Nur monochrom: `foreground`, `muted-foreground`, `muted`, `border`. Keine gruenen, roten, orangen, blauen Akzente. Passt zum bestehenden Dark-Mode Design.
+
+### Entfernte Importe
+
+- `CandidateActionCard`, `CandidateActionCardProps`
+- `CandidateCompareView`
+- `RejectionDialog`
+- `InterviewRequestWithOptInDialog`
+- `Flame`, `AlertTriangle`, `Video`, `GitCompare`, `Star`, `Check`
+- `isToday`, `isPast` (nicht mehr gebraucht)
+- `ScrollArea` (nicht mehr noetig bei kompakten Zeilen)
+
+### Beibehaltene Importe
+
+- `supabase`, `useAuth`, `useNavigate`
+- `Card`, `CardContent`, `Button`, `Badge`, `Input`, `Select`
+- `Users`, `Search`, `Filter`, `ArrowUpDown`, `CheckCircle2`
+- `PIPELINE_STAGES`
+- `cn`, `formatDistanceToNow`, `de`
+
+### Stage-Tabs Anpassung
+
+Die Stage-Tabs bleiben funktional identisch, aber:
+- Keine farbigen Punkte (`w-2 h-2 rounded-full`) mehr
+- Nur Text: "Alle (13)", "Neu (7)", "Interview (5)", "Eingestellt (1)"
+- Stages mit 0 Kandidaten werden weiterhin ausgeblendet
 
 ## Dateiaenderungen
 
 | Datei | Aenderung |
 |---|---|
-| `src/components/landing/AsciiHandsArt.tsx` | Code-Rain durch CSS Dot-Grid ersetzen, Performance-Verbesserung durch ~12000 weniger DOM-Elemente |
+| `src/components/dashboard/IntegratedTalentSection.tsx` | Komplettes Redesign: CandidateActionCard durch minimale klickbare Zeilen ersetzen, alle CTAs/Scores/Badges/Farben entfernen, Compare-Feature entfernen, Header vereinfachen |
 
