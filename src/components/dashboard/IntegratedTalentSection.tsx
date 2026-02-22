@@ -1,18 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { CandidateActionCard, CandidateActionCardProps } from '@/components/talent/CandidateActionCard';
-import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
-import { RejectionDialog } from '@/components/rejection/RejectionDialog';
-import { InterviewRequestWithOptInDialog } from '@/components/dialogs/InterviewRequestWithOptInDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -21,38 +15,38 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
-import { toast } from 'sonner';
 import { 
   Users,
   Search,
   Filter,
   ArrowUpDown,
-  AlertTriangle,
-  Video,
-  Flame,
-  GitCompare,
-  CheckCircle2,
-  Check
+  ChevronRight,
+  MapPin,
+  Briefcase,
+  Clock,
 } from 'lucide-react';
-import { isToday, isPast } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-
-interface Interview {
-  id: string;
-  scheduled_at: string | null;
-  status: string | null;
-  meeting_link: string | null;
-  submission_id: string;
-}
 
 interface Job {
   id: string;
   title: string;
 }
 
-interface ExtendedCandidate extends CandidateActionCardProps {
-  email?: string;
-  phone?: string;
+interface CandidateEntry {
+  id: string;
+  submissionId: string;
+  name: string;
+  currentRole: string;
+  jobId: string;
+  jobTitle: string;
+  stage: string;
+  status: string;
+  submittedAt: string;
+  hoursInStage: number;
+  city?: string;
+  experienceYears?: number;
 }
 
 interface IntegratedTalentSectionProps {
@@ -63,33 +57,14 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const [candidates, setCandidates] = useState<ExtendedCandidate[]>([]);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [candidates, setCandidates] = useState<CandidateEntry[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
   
   const [stageFilter, setStageFilter] = useState('all');
   const [jobFilter, setJobFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'match' | 'waiting'>('waiting');
-  
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [compareOpen, setCompareOpen] = useState(false);
-  
-  const [rejectSubmission, setRejectSubmission] = useState<{
-    id: string;
-    candidate: { id: string; full_name: string; email: string };
-    job: { id: string; title: string; company_name: string };
-  } | null>(null);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  
-  const [interviewDialog, setInterviewDialog] = useState<{
-    open: boolean;
-    submissionId: string | null;
-    candidateAnonymousId: string;
-    jobTitle: string;
-  }>({ open: false, submissionId: null, candidateAnonymousId: '', jobTitle: '' });
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'waiting'>('waiting');
 
   useEffect(() => {
     if (user) {
@@ -100,11 +75,7 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchJobs(),
-        fetchCandidates(),
-        fetchInterviews()
-      ]);
+      await Promise.all([fetchJobs(), fetchCandidates()]);
     } finally {
       setLoading(false);
     }
@@ -130,23 +101,16 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
         status,
         stage,
         submitted_at,
-        match_score,
-        match_policy,
         candidates!inner (
           id,
           full_name,
           job_title,
-          email,
-          phone,
-          company,
-          skills,
           experience_years,
           city
         ),
         jobs!inner (
           id,
-          title,
-          skills
+          title
         )
       `)
       .order('submitted_at', { ascending: false });
@@ -156,7 +120,7 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
       return;
     }
 
-    const tableCandidates: ExtendedCandidate[] = [];
+    const entries: CandidateEntry[] = [];
 
     (data || []).forEach((sub: any) => {
       const candidate = sub.candidates;
@@ -164,10 +128,9 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
       const now = new Date();
       const submittedAt = new Date(sub.submitted_at);
       const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
-
       const anonymousId = `PR-${candidate.id.slice(0, 6).toUpperCase()}`;
 
-      tableCandidates.push({
+      entries.push({
         id: candidate.id,
         submissionId: sub.id,
         name: anonymousId,
@@ -176,34 +139,17 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
         jobTitle: job.title,
         stage: sub.stage || sub.status,
         status: sub.status,
-        matchScore: sub.match_score,
-        matchPolicy: sub.match_policy || null,
         submittedAt: sub.submitted_at,
-        email: candidate.email,
-        phone: candidate.phone,
         hoursInStage,
-        company: candidate.company,
-        skills: candidate.skills,
+        city: candidate.city,
         experienceYears: candidate.experience_years,
-        city: candidate.city
       });
     });
 
-    setCandidates(tableCandidates);
+    setCandidates(entries);
   };
 
-  const fetchInterviews = async () => {
-    const { data, error } = await supabase
-      .from('interviews')
-      .select('id, scheduled_at, status, meeting_link, submission_id')
-      .order('scheduled_at', { ascending: true });
-
-    if (!error && data) {
-      setInterviews(data);
-    }
-  };
-
-  // Calculate stage counts
+  // Stage counts
   const stageCounts = useMemo(() => {
     return PIPELINE_STAGES.reduce((acc, stage) => {
       acc[stage.key] = candidates.filter(c => c.stage === stage.key && c.status !== 'rejected').length;
@@ -211,23 +157,11 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
     }, {} as Record<string, number>);
   }, [candidates]);
 
-  // Quick stats
-  const quickStats = useMemo(() => {
-    const activeCandidates = candidates.filter(c => c.status !== 'rejected' && c.status !== 'hired').length;
-    const interviewsToday = interviews.filter(i => 
-      i.scheduled_at && isToday(new Date(i.scheduled_at)) && i.status !== 'completed'
-    ).length;
-    const overdueCount = candidates.filter(c => 
-      c.stage === 'submitted' && c.status !== 'rejected' && c.hoursInStage >= 48
-    ).length;
-    const hotMatches = candidates.filter(c => 
-      c.status !== 'rejected' && c.matchPolicy === 'hot'
-    ).length;
-    
-    return { activeCandidates, interviewsToday, overdueCount, hotMatches };
-  }, [candidates, interviews]);
+  const activeCount = useMemo(() => 
+    candidates.filter(c => c.status !== 'rejected' && c.status !== 'hired').length
+  , [candidates]);
 
-  // Filtered and sorted candidates
+  // Filtered and sorted
   const filteredCandidates = useMemo(() => {
     return candidates
       .filter(c => {
@@ -235,11 +169,11 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
         if (stageFilter !== 'all' && c.stage !== stageFilter) return false;
         if (jobFilter !== 'all' && c.jobId !== jobFilter) return false;
         if (search) {
-          const searchLower = search.toLowerCase();
+          const s = search.toLowerCase();
           return (
-            c.name.toLowerCase().includes(searchLower) ||
-            c.currentRole.toLowerCase().includes(searchLower) ||
-            c.jobTitle.toLowerCase().includes(searchLower)
+            c.name.toLowerCase().includes(s) ||
+            c.currentRole.toLowerCase().includes(s) ||
+            c.jobTitle.toLowerCase().includes(s)
           );
         }
         return true;
@@ -248,8 +182,6 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
         switch (sortBy) {
           case 'oldest':
             return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
-          case 'match':
-            return (b.matchScore || 0) - (a.matchScore || 0);
           case 'waiting':
             return b.hoursInStage - a.hoursInStage;
           case 'newest':
@@ -259,109 +191,9 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
       });
   }, [candidates, stageFilter, jobFilter, search, sortBy]);
 
-  // Attach interview data to candidates
-  const candidatesWithInterviews = useMemo(() => {
-    return filteredCandidates.map(c => {
-      const interview = interviews.find(i => i.submission_id === c.submissionId);
-      const feedbackPending = interview && 
-        interview.scheduled_at && 
-        isPast(new Date(interview.scheduled_at)) && 
-        interview.status !== 'completed';
-      
-      return {
-        ...c,
-        interview: interview ? {
-          id: interview.id,
-          scheduled_at: interview.scheduled_at,
-          status: interview.status,
-          meeting_link: interview.meeting_link
-        } : null,
-        feedbackPending
-      };
-    });
-  }, [filteredCandidates, interviews]);
-
-
-  const handleMove = async (submissionId: string, newStage: string) => {
-    setProcessing(true);
-    try {
-      const newStatus = newStage === 'interview_1' || newStage === 'interview_2' ? 'interview' : newStage;
-      
-      const { error } = await supabase
-        .from('submissions')
-        .update({ stage: newStage, status: newStatus })
-        .eq('id', submissionId);
-
-      if (error) throw error;
-
-      const stageLabel = PIPELINE_STAGES.find(s => s.key === newStage)?.label || newStage;
-      toast.success(`Kandidat in "${stageLabel}" verschoben`);
-      
-      setCandidates(prev => prev.map(c => 
-        c.submissionId === submissionId 
-          ? { ...c, stage: newStage, status: newStatus }
-          : c
-      ));
-      
-      onActionComplete?.();
-    } catch (error) {
-      toast.error('Fehler beim Verschieben');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = (submissionId: string) => {
-    const candidate = candidates.find(c => c.submissionId === submissionId);
-    if (candidate) {
-      setRejectSubmission({
-        id: submissionId,
-        candidate: {
-          id: candidate.id,
-          full_name: candidate.name,
-          email: candidate.email || ''
-        },
-        job: {
-          id: candidate.jobId,
-          title: candidate.jobTitle,
-          company_name: ''
-        }
-      });
-      setRejectDialogOpen(true);
-    }
-  };
-
-  const handleRejectSuccess = () => {
-    if (rejectSubmission) {
-      setCandidates(prev => prev.map(c => 
-        c.submissionId === rejectSubmission.id 
-          ? { ...c, status: 'rejected' }
-          : c
-      ));
-      onActionComplete?.();
-    }
-  };
-
-  const handleSelectCandidate = (candidate: ExtendedCandidate) => {
-    navigate(`/dashboard/candidates/${candidate.submissionId}`);
-  };
-
-  const handleInterviewRequest = (submissionId: string) => {
-    const candidate = candidates.find(c => c.submissionId === submissionId);
-    if (candidate) {
-      setInterviewDialog({
-        open: true,
-        submissionId,
-        candidateAnonymousId: candidate.name,
-        jobTitle: candidate.jobTitle
-      });
-    }
-  };
-
-  const handleInterviewSuccess = () => {
-    setInterviewDialog({ open: false, submissionId: null, candidateAnonymousId: '', jobTitle: '' });
-    fetchAllData();
-    onActionComplete?.();
+  const getInitials = (name: string) => {
+    if (name.startsWith('PR-')) return name.slice(3, 5).toUpperCase();
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   if (loading) {
@@ -373,11 +205,10 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
             <div className="flex gap-2">
               <Skeleton className="h-9 w-24" />
               <Skeleton className="h-9 w-24" />
-              <Skeleton className="h-9 w-24" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="space-y-2">
               {[1, 2, 3, 4].map(i => (
-                <Skeleton key={i} className="h-56" />
+                <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
           </div>
@@ -386,12 +217,12 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
     );
   }
 
-  if (candidates.filter(c => c.status !== 'rejected' && c.status !== 'hired').length === 0) {
+  if (activeCount === 0) {
     return (
-      <Card className="bg-gradient-to-br from-success/5 to-success/10 border-success/20">
+      <Card>
         <CardContent className="py-8 text-center">
-          <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-success/20 mb-3">
-            <CheckCircle2 className="h-6 w-6 text-success" />
+          <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-muted mb-3">
+            <Users className="h-6 w-6 text-muted-foreground" />
           </div>
           <h3 className="font-semibold text-lg mb-1">Alles erledigt!</h3>
           <p className="text-sm text-muted-foreground">
@@ -403,237 +234,147 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
   }
 
   return (
-    <TooltipProvider>
-      <Card>
-        <CardContent className="p-4">
-          {/* Header with Quick Stats */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold">Kandidaten</h2>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span className="font-medium text-foreground">{quickStats.activeCandidates}</span>
-                </div>
-                {quickStats.hotMatches > 0 && (
-                  <Badge className="bg-green-500 hover:bg-green-600 text-xs">
-                    <Flame className="h-3 w-3 mr-1" />
-                    {quickStats.hotMatches} Hot
-                  </Badge>
-                )}
-                {quickStats.interviewsToday > 0 && (
-                  <Badge className="bg-blue-500 hover:bg-blue-600 text-xs">
-                    <Video className="h-3 w-3 mr-1" />
-                    {quickStats.interviewsToday} heute
-                  </Badge>
-                )}
-                {quickStats.overdueCount > 0 && (
-                  <Badge variant="destructive" className="text-xs">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {quickStats.overdueCount} überfällig
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            {/* Compare Button */}
-            {selectedIds.length > 0 && (
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => setCompareOpen(true)}
-                className="gap-1.5"
-              >
-                <GitCompare className="h-3.5 w-3.5" />
-                Vergleichen ({selectedIds.length})
-              </Button>
-            )}
-          </div>
-
-          {/* Stage Tabs */}
-          <div className="flex flex-wrap gap-1.5 mb-4 border-b pb-3">
-            <Button
-              variant={stageFilter === 'all' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setStageFilter('all')}
-            >
-              Alle ({candidates.filter(c => c.status !== 'rejected' && c.status !== 'hired').length})
-            </Button>
-            {PIPELINE_STAGES.slice(0, 5).map(stage => {
-              const count = stageCounts[stage.key] || 0;
-              if (count === 0) return null;
-              return (
-                <Button
-                  key={stage.key}
-                  variant={stageFilter === stage.key ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={() => setStageFilter(stage.key)}
-                >
-                  <span 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: stage.color }}
-                  />
-                  {stage.label} ({count})
-                </Button>
-              );
-            })}
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Suche nach ID, Rolle..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
-            
-            <Select value={jobFilter} onValueChange={setJobFilter}>
-              <SelectTrigger className="h-9 w-40">
-                <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Alle Jobs" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Jobs</SelectItem>
-                {jobs.map(job => (
-                  <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-              <SelectTrigger className="h-9 w-36">
-                <ArrowUpDown className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="waiting">Wartezeit</SelectItem>
-                <SelectItem value="newest">Neueste</SelectItem>
-                <SelectItem value="oldest">Älteste</SelectItem>
-                <SelectItem value="match">Match Score</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Candidate Grid */}
-          <ScrollArea className="max-h-[600px]">
-            {candidatesWithInterviews.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-center">
-                <Users className="h-10 w-10 text-muted-foreground/30 mb-2" />
-                <p className="text-muted-foreground">
-                  {search || stageFilter !== 'all' || jobFilter !== 'all'
-                    ? 'Keine Kandidaten gefunden'
-                    : 'Noch keine Kandidaten vorhanden'}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {candidatesWithInterviews.map(candidate => (
-                  <div key={candidate.submissionId} className="relative group">
-                    <div
-                      className={cn(
-                        "absolute top-2 left-2 z-10 transition-opacity",
-                        selectedIds.length > 0 || "opacity-0 group-hover:opacity-100"
-                      )}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (selectedIds.includes(candidate.submissionId)) {
-                            setSelectedIds(prev => prev.filter(id => id !== candidate.submissionId));
-                          } else if (selectedIds.length < 3) {
-                            setSelectedIds(prev => [...prev, candidate.submissionId]);
-                          } else {
-                            toast.error('Maximal 3 Kandidaten zum Vergleichen');
-                          }
-                        }}
-                        className={cn(
-                          "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                          selectedIds.includes(candidate.submissionId)
-                            ? "bg-primary border-primary text-primary-foreground"
-                            : "bg-background border-muted-foreground/30 hover:border-primary"
-                        )}
-                      >
-                        {selectedIds.includes(candidate.submissionId) && (
-                          <Check className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                    <CandidateActionCard
-                      candidate={candidate}
-                      isSelected={selectedIds.includes(candidate.submissionId)}
-                      onSelect={() => handleSelectCandidate(candidate)}
-                      onMove={handleMove}
-                      onReject={handleReject}
-                      onInterviewRequest={async (submissionId) => {
-                        handleInterviewRequest(submissionId);
-                      }}
-                      isProcessing={processing}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      {/* Compare Dialog */}
-      {compareOpen && selectedIds.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-          <div className="fixed inset-4 z-50 overflow-auto rounded-lg border bg-background shadow-lg">
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background">
-              <h2 className="text-lg font-semibold">Kandidatenvergleich</h2>
-              <Button variant="ghost" size="sm" onClick={() => setCompareOpen(false)}>
-                ×
-              </Button>
-            </div>
-            <div className="p-4">
-              <CandidateCompareView 
-                submissionIds={selectedIds}
-                onRemove={(submissionId) => setSelectedIds(prev => prev.filter(id => id !== submissionId))}
-                onClose={() => {
-                  setCompareOpen(false);
-                  setSelectedIds([]);
-                }}
-                onInterviewRequest={(submissionId) => {
-                  handleInterviewRequest(submissionId);
-                  setCompareOpen(false);
-                }}
-                onReject={(submissionId) => {
-                  handleReject(submissionId);
-                  setCompareOpen(false);
-                }}
-              />
-            </div>
-          </div>
+    <Card>
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-lg font-semibold">Bewerbungen</h2>
+          <span className="text-sm text-muted-foreground">
+            {activeCount} eingegangen
+          </span>
         </div>
-      )}
 
-      {/* Rejection Dialog */}
-      <RejectionDialog
-        open={rejectDialogOpen}
-        onOpenChange={setRejectDialogOpen}
-        submission={rejectSubmission}
-        onSuccess={handleRejectSuccess}
-      />
+        {/* Stage Tabs */}
+        <div className="flex flex-wrap gap-1.5 mb-4 border-b pb-3">
+          <Button
+            variant={stageFilter === 'all' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setStageFilter('all')}
+          >
+            Alle ({activeCount})
+          </Button>
+          {PIPELINE_STAGES.slice(0, 5).map(stage => {
+            const count = stageCounts[stage.key] || 0;
+            if (count === 0) return null;
+            return (
+              <Button
+                key={stage.key}
+                variant={stageFilter === stage.key ? 'default' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setStageFilter(stage.key)}
+              >
+                {stage.label} ({count})
+              </Button>
+            );
+          })}
+        </div>
 
-      {/* Interview Request Dialog */}
-      {interviewDialog.submissionId && (
-        <InterviewRequestWithOptInDialog
-          open={interviewDialog.open}
-          onOpenChange={(open) => setInterviewDialog(prev => ({ ...prev, open }))}
-          submissionId={interviewDialog.submissionId}
-          candidateAnonymousId={interviewDialog.candidateAnonymousId}
-          jobTitle={interviewDialog.jobTitle}
-          onSuccess={handleInterviewSuccess}
-        />
-      )}
-    </TooltipProvider>
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Suche nach ID, Rolle..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          
+          <Select value={jobFilter} onValueChange={setJobFilter}>
+            <SelectTrigger className="h-9 w-40">
+              <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Alle Jobs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle Jobs</SelectItem>
+              {jobs.map(job => (
+                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="h-9 w-36">
+              <ArrowUpDown className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="waiting">Wartezeit</SelectItem>
+              <SelectItem value="newest">Neueste</SelectItem>
+              <SelectItem value="oldest">Älteste</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Candidate List */}
+        {filteredCandidates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-center">
+            <Users className="h-10 w-10 text-muted-foreground/30 mb-2" />
+            <p className="text-muted-foreground">
+              {search || stageFilter !== 'all' || jobFilter !== 'all'
+                ? 'Keine Kandidaten gefunden'
+                : 'Noch keine Kandidaten vorhanden'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {filteredCandidates.map(candidate => (
+              <Link
+                key={candidate.submissionId}
+                to={`/dashboard/candidates/${candidate.submissionId}`}
+                className="flex items-center gap-3 px-3 py-3 rounded-lg border border-transparent hover:bg-muted/50 hover:border-border transition-colors group"
+              >
+                <Avatar className="h-10 w-10 shrink-0">
+                  <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
+                    {getInitials(candidate.name)}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate">
+                      {candidate.currentRole}
+                    </span>
+                    <span className="text-[11px] font-mono text-muted-foreground shrink-0">
+                      {candidate.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                    <span className="truncate">→ {candidate.jobTitle}</span>
+                    {candidate.city && (
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5 shrink-0">
+                          <MapPin className="h-3 w-3" />
+                          {candidate.city}
+                        </span>
+                      </>
+                    )}
+                    {candidate.experienceYears && (
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5 shrink-0">
+                          <Briefcase className="h-3 w-3" />
+                          {candidate.experienceYears}J
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-1">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatDistanceToNow(new Date(candidate.submittedAt), { locale: de })}</span>
+                  </div>
+                </div>
+
+                <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground shrink-0 transition-colors" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
