@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CandidateStagePipeline } from './CandidateStagePipeline';
+import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
 import { Candidate } from './CandidateCard';
 
 interface CandidateHeroHeaderProps {
@@ -177,6 +178,11 @@ export function CandidateHeroHeader({
               <span className="text-sm text-destructive font-medium">Kandidat abgesagt</span>
             </div>
           )}
+
+          {/* Key Facts Grid */}
+          <div className="mt-4 pt-3 border-t">
+            <CandidateKeyFactsGrid candidate={candidate} />
+          </div>
         </div>
       </div>
     </div>
