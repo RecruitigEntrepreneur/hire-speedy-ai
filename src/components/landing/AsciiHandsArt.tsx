@@ -1,19 +1,5 @@
 import { useMemo } from "react";
 
-const CODE_CHARS = ["x", "X", "#", ".", ":", "*", "+", "=", "~", "-", "0", "1", "/", "\\", "|", "%", "@", "&", ";", "^", ">", "<"];
-
-const generateCodeColumns = (cols: number, rows: number) => {
-  const columns: string[][] = [];
-  for (let c = 0; c < cols; c++) {
-    const col: string[] = [];
-    for (let r = 0; r < rows * 3; r++) {
-      col.push(CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]);
-    }
-    columns.push(col);
-  }
-  return columns;
-};
-
 // Right hand (God's hand) - all paths with high x-values
 const RIGHT_HAND_PATHS = `
 M11175 5470 c-3 -5 -17 -10 -30 -10 -13 0 -27 -4 -30 -10 -3 -5 -19 -10 -35 -10 -16 0 -32 -4 -35 -10 -3 -5 -19 -10 -35 -10 -16 0 -32 -4 -35 -10 -3 -5 -19 -10 -35 -10 -16 0 -32 -4 -35 -10 -3 -5 -17 -10 -31 -10 -13 0 -32 -4 -42 -9 -9 -5 -37 -15 -62 -21 -25 -7 -56 -16 -70 -20 -14 -4 -45 -13 -70 -20 -25 -7 -58 -17 -75 -21 -26 -8 -87 -24 -215 -59 -64 -17 -164 -39 -225 -49 -209 -35 -384 -71 -485 -100 -19 -5 -81 -26 -138 -45 -87 -30 -117 -36 -190 -36 -97 -1 -166 -15 -261 -54 -35 -14 -92 -31 -125 -37 -34 -5 -80 -14 -104 -20 -23 -5 -54 -9 -68 -9 -15 0 -43 -4 -63 -9 -34 -9 -73 -17 -196 -43 -175 -36 -266 -59 -315 -80 -45 -19 -64 -26 -105 -39 -22 -7 -44 -17 -49 -21 -6 -4 -20 -8 -32 -8 -13 0 -26 -4 -29 -10 -3 -5 -34 -10 -68 -10 -68 0 -176 -19 -247 -43 -27 -9 -104 -18 -195 -22 -411 -17 -450 -23 -567 -86 -10 -5 -26 -9 -36 -9 -10 0 -22 -4 -27 -8 -6 -5 -57 -24 -115 -42 -58 -19 -134 -50 -170 -68 -138 -73 -198 -102 -208 -102 -14 0 -52 -54 -52 -74 0 -26 28 -62 70 -90 75 -49 235 -48 375 4 33 13 94 26 135 31 41 4 109 18 150 30 86 25 135 27 240 9 61 -11 94 -11 178 -1 102 13 102 13 152 -19 28 -18 61 -45 75 -61 24 -29 24 -29 -28 -128 -43 -83 -59 -102 -92 -120 -22 -12 -66 -45 -99 -74 -54 -48 -59 -56 -63 -102 -5 -62 18 -110 70 -144 42 -28 43 -35 38 -266 -3 -99 -1 -116 22 -165 13 -30 28 -85 31 -121 10 -89 42 -123 116 -123 44 0 55 4 89 38 33 32 39 35 51 21 8 -10 30 -15 64 -15 99 0 176 99 176 225 0 41 6 78 16 97 25 49 44 120 38 145 -5 18 4 32 46 70 28 25 65 70 81 99 33 58 53 79 68 70 6 -4 -5 -32 -25 -67 -19 -34 -34 -63 -34 -66 0 -3 -9 -18 -21 -34 -34 -48 -18 -289 22 -325 11 -10 19 -30 19 -49 0 -21 9 -41 26 -58 96 -97 250 42 214 192 -8 33 -8 55 -1 75 6 15 11 37 11 48 0 11 18 42 40 68 22 27 45 62 51 79 10 28 15 31 56 31 44 0 128 34 164 66 10 9 39 14 85 14 72 0 122 14 214 58 64 30 212 126 286 186 28 22 76 59 107 81 31 22 61 49 68 61 9 18 29 24 124 39 121 19 129 19 485 -26 41 -5 116 -14 165 -20 100 -12 803 -24 841 -15 25 7 33 31 12 39 -7 2 -60 1 -118 -3 -196 -13 -605 10 -905 50 -77 10 -182 24 -233 31 -86 11 -186 9 -257 -6 -28 -6 -32 -3 -48 33 -9 21 -17 41 -17 44 0 3 33 10 73 17 39 7 91 17 114 22 23 5 134 9 247 9 168 0 206 3 206 14 0 9 -21 15 -72 19 -40 4 -97 10 -126 13 -61 8 -217 -8 -368 -37 -122 -23 -124 -23 -124 -4 0 8 4 15 8 15 5 0 49 9 98 19 49 10 124 22 166 26 43 4 82 12 87 19 12 14 -119 11 -199 -6 -79 -16 -159 -36 -169 -42 -12 -8 -61 17 -61 32 0 6 9 12 20 12 11 0 64 12 118 26 105 28 163 39 287 55 44 5 116 14 160 20 44 6 125 14 180 19 129 12 186 23 185 35 0 17 -207 7 -490 -24 -149 -17 -213 -29 -355 -65 -33 -8 -87 -15 -121 -16 -69 0 -85 -8 -52 -27 15 -8 18 -12 7 -13 -20 0 -69 -23 -69 -32 0 -5 -6 -8 -12 -8 -7 0 -33 -18 -57 -40 -56 -50 -67 -51 -41 0 16 32 20 59 20 139 0 72 4 102 13 108 8 4 31 27 52 51 52 59 34 78 -22 23 -27 -26 -44 -36 -51 -29 -15 15 -21 -2 -27 -78 -10 -131 -17 -169 -46 -231 -50 -106 -181 -204 -343 -258 -141 -46 -437 -73 -375 -34 8 5 25 9 39 9 18 0 21 3 11 9 -11 7 -10 14 6 37 36 51 63 104 63 124 0 35 -24 21 -47 -28 -31 -65 -78 -119 -124 -142 -44 -23 -165 -53 -179 -45 -5 3 -11 1 -15 -5 -3 -5 -36 -26 -73 -46 -37 -21 -81 -48 -99 -61 -17 -12 -39 -23 -47 -23 -9 0 -16 -4 -16 -9 0 -23 -71 -75 -160 -119 -92 -45 -98 -46 -200 -50 -121 -4 -159 9 -197 67 -59 89 -1 158 242 286 50 26 99 55 110 66 11 10 46 30 78 44 84 37 205 121 257 179 25 28 75 81 113 119 73 74 75 77 52 77 -13 0 -12 4 5 22 11 12 26 34 32 50 7 15 17 28 21 28 5 0 5 5 2 10 -4 6 -12 5 -21 -5 -8 -8 -21 -18 -28 -22 -15 -10 -76 -98 -76 -111 0 -4 -11 -19 -25 -32 -25 -23 -25 -23 -31 8 -8 38 -24 32 -24 -8 0 -36 -16 -80 -30 -80 -5 0 -10 10 -10 23 -1 20 -1 21 -11 4 -6 -10 -8 -29 -5 -42 8 -32 -37 -80 -62 -66 -27 15 -67 61 -110 128 -22 34 -42 59 -46 56 -11 -12 -6 -35 15 -65 28 -39 17 -46 -31 -20 -22 11 -42 17 -45 11 -4 -5 -1 -9 5 -9 6 0 18 -7 26 -15 8 -8 33 -19 55 -25 40 -11 45 -30 8 -30 -20 0 -101 47 -107 61 -5 13 -32 11 -32 -2 0 -26 55 -58 109 -64 31 -4 64 -9 74 -12 34 -9 11 -28 -39 -31 -55 -4 -87 -22 -39 -22 55 0 63 -17 14 -30 -24 -6 -50 -13 -57 -15 -7 -3 -24 2 -37 11 -14 9 -32 13 -42 9 -19 -7 32 -31 90 -42 28 -5 28 -5 5 -18 -19 -10 -30 -8 -62 8 -51 25 -70 43 -53 51 8 3 5 11 -11 22 -12 9 -37 30 -55 46 -17 16 -44 36 -58 45 -35 21 -67 123 -39 123 6 0 10 11 10 25 0 14 -6 25 -12 25 -17 0 -38 -47 -38 -84 0 -44 -33 -56 -149 -56 -152 1 -191 16 -230 93 -14 26 -41 38 -41 17 0 -6 12 -28 26 -50 15 -22 24 -43 21 -46 -13 -13 -50 10 -61 38 -13 30 -13 30 -19 2 -5 -26 -13 -31 -74 -47 -37 -9 -93 -24 -123 -32 -55 -15 -55 -15 -78 11 -19 21 -25 24 -38 14 -13 -11 -13 -15 1 -30 22 -25 20 -27 -47 -48 -139 -44 -215 -52 -292 -30 -114 32 -111 112 6 141 15 4 33 13 40 20 12 12 75 44 158 80 19 9 107 40 195 70 88 30 185 64 216 76 50 18 88 21 305 27 137 3 260 9 274 14 100 32 177 49 253 54 48 3 114 15 145 27 31 11 77 27 102 35 25 8 54 19 65 23 44 19 116 40 208 60 113 26 133 30 157 34 14 3 61 12 105 21 89 18 153 29 265 46 41 6 107 24 145 40 105 42 144 50 237 50 47 0 98 4 114 9 16 5 49 14 74 21 25 7 63 20 85 30 40 17 162 49 265 69 116 22 157 30 220 41 36 6 83 15 105 20 22 5 56 12 75 15 76 15 212 50 325 85 75 23 110 33 165 48 67 19 145 44 162 53 10 5 25 9 33 9 8 0 23 4 33 9 9 5 37 15 62 21 95 26 116 33 132 41 10 5 24 9 31 9 23 0 78 31 72 41 -8 12 -52 12 -60 -1z
@@ -54,35 +40,39 @@ const buildMaskSvg = (paths: string, viewBox: string) => {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 };
 
-const CodeRainColumns = ({ columns, delayOffset = 0 }: { columns: string[][]; delayOffset?: number }) => (
-  <div className="absolute inset-0 flex gap-0 font-mono text-[9px] md:text-[11px] text-foreground/[0.20] leading-none">
-    {columns.map((col, i) => (
-      <div
-        key={i}
-        className="flex flex-col gap-0 whitespace-nowrap animate-code-rain"
-        style={{
-          animationDelay: `${-(i * 0.6 + delayOffset)}s`,
-          animationDuration: `${10 + (i % 5) * 2}s`,
-        }}
-      >
-        {col.map((char, j) => (
-          <span key={j} className="leading-tight">{char}</span>
-        ))}
-      </div>
-    ))}
+const DotGridFill = () => (
+  <div className="w-full h-full relative overflow-hidden">
+    {/* Base background */}
+    <div className="absolute inset-0 bg-foreground/[0.06]" />
+    {/* Fine dot grid layer */}
+    <div
+      className="absolute inset-0 animate-dot-drift"
+      style={{
+        backgroundImage: "radial-gradient(circle, hsl(var(--foreground) / 0.35) 1px, transparent 1px)",
+        backgroundSize: "6px 6px",
+      }}
+    />
+    {/* Coarse dot layer for depth */}
+    <div
+      className="absolute inset-0 animate-dot-drift-slow"
+      style={{
+        backgroundImage: "radial-gradient(circle, hsl(var(--foreground) / 0.12) 2px, transparent 2px)",
+        backgroundSize: "20px 20px",
+        backgroundPosition: "3px 3px",
+      }}
+    />
+    {/* Radial glow for volume */}
+    <div
+      className="absolute inset-0"
+      style={{
+        background: "radial-gradient(ellipse at 50% 50%, hsl(var(--foreground) / 0.08) 0%, transparent 70%)",
+      }}
+    />
   </div>
 );
 
 export const AsciiHandsArt = () => {
-  const leftColumns = useMemo(() => generateCodeColumns(80, 25), []);
-  const rightColumns = useMemo(() => generateCodeColumns(80, 25), []);
-
-  // Right hand (God's hand): viewBox cropped to right side
-  // Path coords ~7600-12000 x, ~2500-5500 y → SVG coords ~760-1200 x, ~250-550 y
   const rightMask = useMemo(() => buildMaskSvg(RIGHT_HAND_PATHS, "750 240 470 340"), []);
-  
-  // Left hand (Adam's hand): viewBox cropped to left side
-  // Path coords ~0-5300 x, ~2500-5200 y → SVG coords ~0-530 x, ~280-530 y
   const leftMask = useMemo(() => buildMaskSvg(LEFT_HAND_PATHS, "0 270 550 280"), []);
 
   return (
@@ -103,9 +93,7 @@ export const AsciiHandsArt = () => {
             maskPosition: "center",
           }}
         >
-          <div className="w-full h-full overflow-hidden relative bg-foreground/[0.03]">
-            <CodeRainColumns columns={leftColumns} delayOffset={0} />
-          </div>
+          <DotGridFill />
         </div>
 
         {/* Right Hand (God's hand) */}
@@ -123,9 +111,7 @@ export const AsciiHandsArt = () => {
             maskPosition: "center",
           }}
         >
-          <div className="w-full h-full overflow-hidden relative bg-foreground/[0.03]">
-            <CodeRainColumns columns={rightColumns} delayOffset={3} />
-          </div>
+          <DotGridFill />
         </div>
 
         {/* Spark between fingertips */}
@@ -138,7 +124,7 @@ export const AsciiHandsArt = () => {
       {/* Fade edges */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-background to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background to-transparent" />
         <div className="absolute top-0 left-0 bottom-0 w-16 bg-gradient-to-r from-background to-transparent" />
         <div className="absolute top-0 right-0 bottom-0 w-16 bg-gradient-to-l from-background to-transparent" />
       </div>
@@ -152,9 +138,13 @@ export const AsciiHandsArt = () => {
           0%, 100% { transform: translateX(0); }
           50% { transform: translateX(-15px); }
         }
-        @keyframes code-rain {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-50%); }
+        @keyframes dot-drift {
+          0% { background-position: 0 0; }
+          100% { background-position: 6px 12px; }
+        }
+        @keyframes dot-drift-slow {
+          0% { background-position: 3px 3px; }
+          100% { background-position: 23px 23px; }
         }
         @keyframes spark-flicker {
           0%, 100% { opacity: 0.10; }
@@ -168,7 +158,8 @@ export const AsciiHandsArt = () => {
         }
         .animate-hand-drift-left { animation: hand-drift-left 6s ease-in-out infinite; }
         .animate-hand-drift-right { animation: hand-drift-right 6s ease-in-out infinite; }
-        .animate-code-rain { animation: code-rain 12s linear infinite; }
+        .animate-dot-drift { animation: dot-drift 8s linear infinite; }
+        .animate-dot-drift-slow { animation: dot-drift-slow 15s linear infinite; }
         .animate-spark-flicker { animation: spark-flicker 2.5s ease-in-out infinite; }
         .animate-spark-flash { animation: spark-flash 6s ease-in-out infinite; }
       `}</style>
