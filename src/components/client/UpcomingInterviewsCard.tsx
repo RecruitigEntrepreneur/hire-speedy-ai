@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Calendar, ArrowRight, Clock, Video } from 'lucide-react';
+import { Calendar, ArrowRight, Video, Users } from 'lucide-react';
 import { format, isToday, isTomorrow, isThisWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -39,7 +39,6 @@ export function UpcomingInterviewsCard({
   onViewAll,
   className
 }: UpcomingInterviewsCardProps) {
-  // Filter to upcoming interviews only, limit to 3
   const upcomingInterviews = interviews
     .filter(i => i.status === 'scheduled' && new Date(i.scheduled_at) > new Date())
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
@@ -76,10 +75,14 @@ export function UpcomingInterviewsCard({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6 text-muted-foreground">
-            <Calendar className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Keine Interviews geplant</p>
-            <p className="text-xs mt-1">Plane Interviews mit Kandidaten aus der Pipeline</p>
+          <div className="text-center py-6">
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm font-medium">Noch keine Interviews geplant</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Laden Sie vielversprechende Kandidaten aus der Pipeline zum Interview ein
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -117,7 +120,6 @@ export function UpcomingInterviewsCard({
                 isTodays && "border-primary/30 bg-primary/5"
               )}
             >
-              {/* Date/Time */}
               <div className={cn(
                 "text-center min-w-[60px] p-2 rounded-lg",
                 isTodays ? "bg-primary text-primary-foreground" : "bg-muted"
@@ -133,7 +135,6 @@ export function UpcomingInterviewsCard({
                 </p>
               </div>
 
-              {/* Candidate Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
@@ -148,7 +149,6 @@ export function UpcomingInterviewsCard({
                 </p>
               </div>
 
-              {/* Status */}
               <Badge variant="outline" className="shrink-0 gap-1">
                 <Video className="h-3 w-3" />
                 Geplant
@@ -157,7 +157,6 @@ export function UpcomingInterviewsCard({
           );
         })}
 
-        {/* More Interviews Indicator */}
         {interviews.filter(i => i.status === 'scheduled').length > 3 && (
           <p className="text-xs text-center text-muted-foreground">
             +{interviews.filter(i => i.status === 'scheduled').length - 3} weitere geplant

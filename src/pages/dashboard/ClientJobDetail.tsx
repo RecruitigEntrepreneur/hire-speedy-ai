@@ -37,6 +37,8 @@ import { TopCandidatesCard } from '@/components/client/TopCandidatesCard';
 import { RecruiterActivityCard } from '@/components/client/RecruiterActivityCard';
 import { UpcomingInterviewsCard } from '@/components/client/UpcomingInterviewsCard';
 import { CompanyInfoCard } from '@/components/client/CompanyInfoCard';
+import { JobQualityScoreCard } from '@/components/client/JobQualityScoreCard';
+import { NextStepsCard } from '@/components/client/NextStepsCard';
 
 import { 
   Loader2,
@@ -203,7 +205,6 @@ export default function ClientJobDetail() {
 
   const fetchJobData = async () => {
     try {
-      // Fetch job details
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select('*')
@@ -223,7 +224,6 @@ export default function ClientJobDetail() {
         intake_completeness: jobData.intake_completeness ?? null
       } as Job);
 
-      // Fetch submissions with candidate info (without recruiter join due to FK constraint)
       const { data: submissionsData, error: submissionsError } = await supabase
         .from('submissions')
         .select(`
@@ -268,7 +268,6 @@ export default function ClientJobDetail() {
       
       setSubmissions(transformedSubmissions);
 
-      // Fetch interviews
       const submissionIds = transformedSubmissions.map(s => s.id);
       if (submissionIds.length > 0) {
         const { data: interviewsData } = await supabase
@@ -410,15 +409,18 @@ export default function ClientJobDetail() {
   const daysOpen = job ? Math.floor((Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const activeRecruiters = new Set(submissions.map(s => s.recruiter?.email).filter(Boolean)).size;
   
-  // Weekly submissions (last 7 days)
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weeklySubmissions = submissions.filter(s => new Date(s.submitted_at) > weekAgo).length;
   
-  // Last submission date
   const lastSubmissionAt = submissions.length > 0 
     ? submissions.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())[0].submitted_at
     : null;
+
+  // Phase detection
+  const hasCandidates = totalSubmissions > 0;
+  const hasInterviews = interviews.length > 0;
+  const hasBenefits = !!(job?.job_summary?.benefits_extracted && job.job_summary.benefits_extracted.length > 0);
 
   if (loading) {
     return (
@@ -459,27 +461,31 @@ export default function ClientJobDetail() {
           }}
           onEdit={() => setShowEditDialog(true)}
           onPauseToggle={handlePauseToggle}
+          showStats={hasCandidates}
         />
 
-        {/* Bento Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Pipeline & Activity */}
-          <div className="space-y-6">
-            <PipelineSnapshotCard 
-              jobId={job.id}
-              submissions={submissions}
-            />
-            <RecruiterActivityCard 
-              activeRecruiters={activeRecruiters}
-              totalSubmissions={totalSubmissions}
-              lastSubmissionAt={lastSubmissionAt}
-              weeklySubmissions={weeklySubmissions}
-              onViewCandidates={() => navigate(`/dashboard/command/${job.id}`)}
-            />
-          </div>
+        {/* Phase-adaptive Bento Grid */}
+        {!hasCandidates ? (
+          /* PHASE 1: Draft / Fresh (0 candidates) */
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <JobQualityScoreCard
+                job={job}
+                hasBenefits={hasBenefits}
+                onEditIntake={() => setShowEditDialog(true)}
+              />
+              <NextStepsCard
+                jobStatus={job.status}
+                isPaused={!!job.paused_at}
+                candidateCount={totalSubmissions}
+                interviewCount={interviews.length}
+                intakeCompleteness={job.intake_completeness || 0}
+                onEditIntake={() => setShowEditDialog(true)}
+                onViewPipeline={() => navigate(`/dashboard/command/${job.id}`)}
+              />
+            </div>
 
-          {/* Center Column - Executive Summary */}
-          <div className="lg:col-span-2 space-y-6">
+            {/* Executive Summary - Full Width */}
             <JobExecutiveSummary
               summary={job.job_summary}
               intakeCompleteness={job.intake_completeness || 0}
@@ -487,50 +493,106 @@ export default function ClientJobDetail() {
               onRefreshSummary={generateSummary}
               onEditIntake={() => setShowEditDialog(true)}
             />
-          </div>
-        </div>
 
-        {/* Top Candidates - Full Width */}
-        <TopCandidatesCard 
-          submissions={submissions}
-          jobTitle={job.title}
-          onCandidateClick={(submission) => {
-            const fullSubmission = submissions.find(s => s.id === submission.id);
-            if (fullSubmission) {
-              setSelectedSubmission(fullSubmission);
-              setShowCandidateView(true);
-            }
-          }}
-          onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
-        />
+            {/* Bottom: Recruiter Activity + Company Info */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RecruiterActivityCard 
+                activeRecruiters={activeRecruiters}
+                totalSubmissions={totalSubmissions}
+                lastSubmissionAt={lastSubmissionAt}
+                weeklySubmissions={weeklySubmissions}
+                onViewCandidates={() => navigate(`/dashboard/command/${job.id}`)}
+              />
+              <CompanyInfoCard
+                companyName={job.company_name}
+                industry={job.industry}
+                location={job.location}
+                remoteType={job.remote_type}
+                employmentType={job.employment_type}
+              />
+            </div>
+          </>
+        ) : (
+          /* PHASE 2+: Active (1+ candidates) */
+          <>
+            {/* Top Row: Pipeline + Recruiter + Next Steps */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PipelineSnapshotCard 
+                jobId={job.id}
+                submissions={submissions}
+              />
+              <RecruiterActivityCard 
+                activeRecruiters={activeRecruiters}
+                totalSubmissions={totalSubmissions}
+                lastSubmissionAt={lastSubmissionAt}
+                weeklySubmissions={weeklySubmissions}
+                onViewCandidates={() => navigate(`/dashboard/command/${job.id}`)}
+              />
+              <NextStepsCard
+                jobStatus={job.status}
+                isPaused={!!job.paused_at}
+                candidateCount={totalSubmissions}
+                interviewCount={interviews.length}
+                intakeCompleteness={job.intake_completeness || 0}
+                onEditIntake={() => setShowEditDialog(true)}
+                onViewPipeline={() => navigate(`/dashboard/command/${job.id}`)}
+              />
+            </div>
 
-        {/* Bottom Row - Interviews & Company */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <UpcomingInterviewsCard 
-            interviews={interviews}
-            submissions={submissions.map(s => ({
-              id: s.id,
-              candidate: {
-                full_name: s.candidate.full_name,
-                seniority: s.candidate.seniority,
-              }
-            }))}
-            jobTitle={job.title}
-            onViewInterview={(interview) => {
-              const fullSubmission = submissions.find(s => s.id === interview.submission_id);
-              if (fullSubmission) {
-                setSelectedSubmission(fullSubmission);
-                setShowCandidateView(true);
-              }
-            }}
-            onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
-          />
-          <CompanyInfoCard
-            companyName={job.company_name}
-            industry={job.industry}
-            location={job.location}
-          />
-        </div>
+            {/* Top Candidates - Full Width */}
+            <TopCandidatesCard 
+              submissions={submissions}
+              jobTitle={job.title}
+              onCandidateClick={(submission) => {
+                const fullSubmission = submissions.find(s => s.id === submission.id);
+                if (fullSubmission) {
+                  setSelectedSubmission(fullSubmission);
+                  setShowCandidateView(true);
+                }
+              }}
+              onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
+            />
+
+            {/* Executive Summary - Full Width */}
+            <JobExecutiveSummary
+              summary={job.job_summary}
+              intakeCompleteness={job.intake_completeness || 0}
+              isGenerating={isGeneratingSummary}
+              onRefreshSummary={generateSummary}
+              onEditIntake={() => setShowEditDialog(true)}
+            />
+
+            {/* Bottom: Interviews + Company */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <UpcomingInterviewsCard 
+                interviews={interviews}
+                submissions={submissions.map(s => ({
+                  id: s.id,
+                  candidate: {
+                    full_name: s.candidate.full_name,
+                    seniority: s.candidate.seniority,
+                  }
+                }))}
+                jobTitle={job.title}
+                onViewInterview={(interview) => {
+                  const fullSubmission = submissions.find(s => s.id === interview.submission_id);
+                  if (fullSubmission) {
+                    setSelectedSubmission(fullSubmission);
+                    setShowCandidateView(true);
+                  }
+                }}
+                onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
+              />
+              <CompanyInfoCard
+                companyName={job.company_name}
+                industry={job.industry}
+                location={job.location}
+                remoteType={job.remote_type}
+                employmentType={job.employment_type}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Edit Dialog */}

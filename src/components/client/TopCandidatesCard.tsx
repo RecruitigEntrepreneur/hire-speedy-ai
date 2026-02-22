@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowRight, Star, Briefcase, Clock } from 'lucide-react';
+import { ArrowRight, Star, Briefcase, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Candidate {
@@ -35,13 +35,11 @@ export function TopCandidatesCard({
   onViewAll,
   className 
 }: TopCandidatesCardProps) {
-  // Get top candidates (by match score, excluding rejected/hired, limit 3)
   const topCandidates = submissions
     .filter(s => !['rejected', 'hired'].includes(s.stage || ''))
     .sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
     .slice(0, 3);
 
-  // Generate anonymous ID
   const generateAnonymousId = (submissionId: string): string => {
     const prefix = jobTitle?.slice(0, 2).toUpperCase() || 'XX';
     return `${prefix}-${submissionId.slice(0, 4).toUpperCase()}`;
@@ -49,17 +47,20 @@ export function TopCandidatesCard({
 
   if (topCandidates.length === 0) {
     return (
-      <Card className={className}>
+      <Card className={cn("col-span-full", className)}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Star className="h-4 w-4 text-primary" />
+            <Star className="h-4 w-4 text-amber-500" />
             Top Kandidaten
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6 text-muted-foreground">
-            <Briefcase className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Noch keine Kandidaten im Prozess</p>
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-amber-500" />
+            </div>
+            <p className="text-sm font-medium text-foreground">Kandidaten werden gesucht</p>
+            <p className="text-xs mt-1">Sobald Recruiter Kandidaten einreichen, erscheinen hier die besten Matches</p>
           </div>
         </CardContent>
       </Card>
@@ -95,7 +96,6 @@ export function TopCandidatesCard({
                   isTopCandidate && "border-amber-200 bg-amber-50/50 dark:border-amber-500/30 dark:bg-amber-500/5"
                 )}
               >
-                {/* Rank Badge */}
                 {isTopCandidate && (
                   <Badge className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] px-1.5">
                     #1
@@ -120,7 +120,6 @@ export function TopCandidatesCard({
                   </div>
                 </div>
 
-                {/* Match Score */}
                 {submission.match_score && (
                   <div className="mt-3 flex items-center gap-2">
                     <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
@@ -143,7 +142,6 @@ export function TopCandidatesCard({
                   </div>
                 )}
 
-                {/* Experience */}
                 {submission.candidate.experience_years && (
                   <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" />
@@ -151,7 +149,6 @@ export function TopCandidatesCard({
                   </div>
                 )}
 
-                {/* Skills Preview */}
                 {submission.candidate.skills && submission.candidate.skills.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1">
                     {submission.candidate.skills.slice(0, 3).map((skill, i) => (

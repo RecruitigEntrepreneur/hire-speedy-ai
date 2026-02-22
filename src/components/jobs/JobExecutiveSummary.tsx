@@ -1,17 +1,12 @@
-import { useState } from 'react';
 import { 
   Sparkles, 
   RefreshCw, 
-  Edit2, 
-  ChevronDown, 
-  ChevronUp,
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KeyFactsGrid } from './KeyFactsGrid';
 import { StructuredRequirements } from './StructuredRequirements';
 import { ExtractedBenefits } from './ExtractedBenefits';
@@ -73,10 +68,6 @@ export function JobExecutiveSummary({
   onRefreshSummary,
   onEditIntake
 }: JobExecutiveSummaryProps) {
-  const [showTasks, setShowTasks] = useState(true);
-  const [showRequirements, setShowRequirements] = useState(true);
-  const [showBenefits, setShowBenefits] = useState(true);
-
   if (isGenerating) {
     return (
       <Card className="p-8">
@@ -117,8 +108,11 @@ export function JobExecutiveSummary({
     );
   }
 
+  const hasBenefits = summary.benefits_extracted && summary.benefits_extracted.length > 0;
+  const hasAI = !!summary.ai_insights;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header with actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -136,126 +130,55 @@ export function JobExecutiveSummary({
         </Button>
       </div>
 
-      {/* Key Facts Grid */}
+      {/* Key Facts Grid - always visible */}
       {summary.key_facts && summary.key_facts.length > 0 && (
         <KeyFactsGrid facts={summary.key_facts} />
       )}
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Tasks */}
-        <Collapsible open={showTasks} onOpenChange={setShowTasks}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Aufgabenbereich</span>
-                  {showTasks ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </CardTitle>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent>
-                <TasksStructured tasks={summary.tasks_structured} />
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+      {/* Tabbed Content */}
+      <Tabs defaultValue="tasks" className="w-full">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="tasks">Aufgaben</TabsTrigger>
+          <TabsTrigger value="requirements">Anforderungen</TabsTrigger>
+          {hasBenefits && <TabsTrigger value="benefits">Benefits</TabsTrigger>}
+          {hasAI && <TabsTrigger value="ai">KI-Analyse</TabsTrigger>}
+        </TabsList>
 
-        {/* Right Column: Requirements */}
-        <Collapsible open={showRequirements} onOpenChange={setShowRequirements}>
+        <TabsContent value="tasks" className="mt-4">
           <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Anforderungsprofil</span>
-                  {showRequirements ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </CardTitle>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent>
-                <StructuredRequirements requirements={summary.requirements_structured} />
-              </CardContent>
-            </CollapsibleContent>
+            <CardContent className="pt-6">
+              <TasksStructured tasks={summary.tasks_structured} />
+            </CardContent>
           </Card>
-        </Collapsible>
-      </div>
+        </TabsContent>
 
-      {/* Benefits Section */}
-      {summary.benefits_extracted && summary.benefits_extracted.length > 0 && (
-        <Collapsible open={showBenefits} onOpenChange={setShowBenefits}>
+        <TabsContent value="requirements" className="mt-4">
           <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Benefits & Vorteile</span>
-                  {showBenefits ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </CardTitle>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent>
+            <CardContent className="pt-6">
+              <StructuredRequirements requirements={summary.requirements_structured} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {hasBenefits && (
+          <TabsContent value="benefits" className="mt-4">
+            <Card>
+              <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                   <ExtractedBenefits benefits={summary.benefits_extracted.slice(0, Math.ceil(summary.benefits_extracted.length / 2))} />
                   <ExtractedBenefits benefits={summary.benefits_extracted.slice(Math.ceil(summary.benefits_extracted.length / 2))} />
                 </div>
               </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      )}
-
-      {/* AI Insights + Intake Status Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* AI Insights */}
-        {summary.ai_insights && (
-          <AIInsightsCard insights={summary.ai_insights} />
+            </Card>
+          </TabsContent>
         )}
 
-        {/* Intake Status */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span>Intake-Status</span>
-              {onEditIntake && (
-                <Button variant="ghost" size="sm" onClick={onEditIntake}>
-                  <Edit2 className="h-3.5 w-3.5 mr-1.5" />
-                  Ergänzen
-                </Button>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Vollständigkeit</span>
-                <span className="font-medium">{intakeCompleteness}%</span>
-              </div>
-              <Progress value={intakeCompleteness} className="h-2" />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {intakeCompleteness < 50 
-                ? 'Füge mehr Intake-Informationen hinzu für bessere Kandidatenmatches.'
-                : intakeCompleteness < 80 
-                  ? 'Gute Basis! Weitere Details verbessern die Suche.'
-                  : 'Exzellent! Das Profil ist sehr vollständig.'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        {hasAI && (
+          <TabsContent value="ai" className="mt-4">
+            <AIInsightsCard insights={summary.ai_insights} />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
