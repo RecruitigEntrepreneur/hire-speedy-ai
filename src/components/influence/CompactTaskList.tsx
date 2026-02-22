@@ -59,7 +59,7 @@ const priorityConfig = {
 
 const getShortAction = (alertType: string): string => {
   const actionMap: Record<string, string> = {
-    'opt_in_pending': 'Nachfassen',
+    'opt_in_pending': 'Opt-In einholen',
     'opt_in_pending_48h': 'Dringend nachfassen',
     'opt_in_pending_24h': 'Sofort nachfassen',
     'interview_prep_missing': 'Vorbereitung senden',
