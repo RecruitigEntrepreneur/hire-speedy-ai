@@ -282,6 +282,19 @@ const handler = async (req: Request): Promise<Response> => {
         },
       });
 
+    // Create influence_alert so recruiter gets a task to obtain candidate opt-in
+    await supabase
+      .from('influence_alerts')
+      .insert({
+        submission_id: submissionId,
+        recruiter_id: submission.recruiter_id,
+        alert_type: 'opt_in_pending',
+        priority: 'critical',
+        title: `Interview-Anfrage: ${candidate.full_name} – ${job.title}`,
+        message: `Ein Kunde möchte ${candidate.full_name} für "${job.title}" interviewen.`,
+        recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
+      });
+
     return new Response(
       JSON.stringify({ 
         success: true, 

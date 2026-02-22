@@ -8,7 +8,10 @@ import {
   Check, 
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Phone,
+  Mail,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -23,6 +26,11 @@ interface CandidateTask {
   action_taken: string | null;
   created_at: string;
   submission_id: string;
+}
+
+interface CandidateContact {
+  email?: string;
+  phone?: string;
 }
 
 interface CandidateTasksSectionProps {
@@ -61,6 +69,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
   const [tasks, setTasks] = useState<CandidateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
+  const [contact, setContact] = useState<CandidateContact>({});
 
   useEffect(() => {
     fetchTasks();
@@ -68,6 +77,17 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
 
   const fetchTasks = async () => {
     try {
+      // Load candidate contact info
+      const { data: candidate } = await supabase
+        .from('candidates')
+        .select('email, phone')
+        .eq('id', candidateId)
+        .single();
+
+      if (candidate) {
+        setContact({ email: candidate.email, phone: candidate.phone ?? undefined });
+      }
+
       // Get all submissions for this candidate
       const { data: submissions } = await supabase
         .from('submissions')
@@ -120,6 +140,38 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
     } catch (error) {
       console.error('Error marking task done:', error);
       toast.error('Fehler beim Aktualisieren');
+    }
+  };
+
+  const handleConfirmOptIn = async (taskId: string, submissionId: string) => {
+    try {
+      // Update submission stage
+      const { error: subError } = await supabase
+        .from('submissions')
+        .update({ stage: 'candidate_opted_in' })
+        .eq('id', submissionId);
+
+      if (subError) throw subError;
+
+      // Mark alert as handled
+      const { error: alertError } = await supabase
+        .from('influence_alerts')
+        .update({ 
+          action_taken: 'opt_in_confirmed',
+          action_taken_at: new Date().toISOString(),
+          is_read: true
+        })
+        .eq('id', taskId);
+
+      if (alertError) throw alertError;
+
+      setTasks(prev => prev.map(t => 
+        t.id === taskId ? { ...t, action_taken: 'opt_in_confirmed' } : t
+      ));
+      toast.success('Opt-In bestätigt – Kunde wird benachrichtigt');
+    } catch (error) {
+      console.error('Error confirming opt-in:', error);
+      toast.error('Fehler beim Bestätigen');
     }
   };
 
@@ -178,35 +230,79 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
             const config = priorityConfig[task.priority];
             const Icon = config.icon;
             const isActive = task.id === activeTaskId;
+            const isOptInPending = task.alert_type === 'opt_in_pending';
 
             return (
               <div 
                 key={task.id}
                 className={cn(
-                  "p-3 flex items-start gap-3 transition-colors",
+                  "p-3 flex flex-col gap-2 transition-colors",
                   isActive 
                     ? "ring-2 ring-primary bg-primary/5" 
                     : "hover:bg-accent/50"
                 )}
               >
-                <div className={cn("p-1.5 rounded", config.bgColor)}>
-                  <Icon className={cn("h-4 w-4", config.color)} />
+                <div className="flex items-start gap-3">
+                  <div className={cn("p-1.5 rounded", config.bgColor)}>
+                    <Icon className={cn("h-4 w-4", config.color)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{task.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      {task.recommended_action}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{task.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                    {task.recommended_action}
-                  </p>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 ml-10 flex-wrap">
+                  {isOptInPending && contact.phone && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      asChild
+                    >
+                      <a href={`tel:${contact.phone}`}>
+                        <Phone className="h-3 w-3 mr-1" />
+                        Anrufen
+                      </a>
+                    </Button>
+                  )}
+                  {isOptInPending && contact.email && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      asChild
+                    >
+                      <a href={`mailto:${contact.email}`}>
+                        <Mail className="h-3 w-3 mr-1" />
+                        Email
+                      </a>
+                    </Button>
+                  )}
+                  {isOptInPending && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => handleConfirmOptIn(task.id, task.submission_id)}
+                    >
+                      <ShieldCheck className="h-3 w-3 mr-1" />
+                      Opt-In bestätigen
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    onClick={() => handleMarkDone(task.id)}
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    Erledigt
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 h-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                  onClick={() => handleMarkDone(task.id)}
-                >
-                  <Check className="h-4 w-4 mr-1" />
-                  Erledigt
-                </Button>
               </div>
             );
           })}

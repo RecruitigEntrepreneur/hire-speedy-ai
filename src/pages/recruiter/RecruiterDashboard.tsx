@@ -222,7 +222,9 @@ export default function RecruiterDashboard() {
           const res = await supabase
             .from('influence_alerts')
             .select('submission_id')
-            .match({ submission_id: sid, status: 'active' });
+            .eq('submission_id', sid)
+            .eq('is_dismissed', false)
+            .is('action_taken', null);
           if (res.data) alertData = [...alertData, ...res.data];
         }
 
