@@ -161,7 +161,7 @@ export function CandidateMainContent({
           candidateId={candidate.id}
           showAddForm={true}
         />
-        <CandidateTasksSection candidateId={candidate.id} activeTaskId={activeTaskId} />
+        
       </TabsContent>
 
       {/* Tab 3: Matching */}

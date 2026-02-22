@@ -180,16 +180,28 @@ export function InterviewRequestWithOptInDialog({
           related_id: submissionId,
         });
 
-        // Create influence alert so it appears in recruiter's task list
-        await supabase.from('influence_alerts').insert({
-          submission_id: submissionId,
-          recruiter_id: submission.recruiter_id,
-          alert_type: 'opt_in_pending',
-          priority: 'critical',
-          title: `Interview-Anfrage: ${candidateAnonymousId} – ${jobTitle}`,
-          message: `Ein Kunde möchte ${candidateAnonymousId} für "${jobTitle}" interviewen.`,
-          recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
-        });
+        // Dedup: Only create alert if no open opt_in_pending alert exists for this submission
+        const { data: existingAlert } = await supabase
+          .from('influence_alerts')
+          .select('id')
+          .eq('submission_id', submissionId)
+          .eq('alert_type', 'opt_in_pending')
+          .eq('is_dismissed', false)
+          .is('action_taken', null)
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingAlert) {
+          await supabase.from('influence_alerts').insert({
+            submission_id: submissionId,
+            recruiter_id: submission.recruiter_id,
+            alert_type: 'opt_in_pending',
+            priority: 'critical',
+            title: `Interview-Anfrage: ${candidateAnonymousId} – ${jobTitle}`,
+            message: `Ein Kunde möchte ${candidateAnonymousId} für "${jobTitle}" interviewen.`,
+            recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
+          });
+        }
       }
 
       toast.success('Interview-Anfrage gesendet', {

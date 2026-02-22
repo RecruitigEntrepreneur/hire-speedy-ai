@@ -195,7 +195,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
         onClick={() => setExpanded(!expanded)}
         className={cn(
           "w-full flex items-center justify-between p-3",
-          pendingTasks.length > 0 ? "bg-amber-50 dark:bg-amber-950/20" : "bg-muted/30"
+          pendingTasks.length > 0 ? "bg-amber-500/10" : "bg-muted/30"
         )}
       >
         <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
                     onClick={() => handleMarkDone(task.id)}
                   >
                     <Check className="h-3 w-3 mr-1" />
