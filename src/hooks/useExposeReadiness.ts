@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 
 interface CandidateData {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  job_title?: string | null;
   skills?: string[] | null;
   experience_years?: number | null;
   expected_salary?: number | null;
@@ -9,6 +13,8 @@ interface CandidateData {
   city?: string | null;
   cv_ai_summary?: string | null;
   cv_ai_bullets?: unknown[] | null;
+  change_motivation?: string | null;
+  would_recommend?: boolean | null;
 }
 
 interface ReadinessResult {
@@ -36,13 +42,22 @@ export function useExposeReadiness(candidate: CandidateData | null): ReadinessRe
     }
 
     const checks = [
+      // Stammdaten
+      { field: 'Name', valid: !!candidate.full_name },
+      { field: 'E-Mail', valid: !!candidate.email },
+      { field: 'Telefon', valid: !!candidate.phone },
+      { field: 'Jobtitel', valid: !!candidate.job_title },
+      { field: 'Standort', valid: !!candidate.city },
+      // CV-basiert
       { field: 'Skills', valid: candidate.skills && candidate.skills.length >= 3 },
       { field: 'Erfahrung', valid: candidate.experience_years != null && candidate.experience_years > 0 },
-      { field: 'Gehalt', valid: candidate.expected_salary != null && candidate.expected_salary > 0 },
-      { field: 'Verfügbarkeit', valid: !!(candidate.availability_date || candidate.notice_period) },
-      { field: 'Standort', valid: !!candidate.city },
       { field: 'CV Summary', valid: !!candidate.cv_ai_summary },
       { field: 'CV Highlights', valid: candidate.cv_ai_bullets && candidate.cv_ai_bullets.length > 0 },
+      // Interview-basiert
+      { field: 'Gehalt', valid: candidate.expected_salary != null && candidate.expected_salary > 0 },
+      { field: 'Verfügbarkeit', valid: !!(candidate.availability_date || candidate.notice_period) },
+      { field: 'Wechselmotivation', valid: !!candidate.change_motivation },
+      { field: 'Empfehlung', valid: candidate.would_recommend != null },
     ];
 
     const validCount = checks.filter(c => c.valid).length;
@@ -92,13 +107,22 @@ export function getExposeReadiness(candidate: CandidateData | null): ReadinessRe
   }
 
   const checks = [
+    // Stammdaten
+    { field: 'Name', valid: !!candidate.full_name },
+    { field: 'E-Mail', valid: !!candidate.email },
+    { field: 'Telefon', valid: !!candidate.phone },
+    { field: 'Jobtitel', valid: !!candidate.job_title },
+    { field: 'Standort', valid: !!candidate.city },
+    // CV-basiert
     { field: 'Skills', valid: candidate.skills && candidate.skills.length >= 3 },
     { field: 'Erfahrung', valid: candidate.experience_years != null && candidate.experience_years > 0 },
-    { field: 'Gehalt', valid: candidate.expected_salary != null && candidate.expected_salary > 0 },
-    { field: 'Verfügbarkeit', valid: !!(candidate.availability_date || candidate.notice_period) },
-    { field: 'Standort', valid: !!candidate.city },
     { field: 'CV Summary', valid: !!candidate.cv_ai_summary },
     { field: 'CV Highlights', valid: candidate.cv_ai_bullets && candidate.cv_ai_bullets.length > 0 },
+    // Interview-basiert
+    { field: 'Gehalt', valid: candidate.expected_salary != null && candidate.expected_salary > 0 },
+    { field: 'Verfügbarkeit', valid: !!(candidate.availability_date || candidate.notice_period) },
+    { field: 'Wechselmotivation', valid: !!candidate.change_motivation },
+    { field: 'Empfehlung', valid: candidate.would_recommend != null },
   ];
 
   const validCount = checks.filter(c => c.valid).length;

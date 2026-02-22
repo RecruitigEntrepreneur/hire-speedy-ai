@@ -116,7 +116,28 @@ export default function RecruiterCandidateDetail() {
   }, [id, user, navigate]);
 
   const extCandidate = candidate as any;
+
+  // Load interview notes for readiness check
+  const { data: interviewNotes } = useQuery({
+    queryKey: ['candidate-interview-readiness', id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('candidate_interview_notes')
+        .select('change_motivation, would_recommend')
+        .eq('candidate_id', id!)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!id,
+  });
+
   const readiness = candidate ? getExposeReadiness({
+    full_name: candidate.full_name,
+    email: candidate.email,
+    phone: candidate.phone,
+    job_title: candidate.job_title,
     skills: candidate.skills,
     experience_years: candidate.experience_years,
     expected_salary: candidate.expected_salary,
@@ -125,6 +146,8 @@ export default function RecruiterCandidateDetail() {
     city: candidate.city,
     cv_ai_summary: extCandidate?.cv_ai_summary,
     cv_ai_bullets: extCandidate?.cv_ai_bullets,
+    change_motivation: interviewNotes?.change_motivation,
+    would_recommend: interviewNotes?.would_recommend,
   }) : null;
 
   const [currentStatus, setCurrentStatus] = useState(candidate?.candidate_status || 'new');
