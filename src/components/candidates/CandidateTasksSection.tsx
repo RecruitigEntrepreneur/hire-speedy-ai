@@ -11,10 +11,16 @@ import {
   ChevronUp,
   Phone,
   Mail,
-  ShieldCheck
+  ShieldCheck,
+  Info,
+  FileText,
+  MessageSquare,
+  Edit,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 
 interface CandidateTask {
   id: string;
@@ -33,9 +39,31 @@ interface CandidateContact {
   phone?: string;
 }
 
+interface ExposeTask {
+  id: string;
+  title: string;
+  description: string;
+  actions: ('call' | 'edit' | 'cv_upload' | 'interview')[];
+}
+
 interface CandidateTasksSectionProps {
   candidateId: string;
   activeTaskId?: string;
+  candidate?: {
+    skills?: string[] | null;
+    experience_years?: number | null;
+    expected_salary?: number | null;
+    availability_date?: string | null;
+    notice_period?: string | null;
+    city?: string | null;
+    cv_ai_summary?: string | null;
+    cv_ai_bullets?: unknown[] | null;
+    phone?: string | null;
+    email?: string;
+  } | null;
+  onEdit?: () => void;
+  onCvUpload?: () => void;
+  onStartInterview?: () => void;
 }
 
 const priorityConfig = {
@@ -65,11 +93,80 @@ const priorityConfig = {
   },
 };
 
-export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTasksSectionProps) {
+// Fields covered by CV upload - don't show individually if CV is missing
+const CV_FIELDS = ['Skills', 'Erfahrung', 'CV Summary', 'CV Highlights', 'Standort'];
+// Fields covered by Interview - don't show individually if interview is missing
+const INTERVIEW_FIELDS = ['Gehalt', 'Verfügbarkeit'];
+
+function buildExposeTasks(
+  candidate: CandidateTasksSectionProps['candidate'],
+  hasInterview: boolean
+): ExposeTask[] {
+  if (!candidate) return [];
+
+  const readiness = getExposeReadiness(candidate);
+  if (readiness.isReady) return [];
+
+  const missing = readiness.missingFields;
+  const tasks: ExposeTask[] = [];
+
+  const hasCv = !!(candidate.cv_ai_summary || (candidate.cv_ai_bullets && candidate.cv_ai_bullets.length > 0));
+
+  // 1. CV missing → one big task
+  if (!hasCv) {
+    tasks.push({
+      id: 'expose-cv',
+      title: 'CV hochladen und analysieren lassen',
+      description: 'Skills, Erfahrung und Zusammenfassung werden automatisch aus dem CV extrahiert.',
+      actions: ['cv_upload'],
+    });
+  }
+
+  // 2. Interview missing → one big task
+  if (!hasInterview) {
+    tasks.push({
+      id: 'expose-interview',
+      title: 'Interview durchführen',
+      description: 'Gehaltsvorstellung, Wechselmotivation und Verfügbarkeit werden im Interview erfasst.',
+      actions: ['interview', 'call'],
+    });
+  }
+
+  // 3. Residual fields (only if CV/Interview exist but fields still missing)
+  const residual = missing.filter(f => {
+    if (!hasCv && CV_FIELDS.includes(f)) return false;
+    if (!hasInterview && INTERVIEW_FIELDS.includes(f)) return false;
+    return true;
+  });
+
+  const fieldTaskMap: Record<string, { title: string; description: string; actions: ExposeTask['actions'] }> = {
+    'Gehalt': { title: 'Gehaltsvorstellung erfragen', description: 'Für das Exposé wird eine Gehaltsvorstellung benötigt.', actions: ['call', 'edit'] },
+    'Verfügbarkeit': { title: 'Verfügbarkeit klären', description: 'Verfügbarkeitsdatum oder Kündigungsfrist eintragen.', actions: ['call', 'edit'] },
+    'Skills': { title: 'Skills ergänzen (mind. 3)', description: 'Mindestens 3 Skills werden für das Exposé benötigt.', actions: ['edit'] },
+    'Erfahrung': { title: 'Berufserfahrung eintragen', description: 'Erfahrungsjahre für das Exposé eintragen.', actions: ['edit'] },
+    'Standort': { title: 'Standort eintragen', description: 'Stadt/Standort des Kandidaten fehlt.', actions: ['edit'] },
+    'CV Summary': { title: 'CV hochladen', description: 'CV-Zusammenfassung fehlt.', actions: ['cv_upload'] },
+    'CV Highlights': { title: 'CV hochladen', description: 'CV-Highlights fehlen.', actions: ['cv_upload'] },
+  };
+
+  for (const field of residual) {
+    const config = fieldTaskMap[field];
+    if (config) {
+      // Avoid duplicate CV tasks
+      if (tasks.some(t => t.id === `expose-residual-${field}` || (config.actions.includes('cv_upload') && tasks.some(t2 => t2.id.startsWith('expose-residual') && t2.actions.includes('cv_upload'))))) continue;
+      tasks.push({ id: `expose-residual-${field}`, ...config });
+    }
+  }
+
+  return tasks;
+}
+
+export function CandidateTasksSection({ candidateId, activeTaskId, candidate, onEdit, onCvUpload, onStartInterview }: CandidateTasksSectionProps) {
   const [tasks, setTasks] = useState<CandidateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
   const [contact, setContact] = useState<CandidateContact>({});
+  const [hasInterview, setHasInterview] = useState(false);
 
   useEffect(() => {
     fetchTasks();
@@ -78,15 +175,23 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
   const fetchTasks = async () => {
     try {
       // Load candidate contact info
-      const { data: candidate } = await supabase
+      const { data: candidateData } = await supabase
         .from('candidates')
         .select('email, phone')
         .eq('id', candidateId)
         .single();
 
-      if (candidate) {
-        setContact({ email: candidate.email, phone: candidate.phone ?? undefined });
+      if (candidateData) {
+        setContact({ email: candidateData.email, phone: candidateData.phone ?? undefined });
       }
+
+      // Check if interview notes exist
+      const { count } = await supabase
+        .from('candidate_interview_notes')
+        .select('id', { count: 'exact', head: true })
+        .eq('candidate_id', candidateId);
+
+      setHasInterview((count ?? 0) > 0);
 
       // Get all submissions for this candidate
       const { data: submissions } = await supabase
@@ -145,7 +250,6 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
 
   const handleConfirmOptIn = async (taskId: string, submissionId: string) => {
     try {
-      // Update submission stage
       const { error: subError } = await supabase
         .from('submissions')
         .update({ stage: 'candidate_opted_in' })
@@ -153,7 +257,6 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
 
       if (subError) throw subError;
 
-      // Mark alert as handled
       const { error: alertError } = await supabase
         .from('influence_alerts')
         .update({ 
@@ -177,6 +280,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
 
   const pendingTasks = tasks.filter(t => !t.action_taken);
   const completedTasks = tasks.filter(t => t.action_taken);
+  const exposeTasks = buildExposeTasks(candidate, hasInterview);
+
+  const totalPending = pendingTasks.length + exposeTasks.length;
 
   if (loading) {
     return (
@@ -184,7 +290,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
     );
   }
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && exposeTasks.length === 0) {
     return null;
   }
 
@@ -195,24 +301,29 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
         onClick={() => setExpanded(!expanded)}
         className={cn(
           "w-full flex items-center justify-between p-3",
-          pendingTasks.length > 0 ? "bg-amber-500/10" : "bg-muted/30"
+          totalPending > 0 ? "bg-amber-500/10" : "bg-muted/30"
         )}
       >
         <div className="flex items-center gap-2">
-          {pendingTasks.length > 0 ? (
+          {totalPending > 0 ? (
             <AlertTriangle className="h-4 w-4 text-amber-600" />
           ) : (
             <Check className="h-4 w-4 text-emerald-600" />
           )}
           <span className="font-medium text-sm">
-            {pendingTasks.length > 0 
-              ? `${pendingTasks.length} offene Aufgabe${pendingTasks.length !== 1 ? 'n' : ''}`
+            {totalPending > 0 
+              ? `${totalPending} offene Aufgabe${totalPending !== 1 ? 'n' : ''}`
               : 'Alle Aufgaben erledigt'
             }
           </span>
           {pendingTasks.filter(t => t.priority === 'critical').length > 0 && (
             <Badge variant="destructive" className="text-xs h-5">
               {pendingTasks.filter(t => t.priority === 'critical').length} kritisch
+            </Badge>
+          )}
+          {exposeTasks.length > 0 && (
+            <Badge variant="outline" className="text-xs h-5 text-blue-600 border-blue-500/50">
+              Exposé
             </Badge>
           )}
         </div>
@@ -226,6 +337,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
       {/* Task list */}
       {expanded && (
         <div className="divide-y">
+          {/* DB-based tasks (Influence Alerts) */}
           {pendingTasks.map(task => {
             const config = priorityConfig[task.priority];
             const Icon = config.icon;
@@ -257,12 +369,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 ml-10 flex-wrap">
                   {isOptInPending && contact.phone && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      asChild
-                    >
+                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
                       <a href={`tel:${contact.phone}`}>
                         <Phone className="h-3 w-3 mr-1" />
                         Anrufen
@@ -270,12 +377,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
                     </Button>
                   )}
                   {isOptInPending && contact.email && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      asChild
-                    >
+                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
                       <a href={`mailto:${contact.email}`}>
                         <Mail className="h-3 w-3 mr-1" />
                         Email
@@ -306,6 +408,52 @@ export function CandidateTasksSection({ candidateId, activeTaskId }: CandidateTa
               </div>
             );
           })}
+
+          {/* Exposé-critical pseudo-tasks */}
+          {exposeTasks.map(task => (
+            <div key={task.id} className="p-3 flex flex-col gap-2 hover:bg-accent/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className="p-1.5 rounded bg-blue-500/10">
+                  <Info className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{task.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {task.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 ml-10 flex-wrap">
+                {task.actions.includes('call') && (candidate?.phone || contact.phone) && (
+                  <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                    <a href={`tel:${candidate?.phone || contact.phone}`}>
+                      <Phone className="h-3 w-3 mr-1" />
+                      Anrufen
+                    </a>
+                  </Button>
+                )}
+                {task.actions.includes('cv_upload') && onCvUpload && (
+                  <Button variant="default" size="sm" className="h-7 text-xs" onClick={onCvUpload}>
+                    <Upload className="h-3 w-3 mr-1" />
+                    CV hochladen
+                  </Button>
+                )}
+                {task.actions.includes('interview') && onStartInterview && (
+                  <Button variant="default" size="sm" className="h-7 text-xs" onClick={onStartInterview}>
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Interview starten
+                  </Button>
+                )}
+                {task.actions.includes('edit') && onEdit && (
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onEdit}>
+                    <Edit className="h-3 w-3 mr-1" />
+                    Bearbeiten
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
 
           {/* Completed tasks (collapsed) */}
           {completedTasks.length > 0 && (
