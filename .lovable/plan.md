@@ -1,138 +1,182 @@
 
 
-# Fix: Interview-Anfrage erzeugt keine Aufgabe beim Recruiter
+# Fix: Marko Benko fehlt in Aufgaben + Professionelles Task-Design
 
-## Root-Cause-Analyse
+## Analyse: 3 Probleme gefunden
 
-Es gibt **3 Probleme**, die zusammenwirken:
+### Problem 1: Kein Alert existiert fuer Marko Benko
 
-### Problem 1: Falscher Dialog wird verwendet
+Die Datenbank zeigt: Fuer Marko Benkos Submission (`876e791f...`) existiert **kein einziger** `influence_alert`. Die Interview-Anfrage wurde gestellt **bevor** wir den Alert-Code in die Edge Function eingebaut haben. Der Alert wurde also nie erstellt.
 
-Auf der Client-Kandidatenseite (`CandidateDetail.tsx`) wird der `ProfessionalInterviewWizard` verwendet, der die Edge Function `send-interview-invitation` aufruft. Diese Edge Function erstellt **keinen** `influence_alert`. Unser Code-Change war im `InterviewRequestWithOptInDialog` -- der wird aber auf der Kandidaten-Detailseite gar nicht benutzt.
+**Loesung:** Beim Laden des Dashboards pruefen, ob Submissions im Status `interview_requested` existieren, fuer die KEIN `influence_alert` vom Typ `opt_in_pending` vorhanden ist. Falls ja: automatisch nachholen.
 
-```text
-CandidateDetail.tsx
-  |
-  +--> ProfessionalInterviewWizard
-         |
-         +--> Edge Function "send-interview-invitation"
-                |
-                +--> interviews INSERT ✓
-                +--> submissions UPDATE ✓  
-                +--> notifications INSERT ✓
-                +--> influence_alerts INSERT ✗  <-- FEHLT!
-```
+### Problem 2: Pipeline zeigt falsche Stage-Zuordnung
 
-### Problem 2: Dashboard-Query ist kaputt
-
-In `RecruiterDashboard.tsx` (Zeile 225) wird nach `status: 'active'` in der `influence_alerts`-Tabelle gefiltert -- diese Spalte existiert aber gar nicht. Das erzeugt massenweise Postgres-Fehler (`column influence_alerts.status does not exist`) und verhindert das Laden von Alerts.
-
-### Problem 3: Kein visueller Hinweis auf der Kandidatenseite
-
-Auf der Recruiter-Kandidatenseite fehlt ein sichtbarer Hinweis, dass ein Interview angefragt wurde. Die `CandidateTasksSection` zeigt zwar Aufgaben an, aber nur wenn der `influence_alert` existiert -- der aber wegen Problem 1 nicht erstellt wird.
-
-## Loesung
-
-### Aenderung 1: Edge Function `send-interview-invitation` erweitern
-
-**Datei: `supabase/functions/send-interview-invitation/index.ts`**
-
-Nach dem Notification-Insert (ca. Zeile 280) einen `influence_alert` einfuegen:
+Die `SubmissionsPipeline` mappt Stages so:
 
 ```text
-// Nach: await supabase.from('notifications').insert(...)
-
-await supabase.from('influence_alerts').insert({
-  submission_id: submissionId,
-  recruiter_id: submission.recruiter_id,
-  alert_type: 'opt_in_pending',
-  priority: 'critical',
-  title: `Interview-Anfrage: ${candidate.full_name} – ${job.title}`,
-  message: `Ein Kunde moechte ${candidate.full_name} fuer "${job.title}" interviewen.`,
-  recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
-});
+Interview-Spalte: statuses: ['interview']
 ```
 
-### Aenderung 2: Dashboard-Query fixen
+Marko Benkos Stage ist aber `interview_requested` -- das matcht auf `interview` weil sein `status` = `'interview'` ist. Er erscheint also in der Pipeline korrekt. Aber der Zusammenhang zur Aufgabe fehlt komplett.
+
+### Problem 3: Task-Karten zeigen keinen Aufgabengrund
+
+Aktuell sehen die Karten so aus:
+
+```text
++------------------+
+| [!] Jens E.      |
+|                   |
+| [Kontaktieren]   |  <-- Nur generischer Action-Text
+| [Tel] [Mail] [v] |
++------------------+
+```
+
+Es fehlt:
+- **Warum** die Aufgabe existiert (z.B. "Seit 5 Tagen keine Reaktion")
+- **Farbliche Konsistenz** mit dem Design-System
+- **Zeitangabe** wann die Aufgabe erstellt wurde
+
+## Professionelles Wireframe
+
+### Aktuell (unprofessionell)
+
+```text
++--------------------------------------------------------------------+
+| Heute zu tun                                              [9]      |
+|                                                                    |
+| KRITISCH (1)                                                       |
+| +------------------+                                               |
+| | [!] Philipp N.   |                                               |
+| |                   |  <-- Kein Grund, keine Zeitangabe            |
+| | [Kontaktieren]   |  <-- Generischer Text                        |
+| | [Tel] [Mail] [v] |                                               |
+| +------------------+                                               |
+|                                                                    |
+| HOCH (8)                                                           |
+| +------------------+ +------------------+ +------------------+     |
+| | [!] Jens E.      | | [!] Vladislav C. | | [!] Horst S.     |    |
+| | [Kontaktieren]   | | [Kontaktieren]   | | [Kontaktieren]   |    |
+| | [Tel] [Mail] [v] | | [Tel] [Mail] [v] | | [Tel] [Mail] [v] |    |
+| +------------------+ +------------------+ +------------------+     |
+|                                                                    |
+| Alle Karten sehen identisch aus -- kein Kontext, kein Grund        |
++--------------------------------------------------------------------+
+```
+
+### Neu (professionell)
+
+```text
++--------------------------------------------------------------------+
+| Aufgaben                                                 [10]      |
+|                                                                    |
+| DRINGEND                                                           |
+| +----------------------------------------------------------------+ |
+| | [!!] Marko Benko                     Interview-Anfrage   2 Std | |
+| |      Data & Dashboard Engineer @ [Analytics]                    | |
+| |      "Kunde moechte ein Interview -- Opt-In einholen"          | |
+| |      [Anrufen] [Email]                    [Opt-In best.] [OK]  | |
+| +----------------------------------------------------------------+ |
+| | [!!] Philipp Numberger               Ghosting-Risiko     2 Tg | |
+| |      Buchhalter @ FITSEVENELEVEN                                | |
+| |      "Seit 2 Tagen keine Reaktion auf Anfrage"                 | |
+| |      [Anrufen] [Email]                             [Erledigt]  | |
+| +----------------------------------------------------------------+ |
+|                                                                    |
+| OFFEN (8)                                                          |
+| +----------------------------------------------------------------+ |
+| | [!] Jens Eyrich                      Ghosting-Risiko    1 Wo  | |
+| |     Buchhalter -- "Seit 7 Tagen keine Reaktion"                | |
+| |     [Anrufen] [Email]                              [Erledigt]  | |
+| +----------------------------------------------------------------+ |
+| | [!] Vladislav Chelakov               Ghosting-Risiko    1 Wo  | |
+| |     "Seit 8 Tagen keine Reaktion"                              | |
+| |     [Anrufen] [Email]                              [Erledigt]  | |
+| +----------------------------------------------------------------+ |
+| | ... weitere 6 Aufgaben ...                                     | |
+| +----------------------------------------------------------------+ |
+|                                                                    |
+| [Alle 10 Aufgaben anzeigen -->]                                    |
++--------------------------------------------------------------------+
+```
+
+### Unterschiede zum aktuellen Design
+
+| Aspekt | Aktuell | Neu |
+|---|---|---|
+| Layout | Horizontale Karten (200px breit, scrollen) | Vertikale Liste (volle Breite, scanbar) |
+| Aufgabengrund | Fehlt komplett | Alert-`message` wird angezeigt |
+| Zeitangabe | Fehlt | Relative Zeit ("2 Std", "1 Wo") |
+| Job-Kontext | Nur teilweise | Immer: Jobtitel + Firma |
+| Alert-Typ | Nur als Badge-Text | Als farbiges Label rechts oben |
+| Gruppierung | Nach Priority (Kritisch/Hoch/Weitere) | Nach Dringlichkeit (Dringend/Offen) -- vereinfacht |
+| Farben | `bg-destructive/5` mit `border-l-destructive` | Konsistent: Rot-Toene fuer dringend, Slate fuer offen |
+
+## Technische Umsetzung
+
+### Aenderung 1: Fehlende Alerts nachholen
 
 **Datei: `src/pages/recruiter/RecruiterDashboard.tsx`**
 
-Zeile 225: `.match({ submission_id: sid, status: 'active' })` ersetzen durch `.match({ submission_id: sid, is_dismissed: false })` und `.is('action_taken', null)`.
+Neue Funktion `ensureInterviewAlerts()` die beim Dashboard-Load prueft:
 
 ```text
-// Vorher (Zeile 221-227):
-for (const sid of submissionIds) {
-  const res = await supabase
-    .from('influence_alerts')
-    .select('submission_id')
-    .match({ submission_id: sid, status: 'active' });  // KAPUTT
-  if (res.data) alertData = [...alertData, ...res.data];
-}
-
-// Nachher:
-for (const sid of submissionIds) {
-  const res = await supabase
-    .from('influence_alerts')
-    .select('submission_id')
-    .eq('submission_id', sid)
-    .eq('is_dismissed', false)
-    .is('action_taken', null);
-  if (res.data) alertData = [...alertData, ...res.data];
-}
+1. Lade alle Submissions mit stage = 'interview_requested' fuer den Recruiter
+2. Lade alle influence_alerts mit alert_type = 'opt_in_pending' fuer den Recruiter
+3. Fuer jede Submission OHNE passenden Alert: Alert erstellen
 ```
 
-### Aenderung 3: `CandidateTasksSection` mit Opt-In-Aktionen
+Dies wird in `fetchCandidateMapForAlerts()` integriert oder als separater `useEffect` ausgefuehrt. So werden bestehende Interview-Anfragen (wie Marko Benko) nachtraeglich erfasst.
 
-**Datei: `src/components/candidates/CandidateTasksSection.tsx`**
+### Aenderung 2: CompactTaskList komplett umbauen
 
-Fuer `opt_in_pending`-Aufgaben kontextspezifische Aktionen anzeigen:
+**Datei: `src/components/influence/CompactTaskList.tsx`**
+
+Kompletter Umbau von horizontalen Karten zu vertikaler Liste:
+
+**Neue TaskRow-Komponente (statt TaskCard):**
+- Volle Breite statt 200px Karte
+- Zeigt: Priority-Icon | Kandidatenname | Aufgabengrund (`alert.message`) | Alert-Typ-Label | Zeitangabe
+- Quick Actions rechts: Anrufen/Email/Typ-spezifisch/Erledigt
+- Fuer `opt_in_pending`: zusaetzlich "Opt-In bestaetigen"-Button
+- Hover-Effekt statt Card-Shadow
+
+**Vereinfachte Gruppierung:**
+- "Dringend": `priority === 'critical'` (roter Akzent)
+- "Offen": alles andere (neutraler Akzent)
+- Keine separaten Sektionen fuer high/medium/low
+
+**Zeitangabe berechnen:**
+- Aus `alert.created_at` relative Zeit berechnen ("vor 2 Std", "vor 1 Tag", "vor 1 Wo")
+- Zeigt an wie lange die Aufgabe schon offen ist
+
+**Farbsystem:**
+- Dringend: `border-l-red-500 bg-red-50/50` (konsistent mit Design)
+- Offen: `border-l-slate-300 bg-slate-50/30`
+- Kein `bg-destructive/5` oder `bg-amber-500/5` mehr -- stattdessen die Projekt-Farbpalette
+
+### Aenderung 3: getShortAction durch getAlertTypeLabel ersetzen
+
+In `CompactTaskList.tsx` wird die Action-Map erweitert um lesbare Labels:
 
 ```text
-Vorher:
-+------------------------------------------------------------+
-| [!!] Interview-Anfrage: Max M. -- Buchhalter               |
-|      Opt-In beim Kandidaten einholen                        |
-|                                       [Erledigt]           |
-+------------------------------------------------------------+
-
-Nachher:
-+------------------------------------------------------------+
-| [!!] Interview-Anfrage: Max M. -- Buchhalter               |
-|      Opt-In beim Kandidaten einholen                        |
-|                                                             |
-|      [Anrufen] [Email] [Opt-In bestaetigen] [Erledigt]     |
-+------------------------------------------------------------+
+'opt_in_pending'    -> 'Interview-Anfrage'
+'ghosting_risk'     -> 'Ghosting-Risiko'
+'follow_up_needed'  -> 'Follow-up'
+'sla_warning'       -> 'SLA-Warnung'
+'no_activity'       -> 'Keine Aktivitaet'
+...
 ```
 
-Konkrete Aenderungen:
-- Kandidaten-Kontaktdaten (Email, Phone) mit laden (ueber Submission -> Candidate Join)
-- Fuer `alert_type === 'opt_in_pending'`: Anrufen/Email-Links + "Opt-In bestaetigen"-Button
-- "Opt-In bestaetigen" setzt `submissions.stage` auf `candidate_opted_in` und markiert den Alert als erledigt
+Diese Labels werden als farbige Badges rechts in der Zeile angezeigt.
 
 ## Zusammenfassung
 
 | Datei | Aenderung |
 |---|---|
-| `supabase/functions/send-interview-invitation/index.ts` | Nach Notification-Insert: `influence_alert` mit `alert_type: 'opt_in_pending'` erstellen |
-| `src/pages/recruiter/RecruiterDashboard.tsx` | Zeile 225: `status: 'active'` durch `is_dismissed: false` + `action_taken IS NULL` ersetzen |
-| `src/components/candidates/CandidateTasksSection.tsx` | Kandidaten-Kontaktdaten laden; Opt-In-spezifische Aktionen (Anrufen, Email, Bestaetigen) |
+| `src/pages/recruiter/RecruiterDashboard.tsx` | `ensureInterviewAlerts()`: Prueft ob fuer `interview_requested`-Submissions Alerts existieren, erstellt fehlende |
+| `src/components/influence/CompactTaskList.tsx` | Kompletter Umbau: Vertikale Liste statt horizontale Karten, mit Aufgabengrund, Zeitangabe, Alert-Typ-Label und konsistenten Farben |
 
-## Ergebnis nach dem Fix
-
-```text
-Kunde klickt "Interview anfragen" (CandidateDetail.tsx)
-        |
-        v
-ProfessionalInterviewWizard -> send-interview-invitation
-        |
-        +--> Interview erstellt ✓
-        +--> Submission Stage aktualisiert ✓
-        +--> Notification erstellt ✓
-        +--> influence_alert erstellt ✓  <-- NEU
-        |
-        v
-Recruiter Dashboard:
-        +--> CompactTaskList zeigt "Opt-In einholen" ✓ (Query gefixt)
-        +--> Kandidatenseite zeigt Aufgabe mit Aktionen ✓
-```
+Keine neuen Dateien, keine neuen Hooks. Bestehende Daten (`alert.message`, `alert.created_at`, `alert.alert_type`) werden einfach endlich angezeigt.
 
