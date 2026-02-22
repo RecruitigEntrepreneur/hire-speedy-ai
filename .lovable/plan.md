@@ -1,36 +1,124 @@
 
 
-# Client Job-Formular bereinigen: Admin-Felder entfernen und Workflow korrigieren
+# Design-System Rebranding: Matchunt.ai (Schritte 1-4)
 
-## Analyse
+## 1. Farb-Analyse aus den Bildern
 
-Beim Durchgehen des gesamten `JobEditDialog.tsx` (das Client-Formular) fallen mehrere Probleme auf:
+Aus den Brand Guidelines (Bild 1) und dem Monogramm (Bild 2) ergeben sich folgende Werte:
 
-### 1. Vermittlungsfee (Zeilen 578-604) -- FALSCH im Client-Formular
-Der Vermittlungsfee-Slider (10-30%) inkl. der Gebuehrenberechnung wird dem Client angezeigt. Laut Workflow wird die Fee ausschliesslich vom Admin im `JobApprovalDialog` festgelegt. Der Client sollte weder sehen noch aendern koennen, wie hoch die Vermittlungsgebuehr ist.
+### Dark UI (Standard / Dashboard / Login)
+- Background: `#0a0a0a` (fast schwarz)
+- Card/Surface: `#141414`
+- Elevated Surface: `#1a1a1a`
+- Border: `#262626`
+- Border subtle: `#1f1f1f`
+- Text primary: `#fafafa`
+- Text muted: `#a1a1a1`
+- Text subtle: `#737373`
 
-**Aenderung:** Vermittlungsfee-Slider und Gebuehrenberechnung komplett aus dem Conditions-Tab entfernen.
+### Neutral Surfaces (Light Mode / Cards)
+- Background: `#fafafa`
+- Card: `#ffffff`
+- Border: `#e5e5e5`
+- Text primary: `#0a0a0a`
+- Text muted: `#737373`
+- Text subtle: `#a1a1a1`
 
-### 2. Dringlichkeit (Zeilen 382-398) -- FRAGWUERDIG im Client-Formular
-Laut dem Approval-Workflow setzt der Admin die Dringlichkeit (Standard/Urgent/Hot). Der Client gibt zwar an, wie dringend es fuer ihn ist, aber die offizielle Urgency fuer Recruiter wird vom Admin gesetzt. Es kann Sinn machen, dem Client trotzdem eine Dringlichkeits-Angabe zu lassen (als Input fuer den Admin), aber die Werte sollten client-freundlicher benannt sein.
+### Markenfarben
+- Kein Akzent-Farbton -- das Branding ist rein monochromatisch (schwarz/weiss)
+- Primary im Dark Mode: `#fafafa` (weiss)
+- Primary im Light Mode: `#0a0a0a` (schwarz)
+- Die bisherigen Emerald/Navy/Blau-Toene werden durch neutrale Toene ersetzt
 
-**Aenderung:** Dringlichkeit im Client-Formular als "Wunsch-Zeitrahmen" umbenennen mit verstaendlicheren Optionen (z.B. "Keine Eile", "Innerhalb 3 Monate", "Schnellstmoeglich", "Sofort").
+### Schrift
+- Aus den Bildern: Clean Sans-Serif, passend zu dem bereits eingesetzten **Inter**
+- Wordmark "Matchunt.ai": Inter, font-weight 600, letter-spacing tight
 
-### 3. "Veroeffentlichen"-Button (Zeile 614-622) -- FALSCH
-Der Client kann aktuell direkt "Veroeffentlichen" klicken, was den Status auf `published` setzt und den Admin-Approval-Workflow umgeht. Der korrekte Flow waere: Client reicht den Job zur Pruefung ein (Status: `pending_approval`), der Admin genehmigt.
+---
 
-**Aenderung:** "Veroeffentlichen"-Button in "Zur Pruefung einreichen" umbenennen und Status auf `pending_approval` statt `published` setzen.
+## 2. CSS-Variablen komplett ersetzen
 
-## Zusammenfassung der Aenderungen
+**Datei: `src/index.css`**
 
-**`src/components/jobs/JobEditDialog.tsx`**
+Der bestehende `:root`-Block (light-first) wird zu einem **dark-first** System umgebaut:
 
-| Was | Aenderung |
+- `:root` bekommt die Dark-UI-Werte (Standard)
+- Neuer `.light`-Block bekommt die Neutral-Surfaces-Werte
+- Alle custom colors (navy, emerald, slate-blue etc.) werden entfernt
+- Gradients vereinfacht auf monochromatische Varianten
+- Shadows an dunklen Hintergrund angepasst (subtiler)
+
+Alle bisherigen Farbvariablen (`--primary`, `--card`, `--muted`, etc.) werden mit den neuen monochromatischen Werten befuellt.
+
+---
+
+## 3. Theme-System: useTheme Hook + ThemeToggle
+
+### 3a. `src/hooks/useTheme.ts` (neue Datei)
+- Hook der den Theme-State verwaltet (`dark` | `light`)
+- Liest/schreibt `localStorage` key `matchunt-theme`
+- Setzt `.light` Klasse auf `<html>` (statt `.dark`, weil dark jetzt der Default ist)
+- Default: `dark`
+
+### 3b. `src/components/ui/ThemeToggle.tsx` (neue Datei)
+- Button mit Sun/Moon Icon (aus lucide-react)
+- Nutzt `useTheme` Hook
+- Minimales Design: Ghost-Button, passt sich dem aktuellen Theme an
+
+### 3c. Integration in `DashboardLayout.tsx`
+- ThemeToggle wird im Sidebar-Footer eingefuegt (neben "Einstellungen")
+
+### 3d. `src/main.tsx` anpassen
+- Beim App-Start Theme aus localStorage lesen und `.light` Klasse setzen falls noetig
+
+### 3e. `tailwind.config.ts` anpassen
+- `darkMode` von `["class"]` bleibt, aber die Klasse wird `.light` statt `.dark` (oder wir nutzen den Ansatz: root = dark, `.light` override)
+
+---
+
+## 4. Logo als SVG-Komponente + Sidebar-Header
+
+### 4a. `src/components/ui/MatchuntLogo.tsx` (neue Datei)
+- SVG-Komponente des MH-Monogramms basierend auf Bild 2
+- Das Monogramm besteht aus geometrischen Formen: Ein "M" und "H" verschraenkt in einem nach unten zeigenden Pfeil/Diamant-Form
+- Props: `size`, `className`, `variant` (`light` | `dark`)
+- Farbe passt sich automatisch an (`currentColor`)
+
+### 4b. `src/components/ui/MatchuntWordmark.tsx` (neue Datei)
+- Kombination aus Monogramm + "Matchunt.ai" Text
+- Layout wie in Bild 1 "Product UI": Icon links, Text rechts
+- Props: `size` (`sm` | `md` | `lg`)
+
+### 4c. `DashboardLayout.tsx` aktualisieren
+- Briefcase-Icon im Header durch MatchuntWordmark ersetzen
+- Monogramm-Groesse: 32px, Text: "Matchunt.ai", font-semibold
+
+### 4d. `Navbar.tsx` aktualisieren
+- Gleiches Logo-Update fuer die Landing-Page Navigation
+
+### 4e. Favicon
+- MH-Monogramm als Favicon einsetzen (aus Bild 2 kopieren nach `public/favicon.png`)
+
+---
+
+## Technische Zusammenfassung
+
+| Datei | Aenderung |
 |---|---|
-| Vermittlungsfee-Slider (Zeile 578-592) | Komplett entfernen |
-| Gebuehren-Vorschau (Zeile 594-604) | Komplett entfernen |
-| `fee_percentage` aus formData | Entfernen (nicht mehr im Update-Query) |
-| `fee_percentage` aus handleSave | Entfernen (Admin setzt das) |
-| Dringlichkeit (Zeile 382-398) | Umbenennen zu "Gewuenschter Einstellungszeitraum" mit client-freundlichen Optionen |
-| "Veroeffentlichen"-Button | Text zu "Zur Pruefung einreichen", Status `pending_approval` statt `published` |
+| `src/index.css` | Komplett neue CSS-Variablen: dark-first, monochromatisch |
+| `tailwind.config.ts` | darkMode-Logik anpassen, custom colors bereinigen |
+| `src/hooks/useTheme.ts` | Neuer Hook fuer Theme-Switching |
+| `src/components/ui/ThemeToggle.tsx` | Sun/Moon Toggle-Button |
+| `src/components/ui/MatchuntLogo.tsx` | SVG Monogramm-Komponente |
+| `src/components/ui/MatchuntWordmark.tsx` | Logo + Schriftzug Kombination |
+| `src/components/layout/DashboardLayout.tsx` | Neues Logo + ThemeToggle im Footer |
+| `src/components/layout/Navbar.tsx` | Neues Logo |
+| `src/main.tsx` | Theme-Initialisierung |
+| `index.html` | Favicon + dark default class auf html |
+| `public/favicon.png` | MH-Monogramm kopiert |
+
+### Nicht in diesem Schritt (Schritte 5-7, spaeter)
+- Hardcodierte Farben in allen 62 Dateien ersetzen
+- Landing Page Redesign
+- Kandidaten-Seiten Light-Mode-Lock
 
