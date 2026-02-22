@@ -1,49 +1,33 @@
 
+# Fix: Abbruch des File-Pickers zeigt falschen Screen
 
-# Fix: PDF File-Picker oeffnet sich nicht
+## Problem
 
-## Ursache
-
-Der `<input type="file" ref={fileInputRef}>` existiert nur innerhalb des Import-Selection-Blocks. Wenn `modeHandled = true` gesetzt wird, wird dieser Block ausgeblendet -- und damit auch das Input-Element. Der `setTimeout(() => fileInputRef.current?.click(), 100)` findet kein Element mehr und tut nichts.
+Wenn der Nutzer den File-Picker abbricht, wird `awaitingFileSelection = false` gesetzt, aber `modeHandled` bleibt `false`. Dadurch greift die Bedingung fuer den Import-Selection-Block (`!modeHandled && !awaitingFileSelection`) und die alte 3-Optionen-Auswahl erscheint -- statt des Fallback-Blocks mit "Andere Methode waehlen".
 
 ## Loesung
 
-Das hidden File-Input-Element wird aus dem Import-Selection-Block herausgezogen und auf Top-Level innerhalb der Komponente platziert. So ist es IMMER im DOM, unabhaengig davon welcher Block gerade sichtbar ist.
+Im Cancel-Handler (Zeile 341-344) muss zusaetzlich `setModeHandled(true)` gesetzt werden. Dann zeigt sich der Fallback-Block ("Import abgebrochen") mit den Optionen "Andere Methode waehlen" und "Manuell erstellen".
 
 ### Aenderung in `src/pages/dashboard/CreateJob.tsx`
 
-**1. Input-Element verschieben**
+**Eine Zeile hinzufuegen** im `setTimeout`-Callback des Focus-Handlers (Zeile 343):
 
-Das `<input ref={fileInputRef} type="file" ...>` (aktuell Zeile 741-751, innerhalb der PDF-Card) wird an eine Stelle direkt nach dem aeusseren Container-`div` verschoben -- ausserhalb aller bedingten Bloecke. Es bleibt `className="hidden"`, ist also unsichtbar.
-
-**2. `modeHandled` erst NACH Dateiauswahl setzen**
-
-Im `useEffect` fuer `mode=pdf` wird `setModeHandled(true)` entfernt. Stattdessen:
-- `awaitingFileSelection = true` setzen (neuer State)
-- File-Picker oeffnen via `setTimeout`
-- Im `onChange`-Handler des Inputs: `setModeHandled(true)` + `setAwaitingFileSelection(false)` + Datei verarbeiten
-- Falls der Nutzer den Picker abbricht: ein `focus`-Event-Listener auf `window` erkennt das und setzt `awaitingFileSelection = false` zurueck, sodass die normale Import-Auswahl erscheint
-
-**3. Neuer State `awaitingFileSelection`**
-
+Aktuell:
 ```
-const [awaitingFileSelection, setAwaitingFileSelection] = useState(false);
+if (prev) {
+  // User cancelled the file picker
+  return false;
+}
 ```
 
-Waehrend `awaitingFileSelection === true` wird ein dezenter Hinweis angezeigt ("Bitte waehle eine PDF-Datei...") statt des Fehler-Blocks.
+Neu:
+```
+if (prev) {
+  // User cancelled the file picker
+  setModeHandled(true);
+  return false;
+}
+```
 
-**4. Fallback-Block Bedingung anpassen**
-
-Der "Import abgebrochen" Block (aktuell Zeile 930) zeigt sich nur wenn:
-`modeHandled && !awaitingFileSelection && !isImporting && flowState === 'import-selection'`
-
-### Zusammenfassung
-
-| Stelle | Aenderung |
-|--------|-----------|
-| Top-Level JSX | Hidden `<input type="file">` immer gerendert |
-| `useEffect` (mode=pdf) | `awaitingFileSelection` statt sofort `modeHandled` |
-| onChange-Handler | Setzt `modeHandled` erst bei Dateiauswahl |
-| Window focus listener | Erkennt "Cancel" im File-Picker |
-| Fallback-Block | Prueft zusaetzlich `!awaitingFileSelection` |
-
+Das ist alles. Eine Zeile. Damit landet der Nutzer nach Abbruch auf dem Fallback-Block, der bereits "Andere Methode waehlen" und "Manuell erstellen" anbietet.
