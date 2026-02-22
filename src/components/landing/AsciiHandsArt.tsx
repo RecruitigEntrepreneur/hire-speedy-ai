@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 
-const CODE_CHARS = ["{", "}", "=>", "fn", "()", "0", "1", "match", "hire", "//", "&&", "||", "let", "if", "++", "==", "<<", ">>", "0x", "nil"];
+const CODE_CHARS = ["x", "X", "#", ".", ":", "*", "+", "=", "~", "-", "0", "1", "/", "\\", "|", "%", "@", "&", ";", "^", ">", "<"];
 
 const generateCodeColumns = (cols: number, rows: number) => {
   const columns: string[][] = [];
   for (let c = 0; c < cols; c++) {
     const col: string[] = [];
-    for (let r = 0; r < rows * 2; r++) {
+    for (let r = 0; r < rows * 3; r++) {
       col.push(CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]);
     }
     columns.push(col);
@@ -55,11 +55,11 @@ const buildMaskSvg = (paths: string, viewBox: string) => {
 };
 
 const CodeRainColumns = ({ columns, delayOffset = 0 }: { columns: string[][]; delayOffset?: number }) => (
-  <div className="absolute inset-0 flex gap-[1px] font-mono text-[9px] md:text-[11px] text-foreground/[0.30]">
+  <div className="absolute inset-0 flex gap-0 font-mono text-[9px] md:text-[11px] text-foreground/[0.20] leading-none">
     {columns.map((col, i) => (
       <div
         key={i}
-        className="flex flex-col gap-[1px] whitespace-nowrap animate-code-rain"
+        className="flex flex-col gap-0 whitespace-nowrap animate-code-rain"
         style={{
           animationDelay: `${-(i * 0.6 + delayOffset)}s`,
           animationDuration: `${10 + (i % 5) * 2}s`,
@@ -74,8 +74,8 @@ const CodeRainColumns = ({ columns, delayOffset = 0 }: { columns: string[][]; de
 );
 
 export const AsciiHandsArt = () => {
-  const leftColumns = useMemo(() => generateCodeColumns(35, 25), []);
-  const rightColumns = useMemo(() => generateCodeColumns(35, 25), []);
+  const leftColumns = useMemo(() => generateCodeColumns(80, 25), []);
+  const rightColumns = useMemo(() => generateCodeColumns(80, 25), []);
 
   // Right hand (God's hand): viewBox cropped to right side
   // Path coords ~7600-12000 x, ~2500-5500 y → SVG coords ~760-1200 x, ~250-550 y
@@ -103,7 +103,7 @@ export const AsciiHandsArt = () => {
             maskPosition: "center",
           }}
         >
-          <div className="w-full h-full overflow-hidden relative bg-foreground/[0.06]">
+          <div className="w-full h-full overflow-hidden relative bg-foreground/[0.03]">
             <CodeRainColumns columns={leftColumns} delayOffset={0} />
           </div>
         </div>
@@ -123,7 +123,7 @@ export const AsciiHandsArt = () => {
             maskPosition: "center",
           }}
         >
-          <div className="w-full h-full overflow-hidden relative bg-foreground/[0.06]">
+          <div className="w-full h-full overflow-hidden relative bg-foreground/[0.03]">
             <CodeRainColumns columns={rightColumns} delayOffset={3} />
           </div>
         </div>
