@@ -21,26 +21,40 @@ interface JobQualityScoreCardProps {
     description: string | null;
     requirements: string | null;
     intake_completeness: number | null;
+    industry: string | null;
+    remote_type: string | null;
+    employment_type: string | null;
+    location: string | null;
   };
   hasBenefits: boolean;
   onEditField: (tab: string) => void;
   className?: string;
 }
 
-function calculateQualityScore(
-  intakeCompleteness: number,
-  hasSalary: boolean,
-  hasBenefits: boolean,
-  hasSkills: boolean,
-  descriptionLength: number
-): number {
+function calculateQualityScore(params: {
+  hasSalary: boolean;
+  descLength: number;
+  reqLength: number;
+  hasSkills: boolean;
+  hasBenefits: boolean;
+  hasIndustry: boolean;
+  hasRemoteType: boolean;
+  hasEmploymentType: boolean;
+  hasLocation: boolean;
+  intakeCompleteness: number;
+}): number {
   let score = 0;
-  score += (intakeCompleteness / 100) * 40;
-  if (hasSalary) score += 20;
-  if (hasBenefits) score += 15;
-  if (hasSkills) score += 15;
-  if (descriptionLength > 200) score += 10;
-  else if (descriptionLength > 50) score += 5;
+  if (params.hasSalary) score += 20;
+  if (params.descLength > 200) score += 15;
+  else if (params.descLength > 50) score += 10;
+  if (params.reqLength > 50) score += 10;
+  if (params.hasSkills) score += 15;
+  if (params.hasBenefits) score += 10;
+  if (params.hasIndustry) score += 5;
+  if (params.hasRemoteType) score += 5;
+  if (params.hasEmploymentType) score += 5;
+  if (params.hasLocation) score += 5;
+  if (params.intakeCompleteness > 0) score += 10;
   return Math.round(Math.min(score, 100));
 }
 
@@ -54,17 +68,25 @@ function getScoreConfig(score: number) {
 export function JobQualityScoreCard({ job, hasBenefits, onEditField, className }: JobQualityScoreCardProps) {
   const hasSalary = !!(job.salary_min || job.salary_max);
   const hasSkills = !!(job.skills && job.skills.length > 0);
-  const descLength = (job.description?.length || 0) + (job.requirements?.length || 0);
+  const descLength = job.description?.length || 0;
+  const reqLength = job.requirements?.length || 0;
   const intakeCompleteness = job.intake_completeness || 0;
+  const hasIndustry = !!job.industry;
+  const hasRemoteType = !!job.remote_type;
+  const hasEmploymentType = !!job.employment_type;
+  const hasLocation = !!job.location;
 
-  const score = calculateQualityScore(intakeCompleteness, hasSalary, hasBenefits, hasSkills, descLength);
+  const score = calculateQualityScore({
+    hasSalary, descLength, reqLength, hasSkills, hasBenefits,
+    hasIndustry, hasRemoteType, hasEmploymentType, hasLocation, intakeCompleteness,
+  });
   const config = getScoreConfig(score);
 
   // Build improvement suggestions
   const suggestions: { icon: React.ReactNode; text: string; impact: string; tab: string }[] = [];
   if (!hasSalary) suggestions.push({ icon: <DollarSign className="h-4 w-4" />, text: 'Gehaltsrahmen ergänzen', impact: 'Hoher Impact', tab: 'conditions' });
-  if (!hasBenefits) suggestions.push({ icon: <Gift className="h-4 w-4" />, text: 'Benefits beschreiben', impact: 'Mittlerer Impact', tab: 'basics' });
   if (!hasSkills) suggestions.push({ icon: <Code2 className="h-4 w-4" />, text: 'Skills definieren', impact: 'Hoher Impact', tab: 'skills' });
+  if (!hasBenefits) suggestions.push({ icon: <Gift className="h-4 w-4" />, text: 'Benefits beschreiben', impact: 'Mittlerer Impact', tab: 'basics' });
   if (descLength < 200) suggestions.push({ icon: <FileText className="h-4 w-4" />, text: 'Beschreibung erweitern', impact: 'Niedriger Impact', tab: 'basics' });
 
   // SVG circle params
@@ -144,6 +166,9 @@ export function JobQualityScoreCard({ job, hasBenefits, onEditField, className }
             { label: 'Skills definiert', ok: hasSkills, tab: 'skills' },
             { label: 'Beschreibung vorhanden', ok: descLength > 50, tab: 'basics' },
             { label: 'Benefits beschrieben', ok: hasBenefits, tab: 'basics' },
+            { label: 'Branche angegeben', ok: hasIndustry, tab: 'basics' },
+            { label: 'Remote-Type gesetzt', ok: hasRemoteType, tab: 'conditions' },
+            { label: 'Standort angegeben', ok: hasLocation, tab: 'basics' },
           ].map((item, i) => (
             <div 
               key={i} 
