@@ -1,67 +1,95 @@
 
 
-# Dichtere Zeichen-Matrix in den Haenden
+# Dashboard Preview: Mehr Interaktivitaet und Inhalt
 
-## Aktueller Zustand (Screenshot)
+## Aktuelle Situation
 
-Die Hand-Silhouetten sind erkennbar, aber die Code-Rain-Spalten sind **extrem duenn und lueckenhaft** -- man sieht mehr Leerraum als Zeichen. Das liegt an:
+Das Dashboard-Preview hat 3 Tabs (Dashboard, Jobs, Kandidaten) mit statischen Daten. Zwei Sidebar-Items (Analytics, Settings) sind deaktiviert. Die Karten haben nur Hover-Effekte, aber keine echten Klick-Interaktionen.
 
-- Nur **35 Spalten** pro Hand -- viel zu wenig fuer die Flaeche
-- **1px Gap** zwischen Spalten und Zeilen
-- Multi-Zeichen-Strings wie `match`, `hire`, `=>` erzeugen ungleichmaessige Breiten
-- Font-Size 9-11px ist zu gross fuer die Anzahl Spalten
+## Geplante Verbesserungen
 
-## Die Aenderungen
+### 1. Zwei neue Tabs aktivieren
 
-### 1. Einzelzeichen statt Woerter
+**Analytics-Tab** -- klickbar ueber Sidebar:
+- Mini-Balkendiagramm (reine CSS-Bars, kein Recharts noetig) fuer "Submissions pro Woche"
+- Drei KPIs: Time-to-Hire (23 Tage), Cost-per-Hire (2.4k), Offer-Accept-Rate (87%)
+- Kleines Funnel-Diagramm (4 Stufen: 248 -> 94 -> 18 -> 6) als abnehmende Balken
 
-Statt `["match", "hire", "=>", "fn", "()"]` werden **nur Einzelzeichen** verwendet:
+**Messages-Tab** -- neuer Sidebar-Eintrag:
+- 3 Mock-Chatnachrichten (Recruiter-Name, letzte Nachricht, Zeitstempel)
+- Unread-Badge (rotes Dot) im Sidebar-Item
+- Klick auf Nachricht zeigt Mini-Chat-Bubble-Animation
 
-`["x", "X", "#", ".", ":", "*", "+", "=", "~", "-", "0", "1", "/", "\\", "|", "%", "@", "&"]`
+### 2. Klickbare Kandidaten-Karten
 
-Das sorgt fuer gleichmaessige Spaltenbreite und maximale Dichte -- jedes Zeichen nimmt exakt gleich viel Platz ein.
+Im Dashboard-Tab (Pipeline-Bereich) und Kandidaten-Tab:
+- **Klick auf einen Kandidaten** oeffnet ein kleines Inline-Detail-Panel unterhalb der Karte
+- Zeigt: Kurzprofil, 3 Skills als Tags, und zwei Mini-Buttons ("Interview" / "Ablehnen")
+- Klick auf einen anderen Kandidaten schliesst das vorherige Panel
+- Smooth Height-Animation beim Oeffnen/Schliessen
 
-### 2. Viel mehr Spalten, kein Gap
+### 3. Micro-Interactions auf Job-Karten
 
-- Von **35 auf 80 Spalten** pro Hand
-- Gap von `1px` auf `0px` (kein Abstand zwischen Spalten)
-- Zeilen-Gap ebenfalls `0px`
-- Font-Size bleibt bei `text-[9px] md:text-[11px]` -- aber mit 80 Spalten und 0 Gap ist alles dicht gepackt
+Im Jobs-Tab:
+- Jeder Job bekommt einen kleinen "..." Button rechts
+- Klick oeffnet ein Mini-Dropdown (Boost, Pause, Details) -- rein visuell, keine echte Aktion
+- Das Dropdown verschwindet nach 2 Sekunden oder bei Klick woanders
 
-### 3. Mehr Zeilen pro Spalte
+### 4. Live-Notification-Badge
 
-- Von `rows * 2` auf `rows * 3` Zeichen pro Spalte -- damit die Animation fluessiger laeuft und keine Luecken beim Scrollen entstehen
+- Im Browser-Chrome-Bereich: kleines Glocken-Icon rechts oben
+- Pulsierender roter Dot (Badge mit "3")
+- Klick zeigt ein Mini-Notifications-Dropdown mit 3 Eintraegen:
+  - "Neuer Kandidat: Sarah B. -- 96% Match"
+  - "Interview morgen: Thomas K."
+  - "Job geschlossen: UX Designer"
 
-### 4. Erhoehte Opacity
+### 5. Typing-Indicator im Suchfeld
 
-- Code-Zeichen von `text-foreground/[0.30]` auf `text-foreground/[0.20]`
-- Hintergrund von `bg-foreground/[0.06]` auf `bg-foreground/[0.03]`
-- Die Dichte der Zeichen kompensiert die etwas niedrigere Einzel-Opacity -- in der Masse wirkt es sichtbarer
-
-### 5. Keine Farben
-
-Alles bleibt `text-foreground` (monochrom, kein Gruen, kein Blau). Passt zum Design.
+- Im Browser-Chrome: Die URL-Bar wird zu einem klickbaren Suchfeld
+- Klick darauf zeigt einen blinkenden Cursor und simuliert Auto-Typing von "Senior Frontend..."
+- Nach 2s erscheinen 2 Mock-Suchergebnisse darunter (dann fade out)
 
 ---
 
 ## Technische Details
 
-### `src/components/landing/AsciiHandsArt.tsx`
-
-**CODE_CHARS**: Wird ersetzt durch ein Array aus Einzelzeichen mit verschiedenen "Dichten" (schwere Zeichen wie `#`, `@`, `X` und leichte wie `.`, `:`, `~`)
-
-**generateCodeColumns**: Erhoehung auf 80 Spalten, rows * 3 Zeilen
-
-**CodeRainColumns**: 
-- `gap-0` statt `gap-[1px]`
-- `leading-none` statt `leading-tight` (kompaktere Zeilenhoehe)
-- Opacity auf `0.20`
-
-**Alles andere bleibt**: SVG-Pfade, mask-image, Drift-Animationen, Spark -- nur die Fuell-Dichte aendert sich.
-
-## Dateiaenderungen
+### Dateiaenderungen
 
 | Datei | Aenderung |
 |---|---|
-| `src/components/landing/AsciiHandsArt.tsx` | CODE_CHARS auf Einzelzeichen, 80 Spalten, 0 Gap, leading-none, Opacity-Anpassung |
+| `src/components/landing/DashboardPreview.tsx` | Komplett ueberarbeitet: neue Tabs, klickbare Karten, Notifications, Suchfeld |
+
+### Neue Daten-Konstanten
+
+- `ANALYTICS_WEEKLY`: Array mit 7 Werten fuer Balkendiagramm
+- `FUNNEL_DATA`: 4-Stufen-Funnel (Submitted -> Reviewed -> Interview -> Hired)
+- `MESSAGES`: 3 Mock-Chat-Nachrichten mit Name, Text, Zeitstempel
+- `NOTIFICATIONS`: 3 Notification-Eintraege
+
+### Neuer State
+
+- `activeTab`: Erweitert um `"analytics" | "messages"`
+- `expandedCandidate`: `number | null` -- welcher Kandidat aufgeklappt ist
+- `showNotifications`: `boolean` -- Notification-Dropdown offen
+- `showSearch`: `boolean` -- Suchfeld aktiv
+- `showJobMenu`: `number | null` -- welches Job-Dropdown offen ist
+
+### Sidebar-Erweiterung
+
+`SIDEBAR_ITEMS` bekommt:
+- `{ label: "Analytics", tab: "analytics" }` -- jetzt klickbar
+- `{ label: "Messages", tab: "messages", badge: 2 }` -- mit Unread-Badge
+
+Settings bleibt deaktiviert (zeigt ein Tooltip "Coming soon" bei Hover).
+
+### CSS-Animationen
+
+- `expand-panel`: `max-height: 0 -> 120px` mit `ease-out` fuer Kandidaten-Detail
+- `typing-cursor`: Blinkender Cursor im Suchfeld
+- `notification-slide`: Dropdown gleitet von oben rein
+
+### Performance
+
+Alles ist reines CSS + React State -- kein externer State, keine API-Calls, keine zusaetzlichen Dependencies. Die Animationen nutzen CSS transitions statt JS-basierter Animation.
 
