@@ -1,95 +1,105 @@
 
 
-# Dashboard Preview: Mehr Interaktivitaet und Inhalt
+# Haende mit Dot-Grid Textur (inspiriert von IMG_1469 + IMG_1468)
 
-## Aktuelle Situation
+## Problem
 
-Das Dashboard-Preview hat 3 Tabs (Dashboard, Jobs, Kandidaten) mit statischen Daten. Zwei Sidebar-Items (Analytics, Settings) sind deaktiviert. Die Karten haben nur Hover-Effekte, aber keine echten Klick-Interaktionen.
+Die Haende sind im aktuellen Zustand kaum sichtbar. Die Code-Rain-Spalten mit 80 Columns und 0.20 Opacity erzeugen zu wenig Dichte und wirken duenn/lueckenhaft auf dem dunklen Hintergrund.
 
-## Geplante Verbesserungen
+## Loesung: CSS Dot-Grid statt Code-Rain
 
-### 1. Zwei neue Tabs aktivieren
+Statt animierter Code-Rain-Spalten mit DOM-Elementen wird ein **CSS-basiertes Dot-Grid Pattern** verwendet (inspiriert von IMG_1469). Das ist:
+- Viel dichter (lueckenloses Raster)
+- Performanter (ein einziges CSS Background statt 80x75 = 6000 DOM-Elemente pro Hand)
+- Eleganter und moderner
 
-**Analytics-Tab** -- klickbar ueber Sidebar:
-- Mini-Balkendiagramm (reine CSS-Bars, kein Recharts noetig) fuer "Submissions pro Woche"
-- Drei KPIs: Time-to-Hire (23 Tage), Cost-per-Hire (2.4k), Offer-Accept-Rate (87%)
-- Kleines Funnel-Diagramm (4 Stufen: 248 -> 94 -> 18 -> 6) als abnehmende Balken
+## Was sich aendert
 
-**Messages-Tab** -- neuer Sidebar-Eintrag:
-- 3 Mock-Chatnachrichten (Recruiter-Name, letzte Nachricht, Zeitstempel)
-- Unread-Badge (rotes Dot) im Sidebar-Item
-- Klick auf Nachricht zeigt Mini-Chat-Bubble-Animation
+### 1. Dot-Grid als CSS Background Pattern
 
-### 2. Klickbare Kandidaten-Karten
+Statt der `CodeRainColumns` Komponente mit tausenden `<span>` Elementen wird ein reines CSS `radial-gradient` Pattern verwendet:
 
-Im Dashboard-Tab (Pipeline-Bereich) und Kandidaten-Tab:
-- **Klick auf einen Kandidaten** oeffnet ein kleines Inline-Detail-Panel unterhalb der Karte
-- Zeigt: Kurzprofil, 3 Skills als Tags, und zwei Mini-Buttons ("Interview" / "Ablehnen")
-- Klick auf einen anderen Kandidaten schliesst das vorherige Panel
-- Smooth Height-Animation beim Oeffnen/Schliessen
+```text
+background-image: radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px);
+background-size: 8px 8px;
+```
 
-### 3. Micro-Interactions auf Job-Karten
+Das erzeugt ein gleichmaessiges Punkt-Raster wie in IMG_1469 -- dicht, sauber, monochrom.
 
-Im Jobs-Tab:
-- Jeder Job bekommt einen kleinen "..." Button rechts
-- Klick oeffnet ein Mini-Dropdown (Boost, Pause, Details) -- rein visuell, keine echte Aktion
-- Das Dropdown verschwindet nach 2 Sekunden oder bei Klick woanders
+### 2. Subtile Animation beibehalten
 
-### 4. Live-Notification-Badge
+Statt Code-Rain wird eine langsame **Drift-Animation** auf dem Dot-Grid angewendet:
 
-- Im Browser-Chrome-Bereich: kleines Glocken-Icon rechts oben
-- Pulsierender roter Dot (Badge mit "3")
-- Klick zeigt ein Mini-Notifications-Dropdown mit 3 Eintraegen:
-  - "Neuer Kandidat: Sarah B. -- 96% Match"
-  - "Interview morgen: Thomas K."
-  - "Job geschlossen: UX Designer"
+```text
+@keyframes dot-drift {
+  0% { background-position: 0 0; }
+  100% { background-position: 8px 16px; }
+}
+```
 
-### 5. Typing-Indicator im Suchfeld
+Die Punkte "wandern" unmerklich -- gibt dem Effekt Leben ohne abzulenken.
 
-- Im Browser-Chrome: Die URL-Bar wird zu einem klickbaren Suchfeld
-- Klick darauf zeigt einen blinkenden Cursor und simuliert Auto-Typing von "Senior Frontend..."
-- Nach 2s erscheinen 2 Mock-Suchergebnisse darunter (dann fade out)
+### 3. Radiale Opacity-Variation (inspiriert von IMG_1468)
 
----
+Ein zusaetzlicher `radial-gradient` als Overlay erzeugt variierende Dichte:
+- Mitte der Handflaeche: volle Opacity (0.35)
+- Raender/Finger: geringere Opacity (0.15)
+- Erzeugt natuerlichen Volumen-Effekt wie in IMG_1468
+
+### 4. Zweite Schicht: Vereinzelte groessere Dots
+
+Ueber dem feinen Dot-Grid eine zweite CSS-Pattern-Schicht mit groesseren, selteneren Punkten:
+
+```text
+background-image: radial-gradient(circle, rgba(255,255,255,0.12) 2px, transparent 2px);
+background-size: 24px 24px;
+```
+
+Erzeugt Tiefe durch zwei verschiedene "Frequenzen" -- wie die Dichte-Variation in IMG_1468.
+
+### 5. Erhoehte Gesamt-Sichtbarkeit
+
+- Basis-Hintergrund der Haende: `bg-foreground/[0.06]` (sichtbare Grundflaeche)
+- Dot-Grid Opacity: 0.35 (deutlich sichtbar)
+- Staerkerer unterer Fade: `h-48` statt `h-32`
+
+### 6. Code-Rain-Animation entfernt
+
+- Die gesamte `generateCodeColumns` Funktion, `CODE_CHARS` Array und `CodeRainColumns` Komponente werden entfernt
+- Keine `useMemo` fuer Spalten-Generierung mehr noetig
+- Ergebnis: ~6000 weniger DOM-Elemente pro Hand = massive Performance-Verbesserung
 
 ## Technische Details
 
-### Dateiaenderungen
+### Datei: `src/components/landing/AsciiHandsArt.tsx`
+
+Folgende Teile werden **entfernt**:
+- `CODE_CHARS` Array
+- `generateCodeColumns` Funktion
+- `CodeRainColumns` Komponente
+- `leftColumns` / `rightColumns` useMemo Aufrufe
+- `@keyframes code-rain` CSS
+
+Folgende Teile werden **hinzugefuegt**:
+- `DotGridFill` Komponente: Rendert zwei `<div>` Schichten mit CSS `radial-gradient` Patterns
+- `@keyframes dot-drift` CSS: Langsame Background-Position Animation
+- Radiale Opacity-Maske innerhalb der Handflaechen
+
+Folgende Teile **bleiben unveraendert**:
+- SVG Hand-Pfade (`RIGHT_HAND_PATHS`, `LEFT_HAND_PATHS`)
+- `buildMaskSvg` Funktion
+- Hand-Positionierung und mask-image Technik
+- Drift-Animationen der Haende (`hand-drift-left`, `hand-drift-right`)
+- Spark zwischen den Fingerspitzen
+- Fade-Gradienten an den Raendern
+
+### Resultat
+
+Die Haende werden als **dichte, gleichmaessige Punkt-Raster** sichtbar -- modern, elegant, deutlich erkennbar. Zwei Schichten (fein + grob) erzeugen Tiefe. Radiale Opacity-Variation gibt den Handflaechen Volumen. Alles monochrom, keine Farben.
+
+## Dateiaenderungen
 
 | Datei | Aenderung |
 |---|---|
-| `src/components/landing/DashboardPreview.tsx` | Komplett ueberarbeitet: neue Tabs, klickbare Karten, Notifications, Suchfeld |
-
-### Neue Daten-Konstanten
-
-- `ANALYTICS_WEEKLY`: Array mit 7 Werten fuer Balkendiagramm
-- `FUNNEL_DATA`: 4-Stufen-Funnel (Submitted -> Reviewed -> Interview -> Hired)
-- `MESSAGES`: 3 Mock-Chat-Nachrichten mit Name, Text, Zeitstempel
-- `NOTIFICATIONS`: 3 Notification-Eintraege
-
-### Neuer State
-
-- `activeTab`: Erweitert um `"analytics" | "messages"`
-- `expandedCandidate`: `number | null` -- welcher Kandidat aufgeklappt ist
-- `showNotifications`: `boolean` -- Notification-Dropdown offen
-- `showSearch`: `boolean` -- Suchfeld aktiv
-- `showJobMenu`: `number | null` -- welches Job-Dropdown offen ist
-
-### Sidebar-Erweiterung
-
-`SIDEBAR_ITEMS` bekommt:
-- `{ label: "Analytics", tab: "analytics" }` -- jetzt klickbar
-- `{ label: "Messages", tab: "messages", badge: 2 }` -- mit Unread-Badge
-
-Settings bleibt deaktiviert (zeigt ein Tooltip "Coming soon" bei Hover).
-
-### CSS-Animationen
-
-- `expand-panel`: `max-height: 0 -> 120px` mit `ease-out` fuer Kandidaten-Detail
-- `typing-cursor`: Blinkender Cursor im Suchfeld
-- `notification-slide`: Dropdown gleitet von oben rein
-
-### Performance
-
-Alles ist reines CSS + React State -- kein externer State, keine API-Calls, keine zusaetzlichen Dependencies. Die Animationen nutzen CSS transitions statt JS-basierter Animation.
+| `src/components/landing/AsciiHandsArt.tsx` | Code-Rain durch CSS Dot-Grid ersetzen, Performance-Verbesserung durch ~12000 weniger DOM-Elemente |
 
