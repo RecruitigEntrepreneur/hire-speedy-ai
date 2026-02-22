@@ -179,6 +179,17 @@ export function InterviewRequestWithOptInDialog({
           related_type: 'submission',
           related_id: submissionId,
         });
+
+        // Create influence alert so it appears in recruiter's task list
+        await supabase.from('influence_alerts').insert({
+          submission_id: submissionId,
+          recruiter_id: submission.recruiter_id,
+          alert_type: 'opt_in_pending',
+          priority: 'critical',
+          title: `Interview-Anfrage: ${candidateAnonymousId} – ${jobTitle}`,
+          message: `Ein Kunde möchte ${candidateAnonymousId} für "${jobTitle}" interviewen.`,
+          recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
+        });
       }
 
       toast.success('Interview-Anfrage gesendet', {
