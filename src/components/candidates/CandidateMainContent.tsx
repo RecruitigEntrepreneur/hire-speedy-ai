@@ -114,7 +114,6 @@ export function CandidateMainContent({
           candidateId={candidate.id}
           onViewDetails={onStartInterview}
         />
-        <CandidateKeyFactsGrid candidate={candidate} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
             <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
