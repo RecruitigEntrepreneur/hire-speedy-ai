@@ -208,3 +208,6 @@ verify_jwt = false
 
 [functions.client-dashboard-data]
 verify_jwt = true
+
+[functions.generate-job-expose]
+verify_jwt = true
