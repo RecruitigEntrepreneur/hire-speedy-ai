@@ -36,9 +36,11 @@ import { PipelineSnapshotCard } from '@/components/client/PipelineSnapshotCard';
 import { TopCandidatesCard } from '@/components/client/TopCandidatesCard';
 import { RecruiterActivityCard } from '@/components/client/RecruiterActivityCard';
 import { UpcomingInterviewsCard } from '@/components/client/UpcomingInterviewsCard';
-import { CompanyInfoCard } from '@/components/client/CompanyInfoCard';
 import { JobQualityScoreCard } from '@/components/client/JobQualityScoreCard';
 import { NextStepsCard } from '@/components/client/NextStepsCard';
+import { SellingPointsCard } from '@/components/client/SellingPointsCard';
+import { CommunicationLogCard } from '@/components/client/CommunicationLogCard';
+import { AnonymousExposeDialog } from '@/components/client/AnonymousExposeDialog';
 
 import { 
   Loader2,
@@ -172,6 +174,7 @@ export default function ClientJobDetail() {
   // Multi-select for comparison
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [showExposeDialog, setShowExposeDialog] = useState(false);
 
   const handleRemoveFromCompare = (submissionId: string) => {
     setSelectedSubmissionIds(prev => prev.filter(id => id !== submissionId));
@@ -468,7 +471,7 @@ export default function ClientJobDetail() {
         {!hasCandidates ? (
           /* PHASE 1: Draft / Fresh (0 candidates) */
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <JobQualityScoreCard
                 job={job}
                 hasBenefits={hasBenefits}
@@ -483,6 +486,11 @@ export default function ClientJobDetail() {
                 onEditIntake={() => setShowEditDialog(true)}
                 onViewPipeline={() => navigate(`/dashboard/command/${job.id}`)}
               />
+              <SellingPointsCard
+                job={job}
+                hasBenefits={hasBenefits}
+                onGenerateExpose={() => setShowExposeDialog(true)}
+              />
             </div>
 
             {/* Executive Summary - Full Width */}
@@ -494,8 +502,13 @@ export default function ClientJobDetail() {
               onEditIntake={() => setShowEditDialog(true)}
             />
 
-            {/* Bottom: Recruiter Activity + Company Info */}
+            {/* Bottom: Communication Log + Recruiter Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CommunicationLogCard
+                job={job}
+                submissions={submissions}
+                interviews={interviews}
+              />
               <RecruiterActivityCard 
                 activeRecruiters={activeRecruiters}
                 totalSubmissions={totalSubmissions}
@@ -503,19 +516,26 @@ export default function ClientJobDetail() {
                 weeklySubmissions={weeklySubmissions}
                 onViewCandidates={() => navigate(`/dashboard/command/${job.id}`)}
               />
-              <CompanyInfoCard
-                companyName={job.company_name}
-                industry={job.industry}
-                location={job.location}
-                remoteType={job.remote_type}
-                employmentType={job.employment_type}
-              />
             </div>
           </>
         ) : (
           /* PHASE 2+: Active (1+ candidates) */
           <>
-            {/* Top Row: Pipeline + Recruiter + Next Steps */}
+            {/* Top Candidates - Full Width, prominent */}
+            <TopCandidatesCard 
+              submissions={submissions}
+              jobTitle={job.title}
+              onCandidateClick={(submission) => {
+                const fullSubmission = submissions.find(s => s.id === submission.id);
+                if (fullSubmission) {
+                  setSelectedSubmission(fullSubmission);
+                  setShowCandidateView(true);
+                }
+              }}
+              onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
+            />
+
+            {/* Middle: Pipeline + Recruiter + Next Steps */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <PipelineSnapshotCard 
                 jobId={job.id}
@@ -539,20 +559,6 @@ export default function ClientJobDetail() {
               />
             </div>
 
-            {/* Top Candidates - Full Width */}
-            <TopCandidatesCard 
-              submissions={submissions}
-              jobTitle={job.title}
-              onCandidateClick={(submission) => {
-                const fullSubmission = submissions.find(s => s.id === submission.id);
-                if (fullSubmission) {
-                  setSelectedSubmission(fullSubmission);
-                  setShowCandidateView(true);
-                }
-              }}
-              onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
-            />
-
             {/* Executive Summary - Full Width */}
             <JobExecutiveSummary
               summary={job.job_summary}
@@ -562,8 +568,13 @@ export default function ClientJobDetail() {
               onEditIntake={() => setShowEditDialog(true)}
             />
 
-            {/* Bottom: Interviews + Company */}
+            {/* Bottom: Communication Log + Interviews */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CommunicationLogCard
+                job={job}
+                submissions={submissions}
+                interviews={interviews}
+              />
               <UpcomingInterviewsCard 
                 interviews={interviews}
                 submissions={submissions.map(s => ({
@@ -583,17 +594,17 @@ export default function ClientJobDetail() {
                 }}
                 onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
               />
-              <CompanyInfoCard
-                companyName={job.company_name}
-                industry={job.industry}
-                location={job.location}
-                remoteType={job.remote_type}
-                employmentType={job.employment_type}
-              />
             </div>
           </>
         )}
       </div>
+
+      {/* Anonymous Expose Dialog */}
+      <AnonymousExposeDialog
+        open={showExposeDialog}
+        onOpenChange={setShowExposeDialog}
+        jobId={job.id}
+      />
 
       {/* Edit Dialog */}
       <JobEditDialog 

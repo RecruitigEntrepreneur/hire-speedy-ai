@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   TrendingUp,
   ArrowLeft,
+  Check,
+  Factory,
+  Monitor,
 } from 'lucide-react';
 import { getJobHealthStatus } from '@/lib/jobPipelineStatus';
 import { cn } from '@/lib/utils';
@@ -36,6 +39,8 @@ interface ClientJobHeroProps {
     company_name: string;
     location: string | null;
     remote_type: string | null;
+    employment_type?: string | null;
+    industry?: string | null;
     salary_min: number | null;
     salary_max: number | null;
     status: string | null;
@@ -49,6 +54,35 @@ interface ClientJobHeroProps {
   showStats?: boolean;
 }
 
+const LIFECYCLE_STEPS = [
+  { key: 'draft', label: 'Entwurf' },
+  { key: 'active', label: 'Aktiv' },
+  { key: 'candidates', label: 'Kandidaten' },
+  { key: 'interviews', label: 'Interviews' },
+  { key: 'hired', label: 'Besetzt' },
+];
+
+function getLifecycleStep(status: string | null, isPaused: boolean, totalSubmissions: number, interviewed: number, hired: number): number {
+  if (hired > 0) return 4;
+  if (interviewed > 0) return 3;
+  if (totalSubmissions > 0) return 2;
+  if (status === 'published' && !isPaused) return 1;
+  return 0;
+}
+
+const REMOTE_LABELS: Record<string, string> = {
+  onsite: 'Vor Ort',
+  hybrid: 'Hybrid',
+  remote: 'Remote',
+};
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  fulltime: 'Vollzeit',
+  parttime: 'Teilzeit',
+  contract: 'Freelance',
+  internship: 'Praktikum',
+};
+
 export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost, showStats = true }: ClientJobHeroProps) {
   const isPaused = !!job.paused_at;
   const healthStatus = getJobHealthStatus(
@@ -59,21 +93,13 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost, show
     isPaused
   );
 
+  const currentStep = getLifecycleStep(job.status, isPaused, stats.totalSubmissions, stats.interviewed, stats.hired);
+
   const formatSalary = (min: number | null, max: number | null) => {
     if (!min && !max) return null;
     if (min && max) return `€${(min / 1000).toFixed(0)}k - €${(max / 1000).toFixed(0)}k`;
     if (min) return `Ab €${(min / 1000).toFixed(0)}k`;
     return `Bis €${(max! / 1000).toFixed(0)}k`;
-  };
-
-  const getRemoteLabel = (type: string | null) => {
-    if (!type) return null;
-    const labels: Record<string, string> = {
-      onsite: 'Vor Ort',
-      hybrid: 'Hybrid',
-      remote: 'Remote',
-    };
-    return labels[type] || type;
   };
 
   const HealthIcon = {
@@ -134,11 +160,6 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost, show
                     {job.location}
                   </span>
                 )}
-                {job.remote_type && (
-                  <Badge variant="secondary" className="font-normal">
-                    {getRemoteLabel(job.remote_type)}
-                  </Badge>
-                )}
                 {formatSalary(job.salary_min, job.salary_max) && (
                   <span className="font-medium text-foreground">
                     {formatSalary(job.salary_min, job.salary_max)}
@@ -167,9 +188,67 @@ export function ClientJobHero({ job, stats, onEdit, onPauseToggle, onBoost, show
             </div>
           </div>
 
+          {/* Lifecycle Stepper */}
+          <div className="mt-6 p-4 rounded-lg bg-background/60 backdrop-blur-sm border border-border/50">
+            <div className="flex items-center justify-between">
+              {LIFECYCLE_STEPS.map((step, index) => {
+                const isCompleted = index < currentStep;
+                const isCurrent = index === currentStep;
+                return (
+                  <div key={step.key} className="flex items-center flex-1 last:flex-initial">
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                        isCompleted && "bg-primary text-primary-foreground",
+                        isCurrent && "bg-primary/20 text-primary border-2 border-primary",
+                        !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+                      )}>
+                        {isCompleted ? <Check className="h-4 w-4" /> : index + 1}
+                      </div>
+                      <span className={cn(
+                        "text-[11px] font-medium whitespace-nowrap",
+                        isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {step.label}
+                      </span>
+                    </div>
+                    {index < LIFECYCLE_STEPS.length - 1 && (
+                      <div className={cn(
+                        "flex-1 h-0.5 mx-2 mt-[-18px]",
+                        index < currentStep ? "bg-primary" : "bg-border"
+                      )} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Company Info Badges */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {job.industry && (
+              <Badge variant="secondary" className="font-normal gap-1">
+                <Factory className="h-3 w-3" />
+                {job.industry}
+              </Badge>
+            )}
+            {job.remote_type && (
+              <Badge variant="secondary" className="font-normal gap-1">
+                <Monitor className="h-3 w-3" />
+                {REMOTE_LABELS[job.remote_type] || job.remote_type}
+              </Badge>
+            )}
+            {job.employment_type && (
+              <Badge variant="secondary" className="font-normal gap-1">
+                <Briefcase className="h-3 w-3" />
+                {EMPLOYMENT_LABELS[job.employment_type] || job.employment_type}
+              </Badge>
+            )}
+          </div>
+
           {/* Stats Bar - only show when there are candidates */}
           {showStats && (
-            <div className="mt-6 p-4 rounded-lg bg-background/60 backdrop-blur-sm border border-border/50">
+            <div className="mt-4 p-4 rounded-lg bg-background/60 backdrop-blur-sm border border-border/50">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold">{stats.totalSubmissions}</p>
