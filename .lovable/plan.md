@@ -1,34 +1,33 @@
 
 
-# Readiness-Score Fix: Interview-Daten in Stammdaten uebernehmen
+# Duplikate bereinigen und Farben anpassen
 
-## Problem
-Marko Benko hat 71% statt 100%, weil zwei Felder in der `candidates`-Tabelle leer sind:
-- `expected_salary` = null (Interview sagt: 200.000 EUR Wunschgehalt)
-- `notice_period` = null (Interview sagt: 6 Monate zum Quartalsende)
+## Ursache der Dopplungen
 
-Die Daten existieren in `candidate_interview_notes`, wurden aber nie in die Stammdaten synchronisiert.
+In der Datenbank existieren **9 identische Alerts** fuer dieselbe Submission (876e791f). Das passiert, weil der `InterviewRequestWithOptInDialog` bei jedem Klick einen neuen Alert einfuegt -- ohne zu pruefen, ob bereits einer existiert. Es gibt keine Deduplizierung.
 
-## Loesung
+## Aenderungen
 
-### Schritt 1: Marko Benkos Stammdaten aktualisieren (Datenbank)
-SQL-Update um die fehlenden Felder zu fuellen:
-- `expected_salary` = 200000
-- `salary_expectation_min` = 185000
-- `salary_expectation_max` = 220000
-- `notice_period` = '6_months'
+### 1. Datenbank bereinigen
+Alle doppelten Alerts loeschen, nur den neuesten behalten. Von 9 Eintraegen bleiben 1 uebrig.
 
-Damit springt der Score sofort auf 100%.
+### 2. Deduplizierung im Code (InterviewRequestWithOptInDialog.tsx)
+Vor dem Insert pruefen: Gibt es bereits einen offenen `opt_in_pending`-Alert fuer diese Submission? Wenn ja, keinen neuen anlegen.
 
-### Schritt 2: Interview-Save synchronisiert Stammdaten (Code-Aenderung)
-Damit das Problem nicht bei jedem Kandidaten erneut auftritt, wird die `handleSave`-Funktion im `CandidateInterviewTab.tsx` erweitert: Wenn der Recruiter das Interview abschliesst, werden Gehalt und Kuendigungsfrist automatisch in die `candidates`-Tabelle geschrieben.
+### 3. Tasks-Dopplung im Prozess-Tab entfernen (CandidateMainContent.tsx)
+`CandidateTasksSection` wird aus dem Prozess-Tab (Zeile 164) entfernt -- sie lebt jetzt nur noch in der Hero-Sektion.
 
-**Datei: `CandidateInterviewTab.tsx`**
-- Nach dem erfolgreichen Speichern der Interview-Notizen: Supabase-Update auf `candidates` mit den relevanten Feldern (Gehalt, Kuendigungsfrist), sofern diese in den Notizen ausgefuellt sind und in den Stammdaten noch fehlen.
+### 4. Farben an Dark-Theme anpassen (CandidateTasksSection.tsx)
+- Header-Hintergrund: `bg-amber-50 dark:bg-amber-950/20` wird zu `bg-amber-500/10` (funktioniert in beiden Themes)
+- "Erledigt"-Button: `hover:bg-emerald-50` wird zu `hover:bg-emerald-500/10`
+- Container-Border bleibt `border` (passt sich automatisch an)
 
-| Aenderung | Datei |
+## Technische Details
+
+| Datei | Aenderung |
 |---|---|
-| Marko Benkos Stammdaten fuellen | SQL-Migration (einmalig) |
-| Interview-Save synchronisiert Stammdaten | `CandidateInterviewTab.tsx` |
+| DB-Cleanup | 8 von 9 doppelten Alerts loeschen |
+| `InterviewRequestWithOptInDialog.tsx` | Dedup-Check vor Insert |
+| `CandidateMainContent.tsx` | `CandidateTasksSection` aus Prozess-Tab entfernen |
+| `CandidateTasksSection.tsx` | Farben Dark-Mode-kompatibel |
 
-Keine neuen Tabellen, keine Schema-Aenderungen.
