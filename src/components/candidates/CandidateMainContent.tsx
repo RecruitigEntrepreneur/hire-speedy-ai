@@ -137,6 +137,17 @@ export function CandidateMainContent({
                 </CardContent>
               </Card>
             )}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Karriere-Timeline
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CandidateExperienceTimeline candidateId={candidate.id} />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </TabsContent>
@@ -189,17 +200,6 @@ export function CandidateMainContent({
 
       {/* Tab 4: Historie */}
       <TabsContent value="history" className="space-y-6 mt-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Karriere-Timeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CandidateExperienceTimeline candidateId={candidate.id} />
-          </CardContent>
-        </Card>
         <SimilarCandidates candidateId={candidate.id} limit={3} />
         <div>
           <div className="flex items-center justify-between mb-3">
