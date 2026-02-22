@@ -40,7 +40,7 @@ import { JobQualityScoreCard } from '@/components/client/JobQualityScoreCard';
 import { NextStepsCard } from '@/components/client/NextStepsCard';
 import { SellingPointsCard } from '@/components/client/SellingPointsCard';
 import { CommunicationLogCard } from '@/components/client/CommunicationLogCard';
-import { AnonymousExposeDialog } from '@/components/client/AnonymousExposeDialog';
+
 
 import { 
   Loader2,
@@ -174,7 +174,7 @@ export default function ClientJobDetail() {
   // Multi-select for comparison
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
-  const [showExposeDialog, setShowExposeDialog] = useState(false);
+  
 
   const handleRemoveFromCompare = (submissionId: string) => {
     setSelectedSubmissionIds(prev => prev.filter(id => id !== submissionId));
@@ -489,7 +489,6 @@ export default function ClientJobDetail() {
               <SellingPointsCard
                 job={job}
                 hasBenefits={hasBenefits}
-                onGenerateExpose={() => setShowExposeDialog(true)}
               />
             </div>
 
@@ -598,13 +597,6 @@ export default function ClientJobDetail() {
           </>
         )}
       </div>
-
-      {/* Anonymous Expose Dialog */}
-      <AnonymousExposeDialog
-        open={showExposeDialog}
-        onOpenChange={setShowExposeDialog}
-        jobId={job.id}
-      />
 
       {/* Edit Dialog */}
       <JobEditDialog 

@@ -16,6 +16,7 @@ import { SkillsDisplay } from '@/components/recruiter/SkillsDisplay';
 import { FeeCalculatorCard } from '@/components/recruiter/FeeCalculatorCard';
 import { SellingPointsCard } from '@/components/recruiter/SellingPointsCard';
 import { JobStatsCard } from '@/components/recruiter/JobStatsCard';
+import { AnonymousExposeDialog } from '@/components/recruiter/AnonymousExposeDialog';
 import { PartnerFactsCard } from '@/components/recruiter/PartnerFactsCard';
 import {
   MapPin,
@@ -125,6 +126,7 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
+  const [showExposeDialog, setShowExposeDialog] = useState(false);
   const [accessStatus, setAccessStatus] = useState<RecruiterAccessStatus>({
     hasSubmission: false,
     companyRevealed: false,
@@ -546,6 +548,7 @@ export default function JobDetail() {
             <SellingPointsCard
               sellingPoints={formattedContent?.selling_points || null}
               highlights={formattedContent?.highlights}
+              onGenerateExpose={() => setShowExposeDialog(true)}
             />
 
             {/* Job Stats - NEW Component */}
@@ -591,6 +594,13 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
+
+      {/* Anonymous Expose Dialog */}
+      <AnonymousExposeDialog
+        open={showExposeDialog}
+        onOpenChange={setShowExposeDialog}
+        jobId={job.id}
+      />
 
     </DashboardLayout>
   );

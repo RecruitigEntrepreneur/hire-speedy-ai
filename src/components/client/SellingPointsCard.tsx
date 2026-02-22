@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, DollarSign, Monitor, Code2, Gift, Factory, FileText } from 'lucide-react';
+import { Star, DollarSign, Monitor, Code2, Gift, Factory } from 'lucide-react';
 
 interface SellingPointsCardProps {
   job: {
@@ -13,7 +13,6 @@ interface SellingPointsCardProps {
     description: string | null;
   };
   hasBenefits: boolean;
-  onGenerateExpose: () => void;
   className?: string;
 }
 
@@ -22,7 +21,7 @@ interface USP {
   label: string;
 }
 
-export function SellingPointsCard({ job, hasBenefits, onGenerateExpose, className }: SellingPointsCardProps) {
+export function SellingPointsCard({ job, hasBenefits, className }: SellingPointsCardProps) {
   const usps: USP[] = [];
 
   if ((job.salary_min && job.salary_min >= 50000) || (job.salary_max && job.salary_max >= 50000)) {
@@ -64,10 +63,6 @@ export function SellingPointsCard({ job, hasBenefits, onGenerateExpose, classNam
             Noch keine USPs erkannt. Ergänzen Sie Gehalt, Remote-Optionen und Skills für bessere Verkaufsargumente.
           </p>
         )}
-        <Button variant="outline" size="sm" className="w-full" onClick={onGenerateExpose}>
-          <FileText className="h-4 w-4 mr-2" />
-          Anonymes Exposé generieren
-        </Button>
       </CardContent>
     </Card>
   );
