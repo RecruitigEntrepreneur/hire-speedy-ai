@@ -41,6 +41,7 @@ interface CandidateHeroHeaderProps {
   activeTaskId?: string;
   onEdit: () => void;
   onCvUpload: () => void;
+  onStartInterview?: () => void;
 }
 
 export function CandidateHeroHeader({
@@ -51,6 +52,7 @@ export function CandidateHeroHeader({
   activeTaskId,
   onEdit,
   onCvUpload,
+  onStartInterview,
 }: CandidateHeroHeaderProps) {
   const initials = candidate.full_name.split(' ').map((n) => n[0]).join('');
   const { getCurrentDocuments } = useCandidateDocuments(candidateId);
@@ -255,7 +257,25 @@ export function CandidateHeroHeader({
 
           {/* Tasks */}
           <div className="mt-4 pt-3 border-t">
-            <CandidateTasksSection candidateId={candidateId} activeTaskId={activeTaskId} />
+            <CandidateTasksSection
+              candidateId={candidateId}
+              activeTaskId={activeTaskId}
+              candidate={{
+                skills: candidate.skills,
+                experience_years: candidate.experience_years,
+                expected_salary: candidate.expected_salary,
+                availability_date: (candidate as any)?.availability_date,
+                notice_period: (candidate as any)?.notice_period,
+                city: candidate.city,
+                cv_ai_summary: (candidate as any)?.cv_ai_summary,
+                cv_ai_bullets: (candidate as any)?.cv_ai_bullets,
+                phone: candidate.phone,
+                email: candidate.email,
+              }}
+              onEdit={onEdit}
+              onCvUpload={onCvUpload}
+              onStartInterview={onStartInterview}
+            />
           </div>
         </div>
       </div>

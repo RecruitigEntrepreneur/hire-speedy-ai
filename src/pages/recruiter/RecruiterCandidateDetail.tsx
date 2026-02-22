@@ -205,15 +205,16 @@ export default function RecruiterCandidateDetail() {
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24">
-        <CandidateHeroHeader
-          candidate={candidate}
-          readiness={readiness}
-          currentStatus={currentStatus}
-          candidateId={candidate.id}
-          activeTaskId={activeTaskId}
-          onEdit={() => setFormDialogOpen(true)}
-          onCvUpload={() => setCvUploadOpen(true)}
-        />
+          <CandidateHeroHeader
+            candidate={candidate}
+            readiness={readiness}
+            currentStatus={currentStatus}
+            candidateId={candidate.id}
+            activeTaskId={activeTaskId}
+            onEdit={() => setFormDialogOpen(true)}
+            onCvUpload={() => setCvUploadOpen(true)}
+            onStartInterview={handleStartInterview}
+          />
 
         {playbook && (
           <CandidatePlaybookPanel
