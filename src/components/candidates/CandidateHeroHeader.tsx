@@ -13,6 +13,7 @@ import {
   CheckCircle,
   TrendingUp,
   MoreHorizontal,
+  FileText,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -30,6 +31,7 @@ import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
 import { CandidateTasksSection } from './CandidateTasksSection';
 import { CandidateActiveProcesses } from './CandidateActiveProcesses';
 import { Candidate } from './CandidateCard';
+import { useCandidateDocuments } from '@/hooks/useCandidateDocuments';
 
 interface CandidateHeroHeaderProps {
   candidate: Candidate;
@@ -51,6 +53,8 @@ export function CandidateHeroHeader({
   onCvUpload,
 }: CandidateHeroHeaderProps) {
   const initials = candidate.full_name.split(' ').map((n) => n[0]).join('');
+  const { getCurrentDocuments } = useCandidateDocuments(candidateId);
+  const currentCv = getCurrentDocuments().find(d => d.document_type === 'cv');
 
   return (
     <div className="space-y-0">
@@ -89,6 +93,7 @@ export function CandidateHeroHeader({
                   <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">
                       {candidate.job_title || 'Keine Position'}
+                      {candidate.company && ` bei ${candidate.company}`}
                     </span>
                     {candidate.city && (
                       <>
@@ -163,6 +168,21 @@ export function CandidateHeroHeader({
                     >
                       <Linkedin className="h-3.5 w-3.5" />
                     </Button>
+                  )}
+                  {currentCv && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => window.open(currentCv.file_url, '_blank')}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>CV öffnen</TooltipContent>
+                    </Tooltip>
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

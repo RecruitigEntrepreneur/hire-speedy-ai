@@ -112,7 +112,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         </span>
       </div>
 
-      <div className="space-y-2">
+      <div className="divide-y divide-border">
         {processes.map((process) => {
           const stageInfo = getStageInfo(process.stage);
           const companyName = process.job
@@ -128,63 +128,37 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
           return (
             <div
               key={process.id}
-              className="rounded-lg border bg-card p-3 space-y-2"
+              className="flex items-center gap-2 py-1.5 text-xs"
             >
-              {/* Row 1: Company + Stage */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{companyName}</p>
-                  {process.job && (
-                    <p className="text-xs text-muted-foreground truncate">{process.job.title}</p>
-                  )}
-                </div>
-                <Badge variant="outline" className={`shrink-0 text-xs ${stageInfo.className}`}>
-                  {stageInfo.label}
-                </Badge>
+              <div className="min-w-0 flex-1">
+                <span className="font-medium truncate">{companyName}</span>
+                {process.job && (
+                  <span className="text-muted-foreground"> – {process.job.title}</span>
+                )}
               </div>
 
-              {/* Row 2: Interview info + Actions */}
-              <div className="flex items-center justify-between gap-2">
-                {process.nextInterview?.scheduled_at ? (
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <Calendar className="h-3 w-3 text-primary" />
-                    <span className="font-medium text-primary">
-                      {formatInterviewCountdown(process.nextInterview.scheduled_at)}
-                    </span>
-                    {process.nextInterview.meeting_type && (
-                      <span className="text-muted-foreground">
-                        · {process.nextInterview.meeting_type}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Kein Interview geplant</span>
-                )}
+              <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 ${stageInfo.className}`}>
+                {stageInfo.label}
+              </Badge>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {meetingLink && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => window.open(meetingLink, '_blank')}
-                      title="Meeting beitreten"
-                    >
-                      <Video className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    asChild
-                    title="Job öffnen"
-                  >
-                    <Link to={`/recruiter/jobs/${process.job_id}`}>
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
+              {process.nextInterview?.scheduled_at && (
+                <span className="shrink-0 flex items-center gap-1 text-primary font-medium">
+                  <Calendar className="h-3 w-3" />
+                  {formatInterviewCountdown(process.nextInterview.scheduled_at)}
+                </span>
+              )}
+
+              <div className="flex items-center gap-0.5 shrink-0">
+                {meetingLink && (
+                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => window.open(meetingLink, '_blank')}>
+                    <Video className="h-3 w-3" />
                   </Button>
-                </div>
+                )}
+                <Button variant="ghost" size="icon" className="h-5 w-5" asChild>
+                  <Link to={`/recruiter/jobs/${process.job_id}`}>
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </Button>
               </div>
             </div>
           );
