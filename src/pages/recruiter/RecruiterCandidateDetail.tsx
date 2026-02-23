@@ -41,15 +41,7 @@ export default function RecruiterCandidateDetail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Tab state from URL
-  const activeTab = activeTaskId ? 'process' : (searchParams.get('tab') || 'overview');
-  const handleTabChange = useCallback((tab: string) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.set('tab', tab);
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+  // (tabs removed)
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,12 +169,6 @@ export default function RecruiterCandidateDetail() {
 
   const handleViewExpose = () => { if (candidate) window.open(`/expose/${candidate.id}`, '_blank'); };
   const handleStartInterview = () => setInterviewSliderOpen(true);
-  const handleSubmitToJob = () => {
-    handleTabChange('matching');
-    setTimeout(() => {
-      document.getElementById('job-matching-section')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
 
   if (loading) {
     return (
@@ -277,9 +263,6 @@ export default function RecruiterCandidateDetail() {
             cv_ai_bullets: extCandidate?.cv_ai_bullets,
           }}
           tags={candidateTags}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          activeTaskId={activeTaskId}
           activities={activities}
           activitiesLoading={activitiesLoading}
           onAddActivity={() => setAddActivityOpen(true)}
@@ -290,7 +273,7 @@ export default function RecruiterCandidateDetail() {
       <CandidateActionBar
         onViewExpose={handleViewExpose}
         onStartInterview={handleStartInterview}
-        onSubmitToJob={handleSubmitToJob}
+        onSubmitToJob={() => {}}
         exposeReady={readiness?.isReady}
         currentStatus={currentStatus}
       />
