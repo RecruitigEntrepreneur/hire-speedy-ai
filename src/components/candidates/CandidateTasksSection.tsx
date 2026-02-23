@@ -18,6 +18,11 @@ import {
   Edit,
   Upload,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
@@ -350,132 +355,154 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       {/* Task list */}
       {expanded && (
-        <div className="divide-y">
-          {/* DB-based tasks (Influence Alerts) */}
-          {pendingTasks.map(task => {
-            const config = priorityConfig[task.priority];
-            const Icon = config.icon;
-            const isActive = task.id === activeTaskId;
-            const isOptInPending = task.alert_type === 'opt_in_pending';
+        <div className="p-3 space-y-3">
+          {/* Grid of all tasks */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {/* DB-based tasks (Influence Alerts) */}
+            {pendingTasks.map(task => {
+              const config = priorityConfig[task.priority];
+              const Icon = config.icon;
+              const isActive = task.id === activeTaskId;
+              const isOptInPending = task.alert_type === 'opt_in_pending';
 
-            return (
-              <div 
-                key={task.id}
-                className={cn(
-                  "p-3 flex flex-col gap-2 transition-colors",
-                  isActive 
-                    ? "ring-2 ring-primary bg-primary/5" 
-                    : "hover:bg-accent/50"
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={cn("p-1.5 rounded", config.bgColor)}>
-                    <Icon className={cn("h-4 w-4", config.color)} />
+              return (
+                <div 
+                  key={task.id}
+                  className={cn(
+                    "border rounded-lg p-2.5 flex flex-col justify-between min-h-[88px] transition-colors",
+                    isActive 
+                      ? "ring-2 ring-primary bg-primary/5" 
+                      : task.priority === 'critical'
+                        ? "border-l-2 border-l-amber-500 bg-amber-500/5"
+                        : "border-border bg-card hover:bg-accent/50"
+                  )}
+                >
+                  {/* Row 1: Badge + Done */}
+                  <div className="flex items-center justify-between gap-1">
+                    <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium", config.bgColor, config.color)}>
+                      <Icon className="h-3 w-3" />
+                      {config.label}
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 shrink-0"
+                          onClick={() => handleMarkDone(task.id)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Erledigt</TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{task.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {task.recommended_action}
-                    </p>
+
+                  {/* Row 2: Title */}
+                  <p className="font-medium text-sm truncate mt-1">{task.title}</p>
+
+                  {/* Row 3: Actions */}
+                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                    {isOptInPending && contact.phone && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                            <a href={`tel:${contact.phone}`}>
+                              <Phone className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Anrufen</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {isOptInPending && contact.email && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                            <a href={`mailto:${contact.email}`}>
+                              <Mail className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Email</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {isOptInPending && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-6 text-[10px] px-2"
+                        onClick={() => handleConfirmOptIn(task.id, task.submission_id)}
+                      >
+                        <ShieldCheck className="h-3 w-3 mr-1" />
+                        Opt-In
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Exposé-critical pseudo-tasks */}
+            {exposeTasks.map(task => (
+              <div key={task.id} className="border rounded-lg p-2.5 flex flex-col justify-between min-h-[88px] border-l-2 border-l-blue-500 bg-blue-500/5 hover:bg-accent/50 transition-colors">
+                {/* Row 1: Exposé badge */}
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600">
+                    <Info className="h-3 w-3" />
+                    Exposé
                   </div>
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 ml-10 flex-wrap">
-                  {isOptInPending && contact.phone && (
-                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                      <a href={`tel:${contact.phone}`}>
-                        <Phone className="h-3 w-3 mr-1" />
-                        Anrufen
-                      </a>
-                    </Button>
-                  )}
-                  {isOptInPending && contact.email && (
-                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                      <a href={`mailto:${contact.email}`}>
-                        <Mail className="h-3 w-3 mr-1" />
-                        Email
-                      </a>
-                    </Button>
-                  )}
-                  {isOptInPending && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => handleConfirmOptIn(task.id, task.submission_id)}
-                    >
-                      <ShieldCheck className="h-3 w-3 mr-1" />
-                      Opt-In bestätigen
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                    onClick={() => handleMarkDone(task.id)}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    Erledigt
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+                {/* Row 2: Title */}
+                <p className="font-medium text-sm truncate mt-1">{task.title}</p>
 
-          {/* Exposé-critical pseudo-tasks */}
-          {exposeTasks.map(task => (
-            <div key={task.id} className="p-3 flex flex-col gap-2 hover:bg-accent/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 rounded bg-blue-500/10">
-                  <Info className="h-4 w-4 text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{task.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {task.description}
-                  </p>
+                {/* Row 3: Actions */}
+                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                  {task.actions.includes('call') && (candidate?.phone || contact.phone) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                          <a href={`tel:${candidate?.phone || contact.phone}`}>
+                            <Phone className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Anrufen</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {task.actions.includes('cv_upload') && onCvUpload && (
+                    <Button variant="default" size="sm" className="h-6 text-[10px] px-2" onClick={onCvUpload}>
+                      <Upload className="h-3 w-3 mr-1" />
+                      CV
+                    </Button>
+                  )}
+                  {task.actions.includes('interview') && onStartInterview && (
+                    <Button variant="default" size="sm" className="h-6 text-[10px] px-2" onClick={onStartInterview}>
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Interview
+                    </Button>
+                  )}
+                  {task.actions.includes('edit') && onEdit && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEdit}>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Bearbeiten</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 ml-10 flex-wrap">
-                {task.actions.includes('call') && (candidate?.phone || contact.phone) && (
-                  <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                    <a href={`tel:${candidate?.phone || contact.phone}`}>
-                      <Phone className="h-3 w-3 mr-1" />
-                      Anrufen
-                    </a>
-                  </Button>
-                )}
-                {task.actions.includes('cv_upload') && onCvUpload && (
-                  <Button variant="default" size="sm" className="h-7 text-xs" onClick={onCvUpload}>
-                    <Upload className="h-3 w-3 mr-1" />
-                    CV hochladen
-                  </Button>
-                )}
-                {task.actions.includes('interview') && onStartInterview && (
-                  <Button variant="default" size="sm" className="h-7 text-xs" onClick={onStartInterview}>
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Interview starten
-                  </Button>
-                )}
-                {task.actions.includes('edit') && onEdit && (
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onEdit}>
-                    <Edit className="h-3 w-3 mr-1" />
-                    Bearbeiten
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           {/* Completed tasks (collapsed) */}
           {completedTasks.length > 0 && (
-            <div className="p-3 bg-muted/30">
-              <p className="text-xs text-muted-foreground">
-                {completedTasks.length} erledigte Aufgabe{completedTasks.length !== 1 ? 'n' : ''}
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {completedTasks.length} erledigte Aufgabe{completedTasks.length !== 1 ? 'n' : ''}
+            </p>
           )}
         </div>
       )}
