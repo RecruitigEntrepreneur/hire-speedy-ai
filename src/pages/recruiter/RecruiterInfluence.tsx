@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PowerThreeActions } from '@/components/influence/PowerThreeActions';
 import { PerformanceIntel } from '@/components/influence/PerformanceIntel';
 import { TeamLeaderboard } from '@/components/influence/TeamLeaderboard';
 import { PlaybookViewer } from '@/components/influence/PlaybookViewer';
 import { InfluenceScoreBadge } from '@/components/influence/InfluenceScoreBadge';
+import { CompactTaskList } from '@/components/influence/CompactTaskList';
 import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
-import { useCandidateBehaviors } from '@/hooks/useCandidateBehavior';
 import { useRecruiterInfluenceScore } from '@/hooks/useRecruiterInfluenceScore';
 import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { Target, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
+import { CheckSquare, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+
+type FilterType = 'all' | 'opt_in' | 'follow_up' | 'interview' | 'other';
 
 interface Submission {
   id: string;
@@ -22,6 +29,19 @@ interface Submission {
   status: string;
   jobs: { title: string; company_name: string };
   candidates: { full_name: string; email: string; phone: string | null };
+}
+
+const FILTER_CATEGORIES: Record<string, string[]> = {
+  opt_in: ['opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h'],
+  follow_up: ['follow_up_needed', 'no_activity', 'engagement_drop', 'ghosting_risk'],
+  interview: ['interview_prep_missing', 'interview_reminder'],
+};
+
+function getFilterCategory(alertType: string): string {
+  for (const [category, types] of Object.entries(FILTER_CATEGORIES)) {
+    if (types.includes(alertType)) return category;
+  }
+  return 'other';
 }
 
 export default function RecruiterInfluence() {
@@ -34,11 +54,10 @@ export default function RecruiterInfluence() {
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [selectedPlaybookId, setSelectedPlaybookId] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<{ name: string; company: string } | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [completedOpen, setCompletedOpen] = useState(false);
 
   const { playbook } = useCoachingPlaybook(selectedPlaybookId || undefined);
-
-  const submissionIds = submissions.map(s => s.id);
-  const { behaviors, loading: behaviorsLoading } = useCandidateBehaviors(submissionIds);
 
   useEffect(() => {
     if (user) {
@@ -78,9 +97,11 @@ export default function RecruiterInfluence() {
       name: sub.candidates?.full_name || '',
       email: sub.candidates?.email || '',
       phone: sub.candidates?.phone || undefined,
+      jobTitle: sub.jobs?.title || undefined,
+      companyName: sub.jobs?.company_name || undefined,
     };
     return acc;
-  }, {} as Record<string, { name: string; email: string; phone?: string }>);
+  }, {} as Record<string, { name: string; email: string; phone?: string; jobTitle?: string; companyName?: string }>);
 
   const handleOpenPlaybook = (playbookId: string) => {
     const alert = alerts.find(a => a.playbook_id === playbookId);
@@ -99,32 +120,58 @@ export default function RecruiterInfluence() {
     await takeAction(alertId, 'completed');
   };
 
-  const handleSelectCandidate = (submissionId: string, alertId?: string, playbookId?: string) => {
+  const handleSelectCandidate = (submissionId: string, alertId?: string) => {
     const submission = submissions.find(s => s.id === submissionId);
     if (submission) {
-      const params = new URLSearchParams();
-      if (alertId) params.set('alert', alertId);
-      if (playbookId) params.set('playbook', playbookId);
-      const queryString = params.toString();
-      navigate(`/recruiter/candidates/${submission.candidate_id}${queryString ? `?${queryString}` : ''}`);
+      // Check if alert has a playbook — open it
+      if (alertId) {
+        const alert = alerts.find(a => a.id === alertId);
+        if (alert?.playbook_id) {
+          handleOpenPlaybook(alert.playbook_id);
+          return;
+        }
+      }
+      navigate(`/recruiter/candidates/${submission.candidate_id}`);
     }
   };
 
-  const isLoading = loadingSubmissions || alertsLoading || behaviorsLoading;
+  // Filter alerts
+  const pendingAlerts = alerts.filter(a => !a.action_taken);
+  const filteredAlerts = activeFilter === 'all'
+    ? pendingAlerts
+    : pendingAlerts.filter(a => getFilterCategory(a.alert_type) === activeFilter);
+
+  const completedAlerts = alerts.filter(a => a.action_taken).slice(0, 5);
+
+  // Filter counts
+  const filterCounts = pendingAlerts.reduce((acc, a) => {
+    const cat = getFilterCategory(a.alert_type);
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const isLoading = loadingSubmissions || alertsLoading;
+
+  const filters: { key: FilterType; label: string }[] = [
+    { key: 'all', label: `Alle (${pendingAlerts.length})` },
+    { key: 'opt_in', label: `Opt-In (${filterCounts.opt_in || 0})` },
+    { key: 'follow_up', label: `Follow-up (${filterCounts.follow_up || 0})` },
+    { key: 'interview', label: `Interview (${filterCounts.interview || 0})` },
+    { key: 'other', label: `Sonstige (${filterCounts.other || 0})` },
+  ];
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Minimalist Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Target className="h-6 w-6 text-primary" />
-              Influence Dashboard
+              <CheckSquare className="h-6 w-6 text-primary" />
+              Aufgaben & Einfluss
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3" />
-              Die 3 Hebel für deinen nächsten Deal
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Offene Aufgaben und Einflussübersicht
             </p>
           </div>
           {!scoreLoading && score && (
@@ -132,31 +179,78 @@ export default function RecruiterInfluence() {
           )}
         </div>
 
-        {/* Zone 1 + Zone 3: Main Area */}
-        <div className="grid lg:grid-cols-5 gap-6">
-          {/* THE POWER 3 - Takes 3/5 width */}
-          <div className="lg:col-span-3">
-            <PowerThreeActions
-              submissions={submissions}
-              behaviors={behaviors}
-              alerts={alerts}
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap gap-1.5">
+          {filters.map(f => (
+            <Button
+              key={f.key}
+              variant={activeFilter === f.key ? 'default' : 'outline'}
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => setActiveFilter(f.key)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Main Grid: Tasks (2/3) + Sidebar (1/3) */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Tasks */}
+          <div className="lg:col-span-2">
+            <CompactTaskList
+              alerts={filteredAlerts}
               loading={isLoading}
-              onOpenPlaybook={handleOpenPlaybook}
               onMarkDone={handleMarkDone}
-              onSelectCandidate={handleSelectCandidate}
+              onViewCandidate={handleSelectCandidate}
+              candidateMap={candidateMap}
+              maxItems={999}
+              showViewAll={false}
             />
           </div>
-          
-          {/* PERFORMANCE INTEL - Takes 2/5 width */}
-          <div className="lg:col-span-2">
+
+          {/* Sidebar */}
+          <div className="space-y-6">
             <PerformanceIntel score={score} loading={scoreLoading} />
+            <TeamLeaderboard limit={3} />
+
+            {/* Completed tasks */}
+            {completedAlerts.length > 0 && (
+              <Card>
+                <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="pb-2 cursor-pointer hover:bg-accent/50 transition-colors rounded-t-lg">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          Erledigt
+                          <Badge variant="secondary" className="text-[10px]">{completedAlerts.length}</Badge>
+                        </span>
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", completedOpen && "rotate-180")} />
+                      </CardTitle>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 space-y-2">
+                      {completedAlerts.map(alert => {
+                        const candidate = candidateMap[alert.submission_id];
+                        return (
+                          <div key={alert.id} className="flex items-center justify-between text-sm py-1">
+                            <span className="truncate font-medium">{candidate?.name || 'Kandidat'}</span>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                              {formatDistanceToNow(new Date(alert.action_taken_at || alert.created_at), { addSuffix: true, locale: de })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            )}
           </div>
         </div>
 
-        {/* Zone 3: LEADERBOARD */}
-        <TeamLeaderboard limit={5} />
-
-        {/* Playbook Viewer */}
+        {/* Playbook Viewer (Sheet) */}
         <PlaybookViewer
           playbook={playbook}
           open={!!selectedPlaybookId}

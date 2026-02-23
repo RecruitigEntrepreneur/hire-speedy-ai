@@ -19,6 +19,7 @@ import {
   Shield,
   Wallet,
   Target,
+  CheckSquare,
   Gift,
   BarChart3,
   UsersRound,
@@ -92,7 +93,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const recruiterNavItems: NavItem[] = [
     { label: 'Übersicht', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'Influence', href: '/recruiter/influence', icon: <Target className="h-4 w-4" /> },
+    { label: 'Aufgaben', href: '/recruiter/influence', icon: <CheckSquare className="h-4 w-4" /> },
     { label: 'Offene Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
