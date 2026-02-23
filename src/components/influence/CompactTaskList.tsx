@@ -1,6 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { InfluenceAlert } from '@/hooks/useInfluenceAlerts';
 import { 
   Phone, 
@@ -29,33 +34,25 @@ interface CompactTaskListProps {
 
 const getAlertTypeLabel = (alertType: string): { label: string; color: string } => {
   const map: Record<string, { label: string; color: string }> = {
-    'opt_in_pending': { label: 'Interview-Anfrage', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-    'opt_in_pending_48h': { label: 'Opt-In überfällig', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-    'opt_in_pending_24h': { label: 'Opt-In dringend', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    'opt_in_pending': { label: 'Interview-Anfrage', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'opt_in_pending_48h': { label: 'Opt-In überfällig', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'opt_in_pending_24h': { label: 'Opt-In dringend', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
     'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'interview_reminder': { label: 'Interview-Erinnerung', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    'salary_mismatch': { label: 'Gehaltsabweichung', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'ghosting_risk': { label: 'Ghosting-Risiko', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
-    'engagement_drop': { label: 'Engagement gesunken', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'high_closing_probability': { label: 'Closing-Chance', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-    'closing_opportunity': { label: 'Closing vorbereiten', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-    'candidate_response': { label: 'Antwort erhalten', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    'no_activity': { label: 'Keine Aktivität', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
-    'sla_warning': { label: 'SLA-Warnung', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    'interview_reminder': { label: 'Interview', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    'salary_mismatch': { label: 'Gehalt', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'ghosting_risk': { label: 'Ghosting', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+    'engagement_drop': { label: 'Engagement', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'high_closing_probability': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    'closing_opportunity': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    'candidate_response': { label: 'Antwort', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    'no_activity': { label: 'Inaktiv', color: 'bg-muted text-muted-foreground' },
+    'sla_warning': { label: 'SLA', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
     'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   };
-  return map[alertType] || { label: 'Aufgabe', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' };
+  return map[alertType] || { label: 'Aufgabe', color: 'bg-muted text-muted-foreground' };
 };
 
-const getRelativeTime = (dateStr: string): string => {
-  try {
-    return formatDistanceToNow(new Date(dateStr), { locale: de, addSuffix: false });
-  } catch {
-    return '';
-  }
-};
-
-interface TaskRowProps {
+interface TicketCardProps {
   alert: InfluenceAlert;
   candidate?: { name: string; email: string; phone?: string; jobTitle?: string; companyName?: string };
   onMarkDone: (alertId: string) => void;
@@ -63,93 +60,85 @@ interface TaskRowProps {
   isUrgent: boolean;
 }
 
-function TaskRow({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }: TaskRowProps) {
+function TicketCard({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }: TicketCardProps) {
   const typeInfo = getAlertTypeLabel(alert.alert_type);
-  const timeAgo = getRelativeTime(alert.created_at);
 
   return (
     <div
       className={cn(
-        "border-l-4 rounded-lg px-4 py-3 transition-colors hover:bg-accent/50",
+        "border rounded-lg p-2.5 flex flex-col justify-between min-h-[88px] transition-colors",
         isUrgent
-          ? "border-l-destructive bg-destructive/5"
-          : "border-l-muted-foreground/30 bg-muted/30"
+          ? "border-l-2 border-l-amber-500 bg-amber-500/5"
+          : "border-border bg-card"
       )}
     >
-      {/* Row 1: Name + Type Badge + Time */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {isUrgent ? (
-            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-          ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" />
-          )}
-          <button
-            onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
-            className="font-semibold text-sm hover:underline truncate text-foreground"
-          >
-            {candidate?.name || 'Kandidat'}
-          </button>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge className={cn("text-[10px] font-medium px-2 py-0.5 border-0", typeInfo.color)}>
-            {typeInfo.label}
-          </Badge>
-          {timeAgo && (
-            <span className="text-[11px] text-muted-foreground whitespace-nowrap">{timeAgo}</span>
-          )}
-        </div>
+      {/* Row 1: Badge + Done */}
+      <div className="flex items-center justify-between gap-1">
+        <Badge className={cn("text-[10px] font-medium px-1.5 py-0 h-4 border-0", typeInfo.color)}>
+          {typeInfo.label}
+        </Badge>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 shrink-0"
+              onClick={() => onMarkDone(alert.id)}
+            >
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Erledigt</TooltipContent>
+        </Tooltip>
       </div>
 
-      {/* Row 2: Job context */}
+      {/* Row 2: Name */}
+      <button
+        onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
+        className="font-medium text-sm text-left hover:underline truncate mt-1"
+      >
+        {candidate?.name || 'Kandidat'}
+      </button>
+
+      {/* Row 3: Job @ Company */}
       {(candidate?.jobTitle || candidate?.companyName) && (
-        <p className="text-xs text-muted-foreground mt-1 ml-6 truncate">
+        <p className="text-xs text-muted-foreground truncate">
           {candidate?.jobTitle}{candidate?.jobTitle && candidate?.companyName ? ' @ ' : ''}{candidate?.companyName}
         </p>
       )}
 
-      {/* Row 3: Message / reason */}
-      {alert.message && (
-        <p className="text-xs text-muted-foreground mt-1 ml-6 line-clamp-1 italic">
-          „{alert.message}"
-        </p>
-      )}
-
-      {/* Row 4: Actions */}
-      <div className="flex items-center justify-between mt-2 ml-6">
-        <div className="flex items-center gap-1">
-          {candidate?.phone && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => window.location.href = `tel:${candidate.phone}`}
-            >
-              <Phone className="h-3 w-3 mr-1" />
-              Anrufen
-            </Button>
-          )}
-          {candidate?.email && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => window.location.href = `mailto:${candidate.email}`}
-            >
-              <Mail className="h-3 w-3 mr-1" />
-              Email
-            </Button>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-          onClick={() => onMarkDone(alert.id)}
-        >
-          <Check className="h-3 w-3 mr-1" />
-          Erledigt
-        </Button>
+      {/* Row 4: Icon actions */}
+      <div className="flex items-center gap-1 mt-1.5">
+        {candidate?.phone && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => window.location.href = `tel:${candidate.phone}`}
+              >
+                <Phone className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Anrufen</TooltipContent>
+          </Tooltip>
+        )}
+        {candidate?.email && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => window.location.href = `mailto:${candidate.email}`}
+              >
+                <Mail className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Email</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </div>
   );
@@ -161,7 +150,7 @@ export function CompactTaskList({
   onMarkDone,
   onViewCandidate,
   candidateMap = {},
-  maxItems = 10,
+  maxItems = 12,
   showViewAll = true,
   onViewAll,
 }: CompactTaskListProps) {
@@ -174,9 +163,11 @@ export function CompactTaskList({
     return (
       <div className="space-y-3">
         <Skeleton className="h-6 w-32" />
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-20 w-full" />
-        ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-[88px] w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -204,22 +195,22 @@ export function CompactTaskList({
           <Badge variant="secondary" className="text-xs">{totalPending}</Badge>
         </h3>
         {urgentAlerts.length > 0 && (
-          <Badge variant="destructive" className="text-xs">
+          <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">
             {urgentAlerts.length} dringend
           </Badge>
         )}
       </div>
 
-      {/* Urgent section */}
+      {/* Urgent grid */}
       {displayedUrgent.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium uppercase tracking-wider text-destructive flex items-center gap-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-amber-600 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             Dringend ({urgentAlerts.length})
           </p>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {displayedUrgent.map(alert => (
-              <TaskRow
+              <TicketCard
                 key={alert.id}
                 alert={alert}
                 candidate={candidateMap[alert.submission_id]}
@@ -232,16 +223,16 @@ export function CompactTaskList({
         </div>
       )}
 
-      {/* Open section */}
+      {/* Open grid */}
       {displayedOpen.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1">
             <Clock className="h-3 w-3" />
             Offen ({openAlerts.length})
           </p>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {displayedOpen.map(alert => (
-              <TaskRow
+              <TicketCard
                 key={alert.id}
                 alert={alert}
                 candidate={candidateMap[alert.submission_id]}
