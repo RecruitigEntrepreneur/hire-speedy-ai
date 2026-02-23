@@ -1,21 +1,48 @@
 
 
-# CandidateTasksSection zuruecksetzen
+# Tabs entfernen, Uebersicht-Layout beibehalten + Aktivitaets-Log hinzufuegen
 
-Die Grid-Aenderung in `CandidateTasksSection.tsx` (Kandidaten-Detailseite) wird rueckgaengig gemacht. Das Ticket-Grid bleibt nur auf dem Dashboard (`CompactTaskList.tsx`).
+## Was sich aendert
 
-## Aenderung
+Die Tab-Leiste (Uebersicht, Prozess, Matching, Historie) wird entfernt. Der bisherige Inhalt des "Uebersicht"-Tabs bleibt exakt so wie er ist. Einzige Ergaenzung: der Aktivitaets-Log wird unten in der rechten Spalte hinzugefuegt.
 
-### Datei: `src/components/candidates/CandidateTasksSection.tsx`
+## Beibehaltenes Layout (identisch mit aktuellem Uebersicht-Tab)
 
-Zurueck zum urspruenglichen vertikalen Listen-Layout:
+```text
+Linke Spalte                    Rechte Spalte
++----------------------------+  +----------------------------+
+| KI-Matching Vorschau       |  | Interview-Erkenntnisse     |
+| Skills + Zertifikate       |  | Tags (wenn vorhanden)      |
+| CV AI Summary              |  | Karriere-Timeline          |
++----------------------------+  | Dokumente                  |
+                                | Aktivitaets-Log (NEU)      |
+                                +----------------------------+
+```
 
-- **Grid entfernen**: `grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2` zurueck zu `divide-y` Liste
-- **Ticket-Kacheln** zurueck zu den urspruenglichen Zeilen mit voller Breite, Icon-Box links, Titel + Beschreibung + Text-Buttons ("Anrufen", "Email", "Opt-In bestaetigen", "Erledigt")
-- **Expose-Tasks** ebenfalls zurueck zum alten Zeilen-Layout mit Icon-Box, Beschreibungstext und normalen Buttons
-- Tooltip-Import kann entfernt werden (war vorher nicht noetig)
+## Technische Umsetzung
 
-### Keine Aenderung an:
-- `CompactTaskList.tsx` -- das Ticket-Grid auf dem Dashboard bleibt bestehen
-- Logik, Props, Datenfluss -- alles bleibt gleich, nur das Layout wird zurueckgesetzt
+### Datei: `src/components/candidates/CandidateMainContent.tsx`
+
+- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` Wrapper entfernen
+- Keyboard-Shortcut `useEffect` entfernen
+- Props `activeTab`, `onTabChange`, `activeTaskId` aus Interface entfernen
+- Nur den bisherigen Uebersicht-Inhalt (2-Spalten-Grid) direkt rendern
+- Aktivitaets-Log (`CandidateActivityTimeline`) + "Aktivitaet hinzufuegen"-Button in die rechte Spalte unten einfuegen
+- Imports fuer entfernte Sektionen aufraemen: `CandidateJobMatchingV3`, `ClientCandidateSummaryCard`, `CandidateJobsOverview`, `CandidateInterviewsCard`, `CandidateTasksSection`, `SimilarCandidates`
+- Tab-Icons (`Briefcase`, `BarChart3`, `History`, `LayoutGrid`) entfernen
+
+### Datei: `src/pages/recruiter/RecruiterCandidateDetail.tsx`
+
+- `activeTab`, `handleTabChange` Logik entfernen
+- `tab` URL-Parameter nicht mehr lesen/setzen
+- `handleSubmitToJob` entfernen
+- `activeTaskId` nicht mehr an `CandidateMainContent` uebergeben
+- `onTabChange` nicht mehr an `CandidateMainContent` uebergeben
+- `CandidateActionBar` `onSubmitToJob` anpassen
+
+### Nicht angefasst:
+- `CandidateHeroHeader` -- bleibt komplett unveraendert
+- `CandidatePlaybookPanel` -- bleibt
+- `CandidateActionBar` -- bleibt (nur `onSubmitToJob` ggf. entfernen)
+- Daten-Logik, Props-Typen der Eltern
 
