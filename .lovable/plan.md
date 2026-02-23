@@ -1,48 +1,43 @@
 
+# Aufgaben-Karten im Dashboard verbessern
 
-# Tabs entfernen, Uebersicht-Layout beibehalten + Aktivitaets-Log hinzufuegen
+## Probleme
 
-## Was sich aendert
+1. **Farbe passt nicht** -- Die amber/gelbe Farbgebung fuer dringende Karten wirkt nicht stimmig
+2. **Karten nicht klickbar** -- Nur der Kandidatenname ist anklickbar, die gesamte Karte sollte klickbar sein
+3. **Ueberall "Interview-Anfrage"** -- Da die meisten Alerts vom Typ `opt_in_pending` sind, steht ueberall dasselbe Label. Stattdessen soll der Titel/Kontext der Aufgabe sichtbar sein
 
-Die Tab-Leiste (Uebersicht, Prozess, Matching, Historie) wird entfernt. Der bisherige Inhalt des "Uebersicht"-Tabs bleibt exakt so wie er ist. Einzige Ergaenzung: der Aktivitaets-Log wird unten in der rechten Spalte hinzugefuegt.
+## Loesung
 
-## Beibehaltenes Layout (identisch mit aktuellem Uebersicht-Tab)
+### Datei: `src/components/influence/CompactTaskList.tsx`
+
+**Karten klickbar machen:**
+- Die gesamte `TicketCard` wird in ein klickbares `div` mit `cursor-pointer` und `onClick` umgewandelt
+- Beim Klick wird `onViewCandidate(alert.submission_id, alert.id)` aufgerufen
+- Der separate Name-Button wird durch normalen Text ersetzt
+
+**Farben anpassen:**
+- Dringende Karten: Von `amber` auf ein dezenteres, professionelleres Farbschema wechseln (z.B. `border-l-red-500` mit leichtem `bg-red-50/50` oder `border-l-primary`)
+- "Dringend"-Badge und Section-Header: Ebenfalls dezenter gestalten
+- Hover-Effekt fuer alle Karten hinzufuegen (`hover:shadow-sm hover:border-primary/30`)
+
+**Label-Logik verbessern:**
+- Statt nur den Alert-Typ als Badge anzuzeigen, den konkreten Aufgaben-Kontext (Job-Titel oder kurze Beschreibung) prominenter darstellen
+- Badge zeigt weiterhin den Typ, aber der Titel der Aufgabe (aus `alert.title`) wird als Hauptzeile genutzt statt nur "Kandidat"
+- Wenn der Alert-Typ `opt_in_pending` ist, wird z.B. "Opt-In einholen" statt "Interview-Anfrage" angezeigt
+
+### Technische Details
 
 ```text
-Linke Spalte                    Rechte Spalte
-+----------------------------+  +----------------------------+
-| KI-Matching Vorschau       |  | Interview-Erkenntnisse     |
-| Skills + Zertifikate       |  | Tags (wenn vorhanden)      |
-| CV AI Summary              |  | Karriere-Timeline          |
-+----------------------------+  | Dokumente                  |
-                                | Aktivitaets-Log (NEU)      |
-                                +----------------------------+
+Vorher:                          Nachher:
++---------------------------+    +---------------------------+
+| [Interview-Anfrage] [x]  |    | [Opt-In einholen]    [x]  |
+| Andreas Plagniat          |    | Andreas Plagniat          |
+| Buchhalter @ [HealthTech] |    | Buchhalter @ [HealthTech] |
+| [phone] [mail]            |    | [phone] [mail]            |
++---------------------------+    +---------------------------+
+  amber Rand, nicht klickbar       dezenter Rand, ganze Karte
+                                   klickbar mit Hover-Effekt
 ```
 
-## Technische Umsetzung
-
-### Datei: `src/components/candidates/CandidateMainContent.tsx`
-
-- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` Wrapper entfernen
-- Keyboard-Shortcut `useEffect` entfernen
-- Props `activeTab`, `onTabChange`, `activeTaskId` aus Interface entfernen
-- Nur den bisherigen Uebersicht-Inhalt (2-Spalten-Grid) direkt rendern
-- Aktivitaets-Log (`CandidateActivityTimeline`) + "Aktivitaet hinzufuegen"-Button in die rechte Spalte unten einfuegen
-- Imports fuer entfernte Sektionen aufraemen: `CandidateJobMatchingV3`, `ClientCandidateSummaryCard`, `CandidateJobsOverview`, `CandidateInterviewsCard`, `CandidateTasksSection`, `SimilarCandidates`
-- Tab-Icons (`Briefcase`, `BarChart3`, `History`, `LayoutGrid`) entfernen
-
-### Datei: `src/pages/recruiter/RecruiterCandidateDetail.tsx`
-
-- `activeTab`, `handleTabChange` Logik entfernen
-- `tab` URL-Parameter nicht mehr lesen/setzen
-- `handleSubmitToJob` entfernen
-- `activeTaskId` nicht mehr an `CandidateMainContent` uebergeben
-- `onTabChange` nicht mehr an `CandidateMainContent` uebergeben
-- `CandidateActionBar` `onSubmitToJob` anpassen
-
-### Nicht angefasst:
-- `CandidateHeroHeader` -- bleibt komplett unveraendert
-- `CandidatePlaybookPanel` -- bleibt
-- `CandidateActionBar` -- bleibt (nur `onSubmitToJob` ggf. entfernen)
-- Daten-Logik, Props-Typen der Eltern
-
+Aenderungen nur in einer Datei: `src/components/influence/CompactTaskList.tsx`
