@@ -34,19 +34,19 @@ interface CompactTaskListProps {
 
 const getAlertTypeLabel = (alertType: string): { label: string; color: string } => {
   const map: Record<string, { label: string; color: string }> = {
-    'opt_in_pending': { label: 'Interview-Anfrage', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'opt_in_pending_48h': { label: 'Opt-In überfällig', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'opt_in_pending_24h': { label: 'Opt-In dringend', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'opt_in_pending': { label: 'Opt-In einholen', color: 'bg-primary/10 text-primary' },
+    'opt_in_pending_48h': { label: 'Opt-In überfällig', color: 'bg-destructive/10 text-destructive' },
+    'opt_in_pending_24h': { label: 'Opt-In dringend', color: 'bg-destructive/10 text-destructive' },
+    'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-primary/10 text-primary' },
     'interview_reminder': { label: 'Interview', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    'salary_mismatch': { label: 'Gehalt', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'ghosting_risk': { label: 'Ghosting', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
-    'engagement_drop': { label: 'Engagement', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'salary_mismatch': { label: 'Gehalt', color: 'bg-primary/10 text-primary' },
+    'ghosting_risk': { label: 'Ghosting', color: 'bg-destructive/10 text-destructive' },
+    'engagement_drop': { label: 'Engagement', color: 'bg-primary/10 text-primary' },
     'high_closing_probability': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
     'closing_opportunity': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
     'candidate_response': { label: 'Antwort', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
     'no_activity': { label: 'Inaktiv', color: 'bg-muted text-muted-foreground' },
-    'sla_warning': { label: 'SLA', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'sla_warning': { label: 'SLA', color: 'bg-destructive/10 text-destructive' },
     'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   };
   return map[alertType] || { label: 'Aufgabe', color: 'bg-muted text-muted-foreground' };
@@ -65,10 +65,14 @@ function TicketCard({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }:
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter') onViewCandidate?.(alert.submission_id, alert.id); }}
       className={cn(
-        "border rounded-lg p-2.5 flex flex-col justify-between min-h-[88px] transition-colors",
+        "border rounded-lg p-2.5 flex flex-col justify-between min-h-[88px] transition-all cursor-pointer hover:shadow-sm hover:border-primary/30",
         isUrgent
-          ? "border-l-2 border-l-amber-500 bg-amber-500/5"
+          ? "border-l-2 border-l-destructive bg-destructive/5"
           : "border-border bg-card"
       )}
     >
@@ -83,7 +87,7 @@ function TicketCard({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }:
               variant="ghost"
               size="icon"
               className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 shrink-0"
-              onClick={() => onMarkDone(alert.id)}
+              onClick={(e) => { e.stopPropagation(); onMarkDone(alert.id); }}
             >
               <Check className="h-3.5 w-3.5" />
             </Button>
@@ -93,12 +97,9 @@ function TicketCard({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }:
       </div>
 
       {/* Row 2: Name */}
-      <button
-        onClick={() => onViewCandidate?.(alert.submission_id, alert.id)}
-        className="font-medium text-sm text-left hover:underline truncate mt-1"
-      >
+      <p className="font-medium text-sm text-left truncate mt-1">
         {candidate?.name || 'Kandidat'}
-      </button>
+      </p>
 
       {/* Row 3: Job @ Company */}
       {(candidate?.jobTitle || candidate?.companyName) && (
@@ -116,7 +117,7 @@ function TicketCard({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }:
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => window.location.href = `tel:${candidate.phone}`}
+                onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${candidate.phone}`; }}
               >
                 <Phone className="h-3 w-3" />
               </Button>
@@ -131,7 +132,7 @@ function TicketCard({ alert, candidate, onMarkDone, onViewCandidate, isUrgent }:
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => window.location.href = `mailto:${candidate.email}`}
+                onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${candidate.email}`; }}
               >
                 <Mail className="h-3 w-3" />
               </Button>
@@ -195,7 +196,7 @@ export function CompactTaskList({
           <Badge variant="secondary" className="text-xs">{totalPending}</Badge>
         </h3>
         {urgentAlerts.length > 0 && (
-          <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">
+          <Badge className="text-xs bg-destructive/10 text-destructive border-0">
             {urgentAlerts.length} dringend
           </Badge>
         )}
@@ -204,7 +205,7 @@ export function CompactTaskList({
       {/* Urgent grid */}
       {displayedUrgent.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium uppercase tracking-wider text-amber-600 flex items-center gap-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-destructive flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             Dringend ({urgentAlerts.length})
           </p>
