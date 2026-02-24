@@ -14,100 +14,99 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { 
-  Upload, 
-  Link as LinkIcon, 
-  Calendar, 
-  MessageSquare, 
+import {
+  Link as LinkIcon,
   Mail,
   CheckCircle,
-  Settings,
   RefreshCw,
   ExternalLink,
-  Zap,
-  CheckCircle2
+  CheckCircle2,
+  Loader2,
+  Unlink,
+  Plus,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
-
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  connected: boolean;
-  status?: 'active' | 'error' | 'syncing';
-  lastSync?: string;
-  email?: string;
-}
+import { useRecruiterIntegrations } from '@/hooks/useRecruiterIntegrations';
+import { PROVIDERS, getProviderName } from '@/types/integrations';
+import type { ProviderInfo, IntegrationProvider } from '@/types/integrations';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 export default function RecruiterIntegrations() {
-  const [setupDialogOpen, setSetupDialogOpen] = useState(false);
-  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
-  const [apiKey, setApiKey] = useState('');
-  const [connecting, setConnecting] = useState(false);
+  const {
+    integrations,
+    loading,
+    startOAuthConnect,
+    connectApiKey,
+    connectClientCredentials,
+    disconnectIntegration,
+    availableProviders,
+  } = useRecruiterIntegrations();
 
-  const integrations: Integration[] = [
-    {
-      id: 'hubspot',
-      name: 'HubSpot',
-      description: 'Importiere Kontakte aus deinem HubSpot CRM und halte deine Kandidaten synchron.',
-      icon: <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
-        <Upload className="h-5 w-5 text-orange-600" />
-      </div>,
-      connected: false,
-    },
-    {
-      id: 'salesforce',
-      name: 'Salesforce',
-      description: 'Verbinde dein Salesforce CRM für nahtlose Kandidatenverwaltung.',
-      icon: <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-        <LinkIcon className="h-5 w-5 text-blue-600" />
-      </div>,
-      connected: false,
-    },
-    {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Erhalte Benachrichtigungen und Updates direkt in Slack.',
-      icon: <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-        <MessageSquare className="h-5 w-5 text-purple-600" />
-      </div>,
-      connected: false,
-    },
-    {
-      id: 'zapier',
-      name: 'Zapier',
-      description: 'Verbinde mit 5000+ Apps über Zapier Automationen.',
-      icon: <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
-        <Zap className="h-5 w-5 text-orange-600" />
-      </div>,
-      connected: false,
-    },
-  ];
+  // Connect dialog state
+  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<ProviderInfo | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [clientIdInput, setClientIdInput] = useState('');
+  const [clientSecretInput, setClientSecretInput] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnect = async (integration: Integration) => {
-    setSelectedIntegration(integration);
-    setSetupDialogOpen(true);
-    setApiKey('');
+  // ─── Handlers ───────────────────────────────────────────────────────
+
+  const handleProviderClick = (provider: ProviderInfo) => {
+    if (provider.comingSoon) return;
+
+    if (provider.authType === 'oauth') {
+      // OAuth: redirect directly, no dialog needed
+      startOAuthConnect(provider.id);
+    } else {
+      // API key or client credentials: show dialog
+      setSelectedProvider(provider);
+      setApiKeyInput('');
+      setClientIdInput('');
+      setClientSecretInput('');
+      setConnectDialogOpen(true);
+    }
   };
 
-  const handleDisconnect = async (integration: Integration) => {
-    toast.success(`${integration.name} wurde getrennt`);
+  const handleConnectSubmit = async () => {
+    if (!selectedProvider) return;
+
+    setIsConnecting(true);
+    let success = false;
+
+    if (selectedProvider.authType === 'client_credentials') {
+      success = await connectClientCredentials(
+        selectedProvider.id,
+        clientIdInput,
+        clientSecretInput
+      );
+    } else {
+      success = await connectApiKey(selectedProvider.id, apiKeyInput);
+    }
+
+    setIsConnecting(false);
+    if (success) {
+      setConnectDialogOpen(false);
+    }
   };
 
-  const handleSubmitConnection = async () => {
-    if (!selectedIntegration) return;
-    
-    setConnecting(true);
-    
-    // Simulate API connection
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast.success(`${selectedIntegration.name} erfolgreich verbunden!`);
-    setSetupDialogOpen(false);
-    setConnecting(false);
-    setApiKey('');
+  const handleDisconnect = async (integrationId: string) => {
+    await disconnectIntegration(integrationId);
   };
+
+  // ─── Render ─────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -116,7 +115,7 @@ export default function RecruiterIntegrations() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Integrationen</h1>
           <p className="text-muted-foreground mt-1">
-            Verbinde externe Tools und CRM-Systeme mit deinem Account
+            Verbinde deine CRM- und ATS-Systeme mit einem Klick
           </p>
         </div>
 
@@ -131,7 +130,7 @@ export default function RecruiterIntegrations() {
                 E-Mail-basiertes Interview-System aktiv
               </h3>
               <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                Kandidaten erhalten automatisch Interview-Einladungen per E-Mail mit Kalender-Anhang (.ics). 
+                Kandidaten erhalten automatisch Interview-Einladungen per E-Mail mit Kalender-Anhang (.ics).
                 Bei Terminbestätigung werden alle Beteiligten automatisch benachrichtigt.
               </p>
               <div className="flex flex-wrap gap-3 mt-3">
@@ -152,53 +151,137 @@ export default function RecruiterIntegrations() {
           </CardContent>
         </Card>
 
-        {/* Integrations Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {integrations.map((integration) => {
-            return (
-              <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between mb-4">
-                    {integration.icon}
-                    {integration.connected ? (
-                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Verbunden
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        Nicht verbunden
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <h3 className="font-semibold">{integration.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1 mb-4">
-                    {integration.description}
-                  </p>
+        {/* Connected Integrations */}
+        {integrations.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold">Verbundene Integrationen</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {integrations.map((integration) => {
+                const provider = PROVIDERS.find((p) => p.id === integration.provider);
+                const isError = integration.status === 'error' || integration.status === 'expired';
 
-                  {integration.connected ? (
+                return (
+                  <Card key={integration.id} className={isError ? 'border-red-200' : ''}>
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xl">
+                          {provider?.logo || '🔗'}
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            isError
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }
+                        >
+                          {isError ? (
+                            <>
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              {integration.status === 'expired' ? 'Abgelaufen' : 'Fehler'}
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Verbunden
+                            </>
+                          )}
+                        </Badge>
+                      </div>
+
+                      <h3 className="font-semibold">{provider?.name || integration.provider}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {integration.last_synced_at ? (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Zuletzt synchronisiert{' '}
+                            {formatDistanceToNow(new Date(integration.last_synced_at), {
+                              addSuffix: true,
+                              locale: de,
+                            })}
+                          </span>
+                        ) : (
+                          'Noch nicht synchronisiert'
+                        )}
+                      </p>
+
+                      {isError && integration.error_message && (
+                        <p className="text-xs text-red-600 mt-2">{integration.error_message}</p>
+                      )}
+
+                      <div className="flex items-center gap-2 mt-4">
+                        {isError && integration.auth_type === 'oauth' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => startOAuthConnect(integration.provider as IntegrationProvider)}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                            Neu verbinden
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-red-600"
+                          onClick={() => handleDisconnect(integration.id)}
+                        >
+                          <Unlink className="h-3.5 w-3.5 mr-1.5" />
+                          Trennen
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Available Integrations */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Verfügbare Integrationen</CardTitle>
+            <CardDescription>
+              Verbinde dein CRM oder ATS-System – einmal klicken, einloggen, fertig
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {availableProviders.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => handleProviderClick(provider)}
+                  disabled={provider.comingSoon}
+                  className={`flex items-center gap-3 p-4 rounded-lg border text-left transition-colors ${
+                    provider.comingSoon
+                      ? 'opacity-50 cursor-not-allowed bg-muted/20'
+                      : 'hover:bg-muted/50 hover:border-primary/30 cursor-pointer'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xl shrink-0">
+                    {provider.logo}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Einstellungen
-                      </Button>
+                      <p className="font-medium truncate">{provider.name}</p>
+                      {provider.comingSoon && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                          Bald
+                        </Badge>
+                      )}
                     </div>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => handleConnect(integration)}
-                    >
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Verbinden
-                    </Button>
+                    <p className="text-xs text-muted-foreground truncate">{provider.description}</p>
+                  </div>
+                  {!provider.comingSoon && (
+                    <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
                   )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Auto-Sync Settings */}
         <Card>
@@ -221,7 +304,7 @@ export default function RecruiterIntegrations() {
               </div>
               <Switch id="auto-sync" />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="notify-sync">Benachrichtigungen bei Sync</Label>
@@ -251,40 +334,92 @@ export default function RecruiterIntegrations() {
         </Card>
       </div>
 
-      {/* Connection Setup Dialog */}
-      <Dialog open={setupDialogOpen} onOpenChange={setSetupDialogOpen}>
-        <DialogContent>
+      {/* ─── Connect Dialog (API Key / Client Credentials) ─── */}
+      <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{selectedIntegration?.name} verbinden</DialogTitle>
-            <DialogDescription>
-              Gib deine API-Zugangsdaten ein um {selectedIntegration?.name} zu verbinden.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="api-key">API Key</Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="Dein API Key..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Du findest deinen API Key in den Einstellungen von {selectedIntegration?.name}.
-              </p>
+            <div className="flex items-center gap-3">
+              {selectedProvider && (
+                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-2xl">
+                  {selectedProvider.logo}
+                </div>
+              )}
+              <div>
+                <DialogTitle>{selectedProvider?.name} verbinden</DialogTitle>
+                <DialogDescription>
+                  {selectedProvider?.authType === 'client_credentials'
+                    ? 'Gib deine Client-Zugangsdaten ein'
+                    : 'Gib deinen API Key ein um die Verbindung herzustellen'}
+                </DialogDescription>
+              </div>
             </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {selectedProvider?.authType === 'client_credentials' ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="client-id">Client ID</Label>
+                  <Input
+                    id="client-id"
+                    type="text"
+                    placeholder="Deine Client ID..."
+                    value={clientIdInput}
+                    onChange={(e) => setClientIdInput(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="client-secret">Client Secret</Label>
+                  <Input
+                    id="client-secret"
+                    type="password"
+                    placeholder="Dein Client Secret..."
+                    value={clientSecretInput}
+                    onChange={(e) => setClientSecretInput(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="api-key">API Key</Label>
+                <Input
+                  id="api-key"
+                  type="password"
+                  placeholder="Dein API Key..."
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                />
+              </div>
+            )}
+
+            {selectedProvider?.docsUrl && (
+              <a
+                href={selectedProvider.docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                Dokumentation öffnen <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSetupDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleSubmitConnection} disabled={!apiKey || connecting}>
-              {connecting ? (
+            <Button
+              onClick={handleConnectSubmit}
+              disabled={
+                isConnecting ||
+                (selectedProvider?.authType === 'client_credentials'
+                  ? !clientIdInput || !clientSecretInput
+                  : !apiKeyInput)
+              }
+            >
+              {isConnecting ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Verbinde...
                 </>
               ) : (

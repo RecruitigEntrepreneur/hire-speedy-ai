@@ -230,9 +230,9 @@ export function SubmissionsPipeline({ submissions, loading }: SubmissionsPipelin
           <div>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Your Talent Pipeline
+              Deine Talent-Pipeline
             </CardTitle>
-            <CardDescription>Track your candidates through the hiring process</CardDescription>
+            <CardDescription>Verfolge deine Kandidaten durch den Bewerbungsprozess</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-16">
@@ -261,14 +261,14 @@ export function SubmissionsPipeline({ submissions, loading }: SubmissionsPipelin
         <div>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
-            Your Talent Pipeline
+            Deine Talent-Pipeline
             {totalActive > 0 && (
               <Badge variant="secondary" className="ml-2">
                 {totalActive} aktiv
               </Badge>
             )}
           </CardTitle>
-          <CardDescription>Track your candidates through the hiring process</CardDescription>
+          <CardDescription>Verfolge deine Kandidaten durch den Bewerbungsprozess</CardDescription>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link to="/recruiter/submissions">
@@ -283,9 +283,9 @@ export function SubmissionsPipeline({ submissions, loading }: SubmissionsPipelin
             <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <FileText className="h-8 w-8 text-muted-foreground/50" />
             </div>
-            <h3 className="text-lg font-semibold">Noch keine Submissions</h3>
+            <h3 className="text-lg font-semibold">Noch keine Einreichungen</h3>
             <p className="text-muted-foreground mt-1 mb-4">
-              Reiche Kandidaten bei Jobs ein, um sie hier zu sehen.
+              Reiche Kandidaten bei Jobs ein, um sie hier zu verfolgen.
             </p>
             <Button variant="default" size="sm" asChild>
               <Link to="/recruiter/jobs">
