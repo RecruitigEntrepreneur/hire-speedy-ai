@@ -4696,6 +4696,39 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_states: {
+        Row: {
+          code_verifier: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          provider: string
+          redirect_uri: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          code_verifier: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          provider: string
+          redirect_uri?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          code_verifier?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          provider?: string
+          redirect_uri?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       offer_events: {
         Row: {
           actor_id: string | null
@@ -6601,6 +6634,69 @@ export type Database = {
           show_rate_improvement?: number | null
           total_influenced_placements?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_integrations: {
+        Row: {
+          access_token_encrypted: string | null
+          api_key_encrypted: string | null
+          auth_type: string
+          client_id_encrypted: string | null
+          client_secret_encrypted: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          last_synced_at: string | null
+          provider: string
+          provider_metadata: Json | null
+          refresh_token_encrypted: string | null
+          status: string | null
+          sync_candidates: boolean | null
+          sync_jobs: boolean | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          api_key_encrypted?: string | null
+          auth_type: string
+          client_id_encrypted?: string | null
+          client_secret_encrypted?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          last_synced_at?: string | null
+          provider: string
+          provider_metadata?: Json | null
+          refresh_token_encrypted?: string | null
+          status?: string | null
+          sync_candidates?: boolean | null
+          sync_jobs?: boolean | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          api_key_encrypted?: string | null
+          auth_type?: string
+          client_id_encrypted?: string | null
+          client_secret_encrypted?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          last_synced_at?: string | null
+          provider?: string
+          provider_metadata?: Json | null
+          refresh_token_encrypted?: string | null
+          status?: string | null
+          sync_candidates?: boolean | null
+          sync_jobs?: boolean | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
