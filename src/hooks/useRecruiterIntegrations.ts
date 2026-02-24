@@ -49,7 +49,7 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('recruiter_integrations')
         .select('*')
         .eq('user_id', user.id)
