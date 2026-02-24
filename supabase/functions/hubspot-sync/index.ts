@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getValidToken } from "../_shared/token-refresh.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +27,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const hubspotApiKey = Deno.env.get('HUBSPOT_API_KEY');
 
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
@@ -38,11 +38,11 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
+
     // Get user ID from token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid user token' }),
@@ -54,9 +54,18 @@ serve(async (req) => {
     console.log(`[HubSpot Sync] Action: ${action}, User: ${user.id}`);
 
     if (action === 'fetch_contacts') {
-      // If no HubSpot API key, return demo data
-      if (!hubspotApiKey) {
-        console.log('[HubSpot Sync] No API key, returning demo data');
+      // ─── Get HubSpot access token from recruiter's integration ───
+      const { data: integration } = await supabase
+        .from('recruiter_integrations')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('provider', 'hubspot')
+        .eq('status', 'connected')
+        .single();
+
+      if (!integration) {
+        // No integration connected - return demo data
+        console.log('[HubSpot Sync] No integration connected, returning demo data');
         const demoContacts: HubSpotContact[] = [
           { id: 'demo-1', firstname: 'Max', lastname: 'Mustermann', email: 'max@beispiel.de', phone: '+49 170 1234567', jobtitle: 'Software Engineer' },
           { id: 'demo-2', firstname: 'Anna', lastname: 'Schmidt', email: 'anna@beispiel.de', phone: '+49 171 9876543', jobtitle: 'Product Manager' },
@@ -70,12 +79,15 @@ serve(async (req) => {
         );
       }
 
+      // Get valid access token (auto-refreshes if near-expiry)
+      const accessToken = await getValidToken(supabase, integration);
+
       // Fetch from HubSpot API
       const response = await fetch(
         'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company',
         {
           headers: {
-            'Authorization': `Bearer ${hubspotApiKey}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         }
@@ -84,11 +96,20 @@ serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('[HubSpot Sync] API Error:', errorText);
+
+        // If 401, mark integration as expired
+        if (response.status === 401) {
+          await supabase
+            .from('recruiter_integrations')
+            .update({ status: 'expired', error_message: 'Access token ungueltig' })
+            .eq('id', integration.id);
+        }
+
         throw new Error(`HubSpot API error: ${response.status}`);
       }
 
       const hubspotData = await response.json();
-      
+
       const contacts: HubSpotContact[] = hubspotData.results.map((contact: any) => ({
         id: contact.id,
         firstname: contact.properties.firstname || '',
@@ -98,6 +119,12 @@ serve(async (req) => {
         jobtitle: contact.properties.jobtitle,
         company: contact.properties.company,
       })).filter((c: HubSpotContact) => c.email);
+
+      // Update last_synced_at
+      await supabase
+        .from('recruiter_integrations')
+        .update({ last_synced_at: new Date().toISOString() })
+        .eq('id', integration.id);
 
       console.log(`[HubSpot Sync] Fetched ${contacts.length} contacts`);
 

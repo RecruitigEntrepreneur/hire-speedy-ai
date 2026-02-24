@@ -1,44 +1,163 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Briefcase, 
-  Users, 
-  DollarSign, 
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Briefcase,
+  Users,
   FileText,
-  Activity,
-  Upload,
   ArrowUpRight,
   Loader2,
   Lock,
   CheckCircle,
   MapPin,
-  Building2
+  Upload,
+  Phone,
+  Check,
+  ChevronRight,
+  ChevronDown,
+  Calendar,
+  Settings2,
+  UserPlus,
+  Euro,
+  Building2,
+  Video,
+  Mail,
+  Copy,
+  MessageSquare,
+  Plug,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { getCompanyLogoUrl, formatHeadcount } from '@/lib/companyLogo';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
-import { CompactTaskList } from '@/components/influence/CompactTaskList';
 import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
-import { Candidate } from '@/components/candidates/CandidateCard';
+import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
+import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { SubmissionsPipeline, PipelineSubmission } from '@/components/recruiter/SubmissionsPipeline';
+import { cn } from '@/lib/utils';
+import { format, isToday, isTomorrow } from 'date-fns';
+import { de } from 'date-fns/locale';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface DashboardStats {
   openJobs: number;
   myCandidates: number;
-  submissions: number;
+  activeSubmissions: number;
   earnings: number;
+  pipelineBestCase: number;
+  pipelineRealCase: number;
+  pipelineWorstCase: number;
 }
+
+interface PipelineStage {
+  key: string;
+  label: string;
+  statuses: string[];
+  color: string;
+  count: number;
+}
+
+interface UpcomingInterview {
+  date: string;
+  candidateName: string;
+  candidateId: string;
+  jobTitle: string;
+  companyInfo: string;
+  isRevealed: boolean;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Guten Morgen';
+  if (hour < 18) return 'Guten Tag';
+  return 'Guten Abend';
+};
+
+const getFirstName = (user: any): string => {
+  const fullName = user?.user_metadata?.full_name || user?.email || '';
+  if (fullName.includes('@')) return fullName.split('@')[0];
+  return fullName.split(' ')[0] || 'Recruiter';
+};
+
+const formatEuro = (amount: number): string => {
+  if (amount >= 1000) {
+    return `€${Math.round(amount / 1000).toLocaleString('de-DE')}k`;
+  }
+  return `€${amount.toLocaleString('de-DE')}`;
+};
+
+const formatEuroFull = (amount: number): string => {
+  return `€${amount.toLocaleString('de-DE')}`;
+};
+
+const calculatePotentialEarning = (
+  salaryMin: number | null,
+  salaryMax: number | null,
+  feePercentage: number | null
+): number | null => {
+  if (!feePercentage || (!salaryMin && !salaryMax)) return null;
+  const avgSalary = salaryMin && salaryMax
+    ? (salaryMin + salaryMax) / 2
+    : salaryMin || salaryMax;
+  if (!avgSalary) return null;
+  return Math.round(avgSalary * (feePercentage / 100));
+};
+
+const getAlertTypeLabel = (alertType: string): { label: string; color: string } => {
+  const map: Record<string, { label: string; color: string }> = {
+    'opt_in_pending': { label: 'Opt-In', color: 'bg-primary/10 text-primary' },
+    'opt_in_pending_48h': { label: 'Opt-In', color: 'bg-destructive/10 text-destructive' },
+    'opt_in_pending_24h': { label: 'Opt-In', color: 'bg-destructive/10 text-destructive' },
+    'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-primary/10 text-primary' },
+    'interview_reminder': { label: 'Interview', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    'salary_mismatch': { label: 'Gehalt', color: 'bg-primary/10 text-primary' },
+    'ghosting_risk': { label: 'Ghosting', color: 'bg-destructive/10 text-destructive' },
+    'engagement_drop': { label: 'Engagement', color: 'bg-primary/10 text-primary' },
+    'high_closing_probability': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    'closing_opportunity': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  };
+  return map[alertType] || { label: 'Aufgabe', color: 'bg-muted text-muted-foreground' };
+};
+
+const formatInterviewDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  if (isToday(date)) return `Heute, ${format(date, 'HH:mm')} Uhr`;
+  if (isTomorrow(date)) return `Morgen, ${format(date, 'HH:mm')} Uhr`;
+  return format(date, "EEEE, dd. MMM · HH:mm 'Uhr'", { locale: de });
+};
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function RecruiterDashboard() {
   const { user } = useAuth();
@@ -46,40 +165,53 @@ export default function RecruiterDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     openJobs: 0,
     myCandidates: 0,
-    submissions: 0,
+    activeSubmissions: 0,
     earnings: 0,
+    pipelineBestCase: 0,
+    pipelineRealCase: 0,
+    pipelineWorstCase: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
-  const [behaviorScore, setBehaviorScore] = useState<any>(null);
-  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string }>>({});
+  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string; earning?: number }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
-  const [recentSubmissions, setRecentSubmissions] = useState<PipelineSubmission[]>([]);
-  const [submissionsLoading, setSubmissionsLoading] = useState(true);
+  const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+  const [candidateFormOpen, setCandidateFormOpen] = useState(false);
+  const [candidateFormProcessing, setCandidateFormProcessing] = useState(false);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
+  const [upcomingInterviews, setUpcomingInterviews] = useState<UpcomingInterview[]>([]);
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
   const [revealedCompanyNames, setRevealedCompanyNames] = useState<Map<string, string>>(new Map());
   const [companyProfiles, setCompanyProfiles] = useState<Record<string, { logo_url: string | null; website: string | null; headcount: number | null; industry: string | null }>>({});
-  
-  const { alerts, loading: alertsLoading, takeAction, dismiss } = useInfluenceAlerts();
+
+  const { alerts, loading: alertsLoading, takeAction } = useInfluenceAlerts();
   const { logActivity } = useActivityLogger();
-  
+
   usePageViewTracking('recruiter_dashboard');
+
+  // ─── Data Fetching ──────────────────────────────────────────────────────
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
-      fetchRecentSubmissions();
-      fetchCandidateMapForAlerts();
+      fetchPipelineData();
+      fetchUpcomingInterviews();
       fetchRevealedJobs();
       ensureInterviewAlerts();
     }
-  }, [user, alerts]);
+  }, [user]);
 
-  // Backfill: Create missing alerts for interview_requested submissions
+  useEffect(() => {
+    if (user && alerts.length > 0) {
+      fetchCandidateMapForAlerts();
+    }
+  }, [user, alerts.length]);
+
   const ensureInterviewAlerts = async () => {
     if (!user) return;
     try {
-      // 1. Find all interview_requested submissions for this recruiter
       const { data: irSubmissions } = await supabase
         .from('submissions')
         .select('id, candidate_id, job_id, candidates(full_name), jobs(title)')
@@ -88,7 +220,6 @@ export default function RecruiterDashboard() {
 
       if (!irSubmissions || irSubmissions.length === 0) return;
 
-      // 2. Find existing opt_in_pending alerts for this recruiter
       const { data: existingAlerts } = await supabase
         .from('influence_alerts')
         .select('submission_id')
@@ -97,7 +228,6 @@ export default function RecruiterDashboard() {
 
       const existingSubmissionIds = new Set((existingAlerts || []).map(a => a.submission_id));
 
-      // 3. Create missing alerts
       const missing = irSubmissions.filter(s => !existingSubmissionIds.has(s.id));
       for (const s of missing) {
         const candidateName = (s as any).candidates?.full_name || 'Kandidat';
@@ -119,7 +249,6 @@ export default function RecruiterDashboard() {
 
   const fetchRevealedJobs = async () => {
     if (!user) return;
-    
     try {
       const { data, error } = await supabase
         .from('submissions')
@@ -146,82 +275,58 @@ export default function RecruiterDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch published jobs available to recruiters
       const { data: jobs, error: jobsError } = await supabase
         .from('jobs')
         .select('id, title, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, client_id, created_at')
         .eq('status', 'published')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(4);
 
       if (!jobsError && jobs) {
         setRecentJobs(jobs);
-        setStats(prev => ({
-          ...prev,
-          openJobs: jobs.length,
-        }));
-        
-        // Fetch company profiles for all client_ids
+
+        const { count: totalJobsCount } = await supabase
+          .from('jobs')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'published');
+
+        setStats(prev => ({ ...prev, openJobs: totalJobsCount || 0 }));
+
         const clientIds = [...new Set(jobs.map(j => j.client_id).filter(Boolean))];
         if (clientIds.length > 0) {
           const { data: profiles } = await supabase
             .from('company_profiles')
             .select('user_id, logo_url, website, headcount, industry')
             .in('user_id', clientIds);
-          
+
           if (profiles) {
             const profileMap: Record<string, { logo_url: string | null; website: string | null; headcount: number | null; industry: string | null }> = {};
             profiles.forEach(p => {
-              profileMap[p.user_id] = {
-                logo_url: p.logo_url,
-                website: p.website,
-                headcount: p.headcount,
-                industry: p.industry,
-              };
+              profileMap[p.user_id] = { logo_url: p.logo_url, website: p.website, headcount: p.headcount, industry: p.industry };
             });
             setCompanyProfiles(profileMap);
           }
         }
       }
 
-      // Fetch my candidates count
       const { count: candidatesCount } = await supabase
         .from('candidates')
         .select('*', { count: 'exact', head: true })
         .eq('recruiter_id', user?.id);
 
       if (candidatesCount !== null) {
-        setStats(prev => ({
-          ...prev,
-          myCandidates: candidatesCount,
-        }));
+        setStats(prev => ({ ...prev, myCandidates: candidatesCount }));
       }
 
-      // Fetch my submissions count
-      const { count: submissionsCount } = await supabase
-        .from('submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('recruiter_id', user?.id);
+      const { data: placements } = await supabase
+        .from('placements')
+        .select('recruiter_payout, submission_id, submissions!inner(recruiter_id)')
+        .eq('submissions.recruiter_id', user?.id);
 
-      if (submissionsCount !== null) {
-        setStats(prev => ({
-          ...prev,
-          submissions: submissionsCount,
-        }));
+      if (placements) {
+        const totalEarnings = placements.reduce((sum, p) => sum + (p.recruiter_payout || 0), 0);
+        setStats(prev => ({ ...prev, earnings: totalEarnings }));
       }
-
-      // Fetch behavior score
-      const { data: scoreData } = await supabase
-        .from('user_behavior_scores')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-      
-      if (scoreData) {
-        setBehaviorScore(scoreData);
-      }
-
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -229,158 +334,125 @@ export default function RecruiterDashboard() {
     }
   };
 
-  const fetchRecentSubmissions = async () => {
+  const fetchPipelineData = async () => {
+    if (!user) return;
     try {
-      setSubmissionsLoading(true);
-      
-      // Fetch recent submissions
-      const { data: submissions, error } = await supabase
+      const { data: submissions } = await supabase
         .from('submissions')
-        .select('id, status, stage, match_score, updated_at, recruiter_notes, candidate_id, job_id')
-        .eq('recruiter_id', user?.id)
-        .order('updated_at', { ascending: false })
-        .limit(5);
+        .select('id, status, job_id, jobs(salary_min, salary_max, recruiter_fee_percentage)')
+        .eq('recruiter_id', user.id)
+        .not('status', 'in', '("rejected","withdrawn","hired","client_rejected")');
 
-      if (error) throw error;
+      if (!submissions) return;
 
-      if (submissions && submissions.length > 0) {
-        const candidateIds = submissions.map(s => s.candidate_id);
-        const jobIds = submissions.map(s => s.job_id);
-        const submissionIds = submissions.map(s => s.id);
+      const stages: PipelineStage[] = [
+        { key: 'submitted', label: 'Eingereicht', statuses: ['submitted', 'pending'], color: 'bg-amber-500', count: 0 },
+        { key: 'in_review', label: 'In Prüfung', statuses: ['in_review'], color: 'bg-blue-500', count: 0 },
+        { key: 'interview', label: 'Interview', statuses: ['interview'], color: 'bg-purple-500', count: 0 },
+        { key: 'offer', label: 'Angebot', statuses: ['offer'], color: 'bg-emerald-500', count: 0 },
+      ];
 
-        // Fetch related data separately to avoid TypeScript deep instantiation
-        const candidatesRes = await supabase
-          .from('candidates')
-          .select('id, full_name, email, phone, job_title')
-          .in('id', candidateIds);
-          
-        const jobsRes = await supabase
-          .from('jobs')
-          .select('id, title, salary_min, salary_max, recruiter_fee_percentage')
-          .in('id', jobIds);
-          
-        // Fetch alerts for submissions
-        let alertData: { submission_id: string }[] = [];
-        for (const sid of submissionIds) {
-          const res = await supabase
-            .from('influence_alerts')
-            .select('submission_id')
-            .eq('submission_id', sid)
-            .eq('is_dismissed', false)
-            .is('action_taken', null);
-          if (res.data) alertData = [...alertData, ...res.data];
-        }
+      // Conversion probabilities per stage (industry averages)
+      const stageWeights: Record<string, number> = {
+        submitted: 0.10,  // 10% of submitted candidates get placed
+        pending: 0.10,
+        in_review: 0.20,  // 20% of reviewed get placed
+        interview: 0.40,  // 40% of interviewed get placed
+        offer: 0.75,      // 75% of offers convert
+      };
 
-        // Fetch scheduled interviews
-        let interviewData: { submission_id: string; scheduled_at: string }[] = [];
-        for (const sid of submissionIds) {
-          const res = await supabase
-            .from('interviews')
-            .select('submission_id, scheduled_at')
-            .match({ submission_id: sid, status: 'scheduled' });
-          if (res.data) interviewData = [...interviewData, ...res.data];
-        }
+      let bestCase = 0;
+      let realCase = 0;
+      let worstCase = 0;
 
-        // Build lookup maps
-        const candidateMap: Record<string, any> = {};
-        candidatesRes.data?.forEach(c => { candidateMap[c.id] = c; });
+      submissions.forEach(s => {
+        const stage = stages.find(st => st.statuses.includes(s.status));
+        if (stage) stage.count++;
 
-        const jobMap: Record<string, any> = {};
-        jobsRes.data?.forEach(j => { jobMap[j.id] = j; });
-
-        const alertCountMap: Record<string, number> = {};
-        alertData.forEach(a => {
-          alertCountMap[a.submission_id] = (alertCountMap[a.submission_id] || 0) + 1;
-        });
-
-        const interviewMap: Record<string, string> = {};
-        interviewData.forEach(i => {
-          if (!interviewMap[i.submission_id]) {
-            interviewMap[i.submission_id] = i.scheduled_at;
+        const job = (s as any).jobs;
+        if (job) {
+          const earning = calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
+          if (earning) {
+            bestCase += earning;
+            realCase += Math.round(earning * (stageWeights[s.status] || 0.10));
+            // Worst case: only count offers
+            if (s.status === 'offer') {
+              worstCase += Math.round(earning * 0.50);
+            }
           }
-        });
+        }
+      });
 
-        const mappedSubmissions: PipelineSubmission[] = submissions.map((s) => {
-          const job = jobMap[s.job_id];
-          const potentialEarning = job 
-            ? calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)
-            : null;
-          
+      setPipelineStages(stages);
+      setStats(prev => ({
+        ...prev,
+        activeSubmissions: submissions.length,
+        pipelineBestCase: bestCase,
+        pipelineRealCase: realCase,
+        pipelineWorstCase: worstCase,
+      }));
+    } catch (error) {
+      console.error('Error fetching pipeline data:', error);
+    }
+  };
+
+  const fetchUpcomingInterviews = async () => {
+    if (!user) return;
+    try {
+      const { data: interviews } = await supabase
+        .from('interviews')
+        .select('scheduled_at, submissions!inner(recruiter_id, candidate_id, job_id, company_revealed, candidates(full_name), jobs(title, company_name, industry))')
+        .eq('submissions.recruiter_id', user.id)
+        .eq('status', 'scheduled')
+        .gte('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true })
+        .limit(3);
+
+      if (interviews) {
+        const events: UpcomingInterview[] = interviews.map((i: any) => {
+          const sub = i.submissions;
+          const isRevealed = sub?.company_revealed || false;
           return {
-            id: s.id,
-            status: s.status,
-            stage: s.stage,
-            match_score: s.match_score,
-            updated_at: s.updated_at,
-            recruiter_notes: s.recruiter_notes,
-            candidate: candidateMap[s.candidate_id] ? {
-              id: candidateMap[s.candidate_id].id,
-              full_name: candidateMap[s.candidate_id].full_name,
-              email: candidateMap[s.candidate_id].email,
-              phone: candidateMap[s.candidate_id].phone,
-              job_title: candidateMap[s.candidate_id].job_title,
-            } : {
-              id: s.candidate_id,
-              full_name: 'Unknown',
-              email: '',
-              phone: null,
-              job_title: null,
-            },
-            job: job ? {
-              id: job.id,
-              title: job.title,
-              salary_min: job.salary_min,
-              salary_max: job.salary_max,
-              recruiter_fee_percentage: job.recruiter_fee_percentage,
-            } : {
-              id: s.job_id,
-              title: 'Unknown Job',
-              salary_min: null,
-              salary_max: null,
-              recruiter_fee_percentage: null,
-            },
-            alert_count: alertCountMap[s.id] || 0,
-            interview_date: interviewMap[s.id] || null,
-            potential_earning: potentialEarning,
+            date: i.scheduled_at,
+            candidateName: sub?.candidates?.full_name || 'Kandidat',
+            candidateId: sub?.candidate_id || '',
+            jobTitle: sub?.jobs?.title || 'Position',
+            companyInfo: isRevealed
+              ? (sub?.jobs?.company_name || 'Unternehmen')
+              : (sub?.jobs?.industry ? `[${sub.jobs.industry}]` : '[Unternehmen]'),
+            isRevealed,
           };
         });
-
-        setRecentSubmissions(mappedSubmissions);
-      } else {
-        setRecentSubmissions([]);
+        setUpcomingInterviews(events);
       }
     } catch (error) {
-      console.error('Error fetching recent submissions:', error);
-    } finally {
-      setSubmissionsLoading(false);
+      console.error('Error fetching upcoming interviews:', error);
     }
   };
 
   const fetchCandidateMapForAlerts = async () => {
     if (!alerts.length) return;
-    
-    // Get submission IDs from alerts
+
     const submissionIds = alerts.map(a => a.submission_id);
-    
-    // Fetch submissions with candidates and jobs
+
     const { data: submissions } = await supabase
       .from('submissions')
-      .select('id, candidate_id, job_id, company_revealed, candidates(id, full_name, email, phone, experience_years, expected_salary, current_salary, skills, summary, cv_url, linkedin_url, availability_date, notice_period, created_at, recruiter_id), jobs(title, company_name, industry)')
+      .select('id, candidate_id, job_id, company_revealed, candidates(id, full_name, email, phone), jobs(title, company_name, industry, salary_min, salary_max, recruiter_fee_percentage)')
       .in('id', submissionIds);
-    
+
     if (submissions) {
-      const map: Record<string, { name: string; email: string; phone?: string; candidateId?: string; candidateData?: Candidate; jobTitle?: string; companyName?: string }> = {};
+      const map: Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string; earning?: number }> = {};
       submissions.forEach((s: any) => {
         if (s.candidates) {
+          const earning = s.jobs ? calculatePotentialEarning(s.jobs.salary_min, s.jobs.salary_max, s.jobs.recruiter_fee_percentage) : null;
           map[s.id] = {
             name: s.candidates.full_name,
             email: s.candidates.email,
             phone: s.candidates.phone || undefined,
             candidateId: s.candidates.id,
-            candidateData: s.candidates as Candidate,
             jobTitle: s.jobs?.title || undefined,
-            // Triple-Blind: Only pass company name if revealed
             companyName: s.company_revealed ? (s.jobs?.company_name || undefined) : (s.jobs?.industry ? `[${s.jobs.industry}]` : undefined),
+            earning: earning || undefined,
           };
         }
       });
@@ -388,18 +460,19 @@ export default function RecruiterDashboard() {
     }
   };
 
+  // ─── Actions ────────────────────────────────────────────────────────────
+
   const handleMarkDone = async (alertId: string) => {
     const alert = alerts.find(a => a.id === alertId);
     if (alert) {
       await takeAction(alertId, 'marked_done');
-      
-      // Get candidate from submission
+
       const { data: submission } = await supabase
         .from('submissions')
         .select('candidate_id')
         .eq('id', alert.submission_id)
         .single();
-      
+
       if (submission?.candidate_id) {
         await logActivity(
           submission.candidate_id,
@@ -411,71 +484,114 @@ export default function RecruiterDashboard() {
           alert.id
         );
       }
-      
-      toast.success('Alert als erledigt markiert');
+
+      toast.success('Erledigt');
     }
   };
 
-  const handleOpenPlaybook = (id: string) => {
-    toast.info('Playbook wird geöffnet...');
-    // Playbook viewing can be implemented with a dedicated page/dialog
-  };
-
-  const handleViewCandidate = async (submissionId: string, alertId?: string) => {
+  const handleViewCandidate = (submissionId: string, alertId?: string) => {
     const candidateInfo = candidateMap[submissionId];
     if (candidateInfo?.candidateId) {
-      // Navigate to candidate detail page with task context
       const taskParam = alertId ? `?task=${alertId}` : '';
       navigate(`/recruiter/candidates/${candidateInfo.candidateId}${taskParam}`);
     }
   };
 
-  const statCards = [
-    {
-      title: 'Open Jobs',
-      value: stats.openJobs,
-      icon: <Briefcase className="h-5 w-5" />,
-      color: 'bg-navy/10 text-navy',
-    },
-    {
-      title: 'My Candidates',
-      value: stats.myCandidates,
-      icon: <Users className="h-5 w-5" />,
-      color: 'bg-emerald/10 text-emerald',
-    },
-    {
-      title: 'Submissions',
-      value: stats.submissions,
-      icon: <FileText className="h-5 w-5" />,
-      color: 'bg-primary/10 text-primary',
-    },
-    {
-      title: 'Total Earnings',
-      value: `€${stats.earnings.toLocaleString()}`,
-      icon: <DollarSign className="h-5 w-5" />,
-      color: 'bg-amber-500/10 text-amber-600',
-    },
-  ];
+  // ─── Derived Data ───────────────────────────────────────────────────────
 
-  const formatSalary = (min: number | null, max: number | null) => {
-    if (!min && !max) return 'Not specified';
-    if (min && max) return `€${min.toLocaleString()} - €${max.toLocaleString()}`;
-    if (min) return `From €${min.toLocaleString()}`;
-    return `Up to €${max?.toLocaleString()}`;
+  const pendingAlerts = useMemo(() => {
+    return alerts.filter(a => !a.action_taken).slice(0, 5);
+  }, [alerts]);
+
+  const urgentCount = useMemo(() => {
+    return alerts.filter(a => !a.action_taken && a.priority === 'critical').length;
+  }, [alerts]);
+
+  const totalPendingAlerts = useMemo(() => {
+    return alerts.filter(a => !a.action_taken).length;
+  }, [alerts]);
+
+  const maxPipelineCount = useMemo(() => {
+    return Math.max(...pipelineStages.map(s => s.count), 1);
+  }, [pipelineStages]);
+
+  const greetingSubtext = useMemo(() => {
+    const nextInterview = upcomingInterviews[0];
+    const nextDate = nextInterview ? new Date(nextInterview.date) : null;
+    const interviewToday = nextDate && isToday(nextDate);
+    const interviewTomorrow = nextDate && isTomorrow(nextDate);
+    const timeStr = nextDate ? format(nextDate, 'HH:mm') : '';
+
+    // Urgent tasks + interview today
+    if (urgentCount > 0 && interviewToday) {
+      return `Du hast ${urgentCount} dringende Aufgaben und ein Interview heute um ${timeStr} Uhr.`;
+    }
+    // Urgent tasks + interview tomorrow
+    if (urgentCount > 0 && interviewTomorrow) {
+      return `${urgentCount} dringende Aufgaben – und morgen steht ein Interview an.`;
+    }
+    // Urgent tasks, no interview soon
+    if (urgentCount > 0) {
+      return `${urgentCount} dringende Aufgaben warten auf dich.`;
+    }
+    // No urgent, but interview today
+    if (interviewToday && nextInterview) {
+      return `Heute um ${timeStr} Uhr: Interview mit ${nextInterview.candidateName}. Viel Erfolg!`;
+    }
+    // No urgent, interview tomorrow
+    if (interviewTomorrow) {
+      return 'Morgen steht ein Interview an – alles vorbereitet?';
+    }
+    // No urgent, interviews this week
+    if (upcomingInterviews.length > 0) {
+      return `${upcomingInterviews.length} Interview${upcomingInterviews.length > 1 ? 's' : ''} geplant diese Woche.`;
+    }
+    // No interviews, tasks pending
+    if (totalPendingAlerts > 0) {
+      return `${totalPendingAlerts} Aufgaben warten – pack sie an!`;
+    }
+    // All clear
+    return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
+  }, [urgentCount, upcomingInterviews, totalPendingAlerts]);
+
+  const inboundEmail = useMemo(() => {
+    if (!user?.id) return '';
+    const shortId = user.id.replace(/-/g, '').slice(0, 8);
+    return `r_${shortId}@inbound.matchunt.ai`;
+  }, [user?.id]);
+
+  const handleCopyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(inboundEmail);
+      setEmailCopied(true);
+      toast.success('E-Mail-Adresse kopiert');
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch {
+      toast.error('Kopieren fehlgeschlagen');
+    }
   };
 
-  const calculatePotentialEarning = (
-    salaryMin: number | null, 
-    salaryMax: number | null, 
-    feePercentage: number | null
-  ): number | null => {
-    if (!feePercentage || (!salaryMin && !salaryMax)) return null;
-    const avgSalary = salaryMin && salaryMax 
-      ? (salaryMin + salaryMax) / 2 
-      : salaryMin || salaryMax;
-    if (!avgSalary) return null;
-    return Math.round(avgSalary * (feePercentage / 100));
+  const handleSaveNewCandidate = async (candidateData: Record<string, unknown>) => {
+    setCandidateFormProcessing(true);
+    try {
+      const insertData = { ...candidateData, recruiter_id: user?.id };
+      const { data, error } = await supabase
+        .from('candidates')
+        .insert(insertData as never)
+        .select('id')
+        .single();
+      if (error) throw error;
+      toast.success('Kandidat angelegt');
+      setCandidateFormOpen(false);
+      if (data?.id) navigate(`/recruiter/candidates/${data.id}`);
+    } catch {
+      toast.error('Fehler beim Speichern');
+    } finally {
+      setCandidateFormProcessing(false);
+    }
   };
+
+  // ─── Render ─────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -489,203 +605,347 @@ export default function RecruiterDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Verification Banner */}
-          <RecruiterVerificationBanner />
-          
-          {/* Header */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground">Find jobs and submit candidates</p>
-            </div>
-            <Button variant="hero" asChild>
-              <Link to="/recruiter/jobs">
-                <Briefcase className="mr-2 h-4 w-4" />
-                Browse Open Jobs
-              </Link>
-            </Button>
-          </div>
+      <div className="space-y-5 max-w-5xl">
+        <RecruiterVerificationBanner />
 
-          {/* Behavior Score */}
-          {behaviorScore && (
-            <Card className="border-border/50 max-w-md">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dein Performance Score</p>
-                    <p className="text-2xl font-bold mt-1">
-                      {Math.round(100 - (behaviorScore.risk_score || 0))}%
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      SLA: {Math.round((behaviorScore.sla_compliance_rate || 0) * 100)}% | 
-                      Response: {behaviorScore.avg_response_time_hours?.toFixed(1) || '0'}h
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald/10 text-emerald">
-                    <Activity className="h-6 w-6" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Compact Task List */}
-          {alerts.length > 0 && (
-            <Card className="border-border/50">
-              <CardContent className="p-4">
-                <CompactTaskList
-                  alerts={alerts}
-                  loading={alertsLoading}
-                  onMarkDone={handleMarkDone}
-                  onViewCandidate={handleViewCandidate}
-                  candidateMap={candidateMap}
-                  maxItems={5}
-                  showViewAll={true}
-                  onViewAll={() => navigate('/recruiter/influence')}
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Stats Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {statCards.map((stat) => (
-              <Card key={stat.title} className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.title}</p>
-                      <p className="text-3xl font-bold mt-1">{stat.value}</p>
-                    </div>
-                    <div className={`p-3 rounded-xl ${stat.color}`}>
-                      {stat.icon}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Available Jobs */}
-          <Card className="border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between">
+        {/* ═══ HEADER ═══ */}
+        <Card className="border-border/30 shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle>Available Jobs</CardTitle>
-                <CardDescription>Latest opportunities for your candidates</CardDescription>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {getGreeting()}, {getFirstName(user)}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {greetingSubtext}
+                </p>
               </div>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/recruiter/jobs">
-                  View all
-                  <ArrowUpRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {recentJobs.length === 0 ? (
-                <div className="text-center py-12">
-                  <Briefcase className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">No jobs available</h3>
-                  <p className="text-muted-foreground">Check back later for new opportunities.</p>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setCvUploadDialogOpen(true)}
+                >
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  CV hochladen
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="px-2">
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setCandidateFormOpen(true)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Manuell anlegen
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      HubSpot Import
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/recruiter/integrations')}>
+                      <Plug className="mr-2 h-4 w-4" />
+                      CRM verbinden
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setEmailDialogOpen(true)}>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Per E-Mail senden
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ═══ BENTO GRID: 2x2 ═══ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* ─── CELL 1: Aufgaben (top-left) ─── */}
+          <Card className="border-border/30 shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold">Aufgaben</h2>
+                  {totalPendingAlerts > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {totalPendingAlerts}
+                    </Badge>
+                  )}
+                  {urgentCount > 0 && (
+                    <Badge className="text-xs bg-destructive/10 text-destructive border-0">
+                      {urgentCount} dringend
+                    </Badge>
+                  )}
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground">
+                      <Settings2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Alert-Einstellungen</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {totalPendingAlerts === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="mx-auto h-9 w-9 text-emerald-500/40 mb-2" />
+                  <p className="font-medium text-sm">Alles erledigt</p>
+                  <p className="text-xs text-muted-foreground">Keine offenen Aufgaben</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-0.5">
+                  {pendingAlerts.map((alert) => {
+                    const candidate = candidateMap[alert.submission_id];
+                    const typeInfo = getAlertTypeLabel(alert.alert_type);
+                    const isUrgent = alert.priority === 'critical';
+
+                    return (
+                      <div
+                        key={alert.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleViewCandidate(alert.submission_id, alert.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleViewCandidate(alert.submission_id, alert.id); }}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition-all cursor-pointer group',
+                          isUrgent
+                            ? 'bg-destructive/[0.04] hover:bg-destructive/[0.08]'
+                            : 'hover:bg-accent/50'
+                        )}
+                      >
+                        <div className={cn(
+                          'w-1.5 h-1.5 rounded-full shrink-0',
+                          isUrgent ? 'bg-destructive' : 'bg-muted-foreground/30'
+                        )} />
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium truncate">
+                              {candidate?.name || 'Kandidat'}
+                            </span>
+                            <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border-0 shrink-0', typeInfo.color)}>
+                              {typeInfo.label}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {candidate?.jobTitle}
+                            {candidate?.companyName ? ` · ${candidate.companyName}` : ''}
+                          </p>
+                        </div>
+
+                        {candidate?.earning && (
+                          <span className="text-xs font-semibold text-emerald-600 shrink-0 tabular-nums">
+                            {formatEuro(candidate.earning)}
+                          </span>
+                        )}
+
+                        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {candidate?.phone && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost" size="sm" className="h-6 w-6 p-0"
+                                  onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${candidate.phone}`; }}
+                                >
+                                  <Phone className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Anrufen</TooltipContent>
+                            </Tooltip>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost" size="sm"
+                                className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                onClick={(e) => { e.stopPropagation(); handleMarkDone(alert.id); }}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Erledigt</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {totalPendingAlerts > 5 && (
+                    <Button
+                      variant="ghost" size="sm"
+                      className="w-full text-xs text-muted-foreground mt-1"
+                      onClick={() => navigate('/recruiter/influence')}
+                    >
+                      Alle {totalPendingAlerts} Aufgaben anzeigen
+                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── CELL 2: Pipeline (top-right) ─── */}
+          <Card className="border-border/30 shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">Pipeline</h2>
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
+                  <Link to="/recruiter/submissions">
+                    Details
+                    <ArrowUpRight className="ml-1 h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="space-y-2.5 mb-4">
+                {pipelineStages.map((stage) => (
+                  <div key={stage.key} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-20 shrink-0">
+                      {stage.label}
+                    </span>
+                    <div className="flex-1 h-2.5 rounded-full bg-muted/50 overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full transition-all duration-500', stage.color)}
+                        style={{ width: `${Math.max((stage.count / maxPipelineCount) * 100, stage.count > 0 ? 12 : 0)}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold w-6 text-right tabular-nums">
+                      {stage.count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-3 border-t border-border/40 space-y-1.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between text-sm cursor-help">
+                      <span className="text-muted-foreground">Erwartbar</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-semibold text-emerald-600">{formatEuroFull(stats.pipelineRealCase)}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          ({formatEuro(stats.pipelineWorstCase)} – {formatEuro(stats.pipelineBestCase)})
+                        </span>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+                    Gewichtet nach Pipeline-Stage: Eingereicht 10%, In Prüfung 20%, Interview 40%, Angebot 75%
+                  </TooltipContent>
+                </Tooltip>
+                {stats.earnings > 0 && (
+                  <div className="flex items-center justify-between text-sm pt-1 border-t border-border/30">
+                    <span className="text-muted-foreground">Verdient</span>
+                    <span className="font-semibold">{formatEuroFull(stats.earnings)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Interviews inside Pipeline cell */}
+              {upcomingInterviews.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-border/40">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">ANSTEHENDE INTERVIEWS</p>
+                  <div className="space-y-2">
+                    {upcomingInterviews.map((interview, i) => (
+                      <div
+                        key={i}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => interview.candidateId && navigate(`/recruiter/candidates/${interview.candidateId}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && interview.candidateId) navigate(`/recruiter/candidates/${interview.candidateId}`); }}
+                        className="flex gap-2.5 p-2 rounded-md bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                      >
+                        <Video className="h-3.5 w-3.5 text-purple-500 mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium">{formatInterviewDate(interview.date)}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {interview.candidateName} · {interview.jobTitle}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── CELL 3: Top Jobs (bottom-left) ─── */}
+          <Card className="border-border/30 shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">Top Jobs</h2>
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
+                  <Link to="/recruiter/jobs">
+                    Alle {stats.openJobs} Jobs
+                    <ArrowUpRight className="ml-1 h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
+
+              {recentJobs.length === 0 ? (
+                <div className="text-center py-8">
+                  <Briefcase className="mx-auto h-9 w-9 text-muted-foreground/30 mb-2" />
+                  <p className="text-xs text-muted-foreground">Keine Jobs verfügbar</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
                   {recentJobs.map((job) => {
-                    const profile = companyProfiles[job.client_id];
-                    
+                    const earning = calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
+
                     return (
                       <Link
                         key={job.id}
                         to={`/recruiter/jobs/${job.id}`}
-                        className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-emerald/30 hover:bg-accent/50 transition-all group"
+                        className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all group"
                       >
-                        <div className="flex items-center gap-4">
-                          {revealedJobIds.has(job.id) ? (
-                            // Revealed: Show company logo
-                            <div className="h-10 w-10 rounded-lg overflow-hidden bg-background border border-border/50 flex items-center justify-center">
-                              <img 
-                                src={getCompanyLogoUrl(
-                                  profile?.logo_url,
-                                  profile?.website,
-                                  revealedCompanyNames.get(job.id) || ''
-                                )}
-                                alt={revealedCompanyNames.get(job.id) || 'Company'}
-                                className="h-8 w-8 object-contain"
-                                onError={(e) => {
-                                  const name = revealedCompanyNames.get(job.id) || 'U';
-                                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1e3a5f&color=fff&size=96&bold=true`;
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            // Anonymous: Show briefcase icon
-                            <div className="h-10 w-10 rounded-lg bg-gradient-navy flex items-center justify-center">
-                              <Briefcase className="h-5 w-5 text-primary-foreground" />
-                            </div>
-                          )}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium">{job.title}</h4>
-                              {revealedJobIds.has(job.id) && (
-                                <Badge variant="outline" className="text-xs border-emerald/30 text-emerald">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Enthüllt
-                                </Badge>
-                              )}
-                            </div>
+                        {revealedJobIds.has(job.id) ? (
+                          <div className="h-8 w-8 rounded-md overflow-hidden bg-background border border-border/50 flex items-center justify-center shrink-0">
+                            <img
+                              src={getCompanyLogoUrl(companyProfiles[job.client_id]?.logo_url, companyProfiles[job.client_id]?.website, revealedCompanyNames.get(job.id) || '')}
+                              alt=""
+                              className="h-6 w-6 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(revealedCompanyNames.get(job.id) || 'U')}&background=1e3a5f&color=fff&size=64&bold=true`;
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center shrink-0">
+                            <Lock className="h-3.5 w-3.5 text-muted-foreground/50" />
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                            {job.title}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             {revealedJobIds.has(job.id) ? (
-                              // Revealed: Show full company details
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{revealedCompanyNames.get(job.id) || job.title}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                  {formatHeadcount(profile?.headcount) && (
-                                    <span className="flex items-center gap-1">
-                                      <Building2 className="h-3 w-3" />
-                                      {formatHeadcount(profile?.headcount)}
-                                    </span>
-                                  )}
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {job.location}
-                                  </span>
-                                  <span className="capitalize">{job.remote_type}</span>
-                                </div>
-                              </div>
+                              <span className="truncate">{revealedCompanyNames.get(job.id)}</span>
                             ) : (
-                              // Anonymous: Show anonymized company info
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Lock className="h-3 w-3" />
-                                  {formatAnonymousCompany({
-                                    industry: job.industry,
-                                    companySize: job.company_size_band,
-                                    fundingStage: job.funding_stage,
-                                    techStack: job.tech_environment,
-                                    location: job.location,
-                                    urgency: job.hiring_urgency,
-                                    remoteType: job.remote_type,
-                                  })}
-                                </span>
-                              </div>
+                              <span className="flex items-center gap-0.5 truncate">
+                                <Lock className="h-2.5 w-2.5" />
+                                {job.industry || 'Unternehmen'}
+                              </span>
                             )}
+                            <span className="text-border">·</span>
+                            <span className="truncate">{job.location}</span>
                           </div>
                         </div>
-                      <div className="flex items-center gap-4 text-right">
-                        <div>
-                          <p className="font-medium text-emerald">
-                            {job.recruiter_fee_percentage}% Fee
-                          </p>
-                          {calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage) && (
-                            <p className="text-sm font-semibold text-emerald">
-                              ~€{calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage)?.toLocaleString()}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            {formatSalary(job.salary_min, job.salary_max)}
+
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-semibold text-emerald-600">
+                            {earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`}
                           </p>
                         </div>
-                        <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
                       </Link>
                     );
                   })}
@@ -694,70 +954,97 @@ export default function RecruiterDashboard() {
             </CardContent>
           </Card>
 
-          {/* Talent Pipeline */}
-          <SubmissionsPipeline 
-            submissions={recentSubmissions} 
-            loading={submissionsLoading} 
-          />
+          {/* ─── CELL 4: Quick Stats & Actions (bottom-right) ─── */}
+          <Card className="border-border/30 shadow-sm">
+            <CardContent className="p-5">
+              <h2 className="font-semibold mb-3">Übersicht</h2>
 
-          {/* Quick Actions */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group">
-              <Link to="/recruiter/candidates/new">
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-emerald/10 text-emerald group-hover:bg-emerald group-hover:text-success-foreground transition-colors">
-                    <Users className="h-6 w-6" />
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Offene Jobs</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Add Candidate</h3>
-                    <p className="text-sm text-muted-foreground">Upload a new candidate</p>
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
-
-            <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group" onClick={() => setHubspotDialogOpen(true)}>
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-primary-foreground transition-colors">
-                  <Upload className="h-6 w-6" />
+                  <p className="text-xl font-bold">{stats.openJobs}</p>
                 </div>
-                <div>
-                  <h3 className="font-semibold">HubSpot Import</h3>
-                  <p className="text-sm text-muted-foreground">Kontakte importieren</p>
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Kandidaten</span>
+                  </div>
+                  <p className="text-xl font-bold">{stats.myCandidates}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">In Pipeline</span>
+                  </div>
+                  <p className="text-xl font-bold">{stats.activeSubmissions}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Euro className="h-3.5 w-3.5 text-emerald-600" />
+                    <span className="text-xs text-emerald-600">Verdient</span>
+                  </div>
+                  <p className="text-xl font-bold text-emerald-600">{formatEuroFull(stats.earnings)}</p>
+                </div>
+              </div>
 
-            <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group">
-              <Link to="/recruiter/submissions">
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    <FileText className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">My Submissions</h3>
-                    <p className="text-sm text-muted-foreground">Track candidate status</p>
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
+              <div className="space-y-2">
+                <Button
+                  variant="outline" size="sm"
+                  className="w-full justify-start text-sm"
+                  asChild
+                >
+                  <Link to="/recruiter/jobs">
+                    <Briefcase className="mr-2 h-3.5 w-3.5" />
+                    Offene Jobs durchsuchen
+                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline" size="sm"
+                  className="w-full justify-start text-sm"
+                  asChild
+                >
+                  <Link to="/recruiter/candidates">
+                    <Users className="mr-2 h-3.5 w-3.5" />
+                    Meine Kandidaten
+                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline" size="sm"
+                  className="w-full justify-start text-sm"
+                  asChild
+                >
+                  <Link to="/recruiter/earnings">
+                    <Euro className="mr-2 h-3.5 w-3.5" />
+                    Verdienste & Auszahlungen
+                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            <Card className="border-border/50 hover:border-primary/30 transition-colors cursor-pointer group">
-              <Link to="/recruiter/earnings">
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-primary-foreground transition-colors">
-                    <DollarSign className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">View Earnings</h3>
-                    <p className="text-sm text-muted-foreground">Track your payouts</p>
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
-          </div>
-
-        {/* Dialogs */}
+        {/* ─── Dialogs ─── */}
+        <CandidateFormDialog
+          open={candidateFormOpen}
+          onOpenChange={setCandidateFormOpen}
+          candidate={null}
+          onSave={handleSaveNewCandidate}
+          processing={candidateFormProcessing}
+        />
+        <CvUploadDialog
+          open={cvUploadDialogOpen}
+          onOpenChange={setCvUploadDialogOpen}
+          onCandidateCreated={(id) => {
+            toast.success('Kandidat erfolgreich angelegt');
+            navigate(`/recruiter/candidates/${id}`);
+          }}
+        />
         <HubSpotImportDialog
           open={hubspotDialogOpen}
           onOpenChange={setHubspotDialogOpen}
@@ -765,6 +1052,55 @@ export default function RecruiterDashboard() {
             toast.success('Kandidaten erfolgreich importiert');
           }}
         />
+
+        {/* Email Inbound Dialog */}
+        <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Kandidaten per E-Mail einreichen</DialogTitle>
+              <DialogDescription>
+                Leite CVs einfach als PDF-Anhang an deine persoenliche Matchunt-Adresse weiter.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-muted rounded-md px-3 py-2.5 text-sm font-mono select-all truncate border border-border/50">
+                  {inboundEmail}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 h-9 w-9 p-0"
+                  onClick={handleCopyEmail}
+                >
+                  {emailCopied ? (
+                    <Check className="h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-2 bg-muted/30 rounded-lg p-3">
+                <div className="flex gap-2">
+                  <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>PDF-Lebenslaeufe werden automatisch analysiert und als Kandidaten angelegt – auch mehrere auf einmal.</span>
+                </div>
+                <div className="flex gap-2">
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>Schreibe Notizen einfach in den E-Mail-Text dazu – sie werden automatisch erkannt und dem Kandidaten zugeordnet.</span>
+                </div>
+                <div className="flex gap-2">
+                  <Users className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>Notizen ohne CV? Das System erkennt den Kandidatennamen und ordnet alles automatisch zu.</span>
+                </div>
+                <div className="flex gap-2">
+                  <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>Bereits vorhandene Kandidaten werden erkannt und aktualisiert statt doppelt angelegt.</span>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
