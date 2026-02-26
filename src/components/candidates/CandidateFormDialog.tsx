@@ -11,10 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Loader2, User, Briefcase, Euro, FileText, Plus, X, 
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Loader2, User, Briefcase, Euro, FileText, Plus, X,
   MapPin, Globe, Phone, Mail, Linkedin, Github, ExternalLink,
-  Award, Target, Building2, Calendar, Clock, Sparkles, Car
+  Award, Target, Building2, Calendar, Clock, Sparkles, Car,
+  Shield, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Candidate } from './CandidateCard';
 import { CommutePreferencesCard } from './CommutePreferencesCard';
@@ -212,6 +214,12 @@ export function CandidateFormDialog({
 }: CandidateFormDialogProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [activeTab, setActiveTab] = useState('personal');
+  const [gdprLegalBasis, setGdprLegalBasis] = useState(false);
+  const [gdprCandidateInformed, setGdprCandidateInformed] = useState(false);
+  const [gdprDataRelevant, setGdprDataRelevant] = useState(false);
+  const [gdprInfoExpanded, setGdprInfoExpanded] = useState(false);
+  const gdprAllChecked = gdprLegalBasis && gdprCandidateInformed && gdprDataRelevant;
+  const isNewCandidate = !candidate;
   
   useEffect(() => {
     if (candidate) {
@@ -983,11 +991,63 @@ export function CandidateFormDialog({
           </ScrollArea>
         </Tabs>
         
+        {/* DSGVO section for new candidates */}
+        {isNewCandidate && (
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="flex items-start gap-2.5">
+                <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    Sie sind verantwortlich für die rechtmäßige Verarbeitung dieser Kandidatendaten (DSGVO).
+                    Hire Speedy verarbeitet die Daten in Ihrem Auftrag.
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    onClick={() => setGdprInfoExpanded(!gdprInfoExpanded)}
+                  >
+                    Mehr erfahren
+                    {gdprInfoExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                  {gdprInfoExpanded && (
+                    <ul className="text-xs text-muted-foreground space-y-1 pt-2 border-t mt-2">
+                      <li>• Daten abgelehnter Kandidaten werden nach 6 Monaten automatisch zur Löschung vorgeschlagen.</li>
+                      <li>• Für den Talent-Pool wird eine gesonderte Einwilligung des Kandidaten benötigt.</li>
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <Checkbox checked={gdprLegalBasis} onCheckedChange={(v) => setGdprLegalBasis(v === true)} className="mt-0.5" />
+                <span className="text-xs leading-snug">
+                  Eine gültige Rechtsgrundlage für die Verarbeitung liegt vor (z.B. Einwilligung, Bewerbung oder berechtigtes Interesse gem. Art. 6 DSGVO).
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <Checkbox checked={gdprCandidateInformed} onCheckedChange={(v) => setGdprCandidateInformed(v === true)} className="mt-0.5" />
+                <span className="text-xs leading-snug">
+                  Der Kandidat wurde bzw. wird über die Verarbeitung seiner Daten informiert.
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <Checkbox checked={gdprDataRelevant} onCheckedChange={(v) => setGdprDataRelevant(v === true)} className="mt-0.5" />
+                <span className="text-xs leading-snug">
+                  Die Daten enthalten nur bewerbungsrelevante Informationen.
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
+
         <DialogFooter className="mt-4 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>
             Abbrechen
           </Button>
-          <Button onClick={handleSave} disabled={processing || !formData.full_name || !formData.email}>
+          <Button onClick={handleSave} disabled={processing || !formData.full_name || !formData.email || (isNewCandidate && !gdprAllChecked)}>
             {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {candidate ? 'Speichern' : 'Hinzufügen'}
           </Button>

@@ -17,6 +17,8 @@ export interface InfluenceAlert {
   action_taken: string | null;
   action_taken_at: string | null;
   expires_at: string | null;
+  snoozed_until: string | null;
+  impact_score: number;
   created_at: string;
 }
 
@@ -30,15 +32,26 @@ export function useInfluenceAlerts() {
     if (!user) return;
 
     try {
+      const now = new Date().toISOString();
       const { data, error: fetchError } = await supabase
         .from('influence_alerts')
         .select('*')
         .eq('recruiter_id', user.id)
         .eq('is_dismissed', false)
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
-      setAlerts((data || []) as InfluenceAlert[]);
+
+      // Client-side filter for snoozed_until (column may not exist yet in DB)
+      const filtered = ((data || []) as InfluenceAlert[]).filter(a => {
+        if (a.snoozed_until && new Date(a.snoozed_until) > new Date()) {
+          return false;
+        }
+        return true;
+      });
+
+      setAlerts(filtered);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Laden der Alerts');
     } finally {
@@ -114,9 +127,20 @@ export function useInfluenceAlerts() {
     }
   };
 
+  const snooze = async (alertId: string, until: Date) => {
+    const { error } = await supabase
+      .from('influence_alerts')
+      .update({ snoozed_until: until.toISOString() } as any)
+      .eq('id', alertId);
+
+    if (!error) {
+      setAlerts(prev => prev.filter(a => a.id !== alertId));
+    }
+  };
+
   const unreadCount = alerts.filter(a => !a.is_read).length;
-  const criticalCount = alerts.filter(a => a.priority === 'critical').length;
-  const highCount = alerts.filter(a => a.priority === 'high').length;
+  const criticalCount = alerts.filter(a => a.priority === 'critical' && !a.action_taken).length;
+  const highCount = alerts.filter(a => a.priority === 'high' && !a.action_taken).length;
 
   return {
     alerts,
@@ -126,6 +150,7 @@ export function useInfluenceAlerts() {
     markAsRead,
     dismiss,
     takeAction,
+    snooze,
     unreadCount,
     criticalCount,
     highCount,

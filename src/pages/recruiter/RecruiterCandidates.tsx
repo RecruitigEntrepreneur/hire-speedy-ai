@@ -155,7 +155,22 @@ export default function RecruiterCandidates() {
         ({ error } = await supabase.from('candidates').update(candidateData as never).eq('id', editingCandidate.id));
       } else {
         const insertData = { ...candidateData, recruiter_id: user?.id };
-        ({ error } = await supabase.from('candidates').insert(insertData as never));
+        const { error: insertError, data: insertedData } = await supabase.from('candidates').insert(insertData as never).select('id').single();
+        error = insertError;
+        // Log GDPR consent for new candidates
+        if (!insertError && insertedData && user?.id) {
+          await supabase.from('consents').insert({
+            subject_id: user.id,
+            subject_type: 'recruiter',
+            consent_type: 'candidate_data_processing',
+            granted: true,
+            granted_at: new Date().toISOString(),
+            scope: (insertedData as { id: string }).id,
+            version: '1.0',
+          }).then(({ error: consentError }) => {
+            if (consentError) console.error('Failed to log GDPR consent:', consentError);
+          });
+        }
       }
       if (error) throw error;
       toast.success(editingCandidate ? 'Kandidat aktualisiert' : 'Kandidat hinzugefügt');

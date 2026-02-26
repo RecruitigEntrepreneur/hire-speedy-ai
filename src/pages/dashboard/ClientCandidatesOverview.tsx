@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -12,9 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 import { CandidateInboxCard, CandidateCardData } from '@/components/dashboard/CandidateInboxCard';
-import { Search, Filter, ArrowUpDown, Users } from 'lucide-react';
+import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
+import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
+import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
+import { Search, Filter, ArrowUpDown, Users, Plus, ChevronDown, Upload, FileText, Link as LinkIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Job {
   id: string;
@@ -31,6 +43,9 @@ export default function ClientCandidatesOverview() {
   const [jobFilter, setJobFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'waiting'>('waiting');
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
+  const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) fetchAllData();
@@ -132,9 +147,47 @@ export default function ClientCandidatesOverview() {
     <DashboardLayout>
       <div className="space-y-5">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Bewerbungen</h1>
-          <span className="text-sm text-muted-foreground">{activeCount} eingegangen</span>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Bewerbungen</h1>
+            <p className="text-muted-foreground mt-1">Verwalten Sie Ihre Kandidaten-Pipeline</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Kandidat hinzufügen
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setFormDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Manuell hinzufügen
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCvUploadDialogOpen(true)}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  CV hochladen
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Aus HubSpot importieren
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <Upload className="h-4 w-4 mr-2" />
+                  CSV importieren (bald)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/recruiter/integrations" className="flex items-center">
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    CRM verbinden
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Filters */}
@@ -198,6 +251,35 @@ export default function ClientCandidatesOverview() {
           </div>
         )}
       </div>
+
+      <CandidateFormDialog
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        candidate={null}
+        onSave={async () => {
+          setFormDialogOpen(false);
+          fetchAllData();
+          toast.success('Kandidat hinzugefügt');
+        }}
+      />
+
+      <CvUploadDialog
+        open={cvUploadDialogOpen}
+        onOpenChange={setCvUploadDialogOpen}
+        onCandidateCreated={() => {
+          fetchAllData();
+          toast.success('Kandidat aus CV erstellt');
+        }}
+      />
+
+      <HubSpotImportDialog
+        open={hubspotDialogOpen}
+        onOpenChange={setHubspotDialogOpen}
+        onImportComplete={() => {
+          fetchAllData();
+          toast.success('Kandidaten importiert');
+        }}
+      />
     </DashboardLayout>
   );
 }

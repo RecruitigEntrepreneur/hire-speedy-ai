@@ -9,20 +9,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Upload, 
-  FileText, 
-  Loader2, 
-  CheckCircle2, 
-  User, 
-  Briefcase, 
-  GraduationCap, 
-  Languages, 
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Upload,
+  FileText,
+  Loader2,
+  CheckCircle2,
+  User,
+  Briefcase,
+  GraduationCap,
+  Languages,
   Sparkles,
   Edit2,
   X,
   AlertCircle,
-  File
+  File,
+  Shield,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
 import { useAuth } from '@/lib/auth';
@@ -62,8 +67,27 @@ interface CvUploadDialogProps {
   existingCandidateId?: string;
 }
 
-type Step = 'upload' | 'extracting' | 'parsing' | 'review' | 'saving';
+type Step = 'upload' | 'gdpr' | 'extracting' | 'parsing' | 'review' | 'saving';
 type UploadMode = 'pdf' | 'text';
+
+// Visual steps shown in the progress bar (extracting+parsing combined into "Analyse")
+const VISUAL_STEPS = [
+  { key: 'upload', label: 'Upload' },
+  { key: 'gdpr', label: 'Datenschutz' },
+  { key: 'analyse', label: 'Analyse' },
+  { key: 'review', label: 'Prüfen' },
+  { key: 'saving', label: 'Speichern' },
+] as const;
+
+function getVisualStep(step: Step): string {
+  if (step === 'extracting' || step === 'parsing') return 'analyse';
+  return step;
+}
+
+function getVisualStepIndex(step: Step): number {
+  const vs = getVisualStep(step);
+  return VISUAL_STEPS.findIndex(s => s.key === vs);
+}
 
 export function CvUploadDialog({ 
   open, 
@@ -83,6 +107,11 @@ export function CvUploadDialog({
   const [editMode, setEditMode] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [gdprLegalBasis, setGdprLegalBasis] = useState(false);
+  const [gdprCandidateInformed, setGdprCandidateInformed] = useState(false);
+  const [gdprDataRelevant, setGdprDataRelevant] = useState(false);
+  const [gdprInfoExpanded, setGdprInfoExpanded] = useState(false);
+  const gdprAllChecked = gdprLegalBasis && gdprCandidateInformed && gdprDataRelevant;
   const [uploadedFileInfo, setUploadedFileInfo] = useState<{
     fileName: string;
     fileUrl: string;
@@ -186,11 +215,28 @@ export function CvUploadDialog({
     }
   };
 
+  const logGdprConsent = async (candidateId: string) => {
+    if (!user?.id) return;
+    try {
+      await supabase.from('consents').insert({
+        subject_id: user.id,
+        subject_type: 'recruiter',
+        consent_type: 'candidate_data_processing',
+        granted: true,
+        granted_at: new Date().toISOString(),
+        scope: candidateId,
+        version: '1.0',
+      });
+    } catch (err) {
+      console.error('Failed to log GDPR consent:', err);
+    }
+  };
+
   const handleSave = async () => {
     if (!parsedData || !user?.id) return;
-    
+
     setStep('saving');
-    
+
     const candidateId = await saveParsedCandidate(
       parsedData,
       rawText,
@@ -198,8 +244,9 @@ export function CvUploadDialog({
       existingCandidateId,
       uploadedFileInfo || undefined
     );
-    
+
     if (candidateId) {
+      await logGdprConsent(candidateId);
       onCandidateCreated?.(candidateId);
       handleClose();
     } else {
@@ -216,6 +263,10 @@ export function CvUploadDialog({
     setEditMode(false);
     setSelectedFile(null);
     setUploadedFileInfo(null);
+    setGdprLegalBasis(false);
+    setGdprCandidateInformed(false);
+    setGdprDataRelevant(false);
+    setGdprInfoExpanded(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -262,6 +313,7 @@ export function CvUploadDialog({
           </DialogTitle>
           <DialogDescription>
             {step === 'upload' && 'Laden Sie eine PDF-Datei hoch oder fügen Sie den CV-Text ein.'}
+            {step === 'gdpr' && 'Datenschutz bestätigen'}
             {step === 'extracting' && 'PDF wird verarbeitet...'}
             {step === 'parsing' && 'CV wird analysiert...'}
             {step === 'review' && 'Überprüfen und bearbeiten Sie die extrahierten Daten.'}
@@ -270,27 +322,38 @@ export function CvUploadDialog({
         </DialogHeader>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2 py-4">
-          {['upload', 'extracting', 'parsing', 'review', 'saving'].map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                step === s 
-                  ? 'bg-primary text-primary-foreground' 
-                  : ['extracting', 'parsing', 'review', 'saving'].indexOf(step) > ['extracting', 'parsing', 'review', 'saving'].indexOf(s as Step)
-                    ? 'bg-primary/20 text-primary'
-                    : 'bg-muted text-muted-foreground'
-              }`}>
-                {step === s && (s === 'extracting' || s === 'parsing' || s === 'saving') ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : ['extracting', 'parsing', 'review', 'saving'].indexOf(step) > ['extracting', 'parsing', 'review', 'saving'].indexOf(s as Step) ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  i + 1
-                )}
+        <div className="flex items-center justify-center gap-1 py-4">
+          {VISUAL_STEPS.map((vs, i) => {
+            const currentIdx = getVisualStepIndex(step);
+            const isActive = vs.key === getVisualStep(step);
+            const isCompleted = i < currentIdx;
+            const isLoading = isActive && (step === 'extracting' || step === 'parsing' || step === 'saving');
+            return (
+              <div key={vs.key} className="flex items-center gap-1">
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : isCompleted
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isCompleted ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      i + 1
+                    )}
+                  </div>
+                  <span className={`text-[10px] ${isActive ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                    {vs.label}
+                  </span>
+                </div>
+                {i < VISUAL_STEPS.length - 1 && <div className="w-6 h-0.5 bg-muted mb-4" />}
               </div>
-              {i < 4 && <div className="w-8 h-0.5 bg-muted" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Step Content */}
@@ -359,16 +422,11 @@ export function CvUploadDialog({
                   <Button variant="outline" onClick={handleClose}>
                     Abbrechen
                   </Button>
-                  <Button 
-                    onClick={handlePdfUploadAndParse} 
-                    disabled={!selectedFile || uploading}
+                  <Button
+                    onClick={() => setStep('gdpr')}
+                    disabled={!selectedFile}
                   >
-                    {uploading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
-                    PDF analysieren
+                    Weiter
                   </Button>
                 </div>
               </TabsContent>
@@ -388,13 +446,100 @@ export function CvUploadDialog({
                   <Button variant="outline" onClick={handleClose}>
                     Abbrechen
                   </Button>
-                  <Button onClick={handleTextParse} disabled={!cvText.trim()}>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    CV analysieren
+                  <Button onClick={() => setStep('gdpr')} disabled={!cvText.trim()}>
+                    Weiter
                   </Button>
                 </div>
               </TabsContent>
             </Tabs>
+          </div>
+        )}
+
+        {step === 'gdpr' && (
+          <div className="space-y-5">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    Sie sind verantwortlich für die rechtmäßige Verarbeitung dieser Kandidatendaten (DSGVO).
+                    Hire Speedy verarbeitet die Daten in Ihrem Auftrag.
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    onClick={() => setGdprInfoExpanded(!gdprInfoExpanded)}
+                  >
+                    Mehr erfahren
+                    {gdprInfoExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                  {gdprInfoExpanded && (
+                    <ul className="text-xs text-muted-foreground space-y-1.5 pt-2 border-t mt-2">
+                      <li>• Daten abgelehnter Kandidaten werden nach 6 Monaten automatisch zur Löschung vorgeschlagen.</li>
+                      <li>• Für den Talent-Pool wird eine gesonderte Einwilligung des Kandidaten benötigt.</li>
+                      <li className="pt-1">
+                        <a href="/datenschutz" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                          Datenschutzerklärung <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </li>
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox
+                  checked={gdprLegalBasis}
+                  onCheckedChange={(v) => setGdprLegalBasis(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm leading-snug">
+                  Eine gültige Rechtsgrundlage für die Verarbeitung liegt vor (z.B. Einwilligung, Bewerbung oder berechtigtes Interesse gem. Art. 6 DSGVO).
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox
+                  checked={gdprCandidateInformed}
+                  onCheckedChange={(v) => setGdprCandidateInformed(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm leading-snug">
+                  Der Kandidat wurde bzw. wird über die Verarbeitung seiner Daten informiert.
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox
+                  checked={gdprDataRelevant}
+                  onCheckedChange={(v) => setGdprDataRelevant(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm leading-snug">
+                  Die Daten enthalten nur bewerbungsrelevante Informationen.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <Button variant="outline" onClick={() => setStep('upload')}>
+                Zurück
+              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleClose}>
+                  Abbrechen
+                </Button>
+                <Button
+                  onClick={uploadMode === 'pdf' ? handlePdfUploadAndParse : handleTextParse}
+                  disabled={!gdprAllChecked}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Weiter
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -719,7 +864,7 @@ export function CvUploadDialog({
         {/* Footer Actions for Review Step */}
         {step === 'review' && (
           <div className="flex justify-between pt-4 border-t">
-            <Button variant="outline" onClick={() => setStep('upload')}>
+            <Button variant="outline" onClick={() => setStep('gdpr')}>
               Zurück
             </Button>
             <div className="flex gap-2">
