@@ -7,16 +7,21 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
-import { 
-  Upload, 
-  Loader2, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  Upload,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
   User,
   Mail,
   Phone,
-  RefreshCw
+  RefreshCw,
+  Shield,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react';
 
 interface HubSpotContact {
@@ -37,13 +42,19 @@ interface HubSpotImportDialogProps {
 }
 
 export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: HubSpotImportDialogProps) {
-  const [step, setStep] = useState<'fetch' | 'select' | 'importing' | 'complete'>('fetch');
+  const { user } = useAuth();
+  const [step, setStep] = useState<'fetch' | 'select' | 'gdpr' | 'importing' | 'complete'>('fetch');
   const [contacts, setContacts] = useState<HubSpotContact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<{ imported: number; skipped: number; failed: number }>({ imported: 0, skipped: 0, failed: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [gdprLegalBasis, setGdprLegalBasis] = useState(false);
+  const [gdprCandidateInformed, setGdprCandidateInformed] = useState(false);
+  const [gdprDataRelevant, setGdprDataRelevant] = useState(false);
+  const [gdprInfoExpanded, setGdprInfoExpanded] = useState(false);
+  const gdprAllChecked = gdprLegalBasis && gdprCandidateInformed && gdprDataRelevant;
 
   const fetchContacts = async () => {
     setLoading(true);
@@ -114,8 +125,20 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
 
     setResults({ imported, skipped, failed });
     setStep('complete');
-    
-    if (imported > 0) {
+
+    // Log GDPR consent for the import batch
+    if (imported > 0 && user?.id) {
+      await supabase.from('consents').insert({
+        subject_id: user.id,
+        subject_type: 'recruiter',
+        consent_type: 'candidate_data_processing',
+        granted: true,
+        granted_at: new Date().toISOString(),
+        scope: `hubspot_import_${imported}_contacts`,
+        version: '1.0',
+      }).then(({ error: consentError }) => {
+        if (consentError) console.error('Failed to log GDPR consent:', consentError);
+      });
       onImportComplete();
     }
   };
@@ -145,6 +168,10 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
     setProgress(0);
     setResults({ imported: 0, skipped: 0, failed: 0 });
     setError(null);
+    setGdprLegalBasis(false);
+    setGdprCandidateInformed(false);
+    setGdprDataRelevant(false);
+    setGdprInfoExpanded(false);
   };
 
   const handleClose = (open: boolean) => {
@@ -260,12 +287,77 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
               <Button variant="outline" onClick={() => handleClose(false)}>
                 Abbrechen
               </Button>
-              <Button onClick={handleImport} disabled={selectedIds.size === 0}>
+              <Button onClick={() => setStep('gdpr')} disabled={selectedIds.size === 0}>
+                Weiter
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {step === 'gdpr' && (
+          <div className="space-y-5 py-2">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    Sie sind verantwortlich für die rechtmäßige Verarbeitung dieser Kandidatendaten (DSGVO).
+                    Hire Speedy verarbeitet die Daten in Ihrem Auftrag.
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    onClick={() => setGdprInfoExpanded(!gdprInfoExpanded)}
+                  >
+                    Mehr erfahren
+                    {gdprInfoExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                  {gdprInfoExpanded && (
+                    <ul className="text-xs text-muted-foreground space-y-1.5 pt-2 border-t mt-2">
+                      <li>• Daten abgelehnter Kandidaten werden nach 6 Monaten automatisch zur Löschung vorgeschlagen.</li>
+                      <li>• Für den Talent-Pool wird eine gesonderte Einwilligung des Kandidaten benötigt.</li>
+                      <li className="pt-1">
+                        <a href="/datenschutz" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                          Datenschutzerklärung <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </li>
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox checked={gdprLegalBasis} onCheckedChange={(v) => setGdprLegalBasis(v === true)} className="mt-0.5" />
+                <span className="text-sm leading-snug">
+                  Eine gültige Rechtsgrundlage für die Verarbeitung liegt vor (z.B. Einwilligung, Bewerbung oder berechtigtes Interesse gem. Art. 6 DSGVO).
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox checked={gdprCandidateInformed} onCheckedChange={(v) => setGdprCandidateInformed(v === true)} className="mt-0.5" />
+                <span className="text-sm leading-snug">
+                  Der Kandidat wurde bzw. wird über die Verarbeitung seiner Daten informiert.
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox checked={gdprDataRelevant} onCheckedChange={(v) => setGdprDataRelevant(v === true)} className="mt-0.5" />
+                <span className="text-sm leading-snug">
+                  Die Daten enthalten nur bewerbungsrelevante Informationen.
+                </span>
+              </label>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep('select')}>
+                Zurück
+              </Button>
+              <Button onClick={handleImport} disabled={!gdprAllChecked}>
                 <Upload className="h-4 w-4 mr-2" />
                 {selectedIds.size} importieren
               </Button>
             </DialogFooter>
-          </>
+          </div>
         )}
 
         {step === 'importing' && (

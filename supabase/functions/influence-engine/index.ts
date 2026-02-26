@@ -69,6 +69,7 @@ interface Alert {
   recommended_action: string;
   playbook_id?: string;
   expires_at?: string;
+  impact_score: number;
 }
 
 Deno.serve(async (req) => {
@@ -156,27 +157,19 @@ Deno.serve(async (req) => {
 
         if (!behaviorError) behaviorsUpdated++;
 
-        // Generate alerts
-        const alerts = generateAlerts(submission, candidate, job, interview, scores, playbookMap);
+        // Generate alerts with impact scores
+        const alerts = generateAlerts(submission, candidate, job, interview, scores, playbookMap, dealHealth);
 
-        // Insert new alerts (avoid duplicates)
+        // Upsert alerts (idempotent via partial UNIQUE index on submission_id + alert_type)
         for (const alert of alerts) {
-          const { data: existingAlert } = await supabase
+          const { error: alertError } = await supabase
             .from('influence_alerts')
-            .select('id')
-            .eq('submission_id', alert.submission_id)
-            .eq('alert_type', alert.alert_type)
-            .eq('is_dismissed', false)
-            .limit(1)
-            .maybeSingle();
+            .upsert(alert, {
+              onConflict: 'submission_id,alert_type',
+              ignoreDuplicates: false,
+            });
 
-          if (!existingAlert) {
-            const { error: alertError } = await supabase
-              .from('influence_alerts')
-              .insert(alert);
-
-            if (!alertError) alertsGenerated++;
-          }
+          if (!alertError) alertsGenerated++;
         }
 
       } catch (subError) {
@@ -379,16 +372,46 @@ function calculateScores(
   };
 }
 
+function calculateImpactScore(
+  scores: ReturnType<typeof calculateScores>,
+  dealHealth: any,
+  priority: Alert['priority']
+): number {
+  const dealHealthScore = dealHealth?.health_score ?? 50;
+  const closingProb = scores.closingProbability;
+
+  // Priority weight
+  const priorityWeight = { critical: 1.0, high: 0.8, medium: 0.5, low: 0.3 }[priority] ?? 0.5;
+
+  // Weighted formula: deal_health * 0.3 + closing * 0.25 + sla_urgency * 0.25 + base * 0.20
+  const slaUrgency = priority === 'critical' ? 100 : priority === 'high' ? 70 : 40;
+  const impact = Math.round(
+    dealHealthScore * 0.30 +
+    closingProb * 0.25 +
+    slaUrgency * 0.25 +
+    priorityWeight * 100 * 0.20
+  );
+
+  return Math.max(1, Math.min(100, impact));
+}
+
 function generateAlerts(
   submission: Submission,
   candidate: Candidate,
   job: Job,
   interview: Interview | undefined,
   scores: ReturnType<typeof calculateScores>,
-  playbookMap: Map<string, string>
+  playbookMap: Map<string, string>,
+  dealHealth: any
 ): Alert[] {
   const alerts: Alert[] = [];
   const now = new Date();
+
+  // Helper to build alert with auto-calculated impact_score
+  const makeAlert = (partial: Omit<Alert, 'impact_score'>): Alert => ({
+    ...partial,
+    impact_score: calculateImpactScore(scores, dealHealth, partial.priority),
+  });
 
   // Opt-In pending alerts
   if (submission.opt_in_requested_at && !submission.opt_in_response) {
@@ -396,7 +419,7 @@ function generateAlerts(
     const hoursSince = (now.getTime() - requestedAt.getTime()) / (1000 * 60 * 60);
 
     if (hoursSince > 48) {
-      alerts.push({
+      alerts.push(makeAlert({
         submission_id: submission.id,
         recruiter_id: submission.recruiter_id,
         alert_type: 'opt_in_pending_48h',
@@ -406,9 +429,9 @@ function generateAlerts(
         recommended_action: 'Rufen Sie den Kandidaten jetzt an und klären Sie mögliche Bedenken.',
         playbook_id: playbookMap.get('opt_in_delay'),
         expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-      });
+      }));
     } else if (hoursSince > 24) {
-      alerts.push({
+      alerts.push(makeAlert({
         submission_id: submission.id,
         recruiter_id: submission.recruiter_id,
         alert_type: 'opt_in_pending_24h',
@@ -418,7 +441,7 @@ function generateAlerts(
         recommended_action: 'Senden Sie eine WhatsApp oder Email als Erinnerung.',
         playbook_id: playbookMap.get('opt_in_delay'),
         expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-      });
+      }));
     }
   }
 
@@ -428,22 +451,23 @@ function generateAlerts(
     const hoursUntilInterview = (interviewDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (hoursUntilInterview > 0 && hoursUntilInterview < 48 && scores.readiness < 60) {
-      alerts.push({
+      const prio = hoursUntilInterview < 24 ? 'critical' : 'high' as const;
+      alerts.push(makeAlert({
         submission_id: submission.id,
         recruiter_id: submission.recruiter_id,
         alert_type: 'interview_prep_missing',
-        priority: hoursUntilInterview < 24 ? 'critical' : 'high',
+        priority: prio,
         title: `${candidate.full_name}: Interview-Vorbereitung prüfen`,
         message: `Das Interview ist in ${Math.round(hoursUntilInterview)} Stunden, aber der Kandidat scheint nicht vorbereitet zu sein.`,
         recommended_action: 'Kontaktieren Sie den Kandidaten und bieten Sie Vorbereitungsunterstützung an.',
         playbook_id: playbookMap.get('interview_prep'),
         expires_at: interview.scheduled_at,
-      });
+      }));
     }
 
     // No-show risk alert
     if (hoursUntilInterview > 0 && hoursUntilInterview < 24 && !interview.candidate_confirmed) {
-      alerts.push({
+      alerts.push(makeAlert({
         submission_id: submission.id,
         recruiter_id: submission.recruiter_id,
         alert_type: 'interview_reminder',
@@ -453,7 +477,7 @@ function generateAlerts(
         recommended_action: 'Sofort anrufen und Teilnahme bestätigen lassen.',
         playbook_id: playbookMap.get('interview_no_show_risk'),
         expires_at: interview.scheduled_at,
-      });
+      }));
     }
   }
 
@@ -463,7 +487,7 @@ function generateAlerts(
     const gapPercent = (salaryGap / job.salary_max) * 100;
 
     if (gapPercent > 20) {
-      alerts.push({
+      alerts.push(makeAlert({
         submission_id: submission.id,
         recruiter_id: submission.recruiter_id,
         alert_type: 'salary_mismatch',
@@ -472,27 +496,28 @@ function generateAlerts(
         message: `Der Kandidat erwartet ${candidate.expected_salary.toLocaleString('de-DE')}€, das Budget liegt bei max. ${job.salary_max.toLocaleString('de-DE')}€.`,
         recommended_action: 'Führen Sie ein Erwartungsmanagement-Gespräch und zeigen Sie Benefits auf.',
         playbook_id: playbookMap.get('salary_expectation_management'),
-      });
+      }));
     }
   }
 
   // Ghosting risk alert
   if (scores.daysSinceEngagement > 5) {
-    alerts.push({
+    const ghostPrio = scores.daysSinceEngagement > 7 ? 'critical' : 'high' as const;
+    alerts.push(makeAlert({
       submission_id: submission.id,
       recruiter_id: submission.recruiter_id,
       alert_type: 'ghosting_risk',
-      priority: scores.daysSinceEngagement > 7 ? 'critical' : 'high',
+      priority: ghostPrio,
       title: `${candidate.full_name}: Ghosting-Risiko!`,
       message: `Keine Aktivität seit ${scores.daysSinceEngagement} Tagen. Der Kandidat könnte das Interesse verloren haben.`,
       recommended_action: 'Kontaktieren Sie den Kandidaten umgehend und fragen Sie nach dem Status.',
       playbook_id: playbookMap.get('ghosting_prevention'),
-    });
+    }));
   }
 
   // Engagement drop alert
   if (scores.engagementLevel === 'low' && scores.confidence < 40) {
-    alerts.push({
+    alerts.push(makeAlert({
       submission_id: submission.id,
       recruiter_id: submission.recruiter_id,
       alert_type: 'engagement_drop',
@@ -501,12 +526,12 @@ function generateAlerts(
       message: `Die Engagement-Werte des Kandidaten sind niedrig. Möglicherweise Interesse nachlassend.`,
       recommended_action: 'Proaktiv Kontakt aufnehmen und Bedenken klären.',
       playbook_id: playbookMap.get('engagement_boost'),
-    });
+    }));
   }
 
   // Closing opportunity alert
   if (scores.closingProbability >= 80 && submission.stage !== 'offer') {
-    alerts.push({
+    alerts.push(makeAlert({
       submission_id: submission.id,
       recruiter_id: submission.recruiter_id,
       alert_type: 'closing_opportunity',
@@ -515,7 +540,7 @@ function generateAlerts(
       message: `Die Closing-Wahrscheinlichkeit liegt bei ${scores.closingProbability}%. Zeit, den Deal voranzutreiben!`,
       recommended_action: 'Sprechen Sie mit dem Kunden über den nächsten Schritt.',
       playbook_id: playbookMap.get('closing_preparation'),
-    });
+    }));
   }
 
   return alerts;

@@ -625,10 +625,10 @@ export default function RecruiterDashboard() {
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => setCvUploadDialogOpen(true)}
+                  onClick={() => setCandidateFormOpen(true)}
                 >
-                  <Upload className="mr-1.5 h-3.5 w-3.5" />
-                  CV hochladen
+                  <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                  Kandidaten anlegen
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -637,9 +637,9 @@ export default function RecruiterDashboard() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setCandidateFormOpen(true)}>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Manuell anlegen
+                    <DropdownMenuItem onClick={() => setCvUploadDialogOpen(true)}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      CV hochladen
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
                       <Upload className="mr-2 h-4 w-4" />

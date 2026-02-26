@@ -40,6 +40,7 @@ import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
 import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
 import RecruiterIntegrations from "./pages/recruiter/RecruiterIntegrations";
 import RecruiterCandidateDetail from "./pages/recruiter/RecruiterCandidateDetail";
+import SubmissionDetail from "./pages/recruiter/SubmissionDetail";
 
 // Integration pages
 import IntegrationSettings from "./pages/dashboard/IntegrationSettings";
@@ -306,7 +307,12 @@ function AppRoutes() {
           <RecruiterIntegrations />
         </ProtectedRoute>
       } />
-      
+      <Route path="/recruiter/submissions/:submissionId" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <SubmissionDetail />
+        </ProtectedRoute>
+      } />
+
       {/* Admin Routes */}
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={['admin']}>

@@ -1,26 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  AlertCircle, 
-  AlertTriangle, 
-  Check, 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
   Clock,
-  ChevronDown,
-  ChevronUp,
   Phone,
   Mail,
   ShieldCheck,
   Info,
-  FileText,
   MessageSquare,
   Edit,
   Upload,
+  Plus,
+  ListTodo,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
+import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
+import { useRecruiterTasks } from '@/hooks/useRecruiterTasks';
+import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
+import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 
 interface CandidateTask {
   id: string;
@@ -32,6 +43,10 @@ interface CandidateTask {
   action_taken: string | null;
   created_at: string;
   submission_id: string;
+  playbook_id?: string | null;
+  // Enriched data
+  jobTitle?: string | null;
+  companyName?: string | null;
 }
 
 interface CandidateContact {
@@ -71,29 +86,33 @@ interface CandidateTasksSectionProps {
 }
 
 const priorityConfig = {
-  critical: { 
-    icon: AlertCircle, 
-    label: 'Kritisch', 
+  critical: {
+    icon: AlertCircle,
+    label: 'Kritisch',
     color: 'text-destructive',
     bgColor: 'bg-destructive/10',
+    borderColor: 'border-l-destructive',
   },
-  high: { 
-    icon: AlertTriangle, 
-    label: 'Hoch', 
+  high: {
+    icon: AlertTriangle,
+    label: 'Hoch',
     color: 'text-amber-600',
     bgColor: 'bg-amber-500/10',
+    borderColor: 'border-l-amber-500',
   },
-  medium: { 
-    icon: Clock, 
-    label: 'Mittel', 
+  medium: {
+    icon: Clock,
+    label: 'Mittel',
     color: 'text-blue-600',
     bgColor: 'bg-blue-500/10',
+    borderColor: 'border-l-blue-500',
   },
-  low: { 
-    icon: Clock, 
-    label: 'Normal', 
+  low: {
+    icon: Clock,
+    label: 'Normal',
     color: 'text-muted-foreground',
     bgColor: 'bg-muted',
+    borderColor: 'border-l-muted-foreground',
   },
 };
 
@@ -101,8 +120,6 @@ const priorityConfig = {
 const CV_FIELDS = ['Skills', 'Erfahrung', 'CV Summary', 'CV Highlights'];
 // Fields covered by Interview - don't show individually if interview is missing
 const INTERVIEW_FIELDS = ['Gehalt', 'Verfügbarkeit', 'Wechselmotivation'];
-// Profile/Stammdaten fields - shown as individual edit tasks
-const PROFILE_FIELDS = ['Name', 'E-Mail', 'Telefon', 'Jobtitel', 'Standort'];
 
 function buildExposeTasks(
   candidate: CandidateTasksSectionProps['candidate'],
@@ -118,7 +135,6 @@ function buildExposeTasks(
 
   const hasCv = !!(candidate.cv_ai_summary || (candidate.cv_ai_bullets && candidate.cv_ai_bullets.length > 0));
 
-  // 1. CV missing → one big task
   if (!hasCv) {
     tasks.push({
       id: 'expose-cv',
@@ -128,7 +144,6 @@ function buildExposeTasks(
     });
   }
 
-  // 2. Interview missing → one big task
   if (!hasInterview) {
     tasks.push({
       id: 'expose-interview',
@@ -138,7 +153,6 @@ function buildExposeTasks(
     });
   }
 
-  // 3. Residual fields (only if CV/Interview exist but fields still missing)
   const residual = missing.filter(f => {
     if (!hasCv && CV_FIELDS.includes(f)) return false;
     if (!hasInterview && INTERVIEW_FIELDS.includes(f)) return false;
@@ -146,27 +160,23 @@ function buildExposeTasks(
   });
 
   const fieldTaskMap: Record<string, { title: string; description: string; actions: ExposeTask['actions'] }> = {
-    // Stammdaten
     'Name': { title: 'Name eintragen', description: 'Der Name des Kandidaten fehlt.', actions: ['edit'] },
     'E-Mail': { title: 'E-Mail eintragen', description: 'E-Mail-Adresse des Kandidaten fehlt.', actions: ['edit'] },
     'Telefon': { title: 'Telefonnummer eintragen', description: 'Telefonnummer des Kandidaten fehlt.', actions: ['edit'] },
     'Jobtitel': { title: 'Jobtitel eintragen', description: 'Aktuelle Position/Jobtitel fehlt.', actions: ['edit'] },
     'Standort': { title: 'Standort eintragen', description: 'Stadt/Standort des Kandidaten fehlt.', actions: ['edit'] },
-    // CV residual
     'Gehalt': { title: 'Gehaltsvorstellung erfragen', description: 'Für das Exposé wird eine Gehaltsvorstellung benötigt.', actions: ['call', 'edit'] },
     'Verfügbarkeit': { title: 'Verfügbarkeit klären', description: 'Verfügbarkeitsdatum oder Kündigungsfrist eintragen.', actions: ['call', 'edit'] },
     'Skills': { title: 'Skills ergänzen (mind. 3)', description: 'Mindestens 3 Skills werden für das Exposé benötigt.', actions: ['edit'] },
     'Erfahrung': { title: 'Berufserfahrung eintragen', description: 'Erfahrungsjahre für das Exposé eintragen.', actions: ['edit'] },
     'CV Summary': { title: 'CV hochladen', description: 'CV-Zusammenfassung fehlt.', actions: ['cv_upload'] },
     'CV Highlights': { title: 'CV hochladen', description: 'CV-Highlights fehlen.', actions: ['cv_upload'] },
-    // Interview residual
     'Wechselmotivation': { title: 'Wechselmotivation erfragen', description: 'Warum will der Kandidat wechseln?', actions: ['call', 'interview'] },
   };
 
   for (const field of residual) {
     const config = fieldTaskMap[field];
     if (config) {
-      // Avoid duplicate CV tasks
       if (tasks.some(t => t.id === `expose-residual-${field}` || (config.actions.includes('cv_upload') && tasks.some(t2 => t2.id.startsWith('expose-residual') && t2.actions.includes('cv_upload'))))) continue;
       tasks.push({ id: `expose-residual-${field}`, ...config });
     }
@@ -175,12 +185,70 @@ function buildExposeTasks(
   return tasks;
 }
 
+// Convert a CandidateTask to TaskDetailItem for the dialog
+function toDetailItem(
+  task: CandidateTask,
+  candidateId: string,
+  candidateName: string | null,
+  candidatePhone: string | null,
+  candidateEmail: string | null,
+): TaskDetailItem {
+  return {
+    itemType: 'alert',
+    itemId: task.id,
+    title: task.title,
+    description: task.message || null,
+    recommendedAction: task.recommended_action || null,
+    taskCategory: task.alert_type,
+    priority: task.priority,
+    submissionId: task.submission_id,
+    candidateId,
+    jobId: null,
+    playbookId: task.playbook_id || null,
+    createdAt: task.created_at,
+    dueAt: null,
+    impactScore: 50,
+    candidateName,
+    candidatePhone,
+    candidateEmail,
+    jobTitle: task.jobTitle || null,
+    companyName: task.companyName || null,
+  };
+}
+
 export function CandidateTasksSection({ candidateId, activeTaskId, candidate, onEdit, onCvUpload, onStartInterview }: CandidateTasksSectionProps) {
   const [tasks, setTasks] = useState<CandidateTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(true);
   const [contact, setContact] = useState<CandidateContact>({});
   const [hasInterview, setHasInterview] = useState(false);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<TaskDetailItem | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const { logActivity } = useActivityLogger();
+  const { pendingTasks: manualTasks, completeTask } = useRecruiterTasks();
+
+  // Horizontal scroll
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll, { passive: true });
+      const ro = new ResizeObserver(checkScroll);
+      ro.observe(el);
+      return () => { el.removeEventListener('scroll', checkScroll); ro.disconnect(); };
+    }
+  }, []);
 
   useEffect(() => {
     fetchTasks();
@@ -188,7 +256,6 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
   const fetchTasks = async () => {
     try {
-      // Load candidate contact info
       const { data: candidateData } = await supabase
         .from('candidates')
         .select('email, phone')
@@ -199,7 +266,6 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         setContact({ email: candidateData.email, phone: candidateData.phone ?? undefined });
       }
 
-      // Check if interview notes exist
       const { count } = await supabase
         .from('candidate_interview_notes')
         .select('id', { count: 'exact', head: true })
@@ -207,10 +273,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       setHasInterview((count ?? 0) > 0);
 
-      // Get all submissions for this candidate
       const { data: submissions } = await supabase
         .from('submissions')
-        .select('id')
+        .select('id, job_id')
         .eq('candidate_id', candidateId);
 
       if (!submissions || submissions.length === 0) {
@@ -221,7 +286,16 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       const submissionIds = submissions.map(s => s.id);
 
-      // Get alerts for these submissions
+      // Fetch job info for enrichment
+      const jobIds = [...new Set(submissions.map(s => s.job_id))];
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id, title, company_name')
+        .in('id', jobIds);
+
+      const jobMap = new Map((jobs || []).map(j => [j.id, j]));
+      const subJobMap = new Map(submissions.map(s => [s.id, jobMap.get(s.job_id)]));
+
       const { data: alerts, error } = await supabase
         .from('influence_alerts')
         .select('*')
@@ -231,7 +305,17 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       if (error) throw error;
 
-      setTasks((alerts || []) as unknown as CandidateTask[]);
+      // Enrich alerts with job info
+      const enriched = (alerts || []).map((a: any) => {
+        const job = subJobMap.get(a.submission_id);
+        return {
+          ...a,
+          jobTitle: job?.title || null,
+          companyName: job?.company_name || null,
+        };
+      });
+
+      setTasks(enriched as unknown as CandidateTask[]);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -239,11 +323,20 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     }
   };
 
-  const handleMarkDone = async (taskId: string) => {
+  // Re-check scroll after data loads
+  useEffect(() => {
+    if (!loading) {
+      setTimeout(checkScroll, 50);
+    }
+  }, [loading, tasks, manualTasks]);
+
+  const handleMarkDone = async (taskId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
+      const task = tasks.find(t => t.id === taskId);
       const { error } = await supabase
         .from('influence_alerts')
-        .update({ 
+        .update({
           action_taken: 'marked_done',
           action_taken_at: new Date().toISOString(),
           is_read: true
@@ -252,9 +345,20 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       if (error) throw error;
 
-      setTasks(prev => prev.map(t => 
+      setTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, action_taken: 'marked_done' } : t
       ));
+
+      await logActivity(
+        candidateId,
+        'alert_actioned',
+        `Aufgabe erledigt: ${task?.title || 'Aufgabe'}`,
+        undefined,
+        { alert_type: task?.alert_type, priority: task?.priority },
+        task?.submission_id || undefined,
+        taskId
+      );
+
       toast.success('Aufgabe als erledigt markiert');
     } catch (error) {
       console.error('Error marking task done:', error);
@@ -262,7 +366,12 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     }
   };
 
-  const handleConfirmOptIn = async (taskId: string, submissionId: string) => {
+  const handleMarkDoneFromDialog = async (taskId: string) => {
+    await handleMarkDone(taskId);
+  };
+
+  const handleConfirmOptIn = async (taskId: string, submissionId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       const { error: subError } = await supabase
         .from('submissions')
@@ -273,7 +382,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       const { error: alertError } = await supabase
         .from('influence_alerts')
-        .update({ 
+        .update({
           action_taken: 'opt_in_confirmed',
           action_taken_at: new Date().toISOString(),
           is_read: true
@@ -282,9 +391,20 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       if (alertError) throw alertError;
 
-      setTasks(prev => prev.map(t => 
+      setTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, action_taken: 'opt_in_confirmed' } : t
       ));
+
+      await logActivity(
+        candidateId,
+        'opt_in_confirmed',
+        'Opt-In vom Recruiter bestätigt',
+        undefined,
+        { submission_id: submissionId },
+        submissionId,
+        taskId
+      );
+
       toast.success('Opt-In bestätigt – Kunde wird benachrichtigt');
     } catch (error) {
       console.error('Error confirming opt-in:', error);
@@ -295,189 +415,368 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const pendingTasks = tasks.filter(t => !t.action_taken);
   const completedTasks = tasks.filter(t => t.action_taken);
   const exposeTasks = buildExposeTasks(candidate, hasInterview);
+  const candidateManualTasks = manualTasks.filter(t => t.candidate_id === candidateId);
 
-  const totalPending = pendingTasks.length + exposeTasks.length;
+  const handleCompleteManualTask = async (taskId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await completeTask(taskId);
+    const task = candidateManualTasks.find(t => t.id === taskId);
+    if (task) {
+      await logActivity(
+        candidateId,
+        'task_completed',
+        `Manuelle Aufgabe erledigt: ${task.title}`,
+        undefined,
+        { task_type: task.task_type }
+      );
+    }
+    toast.success('Aufgabe erledigt');
+  };
+
+  const openTaskDetail = (task: CandidateTask) => {
+    setDetailItem(toDetailItem(
+      task,
+      candidateId,
+      candidate?.full_name || null,
+      candidate?.phone || contact.phone || null,
+      candidate?.email || contact.email || null,
+    ));
+    setDetailOpen(true);
+  };
+
+  const openExposeDetail = (task: ExposeTask) => {
+    setDetailItem({
+      itemType: 'expose',
+      itemId: task.id,
+      title: task.title,
+      description: task.description,
+      recommendedAction: task.description,
+      taskCategory: 'expose',
+      priority: 'medium',
+      submissionId: null,
+      candidateId,
+      jobId: null,
+      playbookId: null,
+      createdAt: new Date().toISOString(),
+      dueAt: null,
+      impactScore: 0,
+      candidateName: candidate?.full_name || null,
+      candidatePhone: candidate?.phone || contact.phone || null,
+      candidateEmail: candidate?.email || contact.email || null,
+      jobTitle: null,
+      companyName: null,
+    });
+    setDetailOpen(true);
+  };
+
+  const openManualTaskDetail = (task: any) => {
+    setDetailItem({
+      itemType: 'task',
+      itemId: task.id,
+      title: task.title,
+      description: task.description || null,
+      recommendedAction: null,
+      taskCategory: task.task_type || 'other',
+      priority: 'medium',
+      submissionId: null,
+      candidateId,
+      jobId: null,
+      playbookId: null,
+      createdAt: task.created_at,
+      dueAt: task.due_at || null,
+      impactScore: 0,
+      candidateName: candidate?.full_name || null,
+      candidatePhone: candidate?.phone || contact.phone || null,
+      candidateEmail: candidate?.email || contact.email || null,
+      jobTitle: null,
+      companyName: null,
+    });
+    setDetailOpen(true);
+  };
+
+  const totalPending = pendingTasks.length + exposeTasks.length + candidateManualTasks.length;
 
   if (loading) {
     return (
-      <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <ListTodo className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Aufgaben
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-[100px] w-64 bg-muted/30 rounded-lg animate-pulse shrink-0" />
+          <div className="h-[100px] w-64 bg-muted/30 rounded-lg animate-pulse shrink-0" />
+        </div>
+      </div>
     );
   }
 
-  if (tasks.length === 0 && exposeTasks.length === 0) {
+  if (totalPending === 0 && completedTasks.length === 0) {
     return null;
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="space-y-2">
       {/* Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className={cn(
-          "w-full flex items-center justify-between p-3",
-          totalPending > 0 ? "bg-amber-500/10" : "bg-muted/30"
-        )}
-      >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {totalPending > 0 ? (
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-          ) : (
-            <Check className="h-4 w-4 text-emerald-600" />
-          )}
-          <span className="font-medium text-sm">
-            {totalPending > 0 
-              ? `${totalPending} offene Aufgabe${totalPending !== 1 ? 'n' : ''}`
-              : 'Alle Aufgaben erledigt'
-            }
+          <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Aufgaben{totalPending > 0 ? ` (${totalPending})` : ''}
           </span>
           {pendingTasks.filter(t => t.priority === 'critical').length > 0 && (
-            <Badge variant="destructive" className="text-xs h-5">
+            <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
               {pendingTasks.filter(t => t.priority === 'critical').length} kritisch
             </Badge>
           )}
-          {exposeTasks.length > 0 && (
-            <Badge variant="outline" className="text-xs h-5 text-blue-600 border-blue-500/50">
-              Exposé
+          {completedTasks.length > 0 && totalPending === 0 && (
+            <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-600 border-emerald-500/50">
+              <Check className="h-2.5 w-2.5 mr-0.5" />
+              Alles erledigt
             </Badge>
           )}
         </div>
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setCreateTaskOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">Aufgabe hinzufügen</TooltipContent>
+        </Tooltip>
+      </div>
 
-      {/* Task list */}
-      {expanded && (
-        <div className="divide-y">
-          {/* DB-based tasks (Influence Alerts) */}
-          {pendingTasks.map(task => {
-            const config = priorityConfig[task.priority];
-            const Icon = config.icon;
-            const isActive = task.id === activeTaskId;
-            const isOptInPending = task.alert_type === 'opt_in_pending';
+      {/* Horizontal scroll container */}
+      {totalPending > 0 && (
+        <div className="relative">
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-card to-transparent z-10 pointer-events-none rounded-l-lg" />
+          )}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-card to-transparent z-10 pointer-events-none rounded-r-lg" />
+          )}
 
-            return (
-              <div 
-                key={task.id}
-                className={cn(
-                  "p-3 flex items-start gap-3",
-                  isActive && "ring-2 ring-primary ring-inset bg-primary/5"
-                )}
-              >
-                <div className={cn("p-1.5 rounded", config.bgColor)}>
-                  <Icon className={cn("h-4 w-4", config.color)} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm">{task.title}</p>
-                    <Badge variant="outline" className={cn("text-[10px] h-4", config.color)}>
+          <div
+            ref={scrollRef}
+            className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {/* DB-based tasks (Influence Alerts) — enhanced cards */}
+            {pendingTasks.map(task => {
+              const config = priorityConfig[task.priority];
+              const isOptInPending = task.alert_type === 'opt_in_pending';
+              const timeAgo = formatDistanceToNow(new Date(task.created_at), { locale: de, addSuffix: true });
+
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => openTaskDetail(task)}
+                  className={cn(
+                    'shrink-0 w-64 rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
+                    config.borderColor,
+                    task.id === activeTaskId && 'ring-2 ring-primary bg-primary/5'
+                  )}
+                >
+                  {/* Row 1: Badge + Time */}
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', config.color)}>
                       {config.label}
                     </Badge>
+                    <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
                   </div>
-                  {task.recommended_action && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{task.recommended_action}</p>
+
+                  {/* Row 2: Title (2 lines) */}
+                  <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{task.title}</p>
+
+                  {/* Row 3: Job context */}
+                  {(task.jobTitle || task.companyName) && (
+                    <div className="flex items-center gap-1 mt-1 min-w-0">
+                      <Shield className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {task.companyName ? `${task.companyName}` : ''}{task.jobTitle ? ` · ${task.jobTitle}` : ''}
+                      </span>
+                    </div>
                   )}
-                  <div className="flex items-center gap-2 mt-2">
-                    {isOptInPending && contact.phone && (
-                      <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                        <a href={`tel:${contact.phone}`}>
-                          <Phone className="h-3 w-3 mr-1" />
-                          Anrufen
-                        </a>
-                      </Button>
-                    )}
-                    {isOptInPending && contact.email && (
-                      <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                        <a href={`mailto:${contact.email}`}>
-                          <Mail className="h-3 w-3 mr-1" />
-                          Email
-                        </a>
-                      </Button>
-                    )}
+
+                  {/* Row 4: Quick actions */}
+                  <div className="flex items-center justify-end mt-1.5 gap-0.5">
                     {isOptInPending && (
                       <Button
                         variant="default"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => handleConfirmOptIn(task.id, task.submission_id)}
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={(e) => handleConfirmOptIn(task.id, task.submission_id, e)}
                       >
-                        <ShieldCheck className="h-3 w-3 mr-1" />
-                        Opt-In bestätigen
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                      </Button>
+                    )}
+                    {contact.phone && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${contact.phone}`; }}
+                      >
+                        <Phone className="h-2.5 w-2.5" />
                       </Button>
                     )}
                     <Button
                       variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 ml-auto"
-                      onClick={() => handleMarkDone(task.id)}
+                      size="icon"
+                      className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      onClick={(e) => handleMarkDone(task.id, e)}
                     >
-                      <Check className="h-3 w-3 mr-1" />
-                      Erledigt
+                      <Check className="h-2.5 w-2.5" />
                     </Button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* Exposé-critical pseudo-tasks */}
-          {exposeTasks.map(task => (
-            <div key={task.id} className="p-3 flex items-start gap-3">
-              <div className="p-1.5 rounded bg-blue-500/10">
-                <Info className="h-4 w-4 text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">{task.title}</p>
-                  <Badge variant="outline" className="text-[10px] h-4 text-blue-600 border-blue-500/50">
+            {/* Exposé-critical pseudo-tasks — enhanced */}
+            {exposeTasks.map(task => (
+              <div
+                key={task.id}
+                onClick={() => openExposeDetail(task)}
+                className="shrink-0 w-64 rounded-lg border border-l-[3px] border-l-blue-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
+              >
+                {/* Row 1: Badge + label */}
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-blue-600 border-blue-500/50">
                     Exposé
                   </Badge>
+                  <span className="text-[10px] text-muted-foreground">Exposé-Pflicht</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{task.description}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  {task.actions.includes('call') && (candidate?.phone || contact.phone) && (
-                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                      <a href={`tel:${candidate?.phone || contact.phone}`}>
-                        <Phone className="h-3 w-3 mr-1" />
-                        Anrufen
-                      </a>
-                    </Button>
-                  )}
+
+                {/* Row 2: Title (2 lines) */}
+                <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{task.title}</p>
+
+                {/* Row 3: Description */}
+                <p className="text-[10px] text-muted-foreground truncate mt-1">
+                  {task.description}
+                </p>
+
+                {/* Row 4: Actions */}
+                <div className="flex items-center justify-end mt-1.5 gap-0.5">
                   {task.actions.includes('cv_upload') && onCvUpload && (
-                    <Button variant="default" size="sm" className="h-7 text-xs" onClick={onCvUpload}>
-                      <Upload className="h-3 w-3 mr-1" />
-                      CV hochladen
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={(e) => { e.stopPropagation(); onCvUpload(); }}
+                    >
+                      <Upload className="h-2.5 w-2.5 text-blue-600" />
                     </Button>
                   )}
                   {task.actions.includes('interview') && onStartInterview && (
-                    <Button variant="default" size="sm" className="h-7 text-xs" onClick={onStartInterview}>
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Interview starten
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={(e) => { e.stopPropagation(); onStartInterview(); }}
+                    >
+                      <MessageSquare className="h-2.5 w-2.5 text-blue-600" />
                     </Button>
                   )}
                   {task.actions.includes('edit') && onEdit && (
-                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onEdit}>
-                      <Edit className="h-3 w-3 mr-1" />
-                      Bearbeiten
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                    >
+                      <Edit className="h-2.5 w-2.5" />
                     </Button>
                   )}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {/* Completed tasks (collapsed) */}
-          {completedTasks.length > 0 && (
-            <div className="p-3">
-              <p className="text-xs text-muted-foreground">
-                {completedTasks.length} erledigte Aufgabe{completedTasks.length !== 1 ? 'n' : ''}
-              </p>
-            </div>
-          )}
+            {/* Manual recruiter tasks — enhanced */}
+            {candidateManualTasks.map(task => {
+              const timeAgo = formatDistanceToNow(new Date(task.created_at), { locale: de, addSuffix: true });
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => openManualTaskDetail(task)}
+                  className="shrink-0 w-64 rounded-lg border border-l-[3px] border-l-violet-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
+                >
+                  {/* Row 1: Badge + Time */}
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-violet-600 border-violet-500/50">
+                      Manuell
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
+                  </div>
+
+                  {/* Row 2: Title (2 lines) */}
+                  <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{task.title}</p>
+
+                  {/* Row 3: Description */}
+                  {task.description && (
+                    <p className="text-[10px] text-muted-foreground truncate mt-1">
+                      {task.description}
+                    </p>
+                  )}
+
+                  {/* Row 4: Done action */}
+                  <div className="flex items-center justify-end mt-1.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      onClick={(e) => handleCompleteManualTask(task.id, e)}
+                    >
+                      <Check className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* Completed count (subtle) */}
+      {completedTasks.length > 0 && totalPending > 0 && (
+        <p className="text-[10px] text-muted-foreground pl-5.5">
+          + {completedTasks.length} erledigte Aufgabe{completedTasks.length !== 1 ? 'n' : ''}
+        </p>
+      )}
+
+      {/* Create Task Dialog */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+        candidateId={candidateId}
+      />
+
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        item={detailItem}
+        onMarkDone={handleMarkDoneFromDialog}
+        onSnooze={async (itemId, until) => {
+          // Snooze: update snoozed_until on the alert
+          const task = tasks.find(t => t.id === itemId);
+          if (task) {
+            await supabase
+              .from('influence_alerts')
+              .update({ snoozed_until: until.toISOString() } as any)
+              .eq('id', itemId);
+            setTasks(prev => prev.filter(t => t.id !== itemId));
+            toast.success('Aufgabe zurückgestellt');
+          }
+        }}
+      />
     </div>
   );
 }

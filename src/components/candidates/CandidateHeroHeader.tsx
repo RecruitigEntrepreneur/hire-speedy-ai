@@ -26,7 +26,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { CandidateStagePipeline } from './CandidateStagePipeline';
 import { CandidateKeyFactsGrid } from './CandidateKeyFactsGrid';
 import { CandidateTasksSection } from './CandidateTasksSection';
 import { CandidateActiveProcesses } from './CandidateActiveProcesses';
@@ -231,15 +230,6 @@ export function CandidateHeroHeader({
                   {cert}
                 </Badge>
               ))}
-            </div>
-          )}
-
-          {/* Pipeline - read-only */}
-          {currentStatus !== 'rejected' && (
-            <div className="mt-4 pt-3 border-t">
-              <CandidateStagePipeline
-                currentStage={currentStatus}
-              />
             </div>
           )}
 
