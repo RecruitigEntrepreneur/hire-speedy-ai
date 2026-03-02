@@ -134,7 +134,9 @@ export function JobPreviewPanel({
           )}
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base leading-snug">{job.title}</h3>
+            <Link to={`/recruiter/jobs/${job.id}`} className="font-semibold text-base leading-snug hover:text-primary transition-colors">
+              {job.title}
+            </Link>
             {isRevealed ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
                 <span>{revealedCompanyName}</span>

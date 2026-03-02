@@ -730,7 +730,13 @@ export default function RecruiterJobs() {
                     recruiterCount={stats?.recruiterCount || 0}
                     pipelinePercent={stats ? Math.round((stats.submissionCount / 10) * 100) : 0}
                     submittedCount={stats?.submissionCount || 0}
-                    onSelect={() => setSelectedJobId(job.id)}
+                    onSelect={() => {
+                      if (selectedJobId === job.id) {
+                        navigate(`/recruiter/jobs/${job.id}`);
+                      } else {
+                        setSelectedJobId(job.id);
+                      }
+                    }}
                     onToggleActive={(e) => { e.stopPropagation(); handleActivateClick(job.id); }}
                   />
                 );
