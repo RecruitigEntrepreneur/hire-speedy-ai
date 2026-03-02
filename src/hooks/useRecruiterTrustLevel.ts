@@ -84,26 +84,26 @@ export function useRecruiterTrustLevel() {
 
     try {
       // Try to get existing trust level
-      let { data, error } = await (supabase
-        .from('recruiter_trust_levels' as any)
+      let { data, error } = await supabase
+        .from('recruiter_trust_levels')
         .select('*')
         .eq('recruiter_id', user.id)
-        .maybeSingle() as any);
+        .maybeSingle();
 
       if (error) throw error;
 
       // If no row exists, insert a default bronze row
       if (!data) {
-        const { data: created, error: createErr } = await (supabase
-          .from('recruiter_trust_levels' as any)
+        const { data: created, error: createErr } = await supabase
+          .from('recruiter_trust_levels')
           .insert({ recruiter_id: user.id })
           .select()
-          .single() as any);
+          .single();
         if (createErr) throw createErr;
         data = created;
       }
 
-      setTrustLevel(data as RecruiterTrustLevel);
+      setTrustLevel(data as unknown as RecruiterTrustLevel);
     } catch (err) {
       // Table may not exist yet — fall back to default bronze level
       console.warn('Trust level table not available, using defaults:', err);
