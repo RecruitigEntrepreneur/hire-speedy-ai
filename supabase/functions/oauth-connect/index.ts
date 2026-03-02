@@ -137,10 +137,11 @@ serve(async (req) => {
     console.log(`[oauth-connect] Generated auth URL for ${provider}, state: ${state.substring(0, 8)}...`);
 
     // Cleanup expired states while we're at it
-    await supabase.rpc("cleanup_expired_oauth_states").catch(() => {
-      // Non-critical, just log
+    try {
+      await supabase.rpc("cleanup_expired_oauth_states" as any);
+    } catch {
       console.log("[oauth-connect] Cleanup of expired states skipped");
-    });
+    }
 
     return new Response(
       JSON.stringify({ authorization_url: authorizationUrl }),

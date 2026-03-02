@@ -14,7 +14,7 @@ export async function encryptToken(plaintext: string, keyHex: string): Promise<s
   const keyBytes = hexToBytes(keyHex);
   const key = await crypto.subtle.importKey(
     "raw",
-    keyBytes,
+    keyBytes.buffer as ArrayBuffer,
     "AES-GCM",
     false,
     ["encrypt"]
@@ -40,7 +40,7 @@ export async function decryptToken(encrypted: string, keyHex: string): Promise<s
   const keyBytes = hexToBytes(keyHex);
   const key = await crypto.subtle.importKey(
     "raw",
-    keyBytes,
+    keyBytes.buffer as ArrayBuffer,
     "AES-GCM",
     false,
     ["decrypt"]

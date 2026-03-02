@@ -397,7 +397,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
       await logActivity(
         candidateId,
-        'opt_in_confirmed',
+        'note' as any,
         'Opt-In vom Recruiter bestätigt',
         undefined,
         { submission_id: submissionId },
@@ -424,7 +424,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     if (task) {
       await logActivity(
         candidateId,
-        'task_completed',
+        'note' as any,
         `Manuelle Aufgabe erledigt: ${task.title}`,
         undefined,
         { task_type: task.task_type }

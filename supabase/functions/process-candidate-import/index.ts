@@ -889,13 +889,13 @@ serve(async (req) => {
       if (import_job_id) {
         await supabase
           .from("candidate_import_jobs")
-          .update({ status: "failed", error_message: error.message || "Internal error", completed_at: new Date().toISOString() })
+          .update({ status: "failed", error_message: (error as Error).message || "Internal error", completed_at: new Date().toISOString() })
           .eq("id", import_job_id);
       }
     } catch (_) { /* ignore */ }
 
     return new Response(
-      JSON.stringify({ success: false, error: error.message || "Internal error" }),
+      JSON.stringify({ success: false, error: (error as Error).message || "Internal error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

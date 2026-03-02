@@ -134,7 +134,6 @@ interface SubmissionContext {
 
 interface CandidateData {
   expected_salary: number | null;
-  change_motivation: string | null;
   availability_date: string | null;
   notice_period: string | null;
   cv_ai_summary: string | null;
@@ -360,8 +359,8 @@ function MotivationActionForm({
   const [motivation, setMotivation] = useState('');
 
   useEffect(() => {
-    if (candidateData?.change_motivation) {
-      setMotivation(candidateData.change_motivation);
+    if ((candidateData as any)?.change_motivation) {
+      setMotivation((candidateData as any).change_motivation);
     }
   }, [candidateData]);
 
@@ -389,9 +388,9 @@ function MotivationActionForm({
           {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
           Speichern
         </Button>
-        {candidateData?.change_motivation && motivation !== candidateData.change_motivation && (
+        {(candidateData as any)?.change_motivation && motivation !== (candidateData as any).change_motivation && (
           <p className="text-[10px] text-muted-foreground">
-            Gespeichert: {candidateData.change_motivation.slice(0, 80)}...
+            Gespeichert: {(candidateData as any).change_motivation.slice(0, 80)}...
           </p>
         )}
       </div>
@@ -752,7 +751,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
       if (item.candidateId) {
         const { data: cand } = await supabase
           .from('candidates')
-          .select('expected_salary, change_motivation, availability_date, notice_period, cv_ai_summary')
+          .select('expected_salary, availability_date, notice_period, cv_ai_summary')
           .eq('id', item.candidateId)
           .single();
 
@@ -861,7 +860,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
       if (item.candidateId) {
         await logActivity(
           item.candidateId,
-          'opt_in_confirmed',
+          'note' as any,
           'Opt-In vom Recruiter bestätigt',
           undefined,
           { submission_id: item.submissionId },

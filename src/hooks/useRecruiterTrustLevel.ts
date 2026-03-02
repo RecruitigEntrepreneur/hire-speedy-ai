@@ -92,10 +92,13 @@ export function useRecruiterTrustLevel() {
 
       if (error) throw error;
 
-      // If no row exists, create one via RPC
+      // If no row exists, insert a default bronze row
       if (!data) {
         const { data: created, error: createErr } = await (supabase
-          .rpc('ensure_trust_level_exists', { p_recruiter_id: user.id }) as any);
+          .from('recruiter_trust_levels' as any)
+          .insert({ recruiter_id: user.id })
+          .select()
+          .single() as any);
         if (createErr) throw createErr;
         data = created;
       }
