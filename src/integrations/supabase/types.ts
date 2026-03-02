@@ -6700,6 +6700,36 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_job_activations: {
+        Row: {
+          activated_at: string
+          first_submission_at: string | null
+          has_submitted: boolean | null
+          id: string
+          job_id: string
+          recruiter_id: string
+          trust_level_at: string
+        }
+        Insert: {
+          activated_at?: string
+          first_submission_at?: string | null
+          has_submitted?: boolean | null
+          id?: string
+          job_id: string
+          recruiter_id: string
+          trust_level_at: string
+        }
+        Update: {
+          activated_at?: string
+          first_submission_at?: string | null
+          has_submitted?: boolean | null
+          id?: string
+          job_id?: string
+          recruiter_id?: string
+          trust_level_at?: string
+        }
+        Relationships: []
+      }
       recruiter_leaderboard: {
         Row: {
           avg_candidate_score: number | null
@@ -6914,6 +6944,60 @@ export type Database = {
             referencedColumns: ["candidate_id"]
           },
         ]
+      }
+      recruiter_trust_levels: {
+        Row: {
+          activation_ratio: number | null
+          activations_with_submission: number | null
+          active_count: number | null
+          created_at: string | null
+          id: string
+          level_changed_at: string | null
+          max_active_slots: number | null
+          placements_hired: number | null
+          previous_level: string | null
+          recruiter_id: string
+          suspended_at: string | null
+          suspended_reason: string | null
+          total_activations: number | null
+          trust_level: string
+          updated_at: string | null
+        }
+        Insert: {
+          activation_ratio?: number | null
+          activations_with_submission?: number | null
+          active_count?: number | null
+          created_at?: string | null
+          id?: string
+          level_changed_at?: string | null
+          max_active_slots?: number | null
+          placements_hired?: number | null
+          previous_level?: string | null
+          recruiter_id: string
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          total_activations?: number | null
+          trust_level?: string
+          updated_at?: string | null
+        }
+        Update: {
+          activation_ratio?: number | null
+          activations_with_submission?: number | null
+          active_count?: number | null
+          created_at?: string | null
+          id?: string
+          level_changed_at?: string | null
+          max_active_slots?: number | null
+          placements_hired?: number | null
+          previous_level?: string | null
+          recruiter_id?: string
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          total_activations?: number | null
+          trust_level?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       recruiter_verifications: {
         Row: {

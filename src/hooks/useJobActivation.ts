@@ -24,10 +24,10 @@ export function useJobActivation(jobIds?: string[]) {
     }
 
     try {
-      let query = (supabase
-        .from('recruiter_job_activations' as any)
+      let query = supabase
+        .from('recruiter_job_activations')
         .select('*')
-        .eq('recruiter_id', user.id) as any);
+        .eq('recruiter_id', user.id);
 
       if (jobIds && jobIds.length > 0) {
         query = query.in('job_id', jobIds);
@@ -37,7 +37,7 @@ export function useJobActivation(jobIds?: string[]) {
       if (error) throw error;
 
       const map = new Map<string, JobActivation>();
-      (data as JobActivation[] || []).forEach((a) => {
+      (data || []).forEach((a) => {
         map.set(a.job_id, a);
       });
       setActivations(map);
@@ -68,13 +68,13 @@ export function useJobActivation(jobIds?: string[]) {
     if (!user) return { success: false, error: 'Nicht eingeloggt' };
 
     try {
-      const { error } = await (supabase
-        .from('recruiter_job_activations' as any)
+      const { error } = await supabase
+        .from('recruiter_job_activations')
         .insert({
           recruiter_id: user.id,
           job_id: jobId,
           trust_level_at: trustLevel,
-        }) as any);
+        });
 
       if (error) {
         if (error.code === '23505') {
