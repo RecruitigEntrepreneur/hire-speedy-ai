@@ -18,6 +18,7 @@ import { SellingPointsCard } from '@/components/recruiter/SellingPointsCard';
 import { JobStatsCard } from '@/components/recruiter/JobStatsCard';
 import { AnonymousExposeDialog } from '@/components/recruiter/AnonymousExposeDialog';
 import { PartnerFactsCard } from '@/components/recruiter/PartnerFactsCard';
+import { JobCandidateProcessCards, JobSubmission } from '@/components/recruiter/JobCandidateProcessCards';
 import {
   MapPin,
   Clock,
@@ -97,12 +98,15 @@ interface Submission {
   id: string;
   candidate_id: string;
   status: string;
+  stage: string | null;
   submitted_at: string;
+  match_score: number | null;
   company_revealed: boolean;
   full_access_granted: boolean;
   candidates: {
     full_name: string;
     email: string;
+    job_title: string | null;
   };
 }
 
@@ -198,12 +202,15 @@ export default function JobDetail() {
             id,
             candidate_id,
             status,
+            stage,
             submitted_at,
+            match_score,
             company_revealed,
             full_access_granted,
             candidates (
               full_name,
-              email
+              email,
+              job_title
             )
           `)
           .eq('job_id', id)
@@ -423,6 +430,14 @@ export default function JobDetail() {
             </div>
           </div>
         </div>
+
+        {/* Candidate Process Cards */}
+        {mySubmissions.length > 0 && (
+          <JobCandidateProcessCards
+            submissions={mySubmissions as JobSubmission[]}
+            onOpenSubmitForm={() => setShowSubmitForm(true)}
+          />
+        )}
 
         {/* Quick Facts Bar */}
         <RecruiterQuickFacts
