@@ -432,6 +432,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
+
       {/* Public Routes */}
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
