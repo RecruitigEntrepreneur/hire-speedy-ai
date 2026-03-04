@@ -46,10 +46,10 @@ export function AnonymousCompanyPitch({
   const displayPitch = pitch || generateFallbackPitch(industry, companySize, fundingStage);
 
   return (
-    <Card className="border-primary/20 bg-primary/5">
+    <Card className="border-border/60 bg-muted/40">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Lock className="h-5 w-5 text-primary" />
+          <Lock className="h-5 w-5 text-muted-foreground" />
           Über das Unternehmen
         </CardTitle>
       </CardHeader>

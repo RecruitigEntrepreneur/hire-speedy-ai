@@ -29,56 +29,29 @@ export function JobStatsCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Location */}
-        {location && (
-          <StatRow 
-            icon={MapPin} 
-            label="Standort" 
-            value={location} 
-          />
-        )}
-
-        {/* Remote Type */}
-        {remoteType && (
-          <StatRow 
-            icon={Home} 
-            label="Arbeitsmodell" 
-            value={formatRemoteType(remoteType)} 
-          />
-        )}
-
-        {/* Employment Type */}
-        {employmentType && (
-          <StatRow 
-            icon={Briefcase} 
-            label="Anstellung" 
-            value={formatEmploymentType(employmentType)} 
+        {/* Salary */}
+        {(salaryMin || salaryMax) && (
+          <StatRow
+            icon={BarChart3}
+            label="Gehalt"
+            value={formatSalary(salaryMin, salaryMax)}
           />
         )}
 
         {/* Experience Level */}
         {experienceLevel && (
-          <StatRow 
-            icon={Clock} 
-            label="Erfahrung" 
-            value={formatExperienceLevel(experienceLevel)} 
-          />
-        )}
-
-        {/* Salary */}
-        {(salaryMin || salaryMax) && (
-          <StatRow 
-            icon={BarChart3} 
-            label="Gehalt" 
-            value={formatSalary(salaryMin, salaryMax)} 
+          <StatRow
+            icon={Clock}
+            label="Erfahrung"
+            value={formatExperienceLevel(experienceLevel)}
           />
         )}
 
         {/* Total Submissions */}
         <div className="pt-2 border-t">
-          <StatRow 
-            icon={Users} 
-            label="Einreichungen" 
+          <StatRow
+            icon={Users}
+            label="Einreichungen"
             value={`${totalSubmissions} Kandidaten`}
             highlight
           />

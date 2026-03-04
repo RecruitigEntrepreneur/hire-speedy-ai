@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -27,12 +27,9 @@ import {
   Zap,
   Circle,
   Users,
-  Building2,
   Loader2,
   Star,
-  ChevronRight,
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -121,7 +118,6 @@ interface CompanyProfile {
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
@@ -322,95 +318,88 @@ export default function JobDetail() {
           </Button>
         </Link>
 
-        {/* Hero Section with AI-formatted headline */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 via-background to-emerald/10 border">
-          <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
-          <div className="relative p-6 lg:p-8">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="h-16 w-16 rounded-xl bg-gradient-navy flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <Building2 className="h-8 w-8 text-primary-foreground" />
-                </div>
-                <div className="space-y-2">
-                  {/* AI Headline or Job Title */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {formattedContent?.headline ? (
-                      <h1 className="text-2xl lg:text-3xl font-bold">
-                        {formattedContent.headline}
-                      </h1>
-                    ) : (
-                      <h1 className="text-2xl lg:text-3xl font-bold">{job.title}</h1>
-                    )}
-                    {getUrgencyBadge(job.urgency || 'standard')}
-                  </div>
-                  
-                  {/* Triple-Blind: Show company based on reveal status */}
-                  <div className="flex items-center gap-2 text-lg text-muted-foreground">
-                    <CompanyRevealBadge 
-                      companyRevealed={accessStatus.companyRevealed} 
-                      fullAccess={accessStatus.fullAccessGranted}
-                      showLabel={true}
-                      size="sm"
-                    />
-                    <span>
-                      {getDisplayCompanyName(
-                        job.company_name,
-                        job.industry,
-                        accessStatus.companyRevealed,
-                        {
-                          industry: job.industry,
-                          companySize: job.company_size_band,
-                          fundingStage: job.funding_stage,
-                          techStack: job.tech_environment,
-                          location: job.location,
-                          urgency: job.hiring_urgency,
-                          remoteType: job.remote_type,
-                        }
-                      )}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                    {job.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {job.location}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {job.employment_type}
-                    </span>
-                    <Badge variant="secondary" className="capitalize">
-                      {job.remote_type}
-                    </Badge>
-                    {job.industry && (
-                      <Badge variant="outline">{job.industry}</Badge>
-                    )}
-                  </div>
-
-                  {/* AI Highlights */}
-                  {formattedContent?.highlights && formattedContent.highlights.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {formattedContent.highlights.map((highlight, i) => (
-                        <Badge key={i} variant="outline" className="bg-background/50 backdrop-blur-sm">
-                          <Star className="h-3 w-3 mr-1 text-warning" />
-                          {highlight}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
+        {/* Hero Section — clean */}
+        <div className="rounded-xl border bg-card p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div className="space-y-2">
+              {/* AI Headline or Job Title */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {formattedContent?.headline ? (
+                  <h1 className="text-2xl lg:text-3xl font-bold">
+                    {formattedContent.headline}
+                  </h1>
+                ) : (
+                  <h1 className="text-2xl lg:text-3xl font-bold">{job.title}</h1>
+                )}
+                {(job.urgency === 'hot' || job.urgency === 'urgent') && getUrgencyBadge(job.urgency)}
               </div>
 
-              <div className="flex items-center gap-3">
-                <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
-                  <DialogTrigger asChild>
-                    <Button size="lg" variant="emerald">
-                      <Users className="h-4 w-4 mr-2" />
-                      Kandidat einreichen
-                    </Button>
-                  </DialogTrigger>
+              {/* Triple-Blind: Show company based on reveal status */}
+              <div className="flex items-center gap-2 text-base text-muted-foreground">
+                <CompanyRevealBadge
+                  companyRevealed={accessStatus.companyRevealed}
+                  fullAccess={accessStatus.fullAccessGranted}
+                  showLabel={true}
+                  size="sm"
+                />
+                <span>
+                  {getDisplayCompanyName(
+                    job.company_name,
+                    job.industry,
+                    accessStatus.companyRevealed,
+                    {
+                      industry: job.industry,
+                      companySize: job.company_size_band,
+                      fundingStage: job.funding_stage,
+                      techStack: job.tech_environment,
+                      location: job.location,
+                      urgency: job.hiring_urgency,
+                      remoteType: job.remote_type,
+                    }
+                  )}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                {job.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    {job.location}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  {job.employment_type}
+                </span>
+                <Badge variant="secondary" className="capitalize">
+                  {job.remote_type}
+                </Badge>
+                {job.industry && (
+                  <Badge variant="outline">{job.industry}</Badge>
+                )}
+              </div>
+
+              {/* AI Highlights */}
+              {formattedContent?.highlights && formattedContent.highlights.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {formattedContent.highlights.map((highlight, i) => (
+                    <Badge key={i} variant="outline" className="bg-muted/50">
+                      <Star className="h-3 w-3 mr-1 text-amber-500" />
+                      {highlight}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <Dialog open={showSubmitForm} onOpenChange={setShowSubmitForm}>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="emerald">
+                    <Users className="h-4 w-4 mr-2" />
+                    Kandidat einreichen
+                  </Button>
+                </DialogTrigger>
                   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Kandidat für {job.title} einreichen</DialogTitle>
@@ -426,7 +415,6 @@ export default function JobDetail() {
                     />
                   </DialogContent>
                 </Dialog>
-              </div>
             </div>
           </div>
         </div>
@@ -506,48 +494,6 @@ export default function JobDetail() {
               techEnvironment={job.tech_environment}
             />
 
-            {/* My Submissions */}
-            {mySubmissions.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Meine Einreichungen ({mySubmissions.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                <div className="space-y-3">
-                    {mySubmissions.map((sub) => (
-                      <div 
-                        key={sub.id} 
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors group"
-                        onClick={() => navigate(`/recruiter/candidates/${sub.candidate_id}`)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback className="bg-primary/10 text-primary">
-                              {sub.candidates?.full_name?.split(' ').map(n => n[0]).join('') || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium group-hover:text-primary transition-colors">
-                              {sub.candidates?.full_name}
-                            </p>
-                            <p className="text-sm text-muted-foreground">{sub.candidates?.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={`status-${sub.status}`}>
-                            {sub.status}
-                          </Badge>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Sidebar - 40% */}

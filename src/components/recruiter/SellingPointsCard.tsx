@@ -18,10 +18,10 @@ export function SellingPointsCard({ sellingPoints, highlights, onGenerateExpose 
   if (allPoints.length === 0 && !onGenerateExpose) return null;
 
   return (
-    <Card className="border-amber-500/20 bg-gradient-to-br from-amber-50/50 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10">
+    <Card className="border-amber-500/20 border-l-2 border-l-amber-500">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-400">
-          <Star className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Star className="h-5 w-5 text-amber-500" />
           Selling Points
         </CardTitle>
       </CardHeader>
@@ -30,7 +30,7 @@ export function SellingPointsCard({ sellingPoints, highlights, onGenerateExpose 
           <ul className="space-y-2">
             {allPoints.slice(0, 5).map((point, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
-                <Sparkles className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                 <span className="text-muted-foreground">{point}</span>
               </li>
             ))}

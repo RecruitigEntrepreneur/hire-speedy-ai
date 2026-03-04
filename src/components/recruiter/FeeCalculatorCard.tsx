@@ -27,9 +27,9 @@ export function FeeCalculatorCard({
     : maxEarning || minEarning;
 
   return (
-    <Card className="border-green-500/20 bg-gradient-to-br from-green-50/50 to-emerald-50/30 dark:from-green-950/20 dark:to-emerald-950/10">
+    <Card className="border-emerald-500/30 bg-emerald-500/5">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base text-green-700 dark:text-green-400">
+        <CardTitle className="flex items-center gap-2 text-base text-emerald-700 dark:text-emerald-400">
           <Euro className="h-5 w-5" />
           Dein Verdienst
         </CardTitle>
@@ -38,7 +38,7 @@ export function FeeCalculatorCard({
         {/* Main Earning Display */}
         {avgEarning ? (
           <div className="text-center py-2">
-            <span className="text-3xl font-bold text-green-700 dark:text-green-400">
+            <span className="text-3xl font-bold text-foreground">
               €{avgEarning.toLocaleString('de-DE')}
             </span>
             <p className="text-sm text-muted-foreground mt-1">
@@ -53,7 +53,7 @@ export function FeeCalculatorCard({
 
         {/* Details */}
         {avgEarning && (
-          <div className="pt-3 border-t border-green-200 dark:border-green-800 space-y-2">
+          <div className="pt-3 border-t border-emerald-200 dark:border-emerald-800 space-y-2">
             {/* Salary Range */}
             {(salaryMin || salaryMax) && (
               <div className="flex items-center justify-between text-sm">
