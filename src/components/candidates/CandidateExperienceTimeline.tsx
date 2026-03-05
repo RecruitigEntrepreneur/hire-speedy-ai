@@ -14,6 +14,7 @@ interface CandidateExperienceTimelineProps {
   candidateId: string;
   onReparse?: () => void;
   isReparsing?: boolean;
+  anonymized?: boolean;
 }
 
 interface Experience {
@@ -28,7 +29,7 @@ interface Experience {
   sort_order: number;
 }
 
-export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing }: CandidateExperienceTimelineProps) {
+export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing, anonymized = false }: CandidateExperienceTimelineProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (id: string) => {
@@ -129,9 +130,9 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                   <h4 className="font-semibold">{exp.job_title}</h4>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Building2 className="h-3.5 w-3.5" />
-                    <span>{exp.company_name}</span>
+                    <span>{anonymized ? 'Unternehmen' : exp.company_name}</span>
                   </div>
-                  {exp.location && (
+                  {exp.location && !anonymized && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3" />
                       <span>{exp.location}</span>
