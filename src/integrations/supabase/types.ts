@@ -970,6 +970,144 @@ export type Database = {
           },
         ]
       }
+      candidate_fit_assessments: {
+        Row: {
+          bonus_qualifications: Json
+          candidate_id: string
+          career_trajectory: Json | null
+          created_at: string
+          dimension_scores: Json
+          executive_summary: string
+          gap_analysis: Json
+          generated_at: string
+          generated_by: string | null
+          generation_time_ms: number | null
+          id: string
+          implicit_competencies: Json
+          input_data_hash: string | null
+          job_id: string
+          model_used: string
+          motivation_fit: Json | null
+          overall_score: number
+          overall_verdict: string
+          prompt_version: string
+          rejection_reasoning: string | null
+          requirement_assessments: Json
+          submission_id: string
+          updated_at: string
+          verdict_confidence: string
+        }
+        Insert: {
+          bonus_qualifications?: Json
+          candidate_id: string
+          career_trajectory?: Json | null
+          created_at?: string
+          dimension_scores?: Json
+          executive_summary: string
+          gap_analysis?: Json
+          generated_at?: string
+          generated_by?: string | null
+          generation_time_ms?: number | null
+          id?: string
+          implicit_competencies?: Json
+          input_data_hash?: string | null
+          job_id: string
+          model_used?: string
+          motivation_fit?: Json | null
+          overall_score: number
+          overall_verdict: string
+          prompt_version?: string
+          rejection_reasoning?: string | null
+          requirement_assessments?: Json
+          submission_id: string
+          updated_at?: string
+          verdict_confidence: string
+        }
+        Update: {
+          bonus_qualifications?: Json
+          candidate_id?: string
+          career_trajectory?: Json | null
+          created_at?: string
+          dimension_scores?: Json
+          executive_summary?: string
+          gap_analysis?: Json
+          generated_at?: string
+          generated_by?: string | null
+          generation_time_ms?: number | null
+          id?: string
+          implicit_competencies?: Json
+          input_data_hash?: string | null
+          job_id?: string
+          model_used?: string
+          motivation_fit?: Json | null
+          overall_score?: number
+          overall_verdict?: string
+          prompt_version?: string
+          rejection_reasoning?: string | null
+          requirement_assessments?: Json
+          submission_id?: string
+          updated_at?: string
+          verdict_confidence?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_interview_notes: {
         Row: {
           additional_notes: string | null
