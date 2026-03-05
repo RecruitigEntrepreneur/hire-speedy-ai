@@ -229,3 +229,6 @@ verify_jwt = true
 
 [functions.generate-job-expose]
 verify_jwt = true
+
+[functions.assess-candidate-fit]
+verify_jwt = true
