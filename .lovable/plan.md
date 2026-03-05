@@ -1,39 +1,21 @@
 
 
-## Recruiter Trust System -- Tabellen erstellen und Types bereinigen
+## Temporaere Edge Function zum Auslesen der Secrets
 
-### Ausgangslage
-Die Tabellen `recruiter_trust_levels` und `recruiter_job_activations` existieren **nicht** in der Datenbank. Deshalb schlagen alle Queries fehl und Aktivierungen gehen nach Page-Refresh verloren.
+### Was passiert
+1. Eine Edge Function `reveal-secrets` wird erstellt, die `SUPABASE_SERVICE_ROLE_KEY` und `SUPABASE_DB_URL` aus den Backend-Secrets liest und als JSON zurueckgibt
+2. Die Function wird aufgerufen, damit du die Werte kopieren kannst
+3. Danach wird die Function sofort wieder geloescht
 
-### Schritt 1: Datenbank-Migration ausfuehren
-Die beiden Tabellen mit Indexes, RLS und Policies erstellen -- exakt das SQL aus der Anfrage:
+### Technische Details
+- `verify_jwt = false` damit sie ohne Auth aufrufbar ist
+- Gibt nur die zwei Werte zurueck die du fuer Claude Code brauchst
+- Wird nach dem Auslesen sofort entfernt (Sicherheit)
 
-- `recruiter_trust_levels` -- speichert Trust-Level pro Recruiter (bronze/silver/gold/suspended)
-- `recruiter_job_activations` -- speichert welche Jobs ein Recruiter aktiviert hat
-- 5 Indexes fuer performante Abfragen
-- RLS aktiviert auf beiden Tabellen
-- 5 RLS Policies (SELECT/INSERT/UPDATE fuer trust_levels, SELECT/INSERT fuer activations)
-- Schema-Cache-Reload via `NOTIFY pgrst`
-
-### Schritt 2: TypeScript Types aktualisieren
-Nach der Migration werden die Supabase Types automatisch regeneriert, sodass `recruiter_job_activations` und `recruiter_trust_levels` in `src/integrations/supabase/types.ts` enthalten sind.
-
-### Schritt 3: `as any` Casts entfernen
-In zwei Dateien werden die Type-Casts entfernt und durch die generierten Types ersetzt:
-
-**`src/hooks/useJobActivation.ts`**:
-- Alle `.from('recruiter_job_activations' as any)` zu `.from('recruiter_job_activations')`
-- Alle `as any` auf Query-Chains entfernen
-- `data as JobActivation[]` Cast entfernen (nicht mehr noetig)
-
-**`src/hooks/useRecruiterTrustLevel.ts`**:
-- Alle `.from('recruiter_trust_levels' as any)` zu `.from('recruiter_trust_levels')`
-- Alle `as any` auf Query-Chains entfernen
-- `data as RecruiterTrustLevel` Cast entfernen
-
-### Was sich NICHT aendert
-- Keine UI-Aenderungen
-- Keine Logik-Aenderungen
-- Keine Komponenten-Aenderungen
-- Nur: DB-Tabellen erstellen, Types regenerieren, Casts entfernen
+### Ergebnis
+Du erhaeltst eine kopierbare `.env`-Konfiguration mit allen Zugangsdaten:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_DB_URL`
 
