@@ -53,7 +53,7 @@ interface ExistingCandidate {
   notice_period: string | null;
   city: string | null;
   cv_ai_summary: string | null;
-  cv_ai_bullets: unknown[] | null;
+  cv_ai_bullets: unknown;
 }
 
 export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess }: CandidateSubmitFormProps) {
