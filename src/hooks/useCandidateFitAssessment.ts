@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeAssessment } from '@/lib/fitAssessmentNormalizer';
 
 // ============================================================================
 // Types
@@ -11,9 +12,9 @@ export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface RequirementAssessment {
   requirement: string;
-  requirement_type: 'must_have' | 'nice_to_have' | 'inferred';
+  requirement_type?: 'must_have' | 'nice_to_have' | 'inferred';
   verdict: 'fulfilled' | 'partially_fulfilled' | 'inferred_from_experience' | 'trainable' | 'gap';
-  confidence: ConfidenceLevel;
+  confidence?: ConfidenceLevel;
   evidence: string[];
   evidence_source?: string;
   reasoning: string;
@@ -30,18 +31,18 @@ export interface BonusQualification {
 export interface GapItem {
   requirement: string;
   gap_severity: 'critical' | 'significant' | 'minor';
-  is_trainable: boolean;
-  trainability_assessment: string;
+  is_trainable?: boolean;
+  trainability_assessment?: string;
   mitigation_suggestion: string;
-  deal_breaker: boolean;
+  deal_breaker?: boolean;
 }
 
 export interface CareerTrajectory {
   trajectory_type: 'ascending' | 'lateral' | 'pivoting' | 'specialist_deepening' | 'declining' | 'mixed';
   trajectory_summary: string;
   growth_velocity: 'fast' | 'normal' | 'slow';
-  implied_competencies: string[];
-  career_stage_fit: string;
+  implied_competencies?: string[];
+  career_stage_fit?: string;
 }
 
 export interface ImplicitCompetency {
@@ -56,8 +57,8 @@ export interface MotivationFit {
   alignment_summary: string;
   motivational_match_points?: string[];
   motivational_risk_points?: string[];
-  retention_prediction: 'high' | 'medium' | 'low';
-  retention_reasoning: string;
+  retention_prediction?: 'high' | 'medium' | 'low';
+  retention_reasoning?: string;
 }
 
 export interface DimensionScores {
@@ -124,29 +125,7 @@ export function useCandidateFitAssessment(submissionId?: string) {
       if (error) throw error;
 
       if (data) {
-        const parsed: CandidateFitAssessment = {
-          id: data.id,
-          submission_id: data.submission_id,
-          candidate_id: data.candidate_id,
-          job_id: data.job_id,
-          overall_verdict: data.overall_verdict as FitVerdict,
-          overall_score: data.overall_score,
-          executive_summary: data.executive_summary,
-          verdict_confidence: data.verdict_confidence as ConfidenceLevel,
-          requirement_assessments: (data.requirement_assessments as unknown as RequirementAssessment[]) || [],
-          bonus_qualifications: (data.bonus_qualifications as unknown as BonusQualification[]) || [],
-          gap_analysis: (data.gap_analysis as unknown as GapItem[]) || [],
-          career_trajectory: (data.career_trajectory as unknown as CareerTrajectory) || {} as CareerTrajectory,
-          implicit_competencies: (data.implicit_competencies as unknown as ImplicitCompetency[]) || [],
-          motivation_fit: (data.motivation_fit as unknown as MotivationFit) || null,
-          dimension_scores: (data.dimension_scores as unknown as DimensionScores) || {} as DimensionScores,
-          rejection_reasoning: data.rejection_reasoning,
-          model_used: data.model_used,
-          prompt_version: data.prompt_version,
-          generation_time_ms: data.generation_time_ms,
-          generated_at: data.generated_at,
-          created_at: data.created_at,
-        };
+        const parsed = normalizeAssessment(data);
         setAssessment(parsed);
       } else {
         setAssessment(null);

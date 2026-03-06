@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -114,21 +114,8 @@ export function CandidateFitAssessmentCard({
   keySellingPoints,
   className,
 }: CandidateFitAssessmentCardProps) {
-  const { assessment, loading, generating, generateAssessment, hasTriedGenerate } = useCandidateFitAssessment(submissionId);
+  const { assessment, loading, generating, generateAssessment } = useCandidateFitAssessment(submissionId);
   const [detailsOpen, setDetailsOpen] = useState(false);
-
-  // Auto-generate if no assessment exists
-  useEffect(() => {
-    if (!loading && !assessment && !generating && submissionId && !hasTriedGenerate.current) {
-      hasTriedGenerate.current = true;
-      generateAssessment({ silent: true });
-    }
-  }, [loading, assessment, generating, submissionId, generateAssessment, hasTriedGenerate]);
-
-  // Reset when submissionId changes
-  useEffect(() => {
-    hasTriedGenerate.current = false;
-  }, [submissionId, hasTriedGenerate]);
 
   // ── Loading ──
   if (loading || (!assessment && generating)) {
@@ -152,7 +139,7 @@ export function CandidateFitAssessmentCard({
     );
   }
 
-  // ── No assessment ──
+  // ── No assessment — offer manual generation as fallback ──
   if (!assessment) {
     return (
       <Card className={className}>
@@ -162,7 +149,7 @@ export function CandidateFitAssessmentCard({
             <span className="font-semibold text-sm">Intelligente Fit-Analyse</span>
           </div>
           <p className="text-sm text-muted-foreground text-center py-3">
-            Analyse konnte nicht erstellt werden.
+            Analyse wird vorbereitet oder steht noch aus.
           </p>
           <Button
             variant="outline"
@@ -172,7 +159,7 @@ export function CandidateFitAssessmentCard({
             disabled={generating}
           >
             {generating ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <Brain className="h-3.5 w-3.5 mr-2" />}
-            Analyse starten
+            Analyse jetzt starten
           </Button>
         </CardContent>
       </Card>
@@ -372,7 +359,9 @@ export function CandidateFitAssessmentCard({
                           </Badge>
                           {gap.deal_breaker && <Badge variant="destructive" className="text-[9px] h-4 px-1">Dealbreaker</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{gap.trainability_assessment}</p>
+                        {gap.trainability_assessment && (
+                          <p className="text-xs text-muted-foreground mt-1">{gap.trainability_assessment}</p>
+                        )}
                         {gap.mitigation_suggestion && (
                           <p className="text-[11px] text-muted-foreground/70 mt-0.5 italic">Mitigation: {gap.mitigation_suggestion}</p>
                         )}
@@ -405,9 +394,11 @@ export function CandidateFitAssessmentCard({
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Karriere-Trajektorie</p>
                   <p className="text-sm text-muted-foreground">{assessment.career_trajectory.trajectory_summary}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Karrierestufe: {assessment.career_trajectory.career_stage_fit}
-                  </p>
+                  {assessment.career_trajectory.career_stage_fit && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Karrierestufe: {assessment.career_trajectory.career_stage_fit}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -416,17 +407,19 @@ export function CandidateFitAssessmentCard({
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Motivation & Retention</p>
                   <p className="text-sm text-muted-foreground">{assessment.motivation_fit.alignment_summary}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs">
-                    <span className="text-muted-foreground">Retention:</span>
-                    <Badge variant="outline" className={cn('text-[10px]',
-                      assessment.motivation_fit.retention_prediction === 'high' ? 'text-emerald-600 border-emerald-500/50' :
-                      assessment.motivation_fit.retention_prediction === 'medium' ? 'text-amber-600 border-amber-500/50' :
-                      'text-red-600 border-red-500/50',
-                    )}>
-                      {assessment.motivation_fit.retention_prediction === 'high' ? 'Hoch' :
-                       assessment.motivation_fit.retention_prediction === 'medium' ? 'Mittel' : 'Niedrig'}
-                    </Badge>
-                  </div>
+                  {assessment.motivation_fit.retention_prediction && (
+                    <div className="flex items-center gap-3 mt-1.5 text-xs">
+                      <span className="text-muted-foreground">Retention:</span>
+                      <Badge variant="outline" className={cn('text-[10px]',
+                        assessment.motivation_fit.retention_prediction === 'high' ? 'text-emerald-600 border-emerald-500/50' :
+                        assessment.motivation_fit.retention_prediction === 'medium' ? 'text-amber-600 border-amber-500/50' :
+                        'text-red-600 border-red-500/50',
+                      )}>
+                        {assessment.motivation_fit.retention_prediction === 'high' ? 'Hoch' :
+                         assessment.motivation_fit.retention_prediction === 'medium' ? 'Mittel' : 'Niedrig'}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -438,12 +431,12 @@ export function CandidateFitAssessmentCard({
                     {[
                       { key: 'technical', label: 'Tech' },
                       { key: 'experience', label: 'Erf.' },
-                      { key: 'leadership', label: 'Lead.' },
+                      { key: 'leadership', label: 'Senior.' },
                       { key: 'cultural', label: 'Kultur' },
                       { key: 'growth_potential', label: 'Potenzial' },
                     ].map(({ key, label }) => {
                       const score = (assessment.dimension_scores as any)?.[key] as number | undefined;
-                      if (score === undefined) return null;
+                      if (score === undefined || score === 0) return null;
                       return (
                         <div key={key} className="text-center">
                           <div className={cn(

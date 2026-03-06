@@ -352,9 +352,19 @@ Erstelle ein vollständiges Fit Assessment.`;
     const assessment = JSON.parse(toolCall.function.arguments);
     const generationTimeMs = Date.now() - startTime;
 
-    // Get user id from auth header
-    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { data: { user } } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    // Get user id from auth header (skip if called via service role key / pg_net trigger)
+    let generatedBy: string | null = null;
+    const token = authHeader.replace("Bearer ", "");
+    if (token !== supabaseKey) {
+      try {
+        const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+        const { data: { user } } = await anonClient.auth.getUser(token);
+        generatedBy = user?.id || null;
+      } catch {
+        // pg_net or service role call — no user context
+        generatedBy = null;
+      }
+    }
 
     // 7. Upsert into database
     const { data: savedAssessment, error: upsertErr } = await supabase
@@ -381,7 +391,7 @@ Erstelle ein vollständiges Fit Assessment.`;
           input_data_hash: inputHash,
           generation_time_ms: generationTimeMs,
           generated_at: new Date().toISOString(),
-          generated_by: user?.id || null,
+          generated_by: generatedBy,
         },
         { onConflict: "submission_id" }
       )

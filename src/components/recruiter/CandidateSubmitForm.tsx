@@ -15,20 +15,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Loader2, 
-  AlertTriangle, 
-  CheckCircle2, 
+import {
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
   XCircle,
   UserPlus,
   Shield,
   Sparkles,
-  Wand2
+  Wand2,
+  Lock,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileUpload } from '@/components/files/FileUpload';
 import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
+import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 
 interface CandidateSubmitFormProps {
   jobId: string;
@@ -41,7 +44,16 @@ interface ExistingCandidate {
   id: string;
   full_name: string;
   email: string;
-  skills: string[];
+  phone: string | null;
+  job_title: string | null;
+  skills: string[] | null;
+  experience_years: number | null;
+  expected_salary: number | null;
+  availability_date: string | null;
+  notice_period: string | null;
+  city: string | null;
+  cv_ai_summary: string | null;
+  cv_ai_bullets: unknown[] | null;
 }
 
 export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess }: CandidateSubmitFormProps) {
@@ -59,6 +71,11 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   const [calculatingScore, setCalculatingScore] = useState(false);
   const [cvTextForParsing, setCvTextForParsing] = useState('');
   const [showCvParser, setShowCvParser] = useState(false);
+  const [selectedCandidateReadiness, setSelectedCandidateReadiness] = useState<{
+    isReady: boolean;
+    score: number;
+    missingFields: string[];
+  } | null>(null);
 
   // New candidate form
   const [formData, setFormData] = useState({
@@ -141,7 +158,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
     
     const { data } = await supabase
       .from('candidates')
-      .select('id, full_name, email, skills')
+      .select('id, full_name, email, phone, job_title, skills, experience_years, expected_salary, availability_date, notice_period, city, cv_ai_summary, cv_ai_bullets')
       .eq('recruiter_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -286,14 +303,29 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
     setSkillsMatch({ matched, missing });
   };
 
-  const handleCandidateSelect = (candidateId: string) => {
+  const handleCandidateSelect = async (candidateId: string) => {
     setSelectedCandidate(candidateId);
     setCreateNew(false);
-    
+
     const candidate = existingCandidates.find(c => c.id === candidateId);
     if (candidate) {
       checkDuplicate(candidate.email);
       checkSkillsMatch(candidate.skills || []);
+
+      // Fetch interview notes for change_motivation (lives in separate table)
+      const { data: interviewNotes } = await supabase
+        .from('candidate_interview_notes')
+        .select('change_motivation')
+        .eq('candidate_id', candidateId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const readiness = getExposeReadiness({
+        ...candidate,
+        change_motivation: interviewNotes?.change_motivation || null,
+      });
+      setSelectedCandidateReadiness(readiness);
     }
   };
 
@@ -317,6 +349,16 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
       toast({
         title: 'Einreichung nicht möglich',
         description: duplicateWarning,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Readiness gate for existing candidates
+    if (selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady) {
+      toast({
+        title: 'Profil unvollständig',
+        description: `Fehlende Felder: ${selectedCandidateReadiness.missingFields.join(', ')}`,
         variant: 'destructive'
       });
       return;
@@ -446,6 +488,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
             setSelectedCandidate(null);
             setDuplicateWarning(null);
             setSkillsMatch({ matched: [], missing: [] });
+            setSelectedCandidateReadiness(null);
           }}
         >
           <UserPlus className="h-4 w-4 mr-2" />
@@ -453,9 +496,55 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
         </Button>
       </div>
 
+      {/* Readiness Gate for existing candidates */}
+      {selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady && (
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription>
+            <div className="space-y-2">
+              <p className="font-medium text-amber-700 dark:text-amber-400">
+                Profil unvollständig ({selectedCandidateReadiness.score}%)
+              </p>
+              <p className="text-sm text-amber-600 dark:text-amber-500">
+                Der Kandidat kann erst eingereicht werden, wenn das Profil vollständig ist.
+                Bitte vervollständigen Sie das Profil im Kandidaten-Detail.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {selectedCandidateReadiness.missingFields.map((field) => (
+                  <Badge key={field} variant="outline" className="text-xs text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    {field}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Readiness OK indicator for existing candidates */}
+      {selectedCandidate && selectedCandidateReadiness && selectedCandidateReadiness.isReady && (
+        <Alert className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-400">
+            Profil vollständig ({selectedCandidateReadiness.score}%) — Kandidat kann eingereicht werden.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* New Candidate Form */}
       {createNew && (
         <div className="space-y-4 border rounded-lg p-4">
+          {/* New candidate info hint */}
+          <Alert className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/30 dark:border-blue-800">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-sm text-blue-700 dark:text-blue-400">
+              Neue Kandidaten haben zunächst ein unvollständiges Profil.
+              Vervollständigen Sie es nach der Einreichung (CV hochladen, Interview),
+              um die Fit-Analyse zu verbessern.
+            </AlertDescription>
+          </Alert>
+
           <div className="flex items-center justify-between">
             <h4 className="font-medium">Neuer Kandidat</h4>
             <Button
@@ -703,15 +792,25 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
       </Alert>
 
       {/* Submit Button */}
-      <Button 
-        type="submit" 
-        className="w-full" 
-        disabled={loading || checking || (!selectedCandidate && !createNew) || !gdprConsent}
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={
+          loading || checking ||
+          (!selectedCandidate && !createNew) ||
+          !gdprConsent ||
+          (!!selectedCandidate && !!selectedCandidateReadiness && !selectedCandidateReadiness.isReady)
+        }
       >
         {loading || calculatingScore ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             {calculatingScore ? 'Match-Score wird berechnet...' : 'Wird eingereicht...'}
+          </>
+        ) : selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady ? (
+          <>
+            <Lock className="h-4 w-4 mr-2" />
+            Profil unvollständig
           </>
         ) : (
           <>
