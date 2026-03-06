@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +54,7 @@ interface ExistingCandidate {
   notice_period: string | null;
   city: string | null;
   cv_ai_summary: string | null;
-  cv_ai_bullets: unknown[] | null;
+  cv_ai_bullets: Json | null;
 }
 
 export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess }: CandidateSubmitFormProps) {
@@ -323,6 +324,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
 
       const readiness = getExposeReadiness({
         ...candidate,
+        cv_ai_bullets: Array.isArray(candidate.cv_ai_bullets) ? candidate.cv_ai_bullets : null,
         change_motivation: interviewNotes?.change_motivation || null,
       });
       setSelectedCandidateReadiness(readiness);
