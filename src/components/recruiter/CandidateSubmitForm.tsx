@@ -324,6 +324,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
 
       const readiness = getExposeReadiness({
         ...candidate,
+        cv_ai_bullets: Array.isArray(candidate.cv_ai_bullets) ? candidate.cv_ai_bullets : null,
         change_motivation: interviewNotes?.change_motivation || null,
       });
       setSelectedCandidateReadiness(readiness);
