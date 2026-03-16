@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, Type, Link2, Sparkles } from 'lucide-react';
+import { Sparkles, Briefcase, Code2, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -8,30 +8,33 @@ interface QuickJobImportProps {
   className?: string;
 }
 
+const trackOptions = [
+  {
+    track: 'permanent',
+    icon: Briefcase,
+    label: 'Festanstellung',
+    description: 'Unbefristet oder befristet',
+    tags: ['Gehalt', 'Benefits', 'Probezeit'],
+  },
+  {
+    track: 'freelance',
+    icon: Code2,
+    label: 'Freelancer',
+    description: 'Projekt oder zeitlich begrenzt',
+    tags: ['Tagessatz', 'Laufzeit', 'Remote'],
+  },
+  {
+    track: 'temp_staffing',
+    icon: ShieldCheck,
+    label: 'ANÜ',
+    description: 'AÜG-konforme Überlassung',
+    tags: ['Verrechnungssatz', 'Equal Pay', 'Übernahme'],
+  },
+] as const;
+
 export function QuickJobImport({ className }: QuickJobImportProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-
-  const importOptions = [
-    {
-      mode: 'pdf',
-      icon: FileText,
-      label: 'PDF',
-      description: 'SAP, Personio, Workday...',
-    },
-    {
-      mode: 'text',
-      icon: Type,
-      label: 'Text',
-      description: 'Copy & Paste',
-    },
-    {
-      mode: 'url',
-      icon: Link2,
-      label: 'URL',
-      description: 'LinkedIn, Stepstone...',
-    },
-  ] as const;
 
   return (
     <Card className={cn(
@@ -44,8 +47,8 @@ export function QuickJobImport({ className }: QuickJobImportProps) {
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Neue Stelle in 60 Sekunden</h3>
-            <p className="text-xs text-muted-foreground">KI übernimmt den Rest</p>
+            <h3 className="font-semibold text-sm">Neue Stelle erstellen</h3>
+            <p className="text-xs text-muted-foreground">Wählen Sie den Stellentyp</p>
           </div>
         </div>
 
@@ -53,10 +56,10 @@ export function QuickJobImport({ className }: QuickJobImportProps) {
           "grid gap-2",
           isMobile ? "grid-cols-1" : "grid-cols-3"
         )}>
-          {importOptions.map(({ mode, icon: Icon, label, description }) => (
+          {trackOptions.map(({ track, icon: Icon, label, description, tags }) => (
             <button
-              key={mode}
-              onClick={() => navigate(`/dashboard/jobs/new?mode=${mode}`)}
+              key={track}
+              onClick={() => navigate(`/dashboard/jobs/new?track=${track}`)}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-lg border border-border/50",
                 "bg-background/60 backdrop-blur-sm",
@@ -73,6 +76,15 @@ export function QuickJobImport({ className }: QuickJobImportProps) {
               <div className={isMobile ? "text-left" : ""}>
                 <span className="text-sm font-medium block">{label}</span>
                 <span className="text-xs text-muted-foreground">{description}</span>
+                {!isMobile && (
+                  <div className="flex flex-wrap justify-center gap-1 mt-1.5">
+                    {tags.map((tag) => (
+                      <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted/50 text-muted-foreground">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </button>
           ))}

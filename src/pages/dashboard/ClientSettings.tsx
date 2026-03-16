@@ -40,6 +40,11 @@ interface CompanyProfile {
   address: string | null;
   tax_id: string | null;
   billing_email: string | null;
+  // Wizard Defaults
+  company_size_band: string | null;
+  funding_stage: string | null;
+  default_tech_environment: string[] | null;
+  default_benefits: string[] | null;
   // Partner Facts
   headcount: number | null;
   annual_revenue: string | null;
@@ -79,6 +84,10 @@ export default function ClientSettings() {
     address: null,
     tax_id: null,
     billing_email: null,
+    company_size_band: null,
+    funding_stage: null,
+    default_tech_environment: null,
+    default_benefits: null,
     headcount: null,
     annual_revenue: null,
     founded_year: null,
@@ -134,6 +143,10 @@ export default function ClientSettings() {
             address: profile.address,
             tax_id: profile.tax_id,
             billing_email: profile.billing_email,
+            company_size_band: profile.company_size_band,
+            funding_stage: profile.funding_stage,
+            default_tech_environment: profile.default_tech_environment,
+            default_benefits: profile.default_benefits,
             headcount: profile.headcount,
             annual_revenue: profile.annual_revenue,
             founded_year: profile.founded_year,
@@ -157,6 +170,10 @@ export default function ClientSettings() {
             address: profile.address,
             tax_id: profile.tax_id,
             billing_email: profile.billing_email,
+            company_size_band: profile.company_size_band,
+            funding_stage: profile.funding_stage,
+            default_tech_environment: profile.default_tech_environment,
+            default_benefits: profile.default_benefits,
             headcount: profile.headcount,
             annual_revenue: profile.annual_revenue,
             founded_year: profile.founded_year,
@@ -304,6 +321,57 @@ export default function ClientSettings() {
                   placeholder="Kurze Beschreibung deines Unternehmens..."
                   rows={3}
                 />
+              </div>
+
+              <Separator />
+
+              {/* Wizard Defaults */}
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3">
+                  Wizard-Defaults (werden bei neuen Stellen vorausgefüllt)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="company_size_band">Unternehmensgröße</Label>
+                    <Select
+                      value={profile.company_size_band || ''}
+                      onValueChange={(v) => setProfile({ ...profile, company_size_band: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1-10">1-10</SelectItem>
+                        <SelectItem value="11-50">11-50</SelectItem>
+                        <SelectItem value="51-200">51-200</SelectItem>
+                        <SelectItem value="201-500">201-500</SelectItem>
+                        <SelectItem value="501-1000">501-1.000</SelectItem>
+                        <SelectItem value="1001-5000">1.001-5.000</SelectItem>
+                        <SelectItem value="5000+">5.000+</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="funding_stage">Funding-Stage</Label>
+                    <Select
+                      value={profile.funding_stage || ''}
+                      onValueChange={(v) => setProfile({ ...profile, funding_stage: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bootstrapped">Bootstrapped</SelectItem>
+                        <SelectItem value="seed">Seed</SelectItem>
+                        <SelectItem value="series-a">Series A</SelectItem>
+                        <SelectItem value="series-b">Series B</SelectItem>
+                        <SelectItem value="series-c+">Series C+</SelectItem>
+                        <SelectItem value="public">Börsennotiert</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               <Separator />

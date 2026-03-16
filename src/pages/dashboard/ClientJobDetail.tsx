@@ -27,6 +27,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { JobEditDialog } from '@/components/jobs/JobEditDialog';
 import { CandidateQuickView } from '@/components/candidates/CandidateQuickView';
+import { ClientProcessDialog } from '@/components/client/ClientProcessDialog';
 import { JobExecutiveSummary } from '@/components/jobs/JobExecutiveSummary';
 import { CandidateCompareView } from '@/components/candidates/CandidateCompareView';
 
@@ -453,7 +454,7 @@ export default function ClientJobDetail() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Hero Section */}
-        <ClientJobHero 
+        <ClientJobHero
           job={job}
           stats={{
             totalSubmissions,
@@ -463,9 +464,18 @@ export default function ClientJobDetail() {
             daysOpen,
             activeRecruiters,
           }}
+          submissions={submissions}
           onEdit={() => setShowEditDialog(true)}
           onPauseToggle={handlePauseToggle}
-          showStats={hasCandidates}
+          onCandidateClick={(submission) => {
+            const fullSubmission = submissions.find(s => s.id === submission.id);
+            if (fullSubmission) {
+              setSelectedSubmission(fullSubmission);
+              setShowCandidateView(true);
+            }
+          }}
+          onViewAllCandidates={() => navigate(`/dashboard/command/${job.id}`)}
+          showStats={true}
         />
 
         {/* Phase-adaptive Bento Grid */}
@@ -519,23 +529,9 @@ export default function ClientJobDetail() {
             </div>
           </>
         ) : (
-          /* PHASE 2+: Active (1+ candidates) */
+          /* PHASE 2+: Active (1+ candidates) — Top Candidates now in Hero */
           <>
-            {/* Top Candidates - Full Width, prominent */}
-            <TopCandidatesCard 
-              submissions={submissions}
-              jobTitle={job.title}
-              onCandidateClick={(submission) => {
-                const fullSubmission = submissions.find(s => s.id === submission.id);
-                if (fullSubmission) {
-                  setSelectedSubmission(fullSubmission);
-                  setShowCandidateView(true);
-                }
-              }}
-              onViewAll={() => navigate(`/dashboard/command/${job.id}`)}
-            />
-
-            {/* Middle: Pipeline + Recruiter + Next Steps */}
+            {/* Pipeline + Recruiter + Next Steps */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <PipelineSnapshotCard 
                 jobId={job.id}
@@ -608,11 +604,12 @@ export default function ClientJobDetail() {
         initialTab={editDialogTab}
       />
 
-      {/* Candidate Quick View */}
-      <CandidateQuickView
+      {/* Client Process Dialog (replaces CandidateQuickView) */}
+      <ClientProcessDialog
         submission={selectedSubmission}
         open={showCandidateView}
         onOpenChange={setShowCandidateView}
+        jobTitle={job.title}
         onStageChange={handleStageChange}
         onScheduleInterview={openScheduleInterview}
         onReject={openRejectDialog}

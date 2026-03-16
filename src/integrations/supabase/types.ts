@@ -2418,10 +2418,14 @@ export type Database = {
           brand_color_secondary: string | null
           company_awards: string[] | null
           company_name: string
+          company_size_band: string | null
           created_at: string
           culture_values: Json | null
+          default_benefits: string[] | null
+          default_tech_environment: string[] | null
           description: string | null
           founded_year: number | null
+          funding_stage: string | null
           headcount: number | null
           id: string
           industry: string | null
@@ -2452,10 +2456,14 @@ export type Database = {
           brand_color_secondary?: string | null
           company_awards?: string[] | null
           company_name: string
+          company_size_band?: string | null
           created_at?: string
           culture_values?: Json | null
+          default_benefits?: string[] | null
+          default_tech_environment?: string[] | null
           description?: string | null
           founded_year?: number | null
+          funding_stage?: string | null
           headcount?: number | null
           id?: string
           industry?: string | null
@@ -2486,10 +2494,14 @@ export type Database = {
           brand_color_secondary?: string | null
           company_awards?: string[] | null
           company_name?: string
+          company_size_band?: string | null
           created_at?: string
           culture_values?: Json | null
+          default_benefits?: string[] | null
+          default_tech_environment?: string[] | null
           description?: string | null
           founded_year?: number | null
+          funding_stage?: string | null
           headcount?: number | null
           id?: string
           industry?: string | null
@@ -4085,6 +4097,7 @@ export type Database = {
           commute_flexibility: string | null
           company_culture: string | null
           company_name: string
+          company_profile_id: string | null
           company_size_band: string | null
           contract_creation_days: number | null
           contract_sensitive_topics: string | null
@@ -4172,6 +4185,7 @@ export type Database = {
           commute_flexibility?: string | null
           company_culture?: string | null
           company_name: string
+          company_profile_id?: string | null
           company_size_band?: string | null
           contract_creation_days?: number | null
           contract_sensitive_topics?: string | null
@@ -4259,6 +4273,7 @@ export type Database = {
           commute_flexibility?: string | null
           company_culture?: string | null
           company_name?: string
+          company_profile_id?: string | null
           company_size_band?: string | null
           contract_creation_days?: number | null
           contract_sensitive_topics?: string | null
