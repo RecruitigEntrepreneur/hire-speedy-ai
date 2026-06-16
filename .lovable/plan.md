@@ -1,34 +1,43 @@
+## Plan: Drei Triple-Blind / Auth-Migrationen anwenden
 
+Es wird KEIN Anwendungscode geändert. Es werden ausschließlich die drei bereits im Repo liegenden Migrationsdateien gegen die verbundene Datenbank ausgeführt — exakt in dieser Reihenfolge:
 
-## Plan: Migration + Edge Function fuer Intelligent Fit Assessment
+1. `supabase/migrations/20260608120000_auth_hardening_privilege_escalation.sql`
+   - Ersetzt `public.handle_new_user()` durch eine Version, die nur `client`/`recruiter` als Selbst-Rolle erlaubt; alles andere fällt sicher auf `client`.
+   - Entfernt die Policy `"Users can insert their own role"` auf `public.user_roles` (Privilege-Escalation-Fix).
 
-### Schritt 1: Datenbank-Migration
+2. `supabase/migrations/20260608121000_triple_blind_views_wave_a.sql`
+   - Legt Anonymisierungs-Funktionen an: `anon_region_broad`, `anon_experience_band`, `anon_salary_band` (jeweils `IMMUTABLE`, `EXECUTE` für `authenticated`).
+   - Legt Views an: `client_candidate_view`, `client_candidate_experiences_view`, `recruiter_jobs_view` mit eingebauter Ownership-Prüfung und Spalten-Maskierung; `GRANT SELECT` an `authenticated`.
 
-Erstelle die Tabelle `candidate_fit_assessments` mit dem bereitgestellten SQL (Indices, RLS Policies, Trigger). Die Migration wird exakt den SQL-Code verwenden, den du angegeben hast.
+3. `supabase/migrations/20260608122000_client_fit_assessment_view.sql`
+   - Legt `public.scrub_identity_tokens(text, text[], text)` an.
+   - Legt View `public.client_fit_assessment_view` an (reveal-gated Klartext); `GRANT SELECT` an `authenticated`.
 
-### Schritt 2: Edge Function `assess-candidate-fit`
+Rein additiv (CREATE FUNCTION / CREATE VIEW / GRANT) bis auf den bewussten `DROP POLICY` in Migration 1.
 
-Da die Datei `supabase/functions/assess-candidate-fit/index.ts` **nicht im Repo existiert**, werde ich sie neu erstellen mit folgender Logik:
+### Ausführung
+- Die drei Migrationen werden über das Migrations-Tool in genau dieser Reihenfolge eingereicht (drei Aufrufe nacheinander, jeweils mit dem unveränderten SQL aus den Dateien). Du bestätigst jede einzelne Migration; ohne Bestätigung wird nichts ausgeführt.
 
-1. **Input**: `{ submissionId, force? }` als JSON Body
-2. **Submission aufloesen**: submission laden, daraus `candidate_id` und `job_id` extrahieren
-3. **Daten parallel laden**: `candidates`, `candidate_experiences`, `candidate_languages`, `candidate_skills`, `candidate_interview_notes`, `candidate_ai_assessment`, `jobs` -- alles per `Promise.all`
-4. **SHA-256 Input-Hash**: Aus den gesammelten Daten einen Hash berechnen; wenn `force` nicht gesetzt und ein Assessment mit gleichem Hash existiert, cached zurueckgeben
-5. **Lovable AI Gateway aufrufen**: `https://ai.gateway.lovable.dev/v1/chat/completions` mit `google/gemini-2.5-flash`, Function Calling (tool_choice) fuer strukturiertes Output mit dem Schema der Tabelle (overall_verdict, overall_score, executive_summary, requirement_assessments, gap_analysis, etc.)
-6. **Upsert**: Ergebnis in `candidate_fit_assessments` speichern (ON CONFLICT submission_id)
-7. **Response**: Assessment-Daten zurueckgeben
+### Verifikation nach erfolgreichem Run
+Per SQL-Read-Query gegen `information_schema` / `pg_policies` wird geprüft, dass:
 
-### Schritt 3: config.toml
+- Views existieren in `public`:
+  - `client_candidate_view`
+  - `client_candidate_experiences_view`
+  - `recruiter_jobs_view`
+  - `client_fit_assessment_view`
+- Funktionen existieren in `public`:
+  - `anon_region_broad`
+  - `anon_experience_band`
+  - `anon_salary_band`
+  - `scrub_identity_tokens`
+- Policy `"Users can insert their own role"` auf `public.user_roles` ist NICHT mehr vorhanden.
 
-Eintrag `[functions.assess-candidate-fit]` mit `verify_jwt = true` hinzufuegen.
+### Output an dich
+Kurze Ergebnis-Tabelle mit Status (✅ vorhanden / ❌ fehlt) je geprüftem Objekt sowie der Bestätigung, dass die Self-Insert-Policy entfernt ist.
 
-### Aenderungen
-
-| Datei | Aktion |
-|---|---|
-| `supabase/migrations/xxx.sql` | Neue Migration (Tabelle + RLS + Trigger) |
-| `supabase/functions/assess-candidate-fit/index.ts` | Neue Edge Function |
-| `supabase/config.toml` | Neuer Eintrag fuer die Function |
-
-Keine weiteren Dateien werden geaendert. Types werden automatisch regeneriert nach der Migration.
-
+### Nicht Teil dieser Aufgabe
+- Keine Änderungen an Frontend/Hooks (Welle B kommt separat).
+- Keine Änderungen an bestehenden RLS-Policies (außer dem o.g. DROP).
+- Keine Bereinigung evtl. unrechtmäßiger Admin-Rollen (gemäß Hinweis in Migration 1 manuell prüfen).
