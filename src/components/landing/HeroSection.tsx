@@ -16,7 +16,7 @@ export const HeroSection = () => {
         <div className="flex justify-center mb-8 animate-fade-in">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/5 border border-border/30 text-sm text-muted-foreground backdrop-blur-sm">
             <Sparkles className="w-4 h-4" />
-            <span className="font-medium">KI-gestütztes Recruiting</span>
+            <span className="font-medium">Triple-Blind · Erfolgsbasiert · DACH</span>
           </div>
         </div>
 
@@ -31,7 +31,7 @@ export const HeroSection = () => {
 
         {/* Subheadline */}
         <p className="mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "100ms" }}>
-          Geprüfte Recruiter schlagen passende Kandidaten vor. Unternehmen stellen ein.
+          Geprüfte Recruiter schlagen passende Kandidaten vor – anonymisiert. Unternehmen stellen ein.
           <span className="text-foreground font-medium"> Bezahlt wird nur bei Erfolg.</span>
         </p>
 
