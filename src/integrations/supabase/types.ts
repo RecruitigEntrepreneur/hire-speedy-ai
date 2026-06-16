@@ -8760,6 +8760,7 @@ export type Database = {
           certifications: string[] | null
           city: string | null
           client_id: string | null
+          cv_ai_summary: string | null
           cv_url: string | null
           email: string | null
           experience_band: string | null
@@ -8787,6 +8788,7 @@ export type Database = {
           stage: string | null
           status: string | null
           submission_id: string | null
+          submitted_at: string | null
           target_roles: Json | null
         }
         Relationships: [
