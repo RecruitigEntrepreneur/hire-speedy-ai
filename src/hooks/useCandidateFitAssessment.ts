@@ -116,8 +116,11 @@ export function useCandidateFitAssessment(submissionId?: string) {
 
     setLoading(true);
     try {
+      // Triple-Blind: über die reveal-gated View lesen — der Klarname/Arbeitgeber
+      // im Freitext wird serverseitig ausgeblendet, solange der Kandidat nicht
+      // bestätigt hat (identity_unlocked=false). Generierung bleibt auf der Tabelle.
       const { data, error } = await supabase
-        .from('candidate_fit_assessments')
+        .from('client_fit_assessment_view')
         .select('*')
         .eq('submission_id', submissionId)
         .maybeSingle();
