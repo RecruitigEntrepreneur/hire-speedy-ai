@@ -1,10 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AsciiHandsArt } from "./AsciiHandsArt";
 import { DashboardPreview } from "./DashboardPreview";
 
 export const HeroSection = () => {
+  const { t } = useTranslation();
   return (
     <section className="relative min-h-screen overflow-hidden bg-background">
       {/* ASCII Hands Background */}
@@ -16,23 +18,23 @@ export const HeroSection = () => {
         <div className="flex justify-center mb-8 animate-fade-in">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/5 border border-border/30 text-sm text-muted-foreground backdrop-blur-sm">
             <Sparkles className="w-4 h-4" />
-            <span className="font-medium">Triple-Blind · Erfolgsbasiert · DACH</span>
+            <span className="font-medium">{t("hero.badge")}</span>
           </div>
         </div>
 
         {/* Headline */}
         <div className="text-center max-w-5xl mx-auto animate-slide-up">
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold tracking-tight leading-[1.05]">
-            <span className="text-foreground">Perfect Match.</span>
+            <span className="text-foreground">{t("hero.headline1")}</span>
             <br />
-            <span className="text-stroke-animated">Perfect Hire.</span>
+            <span className="text-stroke-animated">{t("hero.headline2")}</span>
           </h1>
         </div>
 
         {/* Subheadline */}
         <p className="mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "100ms" }}>
-          Geprüfte Recruiter schlagen passende Kandidaten vor – anonymisiert. Unternehmen stellen ein.
-          <span className="text-foreground font-medium"> Bezahlt wird nur bei Erfolg.</span>
+          {t("hero.subline_1")}
+          <span className="text-foreground font-medium"> {t("hero.subline_strong")}</span>
         </p>
 
         {/* CTAs */}
@@ -43,7 +45,7 @@ export const HeroSection = () => {
             className="h-14 px-8 text-base font-semibold bg-foreground text-background hover:bg-foreground/90 transition-opacity shadow-lg"
           >
             <Link to="/auth?mode=signup&role=client">
-              Job kostenlos ausschreiben
+              {t("hero.ctaPrimary")}
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
           </Button>
@@ -54,7 +56,7 @@ export const HeroSection = () => {
             className="h-14 px-8 text-base font-semibold border-foreground/20 hover:bg-foreground/5 backdrop-blur-sm"
           >
             <Link to="/auth?mode=signup&role=recruiter">
-              Recruiter werden
+              {t("hero.ctaSecondary")}
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
           </Button>
@@ -62,7 +64,7 @@ export const HeroSection = () => {
 
         {/* Micro proof */}
         <div className="mt-12 flex justify-center animate-fade-in" style={{ animationDelay: "400ms" }}>
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">Keine Fixkosten · Bezahlung nur bei Einstellung · DSGVO-konform</p>
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">{t("hero.microProof")}</p>
         </div>
 
         {/* Dashboard Preview – extra spacing */}
@@ -71,7 +73,7 @@ export const HeroSection = () => {
         {/* Scroll Indicator */}
         <div className="flex justify-center mt-12 animate-fade-in" style={{ animationDelay: "600ms" }}>
           <a href="#why-us" className="flex flex-col items-center gap-1 text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors">
-            <span className="text-[10px] uppercase tracking-widest">Scroll</span>
+            <span className="text-[10px] uppercase tracking-widest">{t("hero.scroll")}</span>
             <ChevronDown className="w-4 h-4 animate-bounce" />
           </a>
         </div>

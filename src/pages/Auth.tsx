@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ type AppRole = 'client' | 'recruiter' | 'admin';
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, role, signIn, signUp } = useAuth();
   
   // `tab=register` and `type=...` are legacy params still found in old links/bookmarks
@@ -57,24 +59,24 @@ export default function Auth() {
       emailSchema.parse(email);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        newErrors.email = e.errors[0].message;
+        newErrors.email = t('auth.errors.email');
       }
     }
-    
+
     try {
       passwordSchema.parse(password);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        newErrors.password = e.errors[0].message;
+        newErrors.password = t('auth.errors.password');
       }
     }
-    
+
     if (mode === 'signup') {
       try {
         nameSchema.parse(fullName);
       } catch (e) {
         if (e instanceof z.ZodError) {
-          newErrors.fullName = e.errors[0].message;
+          newErrors.fullName = t('auth.errors.fullName');
         }
       }
     }
@@ -95,12 +97,12 @@ export default function Auth() {
         const { error } = await signUp(email, password, fullName, selectedRole);
         if (error) {
           if (error.message.includes('already registered')) {
-            toast.error('This email is already registered. Please sign in instead.');
+            toast.error(t('auth.toast.alreadyRegistered'));
           } else {
             toast.error(error.message);
           }
         } else {
-          toast.success('Account created successfully!');
+          toast.success(t('auth.toast.signupSuccess'));
           if (selectedRole === 'client') {
             setJustSignedUp(true);
           }
@@ -109,16 +111,16 @@ export default function Auth() {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
-            toast.error('Invalid email or password. Please try again.');
+            toast.error(t('auth.toast.invalidCredentials'));
           } else {
             toast.error(error.message);
           }
         } else {
-          toast.success('Welcome back!');
+          toast.success(t('auth.toast.welcomeBack'));
         }
       }
     } catch (error) {
-      toast.error('An unexpected error occurred. Please try again.');
+      toast.error(t('auth.toast.unexpected'));
     } finally {
       setLoading(false);
     }
@@ -127,14 +129,14 @@ export default function Auth() {
   const roleOptions = [
     {
       value: 'client',
-      label: 'Client',
-      description: 'I want to hire talent',
+      label: t('auth.role.client'),
+      description: t('auth.role.clientDesc'),
       icon: <Building2 className="h-5 w-5" />,
     },
     {
       value: 'recruiter',
-      label: 'Recruiter',
-      description: 'I want to submit candidates',
+      label: t('auth.role.recruiter'),
+      description: t('auth.role.recruiterDesc'),
       icon: <UserCheck className="h-5 w-5" />,
     },
   ];
@@ -147,7 +149,7 @@ export default function Auth() {
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to home
+          {t('auth.backToHome')}
         </Link>
 
         <Card className="border-border/50 shadow-xl animate-scale-in">
@@ -156,29 +158,27 @@ export default function Auth() {
               <Briefcase className="h-6 w-6 text-primary-foreground" />
             </div>
             <CardTitle className="text-2xl">
-              {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+              {mode === 'signup' ? t('auth.signupTitle') : t('auth.signinTitle')}
             </CardTitle>
             <CardDescription>
-              {mode === 'signup' 
-                ? 'Join Matchunt and start hiring or recruiting' 
-                : 'Sign in to access your dashboard'}
+              {mode === 'signup' ? t('auth.signupDesc') : t('auth.signinDesc')}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="pt-6">
             <Tabs value={mode} onValueChange={(v) => setMode(v as 'signin' | 'signup')}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="signin">{t('auth.tabSignin')}</TabsTrigger>
+                <TabsTrigger value="signup">{t('auth.tabSignup')}</TabsTrigger>
               </TabsList>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <TabsContent value="signup" className="space-y-4 mt-0">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName">{t('auth.fullName')}</Label>
                     <Input
                       id="fullName"
-                      placeholder="John Doe"
+                      placeholder={t('auth.fullNamePlaceholder')}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className={errors.fullName ? 'border-destructive' : ''}
@@ -189,7 +189,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-3">
-                    <Label>I am a...</Label>
+                    <Label>{t('auth.iAmA')}</Label>
                     <RadioGroup
                       value={selectedRole}
                       onValueChange={(v) => setSelectedRole(v as AppRole)}
@@ -228,11 +228,11 @@ export default function Auth() {
                 </TabsContent>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('auth.email')}</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className={errors.email ? 'border-destructive' : ''}
@@ -243,7 +243,7 @@ export default function Auth() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t('auth.password')}</Label>
                   <Input
                     id="password"
                     type="password"
@@ -261,9 +261,9 @@ export default function Auth() {
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : mode === 'signup' ? (
-                    'Create Account'
+                    t('auth.createAccount')
                   ) : (
-                    'Sign In'
+                    t('auth.signinButton')
                   )}
                 </Button>
               </form>
@@ -271,7 +271,7 @@ export default function Auth() {
 
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <Shield className="h-3 w-3" />
-              Your data is secure and encrypted
+              {t('auth.secure')}
             </div>
           </CardContent>
         </Card>

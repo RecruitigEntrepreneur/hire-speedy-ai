@@ -1,16 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Brain, Users, Shield, Workflow, BarChart3 } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useTranslation } from "react-i18next";
 
 const layers = [
-  { icon: Brain, title: "AI Matching Layer", description: "Versteht Rollen. Versteht Menschen. Versteht Passung." },
-  { icon: Users, title: "Recruiter Performance Marketplace", description: "Top-Recruiter, algorithmisch ausgewählt, leistungsbasiert gerankt." },
-  { icon: Shield, title: "Triple-Blind Identity Protection", description: "Keine Vorurteile. Keine Umgehung. Keine Compliance-Risiken." },
-  { icon: Workflow, title: "Workflow Automation Engine", description: "WhatsApp, SMS, E-Mail, Interviews, Offers, Escrow. Alles ohne manuell einen Finger zu rühren." },
-  { icon: BarChart3, title: "Intelligence Layer", description: "Employer Score. Candidate Readiness. Conversion Analytics. Jeder Schritt ist messbar." },
+  { icon: Brain, titleKey: "layer1_title", descriptionKey: "layer1_description" },
+  { icon: Users, titleKey: "layer2_title", descriptionKey: "layer2_description" },
+  { icon: Shield, titleKey: "layer3_title", descriptionKey: "layer3_description" },
+  { icon: Workflow, titleKey: "layer4_title", descriptionKey: "layer4_description" },
+  { icon: BarChart3, titleKey: "layer5_title", descriptionKey: "layer5_description" },
 ];
 
 const LayerCard = ({ layer, index }: { layer: typeof layers[0]; index: number }) => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
   return (
     <div
@@ -29,8 +31,8 @@ const LayerCard = ({ layer, index }: { layer: typeof layers[0]; index: number })
           <layer.icon className="w-7 h-7 text-background" />
         </div>
         <div className="flex-grow">
-          <h3 className="text-xl md:text-2xl font-bold mb-2 group-hover:text-foreground/80 transition-colors">{layer.title}</h3>
-          <p className="text-muted-foreground">{layer.description}</p>
+          <h3 className="text-xl md:text-2xl font-bold mb-2 group-hover:text-foreground/80 transition-colors">{t(`engine.${layer.titleKey}`)}</h3>
+          <p className="text-muted-foreground">{t(`engine.${layer.descriptionKey}`)}</p>
         </div>
         <ArrowRight className="w-6 h-6 text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-2 transition-all hidden md:block" />
       </div>
@@ -42,6 +44,7 @@ const LayerCard = ({ layer, index }: { layer: typeof layers[0]; index: number })
 };
 
 export const EngineSection = () => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
 
   return (
@@ -70,12 +73,12 @@ export const EngineSection = () => {
           className={`max-w-4xl mx-auto text-center mb-16 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-            The Recruiting <span className="text-muted-foreground">Operating System</span>
+            {t("engine.heading1")} <span className="text-muted-foreground">{t("engine.heading2")}</span>
           </h2>
           <p className="text-xl text-muted-foreground">
-            Eine Plattform. Ein Netzwerk. Ein automatisierter Hiring-Stack.
+            {t("engine.subline1")}
             <br />
-            Alles orchestriert durch KI, abgesichert durch Prozesse – gebaut für Ergebnisorientierung.
+            {t("engine.subline2")}
           </p>
         </div>
 
@@ -88,7 +91,7 @@ export const EngineSection = () => {
         <div className="text-center mt-16">
           <Button asChild size="lg" variant="outline" className="group border-foreground/20 hover:bg-foreground/5">
             <a href="#features">
-              Technologie entdecken
+              {t("engine.cta")}
               <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </a>
           </Button>

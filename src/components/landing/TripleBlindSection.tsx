@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
@@ -21,17 +22,17 @@ type Phase = "before" | "after";
 // pipeline (src/lib/anonymization.ts): identity, exact location, salary and
 // employer are masked until both sides opt in.
 interface FieldRow {
-  label: string;
-  before: string;
-  after: string;
+  labelKey: string;
+  beforeKey: string;
+  afterKey: string;
   revealed: boolean; // becomes visible only after opt-in
 }
 
 interface Party {
   id: string;
   icon: typeof Building2;
-  role: string;
-  tagline: string;
+  roleKey: string;
+  taglineKey: string;
   fields: FieldRow[];
 }
 
@@ -39,37 +40,37 @@ const PARTIES: Party[] = [
   {
     id: "company",
     icon: Building2,
-    role: "Unternehmen",
-    tagline: "Bewertet Eignung, nicht Lebensläufe.",
+    roleKey: "parties.company_role",
+    taglineKey: "parties.company_tagline",
     fields: [
-      { label: "Skills & Fit-Score", before: "Vollständig sichtbar", after: "Vollständig sichtbar", revealed: false },
-      { label: "Erfahrung & Gehalt", before: "Als Range", after: "Als Range", revealed: false },
-      { label: "Region", before: "Süddeutschland", after: "Süddeutschland", revealed: false },
-      { label: "Name & Kontakt", before: "Verborgen", after: "Freigegeben", revealed: true },
+      { labelKey: "parties.company_field1_label", beforeKey: "parties.company_field1_before", afterKey: "parties.company_field1_after", revealed: false },
+      { labelKey: "parties.company_field2_label", beforeKey: "parties.company_field2_before", afterKey: "parties.company_field2_after", revealed: false },
+      { labelKey: "parties.company_field3_label", beforeKey: "parties.company_field3_before", afterKey: "parties.company_field3_after", revealed: false },
+      { labelKey: "parties.company_field4_label", beforeKey: "parties.company_field4_before", afterKey: "parties.company_field4_after", revealed: true },
     ],
   },
   {
     id: "recruiter",
     icon: UserSearch,
-    role: "Recruiter",
-    tagline: "Behält den eigenen Kandidaten.",
+    roleKey: "parties.recruiter_role",
+    taglineKey: "parties.recruiter_tagline",
     fields: [
-      { label: "Mandat & Anforderungen", before: "Vollständig sichtbar", after: "Vollständig sichtbar", revealed: false },
-      { label: "Eigener Kandidat", before: "Exklusiv zugeordnet", after: "Exklusiv zugeordnet", revealed: false },
-      { label: "Auftraggeber", before: "[Branche] Unternehmen", after: "Offengelegt", revealed: true },
-      { label: "Provisionsschutz", before: "Garantiert", after: "Garantiert", revealed: false },
+      { labelKey: "parties.recruiter_field1_label", beforeKey: "parties.recruiter_field1_before", afterKey: "parties.recruiter_field1_after", revealed: false },
+      { labelKey: "parties.recruiter_field2_label", beforeKey: "parties.recruiter_field2_before", afterKey: "parties.recruiter_field2_after", revealed: false },
+      { labelKey: "parties.recruiter_field3_label", beforeKey: "parties.recruiter_field3_before", afterKey: "parties.recruiter_field3_after", revealed: true },
+      { labelKey: "parties.recruiter_field4_label", beforeKey: "parties.recruiter_field4_before", afterKey: "parties.recruiter_field4_after", revealed: false },
     ],
   },
   {
     id: "candidate",
     icon: Briefcase,
-    role: "Kandidat",
-    tagline: "Sucht diskret, behält die Kontrolle.",
+    roleKey: "parties.candidate_role",
+    taglineKey: "parties.candidate_tagline",
     fields: [
-      { label: "Identität", before: "Anonym (Kandidat #A1B2)", after: "Selbst freigegeben", revealed: true },
-      { label: "Passende Rollen", before: "Vollständig sichtbar", after: "Vollständig sichtbar", revealed: false },
-      { label: "Aktueller Arbeitgeber", before: "Geschützt", after: "Geschützt", revealed: false },
-      { label: "Datenfreigabe", before: "Nur mit Zustimmung", after: "Erteilt", revealed: true },
+      { labelKey: "parties.candidate_field1_label", beforeKey: "parties.candidate_field1_before", afterKey: "parties.candidate_field1_after", revealed: true },
+      { labelKey: "parties.candidate_field2_label", beforeKey: "parties.candidate_field2_before", afterKey: "parties.candidate_field2_after", revealed: false },
+      { labelKey: "parties.candidate_field3_label", beforeKey: "parties.candidate_field3_before", afterKey: "parties.candidate_field3_after", revealed: false },
+      { labelKey: "parties.candidate_field4_label", beforeKey: "parties.candidate_field4_before", afterKey: "parties.candidate_field4_after", revealed: true },
     ],
   },
 ];
@@ -77,50 +78,54 @@ const PARTIES: Party[] = [
 const BENEFITS = [
   {
     icon: Scale,
-    party: "Für Unternehmen",
-    title: "Bias-freie, faire Auswahl",
-    text: "Sie sehen Skills und Fit — nicht Name, Foto oder Herkunft. Vorurteile werden ausgeschlossen, bevor sie entstehen können. Datenschutz nach DSGVO ist im Prozess eingebaut, nicht aufgesetzt.",
+    partyKey: "benefits.item1_party",
+    titleKey: "benefits.item1_title",
+    textKey: "benefits.item1_text",
   },
   {
     icon: ShieldCheck,
-    party: "Für Recruiter",
-    title: "Ihr Kandidat bleibt Ihr Kandidat",
-    text: "Das Unternehmen sieht Ihren Kandidaten erst, wenn der Deal über Matchunt läuft. Kein Backdoor-Hiring an Ihnen vorbei — Ihre Provision ist abgesichert.",
+    partyKey: "benefits.item2_party",
+    titleKey: "benefits.item2_title",
+    textKey: "benefits.item2_text",
   },
   {
     icon: Lock,
-    party: "Für Kandidaten",
-    title: "Diskrete Suche ohne Risiko",
-    text: "Anonym auf dem Markt, ohne dass der aktuelle Arbeitgeber etwas mitbekommt. Sie entscheiden selbst, wer welche Daten wann sieht.",
+    partyKey: "benefits.item3_party",
+    titleKey: "benefits.item3_title",
+    textKey: "benefits.item3_text",
   },
 ];
 
-const PhaseToggle = ({ phase, setPhase }: { phase: Phase; setPhase: (p: Phase) => void }) => (
-  <div className="inline-flex items-center rounded-full border border-border/60 bg-card p-1">
-    {(
-      [
-        { id: "before" as Phase, label: "Vor dem Match", icon: EyeOff },
-        { id: "after" as Phase, label: "Nach beidseitigem Opt-In", icon: Eye },
-      ]
-    ).map((opt) => {
-      const active = phase === opt.id;
-      return (
-        <button
-          key={opt.id}
-          onClick={() => setPhase(opt.id)}
-          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-            active ? "bg-foreground text-background shadow" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <opt.icon className="w-4 h-4" />
-          {opt.label}
-        </button>
-      );
-    })}
-  </div>
-);
+const PhaseToggle = ({ phase, setPhase }: { phase: Phase; setPhase: (p: Phase) => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="inline-flex items-center rounded-full border border-border/60 bg-card p-1">
+      {(
+        [
+          { id: "before" as Phase, labelKey: "toggle.before", icon: EyeOff },
+          { id: "after" as Phase, labelKey: "toggle.after", icon: Eye },
+        ]
+      ).map((opt) => {
+        const active = phase === opt.id;
+        return (
+          <button
+            key={opt.id}
+            onClick={() => setPhase(opt.id)}
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+              active ? "bg-foreground text-background shadow" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <opt.icon className="w-4 h-4" />
+            {t(`tripleBlind.${opt.labelKey}`)}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 const PartyCard = ({ party, phase, index }: { party: Party; phase: Phase; index: number }) => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
   return (
     <div
@@ -135,20 +140,20 @@ const PartyCard = ({ party, phase, index }: { party: Party; phase: Phase; index:
           <party.icon className="h-5 w-5 text-foreground" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-foreground leading-tight">{party.role}</h3>
+          <h3 className="text-lg font-bold text-foreground leading-tight">{t(`tripleBlind.${party.roleKey}`)}</h3>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">{party.tagline}</p>
+      <p className="text-sm text-muted-foreground mb-5">{t(`tripleBlind.${party.taglineKey}`)}</p>
 
       <ul className="space-y-2.5">
         {party.fields.map((f) => {
-          const value = phase === "before" ? f.before : f.after;
+          const value = phase === "before" ? t(`tripleBlind.${f.beforeKey}`) : t(`tripleBlind.${f.afterKey}`);
           // a revealed field is locked in phase "before", unlocked in "after"
           const locked = f.revealed && phase === "before";
           const justRevealed = f.revealed && phase === "after";
           return (
             <li
-              key={f.label}
+              key={f.labelKey}
               className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm transition-all duration-500 ${
                 locked
                   ? "border-border/40 bg-muted/40"
@@ -157,7 +162,7 @@ const PartyCard = ({ party, phase, index }: { party: Party; phase: Phase; index:
                   : "border-border/40 bg-muted/20"
               }`}
             >
-              <span className="text-muted-foreground">{f.label}</span>
+              <span className="text-muted-foreground">{t(`tripleBlind.${f.labelKey}`)}</span>
               <span className={`flex items-center gap-1.5 font-medium ${locked ? "text-muted-foreground/70" : "text-foreground"}`}>
                 {locked ? (
                   <Lock className="h-3.5 w-3.5 shrink-0" />
@@ -175,6 +180,7 @@ const PartyCard = ({ party, phase, index }: { party: Party; phase: Phase; index:
 };
 
 export const TripleBlindSection = () => {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>("before");
   const { ref, isVisible } = useScrollReveal();
 
@@ -200,16 +206,15 @@ export const TripleBlindSection = () => {
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-foreground/5 border border-border/40 text-sm text-muted-foreground mb-6">
             <EyeOff className="w-4 h-4" />
-            <span className="font-medium">Triple-Blind</span>
+            <span className="font-medium">{t("tripleBlind.badge")}</span>
           </div>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
-            Niemand sieht mehr,
+            {t("tripleBlind.headline1")}
             <br />
-            <span className="text-muted-foreground">als er muss.</span>
+            <span className="text-muted-foreground">{t("tripleBlind.headline2")}</span>
           </h2>
           <p className="text-xl text-muted-foreground leading-relaxed">
-            Der einzige Recruiting-Marktplatz im DACH-Raum, der alle drei Seiten schützt –
-            bis beide Seiten Ja sagen. Sehen Sie selbst, wer was wann sieht.
+            {t("tripleBlind.subline")}
           </p>
         </div>
 
@@ -230,12 +235,12 @@ export const TripleBlindSection = () => {
           {phase === "before" ? (
             <span className="inline-flex items-center gap-2">
               <Lock className="w-4 h-4" />
-              Vor dem Match bleiben Identität, Auftraggeber und Kontaktdaten verborgen.
+              {t("tripleBlind.caption_before")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-2">
               <Unlock className="w-4 h-4" />
-              Erst wenn beide Seiten zustimmen, werden die geschützten Felder freigegeben.
+              {t("tripleBlind.caption_after")}
             </span>
           )}
         </p>
@@ -250,7 +255,7 @@ export const TripleBlindSection = () => {
         <div className="text-center mt-14">
           <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-8 py-6 text-lg shadow-lg">
             <Link to="/auth?mode=signup&role=client">
-              Triple-Blind starten
+              {t("tripleBlind.cta")}
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
           </Button>
@@ -261,6 +266,7 @@ export const TripleBlindSection = () => {
 };
 
 const BenefitCard = ({ benefit, index }: { benefit: (typeof BENEFITS)[0]; index: number }) => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
   return (
     <div
@@ -273,9 +279,9 @@ const BenefitCard = ({ benefit, index }: { benefit: (typeof BENEFITS)[0]; index:
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-foreground/10 mb-5">
         <benefit.icon className="h-6 w-6 text-foreground" />
       </div>
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{benefit.party}</p>
-      <h3 className="text-xl font-bold text-foreground mb-3">{benefit.title}</h3>
-      <p className="text-muted-foreground leading-relaxed">{benefit.text}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t(`tripleBlind.${benefit.partyKey}`)}</p>
+      <h3 className="text-xl font-bold text-foreground mb-3">{t(`tripleBlind.${benefit.titleKey}`)}</h3>
+      <p className="text-muted-foreground leading-relaxed">{t(`tripleBlind.${benefit.textKey}`)}</p>
     </div>
   );
 };

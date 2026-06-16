@@ -1,27 +1,29 @@
 import { BadgeCheck, ShieldCheck, Wallet } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useTranslation } from "react-i18next";
 
 const principles = [
   {
     icon: Wallet,
-    title: "Erfolgsbasiert",
-    description: "Keine Fixkosten, keine Retainer. Bezahlt wird ausschließlich bei erfolgreicher Einstellung – abgesichert über Escrow.",
+    titleKey: "principles.item1_title",
+    descriptionKey: "principles.item1_description",
   },
   {
     icon: BadgeCheck,
-    title: "Geprüfte Recruiter",
-    description: "Jeder Recruiter auf der Plattform wird persönlich verifiziert, bevor er Kandidaten vorschlagen darf.",
+    titleKey: "principles.item2_title",
+    descriptionKey: "principles.item2_description",
   },
   {
     icon: ShieldCheck,
-    title: "Diskretion by Design",
-    description: "Triple-Blind-Anonymisierung schützt Kandidaten, Recruiter und Unternehmen. Deshalb nennen wir auch keine Kundennamen – Diskretion ist unser Produkt.",
+    titleKey: "principles.item3_title",
+    descriptionKey: "principles.item3_description",
   },
 ];
 
-const MARQUEE_TEXT = "Schneller · Präziser · Fairer · Ergebnisorientiert · ";
+const MARQUEE_TEXT_KEY = "marqueeText";
 
 export const SocialProofSection = () => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
 
   return (
@@ -34,10 +36,10 @@ export const SocialProofSection = () => {
           }`}
         >
           <p className="text-muted-foreground text-sm uppercase tracking-wider mb-4">
-            Gebaut mit Recruitern und Hiring-Teams aus dem DACH-Markt
+            {t("socialProof.eyebrow")}
           </p>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-            Drei Prinzipien statt großer Versprechen
+            {t("socialProof.heading")}
           </h2>
         </div>
 
@@ -57,8 +59,8 @@ export const SocialProofSection = () => {
                 <div className="w-14 h-14 rounded-xl bg-foreground/10 flex items-center justify-center mx-auto mb-6">
                   <principle.icon className="w-7 h-7 text-foreground" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-3">{principle.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{principle.description}</p>
+                <h3 className="text-xl font-bold text-foreground mb-3">{t(`socialProof.${principle.titleKey}`)}</h3>
+                <p className="text-muted-foreground leading-relaxed">{t(`socialProof.${principle.descriptionKey}`)}</p>
               </div>
             );
           })}
@@ -69,7 +71,7 @@ export const SocialProofSection = () => {
           <div className="flex animate-scroll-x whitespace-nowrap">
             {[...Array(4)].map((_, i) => (
               <span key={i} className="text-4xl md:text-6xl font-bold text-foreground/[0.04] mx-0 select-none">
-                {MARQUEE_TEXT}
+                {t(`socialProof.${MARQUEE_TEXT_KEY}`)}
               </span>
             ))}
           </div>
