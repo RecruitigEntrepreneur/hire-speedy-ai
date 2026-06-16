@@ -53,9 +53,9 @@ const navigationItems: NavItem[] = [
     items: [
       { name: "AI Matching Engine", href: "/#engine", description: "KI-gestützte Kandidatenauswahl" },
       { name: "Automated Interview Flow", href: "/#how-it-works", description: "Vollautomatisierte Prozesse" },
-      { name: "Recruiter Network", href: "/#for-recruiters", description: "12.000+ verifizierte Recruiter" },
+      { name: "Recruiter Network", href: "/#for-recruiters", description: "Persönlich verifizierte Recruiter" },
       { name: "Escrow & Payments", href: "/#pricing", description: "Sichere Zahlungsabwicklung" },
-      { name: "Compliance & DSGVO", href: "/#security", description: "100% rechtssicher" },
+      { name: "Compliance & DSGVO", href: "/#security", description: "DSGVO-konform, EU-Hosting" },
       { name: "Analytics & Reporting", href: "/#analytics", description: "Echtzeit-Insights" },
     ]
   },
@@ -265,11 +265,11 @@ export function Navbar() {
               {/* Desktop CTAs */}
               <div className="hidden lg:flex items-center gap-3">
                 <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
-                  <Link to="/auth">Sign in</Link>
+                  <Link to="/auth">Anmelden</Link>
                 </Button>
                 <Button asChild>
                   <Link to="/auth?mode=signup">
-                    Start now
+                    Kostenlos starten
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -332,12 +332,12 @@ export function Navbar() {
                     <div className="p-4 border-t border-border space-y-3">
                       <Button variant="outline" className="w-full" asChild>
                         <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                          Sign in
+                          Anmelden
                         </Link>
                       </Button>
                       <Button className="w-full" asChild>
                         <Link to="/auth?mode=signup" onClick={() => setMobileMenuOpen(false)}>
-                          Start now
+                          Kostenlos starten
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                       </Button>

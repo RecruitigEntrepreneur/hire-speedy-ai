@@ -45,7 +45,7 @@ export const ForRecruitersSection = () => {
             </div>
 
             <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-8 py-6 text-lg shadow-lg">
-              <Link to="/auth?tab=register&role=recruiter">
+              <Link to="/auth?mode=signup&role=recruiter">
                 Recruiter werden
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
@@ -55,29 +55,28 @@ export const ForRecruitersSection = () => {
           <div className="relative">
             <div className="bg-card rounded-2xl p-8 border border-border/50 shadow-2xl">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center text-background text-2xl font-bold">JD</div>
-                <div>
-                  <p className="font-bold text-lg">Jana Döring</p>
-                  <p className="text-muted-foreground">Top 5% Recruiter</p>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+                  <Trophy className="w-7 h-7 text-background" />
                 </div>
-                <div className="ml-auto">
-                  <Trophy className="w-8 h-8 text-foreground/40" />
+                <div>
+                  <p className="font-bold text-lg">Ihr Recruiter-Cockpit</p>
+                  <p className="text-muted-foreground">So sieht Ihr Arbeitstag aus</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-muted/50">
-                  <p className="text-2xl font-bold">47</p>
-                  <p className="text-sm text-muted-foreground">Placements/Jahr</p>
+                  <p className="text-lg font-bold">Transparent</p>
+                  <p className="text-sm text-muted-foreground">Provision vor Mandats-Annahme sichtbar</p>
                 </div>
                 <div className="p-4 rounded-xl bg-muted/50">
-                  <p className="text-2xl font-bold text-foreground">94%</p>
-                  <p className="text-sm text-muted-foreground">Acceptance Rate</p>
+                  <p className="text-lg font-bold text-foreground">Abgesichert</p>
+                  <p className="text-sm text-muted-foreground">Auszahlung über Escrow</p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                {["Neues Mandat verfügbar", "Interview bestätigt", "Payout bereit: €4.200"].map((text, i) => (
+                {["Neues Mandat verfügbar", "Interview bestätigt", "Payout freigegeben"].map((text, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-foreground/5 border border-foreground/10">
                     <span className="font-medium">{text}</span>
                     <CheckCircle2 className="w-5 h-5 text-foreground" />
@@ -87,7 +86,7 @@ export const ForRecruitersSection = () => {
             </div>
 
             <div className="absolute -bottom-4 -right-4 bg-foreground text-background px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
-              Verdiene bis zu 30% mehr
+              Ihr Kandidat bleibt Ihr Kandidat
             </div>
           </div>
         </div>

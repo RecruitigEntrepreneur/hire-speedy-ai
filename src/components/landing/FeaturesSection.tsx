@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Brain, Shield, Workflow, Puzzle, Zap, EyeOff, Mail, MessageSquare, Calendar, DollarSign } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const features = [
@@ -12,7 +13,7 @@ const features = [
       { label: "Salary Fit", value: 92 }, { label: "Readiness Score", value: 85 },
       { label: "Closing Probability", value: 78 },
     ],
-    cta: "AI in Aktion sehen", reversed: false,
+    cta: "AI in Aktion sehen", ctaHref: "/auth?mode=signup&role=client", reversed: false,
   },
   {
     id: "identity-protection", title: "Identity Protection / Triple Blind",
@@ -31,9 +32,9 @@ const features = [
     reversed: false,
   },
   {
-    id: "integrations", title: "ATS Integrationen", description: "Plug into everything you already use.",
+    id: "integrations", title: "ATS Integrationen", description: "Ihre Prozesse bleiben, wo sie sind. Integrationen mit gängigen ATS-Systemen entstehen nach Kundenbedarf.",
     icon: Puzzle, integrations: ["Personio", "Greenhouse", "Lever", "Workday", "BambooHR"],
-    cta: "Integrationen ansehen", reversed: true,
+    reversed: true,
   },
 ];
 
@@ -80,10 +81,12 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
         <h3 className="text-3xl md:text-4xl font-bold">{feature.title}</h3>
         <p className="text-xl text-muted-foreground leading-relaxed">{feature.description}</p>
         {feature.subtext && <p className="text-lg font-semibold text-foreground">{feature.subtext}</p>}
-        {feature.cta && (
-          <Button variant="outline" className="group mt-4 border-foreground/20 hover:bg-foreground/5">
-            {feature.cta}
-            <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        {feature.cta && feature.ctaHref && (
+          <Button asChild variant="outline" className="group mt-4 border-foreground/20 hover:bg-foreground/5">
+            <Link to={feature.ctaHref}>
+              {feature.cta}
+              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </Button>
         )}
       </div>
@@ -121,7 +124,7 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
             <div className="mt-6 p-4 rounded-xl bg-foreground/5 border border-foreground/10">
               <div className="flex items-center gap-3">
                 <Shield className="w-6 h-6 text-foreground" />
-                <span className="text-sm font-medium">100% DSGVO-konform</span>
+                <span className="text-sm font-medium">DSGVO-konform, EU-Hosting</span>
               </div>
             </div>
           </div>

@@ -1,12 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AsciiHandsArt } from "./AsciiHandsArt";
 import { DashboardPreview } from "./DashboardPreview";
 
 export const HeroSection = () => {
-  const navigate = useNavigate();
-
   return (
     <section className="relative min-h-screen overflow-hidden bg-background">
       {/* ASCII Hands Background */}
@@ -33,34 +31,38 @@ export const HeroSection = () => {
 
         {/* Subheadline */}
         <p className="mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "100ms" }}>
-          Recruiters submittieren Kandidaten. Unternehmen finden ihr Perfect Match.
-          <span className="text-foreground font-medium"> Erfolgsbasiert.</span>
+          Geprüfte Recruiter schlagen passende Kandidaten vor. Unternehmen stellen ein.
+          <span className="text-foreground font-medium"> Bezahlt wird nur bei Erfolg.</span>
         </p>
 
         {/* CTAs */}
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: "200ms" }}>
           <Button
+            asChild
             size="lg"
             className="h-14 px-8 text-base font-semibold bg-foreground text-background hover:bg-foreground/90 transition-opacity shadow-lg"
-            onClick={() => navigate("/auth?type=client")}
           >
-            Job starten
-            <ArrowRight className="ml-2 w-5 h-5" />
+            <Link to="/auth?mode=signup&role=client">
+              Job kostenlos ausschreiben
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Link>
           </Button>
           <Button
+            asChild
             size="lg"
             variant="outline"
             className="h-14 px-8 text-base font-semibold border-foreground/20 hover:bg-foreground/5 backdrop-blur-sm"
-            onClick={() => navigate("/auth?type=recruiter")}
           >
-            Recruiter werden
-            <ArrowRight className="ml-2 w-5 h-5" />
+            <Link to="/auth?mode=signup&role=recruiter">
+              Recruiter werden
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Link>
           </Button>
         </div>
 
         {/* Micro proof */}
         <div className="mt-12 flex justify-center animate-fade-in" style={{ animationDelay: "400ms" }}>
-          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">Bereits 500+ erfolgreiche Placements</p>
+          <p className="text-xs text-muted-foreground/60 uppercase tracking-widest">Keine Fixkosten · Bezahlung nur bei Einstellung · DSGVO-konform</p>
         </div>
 
         {/* Dashboard Preview – extra spacing */}
@@ -80,7 +82,7 @@ export const HeroSection = () => {
         .text-stroke-animated {
           -webkit-text-stroke: 2px hsl(var(--foreground));
           color: transparent;
-          background: linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.3) 50%, hsl(var(--foreground)) 100%);
+          background: linear-gradient(90deg, hsl(var(--foreground)) 0%, hsl(var(--foreground) / 0.7) 50%, hsl(var(--foreground)) 100%);
           background-size: 200% 100%;
           -webkit-background-clip: text;
           background-clip: text;

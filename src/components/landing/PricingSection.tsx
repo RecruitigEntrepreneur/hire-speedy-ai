@@ -53,7 +53,7 @@ export const PricingSection = () => {
 
               <div className="text-center">
                 <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-10 py-6 text-lg shadow-lg">
-                  <Link to="/auth?tab=register&role=client">
+                  <Link to="/auth?mode=signup&role=client">
                     Jetzt risikofrei starten
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Link>

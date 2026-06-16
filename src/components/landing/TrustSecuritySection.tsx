@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Lock, Eye, Wallet, FileCheck, Server } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const securityFeatures = [
-  { icon: Shield, title: "DSGVO + SOC2", description: "Vollständig compliant mit europäischen und internationalen Standards" },
-  { icon: Lock, title: "End-to-End Encryption", description: "Alle Daten sind durchgehend verschlüsselt" },
+  { icon: Shield, title: "DSGVO-konform", description: "EU-Hosting, Auftragsverarbeitungsvertrag (AVV) inklusive" },
+  { icon: Lock, title: "Verschlüsselung", description: "Daten werden bei Übertragung und Speicherung verschlüsselt" },
   { icon: Eye, title: "Identity Protection", description: "Triple-Blind Anonymisierung schützt alle Parteien" },
   { icon: Wallet, title: "Escrow Engine", description: "Sichere Zahlungsabwicklung mit Treuhandservice" },
   { icon: FileCheck, title: "Audit Logs", description: "Lückenlose Dokumentation aller Aktivitäten" },
@@ -55,9 +56,11 @@ export const TrustSecuritySection = () => {
         </div>
 
         <div className="text-center">
-          <Button variant="outline" size="lg" className="border-foreground/20 hover:bg-foreground/5 group">
-            Mehr über Sicherheit
-            <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <Button asChild variant="outline" size="lg" className="border-foreground/20 hover:bg-foreground/5 group">
+            <Link to="/datenschutz">
+              Mehr zum Datenschutz
+              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </Button>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { ArrowRight, Clock, BadgeDollarSign, Eye, BarChart3 } from "lucide-react
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const benefits = [
-  { icon: Clock, title: "Bewerber in Tagen, nicht Wochen", description: "Durchschnittlich 3,8 Tage bis zum ersten Interview – statt wochenlanger Wartezeit." },
+  { icon: Clock, title: "Bewerber in Tagen, nicht Wochen", description: "Erste qualifizierte Kandidatenvorschläge typischerweise innerhalb weniger Tage – statt wochenlanger Wartezeit." },
   { icon: BadgeDollarSign, title: "Erfolgsbasiertes Modell", description: "Sie zahlen nur, wenn Sie tatsächlich einstellen. Keine Fixkosten, keine Retainer." },
   { icon: Eye, title: "Transparenz & volle Kontrolle", description: "Sehen Sie jeden Schritt im Prozess. Jederzeit. In Echtzeit." },
   { icon: BarChart3, title: "Deep Analytics & Funnel Insights", description: "Verstehen Sie, wo Kandidaten abspringen und optimieren Sie Ihre Hiring-Pipeline." },
@@ -44,7 +44,7 @@ export const ForCompaniesSection = () => {
 
         <div className="text-center">
           <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-8 py-6 text-lg shadow-lg">
-            <Link to="/auth?tab=register&role=client">
+            <Link to="/auth?mode=signup&role=client">
               Job starten
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
