@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { generateAnonymousId } from '@/lib/anonymization';
 import {
   CommandDialog,
   CommandEmpty,
@@ -79,26 +80,29 @@ export function GlobalSearch() {
         })));
       }
 
-      // Search candidates via submissions
-      const { data: submissions } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          candidates!inner (full_name, job_title),
-          jobs!inner (client_id)
-        `)
-        .eq('jobs.client_id', user.id)
-        .limit(5);
+      // Search candidates via reveal-gated client view.
+      // The view filters to the logged-in client itself and serves PII
+      // (full_name etc.) only after opt-in (identity_unlocked); before that
+      // full_name is NULL, so we fall back to the anonymous candidate id.
+      const { data: candidateRows } = await supabase
+        .from('client_candidate_view')
+        .select('submission_id, full_name, candidate_role, identity_unlocked')
+        .limit(50);
 
-      if (submissions) {
-        const filtered = submissions.filter((sub: any) => 
-          sub.candidates?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        searchResults.push(...filtered.map((sub: any) => ({
-          id: sub.id,
+      if (candidateRows) {
+        const term = searchQuery.toLowerCase();
+        const filtered = (candidateRows as any[]).filter((row) => {
+          const displayName = row.full_name || generateAnonymousId(row.submission_id);
+          return (
+            displayName.toLowerCase().includes(term) ||
+            (row.candidate_role?.toLowerCase().includes(term) ?? false)
+          );
+        });
+        searchResults.push(...filtered.slice(0, 5).map((row) => ({
+          id: row.submission_id,
           type: 'candidate' as const,
-          title: sub.candidates?.full_name || 'Kandidat',
-          subtitle: sub.candidates?.job_title || undefined,
+          title: row.full_name || generateAnonymousId(row.submission_id),
+          subtitle: row.candidate_role || undefined,
         })));
       }
 

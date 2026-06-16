@@ -22,18 +22,17 @@ import {
   User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { generateAnonymousId, anonymizeRegionBroad, anonymizeExperience, anonymizeSalary } from '@/lib/anonymization';
 import { toast } from 'sonner';
 
 interface CompareCandidate {
   id: string;
   submissionId: string;
   anonymousId: string;
-  city: string;
-  experienceYears: number;
+  regionBroad: string;
+  experienceBand: string;
+  salaryBand: string;
   skills: string[];
   matchScore: number;
-  expectedSalary?: number;
   noticePeriod?: string;
   availabilityDate?: string;
   stage?: string;
@@ -70,45 +69,36 @@ export function CandidateCompareView({
   const fetchCandidates = async () => {
     setLoading(true);
     try {
+      // Triple-Blind: read EXCLUSIVELY from the reveal-gated view. Exact city,
+      // experience and salary are gated server-side; only anonymized bands
+      // (region_broad/experience_band/salary_band) are returned until opt-in.
       const { data, error } = await supabase
-        .from('submissions')
+        .from('client_candidate_view')
         .select(`
-          id,
-          match_score,
-          stage,
-          jobs!inner (
-            title
-          ),
-          candidates!inner (
-            id,
-            city,
-            experience_years,
-            skills,
-            expected_salary,
-            notice_period,
-            availability_date
-          )
+          submission_id, candidate_id, job_title, match_score, stage,
+          skills, notice_period, availability_date,
+          region_broad, experience_band, salary_band
         `)
-        .in('id', submissionIds);
+        .in('submission_id', submissionIds);
 
       if (error) throw error;
 
-      const formatted: CompareCandidate[] = (data || []).map((sub: any) => {
+      const formatted: CompareCandidate[] = ((data || []) as any[]).map((sub) => {
         // Generate Triple-Blind anonymous ID from job title prefix + submission ID
-        const jobPrefix = sub.jobs?.title?.slice(0, 2).toUpperCase() || 'XX';
-        const anonymousId = `${jobPrefix}-${sub.id.slice(0, 6).toUpperCase()}`;
-        
+        const jobPrefix = sub.job_title?.slice(0, 2).toUpperCase() || 'XX';
+        const anonymousId = `${jobPrefix}-${(sub.submission_id || '').slice(0, 6).toUpperCase()}`;
+
         return {
-          id: sub.candidates.id,
-          submissionId: sub.id,
+          id: sub.candidate_id,
+          submissionId: sub.submission_id,
           anonymousId,
-          city: sub.candidates.city || '',
-          experienceYears: sub.candidates.experience_years || 0,
-          skills: sub.candidates.skills || [],
+          regionBroad: sub.region_broad || '-',
+          experienceBand: sub.experience_band || '-',
+          salaryBand: sub.salary_band || '-',
+          skills: sub.skills || [],
           matchScore: sub.match_score || 0,
-          expectedSalary: sub.candidates.expected_salary,
-          noticePeriod: sub.candidates.notice_period,
-          availabilityDate: sub.candidates.availability_date,
+          noticePeriod: sub.notice_period,
+          availabilityDate: sub.availability_date,
           stage: sub.stage,
         };
       });
@@ -245,7 +235,7 @@ export function CandidateCompareView({
                   </td>
                   {candidates.map(c => (
                     <td key={c.submissionId} className="p-2 text-sm">
-                      {anonymizeRegionBroad(c.city)}
+                      {c.regionBroad}
                     </td>
                   ))}
                 </tr>
@@ -260,7 +250,7 @@ export function CandidateCompareView({
                   </td>
                   {candidates.map(c => (
                     <td key={c.submissionId} className="p-2 text-sm">
-                      {anonymizeExperience(c.experienceYears)}
+                      {c.experienceBand}
                     </td>
                   ))}
                 </tr>
@@ -275,7 +265,7 @@ export function CandidateCompareView({
                   </td>
                   {candidates.map(c => (
                     <td key={c.submissionId} className="p-2 text-sm">
-                      {anonymizeSalary(c.expectedSalary || null)}
+                      {c.salaryBand}
                     </td>
                   ))}
                 </tr>

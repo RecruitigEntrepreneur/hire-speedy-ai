@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { generateAnonymousId } from '@/lib/anonymization';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -228,48 +229,63 @@ export default function ClientJobDetail() {
         intake_completeness: jobData.intake_completeness ?? null
       } as Job);
 
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          stage,
-          status,
-          match_score,
-          submitted_at,
-          recruiter_notes,
-          recruiter_id,
-          candidate:candidates!inner(
-            id,
-            full_name,
-            email,
-            phone,
-            job_title,
-            company,
-            city,
-            expected_salary,
-            current_salary,
-            availability_date,
-            notice_period,
-            experience_years,
-            skills,
-            linkedin_url,
-            github_url,
-            portfolio_url,
-            cv_url,
-            summary,
-            seniority
-          )
-        `)
+      // Triple-Blind: candidate data is read EXCLUSIVELY through the reveal-gated
+      // server view client_candidate_view. It returns NULL for raw PII (name,
+      // email, phone, cv, linkedin, exact city/experience) until identity_unlocked
+      // and exposes only pre-anonymized region/experience/salary bands otherwise.
+      // The view also filters itself to the logged-in client (client_id = auth.uid()).
+      // No raw candidate PII reaches the network before opt-in.
+      const { data: viewRows, error: submissionsError } = await supabase
+        .from('client_candidate_view')
+        .select('*')
         .eq('job_id', id);
 
       if (submissionsError) throw submissionsError;
-      
-      const transformedSubmissions = (submissionsData || []).map((s: any) => ({
-        ...s,
-        candidate: s.candidate,
-        recruiter: { email: s.recruiter_id, full_name: null },
-      }));
-      
+
+      const transformedSubmissions: Submission[] = (viewRows || []).map((v: any) => {
+        const identityUnlocked = v.identity_unlocked === true;
+        return {
+          id: v.submission_id,
+          stage: v.stage ?? v.status ?? 'submitted',
+          status: v.status ?? null,
+          match_score: v.match_score ?? null,
+          submitted_at: v.submitted_at,
+          recruiter_notes: v.recruiter_notes ?? null,
+          candidate: {
+            id: v.candidate_id,
+            // Klarname nur nach Opt-In; sonst anonyme Kennung
+            full_name: identityUnlocked && v.full_name
+              ? v.full_name
+              : generateAnonymousId(v.submission_id),
+            // Kontaktdaten sind in der View bis zum Opt-In NULL
+            email: v.email ?? '',
+            phone: v.phone ?? null,
+            job_title: v.candidate_role ?? null,
+            // company ist in der View nicht enthalten (gated -> nicht anzeigen)
+            company: null,
+            // exakte Stadt nur nach Opt-In, sonst grobe Region
+            city: identityUnlocked ? (v.city ?? null) : (v.region_broad ?? null),
+            // Roh-Gehalt liegt in der View nicht vor (nur salary_band); nicht anzeigen
+            expected_salary: null,
+            current_salary: null,
+            availability_date: v.availability_date ?? null,
+            notice_period: v.notice_period ?? null,
+            // exakte Jahre nur nach Opt-In; Band wird in spezialisierten Cards genutzt
+            experience_years: v.experience_years ?? null,
+            skills: v.skills ?? null,
+            linkedin_url: v.linkedin_url ?? null,
+            // github/portfolio sind in der View nicht enthalten (gated -> nicht anzeigen)
+            github_url: null,
+            portfolio_url: null,
+            cv_url: v.cv_url ?? null,
+            // Bio ist serverseitig vor Opt-In gescrubbt
+            summary: v.cv_ai_summary ?? null,
+            seniority: v.seniority ?? null,
+          },
+          recruiter: null,
+        };
+      });
+
       setSubmissions(transformedSubmissions);
 
       const submissionIds = transformedSubmissions.map(s => s.id);

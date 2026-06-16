@@ -44,6 +44,7 @@ import {
 import { isPast, isToday, formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { generateAnonymousId } from '@/lib/anonymization';
 
 interface Interview {
   id: string;
@@ -126,80 +127,78 @@ export default function TalentHub() {
   };
 
   const fetchCandidates = async () => {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select(`
-        id,
-        status,
-        stage,
-        submitted_at,
-        match_score,
-        match_policy,
-        candidates!inner (
-          id,
-          full_name,
-          job_title,
-          email,
-          phone,
-          company,
-          skills,
-          experience_years,
-          cv_ai_summary,
-          notice_period,
-          availability_date,
-          current_salary,
-          expected_salary,
-          city
-        ),
-        jobs!inner (
-          id,
-          title,
-          skills
-        )
-      `)
-      .order('submitted_at', { ascending: false });
+    // Triple-Blind: candidate data is read EXCLUSIVELY through the reveal-gated
+    // server view client_candidate_view. It returns NULL for PII (name, email,
+    // phone, cv, linkedin, exact city, exact experience_years) until
+    // identity_unlocked, and exposes only pre-anonymized region/experience/salary
+    // bands otherwise. The view already filters to client_id = auth.uid().
+    // match_policy is non-PII matching metadata not carried by the view, so it is
+    // fetched separately from submissions (no candidate join) and merged by id.
+    const [viewResult, policyResult] = await Promise.all([
+      supabase
+        .from('client_candidate_view')
+        .select('*')
+        .order('submitted_at', { ascending: false }),
+      supabase
+        .from('submissions')
+        .select('id, match_policy')
+    ]);
+
+    const { data, error } = viewResult;
 
     if (error) {
       console.error('Error fetching candidates:', error);
       return;
     }
 
+    const policyBySubmission = new Map<string, string | null>();
+    (policyResult.data || []).forEach((s: any) => {
+      policyBySubmission.set(s.id, s.match_policy ?? null);
+    });
+
     const tableCandidates: ExtendedTableCandidate[] = [];
 
-    (data || []).forEach((sub: any) => {
-      const candidate = sub.candidates;
-      const job = sub.jobs;
+    (data || []).forEach((v: any) => {
       const now = new Date();
-      const submittedAt = new Date(sub.submitted_at);
+      const submittedAt = new Date(v.submitted_at);
       const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
 
-      // Generate anonymous ID from candidate id (first 6 chars)
-      const anonymousId = `PR-${candidate.id.slice(0, 6).toUpperCase()}`;
+      const identityUnlocked = v.identity_unlocked === true;
 
       tableCandidates.push({
-        id: candidate.id,
-        submissionId: sub.id,
-        name: anonymousId, // Use anonymous ID instead of full name
-        currentRole: candidate.job_title || 'Nicht angegeben',
-        jobId: job.id,
-        jobTitle: job.title,
-        stage: sub.stage || sub.status,
-        status: sub.status,
-        matchScore: sub.match_score,
-        matchPolicy: sub.match_policy || null,
-        submittedAt: sub.submitted_at,
-        email: candidate.email,
-        phone: candidate.phone,
+        id: v.candidate_id,
+        submissionId: v.submission_id,
+        // Klarname nur nach Opt-In; sonst stabiler anonymer Anzeigename
+        name: identityUnlocked && v.full_name
+          ? v.full_name
+          : generateAnonymousId(v.submission_id),
+        currentRole: v.candidate_role || 'Nicht angegeben',
+        jobId: v.job_id,
+        jobTitle: v.job_title,
+        stage: v.stage || v.status,
+        status: v.status,
+        matchScore: v.match_score,
+        matchPolicy: policyBySubmission.get(v.submission_id) ?? null,
+        submittedAt: v.submitted_at,
+        // PII: NULL bis Opt-In (vom View serverseitig gegated)
+        email: v.email ?? undefined,
+        phone: v.phone ?? undefined,
         hoursInStage,
-        company: candidate.company,
-        skills: candidate.skills,
-        experienceYears: candidate.experience_years,
-        cvAiSummary: candidate.cv_ai_summary,
-        noticePeriod: candidate.notice_period,
-        availabilityDate: candidate.availability_date,
-        currentSalary: candidate.current_salary,
-        expectedSalary: candidate.expected_salary,
-        city: candidate.city
+        company: v.job_company_name ?? undefined,
+        skills: v.skills,
+        // Exakte experience_years nur nach Opt-In; sonst undefined (Band wird
+        // im Detail über die View angezeigt, die Card rendert nur Jahre)
+        experienceYears: v.experience_years ?? undefined,
+        cvAiSummary: v.cv_ai_summary ?? undefined,
+        noticePeriod: v.notice_period ?? undefined,
+        availabilityDate: v.availability_date ?? undefined,
+        // Exakte Gehälter werden nicht mehr roh gelesen; die View liefert salary_band
+        currentSalary: undefined,
+        expectedSalary: undefined,
+        // Exakte Stadt nur nach Opt-In; sonst grobe Region (vom View anonymisiert)
+        city: identityUnlocked
+          ? (v.city || v.region_broad || undefined)
+          : (v.region_broad || undefined)
       });
     });
 
@@ -207,6 +206,10 @@ export default function TalentHub() {
   };
 
   const fetchInterviews = async () => {
+    // Triple-Blind: do NOT join raw candidates/jobs for PII here. Only the
+    // operational interview fields (timing/status/link) are used downstream to
+    // annotate cards; candidateName/jobTitle are never rendered in this view,
+    // so the previous candidate full_name join was a pure PII leak and is removed.
     const { data, error } = await supabase
       .from('interviews')
       .select(`
@@ -214,12 +217,7 @@ export default function TalentHub() {
         scheduled_at,
         status,
         meeting_link,
-        submission_id,
-        submission:submissions(
-          id,
-          candidate:candidates(full_name),
-          job:jobs(title)
-        )
+        submission_id
       `)
       .order('scheduled_at', { ascending: true });
 
@@ -230,8 +228,8 @@ export default function TalentHub() {
         status: i.status,
         meeting_link: i.meeting_link,
         submission_id: i.submission_id,
-        candidateName: i.submission?.candidate?.full_name || 'Unbekannt',
-        jobTitle: i.submission?.job?.title || 'Unbekannt'
+        candidateName: '',
+        jobTitle: ''
       }));
       setInterviews(formattedInterviews);
     }

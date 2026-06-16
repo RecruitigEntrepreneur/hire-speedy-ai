@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { generateAnonymousId } from '@/lib/anonymization';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -65,38 +66,22 @@ export default function ClientCandidates() {
 
   const fetchSubmissions = async () => {
     try {
-      const { data: submissionsData, error: subError } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          status,
-          submitted_at,
-          match_score,
-          candidates!inner (
-            id,
-            full_name,
-            job_title,
-            city,
-            experience_years,
-            skills,
-            expected_salary,
-            notice_period,
-            remote_preference,
-            availability_date,
-            seniority,
-            email,
-            phone
-          ),
-          jobs!inner (
-            id,
-            title
-          )
-        `)
+      // Triple-Blind: Kandidatendaten werden AUSSCHLIESSLICH über die reveal-gated
+      // Server-View client_candidate_view gelesen. Die View liefert pro Submission
+      // eine Zeile, filtert selbst auf den eingeloggten Client (client_id = auth.uid())
+      // und gibt PII (full_name, email, phone, city, exakte experience_years) erst nach
+      // identity_unlocked frei. Region/Erfahrung/Gehalt kommen als bereits serverseitig
+      // anonymisierte Bänder (region_broad, experience_band, salary_band).
+      const { data: viewData, error: viewError } = await supabase
+        .from('client_candidate_view')
+        .select('*')
         .order('submitted_at', { ascending: false });
 
-      if (subError) throw subError;
+      if (viewError) throw viewError;
 
-      const submissionIds = (submissionsData || []).map(s => s.id);
+      const rows = (viewData || []) as any[];
+      const submissionIds = rows.map(r => r.submission_id);
+
       const { data: summaries } = await supabase
         .from('candidate_client_summary')
         .select('*')
@@ -111,19 +96,25 @@ export default function ClientCandidates() {
 
       const healthMap = new Map(healthData?.map(h => [h.submission_id, h]) || []);
 
-      const exposeSubmissions: ExposeSubmission[] = (submissionsData || []).map((sub: any) => {
-        const candidate = sub.candidates;
-        const job = sub.jobs;
-        const summary = summaryMap.get(sub.id);
-        const health = healthMap.get(sub.id);
+      const exposeSubmissions: ExposeSubmission[] = rows.map((v: any) => {
+        const summary = summaryMap.get(v.submission_id);
+        const health = healthMap.get(v.submission_id);
+
+        const identityUnlocked = v.identity_unlocked === true;
+        // region_broad/experience_band/salary_band sind bereits serverseitig anonymisiert.
+        const locationDisplay = identityUnlocked
+          ? (v.city || v.region_broad || 'Nicht angegeben')
+          : (v.region_broad || 'DACH');
+        const experienceDisplay = v.experience_band || 'Nicht angegeben';
+        const salaryDisplay = v.salary_band || 'Nicht freigegeben';
 
         const hardFacts: HardFacts = {
-          role_seniority: `${candidate.seniority || ''} ${candidate.job_title || ''}`.trim() || 'Nicht angegeben',
-          top_skills: (candidate.skills || []).slice(0, 5),
-          location_commute: candidate.city || 'Nicht angegeben',
-          work_model: getWorkModelLabel(candidate.remote_preference),
-          salary_range: formatSalaryRange(candidate.expected_salary),
-          availability: formatAvailability(candidate.notice_period, candidate.availability_date)
+          role_seniority: `${v.seniority || ''} ${v.candidate_role || ''}`.trim() || 'Nicht angegeben',
+          top_skills: (v.skills || []).slice(0, 5),
+          location_commute: locationDisplay,
+          work_model: getWorkModelLabel(v.remote_preference),
+          salary_range: salaryDisplay,
+          availability: formatAvailability(v.notice_period, v.availability_date)
         };
 
         let executiveSummary: string[] = [];
@@ -135,31 +126,35 @@ export default function ClientCandidates() {
 
         if (executiveSummary.length === 0) {
           executiveSummary = [
-            `${candidate.experience_years || 0}+ Jahre Berufserfahrung`,
-            `Aktuelle Rolle: ${candidate.job_title || 'Nicht angegeben'}`,
-            `Standort: ${candidate.city || 'Nicht angegeben'}`,
-            formatAvailability(candidate.notice_period, candidate.availability_date)
+            `Berufserfahrung: ${experienceDisplay}`,
+            `Aktuelle Rolle: ${v.candidate_role || 'Nicht angegeben'}`,
+            `Standort: ${locationDisplay}`,
+            formatAvailability(v.notice_period, v.availability_date)
           ].filter(Boolean);
         }
 
         return {
-          id: sub.id,
-          status: sub.status,
-          submitted_at: sub.submitted_at,
-          match_score: sub.match_score,
-          candidateId: candidate.id,
-          candidateName: candidate.full_name,
-          currentRole: candidate.job_title || 'Nicht angegeben',
+          id: v.submission_id,
+          status: v.status,
+          submitted_at: v.submitted_at,
+          match_score: v.match_score,
+          candidateId: v.candidate_id,
+          // full_name ist NULL bis Opt-In -> Klarname-Fallback über generateAnonymousId.
+          candidateName: identityUnlocked && v.full_name
+            ? v.full_name
+            : generateAnonymousId(v.submission_id),
+          currentRole: v.candidate_role || 'Nicht angegeben',
           dealProbability: summary?.deal_probability || (health?.drop_off_probability ? 100 - health.drop_off_probability : 50),
           dealHealthScore: health?.health_score || 50,
           dealHealthRisk: health?.risk_level || 'medium',
           dealHealthReason: health?.ai_assessment || '',
           executiveSummary,
           hardFacts,
-          jobId: job.id,
-          jobTitle: job.title,
-          email: candidate.email,
-          phone: candidate.phone
+          jobId: v.job_id,
+          jobTitle: v.job_title,
+          // email/phone sind NULL bis Opt-In (View-seitig gegated).
+          email: v.email ?? undefined,
+          phone: v.phone ?? undefined
         };
       });
 
@@ -400,11 +395,6 @@ function getWorkModelLabel(preference: string | null): string {
     'flexible': 'Flexibel'
   };
   return labels[preference] || preference;
-}
-
-function formatSalaryRange(salary: number | null): string {
-  if (!salary) return 'k.A.';
-  return `€${(salary / 1000).toFixed(0)}k`;
 }
 
 function formatAvailability(noticePeriod: string | null, availabilityDate: string | null): string {

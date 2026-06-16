@@ -54,37 +54,47 @@ export default function ClientCandidatesOverview() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
+      // Triple-Blind: lese Kandidatendaten ausschliesslich aus der reveal-gated
+      // client_candidate_view. Die View beschraenkt selbst auf den eingeloggten
+      // Client und liefert anonymisierte Felder (region_broad/experience_band),
+      // exakte PII (city/experience_years/full_name...) bleiben NULL bis Opt-In.
       const [jobsRes, subsRes] = await Promise.all([
         supabase.from('jobs').select('id, title').eq('status', 'published').order('created_at', { ascending: false }),
-        supabase.from('submissions').select(`
-          id, status, stage, submitted_at,
-          candidates!inner (id, full_name, job_title, experience_years, city),
-          jobs!inner (id, title)
-        `).order('submitted_at', { ascending: false }),
+        supabase
+          .from('client_candidate_view')
+          .select(`
+            submission_id, candidate_id, job_id, status, stage, submitted_at,
+            candidate_role, region_broad, experience_band, identity_unlocked,
+            job_title
+          `)
+          .order('submitted_at', { ascending: false }),
       ]);
 
       if (jobsRes.data) setJobs(jobsRes.data);
 
       const entries: CandidateCardData[] = [];
       (subsRes.data || []).forEach((sub: any) => {
-        const candidate = sub.candidates;
-        const job = sub.jobs;
         const now = new Date();
         const submittedAt = new Date(sub.submitted_at);
         const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
         entries.push({
-          id: candidate.id,
-          submissionId: sub.id,
-          name: `PR-${candidate.id.slice(0, 6).toUpperCase()}`,
-          currentRole: candidate.job_title || 'Nicht angegeben',
-          jobId: job.id,
-          jobTitle: job.title,
+          id: sub.candidate_id,
+          submissionId: sub.submission_id,
+          name: `PR-${(sub.submission_id || '').slice(0, 6).toUpperCase()}`,
+          currentRole: sub.candidate_role || 'Nicht angegeben',
+          jobId: sub.job_id,
+          jobTitle: sub.job_title || '',
           stage: sub.stage || sub.status,
           status: sub.status,
           submittedAt: sub.submitted_at,
           hoursInStage,
-          city: candidate.city,
-          experienceYears: candidate.experience_years,
+          // Anzeige nutzt anonymisierte View-Felder. Exakte city/experience_years
+          // werden nicht mehr gelesen (Triple-Blind). region_broad ersetzt die
+          // exakte Stadt; experience_band (String) kann das numerische
+          // experienceYears-Feld der Karte NICHT befuellen -> bleibt leer, bis
+          // die geteilte Karte ein Band-Feld unterstuetzt (siehe Report).
+          city: sub.region_broad || undefined,
+          experienceYears: undefined,
         });
       });
       setCandidates(entries);

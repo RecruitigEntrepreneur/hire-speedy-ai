@@ -30,12 +30,17 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
   const fetchCandidates = async () => {
     setLoading(true);
     try {
+      // Triple-Blind: Kandidatendaten werden ausschliesslich aus der reveal-gated
+      // client_candidate_view gelesen. Die View beschraenkt selbst auf den
+      // eingeloggten Client (WHERE client_id = auth.uid()) und liefert nur
+      // anonymisierte Felder (region_broad/experience_band). Exakte PII
+      // (city/experience_years/full_name...) bleibt serverseitig NULL bis Opt-In.
       const { data, error } = await supabase
-        .from('submissions')
+        .from('client_candidate_view')
         .select(`
-          id, status, stage, submitted_at,
-          candidates!inner (id, full_name, job_title, experience_years, city),
-          jobs!inner (id, title)
+          submission_id, candidate_id, job_id, status, stage, submitted_at,
+          candidate_role, job_title,
+          region_broad, experience_band, experience_years, identity_unlocked
         `)
         .order('submitted_at', { ascending: false });
 
@@ -46,24 +51,26 @@ export function IntegratedTalentSection({ onActionComplete }: IntegratedTalentSe
 
       const entries: CandidateCardData[] = [];
       (data || []).forEach((sub: any) => {
-        const candidate = sub.candidates;
-        const job = sub.jobs;
         const now = new Date();
         const submittedAt = new Date(sub.submitted_at);
         const hoursInStage = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
         entries.push({
-          id: candidate.id,
-          submissionId: sub.id,
-          name: `PR-${candidate.id.slice(0, 6).toUpperCase()}`,
-          currentRole: candidate.job_title || 'Nicht angegeben',
-          jobId: job.id,
-          jobTitle: job.title,
+          id: sub.candidate_id,
+          submissionId: sub.submission_id,
+          name: `PR-${String(sub.submission_id || '').slice(0, 6).toUpperCase()}`,
+          currentRole: sub.candidate_role || 'Nicht angegeben',
+          jobId: sub.job_id,
+          jobTitle: sub.job_title || '',
           stage: sub.stage || sub.status,
           status: sub.status,
           submittedAt: sub.submitted_at,
           hoursInStage,
-          city: candidate.city,
-          experienceYears: candidate.experience_years,
+          // Anzeige nutzt anonymisierte View-Felder. Exakte city/experience_years
+          // werden nicht mehr roh gelesen (Triple-Blind): die View liefert sie
+          // erst nach Opt-In, sonst NULL. region_broad wird als Standortlabel
+          // angezeigt.
+          city: sub.region_broad || undefined,
+          experienceYears: sub.experience_years ?? undefined,
         });
       });
       setCandidates(entries);

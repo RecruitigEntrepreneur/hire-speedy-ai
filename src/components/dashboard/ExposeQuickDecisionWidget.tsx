@@ -18,8 +18,9 @@ interface CandidateSubmission {
     id: string;
     job_title: string;
     skills: string[];
-    experience_years: number;
-    city: string;
+    // Triple-Blind: anonymisierte Anzeigewerte aus der reveal-gated View.
+    experience_band: string;
+    region_broad: string;
     notice_period: string;
     availability_date: string;
   };
@@ -48,29 +49,26 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
 
   const fetchNewSubmissions = async () => {
     try {
-      // Fetch new submissions for client's jobs
+      // Triple-Blind: reveal-gated View lesen statt rohe candidates/submissions.
+      // Die View filtert serverseitig auf den eingeloggten Client (client_id = auth.uid())
+      // und liefert PII vor Opt-In als NULL bzw. anonymisiert (region_broad/experience_band).
       const { data, error } = await supabase
-        .from('submissions')
+        .from('client_candidate_view')
         .select(`
-          id,
+          submission_id,
+          candidate_id,
+          job_id,
+          job_title,
+          job_industry,
           status,
           match_score,
-          candidates!inner (
-            id,
-            job_title,
-            skills,
-            experience_years,
-            city,
-            notice_period,
-            availability_date
-          ),
-          jobs!inner (
-            id,
-            title,
-            client_id
-          )
+          candidate_role,
+          skills,
+          experience_band,
+          region_broad,
+          notice_period,
+          availability_date
         `)
-        .eq('jobs.client_id', user?.id)
         .eq('status', 'submitted')
         .order('submitted_at', { ascending: false })
         .limit(maxCandidates);
@@ -78,7 +76,7 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
       if (error) throw error;
 
       // Fetch deal health for submissions
-      const submissionIds = (data || []).map(s => s.id);
+      const submissionIds = (data || []).map((s: any) => s.submission_id);
       const { data: healthData } = await supabase
         .from('deal_health')
         .select('submission_id, drop_off_probability')
@@ -86,23 +84,24 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
 
       const healthMap = new Map((healthData || []).map(h => [h.submission_id, h.drop_off_probability]));
 
-      const formatted: CandidateSubmission[] = (data || []).map(sub => ({
-        id: sub.id,
+      const formatted: CandidateSubmission[] = (data || []).map((sub: any) => ({
+        id: sub.submission_id,
         candidate: {
-          id: sub.candidates.id,
-          job_title: sub.candidates.job_title || 'Nicht angegeben',
-          skills: sub.candidates.skills || [],
-          experience_years: sub.candidates.experience_years || 0,
-          city: sub.candidates.city || '',
-          notice_period: sub.candidates.notice_period || '',
-          availability_date: sub.candidates.availability_date || ''
+          id: sub.candidate_id,
+          job_title: sub.candidate_role || 'Nicht angegeben',
+          skills: sub.skills || [],
+          experience_band: sub.experience_band || '',
+          region_broad: sub.region_broad || '',
+          notice_period: sub.notice_period || '',
+          availability_date: sub.availability_date || ''
         },
         job: {
-          id: sub.jobs.id,
-          title: sub.jobs.title
+          id: sub.job_id,
+          title: sub.job_title,
+          industry: sub.job_industry
         },
         matchScore: sub.match_score || 0,
-        dealProbability: 100 - (healthMap.get(sub.id) || 50)
+        dealProbability: 100 - (healthMap.get(sub.submission_id) || 50)
       }));
 
       setSubmissions(formatted);
@@ -201,8 +200,10 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
                   matchScore={submission.matchScore}
                   dealProbability={submission.dealProbability}
                   topSkills={submission.candidate.skills}
-                  experienceYears={submission.candidate.experience_years}
-                  location={submission.candidate.city}
+                  // Triple-Blind: bereits serverseitig anonymisierte Werte aus der View.
+                  // experienceYears entfällt (View liefert experience_band als String);
+                  // region_broad wird statt der exakten Stadt durchgereicht.
+                  location={submission.candidate.region_broad}
                   availability={submission.candidate.notice_period || submission.candidate.availability_date}
                   onRequestInterview={() => handleRequestInterview(submission)}
                   onReject={() => handleReject(submission)}
