@@ -1,30 +1,32 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const footerLinks = {
   unternehmen: [
-    { label: "Für Unternehmen", href: "/auth?mode=signup&role=client" },
-    { label: "Pricing", href: "#pricing" },
-    { label: "Enterprise", href: "/contact" },
+    { labelKey: "links_company_forCompanies", href: "/auth?mode=signup&role=client" },
+    { labelKey: "links_company_pricing", href: "#pricing" },
+    { labelKey: "links_company_enterprise", href: "/contact" },
   ],
   recruiter: [
-    { label: "Für Recruiter", href: "/auth?mode=signup&role=recruiter" },
-    { label: "Guides", href: "/guides" },
-    { label: "Help Center", href: "/help" },
+    { labelKey: "links_recruiter_forRecruiters", href: "/auth?mode=signup&role=recruiter" },
+    { labelKey: "links_recruiter_guides", href: "/guides" },
+    { labelKey: "links_recruiter_helpCenter", href: "/help" },
   ],
   plattform: [
-    { label: "Features", href: "#features" },
-    { label: "Sicherheit", href: "#security" },
-    { label: "Dokumentation", href: "/docs" },
+    { labelKey: "links_platform_features", href: "#features" },
+    { labelKey: "links_platform_security", href: "#security" },
+    { labelKey: "links_platform_documentation", href: "/docs" },
   ],
   unternehmenInfo: [
-    { label: "Über uns", href: "/about" },
-    { label: "Karriere", href: "/careers" },
-    { label: "Presse", href: "/press" },
-    { label: "Kontakt", href: "/contact" },
+    { labelKey: "links_info_about", href: "/about" },
+    { labelKey: "links_info_careers", href: "/careers" },
+    { labelKey: "links_info_press", href: "/press" },
+    { labelKey: "links_info_contact", href: "/contact" },
   ],
 };
 
 export const FooterSection = () => {
+  const { t } = useTranslation();
   return (
     <footer className="py-16 bg-card text-foreground border-t border-border">
       <div className="container mx-auto px-4">
@@ -37,22 +39,20 @@ export const FooterSection = () => {
               <span className="text-xl font-bold">Matchunt</span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              The Recruiting Operating System.
-              Powered by AI. Delivered by Experts.
-              Engineered for Results.
+              {t("footer.tagline")}
             </p>
           </div>
 
-          {Object.entries({ Unternehmen: footerLinks.unternehmen, Recruiter: footerLinks.recruiter, Plattform: footerLinks.plattform, Info: footerLinks.unternehmenInfo }).map(([title, links]) => (
+          {Object.entries({ company: footerLinks.unternehmen, recruiter: footerLinks.recruiter, platform: footerLinks.plattform, info: footerLinks.unternehmenInfo }).map(([title, links]) => (
             <div key={title}>
-              <h4 className="font-semibold mb-4 text-foreground">{title}</h4>
+              <h4 className="font-semibold mb-4 text-foreground">{t(`footer.colTitle_${title}`)}</h4>
               <ul className="space-y-2">
                 {links.map((link, index) => (
                   <li key={index}>
                     {link.href.startsWith("#") ? (
-                      <a href={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">{link.label}</a>
+                      <a href={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">{t(`footer.${link.labelKey}`)}</a>
                     ) : (
-                      <Link to={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">{link.label}</Link>
+                      <Link to={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">{t(`footer.${link.labelKey}`)}</Link>
                     )}
                   </li>
                 ))}
@@ -63,12 +63,12 @@ export const FooterSection = () => {
 
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} Matchunt - eine Marke der bluewater & Bridge GmbH. Alle Rechte vorbehalten.
+            © {new Date().getFullYear()} {t("footer.copyright")}
           </p>
           <div className="flex items-center gap-6">
-            <Link to="/datenschutz" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Datenschutz</Link>
-            <Link to="/agb" className="text-muted-foreground hover:text-foreground transition-colors text-sm">AGB</Link>
-            <Link to="/impressum" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Impressum</Link>
+            <Link to="/datenschutz" className="text-muted-foreground hover:text-foreground transition-colors text-sm">{t("footer.legal_privacy")}</Link>
+            <Link to="/agb" className="text-muted-foreground hover:text-foreground transition-colors text-sm">{t("footer.legal_terms")}</Link>
+            <Link to="/impressum" className="text-muted-foreground hover:text-foreground transition-colors text-sm">{t("footer.legal_imprint")}</Link>
           </div>
         </div>
       </div>

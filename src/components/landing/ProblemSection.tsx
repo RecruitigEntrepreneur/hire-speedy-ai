@@ -1,26 +1,28 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Clock, MessageSquareOff, Target } from "lucide-react";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { useTranslation } from "react-i18next";
 
 const painPoints = [
   {
     icon: Clock,
-    title: "Zeitverlust",
-    description: "Prozesse, die Wochen dauern, statt Minuten. Jeder Tag ohne Besetzung kostet Geld und Produktivität.",
+    titleKey: "painPoints.item1_title",
+    descriptionKey: "painPoints.item1_description",
   },
   {
     icon: MessageSquareOff,
-    title: "Unkontrollierte Kommunikation",
-    description: "Kandidaten springen ab. Recruiter funktionieren im Blindflug. Niemand weiß, wo der Prozess steht.",
+    titleKey: "painPoints.item2_title",
+    descriptionKey: "painPoints.item2_description",
   },
   {
     icon: Target,
-    title: "Fehlanreize",
-    description: "Kein Alignment zwischen Unternehmen, Recruitern und Kandidaten. Das System belohnt Quantität, nicht Qualität.",
+    titleKey: "painPoints.item3_title",
+    descriptionKey: "painPoints.item3_description",
   },
 ];
 
 const PainCard = ({ point, index }: { point: typeof painPoints[0]; index: number }) => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
   return (
     <div
@@ -33,13 +35,14 @@ const PainCard = ({ point, index }: { point: typeof painPoints[0]; index: number
       <div className="w-14 h-14 rounded-xl bg-muted/50 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
         <point.icon className="w-7 h-7 text-foreground" />
       </div>
-      <h3 className="text-2xl font-bold mb-4 text-foreground">{point.title}</h3>
-      <p className="text-muted-foreground leading-relaxed">{point.description}</p>
+      <h3 className="text-2xl font-bold mb-4 text-foreground">{t(`problem.${point.titleKey}`)}</h3>
+      <p className="text-muted-foreground leading-relaxed">{t(`problem.${point.descriptionKey}`)}</p>
     </div>
   );
 };
 
 export const ProblemSection = () => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
 
   return (
@@ -60,15 +63,14 @@ export const ProblemSection = () => {
           }`}
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-8 text-foreground">
-            Hiring is Broken.{" "}
-            <span className="text-muted-foreground">Everywhere.</span>
+            {t("problem.headline_main")}{" "}
+            <span className="text-muted-foreground">{t("problem.headline_accent")}</span>
           </h2>
           <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed">
-            Das heutige Recruiting-System ist ein Flickenteppich aus Tools, E-Mails,
-            ATS-Systemen, Freelancern, Agenturen und Zufällen.
+            {t("problem.intro")}
           </p>
           <p className="text-2xl md:text-3xl font-bold mt-4 text-foreground">
-            Wir ersetzen Chaos durch Klarheit.
+            {t("problem.tagline")}
           </p>
         </div>
 
@@ -81,7 +83,7 @@ export const ProblemSection = () => {
         <div className="text-center">
           <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-8 py-6 text-lg group shadow-lg">
             <a href="#engine">
-              So lösen wir das Problem
+              {t("problem.cta")}
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </a>
           </Button>

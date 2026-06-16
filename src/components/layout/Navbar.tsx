@@ -36,62 +36,65 @@ import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
 import { MatchuntLogo } from '@/components/ui/MatchuntLogo';
 import { scrollToSection } from '@/lib/scroll';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href?: string;
   items?: {
-    name: string;
+    nameKey: string;
     href: string;
-    description?: string;
+    descKey?: string;
   }[];
 }
 
 const navigationItems: NavItem[] = [
   {
-    label: "Features",
+    labelKey: "nav.features",
     items: [
-      { name: "AI Matching Engine", href: "/#engine", description: "KI-gestützte Kandidatenauswahl" },
-      { name: "Automated Interview Flow", href: "/#how-it-works", description: "Vollautomatisierte Prozesse" },
-      { name: "Recruiter Network", href: "/#for-recruiters", description: "Persönlich verifizierte Recruiter" },
-      { name: "Escrow & Payments", href: "/#pricing", description: "Sichere Zahlungsabwicklung" },
-      { name: "Compliance & DSGVO", href: "/#security", description: "DSGVO-konform, EU-Hosting" },
-      { name: "Analytics & Reporting", href: "/#analytics", description: "Echtzeit-Insights" },
+      { nameKey: "nav.features_items.matching", href: "/#engine", descKey: "nav.features_items.matching_desc" },
+      { nameKey: "nav.features_items.interview", href: "/#how-it-works", descKey: "nav.features_items.interview_desc" },
+      { nameKey: "nav.features_items.network", href: "/#for-recruiters", descKey: "nav.features_items.network_desc" },
+      { nameKey: "nav.features_items.escrow", href: "/#pricing", descKey: "nav.features_items.escrow_desc" },
+      { nameKey: "nav.features_items.compliance", href: "/#security", descKey: "nav.features_items.compliance_desc" },
+      { nameKey: "nav.features_items.analytics", href: "/#analytics", descKey: "nav.features_items.analytics_desc" },
     ]
   },
   {
-    label: "Solutions",
+    labelKey: "nav.solutions",
     items: [
-      { name: "Für Unternehmen", href: "/#for-companies", description: "Schneller die besten Talente finden" },
-      { name: "Für Recruiter & Agenturen", href: "/#for-recruiters", description: "Höhere Provisionen, bessere Deals" },
-      { name: "Für KMU & Startups", href: "/#pricing", description: "Erfolgsbasiert ohne Fixkosten" },
-      { name: "Für Enterprise", href: "/contact", description: "Individuelle Lösungen auf Anfrage" },
+      { nameKey: "nav.solutions_items.companies", href: "/#for-companies", descKey: "nav.solutions_items.companies_desc" },
+      { nameKey: "nav.solutions_items.recruiters", href: "/#for-recruiters", descKey: "nav.solutions_items.recruiters_desc" },
+      { nameKey: "nav.solutions_items.smb", href: "/#pricing", descKey: "nav.solutions_items.smb_desc" },
+      { nameKey: "nav.solutions_items.enterprise", href: "/contact", descKey: "nav.solutions_items.enterprise_desc" },
     ]
   },
-  { label: "Pricing", href: "/#pricing" },
+  { labelKey: "nav.pricing", href: "/#pricing" },
   {
-    label: "Resources",
+    labelKey: "nav.resources",
     items: [
-      { name: "Blog", href: "/blog", description: "Insights & Best Practices" },
-      { name: "Guides", href: "/guides", description: "Step-by-Step Anleitungen" },
-      { name: "FAQ", href: "/#faq", description: "Häufige Fragen" },
-      { name: "Help Center", href: "/help", description: "Support & Hilfe" },
-      { name: "Documentation", href: "/docs", description: "Technische Dokumentation" },
+      { nameKey: "nav.resources_items.blog", href: "/blog", descKey: "nav.resources_items.blog_desc" },
+      { nameKey: "nav.resources_items.guides", href: "/guides", descKey: "nav.resources_items.guides_desc" },
+      { nameKey: "nav.resources_items.faq", href: "/#faq", descKey: "nav.resources_items.faq_desc" },
+      { nameKey: "nav.resources_items.help", href: "/help", descKey: "nav.resources_items.help_desc" },
+      { nameKey: "nav.resources_items.docs", href: "/docs", descKey: "nav.resources_items.docs_desc" },
     ]
   },
   {
-    label: "Company",
+    labelKey: "nav.company",
     items: [
-      { name: "Über uns", href: "/about", description: "Unsere Mission & Team" },
-      { name: "Karriere", href: "/careers", description: "Werde Teil des Teams" },
-      { name: "Presse", href: "/press", description: "News & Media Kit" },
-      { name: "Kontakt", href: "/contact", description: "Sprechen Sie mit uns" },
+      { nameKey: "nav.company_items.about", href: "/about", descKey: "nav.company_items.about_desc" },
+      { nameKey: "nav.company_items.careers", href: "/careers", descKey: "nav.company_items.careers_desc" },
+      { nameKey: "nav.company_items.press", href: "/press", descKey: "nav.company_items.press_desc" },
+      { nameKey: "nav.company_items.contact", href: "/contact", descKey: "nav.company_items.contact_desc" },
     ]
   },
 ];
 
 export function Navbar() {
   const { user, role, signOut } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -157,43 +160,43 @@ export function Navbar() {
         {/* Desktop Navigation */}
         <div className="hidden lg:flex items-center gap-1">
           {navigationItems.map((item) => (
-            <div key={item.label} className="relative">
+            <div key={item.labelKey} className="relative">
               {item.items ? (
                 <div
                   className="relative"
-                  onMouseEnter={() => setActiveDropdown(item.label)}
+                  onMouseEnter={() => setActiveDropdown(item.labelKey)}
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
                   <button
                     className={cn(
                       "flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                      activeDropdown === item.label 
-                        ? "text-foreground bg-accent" 
+                      activeDropdown === item.labelKey
+                        ? "text-foreground bg-accent"
                         : "text-muted-foreground hover:text-foreground hover:bg-accent"
                     )}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                     <ChevronDown className={cn(
                       "h-4 w-4 transition-transform duration-200",
-                      activeDropdown === item.label && "rotate-180"
+                      activeDropdown === item.labelKey && "rotate-180"
                     )} />
                   </button>
 
                   {/* Dropdown Menu */}
-                  {activeDropdown === item.label && (
+                  {activeDropdown === item.labelKey && (
                     <div className="absolute top-full left-0 pt-2 z-50">
                       <div className="bg-card rounded-xl border border-border shadow-lg p-2 min-w-[280px] animate-fade-in">
                         <div className="grid gap-1">
                           {item.items.map((subItem) => (
                             <Link
-                              key={subItem.name}
+                              key={subItem.nameKey}
                               to={subItem.href.startsWith('/#') ? '#' : subItem.href}
                               onClick={(e) => handleNavClick(subItem.href, e)}
                               className="flex flex-col gap-0.5 p-3 rounded-lg hover:bg-accent transition-colors"
                             >
-                              <p className="font-medium text-sm text-foreground">{subItem.name}</p>
-                              {subItem.description && (
-                                <p className="text-xs text-muted-foreground">{subItem.description}</p>
+                              <p className="font-medium text-sm text-foreground">{t(subItem.nameKey)}</p>
+                              {subItem.descKey && (
+                                <p className="text-xs text-muted-foreground">{t(subItem.descKey)}</p>
                               )}
                             </Link>
                           ))}
@@ -208,7 +211,7 @@ export function Navbar() {
                   onClick={(e) => item.href && handleNavClick(item.href, e)}
                   className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               )}
             </div>
@@ -219,13 +222,14 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              <LanguageSwitcher className="hidden md:inline-flex" />
               <Button variant="ghost" asChild className="hidden md:flex text-muted-foreground hover:text-foreground">
                 <Link to={getDashboardLink()}>
                   <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Dashboard
+                  {t('nav.dashboard')}
                 </Link>
               </Button>
-              
+
               <NotificationBell />
               
               <DropdownMenu>
@@ -243,19 +247,19 @@ export function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link to={getDashboardLink()} className="cursor-pointer">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Dashboard
+                      {t('nav.dashboard')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                      {t('nav.settings')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
+                    {t('nav.signOut')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -264,12 +268,13 @@ export function Navbar() {
             <>
               {/* Desktop CTAs */}
               <div className="hidden lg:flex items-center gap-3">
+                <LanguageSwitcher />
                 <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
-                  <Link to="/auth">Anmelden</Link>
+                  <Link to="/auth">{t('nav.signIn')}</Link>
                 </Button>
                 <Button asChild>
                   <Link to="/auth?mode=signup">
-                    Kostenlos starten
+                    {t('nav.startNow')}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -295,20 +300,20 @@ export function Navbar() {
                       <Accordion type="single" collapsible className="space-y-2">
                         {navigationItems.map((item) => (
                           item.items ? (
-                            <AccordionItem key={item.label} value={item.label} className="border-none">
+                            <AccordionItem key={item.labelKey} value={item.labelKey} className="border-none">
                               <AccordionTrigger className="px-4 py-3 rounded-lg hover:bg-accent hover:no-underline">
-                                {item.label}
+                                {t(item.labelKey)}
                               </AccordionTrigger>
                               <AccordionContent className="pb-0">
                                 <div className="ml-4 space-y-1">
                                   {item.items.map((subItem) => (
                                     <Link
-                                      key={subItem.name}
+                                      key={subItem.nameKey}
                                       to={subItem.href.startsWith('/#') ? '#' : subItem.href}
                                       onClick={(e) => handleNavClick(subItem.href, e)}
                                       className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-colors"
                                     >
-                                      <span className="text-sm text-muted-foreground">{subItem.name}</span>
+                                      <span className="text-sm text-muted-foreground">{t(subItem.nameKey)}</span>
                                     </Link>
                                   ))}
                                 </div>
@@ -316,12 +321,12 @@ export function Navbar() {
                             </AccordionItem>
                           ) : (
                             <Link
-                              key={item.label}
+                              key={item.labelKey}
                               to={item.href?.startsWith('/#') ? '#' : item.href || '/'}
                               onClick={(e) => item.href && handleNavClick(item.href, e)}
                               className="flex items-center px-4 py-3 rounded-lg hover:bg-accent transition-colors font-medium"
                             >
-                              {item.label}
+                              {t(item.labelKey)}
                             </Link>
                           )
                         ))}
@@ -330,14 +335,17 @@ export function Navbar() {
 
                     {/* Mobile CTAs */}
                     <div className="p-4 border-t border-border space-y-3">
+                      <div className="flex justify-center pb-1">
+                        <LanguageSwitcher />
+                      </div>
                       <Button variant="outline" className="w-full" asChild>
                         <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                          Anmelden
+                          {t('nav.signIn')}
                         </Link>
                       </Button>
                       <Button className="w-full" asChild>
                         <Link to="/auth?mode=signup" onClick={() => setMobileMenuOpen(false)}>
-                          Kostenlos starten
+                          {t('nav.startNow')}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                       </Button>

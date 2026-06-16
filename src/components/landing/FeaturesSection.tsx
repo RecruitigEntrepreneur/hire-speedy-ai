@@ -1,38 +1,39 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Brain, Shield, Workflow, Puzzle, Zap, EyeOff, Mail, MessageSquare, Calendar, DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const features = [
   {
-    id: "ai-matching", title: "AI Matching & Readiness Score",
-    description: "Unsere KI bewertet nicht nur Skills. Sie versteht Motivation, Verhalten, kulturelle Passung und die Wahrscheinlichkeit eines Angebots.",
+    id: "ai-matching", titleKey: "features.item1_title",
+    descriptionKey: "features.item1_description",
     icon: Brain,
     scores: [
-      { label: "Skill Match", value: 94 }, { label: "Experience Fit", value: 88 },
-      { label: "Salary Fit", value: 92 }, { label: "Readiness Score", value: 85 },
-      { label: "Closing Probability", value: 78 },
+      { labelKey: "features.item1_score1_label", value: 94 }, { labelKey: "features.item1_score2_label", value: 88 },
+      { labelKey: "features.item1_score3_label", value: 92 }, { labelKey: "features.item1_score4_label", value: 85 },
+      { labelKey: "features.item1_score5_label", value: 78 },
     ],
-    cta: "AI in Aktion sehen", ctaHref: "/auth?mode=signup&role=client", reversed: false,
+    ctaKey: "features.item1_cta", ctaHref: "/auth?mode=signup&role=client", reversed: false,
   },
   {
-    id: "identity-protection", title: "Identity Protection / Triple Blind",
-    description: "Kandidaten werden anonymisiert, bis sie zustimmen. Recruiter sehen keine Unternehmen. Unternehmen sehen keine Daten, bevor der Kandidat es erlaubt.",
-    subtext: "Das ist Fairness. Das ist Compliance. Das ist die Zukunft.",
+    id: "identity-protection", titleKey: "features.item2_title",
+    descriptionKey: "features.item2_description",
+    subtextKey: "features.item2_subtext",
     icon: Shield, visual: "triple-blind", reversed: true,
   },
   {
-    id: "automation", title: "Workflow Automation Engine",
-    description: "Interviews planen sich selbst. Angebote verschicken sich selbst. Payments laufen automatisch. Erinnerungen eliminieren Ghosting.",
+    id: "automation", titleKey: "features.item3_title",
+    descriptionKey: "features.item3_description",
     icon: Workflow,
     automations: [
-      { icon: Calendar, label: "Auto-Scheduling" }, { icon: Mail, label: "Email Sequences" },
-      { icon: MessageSquare, label: "WhatsApp & SMS" }, { icon: DollarSign, label: "Escrow Payments" },
+      { icon: Calendar, labelKey: "features.item3_automation1_label" }, { icon: Mail, labelKey: "features.item3_automation2_label" },
+      { icon: MessageSquare, labelKey: "features.item3_automation3_label" }, { icon: DollarSign, labelKey: "features.item3_automation4_label" },
     ],
     reversed: false,
   },
   {
-    id: "integrations", title: "ATS Integrationen", description: "Ihre Prozesse bleiben, wo sie sind. Integrationen mit gängigen ATS-Systemen entstehen nach Kundenbedarf.",
+    id: "integrations", titleKey: "features.item4_title", descriptionKey: "features.item4_description",
     icon: Puzzle, integrations: ["Personio", "Greenhouse", "Lever", "Workday", "BambooHR"],
     reversed: true,
   },
@@ -54,18 +55,20 @@ export const FeaturesSection = () => {
 };
 
 const FeatureHeader = () => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
   return (
     <div ref={ref} className={`max-w-4xl mx-auto text-center mb-20 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-      <p className="text-muted-foreground font-semibold uppercase tracking-wider mb-4">Deep Features</p>
+      <p className="text-muted-foreground font-semibold uppercase tracking-wider mb-4">{t("features.eyebrow")}</p>
       <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-        The Tools that Make You <span className="text-muted-foreground">Faster than Your Competition</span>
+        {t("features.headline1")} <span className="text-muted-foreground">{t("features.headline2")}</span>
       </h2>
     </div>
   );
 };
 
 const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
+  const { t } = useTranslation();
   const { ref, isVisible } = useScrollReveal();
   return (
     <div
@@ -78,13 +81,13 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
         <div className="w-16 h-16 rounded-2xl bg-foreground flex items-center justify-center shadow-lg">
           <feature.icon className="w-8 h-8 text-background" />
         </div>
-        <h3 className="text-3xl md:text-4xl font-bold">{feature.title}</h3>
-        <p className="text-xl text-muted-foreground leading-relaxed">{feature.description}</p>
-        {feature.subtext && <p className="text-lg font-semibold text-foreground">{feature.subtext}</p>}
-        {feature.cta && feature.ctaHref && (
+        <h3 className="text-3xl md:text-4xl font-bold">{t(feature.titleKey)}</h3>
+        <p className="text-xl text-muted-foreground leading-relaxed">{t(feature.descriptionKey)}</p>
+        {feature.subtextKey && <p className="text-lg font-semibold text-foreground">{t(feature.subtextKey)}</p>}
+        {feature.ctaKey && feature.ctaHref && (
           <Button asChild variant="outline" className="group mt-4 border-foreground/20 hover:bg-foreground/5">
             <Link to={feature.ctaHref}>
-              {feature.cta}
+              {t(feature.ctaKey)}
               <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>
@@ -98,7 +101,7 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
               {feature.scores.map((score: any, i: number) => (
                 <div key={i} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{score.label}</span>
+                    <span className="text-muted-foreground">{t(score.labelKey)}</span>
                     <span className="font-semibold">{score.value}%</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -113,7 +116,7 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
         {feature.visual === "triple-blind" && (
           <div className="bg-card rounded-2xl p-8 border border-border/50 shadow-xl">
             <div className="grid grid-cols-3 gap-4">
-              {[{ label: "Kandidat", sub: "anonymisiert" }, { label: "Recruiter", sub: "blind" }, { label: "Unternehmen", sub: "geschützt" }].map((item, i) => (
+              {[{ label: t("features.tripleBlind_role1_label"), sub: t("features.tripleBlind_role1_sub") }, { label: t("features.tripleBlind_role2_label"), sub: t("features.tripleBlind_role2_sub") }, { label: t("features.tripleBlind_role3_label"), sub: t("features.tripleBlind_role3_sub") }].map((item, i) => (
                 <div key={i} className="text-center p-4 rounded-xl bg-muted/50">
                   <EyeOff className="w-8 h-8 mx-auto mb-2 text-foreground" />
                   <p className="text-sm font-medium">{item.label}</p>
@@ -124,7 +127,7 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
             <div className="mt-6 p-4 rounded-xl bg-foreground/5 border border-foreground/10">
               <div className="flex items-center gap-3">
                 <Shield className="w-6 h-6 text-foreground" />
-                <span className="text-sm font-medium">DSGVO-konform, EU-Hosting</span>
+                <span className="text-sm font-medium">{t("features.tripleBlind_compliance")}</span>
               </div>
             </div>
           </div>
@@ -138,13 +141,13 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
                   <div className="w-10 h-10 rounded-lg bg-foreground/10 flex items-center justify-center">
                     <auto.icon className="w-5 h-5 text-foreground" />
                   </div>
-                  <span className="font-medium">{auto.label}</span>
+                  <span className="font-medium">{t(auto.labelKey)}</span>
                 </div>
               ))}
             </div>
             <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
               <Zap className="w-4 h-4 text-foreground" />
-              <span>Vollautomatisch – Zero Admin Work</span>
+              <span>{t("features.automation_footer")}</span>
             </div>
           </div>
         )}
@@ -158,7 +161,7 @@ const FeatureBlock = ({ feature, index }: { feature: any; index: number }) => {
                 </div>
               ))}
             </div>
-            <p className="text-center text-sm text-muted-foreground mt-6">+ weitere Integrationen auf Anfrage</p>
+            <p className="text-center text-sm text-muted-foreground mt-6">{t("features.integrations_footer")}</p>
           </div>
         )}
       </div>
