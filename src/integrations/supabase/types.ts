@@ -8834,6 +8834,114 @@ export type Database = {
           },
         ]
       }
+      client_fit_assessment_view: {
+        Row: {
+          bonus_qualifications: Json | null
+          candidate_id: string | null
+          career_trajectory: Json | null
+          created_at: string | null
+          dimension_scores: Json | null
+          executive_summary: string | null
+          gap_analysis: Json | null
+          generated_at: string | null
+          generated_by: string | null
+          generation_time_ms: number | null
+          id: string | null
+          identity_unlocked: boolean | null
+          implicit_competencies: Json | null
+          input_data_hash: string | null
+          job_id: string | null
+          model_used: string | null
+          motivation_fit: Json | null
+          overall_score: number | null
+          overall_verdict: string | null
+          prompt_version: string | null
+          rejection_reasoning: string | null
+          requirement_assessments: Json | null
+          submission_id: string | null
+          updated_at: string | null
+          verdict_confidence: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_interviews_view: {
         Row: {
           candidate_id: string | null
@@ -9088,6 +9196,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      scrub_identity_tokens: {
+        Args: { p_repl: string; p_text: string; p_tokens: string[] }
+        Returns: string
       }
       search_candidates_hybrid: {
         Args: {
