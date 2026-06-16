@@ -2,28 +2,25 @@ import { Link } from "react-router-dom";
 
 const footerLinks = {
   unternehmen: [
-    { label: "Für Unternehmen", href: "/auth?tab=register&role=client" },
+    { label: "Für Unternehmen", href: "/auth?mode=signup&role=client" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Case Studies", href: "#case-studies" },
-    { label: "Enterprise", href: "/auth" },
+    { label: "Enterprise", href: "/contact" },
   ],
   recruiter: [
-    { label: "Für Recruiter", href: "/auth?tab=register&role=recruiter" },
-    { label: "Marketplace", href: "/auth" },
-    { label: "Ressourcen", href: "/auth" },
-    { label: "Community", href: "/auth" },
+    { label: "Für Recruiter", href: "/auth?mode=signup&role=recruiter" },
+    { label: "Guides", href: "/guides" },
+    { label: "Help Center", href: "/help" },
   ],
   plattform: [
     { label: "Features", href: "#features" },
-    { label: "Integrationen", href: "#features" },
     { label: "Sicherheit", href: "#security" },
-    { label: "API", href: "/auth" },
+    { label: "Dokumentation", href: "/docs" },
   ],
   unternehmenInfo: [
-    { label: "Über uns", href: "/auth" },
-    { label: "Karriere", href: "/auth" },
-    { label: "Presse", href: "/auth" },
-    { label: "Kontakt", href: "/auth" },
+    { label: "Über uns", href: "/about" },
+    { label: "Karriere", href: "/careers" },
+    { label: "Presse", href: "/press" },
+    { label: "Kontakt", href: "/contact" },
   ],
 };
 
@@ -69,8 +66,8 @@ export const FooterSection = () => {
             © {new Date().getFullYear()} Matchunt - eine Marke der bluewater & Bridge GmbH. Alle Rechte vorbehalten.
           </p>
           <div className="flex items-center gap-6">
-            <Link to="/auth" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Datenschutz</Link>
-            <Link to="/auth" className="text-muted-foreground hover:text-foreground transition-colors text-sm">AGB</Link>
+            <Link to="/datenschutz" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Datenschutz</Link>
+            <Link to="/agb" className="text-muted-foreground hover:text-foreground transition-colors text-sm">AGB</Link>
             <Link to="/impressum" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Impressum</Link>
           </div>
         </div>

@@ -8,12 +8,16 @@ interface UseCountUpOptions {
   enabled?: boolean;
 }
 
+// Initializes at `end` so crawlers and users without the scroll observer never
+// see a permanent 0; the count-up runs as progressive enhancement once enabled.
 export function useCountUp({ end, start = 0, duration = 2000, decimals = 0, enabled = true }: UseCountUpOptions) {
-  const [value, setValue] = useState(start);
+  const [value, setValue] = useState(end);
 
   useEffect(() => {
-    if (!enabled) {
-      setValue(start);
+    if (!enabled) return;
+
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setValue(end);
       return;
     }
 

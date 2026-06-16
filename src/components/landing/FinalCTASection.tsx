@@ -37,7 +37,7 @@ export const FinalCTASection = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-10 py-7 text-xl font-semibold shadow-xl hover:scale-105 transition-all duration-300 relative group overflow-hidden">
-              <Link to="/auth?tab=register&role=client">
+              <Link to="/auth?mode=signup&role=client">
                 {/* Shine effect */}
                 <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-background/20 to-transparent" />
                 <span className="relative z-10 flex items-center">

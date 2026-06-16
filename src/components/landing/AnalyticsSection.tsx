@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, TrendingUp, Clock, Users, BarChart3 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 export const AnalyticsSection = () => {
@@ -31,9 +32,11 @@ export const AnalyticsSection = () => {
                 </div>
               ))}
             </div>
-            <Button variant="outline" size="lg" className="group border-foreground/20 hover:bg-foreground/5">
-              Analytics entdecken
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <Button asChild variant="outline" size="lg" className="group border-foreground/20 hover:bg-foreground/5">
+              <Link to="/auth?mode=signup&role=client">
+                Analytics entdecken
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </Button>
           </div>
 

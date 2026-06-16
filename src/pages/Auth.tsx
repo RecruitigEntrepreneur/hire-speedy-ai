@@ -22,11 +22,13 @@ export default function Auth() {
   const navigate = useNavigate();
   const { user, role, signIn, signUp } = useAuth();
   
+  // `tab=register` and `type=...` are legacy params still found in old links/bookmarks
   const [mode, setMode] = useState<'signin' | 'signup'>(
-    searchParams.get('mode') === 'signup' ? 'signup' : 'signin'
+    searchParams.get('mode') === 'signup' || searchParams.get('tab') === 'register' ? 'signup' : 'signin'
   );
+  const roleParam = searchParams.get('role') ?? searchParams.get('type');
   const [selectedRole, setSelectedRole] = useState<AppRole>(
-    (searchParams.get('role') as AppRole) || 'client'
+    roleParam === 'recruiter' ? 'recruiter' : 'client'
   );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
