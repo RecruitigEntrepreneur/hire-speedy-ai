@@ -65,9 +65,8 @@ SELECT
            emp.toks, '[ein Unternehmen]')
   END AS cv_ai_summary,
 
-  -- NEU: nicht-identitätstragende Listen-Metadaten (für Pipeline/Sortierung)
-  s.submitted_at,
-  s.created_at
+  -- NEU: nicht-identitätstragendes Listen-Metadatum (für Pipeline/Sortierung)
+  s.submitted_at
 FROM submissions s
 JOIN jobs j        ON j.id = s.job_id
 JOIN candidates c  ON c.id = s.candidate_id

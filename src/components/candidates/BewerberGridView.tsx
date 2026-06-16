@@ -62,7 +62,7 @@ export function BewerberGridView({ items }: BewerberGridViewProps) {
       {items.map((item) => {
         const score = item.matchScore || 0;
         const initials = item.anonymizedName.slice(0, 2);
-        const salary = formatSalary(item.salaryMin, item.salaryMax);
+        const salary = item.salaryBand;
         const remote = formatRemote(item.remotePreference);
 
         return (
@@ -111,16 +111,16 @@ export function BewerberGridView({ items }: BewerberGridViewProps) {
 
               {/* Facts row */}
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {item.experienceYears && (
+                {item.experienceBand && (
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {item.experienceYears}+ Jahre
+                    {item.experienceBand}
                   </span>
                 )}
-                {item.city && (
+                {item.region && (
                   <span className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    {item.city}
+                    {item.region}
                   </span>
                 )}
                 {salary && (

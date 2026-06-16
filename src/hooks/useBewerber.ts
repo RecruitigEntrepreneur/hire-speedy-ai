@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { anonymizeCompanyName, anonymizeRegionBroad } from '@/lib/anonymization';
 
 export type BewerberSortOption = 'match_score' | 'waiting_time' | 'newest';
 
@@ -26,12 +25,12 @@ export interface BewerberItem {
   submittedAt: string;
   recruiterNotes: string | null;
   currentRole: string | null;
-  experienceYears: number | null;
-  city: string | null;
-  region: string;
+  experienceYears: number | null; // gated: nur nach Opt-In, sonst null
+  experienceBand: string;        // immer sichtbar (z.B. "6-10 Jahre")
+  city: string | null;           // gated: nur nach Opt-In, sonst null
+  region: string;                // immer sichtbar (grobe Region)
   skills: string[] | null;
-  salaryMin: number | null;
-  salaryMax: number | null;
+  salaryBand: string;            // immer sichtbar (z.B. "€60k - €70k")
   remotePreference: string | null;
   availabilityDate: string | null;
   noticePeriod: string | null;
@@ -71,22 +70,19 @@ export function useBewerber(filters: BewerberFilters) {
   const submissionsQuery = useQuery({
     queryKey: ['bewerber', user?.id, filters.stage, filters.jobId, filters.sort],
     queryFn: async () => {
+      // Triple-Blind: read EXCLUSIVELY from the reveal-gated view. Identity,
+      // exact city/experience and the AI bio are gated server-side; only
+      // anonymized bands are returned until the candidate has opted in.
       let query = supabase
-        .from('submissions')
+        .from('client_candidate_view')
         .select(`
-          id, status, stage, match_score, submitted_at, recruiter_notes,
-          candidates!inner (
-            id, job_title, experience_years, city, skills,
-            salary_expectation_min, salary_expectation_max,
-            remote_preference, availability_date, notice_period,
-            seniority, cv_ai_summary,
-            candidate_experiences (
-              job_title, company_name, start_date, end_date, is_current, location, sort_order
-            )
-          ),
-          jobs!inner (id, title, client_id)
+          submission_id, candidate_id, job_id, job_title, status, stage,
+          match_score, recruiter_notes, submitted_at,
+          candidate_role, seniority, skills, remote_preference,
+          availability_date, notice_period,
+          region_broad, experience_band, salary_band,
+          city, experience_years, cv_ai_summary, identity_unlocked
         `)
-        .eq('jobs.client_id', user!.id)
         .not('status', 'eq', 'rejected')
         .not('status', 'eq', 'hired');
 
@@ -109,58 +105,69 @@ export function useBewerber(filters: BewerberFilters) {
       const { data, error } = await query;
       if (error) throw error;
 
-      const items: BewerberItem[] = (data || []).map((row: any) => {
-        const candidate = row.candidates;
-        const job = row.jobs;
-        const hours = computeHoursWaiting(row.submitted_at);
+      const rows = (data || []) as any[];
 
-        // Map and anonymize career entries
-        const rawExperiences = candidate.candidate_experiences || [];
-        const career: CareerEntry[] = rawExperiences
-          .sort((a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99))
-          .slice(0, 5)
-          .map((exp: any) => {
-            const start = exp.start_date ? new Date(exp.start_date) : null;
-            const end = exp.end_date ? new Date(exp.end_date) : null;
-            let durationYears: number | null = null;
-            if (start) {
-              const endDate = end || new Date();
-              durationYears = Math.round((endDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365));
-              if (durationYears < 1) durationYears = 1;
-            }
-            return {
-              jobTitle: exp.job_title,
-              companyAnonymized: anonymizeCompanyName(null),
-              startDate: exp.start_date,
-              endDate: exp.end_date,
-              isCurrent: exp.is_current || false,
-              durationYears,
-            };
-          });
+      // Werdegang aus der gated Experiences-View (Arbeitgeber bis Opt-In maskiert)
+      const submissionIds = rows.map((r) => r.submission_id);
+      const careerBySubmission = new Map<string, CareerEntry[]>();
+      if (submissionIds.length > 0) {
+        const { data: expData } = await supabase
+          .from('client_candidate_experiences_view')
+          .select('submission_id, job_title, company_name, start_date, end_date, is_current, sort_order')
+          .in('submission_id', submissionIds);
+
+        for (const exp of (expData || []) as any[]) {
+          const start = exp.start_date ? new Date(exp.start_date) : null;
+          const end = exp.end_date ? new Date(exp.end_date) : null;
+          let durationYears: number | null = null;
+          if (start) {
+            const endDate = end || new Date();
+            durationYears = Math.round((endDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365));
+            if (durationYears < 1) durationYears = 1;
+          }
+          const entry: CareerEntry = {
+            jobTitle: exp.job_title,
+            companyAnonymized: exp.company_name || 'Unternehmen', // null bis Opt-In
+            startDate: exp.start_date,
+            endDate: exp.end_date,
+            isCurrent: exp.is_current || false,
+            durationYears,
+          };
+          const list = careerBySubmission.get(exp.submission_id) || [];
+          list.push(entry);
+          careerBySubmission.set(exp.submission_id, list);
+        }
+      }
+
+      const items: BewerberItem[] = rows.map((row) => {
+        const hours = computeHoursWaiting(row.submitted_at);
+        const career = (careerBySubmission.get(row.submission_id) || [])
+          .sort((a, b) => 0) // already ordered by view; keep stable
+          .slice(0, 5);
 
         return {
-          submissionId: row.id,
-          candidateId: candidate.id,
-          anonymizedName: `PR-${candidate.id.slice(0, 6).toUpperCase()}`,
-          jobId: job.id,
-          jobTitle: job.title,
+          submissionId: row.submission_id,
+          candidateId: row.candidate_id,
+          anonymizedName: `PR-${String(row.candidate_id).slice(0, 6).toUpperCase()}`,
+          jobId: row.job_id,
+          jobTitle: row.job_title,
           matchScore: row.match_score,
           stage: row.stage || row.status || 'submitted',
           status: row.status || 'submitted',
           submittedAt: row.submitted_at,
           recruiterNotes: row.recruiter_notes,
-          currentRole: candidate.job_title,
-          experienceYears: candidate.experience_years,
-          city: candidate.city,
-          region: anonymizeRegionBroad(candidate.city),
-          skills: candidate.skills,
-          salaryMin: candidate.salary_expectation_min,
-          salaryMax: candidate.salary_expectation_max,
-          remotePreference: candidate.remote_preference,
-          availabilityDate: candidate.availability_date,
-          noticePeriod: candidate.notice_period,
-          seniority: candidate.seniority,
-          aiSummary: candidate.cv_ai_summary,
+          currentRole: row.candidate_role,
+          experienceYears: row.experience_years ?? null, // gated
+          experienceBand: row.experience_band || 'Nicht angegeben',
+          city: row.city ?? null, // gated
+          region: row.region_broad || 'DACH',
+          skills: row.skills,
+          salaryBand: row.salary_band || 'Nicht freigegeben',
+          remotePreference: row.remote_preference,
+          availabilityDate: row.availability_date,
+          noticePeriod: row.notice_period,
+          seniority: row.seniority,
+          aiSummary: row.cv_ai_summary, // serverseitig gescrubbt bis Opt-In
           hoursWaiting: hours,
           urgency: computeUrgency(hours),
           career,

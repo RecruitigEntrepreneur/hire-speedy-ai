@@ -96,7 +96,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mb-4">
           <span className="flex items-center gap-1">
             <Briefcase className="h-3 w-3" />
-            {item.experienceYears ? `${item.experienceYears} J.` : '—'}
+            {item.experienceBand}
           </span>
           <span className="flex items-center gap-1">
             <MapPin className="h-3 w-3" />
@@ -104,7 +104,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </span>
           <span className="flex items-center gap-1">
             <Banknote className="h-3 w-3" />
-            {formatSalary(item.salaryMin, item.salaryMax)}
+            {item.salaryBand}
           </span>
           <span className="flex items-center gap-1">
             <Laptop className="h-3 w-3" />

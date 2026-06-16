@@ -120,7 +120,7 @@ export function BewerberListView({ items }: BewerberListViewProps) {
               </span>
 
               {/* Location */}
-              <span className="text-xs text-muted-foreground text-center truncate">{item.city || '—'}</span>
+              <span className="text-xs text-muted-foreground text-center truncate">{item.region || '—'}</span>
 
               {/* Actions placeholder (prevents button click propagation issues) */}
               <div className="text-right">
@@ -136,24 +136,24 @@ export function BewerberListView({ items }: BewerberListViewProps) {
                   <div className="space-y-1.5">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</h4>
                     <div className="space-y-1 text-xs text-muted-foreground">
-                      {item.experienceYears && (
+                      {item.experienceBand && (
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
-                          <span>{item.experienceYears}+ Jahre Erfahrung</span>
+                          <span>{item.experienceBand} Erfahrung</span>
                         </div>
                       )}
                       <div className="flex items-center gap-1.5">
                         <Banknote className="h-3 w-3" />
-                        <span>{formatSalary(item.salaryMin, item.salaryMax)}</span>
+                        <span>{item.salaryBand}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Laptop className="h-3 w-3" />
                         <span>{formatRemote(item.remotePreference)}</span>
                       </div>
-                      {item.city && (
+                      {item.region && (
                         <div className="flex items-center gap-1.5">
                           <MapPin className="h-3 w-3" />
-                          <span>{item.city}</span>
+                          <span>{item.region}</span>
                         </div>
                       )}
                     </div>
