@@ -1,10 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  generateAnonymousId, 
-  anonymizeRegionBroad, 
-  anonymizeExperience, 
-  anonymizeSalary,
+import {
+  generateAnonymousId,
   getFitLabel,
   getMotivationStatus,
   FitLabel,
@@ -187,59 +184,26 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
 
     try {
       // Parallel fetches for all data sources
+      // Triple-Blind: candidate data is read EXCLUSIVELY through the reveal-gated
+      // server view client_candidate_view. It returns NULL for PII (name, email,
+      // phone, cv, linkedin, city, exact experience) until identity_unlocked, and
+      // exposes only pre-anonymized region/experience/salary bands otherwise.
+      // No raw PII ever reaches the network before opt-in.
       const [submissionResult, summaryResult, healthResult] = await Promise.all([
-        // 1. Main submission with candidate and job
+        // 1. Reveal-gated candidate view (one row per submission)
         supabase
-          .from('submissions')
-          .select(`
-            id,
-            status,
-            stage,
-            match_score,
-            identity_unlocked,
-            recruiter_notes,
-            candidates!inner (
-              id,
-              full_name,
-              email,
-              phone,
-              job_title,
-              city,
-              experience_years,
-              skills,
-              expected_salary,
-              salary_expectation_min,
-              salary_expectation_max,
-              notice_period,
-              remote_preference,
-              availability_date,
-              seniority,
-              cv_url,
-              linkedin_url,
-              language_skills,
-              certifications,
-              industry_experience,
-              target_roles,
-              relocation_willing,
-              remote_days_preferred
-            ),
-            jobs!inner (
-              id,
-              title,
-              industry,
-              company_name
-            )
-          `)
-          .eq('id', submissionId)
+          .from('client_candidate_view')
+          .select('*')
+          .eq('submission_id', submissionId)
           .single(),
-          
+
         // 2. Client summary for AI-generated content
         supabase
           .from('candidate_client_summary')
           .select('*')
           .eq('submission_id', submissionId)
           .maybeSingle(),
-          
+
         // 3. Deal health for probability
         supabase
           .from('deal_health')
@@ -255,32 +219,31 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         return;
       }
 
-      const submission = submissionResult.data;
-      const candidate = submission.candidates as any;
-      const job = submission.jobs as any;
+      // Single flat row from the view; PII fields are already gated server-side.
+      const v = submissionResult.data as any;
       const summary = summaryResult.data;
       const health = healthResult.data;
 
       // Triple-Blind: Check if identity is unlocked
-      const identityUnlocked = submission.identity_unlocked === true;
-      
-      // Has Interview context for semantic explanations
-      const hasInterview = !!summary?.change_motivation_status && 
-                          summary.change_motivation_status !== 'unbekannt';
-      const stage = submission.stage || submission.status || '';
+      const identityUnlocked = v.identity_unlocked === true;
 
-      // Build missing fields list
+      // Has Interview context for semantic explanations
+      const hasInterview = !!summary?.change_motivation_status &&
+                          summary.change_motivation_status !== 'unbekannt';
+      const stage = v.stage || v.status || '';
+
+      // Build missing fields list (from the view's pre-anonymized bands)
       const missingFields: string[] = [];
-      if (!candidate.expected_salary && !candidate.salary_expectation_min) {
+      if (!v.salary_band || v.salary_band === 'Nicht freigegeben') {
         missingFields.push('Gehaltsvorstellung');
       }
-      if (!candidate.experience_years && candidate.experience_years !== 0) {
+      if (!v.experience_band || v.experience_band === 'Nicht angegeben') {
         missingFields.push('Berufserfahrung');
       }
-      if (!candidate.availability_date && !candidate.notice_period) {
+      if (!v.availability_date && !v.notice_period) {
         missingFields.push('Verfügbarkeit');
       }
-      if (!candidate.skills || candidate.skills.length === 0) {
+      if (!v.skills || v.skills.length === 0) {
         missingFields.push('Skills');
       }
 
@@ -288,29 +251,25 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
       const hasRequiredData = missingFields.length === 0;
       const canBePresented = hasRequiredData || hasInterview;
 
-      // Build salary range - ALWAYS show as range for privacy
-      let salaryRange: string;
-      if (candidate.expected_salary) {
-        salaryRange = anonymizeSalary(candidate.expected_salary);
-      } else if (candidate.salary_expectation_min && candidate.salary_expectation_max) {
-        salaryRange = `€${Math.round(candidate.salary_expectation_min / 1000)}k - €${Math.round(candidate.salary_expectation_max / 1000)}k`;
-      } else {
-        salaryRange = getSemanticExplanation('salary', { hasInterview, stage });
-      }
+      // Salary: the view delivers a privacy-safe band (or 'Nicht freigegeben')
+      const salaryRange: string =
+        v.salary_band && v.salary_band !== 'Nicht freigegeben'
+          ? v.salary_band
+          : getSemanticExplanation('salary', { hasInterview, stage });
 
-      // Build experience display
+      // Experience: exact years only after unlock, otherwise the view's band
       let experience: string;
-      if (candidate.experience_years || candidate.experience_years === 0) {
-        experience = identityUnlocked 
-          ? `${candidate.experience_years} Jahre`
-          : anonymizeExperience(candidate.experience_years);
+      if (identityUnlocked && (v.experience_years || v.experience_years === 0)) {
+        experience = `${v.experience_years} Jahre`;
+      } else if (v.experience_band && v.experience_band !== 'Nicht angegeben') {
+        experience = v.experience_band;
       } else {
         experience = getSemanticExplanation('experience', { hasInterview, stage });
       }
 
       // Build seniority display
-      const seniority = candidate.seniority || 
-        summary?.role_archetype || 
+      const seniority = v.seniority ||
+        summary?.role_archetype ||
         getSemanticExplanation('seniority', { hasInterview, stage });
 
       // Get fit label based on fit_assessment only (V3.1 provides the numeric score)
@@ -328,11 +287,11 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
 
       // Parse language_skills JSON
       let languageSkills: { language: string; level: string }[] = [];
-      if (candidate.language_skills) {
+      if (v.language_skills) {
         try {
-          const raw = typeof candidate.language_skills === 'string' 
-            ? JSON.parse(candidate.language_skills) 
-            : candidate.language_skills;
+          const raw = typeof v.language_skills === 'string'
+            ? JSON.parse(v.language_skills)
+            : v.language_skills;
           if (Array.isArray(raw)) {
             languageSkills = raw.map((ls: any) => ({
               language: ls.language || ls.name || String(ls),
@@ -344,11 +303,11 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
 
       // Parse industry_experience JSON
       let industryExperience: string[] = [];
-      if (candidate.industry_experience) {
+      if (v.industry_experience) {
         try {
-          const raw = typeof candidate.industry_experience === 'string'
-            ? JSON.parse(candidate.industry_experience)
-            : candidate.industry_experience;
+          const raw = typeof v.industry_experience === 'string'
+            ? JSON.parse(v.industry_experience)
+            : v.industry_experience;
           if (Array.isArray(raw)) {
             industryExperience = raw.map((ie: any) => typeof ie === 'string' ? ie : (ie.industry || ie.name || String(ie)));
           }
@@ -357,11 +316,11 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
 
       // Parse target_roles JSON
       let targetRoles: string[] = [];
-      if (candidate.target_roles) {
+      if (v.target_roles) {
         try {
-          const raw = typeof candidate.target_roles === 'string'
-            ? JSON.parse(candidate.target_roles)
-            : candidate.target_roles;
+          const raw = typeof v.target_roles === 'string'
+            ? JSON.parse(v.target_roles)
+            : v.target_roles;
           if (Array.isArray(raw)) {
             targetRoles = raw.map((tr: any) => typeof tr === 'string' ? tr : (tr.role || tr.title || String(tr)));
           }
@@ -371,78 +330,79 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
       // Build final view data
       const viewData: ClientCandidateViewData = {
         // Identity
-        candidateId: candidate.id,
-        submissionId: submission.id,
-        displayName: identityUnlocked && candidate.full_name 
-          ? candidate.full_name 
-          : generateAnonymousId(submission.id),
+        candidateId: v.candidate_id,
+        submissionId: v.submission_id,
+        displayName: identityUnlocked && v.full_name
+          ? v.full_name
+          : generateAnonymousId(v.submission_id),
         isAnonymized: !identityUnlocked,
         identityUnlocked,
-        
+
         // Hard Facts
-        currentRole: candidate.job_title || 'Fachkraft',
+        currentRole: v.candidate_role || 'Fachkraft',
         experience,
-        experienceYears: candidate.experience_years,
+        experienceYears: v.experience_years ?? null,
         seniority,
         salaryRange,
         availability: formatAvailability(
-          candidate.notice_period, 
-          candidate.availability_date,
+          v.notice_period,
+          v.availability_date,
           hasInterview
         ),
-        region: identityUnlocked 
-          ? (candidate.city || 'Nicht angegeben') 
-          : anonymizeRegionBroad(candidate.city),
-        workModel: getWorkModelLabel(candidate.remote_preference),
-        
+        // region_broad is always present; exact city only after unlock
+        region: identityUnlocked
+          ? (v.city || v.region_broad || 'Nicht angegeben')
+          : (v.region_broad || 'DACH'),
+        workModel: getWorkModelLabel(v.remote_preference),
+
         // Skills
-        topSkills: candidate.skills || [],
-        
+        topSkills: v.skills || [],
+
         // Erweiterte Profildaten
-        certifications: candidate.certifications || [],
+        certifications: v.certifications || [],
         languageSkills,
         industryExperience,
         targetRoles,
         careerGoals: summary?.career_goals || null,
-        relocationWilling: candidate.relocation_willing ?? null,
-        remoteDaysPreferred: candidate.remote_days_preferred ?? null,
-        
+        relocationWilling: v.relocation_willing ?? null,
+        remoteDaysPreferred: v.remote_days_preferred ?? null,
+
         // Matching - V3.1 Engine is the SINGLE SOURCE OF TRUTH
         // matchScore is only used as fallback, V3.1 should always be preferred in UI
-        matchScore: submission.match_score || 0, // Legacy fallback, V3.1 takes precedence
+        matchScore: v.match_score || 0, // Legacy fallback, V3.1 takes precedence
         fitLabel,
-        dealProbability: summary?.deal_probability || 
+        dealProbability: summary?.deal_probability ||
           (health?.drop_off_probability ? 100 - health.drop_off_probability : 50),
         motivationStatus,
-        
+
         // Status
-        status: submission.status,
-        stage: submission.stage || submission.status,
-        
+        status: v.status,
+        stage: v.stage || v.status,
+
         // Job Context
-        jobTitle: job.title || 'Position',
-        jobId: job.id,
-        jobIndustry: job.industry || 'IT',
-        
+        jobTitle: v.job_title || 'Position',
+        jobId: v.job_id,
+        jobIndustry: v.job_industry || 'IT',
+
         // AI Summary
         executiveSummary: summary?.executive_summary || null,
         keySellingPoints,
         riskFactors: (summary?.risk_factors as any[]) || [],
         positiveFactors: (summary?.positive_factors as any[]) || [],
-        
+
         // AI Metadata (EU AI Act)
         modelVersion: summary?.model_version || null,
         generatedAt: summary?.generated_at || null,
-        
+
         // Recruiter Info
-        recruiterNotes: submission.recruiter_notes,
-        
-        // Contact (nur wenn entsperrt)
-        email: identityUnlocked ? candidate.email : null,
-        phone: identityUnlocked ? candidate.phone : null,
-        cvUrl: identityUnlocked ? candidate.cv_url : null,
-        linkedinUrl: identityUnlocked ? candidate.linkedin_url : null,
-        
+        recruiterNotes: v.recruiter_notes,
+
+        // Contact — the view already returns NULL until identity_unlocked
+        email: v.email ?? null,
+        phone: v.phone ?? null,
+        cvUrl: v.cv_url ?? null,
+        linkedinUrl: v.linkedin_url ?? null,
+
         // Flags
         hasRequiredData,
         missingFields,
