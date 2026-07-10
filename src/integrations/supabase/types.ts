@@ -22,7 +22,6 @@ export type Database = {
           entity_id: string | null
           entity_type: string | null
           id: string
-          organization_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -32,7 +31,6 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
-          organization_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -42,7 +40,6 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
-          organization_id?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -563,7 +560,6 @@ export type Database = {
           content: string
           created_at: string
           id: string
-          mentioned_user_ids: string[]
           submission_id: string
           updated_at: string
           user_id: string
@@ -574,7 +570,6 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
-          mentioned_user_ids?: string[]
           submission_id: string
           updated_at?: string
           user_id: string
@@ -585,7 +580,6 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
-          mentioned_user_ids?: string[]
           submission_id?: string
           updated_at?: string
           user_id?: string
@@ -2623,30 +2617,6 @@ export type Database = {
           user_id: string
           website: string | null
           work_style: string | null
-          average_hiring_duration: string | null
-          career_page_url: string | null
-          company_size: string | null
-          contacts: Json | null
-          data_sources: Json | null
-          default_hiring_process: Json | null
-          email_domains: string[] | null
-          employer_selling_points: Json | null
-          excluded_companies: string[] | null
-          feedback_speed: string | null
-          field_verification: Json | null
-          interview_rounds: number | null
-          last_customer_verified_at: string | null
-          legal_name: string | null
-          linkedin_url: string | null
-          onboarding_status: Json | null
-          personality_fit: Json | null
-          personality_no_fit: string | null
-          products_services: Json | null
-          quality_breakdown: Json | null
-          quality_score: number | null
-          sub_industry: string | null
-          target_companies: string[] | null
-          target_markets: Json | null
         }
         Insert: {
           address?: string | null
@@ -2681,30 +2651,6 @@ export type Database = {
           user_id: string
           website?: string | null
           work_style?: string | null
-          average_hiring_duration?: string | null
-          career_page_url?: string | null
-          company_size?: string | null
-          contacts?: Json | null
-          data_sources?: Json | null
-          default_hiring_process?: Json | null
-          email_domains?: string[] | null
-          employer_selling_points?: Json | null
-          excluded_companies?: string[] | null
-          feedback_speed?: string | null
-          field_verification?: Json | null
-          interview_rounds?: number | null
-          last_customer_verified_at?: string | null
-          legal_name?: string | null
-          linkedin_url?: string | null
-          onboarding_status?: Json | null
-          personality_fit?: Json | null
-          personality_no_fit?: string | null
-          products_services?: Json | null
-          quality_breakdown?: Json | null
-          quality_score?: number | null
-          sub_industry?: string | null
-          target_companies?: string[] | null
-          target_markets?: Json | null
         }
         Update: {
           address?: string | null
@@ -2739,30 +2685,6 @@ export type Database = {
           user_id?: string
           website?: string | null
           work_style?: string | null
-          average_hiring_duration?: string | null
-          career_page_url?: string | null
-          company_size?: string | null
-          contacts?: Json | null
-          data_sources?: Json | null
-          default_hiring_process?: Json | null
-          email_domains?: string[] | null
-          employer_selling_points?: Json | null
-          excluded_companies?: string[] | null
-          feedback_speed?: string | null
-          field_verification?: Json | null
-          interview_rounds?: number | null
-          last_customer_verified_at?: string | null
-          legal_name?: string | null
-          linkedin_url?: string | null
-          onboarding_status?: Json | null
-          personality_fit?: Json | null
-          personality_no_fit?: string | null
-          products_services?: Json | null
-          quality_breakdown?: Json | null
-          quality_score?: number | null
-          sub_industry?: string | null
-          target_companies?: string[] | null
-          target_markets?: Json | null
         }
         Relationships: []
       }
@@ -4393,41 +4315,6 @@ export type Database = {
           },
         ]
       }
-      job_collaborators: {
-        Row: {
-          added_by: string | null
-          created_at: string
-          id: string
-          job_id: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          added_by?: string | null
-          created_at?: string
-          id?: string
-          job_id: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          added_by?: string | null
-          created_at?: string
-          id?: string
-          job_id?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "job_collaborators_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       jobs: {
         Row: {
           approved_at: string | null
@@ -4439,9 +4326,6 @@ export type Database = {
           candidates_in_pipeline: number | null
           career_example: string | null
           career_path: string | null
-          client_approval_note: string | null
-          client_approved_at: string | null
-          client_approved_by: string | null
           client_id: string
           commute_flexibility: string | null
           company_culture: string | null
@@ -4529,9 +4413,6 @@ export type Database = {
           candidates_in_pipeline?: number | null
           career_example?: string | null
           career_path?: string | null
-          client_approval_note?: string | null
-          client_approved_at?: string | null
-          client_approved_by?: string | null
           client_id: string
           commute_flexibility?: string | null
           company_culture?: string | null
@@ -4619,9 +4500,6 @@ export type Database = {
           candidates_in_pipeline?: number | null
           career_example?: string | null
           career_path?: string | null
-          client_approval_note?: string | null
-          client_approved_at?: string | null
-          client_approved_by?: string | null
           client_id?: string
           commute_flexibility?: string | null
           company_culture?: string | null
@@ -5534,13 +5412,10 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string
-          job_ids: string[]
           organization_id: string
           permissions: Json | null
-          revoked_at: string | null
           role: string
-          token: string | null
-          token_hash: string | null
+          token: string
         }
         Insert: {
           accepted_at?: string | null
@@ -5549,13 +5424,10 @@ export type Database = {
           expires_at: string
           id?: string
           invited_by: string
-          job_ids?: string[]
           organization_id: string
           permissions?: Json | null
-          revoked_at?: string | null
           role: string
-          token?: string | null
-          token_hash?: string | null
+          token: string
         }
         Update: {
           accepted_at?: string | null
@@ -5564,13 +5436,10 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string
-          job_ids?: string[]
           organization_id?: string
           permissions?: Json | null
-          revoked_at?: string | null
           role?: string
-          token?: string | null
-          token_hash?: string | null
+          token?: string
         }
         Relationships: [
           {
@@ -9322,10 +9191,6 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
-      }
-      log_candidate_access: {
-        Args: { _submission_id: string }
-        Returns: undefined
       }
       has_role: {
         Args: {
