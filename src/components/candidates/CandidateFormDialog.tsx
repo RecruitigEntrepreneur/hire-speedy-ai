@@ -1000,7 +1000,7 @@ export function CandidateFormDialog({
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">
                     Sie sind verantwortlich für die rechtmäßige Verarbeitung dieser Kandidatendaten (DSGVO).
-                    Hire Speedy verarbeitet die Daten in Ihrem Auftrag.
+                    Matchunt verarbeitet die Daten in Ihrem Auftrag.
                   </p>
                   <button
                     type="button"

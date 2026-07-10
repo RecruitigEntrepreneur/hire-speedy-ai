@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { assertNoLeak, redactCandidateForLLM, REDACTION_VERSION } from "../_shared/pii-redaction.ts";
+import { buildJobSection, buildRawView, buildUserPrompt, FIT_MODEL, FIT_TOOL, SYSTEM_PROMPT } from "../_shared/fit-assessment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,8 +104,32 @@ serve(async (req) => {
       });
     }
 
-    // 3. Compute input hash for caching
+    // 2b. PII-Redaktion VOR der KI: Allowlist-Payload, direkte Identifikatoren raus.
+    //     Flag PII_REDACTION_MODE (default "on"); "off" liefert die rohe Sicht.
+    const redactionMode = (Deno.env.get("PII_REDACTION_MODE") ?? "on").toLowerCase();
+    const redactionEnabled = redactionMode !== "off";
+    const redaction = redactCandidateForLLM(
+      candidate, experiences, skills, languages, interviewNotes, job.location ?? null, redactionMode,
+    );
+    const view = redactionEnabled
+      ? redaction.view
+      : buildRawView(candidate, experiences, skills, languages, interviewNotes, job);
+    const { report: redactionReport, leakContext } = redaction;
+    view.priorAssessment = aiAssessment
+      ? {
+          overall_score: aiAssessment.overall_score ?? null,
+          risk_level: aiAssessment.risk_level ?? null,
+          recommendation: aiAssessment.recommendation ?? null,
+        }
+      : null;
+    const promptVersion = redactionEnabled ? "v2-redacted" : "v1";
+
+    // 3. Compute input hash for caching (submission/candidate id + redaction version
+    //    verhindern Cross-Kandidaten-Kollision und erzwingen Miss beim Rollout)
     const inputData = JSON.stringify({
+      submissionId,
+      candidate_id,
+      redactionVersion: redactionEnabled ? REDACTION_VERSION : "none",
       candidate: { id: candidate.id, skills: candidate.skills, experience_years: candidate.experience_years, job_title: candidate.job_title, seniority: candidate.seniority, city: candidate.city, salary_expectation_min: candidate.salary_expectation_min, salary_expectation_max: candidate.salary_expectation_max, cv_ai_summary: candidate.cv_ai_summary, summary: candidate.summary, remote_preference: candidate.remote_preference, certifications: candidate.certifications },
       experiences: experiences.map((e: any) => ({ company: e.company_name, title: e.job_title, start: e.start_date, end: e.end_date, desc: e.description })),
       languages: languages.map((l: any) => ({ lang: l.language, prof: l.proficiency })),
@@ -114,13 +140,14 @@ serve(async (req) => {
 
     const inputHash = await sha256(inputData);
 
-    // 4. Check cache
+    // 4. Check cache (auf prompt_version gefiltert: alte v1-Roh-Assessments treffen nicht)
     if (!force) {
       const { data: existing } = await supabase
         .from("candidate_fit_assessments")
         .select("*")
         .eq("submission_id", submissionId)
         .eq("input_data_hash", inputHash)
+        .eq("prompt_version", promptVersion)
         .maybeSingle();
 
       if (existing) {
@@ -130,68 +157,25 @@ serve(async (req) => {
       }
     }
 
-    // 5. Build prompt
-    const systemPrompt = `Du bist ein erfahrener Recruiting-Analyst. Analysiere die Passung zwischen Kandidat und Stelle evidenzbasiert.
+    // 5. Build prompt (geteilter Builder — identisch für Edge Function und Golden-Eval)
+    const jobSection = buildJobSection(job);
+    const userPrompt = buildUserPrompt(view, jobSection);
 
-REGELN:
-- Bewerte NUR anhand der vorliegenden Daten. Keine Vermutungen.
-- Jede Bewertung MUSS mit konkreten Belegen aus dem Kandidatenprofil untermauert sein.
-- Fehlende Daten sind KEINE negativen Signale — kennzeichne sie als "insufficient_data".
-- Sei direkt und ehrlich. Kein Marketing-Sprech.
-- Antworte auf Deutsch.`;
-
-    const userPrompt = `Analysiere die Passung zwischen diesem Kandidaten und der Stelle.
-
-## KANDIDAT
-Name: ${candidate.full_name}
-Aktuelle Position: ${candidate.job_title || 'N/A'} bei ${candidate.company || 'N/A'}
-Seniority: ${candidate.seniority || 'N/A'}
-Erfahrung: ${candidate.experience_years || 'N/A'} Jahre
-Standort: ${candidate.city || 'N/A'}
-Gehaltserwartung: ${candidate.salary_expectation_min ? `${candidate.salary_expectation_min}–${candidate.salary_expectation_max} EUR` : 'N/A'}
-Remote-Präferenz: ${candidate.remote_preference || 'N/A'}
-Skills: ${candidate.skills?.join(', ') || 'N/A'}
-Zertifizierungen: ${candidate.certifications?.join(', ') || 'N/A'}
-
-### Berufserfahrung
-${experiences.length > 0 ? experiences.map((e: any) => `- ${e.job_title} bei ${e.company_name} (${e.start_date || '?'} – ${e.end_date || 'heute'}): ${e.description || 'Keine Beschreibung'}`).join('\n') : 'Keine Daten'}
-
-### Skills (detailliert)
-${skills.length > 0 ? skills.map((s: any) => `- ${s.skill_name} (Level: ${s.level || '?'}, ${s.years_experience ? s.years_experience + ' Jahre' : '?'}, Kategorie: ${s.category || '?'})`).join('\n') : 'Keine detaillierten Skills'}
-
-### Sprachen
-${languages.length > 0 ? languages.map((l: any) => `- ${l.language}: ${l.proficiency || '?'}`).join('\n') : 'Keine Daten'}
-
-### CV-Zusammenfassung
-${candidate.cv_ai_summary || candidate.summary || 'Keine Zusammenfassung verfügbar'}
-
-### Interview-Notizen
-${interviewNotes ? `Wechselmotivation: ${interviewNotes.change_motivation || 'N/A'}
-Aktuelles Gehalt: ${interviewNotes.salary_current || 'N/A'}
-Wunschgehalt: ${interviewNotes.salary_desired || 'N/A'}
-Karriereziel: ${interviewNotes.career_ultimate_goal || 'N/A'}
-Empfehlung: ${interviewNotes.would_recommend ? 'Ja' : 'Nein'}` : 'Keine Interview-Daten'}
-
-${aiAssessment ? `### Bisherige AI-Einschätzung
-Overall Score: ${aiAssessment.overall_score}/100
-Risiko-Level: ${aiAssessment.risk_level}
-Empfehlung: ${aiAssessment.recommendation}` : ''}
-
----
-
-## STELLE
-Titel: ${job.title}
-Beschreibung: ${job.description || 'N/A'}
-Must-Haves: ${Array.isArray(job.must_haves) ? job.must_haves.join(', ') : job.must_haves || 'N/A'}
-Nice-to-Haves: ${Array.isArray(job.nice_to_haves) ? job.nice_to_haves.join(', ') : job.nice_to_haves || 'N/A'}
-Erfahrungslevel: ${job.experience_level || 'N/A'}
-Gehalt: ${job.salary_min ? `${job.salary_min}–${job.salary_max} EUR` : 'N/A'}
-Standort: ${job.location || 'N/A'}
-Remote: ${job.remote_policy || 'N/A'}
-
----
-
-Erstelle ein vollständiges Fit Assessment.`;
+    // 5b. Fail-closed Leak-Assertion: kein direkter Identifikator darf im Kandidaten-Teil
+    //     des Prompts stehen. Die STELLEN-Sektion ist ausgenommen (Stellenort ist legitim
+    //     und darf den Kandidaten-Wohnort-Token nicht fälschlich als Leak auslösen).
+    if (redactionEnabled) {
+      const candidatePromptPart = userPrompt.split(jobSection).join(" ");
+      const leaks = assertNoLeak(candidatePromptPart, leakContext);
+      if (leaks.length > 0) {
+        console.error("pii-redaction: leak detected, aborting", JSON.stringify(leaks));
+        return new Response(JSON.stringify({ error: "PII redaction safeguard triggered" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log("pii-redaction", JSON.stringify(redactionReport));
+    }
 
     // 6. Call Lovable AI Gateway with function calling
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -201,124 +185,20 @@ Erstelle ein vollständiges Fit Assessment.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: FIT_MODEL,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "submit_fit_assessment",
-              description: "Submit the structured fit assessment result.",
-              parameters: {
-                type: "object",
-                properties: {
-                  overall_verdict: { type: "string", enum: ["strong_fit", "good_fit", "partial_fit", "weak_fit", "no_fit"] },
-                  overall_score: { type: "integer", minimum: 0, maximum: 100 },
-                  executive_summary: { type: "string", description: "2-4 Sätze Gesamtbewertung auf Deutsch" },
-                  verdict_confidence: { type: "string", enum: ["high", "medium", "low"] },
-                  requirement_assessments: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        requirement: { type: "string" },
-                        status: { type: "string", enum: ["met", "partially_met", "not_met", "insufficient_data"] },
-                        evidence: { type: "string" },
-                        score: { type: "integer", minimum: 0, maximum: 100 },
-                      },
-                      required: ["requirement", "status", "evidence", "score"],
-                    },
-                  },
-                  bonus_qualifications: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        qualification: { type: "string" },
-                        present: { type: "boolean" },
-                        evidence: { type: "string" },
-                      },
-                      required: ["qualification", "present", "evidence"],
-                    },
-                  },
-                  gap_analysis: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        gap: { type: "string" },
-                        severity: { type: "string", enum: ["critical", "moderate", "minor"] },
-                        mitigation: { type: "string" },
-                      },
-                      required: ["gap", "severity", "mitigation"],
-                    },
-                  },
-                  career_trajectory: {
-                    type: "object",
-                    properties: {
-                      direction: { type: "string", enum: ["upward", "lateral", "pivoting", "unclear"] },
-                      consistency: { type: "string", enum: ["high", "medium", "low"] },
-                      explanation: { type: "string" },
-                    },
-                    required: ["direction", "consistency", "explanation"],
-                  },
-                  implicit_competencies: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        competency: { type: "string" },
-                        evidence: { type: "string" },
-                        confidence: { type: "string", enum: ["high", "medium", "low"] },
-                      },
-                      required: ["competency", "evidence", "confidence"],
-                    },
-                  },
-                  motivation_fit: {
-                    type: "object",
-                    properties: {
-                      score: { type: "integer", minimum: 0, maximum: 100 },
-                      assessment: { type: "string" },
-                      key_drivers: { type: "array", items: { type: "string" } },
-                      concerns: { type: "array", items: { type: "string" } },
-                    },
-                    required: ["score", "assessment"],
-                  },
-                  dimension_scores: {
-                    type: "object",
-                    properties: {
-                      technical_fit: { type: "integer", minimum: 0, maximum: 100 },
-                      experience_fit: { type: "integer", minimum: 0, maximum: 100 },
-                      seniority_fit: { type: "integer", minimum: 0, maximum: 100 },
-                      location_fit: { type: "integer", minimum: 0, maximum: 100 },
-                      salary_fit: { type: "integer", minimum: 0, maximum: 100 },
-                      culture_fit: { type: "integer", minimum: 0, maximum: 100 },
-                    },
-                    required: ["technical_fit", "experience_fit", "seniority_fit"],
-                  },
-                  rejection_reasoning: { type: "string", description: "Nur ausfüllen wenn overall_verdict 'weak_fit' oder 'no_fit'" },
-                },
-                required: [
-                  "overall_verdict", "overall_score", "executive_summary", "verdict_confidence",
-                  "requirement_assessments", "bonus_qualifications", "gap_analysis",
-                  "career_trajectory", "implicit_competencies", "dimension_scores",
-                ],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "submit_fit_assessment" } },
+        tools: [{ type: "function", function: FIT_TOOL }],
+        tool_choice: { type: "function", function: { name: FIT_TOOL.name } },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI Gateway error:", aiResponse.status, errText);
-      
+
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte versuchen Sie es später erneut." }), {
           status: 429,
@@ -386,8 +266,8 @@ Erstelle ein vollständiges Fit Assessment.`;
           motivation_fit: assessment.motivation_fit || null,
           dimension_scores: assessment.dimension_scores || {},
           rejection_reasoning: assessment.rejection_reasoning || null,
-          model_used: "google/gemini-2.5-flash",
-          prompt_version: "v1",
+          model_used: FIT_MODEL,
+          prompt_version: promptVersion,
           input_data_hash: inputHash,
           generation_time_ms: generationTimeMs,
           generated_at: new Date().toISOString(),

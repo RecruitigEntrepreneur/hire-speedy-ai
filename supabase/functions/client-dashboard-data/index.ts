@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAccessibleJobIds } from "../_shared/team-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,19 +78,14 @@ interface DashboardResponse {
   healthScore: HealthConfig;
 }
 
-async function fetchStats(supabase: any, clientId: string): Promise<DashboardStats> {
+// Alle Helper arbeiten auf der Job-ID-Menge des Users (Team-Scoping aus
+// _shared/team-access.ts): Admin/HR = alle Org-Jobs, Hiring Manager/Viewer =
+// zugewiesene Jobs, Legacy-Clients = eigene Jobs.
+
+async function fetchStats(supabase: any, jobIds: string[]): Promise<DashboardStats> {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // First, get job IDs for this client (can't use subqueries in .in())
-  const { data: clientJobs } = await supabase
-    .from('jobs')
-    .select('id')
-    .eq('client_id', clientId);
-  
-  const jobIds = (clientJobs || []).map((j: any) => j.id);
-  
-  // If no jobs, return empty stats
   if (jobIds.length === 0) {
     return {
       activeJobs: 0,
@@ -105,32 +101,25 @@ async function fetchStats(supabase: any, clientId: string): Promise<DashboardSta
     .from('submissions')
     .select('id')
     .in('job_id', jobIds);
-  
+
   const submissionIds = (jobSubmissions || []).map((s: any) => s.id);
 
-  // Now run parallel queries with actual arrays (guard against empty arrays)
   const [jobsResult, candidatesResult, interviewsResult, placementsResult, newCandidatesResult] = await Promise.all([
     supabase.from('jobs').select('id', { count: 'exact', head: true })
-      .eq('client_id', clientId)
+      .in('id', jobIds)
       .eq('status', 'published'),
-    jobIds.length > 0 
-      ? supabase.from('submissions').select('id', { count: 'exact', head: true }).in('job_id', jobIds)
-      : Promise.resolve({ count: 0 }),
-    submissionIds.length > 0 
+    supabase.from('submissions').select('id', { count: 'exact', head: true }).in('job_id', jobIds),
+    submissionIds.length > 0
       ? supabase.from('interviews').select('id', { count: 'exact', head: true })
           .in('submission_id', submissionIds)
           .in('status', ['pending', 'scheduled'])
       : Promise.resolve({ count: 0 }),
-    jobIds.length > 0
-      ? supabase.from('submissions').select('id', { count: 'exact', head: true })
-          .eq('status', 'hired')
-          .in('job_id', jobIds)
-      : Promise.resolve({ count: 0 }),
-    jobIds.length > 0
-      ? supabase.from('submissions').select('id', { count: 'exact', head: true })
-          .gte('submitted_at', sevenDaysAgo)
-          .in('job_id', jobIds)
-      : Promise.resolve({ count: 0 }),
+    supabase.from('submissions').select('id', { count: 'exact', head: true })
+      .eq('status', 'hired')
+      .in('job_id', jobIds),
+    supabase.from('submissions').select('id', { count: 'exact', head: true })
+      .gte('submitted_at', sevenDaysAgo)
+      .in('job_id', jobIds),
   ]);
 
   return {
@@ -142,15 +131,16 @@ async function fetchStats(supabase: any, clientId: string): Promise<DashboardSta
   };
 }
 
-async function fetchPendingActions(supabase: any, clientId: string): Promise<UnifiedAction[]> {
+async function fetchPendingActions(supabase: any, jobIds: string[]): Promise<UnifiedAction[]> {
   const actions: UnifiedAction[] = [];
   const now = new Date();
+  if (jobIds.length === 0) return actions;
 
   // 1. Pending candidate decisions (exclude rejected/hired)
   const { data: pendingSubmissions } = await supabase
     .from('client_submissions_view')
     .select('*')
-    .eq('client_id', clientId)
+    .in('job_id', jobIds)
     .eq('status', 'submitted')
     .not('stage', 'in', '("rejected","client_rejected","hired","interview_requested")')
     .order('submitted_at', { ascending: true })
@@ -160,7 +150,7 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
     for (const sub of pendingSubmissions) {
       const submittedAt = new Date(sub.submitted_at);
       const hoursWaiting = Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60));
-      
+
       let urgency: 'critical' | 'warning' | 'normal' = 'normal';
       if (hoursWaiting >= 48) urgency = 'critical';
       else if (hoursWaiting >= 24) urgency = 'warning';
@@ -188,7 +178,7 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
   const { data: pendingInterviews } = await supabase
     .from('client_interviews_view')
     .select('*')
-    .eq('client_id', clientId)
+    .in('job_id', jobIds)
     .or('status.eq.pending,scheduled_at.is.null')
     .limit(10);
 
@@ -196,7 +186,7 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
     for (const interview of pendingInterviews) {
       const createdAt = new Date(interview.created_at);
       const hoursWaiting = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
-      
+
       let urgency: 'critical' | 'warning' | 'normal' = 'normal';
       if (hoursWaiting >= 72) urgency = 'critical';
       else if (hoursWaiting >= 48) urgency = 'warning';
@@ -226,7 +216,7 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
   const { data: pendingOffers } = await supabase
     .from('client_offers_view')
     .select('*')
-    .eq('client_id', clientId)
+    .in('job_id', jobIds)
     .in('status', ['draft', 'pending'])
     .limit(10);
 
@@ -234,7 +224,7 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
     for (const offer of pendingOffers) {
       const createdAt = new Date(offer.created_at);
       const hoursWaiting = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
-      
+
       let urgency: 'critical' | 'warning' | 'normal' = 'normal';
       if (hoursWaiting >= 96) urgency = 'critical';
       else if (hoursWaiting >= 72) urgency = 'warning';
@@ -268,12 +258,17 @@ async function fetchPendingActions(supabase: any, clientId: string): Promise<Uni
   return actions;
 }
 
-async function fetchActiveJobs(supabase: any, clientId: string): Promise<JobStats[]> {
+async function fetchActiveJobs(supabase: any, jobIds: string[]): Promise<JobStats[]> {
+  if (jobIds.length === 0) return [];
+
+  // pending_approval/pending_client_approval mit anzeigen: Nach dem Submit soll
+  // die neue Stelle sofort im Dashboard sichtbar sein (Badge "In Freigabe"),
+  // statt bis zur Freigabe unsichtbar zu bleiben.
   const { data: jobs } = await supabase
     .from('jobs')
     .select('id, title, company_name, status, created_at')
-    .eq('client_id', clientId)
-    .eq('status', 'published')
+    .in('id', jobIds)
+    .in('status', ['published', 'pending_approval', 'pending_client_approval'])
     .order('created_at', { ascending: false })
     .limit(5);
 
@@ -337,20 +332,13 @@ async function fetchActiveJobs(supabase: any, clientId: string): Promise<JobStat
   return jobStats;
 }
 
-async function fetchRecentActivity(supabase: any, clientId: string): Promise<ActivityItem[]> {
-  const { data: jobs } = await supabase
-    .from('jobs')
-    .select('id')
-    .eq('client_id', clientId);
-
-  if (!jobs || jobs.length === 0) return [];
-
-  const jobIds = jobs.map((j: any) => j.id);
+async function fetchRecentActivity(supabase: any, userId: string, jobIds: string[]): Promise<ActivityItem[]> {
+  if (jobIds.length === 0) return [];
 
   const { data: activities } = await supabase
     .from('activity_logs')
     .select('*')
-    .or(`entity_id.in.(${jobIds.join(',')}),user_id.eq.${clientId}`)
+    .or(`entity_id.in.(${jobIds.join(',')}),user_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .limit(10);
 
@@ -368,11 +356,11 @@ async function fetchRecentActivity(supabase: any, clientId: string): Promise<Act
 
 function calculateHealthScore(stats: DashboardStats, actions: UnifiedAction[]): HealthConfig {
   let score = 100;
-  
+
   // Deduct for critical actions
   const criticalCount = actions.filter(a => a.urgency === 'critical').length;
   const warningCount = actions.filter(a => a.urgency === 'warning').length;
-  
+
   score -= criticalCount * 15;
   score -= warningCount * 5;
 
@@ -440,7 +428,7 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
@@ -448,14 +436,15 @@ serve(async (req) => {
       );
     }
 
-    const clientId = user.id;
+    // Team-Scoping: Welche Jobs darf dieser User sehen?
+    const jobIds = await getAccessibleJobIds(supabase, user.id);
 
     // Parallel fetching for performance
     const [stats, actions, jobs, activity] = await Promise.all([
-      fetchStats(supabase, clientId),
-      fetchPendingActions(supabase, clientId),
-      fetchActiveJobs(supabase, clientId),
-      fetchRecentActivity(supabase, clientId),
+      fetchStats(supabase, jobIds),
+      fetchPendingActions(supabase, jobIds),
+      fetchActiveJobs(supabase, jobIds),
+      fetchRecentActivity(supabase, user.id, jobIds),
     ]);
 
     const healthScore = calculateHealthScore(stats, actions);

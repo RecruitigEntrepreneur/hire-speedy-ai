@@ -2,6 +2,124 @@ import type de from "./de";
 
 // English locale. Typed against the German locale so missing keys surface at compile time.
 const en: typeof de = {
+  "team": {
+    "title": "Team Management",
+    "tabs": {
+      "members": "Members",
+      "audit": "Audit Log",
+      "settings": "Settings"
+    },
+    "roles": {
+      "owner": "Owner",
+      "admin": "Administrator",
+      "hr": "HR / Recruiting",
+      "hiring_manager": "Hiring Manager",
+      "viewer": "Viewer",
+      "finance": "Finance",
+      "admin_desc": "Can manage users and sees all jobs & candidates",
+      "hr_desc": "Sees all company jobs & candidates, no user management",
+      "hiring_manager_desc": "Sees only assigned jobs: intake, candidate review, interviews",
+      "viewer_desc": "Read-only access to assigned jobs, may comment"
+    },
+    "activate": {
+      "title": "Activate team",
+      "description": "Invite colleagues — e.g. hiring managers who manage their own positions.",
+      "button": "Activate team"
+    },
+    "invite": {
+      "button": "Invite member",
+      "title": "Invite team member",
+      "description": "The invitation is sent by email and is valid for 7 days.",
+      "email": "Email address",
+      "role": "Role",
+      "role_placeholder": "Select role",
+      "jobs": "Assigned jobs",
+      "jobs_hint": "Hiring managers and viewers only see the jobs assigned here.",
+      "no_jobs": "No jobs yet — assignment can happen later.",
+      "cancel": "Cancel",
+      "submit": "Send invitation",
+      "sent_title": "Invitation sent",
+      "sent_hint": "You can also share the invitation link directly.",
+      "created_title": "Invitation created",
+      "created_hint": "Email delivery failed — share the link directly.",
+      "done": "Done",
+      "link_copied": "Link copied"
+    },
+    "invites": {
+      "title": "Pending invitations",
+      "expires": "Expires",
+      "job": "job",
+      "jobs": "jobs",
+      "revoke": "Revoke invitation"
+    },
+    "members": {
+      "title": "Team members",
+      "updated": "Member updated",
+      "update_error": "Error while updating",
+      "deactivate_confirm": "Deactivate this member? Access is revoked immediately.",
+      "unknown": "Unknown",
+      "you": "You",
+      "deactivated": "Deactivated",
+      "last_login": "Last login",
+      "never_logged_in": "Never logged in",
+      "change_role": "Change role",
+      "reactivate": "Reactivate",
+      "deactivate": "Deactivate",
+      "empty": "No team members found"
+    },
+    "audit": {
+      "title": "Audit log",
+      "description": "Team events and candidate data access in your organization",
+      "empty": "No entries yet",
+      "member_added": "Member added ({{role}})",
+      "role_changed": "Role changed: {{from}} → {{to}}",
+      "member_deactivated": "Member deactivated",
+      "member_reactivated": "Member reactivated",
+      "invite_created": "Invitation created for {{email}}",
+      "invite_accepted": "Invitation accepted by {{email}}",
+      "invite_deleted": "Invitation revoked ({{email}})",
+      "candidate_viewed": "Candidate profile viewed"
+    },
+    "settings": {
+      "saved": "Settings saved",
+      "save_error": "Error while saving",
+      "intake_title": "Intake approval",
+      "intake_description": "Controls whether job intakes by hiring managers require internal approval before reaching us.",
+      "intake_label": "Internal approval required",
+      "intake_on_hint": "Intakes by hiring managers go to Admin/HR for approval first.",
+      "intake_off_hint": "Intakes by hiring managers reach us directly.",
+      "org_title": "Organization",
+      "org_name": "Name",
+      "billing_email": "Billing email",
+      "save": "Save"
+    },
+    "accept": {
+      "loading": "Checking invitation…",
+      "success_title": "Successfully joined!",
+      "success_hint": "Redirecting…",
+      "expired_title": "Invitation expired",
+      "expired_hint": "This invitation has expired. Please request a new one.",
+      "invalid_title": "Invalid invitation",
+      "invalid_hint": "This invitation is invalid or has already been used.",
+      "to_home": "Go to homepage",
+      "title": "You have been invited",
+      "description": "{{org}} wants to add you as a team member",
+      "an_organization": "An organization",
+      "your_role": "Your role",
+      "invited_as": "Invited as",
+      "assigned_jobs": "Assigned jobs",
+      "valid_until": "Valid until",
+      "accept_button": "Accept invitation",
+      "login_button": "Log in and accept",
+      "login_hint": "An account already exists for this email. Please log in.",
+      "full_name": "Your name",
+      "password": "Password",
+      "password_min": "At least 8 characters",
+      "password_confirm": "Confirm password",
+      "password_mismatch": "Passwords do not match",
+      "create_account_button": "Create account & join"
+    }
+  },
   "nav": {
     "features": "Features",
     "solutions": "Solutions",

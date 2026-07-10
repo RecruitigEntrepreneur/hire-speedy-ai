@@ -112,6 +112,12 @@ verify_jwt = true
 [functions.accept-invite]
 verify_jwt = false
 
+[functions.validate-invite]
+verify_jwt = false
+
+[functions.team-data]
+verify_jwt = true
+
 [functions.talent-pool-match]
 verify_jwt = false
 
@@ -205,6 +211,12 @@ verify_jwt = true
 
 [functions.process-interview-response]
 verify_jwt = false
+
+[functions.get-interview-by-token]
+verify_jwt = false
+
+[functions.intake-questions]
+verify_jwt = true
 
 [functions.client-dashboard-data]
 verify_jwt = true

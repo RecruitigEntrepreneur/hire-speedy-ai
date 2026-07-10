@@ -8,7 +8,7 @@ export interface Organization {
   name: string;
   type: 'client' | 'agency';
   owner_id: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   logo_url: string | null;
   billing_email: string | null;
   stripe_customer_id: string | null;
@@ -134,6 +134,106 @@ export function useOrganization() {
     isLoading: loadingOrgs || loadingMemberships,
     createOrganization,
     updateOrganization,
+  };
+}
+
+/**
+ * Primäre Client-Organisation des eingeloggten Users:
+ * zuerst die eigene (owned) Org, sonst die aktive Mitgliedschaft.
+ * `ensureOrganization` legt bei Bedarf lazy eine Org an (Owner = User);
+ * ein DB-Trigger hängt vorhandene Alt-Jobs des Owners automatisch an.
+ */
+export function useMyOrganization() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ['my-organization', user?.id],
+    queryFn: async () => {
+      const { data: owned, error: ownedError } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('owner_id', user!.id)
+        .eq('type', 'client')
+        .order('created_at', { ascending: true })
+        .limit(1);
+      if (ownedError) throw ownedError;
+      if (owned?.length) {
+        return { organization: owned[0] as Organization, role: 'owner' };
+      }
+
+      const { data: membership, error: memberError } = await supabase
+        .from('organization_members')
+        .select('role, organizations(*)')
+        .eq('user_id', user!.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (memberError) throw memberError;
+      if (membership?.organizations) {
+        return {
+          organization: membership.organizations as unknown as Organization,
+          role: membership.role as string,
+        };
+      }
+      return null;
+    },
+    enabled: !!user,
+  });
+
+  const ensureOrganization = useMutation({
+    mutationFn: async () => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_name, full_name, email')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      const name =
+        profile?.company_name?.trim() ||
+        profile?.full_name?.trim() ||
+        profile?.email ||
+        'Mein Unternehmen';
+
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({ name, type: 'client', owner_id: user!.id })
+        .select()
+        .single();
+      if (orgError) throw orgError;
+
+      const { error: memberError } = await supabase
+        .from('organization_members')
+        .insert({
+          organization_id: org.id,
+          user_id: user!.id,
+          role: 'owner',
+          status: 'active',
+          joined_at: new Date().toISOString(),
+        });
+      if (memberError) throw memberError;
+
+      return org as Organization;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-organization'] });
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    },
+    onError: (error) => {
+      console.error('Error creating organization:', error);
+      toast.error('Team konnte nicht aktiviert werden');
+    },
+  });
+
+  const myRole = query.data?.role ?? null;
+
+  return {
+    organization: query.data?.organization ?? null,
+    myRole,
+    isAdmin: myRole === 'owner' || myRole === 'admin',
+    isLoading: query.isLoading,
+    ensureOrganization,
   };
 }
 

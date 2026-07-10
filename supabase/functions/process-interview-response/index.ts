@@ -14,6 +14,8 @@ interface ResponseRequest {
   counterSlots?: string[];
   declineReason?: string;
   message?: string;
+  consentGiven?: boolean;
+  consentTextVersion?: string;
 }
 
 function formatDate(isoString: string): string {
@@ -72,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: ResponseRequest = await req.json();
-    const { action, responseToken, selectedSlotIndex, counterSlots, declineReason, message } = body;
+    const { action, responseToken, selectedSlotIndex, counterSlots, declineReason, message, consentGiven, consentTextVersion } = body;
 
     // Validate input
     if (!action || !responseToken) {
@@ -123,6 +125,11 @@ const handler = async (req: Request): Promise<Response> => {
           throw new Error("Invalid slot selection");
         }
 
+        // DSGVO: Reveal nur mit aktiver, protokollierter Einwilligung des Kandidaten
+        if (consentGiven !== true) {
+          throw new Error("Consent required: Die Freigabe der Daten muss aktiv bestätigt werden.");
+        }
+
         const selectedSlot = proposedSlots[selectedSlotIndex];
         const scheduledAt = selectedSlot.datetime;
 
@@ -134,11 +141,13 @@ const handler = async (req: Request): Promise<Response> => {
             scheduled_at: scheduledAt,
             selected_slot_index: selectedSlotIndex,
             candidate_confirmed: true,
+            candidate_confirmed_at: new Date().toISOString(),
             candidate_message: message,
           })
           .eq('id', interview.id);
 
         // Update submission - reveal identity (Triple-Blind Stage 2)
+        // + Consent-Protokoll: Zeitpunkt und Textversion der Einwilligung
         await supabase
           .from('submissions')
           .update({
@@ -149,8 +158,26 @@ const handler = async (req: Request): Promise<Response> => {
             company_revealed_at: new Date().toISOString(),
             full_access_granted: true,
             full_access_granted_at: new Date().toISOString(),
+            consent_confirmed: true,
+            consent_confirmed_at: new Date().toISOString(),
           })
           .eq('id', submission.id);
+
+        // Consent-Metadaten (Audit) – best effort, Spalte kommt per Migration
+        const { error: consentMetaError } = await supabase
+          .from('submissions')
+          .update({
+            consent_meta: {
+              source: 'interview_accept',
+              interview_id: interview.id,
+              text_version: consentTextVersion || 'unversioned',
+              consented_at: new Date().toISOString(),
+            },
+          })
+          .eq('id', submission.id);
+        if (consentMetaError) {
+          console.warn('consent_meta not persisted (Spalte fehlt noch?):', consentMetaError.message);
+        }
 
         // Generate iCal
         const icalContent = generateICalEvent({

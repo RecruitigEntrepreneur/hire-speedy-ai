@@ -1,6 +1,124 @@
 // German is the default locale. Auto-merged from section keymaps.
 // eslint-disable
 const de = {
+  "team": {
+    "title": "Team-Verwaltung",
+    "tabs": {
+      "members": "Mitglieder",
+      "audit": "Audit-Log",
+      "settings": "Einstellungen"
+    },
+    "roles": {
+      "owner": "Inhaber",
+      "admin": "Administrator",
+      "hr": "HR / Recruiting",
+      "hiring_manager": "Hiring Manager",
+      "viewer": "Betrachter",
+      "finance": "Finanzen",
+      "admin_desc": "Kann Nutzer verwalten und sieht alle Jobs & Kandidaten",
+      "hr_desc": "Sieht alle Jobs & Kandidaten des Unternehmens, keine Nutzerverwaltung",
+      "hiring_manager_desc": "Sieht nur zugewiesene Jobs: Intake, Kandidaten-Review, Interviews",
+      "viewer_desc": "Nur Lesezugriff auf zugewiesene Jobs, darf kommentieren"
+    },
+    "activate": {
+      "title": "Team aktivieren",
+      "description": "Laden Sie Kolleginnen und Kollegen ein — z. B. Hiring Manager aus dem Fachbereich, die ihre Stellen selbst betreuen.",
+      "button": "Team aktivieren"
+    },
+    "invite": {
+      "button": "Mitglied einladen",
+      "title": "Teammitglied einladen",
+      "description": "Die Einladung wird per E-Mail verschickt und ist 7 Tage gültig.",
+      "email": "E-Mail-Adresse",
+      "role": "Rolle",
+      "role_placeholder": "Rolle auswählen",
+      "jobs": "Zugewiesene Jobs",
+      "jobs_hint": "Hiring Manager und Betrachter sehen nur die hier zugewiesenen Jobs.",
+      "no_jobs": "Noch keine Jobs vorhanden — die Zuweisung kann später erfolgen.",
+      "cancel": "Abbrechen",
+      "submit": "Einladung senden",
+      "sent_title": "Einladung verschickt",
+      "sent_hint": "Sie können den Einladungslink zusätzlich direkt teilen.",
+      "created_title": "Einladung erstellt",
+      "created_hint": "Der E-Mail-Versand war nicht möglich — teilen Sie den Link direkt.",
+      "done": "Fertig",
+      "link_copied": "Link kopiert"
+    },
+    "invites": {
+      "title": "Ausstehende Einladungen",
+      "expires": "Läuft ab",
+      "job": "Job",
+      "jobs": "Jobs",
+      "revoke": "Einladung zurückziehen"
+    },
+    "members": {
+      "title": "Teammitglieder",
+      "updated": "Mitglied aktualisiert",
+      "update_error": "Fehler beim Aktualisieren",
+      "deactivate_confirm": "Dieses Mitglied deaktivieren? Der Zugriff erlischt sofort.",
+      "unknown": "Unbekannt",
+      "you": "Sie",
+      "deactivated": "Deaktiviert",
+      "last_login": "Letzter Login",
+      "never_logged_in": "Noch nie eingeloggt",
+      "change_role": "Rolle ändern",
+      "reactivate": "Reaktivieren",
+      "deactivate": "Deaktivieren",
+      "empty": "Keine Teammitglieder gefunden"
+    },
+    "audit": {
+      "title": "Audit-Log",
+      "description": "Team-Ereignisse und Kandidaten-Datenzugriffe Ihrer Organisation",
+      "empty": "Noch keine Einträge",
+      "member_added": "Mitglied hinzugefügt ({{role}})",
+      "role_changed": "Rolle geändert: {{from}} → {{to}}",
+      "member_deactivated": "Mitglied deaktiviert",
+      "member_reactivated": "Mitglied reaktiviert",
+      "invite_created": "Einladung erstellt an {{email}}",
+      "invite_accepted": "Einladung angenommen von {{email}}",
+      "invite_deleted": "Einladung zurückgezogen ({{email}})",
+      "candidate_viewed": "Kandidatenprofil eingesehen"
+    },
+    "settings": {
+      "saved": "Einstellungen gespeichert",
+      "save_error": "Fehler beim Speichern",
+      "intake_title": "Intake-Freigabe",
+      "intake_description": "Steuert, ob Stellenaufnahmen von Hiring Managern intern freigegeben werden müssen, bevor sie an uns gehen.",
+      "intake_label": "Interne Freigabe erforderlich",
+      "intake_on_hint": "Intakes von Hiring Managern gehen erst an Admin/HR zur Freigabe.",
+      "intake_off_hint": "Intakes von Hiring Managern gehen direkt an uns.",
+      "org_title": "Organisation",
+      "org_name": "Name",
+      "billing_email": "Billing E-Mail",
+      "save": "Speichern"
+    },
+    "accept": {
+      "loading": "Einladung wird geprüft…",
+      "success_title": "Erfolgreich beigetreten!",
+      "success_hint": "Sie werden weitergeleitet…",
+      "expired_title": "Einladung abgelaufen",
+      "expired_hint": "Diese Einladung ist leider abgelaufen. Bitte fordern Sie eine neue an.",
+      "invalid_title": "Einladung ungültig",
+      "invalid_hint": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
+      "to_home": "Zur Startseite",
+      "title": "Sie wurden eingeladen",
+      "description": "{{org}} möchte Sie als Teammitglied hinzufügen",
+      "an_organization": "Eine Organisation",
+      "your_role": "Ihre Rolle",
+      "invited_as": "Eingeladen als",
+      "assigned_jobs": "Zugewiesene Jobs",
+      "valid_until": "Gültig bis",
+      "accept_button": "Einladung annehmen",
+      "login_button": "Anmelden und annehmen",
+      "login_hint": "Für diese E-Mail existiert bereits ein Konto. Bitte melden Sie sich an.",
+      "full_name": "Ihr Name",
+      "password": "Passwort",
+      "password_min": "Mindestens 8 Zeichen",
+      "password_confirm": "Passwort bestätigen",
+      "password_mismatch": "Passwörter stimmen nicht überein",
+      "create_account_button": "Konto erstellen & beitreten"
+    }
+  },
   "nav": {
     "features": "Funktionen",
     "solutions": "Lösungen",

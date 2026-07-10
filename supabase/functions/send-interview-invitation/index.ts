@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { canUserActOnJob } from "../_shared/team-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,7 @@ function generateEmailHtml(params: {
   candidateName: string;
   jobTitle: string;
   companyDescription: string;
+  companyName?: string | null;
   meetingFormat: string;
   duration: number;
   clientMessage?: string;
@@ -68,7 +70,19 @@ function generateEmailHtml(params: {
   counterUrl: string;
   declineUrl: string;
 }): string {
-  const { candidateName, jobTitle, companyDescription, meetingFormat, duration, clientMessage, slots, acceptUrl, counterUrl, declineUrl } = params;
+  const { candidateName, jobTitle, companyDescription, companyName, meetingFormat, duration, clientMessage, slots, acceptUrl, counterUrl, declineUrl } = params;
+
+  // Produktentscheidung 2026-07: Der Kandidat sieht die Firma direkt in der
+  // Anfrage. Seine eigene Identität bleibt bis zur aktiven Zustimmung anonym.
+  const inviterHtml = companyName
+    ? `die Firma <strong>${companyName}</strong>`
+    : `ein ${companyDescription}`;
+  const companyRowHtml = companyName
+    ? `<tr>
+            <td style="padding: 8px 0; color: #64748b;">Unternehmen:</td>
+            <td style="padding: 8px 0; font-weight: 600;">${companyName}</td>
+          </tr>`
+    : '';
   
   const clientMessageHtml = clientMessage ? `
     <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border-left: 3px solid #0284c7; margin: 16px 0;">
@@ -86,9 +100,10 @@ function generateEmailHtml(params: {
 
       <div style="background: white; padding: 32px; border: 1px solid #e2e8f0;">
         <p style="margin: 0 0 16px;">Hallo ${candidateName},</p>
-        <p style="margin: 0 0 16px;">ein ${companyDescription} möchte Sie gerne kennenlernen.</p>
+        <p style="margin: 0 0 16px;">${inviterHtml} möchte Sie gerne kennenlernen.</p>
 
         <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          ${companyRowHtml}
           <tr>
             <td style="padding: 8px 0; color: #64748b; width: 120px;">Position:</td>
             <td style="padding: 8px 0; font-weight: 600;">${jobTitle}</td>
@@ -132,7 +147,8 @@ function generateEmailHtml(params: {
         </div>
 
         <p style="font-size: 12px; color: #94a3b8; text-align: center;">
-          🔒 Ihre Daten werden erst nach Ihrer Zustimmung freigegeben (DSGVO-konform).
+          🔒 Ihre persönlichen Daten (Name, Kontakt, Lebenslauf) werden dem Unternehmen erst freigegeben,
+          nachdem Sie auf der Antwortseite aktiv zugestimmt haben (DSGVO-konform).
         </p>
       </div>
 
@@ -163,6 +179,18 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Authorization header required");
     }
 
+    // Aufrufer verifizieren (vorher wurde nur die EXISTENZ des Headers geprüft
+    // → IDOR: jeder eingeloggte Nutzer konnte für fremde Submissions einladen)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const body: InvitationRequest = await req.json();
     const { submissionId, meetingFormat, durationMinutes, proposedSlots, clientMessage, meetingLink, onsiteAddress } = body;
 
@@ -188,6 +216,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (submissionError || !submission) {
       throw new Error("Submission not found");
+    }
+
+    // Autorisierung: nur Client-Seite dieses Jobs (Ersteller, Org-Admin/HR,
+    // zugewiesener Hiring Manager) oder Plattform-Admin — Viewer sind read-only.
+    const allowed = await canUserActOnJob(supabase, user.id, submission.job_id);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Not authorized for this job' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const candidate = submission.candidates as any;
@@ -242,14 +280,26 @@ const handler = async (req: Request): Promise<Response> => {
       ? `${job.industry}-Unternehmen` 
       : 'Technologie-Unternehmen';
 
-    // Send email to candidate
-    if (resendApiKey && candidate.email) {
+    // Send email to candidate.
+    // WICHTIG: Das Resend-SDK wirft bei Versandfehlern KEINE Exception, sondern
+    // liefert { error } zurück – ohne Prüfung wäre ein Fehlschlag unsichtbar.
+    let emailSent = false;
+    let emailError: string | null = null;
+
+    if (!resendApiKey) {
+      emailError = 'RESEND_API_KEY ist nicht gesetzt – keine E-Mail versendet.';
+      console.warn(emailError);
+    } else if (!candidate.email) {
+      emailError = 'Kandidat hat keine E-Mail-Adresse hinterlegt.';
+      console.warn(emailError);
+    } else {
       const resend = new Resend(resendApiKey);
-      
+
       const emailHtml = generateEmailHtml({
         candidateName: candidate.full_name.split(' ')[0], // First name only
         jobTitle: job.title,
         companyDescription,
+        companyName: job.company_name || null,
         meetingFormat: MEETING_FORMAT_LABELS[meetingFormat] || meetingFormat,
         duration: durationMinutes,
         clientMessage,
@@ -259,12 +309,20 @@ const handler = async (req: Request): Promise<Response> => {
         declineUrl,
       });
 
-      await resend.emails.send({
+      const { data: sendResult, error: sendError } = await resend.emails.send({
         from: "Matchunt <noreply@matchunt.ai>",
         to: [candidate.email],
-        subject: `Interview-Einladung: ${job.title}`,
+        subject: job.company_name ? `Interview-Einladung: ${job.title} bei ${job.company_name}` : `Interview-Einladung: ${job.title}`,
         html: emailHtml,
       });
+
+      if (sendError) {
+        emailError = `Resend-Fehler: ${JSON.stringify(sendError)}`;
+        console.error('E-Mail-Versand fehlgeschlagen:', sendError);
+      } else {
+        emailSent = true;
+        console.log('Einladungs-E-Mail versendet, Resend-ID:', sendResult?.id);
+      }
     }
 
     // Create notification for recruiter
@@ -296,10 +354,12 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         interviewId: interview.id,
         responseToken,
+        emailSent,
+        emailError,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

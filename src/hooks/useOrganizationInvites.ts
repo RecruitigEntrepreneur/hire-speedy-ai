@@ -7,12 +7,31 @@ export interface OrganizationInvite {
   organization_id: string;
   email: string;
   role: string;
-  permissions: string[];
-  token: string;
+  job_ids: string[];
   expires_at: string;
   invited_by: string;
   accepted_at: string | null;
+  revoked_at: string | null;
   created_at: string;
+}
+
+export interface SendInviteResult {
+  success: boolean;
+  email_sent: boolean;
+  invite_url: string;
+  invite: Pick<OrganizationInvite, 'id' | 'email' | 'role' | 'job_ids' | 'expires_at'>;
+}
+
+export interface ValidatedInvite {
+  valid: boolean;
+  reason?: 'not_found' | 'already_used' | 'revoked' | 'expired';
+  email?: string;
+  role?: string;
+  job_count?: number;
+  expires_at?: string;
+  organization_name?: string | null;
+  organization_logo?: string | null;
+  account_exists?: boolean;
 }
 
 export function useOrganizationInvites(organizationId: string | undefined) {
@@ -26,11 +45,12 @@ export function useOrganizationInvites(organizationId: string | undefined) {
         .select('*')
         .eq('organization_id', organizationId!)
         .is('accepted_at', null)
+        .is('revoked_at', null)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as OrganizationInvite[];
+      return data as unknown as OrganizationInvite[];
     },
     enabled: !!organizationId,
   });
@@ -40,15 +60,15 @@ export function useOrganizationInvites(organizationId: string | undefined) {
       organization_id: string;
       email: string;
       role: string;
-      permissions?: string[];
-    }) => {
+      job_ids?: string[];
+    }): Promise<SendInviteResult> => {
       const { data: result, error } = await supabase.functions.invoke('organization-invite', {
         body: data,
       });
 
       if (error) throw error;
       if (result.error) throw new Error(result.error);
-      return result;
+      return result as SendInviteResult;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-invites', organizationId] });
@@ -80,9 +100,9 @@ export function useOrganizationInvites(organizationId: string | undefined) {
   });
 
   const acceptInvite = useMutation({
-    mutationFn: async (token: string) => {
+    mutationFn: async (params: { token: string; password?: string; full_name?: string }) => {
       const { data: result, error } = await supabase.functions.invoke('accept-invite', {
-        body: { token },
+        body: params,
       });
 
       if (error) throw error;
@@ -92,7 +112,10 @@ export function useOrganizationInvites(organizationId: string | undefined) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization-memberships'] });
-      toast.success(`Erfolgreich beigetreten: ${data.organization_name}`);
+      queryClient.invalidateQueries({ queryKey: ['my-organization'] });
+      if (data?.organization_name) {
+        toast.success(`Erfolgreich beigetreten: ${data.organization_name}`);
+      }
     },
     onError: (error) => {
       console.error('Error accepting invite:', error);
@@ -109,20 +132,25 @@ export function useOrganizationInvites(organizationId: string | undefined) {
   };
 }
 
-export function useInviteByToken(token: string | undefined) {
+/**
+ * Öffentlicher Token-Check über die validate-invite Edge Function.
+ * (Der frühere Direkt-Lookup auf organization_invites war ein Token-Leak
+ * und ist durch RLS nicht mehr möglich.)
+ */
+export function useValidateInvite(token: string | undefined) {
   return useQuery({
-    queryKey: ['invite-by-token', token],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('organization_invites')
-        .select('*, organizations(name, logo_url)')
-        .eq('token', token!)
-        .is('accepted_at', null)
-        .single();
-
-      if (error) throw error;
-      return data;
+    queryKey: ['validate-invite', token],
+    queryFn: async (): Promise<ValidatedInvite> => {
+      const { data, error } = await supabase.functions.invoke('validate-invite', {
+        body: { token },
+      });
+      // Bei 4xx liefert invoke einen error, aber wir wollen den Grund anzeigen
+      if (error && !data) {
+        return { valid: false, reason: 'not_found' };
+      }
+      return data as ValidatedInvite;
     },
     enabled: !!token,
+    retry: false,
   });
 }

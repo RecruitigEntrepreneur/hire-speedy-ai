@@ -1,0 +1,38 @@
+[desktop] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[desktop] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+[desktop] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[desktop] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+[desktop] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[desktop] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+[desktop-error] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[desktop-error] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Error fetching consents: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
+    at http://localhost…tp://localhost:8080/src/hooks/useConsent.ts:32:33, hint: , code: }
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Error fetching consents: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
+    at http://localhost…tp://localhost:8080/src/hooks/useConsent.ts:32:33, hint: , code: }
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Error tracking event: FunctionsFetchError: Failed to send a request to the Edge Function
+    at http://localhost:8080/node_modules/.vite/deps/@supabase_supabase-js.js?v=d6c96aa1:178:21
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Error fetching notifications: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
+    at http://localhost…:8080/src/hooks/useRealtimeNotifications.ts:12:33, hint: , code: }
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Error fetching consents: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
+    at http://localhost…tp://localhost:8080/src/hooks/useConsent.ts:32:33, hint: , code: }
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[desktop-error] error: Failed to load resource: net::ERR_FAILED
+[mobile] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[mobile] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+[mobile] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[mobile] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+[mobile] warning: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+[mobile] warning: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.

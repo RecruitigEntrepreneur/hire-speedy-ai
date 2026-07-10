@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
@@ -43,7 +43,10 @@ import { CandidateFitAssessmentCard } from '@/components/candidates/CandidateFit
 import { CandidateExperienceTimeline } from '@/components/candidates/CandidateExperienceTimeline';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
+import { PendingRequestStatus } from '@/components/interview/PendingRequestStatus';
 import { useClientCandidateView } from '@/hooks/useClientCandidateView';
+import { useMyOrganization } from '@/hooks/useOrganization';
+import { useTeamData } from '@/hooks/useTeamData';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -96,10 +99,62 @@ export default function CandidateDetail() {
 
   const { data: candidateView, loading, error, refetch } = useClientCandidateView(id);
 
+  // Team-Kontext: Viewer sind read-only; Mitgliederliste für @-Mentions
+  const { organization: myOrg, myRole: myOrgRole } = useMyOrganization();
+  const isViewer = myOrgRole === 'viewer';
+  const teamQuery = useTeamData(myOrg?.id);
+  const teamMembers = (teamQuery.data?.members ?? []).filter((m) => m.status === 'active');
+  const memberName = (uid: string) => teamMembers.find((m) => m.user_id === uid)?.full_name ?? null;
+
+  // DSGVO: Zugriff auf das Kandidatenprofil serverseitig protokollieren
+  // (einmal pro Submission und Seitenaufruf, nicht pro Re-Render)
+  const loggedAccessRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id || !user || loggedAccessRef.current === id) return;
+    loggedAccessRef.current = id;
+    supabase
+      .rpc('log_candidate_access', { _submission_id: id })
+      .then(({ error: rpcError }) => {
+        if (rpcError) console.warn('Zugriffs-Log nicht möglich:', rpcError.message);
+      });
+  }, [id, user]);
+
   // Comments
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
+
+  // @-Mention-Vorschläge: greift auf das letzte "@..."-Fragment im Text
+  const mentionMatch = newComment.match(/@([\wäöüÄÖÜß-]*)$/);
+  const mentionSuggestions = mentionMatch
+    ? teamMembers
+        .filter(
+          (m) =>
+            m.user_id !== user?.id &&
+            m.full_name &&
+            m.full_name.toLowerCase().startsWith(mentionMatch[1].toLowerCase())
+        )
+        .slice(0, 5)
+    : [];
+
+  const applyMention = (fullName: string) => {
+    setNewComment((prev) => prev.replace(/@([\wäöüÄÖÜß-]*)$/, `@${fullName} `));
+  };
+
+  // Erwähnte Namen im Kommentar farblich hervorheben
+  const renderCommentContent = (text: string) => {
+    const names = teamMembers.map((m) => m.full_name).filter(Boolean) as string[];
+    if (!names.length) return text;
+    const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const parts = text.split(new RegExp(`(@(?:${escaped.join('|')}))`, 'g'));
+    return parts.map((part, i) =>
+      part.startsWith('@') ? (
+        <span key={i} className="font-medium text-primary">{part}</span>
+      ) : (
+        part
+      )
+    );
+  };
 
   // Dialogs
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -169,10 +224,35 @@ export default function CandidateDetail() {
     if (!newComment.trim() || !user) return;
     setCommentLoading(true);
     try {
-      const { error } = await supabase
+      // @-Mentions auflösen: erwähnte Team-Mitglieder erhalten eine Benachrichtigung
+      const mentionedIds = teamMembers
+        .filter((m) => m.user_id !== user.id && m.full_name && newComment.includes(`@${m.full_name}`))
+        .map((m) => m.user_id);
+
+      let { error } = await supabase
         .from('candidate_comments')
-        .insert({ submission_id: id, user_id: user.id, content: newComment });
+        .insert({ submission_id: id, user_id: user.id, content: newComment, mentioned_user_ids: mentionedIds });
+      if (error && /mentioned_user_ids/.test(error.message)) {
+        // Fallback für noch nicht migrierte DB
+        ({ error } = await supabase
+          .from('candidate_comments')
+          .insert({ submission_id: id, user_id: user.id, content: newComment }));
+      }
       if (error) throw error;
+
+      if (mentionedIds.length) {
+        await supabase.from('notifications').insert(
+          mentionedIds.map((uid) => ({
+            user_id: uid,
+            type: 'comment_mention',
+            title: 'Sie wurden in einem Kommentar erwähnt',
+            message: `${memberName(user.id) ?? 'Ein Teammitglied'} hat Sie in einem Kommentar zu einem Kandidaten (${candidateView?.jobTitle ?? 'Job'}) erwähnt.`,
+            related_type: 'submission',
+            related_id: id,
+          }))
+        );
+      }
+
       setNewComment('');
       fetchComments();
       toast({ title: 'Kommentar hinzugefuegt' });
@@ -358,14 +438,16 @@ export default function CandidateDetail() {
 
             {/* Row 4: CTAs + Contact Buttons */}
             <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-2">
-              {/* Stage-dependent CTAs */}
-              {!isTerminal && (
+              {/* Stage-dependent CTAs (Viewer sind read-only) */}
+              {!isTerminal && isViewer && (
+                <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" /> Nur Lesezugriff
+                </Badge>
+              )}
+              {!isTerminal && !isViewer && (
                 <>
                   {stage === 'interview_requested' ? (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-                      <Clock className="h-3.5 w-3.5" />
-                      Interview angefragt — Opt-In ausstehend
-                    </div>
+                    <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} />
                   ) : (
                     <Button
                       size="sm"
@@ -563,13 +645,29 @@ export default function CandidateDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex gap-2">
+            <div className="relative">
               <Textarea
-                placeholder="Notiz hinzufuegen..."
+                placeholder={teamMembers.length > 1 ? 'Notiz hinzufuegen... (@ erwähnt Teammitglieder)' : 'Notiz hinzufuegen...'}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="min-h-[60px] text-sm"
               />
+              {mentionSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-lg border bg-popover shadow-md">
+                  {mentionSuggestions.map((m) => (
+                    <button
+                      key={m.user_id}
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                      onClick={() => applyMention(m.full_name!)}
+                    >
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="flex-1 truncate">{m.full_name}</span>
+                      <span className="text-xs text-muted-foreground">{m.role}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <Button
               onClick={handleAddComment}
@@ -590,8 +688,9 @@ export default function CandidateDetail() {
                 <div className="space-y-2 pt-2">
                   {comments.map((comment) => (
                     <div key={comment.id} className="p-2.5 bg-muted/50 rounded-lg">
-                      <p className="text-sm">{comment.content}</p>
+                      <p className="text-sm">{renderCommentContent(comment.content)}</p>
                       <p className="text-xs text-muted-foreground mt-1">
+                        {memberName(comment.user_id) ? `${memberName(comment.user_id)} · ` : ''}
                         {format(new Date(comment.created_at), 'dd.MM.yyyy HH:mm', { locale: de })}
                       </p>
                     </div>

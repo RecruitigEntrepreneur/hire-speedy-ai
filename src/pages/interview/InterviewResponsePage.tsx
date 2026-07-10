@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
-  Loader2, Calendar as CalendarIcon, Clock, CheckCircle, AlertCircle, 
-  Building2, ArrowLeft, Send, X, Plus, Video, Phone, MapPin
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Loader2, Calendar as CalendarIcon, Clock, CheckCircle, AlertCircle,
+  Building2, ArrowLeft, Send, X, Plus, Video, Phone, MapPin, ShieldCheck
 } from 'lucide-react';
 import { format, setHours, setMinutes, isBefore, startOfToday } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -36,9 +37,13 @@ interface InterviewData {
     job: {
       title: string;
       industry?: string;
+      company_name?: string | null;
     };
   };
 }
+
+/** Version des Einwilligungstexts – wird beim Accept mitprotokolliert. */
+const CONSENT_TEXT_VERSION = '2026-07-v1';
 
 type ViewMode = 'selection' | 'counter' | 'decline' | 'success' | 'counter_success' | 'decline_success';
 
@@ -77,6 +82,9 @@ export default function InterviewResponsePage() {
   // Decline state
   const [declineReason, setDeclineReason] = useState('');
 
+  // Consent (DSGVO): aktive Zustimmung zur Identitätsfreigabe vor dem Buchen
+  const [consentGiven, setConsentGiven] = useState(false);
+
   useEffect(() => {
     if (token) {
       fetchInterview();
@@ -90,58 +98,85 @@ export default function InterviewResponsePage() {
 
   const fetchInterview = async () => {
     try {
-      const { data, error: fetchError } = await supabase
-        .from('interviews')
-        .select(`
-          id,
-          proposed_slots,
-          duration_minutes,
-          meeting_format,
-          meeting_link,
-          onsite_address,
-          client_message,
-          status,
-          scheduled_at,
-          submission:submissions(
-            job:jobs(title, industry)
-          )
-        `)
-        .eq('response_token', token)
-        .single();
+      // Primär: öffentliche Edge Function (Kandidaten haben keinen Login,
+      // RLS auf `interviews` würde den Direktzugriff blockieren).
+      let raw: any = null;
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('get-interview-by-token', {
+        body: { token },
+      });
+      if (!fnError && fnData?.interview) {
+        const i = fnData.interview;
+        raw = {
+          id: i.id,
+          proposed_slots: i.proposed_slots,
+          duration_minutes: i.duration_minutes,
+          meeting_format: i.meeting_format,
+          meeting_link: i.meeting_link,
+          onsite_address: i.onsite_address,
+          client_message: i.client_message,
+          status: i.status,
+          scheduled_at: i.scheduled_at,
+          job: i.job,
+        };
+      } else {
+        // Fallback (z. B. Function noch nicht deployed): Direktzugriff –
+        // funktioniert nur für eingeloggte Nutzer mit RLS-Zugriff.
+        const { data, error: fetchError } = await supabase
+          .from('interviews')
+          .select(`
+            id,
+            proposed_slots,
+            duration_minutes,
+            meeting_format,
+            meeting_link,
+            onsite_address,
+            client_message,
+            status,
+            scheduled_at,
+            submission:submissions(
+              job:jobs(title, industry, company_name)
+            )
+          `)
+          .eq('response_token', token)
+          .maybeSingle();
+        if (fetchError) throw fetchError;
+        if (data) {
+          raw = { ...data, job: (data.submission as any)?.job };
+        }
+      }
 
-      if (fetchError) throw fetchError;
-      
-      if (!data) {
+      if (!raw) {
         setError('Ungültiger oder abgelaufener Link');
         return;
       }
 
       // Check status
-      if (data.status === 'scheduled') {
+      if (raw.status === 'scheduled') {
         setViewMode('success');
-      } else if (data.status === 'declined') {
+      } else if (raw.status === 'declined') {
         setViewMode('decline_success');
-      } else if (data.status === 'counter_proposed') {
+      } else if (raw.status === 'counter_proposed') {
         setViewMode('counter_success');
-      } else if (data.status !== 'pending_response') {
+      } else if (raw.status !== 'pending_response') {
         setError('Diese Einladung wurde bereits bearbeitet');
         return;
       }
 
       const transformedData: InterviewData = {
-        id: data.id,
-        proposed_slots: (data.proposed_slots as unknown as TimeSlot[]) || [],
-        duration_minutes: data.duration_minutes || 60,
-        meeting_format: data.meeting_format || 'video',
-        meeting_link: data.meeting_link,
-        onsite_address: data.onsite_address,
-        client_message: data.client_message,
-        status: data.status || 'pending_response',
-        scheduled_at: data.scheduled_at,
+        id: raw.id,
+        proposed_slots: (raw.proposed_slots as unknown as TimeSlot[]) || [],
+        duration_minutes: raw.duration_minutes || 60,
+        meeting_format: raw.meeting_format || 'video',
+        meeting_link: raw.meeting_link,
+        onsite_address: raw.onsite_address,
+        client_message: raw.client_message,
+        status: raw.status || 'pending_response',
+        scheduled_at: raw.scheduled_at,
         submission: {
           job: {
-            title: (data.submission as any)?.job?.title || 'Position',
-            industry: (data.submission as any)?.job?.industry,
+            title: raw.job?.title || 'Position',
+            industry: raw.job?.industry,
+            company_name: raw.job?.company_name ?? null,
           }
         }
       };
@@ -157,6 +192,10 @@ export default function InterviewResponsePage() {
 
   const handleAccept = async () => {
     if (selectedIndex === null || !interview) return;
+    if (!consentGiven) {
+      toast.error('Bitte bestätigen Sie die Freigabe Ihrer Daten.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -165,6 +204,8 @@ export default function InterviewResponsePage() {
           action: 'accept',
           responseToken: token,
           selectedSlotIndex: selectedIndex,
+          consentGiven: true,
+          consentTextVersion: CONSENT_TEXT_VERSION,
         },
       });
 
@@ -276,7 +317,10 @@ export default function InterviewResponsePage() {
 
   const formatConfig = MEETING_FORMAT_LABELS[interview.meeting_format] || { label: 'Interview', icon: Video };
   const FormatIcon = formatConfig.icon;
-  const companyDescription = interview.submission.job.industry 
+  const companyName = interview.submission.job.company_name || null;
+  const companyDescription = companyName
+    ? companyName
+    : interview.submission.job.industry
     ? `${interview.submission.job.industry}-Unternehmen`
     : 'Technologie-Unternehmen';
 
@@ -448,11 +492,35 @@ export default function InterviewResponsePage() {
                 })
               )}
 
+              {/* Einwilligung (DSGVO) – erst mit aktiver Zustimmung wird gebucht */}
+              <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold">Freigabe Ihrer Daten</p>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Mit der Bestätigung des Termins stimmen Sie zu, dass{' '}
+                  <strong className="text-foreground">{companyName || companyDescription}</strong> Ihren Namen,
+                  Ihre Kontaktdaten und Ihren Lebenslauf für dieses Bewerbungsverfahren erhält. Bis dahin bleiben
+                  Ihre Daten anonym. Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen.
+                </p>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="consent-reveal"
+                    checked={consentGiven}
+                    onCheckedChange={(c) => setConsentGiven(c === true)}
+                  />
+                  <Label htmlFor="consent-reveal" className="text-sm leading-relaxed cursor-pointer">
+                    Ich stimme der Freigabe meiner Daten an {companyName || 'das anfragende Unternehmen'} zu.
+                  </Label>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="pt-4 space-y-3">
-                <Button 
-                  onClick={handleAccept} 
-                  disabled={selectedIndex === null || submitting}
+                <Button
+                  onClick={handleAccept}
+                  disabled={selectedIndex === null || !consentGiven || submitting}
                   className="w-full bg-green-600 hover:bg-green-700"
                   size="lg"
                 >
@@ -464,7 +532,7 @@ export default function InterviewResponsePage() {
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Termin annehmen
+                      Zustimmen & Termin bestätigen
                     </>
                   )}
                 </Button>

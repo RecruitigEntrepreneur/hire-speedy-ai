@@ -75,6 +75,8 @@ import CompanyDetail from "./pages/admin/CompanyDetail";
 import AdminMatchingConfig from "./pages/admin/AdminMatchingConfig";
 import AdminDomains from "./pages/admin/AdminDomains";
 import AdminSkillSynonyms from "./pages/admin/AdminSkillSynonyms";
+import AdminAcademy from "./pages/admin/AdminAcademy";
+import AdminAcademyCourse from "./pages/admin/AdminAcademyCourse";
 
 // Client Analytics
 import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
@@ -400,6 +402,16 @@ function AppRoutes() {
       <Route path="/admin/skill-synonyms" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminSkillSynonyms />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/academy" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminAcademy />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/academy/courses/:id" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminAcademyCourse />
         </ProtectedRoute>
       } />
       <Route path="/admin/invoices" element={

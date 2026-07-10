@@ -11,39 +11,53 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
+// In Deno/Edge MUSS die async-Crypto-Variante genutzt werden — der synchrone
+// stripe.webhooks.constructEvent wirft, weil sync SubtleCrypto nicht verfügbar ist.
+const cryptoProvider = Stripe.createSubtleCryptoProvider();
+
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 
-  console.log("Received webhook event");
+  // FAIL CLOSED: Ohne konfiguriertes Secret oder ohne Signatur wird KEIN Event
+  // akzeptiert. (Vorher akzeptierte ein JSON.parse-Fallback gefälschte Events —
+  // P0, da dieser Webhook den Marktplatz-Geldfluss trägt.)
+  if (!webhookSecret || !signature) {
+    console.error("Webhook rejected: missing STRIPE_WEBHOOK_SECRET or stripe-signature header");
+    return new Response(JSON.stringify({ error: "Webhook not configured or unsigned" }), { status: 400 });
+  }
 
   let event: Stripe.Event;
-
   try {
-    // Verify webhook signature if secret is set
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    if (webhookSecret) {
-      event = stripe.webhooks.constructEvent(body, signature!, webhookSecret);
-    } else {
-      // For development/testing without webhook secret
-      event = JSON.parse(body);
-    }
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret, undefined, cryptoProvider);
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
-    return new Response(JSON.stringify({ error: "Invalid signature" }), {
-      status: 400,
-    });
+    return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 400 });
   }
 
   console.log(`Processing event: ${event.type}`);
 
-  // Log event to database
-  await supabaseAdmin.from("payment_events").insert({
-    stripe_event_id: event.id,
-    event_type: event.type,
-    payload: event.data.object,
-    processed: false,
-  });
+  // IDEMPOTENZ-GUARD: stripe_event_id ist UNIQUE. Bei Stripe-Retry (gleiche id)
+  // wird der Event genau EINMAL verarbeitet — kein Doppel-Escrow/Doppel-Payout.
+  const { data: inserted, error: insertErr } = await supabaseAdmin
+    .from("payment_events")
+    .upsert(
+      { stripe_event_id: event.id, event_type: event.type, payload: event.data.object, processed: false },
+      { onConflict: "stripe_event_id", ignoreDuplicates: true },
+    )
+    .select("stripe_event_id");
+
+  if (insertErr) {
+    console.error("Failed to record payment event:", insertErr);
+    return new Response(JSON.stringify({ error: "Storage error" }), { status: 500 });
+  }
+  if (!inserted || inserted.length === 0) {
+    console.log(`Duplicate event ${event.id} ignored (already processed).`);
+    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+      status: 200, headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
     switch (event.type) {

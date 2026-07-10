@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isMissingColumnError } from '@/lib/intakeCapture';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 import {
@@ -57,6 +58,8 @@ interface Job {
   recruiter_fee_percentage: number | null;
   urgency: string | null;
   status: string | null;
+  client_id?: string | null;
+  briefing_notes?: string | null;
 }
 
 interface JobApprovalDialogProps {
@@ -124,6 +127,24 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
 
       if (error) throw error;
 
+      // Summary entsteht ops-seitig beim Publish — nie als Kunden-Aufgabe.
+      // Fire-and-forget: Fehler blockieren die Freigabe nicht.
+      supabase.functions
+        .invoke('generate-job-summary', { body: { jobId: job.id } })
+        .catch((e) => console.warn('Auto-Summary fehlgeschlagen:', e));
+
+      // Kunde erfährt sofort, dass die Stelle live ist (vorher: Funkstille).
+      if (job.client_id) {
+        await supabase.from('notifications').insert({
+          user_id: job.client_id,
+          type: 'job_published',
+          title: 'Ihre Stelle ist live',
+          message: `„${job.title}" wurde geprüft und ist jetzt für unsere Recruiter sichtbar. Erste Kandidaten kommen erfahrungsgemäß in 3–5 Tagen.`,
+          related_type: 'job',
+          related_id: job.id,
+        });
+      }
+
       toast.success('Job genehmigt und veröffentlicht!');
       onApproved();
       onOpenChange(false);
@@ -140,16 +161,41 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const reason = rejectionNotes?.trim() || 'Bitte überprüfen Sie die Stellendetails.';
+
+      // Echte Spalten (Migration 20260710120000); Fallback vor dem Deploy:
+      // Grund VORNE an briefing_notes anhängen statt das Briefing zu überschreiben.
+      let { error } = await supabase
         .from('jobs')
         .update({
           status: 'draft',
-          // Store rejection notes in briefing_notes for now
-          briefing_notes: rejectionNotes ? `[ABGELEHNT] ${rejectionNotes}` : '[ABGELEHNT] Bitte überprüfen Sie die Stellendetails.',
-        })
+          rejection_reason: reason,
+          rejected_at: new Date().toISOString(),
+        } as any)
         .eq('id', job.id);
 
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase
+          .from('jobs')
+          .update({
+            status: 'draft',
+            briefing_notes: `[ABGELEHNT] ${reason}\n\n${job.briefing_notes || ''}`.trim(),
+          })
+          .eq('id', job.id));
+      }
+
       if (error) throw error;
+
+      if (job.client_id) {
+        await supabase.from('notifications').insert({
+          user_id: job.client_id,
+          type: 'job_rejected',
+          title: 'Stelle zurückgegeben',
+          message: `„${job.title}" wurde zurückgegeben: ${reason} Bitte ergänzen und erneut einreichen.`,
+          related_type: 'job',
+          related_id: job.id,
+        });
+      }
 
       toast.success('Job abgelehnt und an Kunden zurückgesendet');
       onApproved();

@@ -29,6 +29,7 @@ import {
   User,
   Mail,
   Keyboard,
+  GraduationCap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -47,6 +48,8 @@ import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsH
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  /** Volle Breite statt zentriertem `container` (z. B. fürs Bento-Dashboard). */
+  fluid?: boolean;
 }
 
 interface NavItem {
@@ -55,7 +58,7 @@ interface NavItem {
   icon: ReactNode;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
   const { user, role, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -89,6 +92,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Angebote', href: '/dashboard/offers', icon: <Gift className="h-4 w-4" /> },
     { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
+    { label: 'Team', href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
   ];
 
@@ -112,6 +116,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: 'Benutzer', href: '/admin/users', icon: <UsersRound className="h-4 w-4" /> },
     { label: 'Kunden', href: '/admin/clients', icon: <Building2 className="h-4 w-4" /> },
     { label: 'Recruiter', href: '/admin/recruiters', icon: <Users className="h-4 w-4" /> },
+    { label: 'Akademie', href: '/admin/academy', icon: <GraduationCap className="h-4 w-4" /> },
     { label: 'Alle Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Kandidaten', href: '/admin/candidates', icon: <FileText className="h-4 w-4" /> },
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
@@ -232,7 +237,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Main Content */}
         <main className="flex-1 md:ml-64">
-          <div className="container py-6">
+          <div className={cn(fluid ? 'w-full px-4 md:px-6' : 'container', 'py-6')}>
             {children}
           </div>
         </main>

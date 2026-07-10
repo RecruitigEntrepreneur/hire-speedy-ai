@@ -26,8 +26,9 @@ export function JobHealthIndicator({
   status,
 }: JobHealthIndicatorProps) {
   const health = useMemo(() => {
-    // Closed/draft jobs don't need health indicators
-    if (status === 'closed' || status === 'draft') {
+    // Whitelist statt Blacklist: Health nur für LIVE-Stellen — vorher bekamen
+    // Entwürfe und eingereichte Jobs (pending_approval) ein rotes "Kritisch".
+    if (status !== 'published') {
       return null;
     }
 

@@ -6,6 +6,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ALLOWED_ROLES = ['admin', 'hr', 'hiring_manager', 'viewer'];
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrator',
+  hr: 'HR / Recruiting',
+  hiring_manager: 'Hiring Manager',
+  viewer: 'Betrachter',
+};
+
+// Token: 32 Zufallsbytes, base64url. In der DB liegt NUR der SHA-256-Hash.
+function generateToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,10 +52,7 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(
@@ -31,150 +60,193 @@ serve(async (req) => {
     );
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const { organization_id, email, role, permissions } = await req.json();
+    const { organization_id, email, role, job_ids } = await req.json();
 
     if (!organization_id || !email || !role) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Missing required fields' }, 400);
+    }
+    if (!ALLOWED_ROLES.includes(role)) {
+      return jsonResponse({ error: 'Invalid role' }, 400);
     }
 
-    // Verify user is org admin
-    const { data: membership, error: memberError } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', organization_id)
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single();
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const jobIds: string[] = Array.isArray(job_ids) ? job_ids : [];
 
-    if (memberError || !membership || !['owner', 'admin'].includes(membership.role)) {
-      return new Response(JSON.stringify({ error: 'Not authorized to invite members' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Get organization details
+    // Nur Org-Admins (owner/admin) dürfen einladen
     const { data: org, error: orgError } = await supabase
       .from('organizations')
-      .select('name')
+      .select('id, name, owner_id')
       .eq('id', organization_id)
       .single();
 
     if (orgError || !org) {
-      return new Response(JSON.stringify({ error: 'Organization not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Organization not found' }, 404);
     }
 
-    // Check if email already invited or member
+    let isAdmin = org.owner_id === user.id;
+    if (!isAdmin) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('organization_id', organization_id)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      isAdmin = !!membership && ['owner', 'admin'].includes(membership.role);
+    }
+    if (!isAdmin) {
+      return jsonResponse({ error: 'Not authorized to invite members' }, 403);
+    }
+
+    // Job-Scoping validieren: alle Jobs müssen zur Organisation gehören
+    if (jobIds.length > 0) {
+      const { data: jobs, error: jobsError } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('organization_id', organization_id)
+        .in('id', jobIds);
+      if (jobsError || (jobs?.length ?? 0) !== jobIds.length) {
+        return jsonResponse({ error: 'One or more jobs do not belong to this organization' }, 400);
+      }
+    }
+
+    // Ist die E-Mail bereits aktives Mitglied?
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (existingProfile) {
+      const { data: existingMember } = await supabase
+        .from('organization_members')
+        .select('id, status')
+        .eq('organization_id', organization_id)
+        .eq('user_id', existingProfile.user_id)
+        .maybeSingle();
+      if (existingMember?.status === 'active') {
+        return jsonResponse({ error: 'User is already an active member' }, 400);
+      }
+    }
+
+    // Offene Einladung für diese E-Mail?
     const { data: existingInvite } = await supabase
       .from('organization_invites')
       .select('id')
       .eq('organization_id', organization_id)
-      .eq('email', email)
+      .ilike('email', normalizedEmail)
       .is('accepted_at', null)
-      .single();
+      .is('revoked_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
 
     if (existingInvite) {
-      return new Response(JSON.stringify({ error: 'User already invited' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'User already invited' }, 400);
     }
 
-    // Generate secure token
-    const token = crypto.randomUUID() + '-' + crypto.randomUUID();
+    // Token erzeugen — Klartext geht NUR per E-Mail/Antwort raus, DB speichert den Hash
+    const token = generateToken();
+    const tokenHash = await sha256Hex(token);
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Create invite
     const { data: invite, error: inviteError } = await supabase
       .from('organization_invites')
       .insert({
         organization_id,
-        email,
+        email: normalizedEmail,
         role,
-        permissions: permissions || [],
-        token,
+        job_ids: jobIds,
+        token_hash: tokenHash,
         expires_at: expiresAt.toISOString(),
         invited_by: user.id,
       })
-      .select()
+      .select('id, email, role, job_ids, expires_at')
       .single();
 
     if (inviteError) {
       console.error('Error creating invite:', inviteError);
-      return new Response(JSON.stringify({ error: 'Failed to create invite' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: 'Failed to create invite' }, 500);
     }
 
-    // Send invite email if Resend is configured
+    const origin = req.headers.get('origin') || Deno.env.get('SITE_URL') || '';
+    const inviteUrl = `${origin}/invite/${token}`;
+
+    // Name des Einladenden für die E-Mail
+    const { data: inviterProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const inviterName = inviterProfile?.full_name || 'Ihr Team';
+
+    let emailSent = false;
     if (resendApiKey) {
-      const inviteUrl = `${req.headers.get('origin')}/invite/${token}`;
-      
       try {
-        await fetch('https://api.resend.com/emails', {
+        const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${resendApiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'RecruitFlow <noreply@recruitflow.app>',
-            to: [email],
-            subject: `Einladung zu ${org.name}`,
+            from: Deno.env.get('RESEND_FROM') || 'Matchunt <onboarding@resend.dev>',
+            to: [normalizedEmail],
+            subject: `${inviterName} lädt Sie zu ${org.name} ein`,
             html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2>Sie wurden zu ${org.name} eingeladen</h2>
-                <p>Sie wurden als ${role} zu ${org.name} auf RecruitFlow eingeladen.</p>
-                <p>Klicken Sie auf den folgenden Link, um die Einladung anzunehmen:</p>
-                <a href="${inviteUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-                  Einladung annehmen
-                </a>
-                <p style="color: #666; font-size: 14px;">
-                  Dieser Link ist 7 Tage gültig.
-                </p>
+              <div style="font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
+                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 12px 12px 0 0; padding: 32px; text-align: center;">
+                  <h1 style="color: #ffffff; font-size: 22px; margin: 0;">Team-Einladung</h1>
+                </div>
+                <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
+                  <p>Guten Tag,</p>
+                  <p><strong>${inviterName}</strong> hat Sie eingeladen, dem Team von <strong>${org.name}</strong> auf Matchunt beizutreten.</p>
+                  <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    <tr>
+                      <td style="padding: 8px 0; color: #64748b;">Ihre Rolle</td>
+                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${ROLE_LABELS[role] ?? role}</td>
+                    </tr>
+                  </table>
+                  <div style="text-align: center; margin: 24px 0;">
+                    <a href="${inviteUrl}" style="display: inline-block; padding: 12px 28px; background: #0f172a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                      Einladung annehmen
+                    </a>
+                  </div>
+                  <p style="color: #64748b; font-size: 13px;">
+                    Dieser Link ist 7 Tage gültig und kann nur einmal verwendet werden.
+                    Falls Sie diese Einladung nicht erwartet haben, können Sie diese E-Mail ignorieren.
+                  </p>
+                </div>
               </div>
             `,
           }),
         });
+        emailSent = res.ok;
+        if (!res.ok) {
+          console.error('Resend error:', await res.text());
+        }
       } catch (emailError) {
         console.error('Error sending email:', emailError);
-        // Don't fail the request, invite is still created
       }
     }
 
-    console.log(`Invite created for ${email} to org ${organization_id}`);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
+    return jsonResponse({
+      success: true,
+      email_sent: emailSent,
+      invite_url: inviteUrl,
       invite: {
         id: invite.id,
         email: invite.email,
         role: invite.role,
+        job_ids: invite.job_ids,
         expires_at: invite.expires_at,
-      }
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     });
-
   } catch (error) {
     console.error('Error in organization-invite:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: error instanceof Error ? error.message : 'Unknown error' }, 500);
   }
 });

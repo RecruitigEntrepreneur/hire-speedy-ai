@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { insertJobWithIntake, coerceLeadingInt } from '@/lib/intakeCapture';
 import { useClientVerification } from '@/hooks/useClientVerification';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -125,14 +126,15 @@ export default function CreateJob() {
   const [intakeCompleteness, setIntakeCompleteness] = useState(0);
   const [intakeData, setIntakeData] = useState<Partial<ExtractedIntakeData>>({});
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     title: '',
     company_name: '',
     description: '',
     requirements: '',
     location: '',
     remote_type: 'hybrid',
-    employment_type: 'full-time',
+    // Typ kommt vom Dashboard ("Festanstellung" -> full-time, "Freelance" -> freelance)
+    employment_type: searchParams.get('type') === 'freelance' ? 'freelance' : 'full-time',
     experience_level: 'mid',
     salary_min: '',
     salary_max: '',
@@ -154,7 +156,7 @@ export default function CreateJob() {
     remote_days: '',
     company_culture: '',
     career_path: '',
-  });
+  }));
 
   const handleInputChange = (field: string, value: string | unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -607,9 +609,15 @@ export default function CreateJob() {
         ? formData.tech_environment.split(',').map(s => s.trim()).filter(Boolean)
         : [];
 
-      const { data, error } = await supabase
-        .from('jobs')
-        .insert({
+      // Echter Briefing-Text (D5-Fix): vorher landete fälschlich nur
+      // company_culture in intake_briefing.
+      const briefingText = Object.entries(intakeData)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\n');
+
+      const { data, error } = await insertJobWithIntake(
+        {
           client_id: user?.id,
           title: formData.title,
           company_name: formData.company_name,
@@ -627,17 +635,17 @@ export default function CreateJob() {
           status: publish ? 'pending_approval' : 'draft',
           office_address: formData.office_address || null,
           remote_policy: formData.remote_policy || null,
-          onsite_days_required: formData.remote_policy === 'hybrid' ? parseInt(formData.onsite_days_required) : null,
+          onsite_days_required: formData.remote_policy === 'hybrid' ? coerceLeadingInt(formData.onsite_days_required) : null,
           industry: formData.industry || null,
           company_size_band: formData.company_size_band || null,
           funding_stage: formData.funding_stage || null,
           tech_environment: techEnvironmentArray.length > 0 ? techEnvironmentArray : null,
           hiring_urgency: formData.hiring_urgency !== 'standard' ? formData.hiring_urgency : null,
-          team_size: formData.team_size ? parseInt(formData.team_size) : null,
+          team_size: coerceLeadingInt(formData.team_size),
           vacancy_reason: formData.vacancy_reason || null,
-          candidates_in_pipeline: formData.candidates_in_pipeline ? parseInt(formData.candidates_in_pipeline) : null,
+          candidates_in_pipeline: coerceLeadingInt(formData.candidates_in_pipeline),
           intake_completeness: intakeCompleteness || null,
-          intake_briefing: intakeData.company_culture || null,
+          intake_briefing: briefingText || null,
           company_culture: intakeData.company_culture || null,
           career_path: intakeData.career_path || null,
           success_profile: intakeData.success_profile || null,
@@ -647,9 +655,17 @@ export default function CreateJob() {
           nice_to_have_criteria: intakeData.nice_to_have_criteria || null,
           reports_to: intakeData.reports_to || null,
           works_council: intakeData.works_council || null,
-        })
-        .select()
-        .single();
+        },
+        {
+          intake_payload: {
+            source: 'create_job_wizard',
+            captured_at: new Date().toISOString(),
+            intake: intakeData,
+            briefing_text: briefingText || null,
+            candidates_in_pipeline_raw: formData.candidates_in_pipeline || null,
+          },
+        },
+      );
 
       if (error) throw error;
 

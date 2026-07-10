@@ -43,11 +43,26 @@ import { SellingPointsCard } from '@/components/client/SellingPointsCard';
 import { CommunicationLogCard } from '@/components/client/CommunicationLogCard';
 
 
-import { 
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Circle,
+  Clock,
   Loader2,
+  Lock,
   Calendar,
+  Sparkles,
+  UserPlus,
   X,
+  XCircle,
 } from 'lucide-react';
+import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog';
+import { useMyOrganization } from '@/hooks/useOrganization';
+import { resolveIntakeSubmitTarget, notifyApproversOfIntake, notifyCreatorOfDecision } from '@/lib/intakeApproval';
+import { JobIntakeStudio } from '@/components/dashboard/JobIntakeStudio';
+import { isMissingColumnError } from '@/lib/intakeCapture';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -75,6 +90,8 @@ interface Job {
   id: string;
   title: string;
   company_name: string;
+  briefing_notes?: string | null;
+  rejection_reason?: string | null;
   location: string | null;
   remote_type: string | null;
   employment_type: string | null;
@@ -156,6 +173,7 @@ export default function ClientJobDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { organization: myOrg, myRole: myOrgRole, isAdmin: isOrgAdmin } = useMyOrganization();
   const [job, setJob] = useState<Job | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -163,6 +181,11 @@ export default function ClientJobDetail() {
   
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [decidingIntake, setDecidingIntake] = useState(false);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [returnNoteDraft, setReturnNoteDraft] = useState('');
   const [editDialogTab, setEditDialogTab] = useState<string | undefined>(undefined);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [showCandidateView, setShowCandidateView] = useState(false);
@@ -403,12 +426,11 @@ export default function ClientJobDetail() {
     if (!job) return;
     try {
       const isPaused = !!job.paused_at;
+      // Nur paused_at toggeln — vorher zwang "Reaktivieren" JEDEN Status auf
+      // 'published' (Freigabe-Bypass: Entwurf → pausieren → reaktivieren = live).
       const { error } = await supabase
         .from('jobs')
-        .update({ 
-          paused_at: isPaused ? null : new Date().toISOString(),
-          status: isPaused ? 'published' : job.status,
-        })
+        .update({ paused_at: isPaused ? null : new Date().toISOString() })
         .eq('id', job.id);
 
       if (error) throw error;
@@ -465,11 +487,332 @@ export default function ClientJobDetail() {
     );
   }
 
+  // ---- Lebenszyklus-Phase: Entwurf/Freigabe/Zurückgegeben bekommen ein
+  // eigenes, ehrliches Layout statt des Aktiv-Cockpits. ---------------------
+  const reviewRejectionReason =
+    job.status === 'draft'
+      ? job.rejection_reason ||
+        (job.briefing_notes?.startsWith('[ABGELEHNT]')
+          ? job.briefing_notes.split('\n')[0].replace('[ABGELEHNT]', '').trim()
+          : null)
+      : null;
+
+  // Interne Rückgabe-Notiz (Team-Freigabe) — getrennt von der Matchunt-Ablehnung
+  const clientReturnNote: string | null =
+    job.status === 'draft'
+      ? (((job as unknown as Record<string, unknown>).client_approval_note as string | null) ?? null)
+      : null;
+
+  const phase =
+    job.status === 'draft' ? (reviewRejectionReason || clientReturnNote ? 'returned' : 'draft')
+    : job.status === 'pending_approval' ? 'review'
+    : job.status === 'pending_client_approval' ? 'client_approval'
+    : 'live';
+
+  if (phase !== 'live') {
+    const raw = job as unknown as Record<string, any>;
+    const reife: number = raw.intake_completeness ?? 0;
+    const isFreelanceJob = job.employment_type === 'freelance';
+    const missing: string[] = [];
+    if (!isFreelanceJob && !job.salary_min && !job.salary_max) missing.push('Gehaltsband');
+    if (!job.location && job.remote_type !== 'remote') missing.push('Standort');
+    const canSubmit = missing.length === 0 && reife >= 30;
+
+    const submitForReview = async () => {
+      setSubmittingReview(true);
+      // Hiring Manager + aktivierte interne Freigabe → erst zu Admin/HR
+      const target = await resolveIntakeSubmitTarget(user!.id);
+      let { error } = await supabase
+        .from('jobs')
+        .update({ status: target.status, rejection_reason: null, rejected_at: null, client_approval_note: null } as any)
+        .eq('id', job.id);
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase.from('jobs').update({ status: 'pending_approval' }).eq('id', job.id));
+      }
+      setSubmittingReview(false);
+      if (error) {
+        toast({ title: 'Einreichen fehlgeschlagen', variant: 'destructive' });
+        return;
+      }
+      if (target.status === 'pending_client_approval' && target.organizationId) {
+        await notifyApproversOfIntake(target.organizationId, job.id, job.title, user?.id);
+        toast({ title: 'Zur internen Freigabe eingereicht — Admin/HR Ihres Teams wurden benachrichtigt.' });
+      } else {
+        toast({ title: 'Zur Prüfung eingereicht — wir benachrichtigen Sie, sobald die Stelle live ist.' });
+      }
+      fetchJobData();
+    };
+
+    const withdraw = async () => {
+      const { error } = await supabase.from('jobs').update({ status: 'draft' }).eq('id', job.id);
+      if (!error) {
+        toast({ title: 'Zurückgezogen — die Stelle ist wieder ein Entwurf.' });
+        fetchJobData();
+      }
+    };
+
+    // Interne Freigabe: Admin/HR geben frei (→ Matchunt) oder geben mit Kommentar zurück
+    const canApproveIntake = ['owner', 'admin', 'hr'].includes(myOrgRole ?? '');
+    const jobCreatorId = (job as unknown as { client_id: string }).client_id;
+
+    const approveIntake = async () => {
+      setDecidingIntake(true);
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'pending_approval',
+          client_approved_by: user?.id ?? null,
+          client_approved_at: new Date().toISOString(),
+          client_approval_note: null,
+        })
+        .eq('id', job.id);
+      setDecidingIntake(false);
+      if (error) {
+        toast({ title: 'Freigabe fehlgeschlagen', variant: 'destructive' });
+        return;
+      }
+      if (jobCreatorId && jobCreatorId !== user?.id) {
+        await notifyCreatorOfDecision(jobCreatorId, job.id, job.title, 'approved');
+      }
+      toast({ title: 'Freigegeben — die Stelle geht jetzt an Matchunt zur Prüfung.' });
+      fetchJobData();
+    };
+
+    const returnIntake = async () => {
+      if (!returnNoteDraft.trim()) return;
+      setDecidingIntake(true);
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: 'draft', client_approval_note: returnNoteDraft.trim() })
+        .eq('id', job.id);
+      setDecidingIntake(false);
+      if (error) {
+        toast({ title: 'Zurückgeben fehlgeschlagen', variant: 'destructive' });
+        return;
+      }
+      if (jobCreatorId && jobCreatorId !== user?.id) {
+        await notifyCreatorOfDecision(jobCreatorId, job.id, job.title, 'returned', returnNoteDraft.trim());
+      }
+      setShowReturnDialog(false);
+      setReturnNoteDraft('');
+      toast({ title: 'Zurückgegeben — der Fachbereich wurde benachrichtigt.' });
+      fetchJobData();
+    };
+
+    const steps = phase === 'client_approval'
+      ? ['Entwurf', 'Interne Freigabe', 'Prüfung Matchunt', 'Aktiv']
+      : ['Entwurf', 'In Freigabe', 'Aktiv', 'Besetzt'];
+    const stepIdx = phase === 'review' || phase === 'client_approval' ? 1 : 0;
+    const flex: Record<string, string> = raw.intake_payload?.flexibility ?? {};
+    const descriptor: string | null = raw.reveal_envelope?.descriptor ?? null;
+    const flexLabel = (s: string) => (flex[s] === 'negotiable' ? 'verhandelbar' : flex[s] === 'flexible' ? 'flexibel' : 'fix');
+
+    return (
+      <DashboardLayout>
+        <div className="mx-auto max-w-4xl space-y-4">
+          <Link to="/dashboard/jobs" className="inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Zurück zur Übersicht
+          </Link>
+
+          {phase === 'returned' && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  {reviewRejectionReason ? 'Aus der Prüfung zurückgegeben' : 'Vom Team zurückgegeben'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Grund: {reviewRejectionReason || clientReturnNote}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Phasen-Hero */}
+          <div className="rounded-xl border bg-card p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold capitalize md:text-2xl">{job.title}</h1>
+              {phase === 'review' ? (
+                <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-600">
+                  <Clock className="h-3 w-3" /> In Freigabe
+                </Badge>
+              ) : phase === 'client_approval' ? (
+                <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-600">
+                  <Clock className="h-3 w-3" /> Interne Freigabe
+                </Badge>
+              ) : (
+                <>
+                  <Badge variant="secondary" className="text-xs">Entwurf</Badge>
+                  <Badge variant="outline" className="border-primary/40 text-xs text-primary">Reife {reife} %</Badge>
+                </>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {phase === 'review'
+                ? `Eingereicht am ${new Date((raw.updated_at as string) || job.created_at).toLocaleDateString('de-DE')} — Prüfung i. d. R. unter 24 Std. Wir benachrichtigen Sie.`
+                : phase === 'client_approval'
+                ? `Eingereicht am ${new Date((raw.updated_at as string) || job.created_at).toLocaleDateString('de-DE')} — wartet auf interne Freigabe durch Admin/HR Ihres Teams.`
+                : `zuletzt bearbeitet vor ${Math.max(0, Math.floor((Date.now() - new Date((raw.updated_at as string) || job.created_at).getTime()) / 86_400_000))} Tagen${job.location ? ` · ${job.location}` : ''}${job.remote_type ? ` · ${job.remote_type === 'remote' ? 'Remote' : job.remote_type === 'onsite' ? 'Vor Ort' : 'Hybrid'}` : ''}`}
+            </p>
+
+            {/* Status-Stepper (Kandidaten/Interviews sind Funnel, keine Status) */}
+            <div className="mt-4 flex items-center gap-2 text-xs">
+              {steps.map((s, i) => (
+                <span key={s} className="flex flex-1 items-center gap-2 last:flex-none">
+                  <span className={cn('flex items-center gap-1.5 whitespace-nowrap', i === stepIdx ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+                    <span className={cn('flex h-5 w-5 items-center justify-center rounded-full text-[10px]', i === stepIdx ? 'bg-primary text-primary-foreground' : i < stepIdx ? 'bg-primary/20 text-primary' : 'bg-muted')}>
+                      {i + 1}
+                    </span>
+                    {s}
+                  </span>
+                  {i < steps.length - 1 && <span className="h-px flex-1 bg-border" />}
+                </span>
+              ))}
+            </div>
+
+            {/* Aktionen je Phase */}
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+              {phase === 'review' ? (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={withdraw}>
+                  <XCircle className="h-4 w-4" /> Aus Prüfung zurückziehen
+                </Button>
+              ) : phase === 'client_approval' ? (
+                canApproveIntake ? (
+                  <>
+                    <Button variant="hero" size="sm" className="gap-1.5" onClick={approveIntake} disabled={decidingIntake}>
+                      {decidingIntake ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                      Freigeben & an Matchunt senden
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowReturnDialog(true)} disabled={decidingIntake}>
+                      <XCircle className="h-4 w-4" /> Mit Kommentar zurückgeben
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm text-muted-foreground">
+                      Admin/HR Ihres Teams wurden benachrichtigt und geben die Aufnahme frei.
+                    </span>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={withdraw}>
+                      <XCircle className="h-4 w-4" /> Zurückziehen
+                    </Button>
+                  </>
+                )
+              ) : (
+                <>
+                  <Button variant="hero" size="sm" className="gap-1.5" onClick={() => setStudioOpen(true)}>
+                    <Sparkles className="h-4 w-4" /> Weiter im Studio
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5" onClick={submitForReview} disabled={!canSubmit || submittingReview}>
+                    {submittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                    Zur Prüfung einreichen
+                  </Button>
+                  {!canSubmit && (
+                    <span className="text-xs text-muted-foreground">
+                      {missing.length > 0 ? `es fehlen ${missing.join(' & ')}` : 'Briefing-Reife unter 30 %'}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Briefing-Reife — die eine Score-Wahrheit */}
+            <div className="rounded-xl border bg-card p-4">
+              <p className="mb-2 flex items-center justify-between text-sm font-semibold">
+                Briefing-Reife
+                <span className="font-bold text-primary">{reife}/100</span>
+              </p>
+              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${reife}%` }} />
+              </div>
+              {missing.map((m) => (
+                <p key={m} className="mb-1.5 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {m} fehlt
+                </p>
+              ))}
+              {(job.must_haves?.length ?? 0) === 0 && (
+                <p className="mb-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <Circle className="mt-0.5 h-3 w-3 shrink-0" /> Muss-Kriterien definieren
+                </p>
+              )}
+              {phase !== 'review' && phase !== 'client_approval' && (
+                <Button variant="ghost" size="sm" className="mt-1 h-7 gap-1 px-2 text-xs text-primary" onClick={() => setStudioOpen(true)}>
+                  Im Studio vervollständigen <ArrowRight className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+
+            {/* Das sehen die Recruiter (Triple-Blind-Vorschau) */}
+            <div className="rounded-xl border bg-muted/30 p-4">
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                <Lock className="h-4 w-4 text-muted-foreground" /> Das sehen die Recruiter
+              </p>
+              <p className="mb-2 text-sm italic text-muted-foreground">
+                „{descriptor || [job.industry, job.location && `Region ${job.location}`].filter(Boolean).join(', ') || 'Anonymer Firmen-Descriptor noch offen'}"
+              </p>
+              {(job.must_haves?.length ?? 0) > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {(job.must_haves || []).slice(0, 6).map((s) => (
+                    <Badge key={s} variant="outline" className="text-[10px]">
+                      {s} · {flexLabel(s)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Firmen-Reveal: {raw.reveal_trigger === 'opt_in' ? 'beim Kandidaten-Opt-In' : raw.reveal_trigger === 'offer' ? 'erst beim Angebot' : 'nach dem 1. Interview'}
+              </p>
+            </div>
+          </div>
+
+          <JobIntakeStudio
+            open={studioOpen}
+            type={isFreelanceJob ? 'freelance' : 'full-time'}
+            initialDraft={{ id: job.id, row: raw }}
+            onOpenChange={(o) => {
+              setStudioOpen(o);
+              if (!o) fetchJobData();
+            }}
+          />
+
+          {/* Interne Rückgabe mit Kommentar (Team-Freigabe) */}
+          <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>An den Fachbereich zurückgeben</DialogTitle>
+                <DialogDescription>
+                  Die Aufnahme geht als Entwurf zurück. Ihr Kommentar wird dem Ersteller angezeigt.
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                value={returnNoteDraft}
+                onChange={(e) => setReturnNoteDraft(e.target.value)}
+                placeholder="Was soll angepasst werden? (Pflichtfeld)"
+                rows={4}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowReturnDialog(false)}>
+                  Abbrechen
+                </Button>
+                <Button onClick={returnIntake} disabled={!returnNoteDraft.trim() || decidingIntake}>
+                  {decidingIntake && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Zurückgeben
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Hero Section */}
-        <ClientJobHero 
+        <ClientJobHero
           job={job}
           stats={{
             totalSubmissions,
@@ -483,6 +826,23 @@ export default function ClientJobDetail() {
           onPauseToggle={handlePauseToggle}
           showStats={hasCandidates}
         />
+
+        {/* Fachbereich einladen — kontextuell auf diesen Job gescoped */}
+        {isOrgAdmin && myOrg && (
+          <div className="flex justify-end">
+            <InviteMemberDialog
+              organizationId={myOrg.id}
+              defaultRole="hiring_manager"
+              defaultJobIds={[job.id]}
+              trigger={
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <UserPlus className="h-4 w-4" />
+                  Fachbereich einladen
+                </Button>
+              }
+            />
+          </div>
+        )}
 
         {/* Phase-adaptive Bento Grid */}
         {!hasCandidates ? (
