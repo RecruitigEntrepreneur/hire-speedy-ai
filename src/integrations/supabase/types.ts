@@ -2623,30 +2623,6 @@ export type Database = {
           user_id: string
           website: string | null
           work_style: string | null
-          average_hiring_duration: string | null
-          career_page_url: string | null
-          company_size: string | null
-          contacts: Json | null
-          data_sources: Json | null
-          default_hiring_process: Json | null
-          email_domains: string[] | null
-          employer_selling_points: Json | null
-          excluded_companies: string[] | null
-          feedback_speed: string | null
-          field_verification: Json | null
-          interview_rounds: number | null
-          last_customer_verified_at: string | null
-          legal_name: string | null
-          linkedin_url: string | null
-          onboarding_status: Json | null
-          personality_fit: Json | null
-          personality_no_fit: string | null
-          products_services: Json | null
-          quality_breakdown: Json | null
-          quality_score: number | null
-          sub_industry: string | null
-          target_companies: string[] | null
-          target_markets: Json | null
         }
         Insert: {
           address?: string | null
@@ -2681,30 +2657,6 @@ export type Database = {
           user_id: string
           website?: string | null
           work_style?: string | null
-          average_hiring_duration?: string | null
-          career_page_url?: string | null
-          company_size?: string | null
-          contacts?: Json | null
-          data_sources?: Json | null
-          default_hiring_process?: Json | null
-          email_domains?: string[] | null
-          employer_selling_points?: Json | null
-          excluded_companies?: string[] | null
-          feedback_speed?: string | null
-          field_verification?: Json | null
-          interview_rounds?: number | null
-          last_customer_verified_at?: string | null
-          legal_name?: string | null
-          linkedin_url?: string | null
-          onboarding_status?: Json | null
-          personality_fit?: Json | null
-          personality_no_fit?: string | null
-          products_services?: Json | null
-          quality_breakdown?: Json | null
-          quality_score?: number | null
-          sub_industry?: string | null
-          target_companies?: string[] | null
-          target_markets?: Json | null
         }
         Update: {
           address?: string | null
@@ -2739,30 +2691,6 @@ export type Database = {
           user_id?: string
           website?: string | null
           work_style?: string | null
-          average_hiring_duration?: string | null
-          career_page_url?: string | null
-          company_size?: string | null
-          contacts?: Json | null
-          data_sources?: Json | null
-          default_hiring_process?: Json | null
-          email_domains?: string[] | null
-          employer_selling_points?: Json | null
-          excluded_companies?: string[] | null
-          feedback_speed?: string | null
-          field_verification?: Json | null
-          interview_rounds?: number | null
-          last_customer_verified_at?: string | null
-          legal_name?: string | null
-          linkedin_url?: string | null
-          onboarding_status?: Json | null
-          personality_fit?: Json | null
-          personality_no_fit?: string | null
-          products_services?: Json | null
-          quality_breakdown?: Json | null
-          quality_score?: number | null
-          sub_industry?: string | null
-          target_companies?: string[] | null
-          target_markets?: Json | null
         }
         Relationships: []
       }
@@ -4285,6 +4213,48 @@ export type Database = {
           },
         ]
       }
+      job_collaborators: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          job_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_collaborators_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_collaborators_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_scorecards: {
         Row: {
           created_at: string | null
@@ -4389,41 +4359,6 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "recruiter_jobs_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      job_collaborators: {
-        Row: {
-          added_by: string | null
-          created_at: string
-          id: string
-          job_id: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          added_by?: string | null
-          created_at?: string
-          id?: string
-          job_id: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          added_by?: string | null
-          created_at?: string
-          id?: string
-          job_id?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "job_collaborators_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -8907,6 +8842,7 @@ export type Database = {
           linkedin_url: string | null
           match_score: number | null
           notice_period: string | null
+          organization_id: string | null
           phone: string | null
           recruiter_notes: string | null
           region_broad: string | null
@@ -8923,6 +8859,13 @@ export type Database = {
           target_roles: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "submissions_candidate_id_fkey"
             columns: ["candidate_id"]
@@ -9293,6 +9236,15 @@ export type Database = {
       anon_experience_band: { Args: { years: number }; Returns: string }
       anon_region_broad: { Args: { city: string }; Returns: string }
       anon_salary_band: { Args: { salary: number }; Returns: string }
+      can_access_job: {
+        Args: { _job_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      can_create_job: { Args: { _user_id?: string }; Returns: boolean }
+      can_edit_job: {
+        Args: { _job_id: string; _user_id?: string }
+        Returns: boolean
+      }
       find_similar_candidates: {
         Args: {
           exclude_id?: string
@@ -9319,19 +9271,39 @@ export type Database = {
           skills: string[]
         }[]
       }
+      get_org_role: {
+        Args: { _org_id: string; _user_id?: string }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
-      }
-      log_candidate_access: {
-        Args: { _submission_id: string }
-        Returns: undefined
       }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_job_collaborator: {
+        Args: { _job_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      is_org_admin: {
+        Args: { _org_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      is_org_member: {
+        Args: { _org_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      log_candidate_access: {
+        Args: { _submission_id: string }
+        Returns: undefined
+      }
+      org_intake_approval_required: {
+        Args: { _org_id: string }
         Returns: boolean
       }
       scrub_identity_tokens: {
