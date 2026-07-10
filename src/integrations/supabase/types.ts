@@ -22,6 +22,7 @@ export type Database = {
           entity_id: string | null
           entity_type: string | null
           id: string
+          organization_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          organization_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          organization_id?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -4207,6 +4210,48 @@ export type Database = {
           },
         ]
       }
+      job_collaborators: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          id: string
+          job_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_collaborators_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_collaborators_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_scorecards: {
         Row: {
           created_at: string | null
@@ -4326,6 +4371,9 @@ export type Database = {
           candidates_in_pipeline: number | null
           career_example: string | null
           career_path: string | null
+          client_approval_note: string | null
+          client_approved_at: string | null
+          client_approved_by: string | null
           client_id: string
           commute_flexibility: string | null
           company_culture: string | null
@@ -4413,6 +4461,9 @@ export type Database = {
           candidates_in_pipeline?: number | null
           career_example?: string | null
           career_path?: string | null
+          client_approval_note?: string | null
+          client_approved_at?: string | null
+          client_approved_by?: string | null
           client_id: string
           commute_flexibility?: string | null
           company_culture?: string | null
@@ -4500,6 +4551,9 @@ export type Database = {
           candidates_in_pipeline?: number | null
           career_example?: string | null
           career_path?: string | null
+          client_approval_note?: string | null
+          client_approved_at?: string | null
+          client_approved_by?: string | null
           client_id?: string
           commute_flexibility?: string | null
           company_culture?: string | null
@@ -5412,10 +5466,13 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string
+          job_ids: string[]
           organization_id: string
           permissions: Json | null
+          revoked_at: string | null
           role: string
-          token: string
+          token: string | null
+          token_hash: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -5424,10 +5481,13 @@ export type Database = {
           expires_at: string
           id?: string
           invited_by: string
+          job_ids?: string[]
           organization_id: string
           permissions?: Json | null
+          revoked_at?: string | null
           role: string
-          token: string
+          token?: string | null
+          token_hash?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -5436,10 +5496,13 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string
+          job_ids?: string[]
           organization_id?: string
           permissions?: Json | null
+          revoked_at?: string | null
           role?: string
-          token?: string
+          token?: string | null
+          token_hash?: string | null
         }
         Relationships: [
           {
@@ -8776,6 +8839,7 @@ export type Database = {
           linkedin_url: string | null
           match_score: number | null
           notice_period: string | null
+          organization_id: string | null
           phone: string | null
           recruiter_notes: string | null
           region_broad: string | null
@@ -8792,6 +8856,13 @@ export type Database = {
           target_roles: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "submissions_candidate_id_fkey"
             columns: ["candidate_id"]
@@ -9162,6 +9233,15 @@ export type Database = {
       anon_experience_band: { Args: { years: number }; Returns: string }
       anon_region_broad: { Args: { city: string }; Returns: string }
       anon_salary_band: { Args: { salary: number }; Returns: string }
+      can_access_job: {
+        Args: { _job_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      can_create_job: { Args: { _user_id?: string }; Returns: boolean }
+      can_edit_job: {
+        Args: { _job_id: string; _user_id?: string }
+        Returns: boolean
+      }
       find_similar_candidates: {
         Args: {
           exclude_id?: string
@@ -9188,6 +9268,10 @@ export type Database = {
           skills: string[]
         }[]
       }
+      get_org_role: {
+        Args: { _org_id: string; _user_id?: string }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -9197,6 +9281,26 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_job_collaborator: {
+        Args: { _job_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      is_org_admin: {
+        Args: { _org_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      is_org_member: {
+        Args: { _org_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      log_candidate_access: {
+        Args: { _submission_id: string }
+        Returns: undefined
+      }
+      org_intake_approval_required: {
+        Args: { _org_id: string }
         Returns: boolean
       }
       scrub_identity_tokens: {
