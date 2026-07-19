@@ -4433,6 +4433,8 @@ export type Database = {
           required_certifications: string[] | null
           required_languages: Json | null
           requirements: string | null
+          requirements_normalization_version: string | null
+          requirements_normalized_at: string | null
           salary_max: number | null
           salary_min: number | null
           screening_questions: Json | null
@@ -4523,6 +4525,8 @@ export type Database = {
           required_certifications?: string[] | null
           required_languages?: Json | null
           requirements?: string | null
+          requirements_normalization_version?: string | null
+          requirements_normalized_at?: string | null
           salary_max?: number | null
           salary_min?: number | null
           screening_questions?: Json | null
@@ -4613,6 +4617,8 @@ export type Database = {
           required_certifications?: string[] | null
           required_languages?: Json | null
           requirements?: string | null
+          requirements_normalization_version?: string | null
+          requirements_normalized_at?: string | null
           salary_max?: number | null
           salary_min?: number | null
           screening_questions?: Json | null
@@ -4643,6 +4649,108 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      match_ai_judgements: {
+        Row: {
+          blended_score: number | null
+          candidate_id: string
+          created_at: string
+          dimensions: Json
+          id: string
+          input_hash: string
+          job_id: string
+          judge_model: string
+          prompt_version: string
+          red_flags: Json
+          summary: string | null
+          v31_score: number | null
+          weighted_score: number
+        }
+        Insert: {
+          blended_score?: number | null
+          candidate_id: string
+          created_at?: string
+          dimensions: Json
+          id?: string
+          input_hash: string
+          job_id: string
+          judge_model: string
+          prompt_version: string
+          red_flags?: Json
+          summary?: string | null
+          v31_score?: number | null
+          weighted_score: number
+        }
+        Update: {
+          blended_score?: number | null
+          candidate_id?: string
+          created_at?: string
+          dimensions?: Json
+          id?: string
+          input_hash?: string
+          job_id?: string
+          judge_model?: string
+          prompt_version?: string
+          red_flags?: Json
+          summary?: string | null
+          v31_score?: number | null
+          weighted_score?: number
+        }
+        Relationships: []
+      }
+      match_events: {
+        Row: {
+          actor_role: string | null
+          candidate_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          is_synthetic: boolean
+          job_id: string | null
+          match_version: string | null
+          model: string | null
+          occurred_at: string
+          payload: Json
+          prompt_version: string | null
+          rank: number | null
+          score: number | null
+          submission_id: string | null
+        }
+        Insert: {
+          actor_role?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          is_synthetic?: boolean
+          job_id?: string | null
+          match_version?: string | null
+          model?: string | null
+          occurred_at?: string
+          payload?: Json
+          prompt_version?: string | null
+          rank?: number | null
+          score?: number | null
+          submission_id?: string | null
+        }
+        Update: {
+          actor_role?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          is_synthetic?: boolean
+          job_id?: string | null
+          match_version?: string | null
+          model?: string | null
+          occurred_at?: string
+          payload?: Json
+          prompt_version?: string | null
+          rank?: number | null
+          score?: number | null
+          submission_id?: string | null
+        }
+        Relationships: []
       }
       match_outcomes: {
         Row: {
