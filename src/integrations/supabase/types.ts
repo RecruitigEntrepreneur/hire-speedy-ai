@@ -9324,18 +9324,44 @@ export type Database = {
       }
       recruiter_jobs_view: {
         Row: {
-          client_id: string | null
+          benefits: string[] | null
           company_culture: string | null
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
+          created_at: string | null
+          deadline: string | null
+          description: string | null
+          embedding: string | null
+          employment_type: string | null
+          experience_level: string | null
+          fee_percentage: number | null
+          formatted_content: Json | null
+          funding_stage: string | null
+          hiring_urgency: string | null
           id: string | null
           industry: string | null
+          job_summary: Json | null
           location: string | null
+          must_haves: string[] | null
+          nice_to_haves: string[] | null
+          onsite_days_required: number | null
+          onsite_required: boolean | null
+          recruiter_fee_percentage: number | null
+          remote_policy: string | null
+          remote_type: string | null
+          required_certifications: string[] | null
+          required_languages: Json | null
+          requirements: string | null
           salary_max: number | null
           salary_min: number | null
+          screening_questions: Json | null
+          skills: string[] | null
           status: string | null
+          tech_environment: string[] | null
           title: string | null
+          updated_at: string | null
+          urgency: string | null
         }
         Relationships: []
       }
