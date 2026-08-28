@@ -181,13 +181,23 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
         .from('submissions')
         .select(`
           *,
-          candidates(id, full_name, email, phone, job_title, city, experience_years, expected_salary, linkedin_url),
-          jobs(id, title, company_name, industry)
+          candidates(id, full_name, email, phone, job_title, city, experience_years, expected_salary, linkedin_url)
         `)
         .eq('id', submissionId)
         .single();
 
       if (subErr) throw subErr;
+
+      // Job separat ueber recruiter_jobs_view: maskiert die Firmenidentitaet
+      // und gibt company_name erst nach dem Reveal frei.
+      if (submission?.job_id) {
+        const { data: jobRow } = await supabase
+          .from('recruiter_jobs_view')
+          .select('id, title, company_name, industry')
+          .eq('id', submission.job_id)
+          .maybeSingle();
+        (submission as any).jobs = jobRow ?? null;
+      }
 
       const { data: interviews } = await supabase
         .from('interviews')
@@ -278,7 +288,9 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
 
   const submission = data?.submission;
   const candidate = submission?.candidates as any;
-  const job = submission?.jobs as any;
+  // jobs wird zur Laufzeit aus recruiter_jobs_view angehaengt (Zeile 199) —
+  // die Query-Typen kennen die Spalte deshalb nicht.
+  const job = (submission as any)?.jobs;
   const activeInterview = data?.activeInterview as any;
   const activities = data?.activities || [];
 

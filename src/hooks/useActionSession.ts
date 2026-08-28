@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { UnifiedTaskItem } from './useUnifiedTaskInbox';
+import { UnifiedTaskItem, suppressDerivedItem } from './useUnifiedTaskInbox';
 
 export interface SessionOutcome {
   item: UnifiedTaskItem;
@@ -118,7 +118,7 @@ export function useActionSession() {
           is_read: true,
         })
         .eq('id', currentItem.itemId);
-    } else {
+    } else if (currentItem.itemType === 'task') {
       await supabase
         .from('recruiter_tasks')
         .update({
@@ -126,6 +126,9 @@ export function useActionSession() {
           completed_at: new Date().toISOString(),
         })
         .eq('id', currentItem.itemId);
+    } else {
+      // Abgeleitetes Item: existiert nicht als DB-Zeile → lokal unterdrücken
+      suppressDerivedItem(currentItem.itemId, new Date(Date.now() + 3 * 86_400_000));
     }
 
     // Log activity if candidate linked
@@ -191,11 +194,13 @@ export function useActionSession() {
         .from('influence_alerts')
         .update({ snoozed_until: until.toISOString() } as any)
         .eq('id', currentItem.itemId);
-    } else {
+    } else if (currentItem.itemType === 'task') {
       await supabase
         .from('recruiter_tasks')
         .update({ due_at: until.toISOString() })
         .eq('id', currentItem.itemId);
+    } else {
+      suppressDerivedItem(currentItem.itemId, until);
     }
 
     setSession(prev => {

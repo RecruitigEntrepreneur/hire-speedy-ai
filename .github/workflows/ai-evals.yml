@@ -1,0 +1,47 @@
+# AI-Eval-Gate: läuft auf jedem PR, der Matching-/AI-Pfade berührt.
+# Prime Directive: keine AI-Änderung ohne Eval-Beweis.
+#
+# - Drift-Guard: Änderungen an calculate-match-v3-1 schlagen ohne bewusste
+#   Baseline-Entscheidung fehl (evals/adapters/v31-baseline/drift.test.ts).
+# - Eval-Gate: Regression > ±0.02 gegenüber evals/baselines/baseline.v1.json
+#   bricht den Build (evals/compare-to-baseline.ts).
+# - LLM-Output-Evals folgen in Phase 1.3 (brauchen API-Keys als Secrets).
+
+name: AI Evals
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/calculate-match-v3-1/**'
+      - 'supabase/functions/calculate-match-scores/**'
+      - 'supabase/functions/generate-match-recommendation/**'
+      - 'supabase/functions/assess-candidate-fit/**'
+      - 'supabase/functions/_shared/**'
+      - 'evals/**'
+      - 'vitest.config.ts'
+      - '.github/workflows/ai-evals.yml'
+  workflow_dispatch:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck evals
+        run: npm run typecheck:evals
+
+      - name: Unit tests (Metriken + Drift-Guard)
+        run: npm run test:evals
+
+      - name: Eval-Regression-Gate
+        run: npm run eval:check

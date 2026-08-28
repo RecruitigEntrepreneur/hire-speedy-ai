@@ -132,7 +132,8 @@ serve(async (req) => {
     // Update submission stage
     await supabase
       .from('submissions')
-      .update({ stage: 'offer_pending', status: 'offer_extended' })
+      // Nur stage schreiben — status leitet der DB-Trigger ab.
+      .update({ stage: 'offer' })
       .eq('id', submission_id);
 
     // Generate candidate link

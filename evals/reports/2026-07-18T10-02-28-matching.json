@@ -1,0 +1,1886 @@
+{
+  "created_at": "2026-07-18T10:02:28.628Z",
+  "dataset": {
+    "version": "v1",
+    "sha256": "8b0d29eac0b3a4f4d319091aac277b4789ffcc01d36dd8d9b6e2c0b0ecc4c0e5",
+    "jobs": 14,
+    "candidates": 66
+  },
+  "results": [
+    {
+      "adapter": "v31-live-config",
+      "description": "HISTORISCH: Live-Zustand bis zum Config-Fix am 2026-07-18 (v3.0-Config ohne seniority-Key → NaN-Fallback, Fit=50 für alle) + Live-Datenrealität. Verifiziert per DB-Abfrage, dann gefixt.",
+      "macro": {
+        "recall10": 0.738095238095238,
+        "recall50": 0.9523809523809523,
+        "recall100": 1,
+        "ndcg10": 0.5383302374842188,
+        "mrr": 0.6047619047619046,
+        "leak10": 0.4880952380952381
+      },
+      "perJob": [
+        {
+          "jobId": "job-backend-senior",
+          "title": "Senior Backend Entwickler (Java)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.05,
+          "leak10": 0.3333333333333333,
+          "top5": [
+            {
+              "id": "cand-hr-recruiter",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-ux-print",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-devops-backend",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-backend-salary",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-embedded-elektronik",
+              "score": 0,
+              "note": "kill:language"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-backend-02",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-backend-01",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-backend-sparse",
+              "reason": "kill:language"
+            }
+          ]
+        },
+        {
+          "jobId": "job-frontend-mid",
+          "title": "Frontend Entwickler React (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 2,
+          "recall10": 0.3333333333333333,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.6735439182299785,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-frontend-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-koch",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ios-rn",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-pflege",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-frontend-01",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-frontend-vue",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-frontend-junior",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-data-ml",
+          "title": "Machine Learning Engineer",
+          "positives": 3,
+          "hardNegatives": 1,
+          "recall10": 0.6666666666666666,
+          "recall50": 0.6666666666666666,
+          "recall100": 1,
+          "ndcg10": 0.5787412556559733,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-ml-dataeng",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-backend-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-backend-02",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ml-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-backend-sparse",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-ml-dataeng",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-ml-01",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-ml-visa",
+              "reason": "kill:visa"
+            }
+          ]
+        },
+        {
+          "jobId": "job-devops",
+          "title": "DevOps Engineer (Kubernetes)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.6271448173568673,
+          "mrr": 0.5,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-sap-java",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-devops-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-backend-02",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-embedded-java",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-devops-backend",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-devops-01",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-devops-backend",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-embedded",
+          "title": "Embedded Software Entwickler (C/RTOS)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.3936092163100576,
+          "mrr": 0.25,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "dist-lagerist",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-koch",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-embedded-sps",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-embedded-elektronik",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-friseur",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-embedded-elektronik",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-embedded-01",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-mobile-ios",
+          "title": "iOS Entwickler (Swift)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.6653152460429406,
+          "mrr": 0.5,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "dist-friseur",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ios-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ios-rn",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-koch",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-ios-01",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-ios-rn",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-buchhalter",
+          "title": "Finanzbuchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 2,
+          "recall10": 0.3333333333333333,
+          "recall50": 0.6666666666666666,
+          "recall100": 1,
+          "ndcg10": 0.33677195911498925,
+          "mrr": 0.3333333333333333,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-backend-sparse",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-fibu-english",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-fibu-01",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-sec-devops",
+              "score": 0,
+              "note": "kill:language"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-fibu-01",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-fibu-stfa",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-fibu-kreditor",
+              "reason": "kill:language"
+            }
+          ]
+        },
+        {
+          "jobId": "job-controller",
+          "title": "Controller (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.7309292742059024,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-controlling-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-fibu-stfa",
+              "score": 17,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-controlling-vertrieb",
+              "score": 17,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-controlling-01",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-sap-fi",
+          "title": "SAP FI/CO Consultant",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.44906611330575424,
+          "mrr": 0.3333333333333333,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-po-bauleiter",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sap-sd",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sap-keyuser",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-sap-keyuser",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-sap-01",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-hr-bp",
+          "title": "HR Business Partner (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.44906611330575424,
+          "mrr": 0.3333333333333333,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "dist-pflege",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-uebersetzer",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-hr-recruiter",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-kfz",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-hr-recruiter",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-hr-01",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-sales-kam",
+          "title": "Key Account Manager B2B SaaS",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-sales-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sales-bdm",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-controlling-vertrieb",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sales-marketing",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-sales-01",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-sales-bdm",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-design-ux",
+          "title": "Senior UX Designer",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 0.5,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.280390126950546,
+          "mrr": 0.16666666666666666,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-ux-print",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-scrummaster",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-design",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-ux-01",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-ux-ui",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-po",
+          "title": "Product Owner (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.5648906813093276,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-po-design",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sales-marketing",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ux-01",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-scrummaster",
+              "score": 28,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ux-print",
+              "score": 28,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-po-design",
+              "reason": "excluded"
+            },
+            {
+              "id": "cand-po-01",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-security",
+          "title": "Security Engineer (SOC)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 0.5,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.7871546029909718,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-sec-01",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-ml-dataeng",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-sap-keyuser",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-devops-junior",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-controlling-01",
+              "score": 0,
+              "note": "kill:license"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-sec-01",
+              "reason": "kill:license"
+            },
+            {
+              "id": "cand-sec-devops",
+              "reason": "kill:license"
+            }
+          ]
+        }
+      ],
+      "killStats": {
+        "kill:language": 128,
+        "kill:visa": 28,
+        "excluded": 702,
+        "kill:onsite": 2,
+        "kill:license": 64
+      },
+      "scoredPairs": 924
+    },
+    {
+      "adapter": "v31-code-defaults",
+      "description": "AKTUELLER LIVE-ZUSTAND (seit Config-Fix 2026-07-18) und CI-Baseline: Code-Default-Config + Live-Datenrealität (Phantom-Spalten fehlen, language_skills/certifications leer — DB-verifiziert).",
+      "macro": {
+        "recall10": 0.8214285714285714,
+        "recall50": 0.9523809523809523,
+        "recall100": 1,
+        "ndcg10": 0.8199599134359531,
+        "mrr": 0.8845238095238095,
+        "leak10": 0.4880952380952381
+      },
+      "perJob": [
+        {
+          "jobId": "job-backend-senior",
+          "title": "Senior Backend Entwickler (Java)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.05,
+          "leak10": 0.3333333333333333,
+          "top5": [
+            {
+              "id": "cand-hr-recruiter",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-ux-print",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-devops-backend",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-backend-salary",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-embedded-elektronik",
+              "score": 0,
+              "note": "kill:language"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-backend-02",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-backend-01",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-backend-sparse",
+              "reason": "kill:language"
+            }
+          ]
+        },
+        {
+          "jobId": "job-frontend-mid",
+          "title": "Frontend Entwickler React (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.9584925251677545,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-frontend-01",
+              "score": 81
+            },
+            {
+              "id": "cand-frontend-vue",
+              "score": 77
+            },
+            {
+              "id": "cand-ios-rn",
+              "score": 72
+            },
+            {
+              "id": "cand-ux-frontend",
+              "score": 65
+            },
+            {
+              "id": "cand-frontend-designer",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-frontend-junior",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-data-ml",
+          "title": "Machine Learning Engineer",
+          "positives": 3,
+          "hardNegatives": 1,
+          "recall10": 0.6666666666666666,
+          "recall50": 0.6666666666666666,
+          "recall100": 1,
+          "ndcg10": 0.7136205775898136,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-ml-dataeng",
+              "score": 81
+            },
+            {
+              "id": "cand-ml-01",
+              "score": 81
+            },
+            {
+              "id": "cand-ios-backend",
+              "score": 60
+            },
+            {
+              "id": "cand-backend-01",
+              "score": 48,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-backend-02",
+              "score": 45,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-ml-visa",
+              "reason": "kill:visa"
+            }
+          ]
+        },
+        {
+          "jobId": "job-devops",
+          "title": "DevOps Engineer (Kubernetes)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.8339912323981488,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-devops-backend",
+              "score": 73
+            },
+            {
+              "id": "cand-devops-01",
+              "score": 71
+            },
+            {
+              "id": "cand-backend-embedded",
+              "score": 62
+            },
+            {
+              "id": "cand-embedded-java",
+              "score": 43,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sap-java",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-embedded",
+          "title": "Embedded Software Entwickler (C/RTOS)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-embedded-01",
+              "score": 81
+            },
+            {
+              "id": "cand-embedded-elektronik",
+              "score": 63
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 55
+            },
+            {
+              "id": "dist-koch",
+              "score": 55
+            },
+            {
+              "id": "dist-friseur",
+              "score": 55
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-mobile-ios",
+          "title": "iOS Entwickler (Swift)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-ios-01",
+              "score": 84
+            },
+            {
+              "id": "cand-ios-rn",
+              "score": 57
+            },
+            {
+              "id": "dist-friseur",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-koch",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-buchhalter",
+          "title": "Finanzbuchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 2,
+          "recall10": 0.3333333333333333,
+          "recall50": 0.6666666666666666,
+          "recall100": 1,
+          "ndcg10": 0.33677195911498925,
+          "mrr": 0.3333333333333333,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-backend-sparse",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-fibu-english",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-fibu-01",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 0,
+              "note": "kill:language"
+            },
+            {
+              "id": "cand-sec-devops",
+              "score": 0,
+              "note": "kill:language"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-fibu-01",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-fibu-stfa",
+              "reason": "kill:language"
+            },
+            {
+              "id": "cand-fibu-kreditor",
+              "reason": "kill:language"
+            }
+          ]
+        },
+        {
+          "jobId": "job-controller",
+          "title": "Controller (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-controlling-01",
+              "score": 81
+            },
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "score": 80
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-fibu-kreditor",
+              "score": 33,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-fibu-english",
+              "score": 27,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-sap-fi",
+          "title": "SAP FI/CO Consultant",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.95583058934618,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-sap-01",
+              "score": 80
+            },
+            {
+              "id": "cand-sap-sd",
+              "score": 60
+            },
+            {
+              "id": "cand-sap-keyuser",
+              "score": 60
+            },
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "score": 60
+            },
+            {
+              "id": "cand-controlling-01",
+              "score": 56,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-hr-bp",
+          "title": "HR Business Partner (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-hr-01",
+              "score": 80
+            },
+            {
+              "id": "cand-hr-recruiter",
+              "score": 60
+            },
+            {
+              "id": "dist-kfz",
+              "score": 57
+            },
+            {
+              "id": "dist-pflege",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-uebersetzer",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-sales-kam",
+          "title": "Key Account Manager B2B SaaS",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-sales-01",
+              "score": 81
+            },
+            {
+              "id": "cand-sales-bdm",
+              "score": 67
+            },
+            {
+              "id": "cand-controlling-vertrieb",
+              "score": 60
+            },
+            {
+              "id": "cand-hr-sales",
+              "score": 48,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sales-marketing",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-design-ux",
+          "title": "Senior UX Designer",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.8935773014954859,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-ux-01",
+              "score": 84
+            },
+            {
+              "id": "cand-po-design",
+              "score": 63
+            },
+            {
+              "id": "cand-ux-print",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-scrummaster",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-01",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-ux-ui",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-po",
+          "title": "Product Owner (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-po-01",
+              "score": 77
+            },
+            {
+              "id": "cand-po-design",
+              "score": 60
+            },
+            {
+              "id": "cand-po-scrummaster",
+              "score": 60
+            },
+            {
+              "id": "cand-sales-marketing",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ux-01",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-security",
+          "title": "Security Engineer (SOC)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 0.5,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.7871546029909718,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-sec-01",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-ml-dataeng",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-sap-keyuser",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-devops-junior",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-controlling-01",
+              "score": 0,
+              "note": "kill:license"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-sec-01",
+              "reason": "kill:license"
+            },
+            {
+              "id": "cand-sec-devops",
+              "reason": "kill:license"
+            }
+          ]
+        }
+      ],
+      "killStats": {
+        "kill:language": 128,
+        "kill:visa": 28,
+        "excluded": 665,
+        "kill:onsite": 2,
+        "kill:license": 64
+      },
+      "scoredPairs": 924
+    },
+    {
+      "adapter": "v31-ideal-inputs",
+      "description": "V3.1-Replika mit Code-Default-Config und vollständigen Inputs (Obergrenze der heutigen Engine bei reparierten Daten).",
+      "macro": {
+        "recall10": 1,
+        "recall50": 1,
+        "recall100": 1,
+        "ndcg10": 0.964705073191694,
+        "mrr": 1,
+        "leak10": 0.39285714285714285
+      },
+      "perJob": [
+        {
+          "jobId": "job-backend-senior",
+          "title": "Senior Backend Entwickler (Java)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-backend-01",
+              "score": 82
+            },
+            {
+              "id": "cand-backend-02",
+              "score": 75
+            },
+            {
+              "id": "cand-backend-sparse",
+              "score": 65
+            },
+            {
+              "id": "cand-embedded-java",
+              "score": 65
+            },
+            {
+              "id": "cand-sap-java",
+              "score": 63
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-frontend-mid",
+          "title": "Frontend Entwickler React (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.9584925251677545,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-frontend-01",
+              "score": 81
+            },
+            {
+              "id": "cand-frontend-vue",
+              "score": 77
+            },
+            {
+              "id": "cand-ios-rn",
+              "score": 72
+            },
+            {
+              "id": "cand-ux-frontend",
+              "score": 65
+            },
+            {
+              "id": "cand-frontend-designer",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-frontend-junior",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-data-ml",
+          "title": "Machine Learning Engineer",
+          "positives": 3,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.8579514172105233,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-ml-dataeng",
+              "score": 81
+            },
+            {
+              "id": "cand-ml-01",
+              "score": 81
+            },
+            {
+              "id": "cand-ml-visa",
+              "score": 77
+            },
+            {
+              "id": "cand-ios-backend",
+              "score": 60
+            },
+            {
+              "id": "cand-backend-01",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-devops",
+          "title": "DevOps Engineer (Kubernetes)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.8339912323981488,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-devops-backend",
+              "score": 73
+            },
+            {
+              "id": "cand-devops-01",
+              "score": 71
+            },
+            {
+              "id": "cand-backend-embedded",
+              "score": 62
+            },
+            {
+              "id": "cand-embedded-java",
+              "score": 43,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sap-java",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-embedded",
+          "title": "Embedded Software Entwickler (C/RTOS)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-embedded-01",
+              "score": 81
+            },
+            {
+              "id": "cand-embedded-elektronik",
+              "score": 63
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 55
+            },
+            {
+              "id": "dist-uebersetzer",
+              "score": 55
+            },
+            {
+              "id": "dist-koch",
+              "score": 53
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-mobile-ios",
+          "title": "iOS Entwickler (Swift)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-ios-01",
+              "score": 84
+            },
+            {
+              "id": "cand-ios-rn",
+              "score": 57
+            },
+            {
+              "id": "dist-lagerist",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ux-frontend",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-uebersetzer",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-buchhalter",
+          "title": "Finanzbuchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-fibu-01",
+              "score": 84
+            },
+            {
+              "id": "cand-fibu-stfa",
+              "score": 81
+            },
+            {
+              "id": "cand-fibu-kreditor",
+              "score": 63
+            },
+            {
+              "id": "dist-koch",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-uebersetzer",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-controller",
+          "title": "Controller (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-controlling-01",
+              "score": 81
+            },
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "score": 80
+            },
+            {
+              "id": "dist-lehrer",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-fibu-kreditor",
+              "score": 33,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-fibu-english",
+              "score": 27,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-sap-fi",
+          "title": "SAP FI/CO Consultant",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.95583058934618,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-sap-01",
+              "score": 80
+            },
+            {
+              "id": "cand-sap-sd",
+              "score": 60
+            },
+            {
+              "id": "cand-sap-keyuser",
+              "score": 60
+            },
+            {
+              "id": "cand-controlling-quereinsteiger",
+              "score": 60
+            },
+            {
+              "id": "cand-controlling-01",
+              "score": 56,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-hr-bp",
+          "title": "HR Business Partner (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "cand-hr-01",
+              "score": 80
+            },
+            {
+              "id": "cand-hr-recruiter",
+              "score": 60
+            },
+            {
+              "id": "dist-kfz",
+              "score": 57
+            },
+            {
+              "id": "dist-pflege",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "dist-uebersetzer",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-sales-kam",
+          "title": "Key Account Manager B2B SaaS",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-sales-01",
+              "score": 81
+            },
+            {
+              "id": "cand-sales-bdm",
+              "score": 67
+            },
+            {
+              "id": "cand-controlling-vertrieb",
+              "score": 60
+            },
+            {
+              "id": "cand-hr-sales",
+              "score": 48,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-sales-marketing",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-design-ux",
+          "title": "Senior UX Designer",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.8996052605611106,
+          "mrr": 1,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "cand-ux-01",
+              "score": 84
+            },
+            {
+              "id": "cand-po-design",
+              "score": 63
+            },
+            {
+              "id": "cand-ux-print",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-scrummaster",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-po-01",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-ux-ui",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "job-po",
+          "title": "Product Owner (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 2,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-po-01",
+              "score": 77
+            },
+            {
+              "id": "cand-po-design",
+              "score": 60
+            },
+            {
+              "id": "cand-po-scrummaster",
+              "score": 60
+            },
+            {
+              "id": "cand-sales-marketing",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ux-01",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "job-security",
+          "title": "Security Engineer (SOC)",
+          "positives": 2,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "cand-sec-01",
+              "score": 81
+            },
+            {
+              "id": "cand-sec-devops",
+              "score": 41,
+              "note": "excluded"
+            },
+            {
+              "id": "cand-ml-dataeng",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-sap-keyuser",
+              "score": 0,
+              "note": "kill:license"
+            },
+            {
+              "id": "cand-devops-junior",
+              "score": 0,
+              "note": "kill:license"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "cand-sec-devops",
+              "reason": "excluded"
+            }
+          ]
+        }
+      ],
+      "killStats": {
+        "kill:visa": 26,
+        "excluded": 784,
+        "kill:language": 2,
+        "kill:onsite": 3,
+        "kill:license": 62
+      },
+      "scoredPairs": 924
+    }
+  ]
+}

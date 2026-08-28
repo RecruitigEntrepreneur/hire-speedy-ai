@@ -5,7 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // matcher.ts ist eine eingefrorene verbatim-Replika des Live-Matchers
+  // (Drift-Guard erzwingt Byte-Identität) — Lint-Fixes sind dort verboten.
+  { ignores: ["dist", "evals/adapters/v31-baseline/matcher.ts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

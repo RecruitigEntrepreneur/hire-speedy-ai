@@ -78,11 +78,27 @@ export default function RecruiterCandidates() {
       // Fetch submissions for all candidates
       const candidateIds = data.map((c: any) => c.id);
       if (candidateIds.length > 0) {
-        const { data: submissionsData } = await supabase
+        // Kein jobs(...)-Join mehr: Recruiter lesen Jobs nur ueber
+        // recruiter_jobs_view (reveal-gated).
+        const { data: rawSubmissions } = await supabase
           .from('submissions')
-          .select('candidate_id, status, job:jobs(title, company_name)')
+          .select('candidate_id, status, job_id')
           .in('candidate_id', candidateIds);
-        
+
+        const subJobIds = [...new Set((rawSubmissions || []).map((s: any) => s.job_id).filter(Boolean))] as string[];
+        let subJobsById: Record<string, any> = {};
+        if (subJobIds.length > 0) {
+          const { data: jobRows } = await supabase
+            .from('recruiter_jobs_view')
+            .select('id, title, company_name')
+            .in('id', subJobIds);
+          subJobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+        }
+        const submissionsData = (rawSubmissions || []).map((s: any) => ({
+          ...s,
+          job: subJobsById[s.job_id] ?? null,
+        }));
+
         if (submissionsData) {
           const grouped: SubmissionsByCandidate = {};
           submissionsData.forEach((sub: any) => {

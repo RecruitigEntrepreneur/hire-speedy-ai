@@ -21,7 +21,7 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
     queryKey: ['published-job-ids'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('id')
         .eq('status', 'published')
         .limit(50);
@@ -57,7 +57,7 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
     queryFn: async () => {
       if (topJobIds.length === 0) return {};
       const { data } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('id, title')
         .in('id', topJobIds);
       const map: Record<string, string> = {};

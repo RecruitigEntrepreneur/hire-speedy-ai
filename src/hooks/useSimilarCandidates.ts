@@ -62,7 +62,7 @@ export function useHybridCandidateSearch(
       
       // Get job's embedding
       const { data: job, error: jobError } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('embedding, must_haves')
         .eq('id', jobId)
         .single();

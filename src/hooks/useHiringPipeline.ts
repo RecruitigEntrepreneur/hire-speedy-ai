@@ -33,12 +33,15 @@ export interface PipelineJob {
 }
 
 // Professional muted color palette for pipeline stages
+// Kanonisches Stage-Vokabular — muss zum CHECK submissions_stage_check passen
+// (Migration 20260725130000). Abweichende Werte werden von der DB abgelehnt.
 export const PIPELINE_STAGES = [
   { key: 'submitted', label: 'Neu', color: 'border-slate-400', dotColor: 'bg-slate-400', textColor: 'text-slate-600' },
-  { key: 'interview_1', label: 'Interview 1', color: 'border-purple-400', dotColor: 'bg-purple-400', textColor: 'text-purple-600' },
-  { key: 'interview_2', label: 'Interview 2', color: 'border-violet-400', dotColor: 'bg-violet-400', textColor: 'text-violet-600' },
+  { key: 'in_review', label: 'In Prüfung', color: 'border-blue-400', dotColor: 'bg-blue-400', textColor: 'text-blue-600' },
+  { key: 'interview_scheduled', label: 'Interview geplant', color: 'border-purple-400', dotColor: 'bg-purple-400', textColor: 'text-purple-600' },
+  { key: 'interview_completed', label: 'Interview geführt', color: 'border-violet-400', dotColor: 'bg-violet-400', textColor: 'text-violet-600' },
   { key: 'offer', label: 'Angebot', color: 'border-amber-400', dotColor: 'bg-amber-400', textColor: 'text-amber-600' },
-  { key: 'hired', label: 'Eingestellt', color: 'border-emerald-500', dotColor: 'bg-emerald-500', textColor: 'text-emerald-600' },
+  { key: 'placed', label: 'Vermittelt', color: 'border-emerald-500', dotColor: 'bg-emerald-500', textColor: 'text-emerald-600' },
 ] as const;
 
 export function useHiringPipeline(jobId?: string) {
@@ -165,9 +168,12 @@ export function useHiringPipeline(jobId?: string) {
       c.id === submissionId ? { ...c, stage: newStage, status: newStage } : c
     ));
 
+    // Nur stage schreiben — status leitet der Trigger ab. Frueher wurde hier
+    // der Stage-Wert auch in status geschrieben, wodurch status mit
+    // Stage-Vokabular verunreinigt wurde.
     const { error } = await supabase
       .from('submissions')
-      .update({ stage: newStage, status: newStage })
+      .update({ stage: newStage })
       .eq('id', submissionId);
 
     if (error) {
@@ -177,7 +183,7 @@ export function useHiringPipeline(jobId?: string) {
     }
 
     // Create interview record if moving to interview
-    if (newStage === 'interview') {
+    if (newStage === 'interview_scheduled') {
       await supabase.from('interviews').insert({
         submission_id: submissionId,
         status: 'pending',
@@ -190,10 +196,9 @@ export function useHiringPipeline(jobId?: string) {
 
     const { error } = await supabase
       .from('submissions')
-      .update({ 
-        stage: 'rejected', 
-        status: 'rejected',
-        rejection_reason: reason 
+      .update({
+        stage: 'rejected',
+        rejection_reason: reason
       })
       .eq('id', submissionId);
 

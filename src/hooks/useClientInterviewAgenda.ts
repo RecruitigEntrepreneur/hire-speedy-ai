@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { generateAnonymousId } from '@/lib/anonymization';
+import { candidateAnonCode, generateAnonymousId } from '@/lib/anonymization';
 
 export interface AgendaSlot {
   datetime: string;
@@ -132,7 +132,13 @@ export function useClientInterviewAgenda() {
           waitingHours: Math.max(0, Math.floor((now - new Date(r.created_at).getTime()) / 3_600_000)),
           slotsExpired:
             proposedSlots.length > 0 && proposedSlots.every((s) => new Date(s.datetime).getTime() < now),
-          candidateName: unlocked ? cand.full_name : generateAnonymousId(r.submission_id || ''),
+          // Einheitlicher Anonym-Code (PR-…, candidate_id-basiert) wie in Inbox
+          // und Cockpit; Fallback nur, wenn die View-Zeile fehlt.
+          candidateName: unlocked
+            ? cand.full_name
+            : cand?.candidate_id
+              ? candidateAnonCode(cand.candidate_id)
+              : generateAnonymousId(r.submission_id || ''),
           identityUnlocked: unlocked,
           candidateId: cand?.candidate_id ?? null,
           candidateRole: cand?.candidate_role ?? null,

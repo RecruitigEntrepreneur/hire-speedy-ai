@@ -574,6 +574,479 @@ const de = {
     "legal_privacy": "Datenschutz",
     "legal_terms": "AGB",
     "legal_imprint": "Impressum"
+  },
+  "bewerber": {
+    "title": "Bewerber",
+    "header": {
+      "empty": "Noch keine aktiven Bewerber",
+      "all_done": "Alles erledigt — {{count}} Bewerber in Arbeit",
+      "your_turn_single": "1 Bewerber wartet auf Ihre Aktion · {{rest}} weitere in Arbeit",
+      "your_turn_plural": "{{count}} Bewerber warten auf Ihre Aktion · {{rest}} weitere in Arbeit"
+    },
+    "sections": {
+      "mine": "Sie sind am Zug",
+      "others": "Wartet auf andere"
+    },
+    "state": {
+      "wait_today": "Neu · heute",
+      "wait_yesterday": "Seit gestern",
+      "wait_days": "Seit {{days}} Tagen",
+      "wait_warn": "Wartet seit {{days}} Tagen",
+      "wait_crit": "Überfällig · {{days}} Tage",
+      "pruefung": "In Prüfung durch Recruiter",
+      "opted_in": "Hat zugestimmt — Termin wählen",
+      "wartet_kandidat": "Wartet auf Kandidat",
+      "terminvorschlag": "Neuer Terminvorschlag",
+      "abgesagt": "Kandidat hat abgesagt",
+      "termin_abgesagt": "Termin abgesagt",
+      "no_show": "Termin nicht wahrgenommen",
+      "geplant": "Interview · {{date}}",
+      "feedback": "Feedback fällig · war {{date}}",
+      "feedback_nodate": "Feedback fällig",
+      "interview_phase": "Im Interviewprozess",
+      "offer_prep": "Angebot in Vorbereitung",
+      "offer_sent": "Angebot gesendet",
+      "offer_viewed": "Angebot angesehen",
+      "offer_negotiating": "Gegenvorschlag erhalten",
+      "offer_rejected": "Angebot abgelehnt",
+      "offer_expired": "Angebot abgelaufen",
+      "offer_accepted": "Angebot angenommen"
+    },
+    "tabs": {
+      "neu": "Neu",
+      "pruefung": "In Prüfung",
+      "interview": "Interview",
+      "angebot": "Angebot",
+      "alle": "Alle",
+      "archiv": "Archiv"
+    },
+    "filter": {
+      "search": "Suchen …",
+      "all_jobs": "Alle Stellen"
+    },
+    "sort": {
+      "newest": "Neueste zuerst",
+      "match": "Beste Passung",
+      "waiting": "Längste Wartezeit"
+    },
+    "loaded_hint": "{{loaded}} von {{total}} geladen",
+    "select_prompt": "Wählen Sie links einen Bewerber aus",
+    "card": {
+      "no_role": "Profil ohne Rollenangabe"
+    },
+    "actions": {
+      "request_interview": "Interview anfragen",
+      "plan_interview": "Interview planen",
+      "rerequest": "Neu anfragen",
+      "review_proposal": "Vorschlag prüfen",
+      "view_appointment": "Termin ansehen",
+      "view_request": "Anfrage ansehen",
+      "give_feedback": "Feedback geben",
+      "view_interviews": "Interviews ansehen",
+      "view_offer": "Angebot ansehen",
+      "review_counter": "Gegenvorschlag prüfen",
+      "reject": "Ablehnen",
+      "ask_recruiter": "Rückfrage an Recruiter"
+    },
+    "notes": {
+      "title": "Team-Notizen",
+      "empty": "Noch keine Notizen.",
+      "placeholder": "Notiz für Ihr Team schreiben …",
+      "save": "Speichern",
+      "save_error": "Die Notiz konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "visibility": "Sichtbar für Ihr Team und Ihren Recruiter — nicht für den Kandidaten.",
+      "author_you": "Sie",
+      "author_member": "Teammitglied"
+    },
+    "chips": {
+      "salary_locked": "Gehalt nach Zustimmung"
+    },
+    "ai": {
+      "more": "Mehr anzeigen",
+      "less": "Weniger anzeigen"
+    },
+    "skills": {
+      "less": "Weniger anzeigen"
+    },
+    "detail": {
+      "back": "Zurück zu Bewerbern",
+      "unlocked_hint": "Profil freigegeben durch den Kandidaten · Kürzel {{code}}",
+      "locked_hint": "Anonymes Profil — Name, Kontakt und Lebenslauf nach Interview-Zusage",
+      "match": "{{score}} % Passung",
+      "ctx": {
+        "wait_new": "Neuer Vorschlag Ihres Recruiters — entscheiden Sie, ob Sie diesen Kandidaten kennenlernen möchten.",
+        "wait_old": "Dieser Vorschlag wartet seit {{days}} Tagen auf Ihre Entscheidung.",
+        "pruefung": "Ihr Recruiter klärt gerade offene Fragen zu diesem Kandidaten — Sie können trotzdem schon entscheiden.",
+        "opted_in": "Der Kandidat hat zugestimmt und wartet auf Ihre Terminauswahl.",
+        "wartet_kandidat": "Ihre Interview-Anfrage ist noch unbeantwortet — der Ball liegt beim Kandidaten.",
+        "terminvorschlag": "Der Kandidat schlägt einen anderen Termin vor — bitte prüfen Sie den Vorschlag.",
+        "geplant": "Das Interview ist bestätigt für {{date}}.",
+        "feedback": "Das Interview fand am {{date}} statt — Ihr Feedback entscheidet den nächsten Schritt.",
+        "feedback_nodate": "Das Interview ist vorbei — Ihr Feedback entscheidet den nächsten Schritt.",
+        "abgesagt": "Der Kandidat hat den Termin abgesagt. Sie können neue Termine vorschlagen oder absagen.",
+        "termin_abgesagt": "Der Termin wurde abgesagt. Sie können neue Termine vorschlagen.",
+        "no_show": "Der Kandidat ist nicht erschienen. Sie können neu anfragen oder absagen.",
+        "interview_phase": "Der Interviewprozess läuft — Details in der Interview-Agenda.",
+        "offer_prep": "Bereiten Sie das Angebot vor — der Kandidat hat die Interviews durchlaufen.",
+        "offer_sent": "Ihr Angebot ist beim Kandidaten — Entscheidung steht aus.",
+        "offer_viewed": "Der Kandidat hat Ihr Angebot angesehen — Entscheidung steht aus.",
+        "offer_negotiating": "Der Kandidat hat einen Gegenvorschlag gemacht — bitte prüfen.",
+        "offer_rejected": "Der Kandidat hat das Angebot abgelehnt.",
+        "offer_expired": "Das Angebot ist abgelaufen — Sie können ein neues senden.",
+        "offer_accepted": "Der Kandidat hat das Angebot angenommen.",
+        "archiv": "Diese Bewerbung ist abgeschlossen."
+      },
+      "agenda": "Zur Agenda",
+      "cv_open": "Lebenslauf öffnen",
+      "cv_locked": "Lebenslauf nach Interview-Zusage",
+      "cv_missing": "Kein Lebenslauf hinterlegt — fragen Sie Ihren Recruiter",
+      "profile": "Profil",
+      "career": "Werdegang",
+      "verlauf": "Verlauf",
+      "verlauf_submitted": "Eingereicht von Ihrem Recruiter",
+      "verlauf_iv_requested": "Interview angefragt",
+      "verlauf_iv_scheduled": "Termin bestätigt · {{time}} Uhr",
+      "verlauf_iv_completed": "Interview durchgeführt",
+      "verlauf_iv_cancelled": "Termin abgesagt",
+      "verlauf_iv_declined": "Kandidat hat abgesagt",
+      "verlauf_iv_pending": "Wartet auf Antwort des Kandidaten",
+      "verlauf_offer_created": "Angebot erstellt",
+      "verlauf_offer_sent": "Angebot versendet",
+      "branchen": "Branchen",
+      "zielrollen": "Zielrollen",
+      "karriereziele": "Karriereziele",
+      "sprachen": "Sprachen",
+      "zertifikate": "Zertifikate",
+      "companies_after_optin": "Firmennamen nach Interview-Zusage",
+      "readonly": "Nur Lesezugriff"
+    },
+    "identity_unlocked": "Identität freigegeben",
+    "error": {
+      "load": "Die Bewerber konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
+    },
+    "empty": {
+      "search_title": "Keine Treffer für „{{query}}“",
+      "search_text": "Prüfen Sie den Suchbegriff oder setzen Sie die Suche zurück.",
+      "neu_title": "Alles entschieden",
+      "neu_text": "Neue Bewerber erscheinen hier, sobald Ihr Recruiter Kandidaten einreicht. Sie werden per E-Mail benachrichtigt.",
+      "pruefung_title": "Niemand in Prüfung",
+      "pruefung_text": "Bewerber landen hier, während Ihr Recruiter offene Fragen klärt — bevor Sie entscheiden.",
+      "interview_title": "Noch kein Interview geplant",
+      "interview_text": "Sobald Sie bei einem neuen Bewerber „Interview anfragen“ wählen, sehen Sie hier Termin und Status.",
+      "angebot_title": "Noch kein Angebot unterwegs",
+      "angebot_text": "Wenn Sie einem Kandidaten nach den Interviews ein Angebot machen, verfolgen Sie hier den Status bis zur Zusage.",
+      "archiv_title": "Das Archiv ist leer",
+      "archiv_text": "Abgelehnte, eingestellte und zurückgezogene Bewerber landen hier — nichts geht verloren.",
+      "alle_title": "Noch keine Bewerber",
+      "alle_text": "Ihr Recruiter sucht passende Kandidaten. Neue Vorschläge erscheinen hier."
+    },
+    "archive": {
+      "kind": {
+        "abgelehnt": "Abgelehnt",
+        "eingestellt": "Eingestellt",
+        "zurueckgezogen": "Zurückgezogen",
+        "abgelaufen": "Abgelaufen"
+      },
+      "closed_info": "Diese Bewerbung ist abgeschlossen.",
+      "hired_info": "Dieser Kandidat wurde über Matchunt eingestellt.",
+      "view_placement": "Placement ansehen",
+      "retention_hint": "Archivierte Bewerbungen werden gemäß Aufbewahrungsrichtlinie gelöscht."
+    }
+  },
+  "jobdetail": {
+    "back": "Zurück zur Übersicht",
+    "not_found": "Job nicht gefunden",
+    "error_load": "Fehler beim Laden",
+    "error_save": "Speichern fehlgeschlagen — Sie haben dafür möglicherweise keine Berechtigung.",
+    "bewerber_error": "Bewerber konnten nicht geladen werden.",
+    "toast": {
+      "paused": "Stelle pausiert",
+      "resumed": "Stelle reaktiviert"
+    },
+    "state": {
+      "aktiv": "Aktiv",
+      "pausiert": "Pausiert",
+      "geschlossen": "Geschlossen",
+      "besetzt": "Besetzt"
+    },
+    "meta": {
+      "live_today": "Seit heute live",
+      "live_since_one": "Live seit 1 Tag",
+      "live_since": "Live seit {{days}} Tagen",
+      "paused_since": "Pausiert seit {{date}}"
+    },
+    "employment": {
+      "full-time": "Vollzeit",
+      "part-time": "Teilzeit",
+      "contract": "Befristet",
+      "freelance": "Freelance",
+      "internship": "Praktikum"
+    },
+    "remote": {
+      "remote": "Remote",
+      "hybrid": "Hybrid",
+      "onsite": "Vor Ort"
+    },
+    "banner": {
+      "pausiert": "Pausiert seit {{date}} — Recruiter sehen diese Stelle nicht. Laufende Bewerbungen bleiben aktiv.",
+      "ueberfaellig_single": "Überfällig: Ein Bewerber wartet seit über 21 Tagen auf Ihre Entscheidung.",
+      "ueberfaellig_plural": "Überfällig: {{count}} Bewerber warten seit über 21 Tagen auf Ihre Entscheidung.",
+      "dringend_single": "Ein Bewerber braucht dringend Ihre Entscheidung.",
+      "dringend_plural": "{{count}} Bewerber brauchen dringend Ihre Entscheidung.",
+      "feedback_single": "Interview war am {{date}} — Ihr Feedback fehlt.",
+      "feedback_single_nodate": "Ein Interview wartet auf Ihr Feedback.",
+      "feedback_plural": "{{count}} Interviews warten auf Ihr Feedback.",
+      "antwort_single": "Ein Kandidat wartet auf Ihre Antwort.",
+      "antwort_plural": "{{count}} Kandidaten warten auf Ihre Antwort.",
+      "aktion_single": "Ein neuer Vorschlag wartet auf Ihre Prüfung.",
+      "aktion_plural": "{{count}} Vorschläge warten auf Ihre Prüfung.",
+      "leer_lang": "Seit {{days}} Tagen live, noch kein Vorschlag. Häufigste Ursache: zu enges Gehaltsband oder zu strenge Muss-Kriterien.",
+      "frisch": "Ihre Stelle ist live — Recruiter suchen passende Kandidaten. Neue Vorschläge erscheinen hier zuerst.",
+      "laeuft_heute": "Alles in Arbeit — nichts zu tun. Letzter Vorschlag heute.",
+      "laeuft_one": "Alles in Arbeit — nichts zu tun. Letzter Vorschlag gestern.",
+      "laeuft": "Alles in Arbeit — nichts zu tun. Letzter Vorschlag vor {{days}} Tagen.",
+      "geschlossen": "Diese Stelle ist geschlossen — Recruiter sehen sie nicht mehr.",
+      "besetzt": "Diese Stelle ist besetzt — die Suche ist abgeschlossen."
+    },
+    "banner_action": {
+      "entscheiden": "Jetzt entscheiden",
+      "feedback": "Feedback geben",
+      "antworten": "Antworten",
+      "pruefen": "Jetzt prüfen",
+      "briefing": "Briefing schärfen",
+      "reaktivieren": "Reaktivieren"
+    },
+    "funnel": {
+      "hint": "Punkt = wartet auf Sie · Klick öffnet die Bewerber-Inbox, gefiltert auf diese Stelle",
+      "hired": "{{count}} eingestellt"
+    },
+    "wait": {
+      "title": "Wartet auf Sie",
+      "open_inbox": "In der Inbox öffnen",
+      "match": "Passung",
+      "more": "+{{count}} weitere in der Inbox"
+    },
+    "actions": {
+      "edit": "Bearbeiten",
+      "pause": "Pausieren",
+      "resume": "Reaktivieren",
+      "invite": "Fachbereich einladen"
+    },
+    "termine": {
+      "title": "Termine & Feedback",
+      "all": "Alle Interviews",
+      "feedback": "Feedback fällig: {{name}} — Interview war am {{date}}",
+      "feedback_nodate": "Feedback fällig: {{name}}",
+      "counter": "Terminvorschlag von {{name}} — bitte antworten",
+      "next": "Nächstes Interview: {{date}} — {{name}}",
+      "waiting": "Einladung an {{name}} — Antwort steht aus",
+      "more": "+{{count}} weitere Termine"
+    },
+    "sections": {
+      "stelle": "Stellendetails",
+      "konditionen": "Konditionen & Anonymität",
+      "team": "Team & Zugriff",
+      "verlauf": "Verlauf",
+      "verwalten": "Verwalten"
+    },
+    "stelle": {
+      "standort": "Standort",
+      "anstellung": "Anstellung",
+      "branche": "Branche",
+      "onsite_days": "{{count}} Tage vor Ort",
+      "muss": "Muss-Kriterien",
+      "wunsch": "Wünschenswert",
+      "beschreibung": "Beschreibung",
+      "mehr": "Mehr anzeigen",
+      "weniger": "Weniger anzeigen",
+      "edit": "Stellendetails bearbeiten"
+    },
+    "konditionen": {
+      "salary": "Gehaltsband",
+      "fee": "Honorar",
+      "fee_value": "{{pct}} % vom Zieljahresgehalt — fällig erst bei Einstellung",
+      "fee_hint": "Nur für Owner, Admin & Finance sichtbar",
+      "reveal": "Identitäts-Freigabe",
+      "reveal_opt_in": "Nach Zustimmung des Kandidaten (Opt-in)",
+      "reveal_offer": "Erst beim Angebot",
+      "reveal_interview": "Nach dem 1. Interview",
+      "preview_title": "So sehen Recruiter Ihre Firma",
+      "preview_empty": "Anonymer Firmen-Descriptor noch offen",
+      "preview_hint": "Ihr Firmenname bleibt verborgen, bis Sie ihn freigeben."
+    },
+    "team": {
+      "empty": "Noch keine Team-Mitglieder mit Zugriff auf diese Stelle.",
+      "pending": "· eingeladen"
+    },
+    "verlauf": {
+      "empty": "Noch keine Ereignisse.",
+      "published": "Stelle veröffentlicht",
+      "vorschlag": "Neuer Vorschlag: {{name}}",
+      "interview": "Interview vereinbart: {{name}}, {{date}}",
+      "pausiert": "Stelle pausiert",
+      "geschlossen": "Stelle geschlossen"
+    },
+    "verwalten": {
+      "hint": "Pausieren und Schließen erklären zuerst die Konsequenz — nichts passiert ohne Bestätigung.",
+      "cancel": "Abbrechen",
+      "pause_title": "Stelle pausieren?",
+      "pause_text": "Recruiter sehen die Stelle nicht mehr und schlagen keine neuen Kandidaten vor. Laufende Bewerbungen und Termine bleiben aktiv. Sie können jederzeit reaktivieren.",
+      "close": "Stelle schließen",
+      "close_title": "Stelle schließen?",
+      "close_text": "Die Suche wird beendet und Recruiter sehen die Stelle nicht mehr. Laufende Bewerbungen bleiben für Sie einsehbar.",
+      "close_reason": "Grund",
+      "close_reason_placeholder": "Grund auswählen…",
+      "close_pause_hint": "Nur vorübergehend? Dann ist Pausieren die bessere Wahl.",
+      "close_confirm": "Stelle schließen",
+      "reason_filled_matchunt": "Über Matchunt besetzt",
+      "reason_filled_elsewhere": "Anderweitig besetzt",
+      "reason_on_hold": "Stelle vorerst auf Eis",
+      "reason_cancelled": "Stelle entfällt"
+    },
+    "toast_closed": "Stelle geschlossen"
+  },
+  "terminsheet": {
+    "pill": {
+      "counter": "Gegenvorschlag",
+      "awaiting": "Wartet auf Antwort",
+      "expired": "Slots abgelaufen",
+      "scheduled": "Termin bestätigt",
+      "requested": "Termin angefragt",
+      "feedback": "Feedback fällig",
+      "declined": "Vom Kandidaten abgesagt",
+      "cancelled": "Abgesagt",
+      "no_show": "Nicht erschienen",
+      "completed": "Abgeschlossen"
+    },
+    "ctx_counter": "Ihre Slots passten nicht — der Kandidat schlägt Alternativen vor. Sie sind am Zug.",
+    "ctx_awaiting": "Eingeladen vor {{time}} — der Kandidat hat noch nicht geantwortet.",
+    "ctx_awaiting_expired": "Eingeladen vor {{time}} — keine Antwort. Alle vorgeschlagenen Termine liegen inzwischen in der Vergangenheit.",
+    "ctx_scheduled": "Der Termin ist bestätigt.",
+    "ctx_requested": "Termin angefragt — die Bestätigung steht noch aus.",
+    "ctx_feedback": "Das Interview war am {{date}} — Ihr Feedback fehlt noch.",
+    "ctx_declined": "Der Kandidat hat die Interview-Anfrage abgesagt.",
+    "ctx_cancelled": "Dieses Interview wurde abgesagt.",
+    "ctx_no_show": "Der Kandidat ist nicht erschienen.",
+    "ctx_completed": "Dieses Interview ist abgeschlossen.",
+    "slots_title": "Vorgeschlagene Termine",
+    "counter_title": "Vorschläge des Kandidaten",
+    "expired_tag": "abgelaufen",
+    "duration": "{{min}} Min.",
+    "meeting_video": "Video-Call",
+    "meeting_phone": "Telefon",
+    "meeting_onsite": "Vor Ort",
+    "join": "Beitreten",
+    "msg": "Nachricht des Kandidaten",
+    "notes": "Notizen",
+    "feedback_title": "Ihr Feedback",
+    "actions": {
+      "new_slots": "Neue Slots vorschlagen",
+      "remind": "Erinnern",
+      "withdraw": "Anfrage zurückziehen",
+      "respond": "Vorschlag beantworten",
+      "reschedule": "Verschieben",
+      "cancel": "Termin absagen",
+      "edit": "Termin bearbeiten",
+      "feedback": "Feedback geben",
+      "profile": "Zum Bewerberprofil"
+    }
+  },
+  "recruiterInterviews": {
+    "title": "Interviews",
+    "subtitle": "Alle Termine deiner Kandidaten — bestätigt, offen und nachzubereiten",
+    "stats": {
+      "today": "Heute",
+      "week": "Diese Woche",
+      "unconfirmed": "Unbestätigt",
+      "awaiting": "Ohne Termin",
+      "debrief": "Debrief fällig"
+    },
+    "next_up": "Nächster Termin · {{time}}",
+    "open_submission": "Einreichung öffnen",
+    "sections": {
+      "counter": "Gegenvorschlag liegt vor ({{count}})",
+      "debrief": "Debrief fällig ({{count}})",
+      "awaiting": "Warten auf Terminierung ({{count}})",
+      "cancelled": "Abgesagt und nicht erschienen ({{count}})",
+      "past": "Vergangene Interviews ({{count}})"
+    },
+    "empty": "Keine anstehenden Interviews — reiche Kandidaten ein oder fasse offene Einreichungen nach.",
+    "cancel_hint": "{{percent}} % deiner Interviews kommen nicht zustande. Ein Blick auf die Gründe zeigt, wo du früher eingreifen kannst.",
+    "row": {
+      "duration": "{{min}} Min.",
+      "unconfirmed": "unbestätigt",
+      "slots_expired": "Slots abgelaufen",
+      "counter": "Gegenvorschlag",
+      "no_show": "nicht erschienen",
+      "cancelled": "abgesagt",
+      "waiting_since": "Wartet seit {{time}}",
+      "join": "Beitreten"
+    }
+  },
+  "recruiterTermin": {
+    "pill": {
+      "scheduled": "Bestätigt",
+      "unconfirmed": "Unbestätigt",
+      "awaiting": "Wartet auf Terminwahl",
+      "expired": "Termine verstrichen",
+      "counter": "Gegenvorschlag",
+      "debrief": "Debrief fällig",
+      "cancelled": "Abgesagt",
+      "no_show": "Nicht erschienen",
+      "done": "Abgeschlossen"
+    },
+    "ctx": {
+      "scheduled": "Der Termin steht. Halte deinen Kandidaten warm und erinnere ihn kurz vorher.",
+      "unconfirmed": "Der Termin ist noch nicht bestätigt. Kläre mit deinem Kandidaten, ob er kann.",
+      "awaiting": "Dein Kandidat hat die Termine seit {{time}} nicht gewählt. Ein Anruf bringt mehr als eine weitere Mail.",
+      "expired": "Alle vorgeschlagenen Termine sind verstrichen. Neue Termine kann nur der Kunde schicken — erreiche zuerst deinen Kandidaten.",
+      "counter": "Es liegt ein Alternativtermin vor. Über die Annahme entscheidet der Kunde — sorge dafür, dass dein Kandidat verfügbar bleibt.",
+      "debrief": "Das Interview vom {{date}} ist gelaufen, dein Eindruck fehlt noch. Frisch ist er am wertvollsten.",
+      "cancelled": "Der Termin wurde abgesagt. Prüfe, ob der Prozess weiterläuft oder du den Fall schliessen solltest.",
+      "no_show": "Zum Termin ist niemand erschienen. Kläre mit deinem Kandidaten, was passiert ist.",
+      "done": "Der Termin ist abgeschlossen."
+    },
+    "meeting": {
+      "video": "Videocall",
+      "phone": "Telefon",
+      "onsite": "Vor Ort"
+    },
+    "duration": "{{min}} Min.",
+    "no_address": "Keine Adresse hinterlegt — dein Kandidat weiss nicht, wo er hin soll.",
+    "slots_title": "Vorgeschlagene Termine",
+    "expired_tag": "verstrichen",
+    "counter_title": "Alternativtermin",
+    "cancel_title": "Grund",
+    "no_show_by": {
+      "candidate": "Kandidat nicht erschienen",
+      "client": "Kunde nicht erschienen",
+      "technical": "Technisches Problem",
+      "unknown": "Kein Grund hinterlegt"
+    },
+    "msg": "Nachricht deines Kandidaten",
+    "notes": "Notizen zum Termin",
+    "client_feedback": "Rückmeldung des Kunden",
+    "debrief_title": "Dein Eindruck",
+    "debrief_placeholder": "Wie ist das Gespräch gelaufen? Was hält den Kandidaten, was bremst ihn?",
+    "debrief_save": "Eindruck festhalten",
+    "debrief_update": "Eindruck aktualisieren",
+    "recommendation": {
+      "next_round": "Weiter",
+      "hire": "Einstellen",
+      "undecided": "Unklar",
+      "reject": "Raus"
+    },
+    "fee": "Dein Honorar bei Abschluss: ~{{amount}}k €",
+    "action": {
+      "join": "Meeting beitreten",
+      "call": "Kandidat anrufen",
+      "mail": "Kandidat anschreiben",
+      "call_short": "Anrufen",
+      "mail_short": "Mail",
+      "submission": "Einreichung",
+      "candidate": "Profil"
+    }
   }
 };
 

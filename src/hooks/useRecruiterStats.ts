@@ -66,7 +66,7 @@ export function useRecruiterStats() {
 
       // 1. Open Jobs Count (all published jobs)
       const { count: openJobsCount } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'published');
 
@@ -91,7 +91,7 @@ export function useRecruiterStats() {
       // Get job data separately to avoid deep type instantiation
       const jobIds = [...new Set(allSubmissions?.map(s => s.job_id) || [])];
       const { data: jobsData } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('id, salary_min, salary_max, recruiter_fee_percentage')
         .in('id', jobIds);
 

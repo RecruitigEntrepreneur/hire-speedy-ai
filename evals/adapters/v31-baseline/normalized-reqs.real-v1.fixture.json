@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "description": "Kuratierte Anforderungs-Normalisierung für die 19 echten Jobs (dataset.real.v1.json). Simuliert den Phase-2.1-LLM-Normalizer: Satzfragment-Must-haves und Titel werden in kanonische Skill-Tokens übersetzt (must/nice, Gewicht). Bildungs-/Sprach-/Soft-Skill-Fragmente werden bewusst NICHT als Skills kodiert (Sprachen gehören in required_languages, Abschlüsse in eigene Felder). Dient als Mess-Nachweis des Normalisierungs-Hebels UND später als Referenz-Goldstandard für den automatischen Normalizer.",
+    "method": "Handkuratiert 2026-07-18 aus den echten must_haves/nice_to_haves/skills/Titeln; keine Anpassung an Label-Outcomes (kein Overfitting: Ablehnungsgründe unbekannt).",
+    "keyed_by": "pseudonymisierte Job-IDs aus dataset.real.v1.json"
+  },
+  "real-j-54ede5063a": [
+    { "skill_name": "react", "type": "must", "weight": 1.0 },
+    { "skill_name": "typescript", "type": "must", "weight": 1.0 },
+    { "skill_name": "vue", "type": "nice", "weight": 0.5 },
+    { "skill_name": "node.js", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-f41b2a3e99": [
+    { "skill_name": "vue", "type": "must", "weight": 1.0 },
+    { "skill_name": "typescript", "type": "must", "weight": 1.0 },
+    { "skill_name": "tailwind", "type": "must", "weight": 1.0 },
+    { "skill_name": "nuxt", "type": "nice", "weight": 0.5 },
+    { "skill_name": "testing", "type": "nice", "weight": 0.5 },
+    { "skill_name": "ci/cd", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-992b595212": [
+    { "skill_name": "excel", "type": "must", "weight": 1.0 },
+    { "skill_name": "business intelligence", "type": "nice", "weight": 0.5 },
+    { "skill_name": "sap", "type": "nice", "weight": 0.5 },
+    { "skill_name": "crm", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-1369abc189": [
+    { "skill_name": "java", "type": "must", "weight": 1.0 },
+    { "skill_name": "spring boot", "type": "must", "weight": 1.0 },
+    { "skill_name": "aws", "type": "must", "weight": 1.0 },
+    { "skill_name": "kubernetes", "type": "must", "weight": 1.0 },
+    { "skill_name": "docker", "type": "must", "weight": 1.0 },
+    { "skill_name": "hibernate", "type": "nice", "weight": 0.5 },
+    { "skill_name": "ci/cd", "type": "nice", "weight": 0.5 },
+    { "skill_name": "scrum", "type": "nice", "weight": 0.5 },
+    { "skill_name": "devops", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-627d8705f2": [
+    { "skill_name": "buchhaltung", "type": "must", "weight": 1.0 },
+    { "skill_name": "rechnungswesen", "type": "must", "weight": 1.0 },
+    { "skill_name": "datev", "type": "nice", "weight": 0.5 },
+    { "skill_name": "excel", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-8124e604de": [
+    { "skill_name": "buchhaltung", "type": "must", "weight": 1.0 },
+    { "skill_name": "rechnungswesen", "type": "must", "weight": 1.0 },
+    { "skill_name": "excel", "type": "must", "weight": 1.0 },
+    { "skill_name": "datev", "type": "must", "weight": 1.0 }
+  ],
+  "real-j-466762f106": [
+    { "skill_name": "buchhaltung", "type": "must", "weight": 1.0 },
+    { "skill_name": "rechnungswesen", "type": "must", "weight": 1.0 },
+    { "skill_name": "excel", "type": "nice", "weight": 0.5 },
+    { "skill_name": "datev", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-f437919d2d": [
+    { "skill_name": "buchhaltung", "type": "must", "weight": 1.0 },
+    { "skill_name": "rechnungswesen", "type": "must", "weight": 1.0 },
+    { "skill_name": "sap", "type": "nice", "weight": 0.5 },
+    { "skill_name": "excel", "type": "nice", "weight": 0.5 },
+    { "skill_name": "datev", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-b5f944daed": [
+    { "skill_name": "buchhaltung", "type": "must", "weight": 1.0 },
+    { "skill_name": "rechnungswesen", "type": "must", "weight": 1.0 },
+    { "skill_name": "debitorenbuchhaltung", "type": "nice", "weight": 0.5 },
+    { "skill_name": "kreditorenbuchhaltung", "type": "nice", "weight": 0.5 },
+    { "skill_name": "anlagenbuchhaltung", "type": "nice", "weight": 0.5 },
+    { "skill_name": "jahresabschluss", "type": "nice", "weight": 0.5 },
+    { "skill_name": "mahnwesen", "type": "nice", "weight": 0.5 },
+    { "skill_name": "excel", "type": "nice", "weight": 0.5 },
+    { "skill_name": "datev", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-def326c10c": [
+    { "skill_name": "datenverkabelung", "type": "must", "weight": 1.0 },
+    { "skill_name": "kabelinstallation", "type": "must", "weight": 1.0 },
+    { "skill_name": "lwl", "type": "nice", "weight": 0.5 },
+    { "skill_name": "spleißen", "type": "nice", "weight": 0.5 },
+    { "skill_name": "kabelmontage", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-80150520e3": [
+    { "skill_name": "projektmanagement", "type": "must", "weight": 1.0 },
+    { "skill_name": "prozessmanagement", "type": "must", "weight": 1.0 },
+    { "skill_name": "it", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-3e8da70091": [
+    { "skill_name": "power bi", "type": "must", "weight": 1.0 },
+    { "skill_name": "sql", "type": "must", "weight": 1.0 },
+    { "skill_name": "python", "type": "must", "weight": 1.0 },
+    { "skill_name": "etl", "type": "nice", "weight": 0.5 },
+    { "skill_name": "datenmodellierung", "type": "nice", "weight": 0.5 },
+    { "skill_name": "tableau", "type": "nice", "weight": 0.5 },
+    { "skill_name": ".net", "type": "nice", "weight": 0.5 },
+    { "skill_name": "c#", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-d0c51d4c9a": [
+    { "skill_name": "machine learning", "type": "must", "weight": 1.0 },
+    { "skill_name": "ai", "type": "must", "weight": 1.0 },
+    { "skill_name": "rust", "type": "nice", "weight": 0.5 },
+    { "skill_name": "c++", "type": "nice", "weight": 0.5 },
+    { "skill_name": "kotlin", "type": "nice", "weight": 0.5 },
+    { "skill_name": "llm", "type": "nice", "weight": 0.5 },
+    { "skill_name": "onnx", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-c90b4e7208": [
+    { "skill_name": "projektmanagement", "type": "must", "weight": 1.0 },
+    { "skill_name": "ms office", "type": "must", "weight": 1.0 },
+    { "skill_name": "ms project", "type": "nice", "weight": 0.5 },
+    { "skill_name": "projektsteuerung", "type": "nice", "weight": 0.5 },
+    { "skill_name": "bauwirtschaft", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-efd1ed2fa0": [
+    { "skill_name": "product management", "type": "must", "weight": 1.0 },
+    { "skill_name": "b2b saas", "type": "must", "weight": 1.0 },
+    { "skill_name": "data analysis", "type": "nice", "weight": 0.5 },
+    { "skill_name": "discovery", "type": "nice", "weight": 0.5 },
+    { "skill_name": "fintech", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-d099949e6a": [
+    { "skill_name": "devops", "type": "must", "weight": 1.0 }
+  ],
+  "real-j-91d39a0267": [
+    { "skill_name": "sap fi", "type": "must", "weight": 1.0 },
+    { "skill_name": "konsolidierung", "type": "must", "weight": 1.0 },
+    { "skill_name": "sap co", "type": "nice", "weight": 0.5 },
+    { "skill_name": "controlling", "type": "nice", "weight": 0.5 }
+  ],
+  "real-j-6bc4f635b4": [
+    { "skill_name": "lohnbuchhaltung", "type": "must", "weight": 1.0 },
+    { "skill_name": "datev", "type": "must", "weight": 1.0 }
+  ]
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -44,10 +45,15 @@ import { CandidateExperienceTimeline } from '@/components/candidates/CandidateEx
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
 import { PendingRequestStatus } from '@/components/interview/PendingRequestStatus';
+import { StatePill } from '@/components/candidates/BewerberStatusPill';
+import { primaryActionFor } from '@/components/candidates/BewerberPreviewPanel';
+import { useSubmissionState } from '@/hooks/useSubmissionState';
+import { useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
 import { useClientCandidateView } from '@/hooks/useClientCandidateView';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { useTeamData } from '@/hooks/useTeamData';
 import { cn } from '@/lib/utils';
+import { candidateAnonCode } from '@/lib/anonymization';
 
 // ============================================================================
 // Helpers
@@ -96,8 +102,22 @@ export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const { data: candidateView, loading, error, refetch } = useClientCandidateView(id);
+
+  // Ein Zustand für die ganze Seite — gleiche Pillen-/Zuständigkeits-Logik wie die Inbox
+  const { data: subState } = useSubmissionState(
+    id,
+    candidateView?.stage ?? null,
+    candidateView?.status ?? null,
+    null
+  );
+
+  // Fallback-Quelle für die Match-Pille: die Fit-Analyse hat oft einen Score,
+  // wenn submissions.match_score (noch) leer ist — eine Zahl, eine Wahrheit im Kopf.
+  const { assessment: fitAssessment } = useCandidateFitAssessment(id);
 
   // Team-Kontext: Viewer sind read-only; Mitgliederliste für @-Mentions
   const { organization: myOrg, myRole: myOrgRole } = useMyOrganization();
@@ -255,9 +275,9 @@ export default function CandidateDetail() {
 
       setNewComment('');
       fetchComments();
-      toast({ title: 'Kommentar hinzugefuegt' });
+      toast({ title: 'Notiz gespeichert' });
     } catch {
-      toast({ title: 'Fehler beim Hinzufuegen', variant: 'destructive' });
+      toast({ title: 'Die Notiz konnte nicht gespeichert werden', variant: 'destructive' });
     } finally {
       setCommentLoading(false);
     }
@@ -288,7 +308,7 @@ export default function CandidateDetail() {
           <h2 className="text-xl font-semibold">Kandidat nicht gefunden</h2>
           <p className="text-muted-foreground mt-2">{error}</p>
           <Button asChild className="mt-4">
-            <Link to="/dashboard/candidates">Zurueck zur Uebersicht</Link>
+            <Link to="/dashboard/candidates">Zurück zur Übersicht</Link>
           </Button>
         </div>
       </DashboardLayout>
@@ -306,20 +326,68 @@ export default function CandidateDetail() {
     keySellingPoints,
   } = candidateView;
 
-  const getStatusLabel = (s: string | null): string => {
-    const labels: Record<string, string> = {
-      submitted: 'Eingereicht', screening: 'In Pruefung',
-      interview_requested: 'Interview angefragt', candidate_opted_in: 'Opt-In erhalten',
-      interview_scheduled: 'Interview geplant', interview: 'Interview-Phase',
-      second_interview: 'Zweitgespraech', offer: 'Angebot',
-      hired: 'Eingestellt', rejected: 'Abgelehnt',
-      client_rejected: 'Abgelehnt', opt_in_declined: 'Opt-In abgelehnt',
-    };
-    return labels[s || 'submitted'] || 'Eingereicht';
-  };
-
   const enrichedWorkModel = buildWorkModelLabel(workModel, remoteDaysPreferred, relocationWilling);
   const isTerminal = status === 'hired' || status === 'rejected' || status === 'client_rejected';
+  const anonCode = candidateAnonCode(candidateId);
+  const fmtSeniority = (s: string) => (s && /^[a-z]/.test(s) ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+  const state = subState?.state ?? { key: 'wait_today', tone: 'neutral' as const, turn: 'me' as const };
+  const primary = primaryActionFor(state.key);
+  const PrimaryIcon = primary.icon;
+  // Nur „wartet auf Kandidat" nutzt den Pending-Baustein; beim Gegenvorschlag
+  // ist der Kunde am Zug und bekommt die Primäraktion „Vorschlag prüfen".
+  const isPendingCandidate = state.key === 'wartet_kandidat';
+  const headScore = matchScore > 0 ? matchScore : fitAssessment?.overall_score ?? 0;
+  const showAgendaLink = ['geplant', 'feedback', 'feedback_nodate', 'interview_phase', 'opted_in'].includes(state.key);
+
+  const ctxFor = (): string => {
+    const k = state.key;
+    if (k === 'wait_today' || k === 'wait_yesterday' || k === 'wait_days') return t('bewerber.detail.ctx.wait_new');
+    if (k === 'wait_warn' || k === 'wait_crit') return t('bewerber.detail.ctx.wait_old', { days: (state.params as any)?.days ?? '' });
+    if (k === 'archiv') return t('bewerber.detail.ctx.archiv');
+    return t(`bewerber.detail.ctx.${k}`, state.params);
+  };
+
+  const runPrimary = () => {
+    if (isViewer) return;
+    if (primary.run === 'wizard') {
+      setShowInterviewDialog(true);
+      return;
+    }
+    // Beim Feedback-Zustand direkt das Formular dieses Kandidaten öffnen,
+    // statt den Kunden nur auf die Interviews-Liste zu werfen.
+    const isFeedback = state.key === 'feedback' || state.key === 'feedback_nodate';
+    navigate(primary.run, isFeedback ? { state: { openFeedbackFor: submissionId } } : undefined);
+  };
+
+  // Verlauf: Einreichung, Interviews und Angebote chronologisch — das Gedächtnis der Bewerbung
+  const verlauf: { when: string; label: string }[] = [];
+  if (subState?.submittedAt) verlauf.push({ when: subState.submittedAt, label: t('bewerber.detail.verlauf_submitted') });
+  for (const iv of subState?.interviews ?? []) {
+    verlauf.push({ when: iv.createdAt, label: t('bewerber.detail.verlauf_iv_requested') });
+    if (iv.scheduledAt) {
+      const past = new Date(iv.scheduledAt).getTime() < Date.now();
+      verlauf.push({
+        when: iv.scheduledAt,
+        label:
+          past && (iv.status === 'scheduled' || iv.status === 'completed')
+            ? t('bewerber.detail.verlauf_iv_completed')
+            : t('bewerber.detail.verlauf_iv_scheduled', {
+                time: format(new Date(iv.scheduledAt), 'HH:mm', { locale: de }),
+              }),
+      });
+    }
+    if (iv.cancelledAt) verlauf.push({ when: iv.cancelledAt, label: t('bewerber.detail.verlauf_iv_cancelled') });
+    if (iv.status === 'declined') verlauf.push({ when: iv.createdAt, label: t('bewerber.detail.verlauf_iv_declined') });
+  }
+  for (const o of subState?.offers ?? []) {
+    if (o.createdAt) verlauf.push({ when: o.createdAt, label: t('bewerber.detail.verlauf_offer_created') });
+    if (o.sentAt) verlauf.push({ when: o.sentAt, label: t('bewerber.detail.verlauf_offer_sent') });
+  }
+  if (subState?.latestInterview?.status === 'pending_response') {
+    verlauf.push({ when: new Date().toISOString(), label: t('bewerber.detail.verlauf_iv_pending') });
+  }
+  verlauf.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
 
   return (
     <DashboardLayout>
@@ -329,30 +397,27 @@ export default function CandidateDetail() {
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
       >
         <ArrowLeft className="mr-1.5 h-4 w-4" />
-        Zurueck zu Bewerbungen
+        {t('bewerber.detail.back')}
       </Link>
 
-      <div className="space-y-6 max-w-5xl">
+      <div className="space-y-4 max-w-5xl">
         {/* ================================================================ */}
-        {/* HERO CARD                                                        */}
+        {/* ZONE 1 — WER & WIE GUT (bleibt beim Scrollen sichtbar)           */}
         {/* ================================================================ */}
-        <div className="rounded-xl border bg-card shadow-sm">
-          <div className="p-5">
-            {/* Row 1: Avatar + Name/Meta + Match Score */}
+        <div className="sticky top-16 z-20">
+          <div className="rounded-xl border bg-card shadow-md p-5">
             <div className="flex items-start gap-4">
-              {/* Avatar */}
               <div className="relative shrink-0">
                 <Avatar className="h-14 w-14 ring-2 ring-primary/20">
                   <AvatarFallback className={cn(
-                    "text-lg font-semibold",
+                    'text-lg font-semibold',
                     identityUnlocked
-                      ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
+                      ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
                   )}>
                     {identityUnlocked
                       ? displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-                      : <User className="h-6 w-6" />
-                    }
+                      : <User className="h-6 w-6" />}
                   </AvatarFallback>
                 </Avatar>
                 {!identityUnlocked && (
@@ -362,125 +427,37 @@ export default function CandidateDetail() {
                 )}
               </div>
 
-              {/* Name + Meta */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h1 className="text-xl md:text-2xl font-bold truncate flex items-center gap-2">
-                      {displayName}
-                      {!identityUnlocked && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
-                    </h1>
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">{currentRole}</span>
-                      <span className="text-border">·</span>
-                      <span>fuer: {jobTitle}</span>
-                    </div>
-                    <Badge variant="outline" className="mt-1.5 text-[10px] h-5">
-                      {getStatusLabel(stage || status)}
-                    </Badge>
-                  </div>
-
-                  {/* Match Score Badge */}
-                  {matchScore > 0 && (
-                    <div className={cn(
-                      "flex flex-col items-center px-4 py-2 rounded-lg border shrink-0",
-                      matchScore >= 85 ? "bg-emerald-500/10 border-emerald-500/30" :
-                      matchScore >= 70 ? "bg-green-500/10 border-green-500/30" :
-                      matchScore >= 50 ? "bg-amber-500/10 border-amber-500/30" :
-                      "bg-red-500/10 border-red-500/30"
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl md:text-2xl font-bold truncate">
+                    {identityUnlocked ? displayName : anonCode}
+                  </h1>
+                  {!identityUnlocked && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  {headScore > 0 && (
+                    <span className={cn(
+                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
+                      headScore >= 85 ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                     )}>
-                      <span className={cn(
-                        "text-2xl font-bold",
-                        matchScore >= 85 ? "text-emerald-600" :
-                        matchScore >= 70 ? "text-green-600" :
-                        matchScore >= 50 ? "text-amber-600" : "text-red-600"
-                      )}>
-                        {matchScore}%
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">Match</span>
-                    </div>
+                      {t('bewerber.detail.match', { score: headScore })}
+                    </span>
                   )}
+                  <StatePill state={state} archiveKind={subState?.archiveKind} />
                 </div>
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{currentRole}</span>
+                  <span className="text-border">·</span>
+                  <span>für: {jobTitle}</span>
+                </div>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  {identityUnlocked
+                    ? t('bewerber.detail.unlocked_hint', { code: anonCode })
+                    : t('bewerber.detail.locked_hint', { code: anonCode })}
+                </p>
               </div>
-            </div>
 
-            {/* Row 2: Key Facts (inline) */}
-            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              <KeyFactChip icon={GraduationCap} label="Senioritaet" value={seniority} faded={isPlaceholder(seniority)} />
-              <KeyFactChip icon={Briefcase} label="Erfahrung" value={experience} faded={isPlaceholder(experience)} />
-              <KeyFactChip icon={Banknote} label="Gehalt" value={salaryRange} faded={isPlaceholder(salaryRange)} />
-              <KeyFactChip icon={Clock} label="Verfuegbar" value={availability} faded={isPlaceholder(availability)} />
-              <KeyFactChip icon={MapPin} label="Region" value={region} faded={isPlaceholder(region)} />
-              <KeyFactChip icon={Globe} label="Arbeitsmodell" value={enrichedWorkModel} faded={isPlaceholder(workModel)} />
-            </div>
-
-            {/* Row 3: Skills + Certifications + Languages */}
-            <div className="flex flex-wrap items-center gap-1 mt-3">
-              {topSkills.slice(0, 8).map((skill: string, idx: number) => (
-                <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
-                  {skill}
-                </Badge>
-              ))}
-              {topSkills.length > 8 && (
-                <span className="text-[10px] text-muted-foreground ml-0.5">+{topSkills.length - 8}</span>
-              )}
-              {certifications.map((cert, idx) => (
-                <Badge key={`cert-${idx}`} variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-amber-600 border-amber-400/50">
-                  {cert}
-                </Badge>
-              ))}
-              {languageSkills.length > 0 && (
-                <span className="text-xs text-muted-foreground ml-1">
-                  {languageSkills.map(ls => ls.level ? `${ls.language}(${ls.level})` : ls.language).join(', ')}
-                </span>
-              )}
-            </div>
-
-            {/* Row 4: CTAs + Contact Buttons */}
-            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-2">
-              {/* Stage-dependent CTAs (Viewer sind read-only) */}
-              {!isTerminal && isViewer && (
-                <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
-                  <Lock className="h-3 w-3" /> Nur Lesezugriff
-                </Badge>
-              )}
-              {!isTerminal && !isViewer && (
-                <>
-                  {stage === 'interview_requested' ? (
-                    <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} />
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => setShowInterviewDialog(true)}
-                      className="gap-1.5"
-                    >
-                      <Calendar className="h-3.5 w-3.5" />
-                      {stage === 'candidate_opted_in' ? 'Interview planen' : 'Interview anfragen'}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRejectDialog(true)}
-                    className="gap-1.5"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Ablehnen
-                  </Button>
-                </>
-              )}
-              {isTerminal && (
-                <Badge variant={status === 'hired' ? 'default' : 'destructive'} className="text-xs">
-                  {getStatusLabel(status)}
-                </Badge>
-              )}
-
-              {/* Spacer */}
-              <div className="flex-1" />
-
-              {/* Contact Buttons (locked/unlocked) */}
-              {identityUnlocked ? (
-                <div className="flex items-center gap-1.5">
+              {/* Kontaktleiste — nur nach Freigabe; vorher erklärt die Hinweiszeile den Zustand */}
+              {identityUnlocked && (
+                <div className="flex items-center gap-1.5 shrink-0">
                   {phone && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -511,128 +488,245 @@ export default function CandidateDetail() {
                       <TooltipContent>LinkedIn</TooltipContent>
                     </Tooltip>
                   )}
-                  {cvUrl && (
+                  {cvUrl ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => window.open(cvUrl, '_blank')}>
                           <FileText className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>CV oeffnen</TooltipContent>
+                      <TooltipContent>{t('bewerber.detail.cv_open')}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled>
+                          <FileText className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('bewerber.detail.cv_missing')}</TooltipContent>
                     </Tooltip>
                   )}
                 </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled>
-                        <Phone className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Nach Opt-In verfuegbar</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled>
-                        <Mail className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Nach Opt-In verfuegbar</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled>
-                        <Linkedin className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Nach Opt-In verfuegbar</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-8 w-8 opacity-40 cursor-not-allowed" disabled>
-                        <FileText className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>CV nach Opt-In verfuegbar</TooltipContent>
-                  </Tooltip>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-1">
-                    <Lock className="h-3 w-3" />
-                    Kontakt nach Opt-In
-                  </span>
-                </div>
+              )}
+            </div>
+
+            {/* Fakten */}
+            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <KeyFactChip icon={GraduationCap} label="Seniorität" value={fmtSeniority(seniority)} faded={isPlaceholder(seniority)} />
+              <KeyFactChip icon={Briefcase} label="Erfahrung" value={experience} faded={isPlaceholder(experience)} />
+              <KeyFactChip icon={Banknote} label="Gehalt" value={salaryRange} faded={isPlaceholder(salaryRange)} />
+              <KeyFactChip icon={Clock} label="Verfügbar" value={availability} faded={isPlaceholder(availability)} />
+              <KeyFactChip icon={MapPin} label="Region" value={region} faded={isPlaceholder(region)} />
+              <KeyFactChip icon={Globe} label="Arbeitsmodell" value={enrichedWorkModel} faded={isPlaceholder(workModel)} />
+            </div>
+
+            {/* Skills */}
+            <div className="flex flex-wrap items-center gap-1 mt-3">
+              {topSkills.slice(0, 8).map((skill: string, idx: number) => (
+                <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+                  {skill}
+                </Badge>
+              ))}
+              {topSkills.length > 8 && (
+                <span className="text-[10px] text-muted-foreground ml-0.5">+{topSkills.length - 8} weitere</span>
               )}
             </div>
           </div>
         </div>
 
         {/* ================================================================ */}
-        {/* INTELLIGENTE FIT-ANALYSE                                         */}
+        {/* ZONE 2 — WAS JETZT                                               */}
         {/* ================================================================ */}
-        <CandidateFitAssessmentCard
-          submissionId={submissionId}
-          recruiterNotes={recruiterNotes}
-          keySellingPoints={keySellingPoints}
-        />
+        <div className={cn(
+          'rounded-xl border p-4',
+          state.tone === 'warn' ? 'bg-warning/10 border-warning/20' :
+          state.tone === 'crit' ? 'bg-destructive/10 border-destructive/20' :
+          'bg-muted/30'
+        )}>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm flex-1 min-w-[240px]">{ctxFor()}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {isViewer && (
+                <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" /> {t('bewerber.detail.readonly')}
+                </Badge>
+              )}
+              {!isViewer && !isTerminal && (
+                <>
+                  {isPendingCandidate ? (
+                    <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} />
+                  ) : (
+                    <Button size="sm" onClick={runPrimary} className="gap-1.5">
+                      <PrimaryIcon className="h-3.5 w-3.5" />
+                      {t(primary.labelKey)}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-muted-foreground"
+                    onClick={() => setShowRejectDialog(true)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {t('bewerber.actions.reject')}
+                  </Button>
+                  {showAgendaLink && (
+                    <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                      <Link to="/dashboard/interviews">{t('bewerber.detail.agenda')}</Link>
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground gap-1.5"
+                    onClick={() => navigate('/dashboard/messages')}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    {t('bewerber.actions.ask_recruiter')}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ================================================================ */}
-        {/* KARRIERE-TIMELINE                                                */}
+        {/* ZONE 3+4 — PASSUNG (links) · WERDEGANG & PROFIL (rechts)         */}
+        {/* Nebeneinander, damit der Werdegang ohne Scrollen sichtbar ist    */}
+        {/* ================================================================ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <CandidateFitAssessmentCard
+            submissionId={submissionId}
+            recruiterNotes={recruiterNotes}
+            keySellingPoints={keySellingPoints}
+          />
+
+          <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                {t('bewerber.detail.career')}
+                {!identityUnlocked && (
+                  <span className="text-[10px] font-normal text-muted-foreground flex items-center gap-1 ml-auto">
+                    <Lock className="h-3 w-3" />
+                    {t('bewerber.detail.companies_after_optin')}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CandidateExperienceTimeline candidateId={candidateId} anonymized={!identityUnlocked} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">{t('bewerber.detail.profile')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {industryExperience.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.branchen')}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {industryExperience.map((ie, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{ie}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {targetRoles.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.zielrollen')}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {targetRoles.map((tr, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{tr}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {languageSkills.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.sprachen')}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {languageSkills.map((ls, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">
+                        {ls.level ? `${ls.language} (${ls.level})` : ls.language}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {certifications.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.zertifikate')}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {certifications.map((cert, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] font-normal text-amber-600 border-amber-400/50">{cert}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {careerGoals && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.karriereziele')}</p>
+                  <p className="text-xs text-muted-foreground">{careerGoals}</p>
+                </div>
+              )}
+              {identityUnlocked ? (
+                cvUrl ? (
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => window.open(cvUrl, '_blank')}>
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    {t('bewerber.detail.cv_open')}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5" />
+                    {t('bewerber.detail.cv_missing')}
+                  </p>
+                )
+              ) : (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  {t('bewerber.detail.cv_locked')}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          </div>
+        </div>
+
+        {/* ================================================================ */}
+        {/* ZONE 5 — VERLAUF                                                 */}
         {/* ================================================================ */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Karriere-Stationen
-              {!identityUnlocked && (
-                <span className="text-[10px] font-normal text-muted-foreground flex items-center gap-1 ml-auto">
-                  <Lock className="h-3 w-3" />
-                  Firmennamen nach Opt-In
-                </span>
-              )}
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              {t('bewerber.detail.verlauf')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <CandidateExperienceTimeline candidateId={candidateId} anonymized={!identityUnlocked} />
+            {verlauf.length === 0 ? (
+              <p className="text-xs text-muted-foreground">–</p>
+            ) : (
+              <div className="space-y-2.5">
+                {verlauf.map((e, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5">
+                    <span className="mt-1.5 h-2 w-2 rounded-full bg-muted-foreground/40 shrink-0" />
+                    <div>
+                      <span className="text-[11px] text-muted-foreground/70">
+                        {format(new Date(e.when), 'dd.MM.yyyy', { locale: de })}
+                      </span>
+                      <p className="text-sm leading-tight">{e.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* ================================================================ */}
-        {/* PROFIL-DETAILS (if available)                                     */}
-        {/* ================================================================ */}
-        {(industryExperience.length > 0 || targetRoles.length > 0 || careerGoals) && (
-          <Card>
-            <CardContent className="p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {industryExperience.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Branchen</p>
-                    <div className="flex flex-wrap gap-1">
-                      {industryExperience.map((ie, idx) => (
-                        <Badge key={idx} variant="outline" className="text-[10px] font-normal">{ie}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {targetRoles.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Zielrollen</p>
-                    <div className="flex flex-wrap gap-1">
-                      {targetRoles.map((tr, idx) => (
-                        <Badge key={idx} variant="outline" className="text-[10px] font-normal">{tr}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {careerGoals && (
-                  <div>
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Karriereziele</p>
-                    <p className="text-xs text-muted-foreground">{careerGoals}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* ================================================================ */}
         {/* NOTIZEN                                                          */}
@@ -641,13 +735,13 @@ export default function CandidateDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              Notizen
+              {t('bewerber.notes.title')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="relative">
               <Textarea
-                placeholder={teamMembers.length > 1 ? 'Notiz hinzufuegen... (@ erwähnt Teammitglieder)' : 'Notiz hinzufuegen...'}
+                placeholder={teamMembers.length > 1 ? 'Notiz hinzufügen … (@ erwähnt Teammitglieder)' : 'Notiz hinzufügen …'}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="min-h-[60px] text-sm"
@@ -682,6 +776,7 @@ export default function CandidateDetail() {
               )}
               Speichern
             </Button>
+            <p className="text-[10px] text-muted-foreground/60">{t('bewerber.notes.visibility')}</p>
 
             {comments.length > 0 && (
               <ScrollArea className="max-h-48">
@@ -701,18 +796,12 @@ export default function CandidateDetail() {
           </CardContent>
         </Card>
 
-        {/* ================================================================ */}
-        {/* EU AI ACT FOOTER                                                 */}
-        {/* ================================================================ */}
-        <div className="text-xs text-muted-foreground/60 text-center py-3 space-y-1">
-          {!identityUnlocked && (
-            <p>Anonymisiertes Profil — Nach Interview-Zustimmung werden Name, Kontakt und CV freigeschaltet.</p>
-          )}
-          <p className="flex items-center justify-center gap-1">
-            <Scale className="h-3 w-3" />
-            Die KI-Einschaetzung auf dieser Seite wird gemaess EU AI Act (Verordnung 2024/1689) als Hochrisiko-KI-System betrieben.
+        {/* Footer-Hinweis nur solange die Identität gesperrt ist; EU-AI-Act-Hinweis steht in der Fit-Analyse */}
+        {!identityUnlocked && (
+          <p className="text-xs text-muted-foreground/60 text-center py-3">
+            Anonymisiertes Profil — nach der Interview-Zusage werden Name, Kontakt und Lebenslauf freigeschaltet.
           </p>
-        </div>
+        )}
       </div>
 
       {/* Dialogs */}

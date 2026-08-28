@@ -1,0 +1,2289 @@
+{
+  "_meta": {
+    "description": "Eingefrorener skill_taxonomy/skill_synonyms-Stand aus den Seed-Migrationen. Durch echten DB-Export ersetzen, sobald Zugang besteht.",
+    "source_migrations": [
+      "supabase/migrations/20251213030355_2b592422-1978-4c82-b080-c073cb44d732.sql",
+      "supabase/migrations/20260122212342_6d5f5cb2-7637-4a06-baf5-b1d5c7e074f8.sql",
+      "supabase/migrations/20260124144038_4640af9b-2340-4bec-addd-f481342d9043.sql",
+      "supabase/migrations/20260125151941_84c5fdb6-25af-4e15-94e0-caa6f68ed0a9.sql"
+    ],
+    "generated_by": "evals/tools/build-taxonomy-fixture.ts"
+  },
+  "taxonomy": [
+    {
+      "canonical_name": "Adobe XD",
+      "aliases": [
+        "XD",
+        "Experience Design"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "UI Design",
+        "UX Design",
+        "Prototyping"
+      ],
+      "transferability_from": {
+        "Figma": 80,
+        "Sketch": 80
+      }
+    },
+    {
+      "canonical_name": "Agile",
+      "aliases": [
+        "Agile Methoden",
+        "Agile Development",
+        "Agile Methodologies",
+        "Agiles Arbeiten"
+      ],
+      "category": "Methodology",
+      "related_skills": [
+        "Scrum",
+        "Kanban",
+        "SAFe",
+        "Jira"
+      ],
+      "transferability_from": {
+        "Scrum": 95,
+        "Kanban": 90
+      }
+    },
+    {
+      "canonical_name": "Android Development",
+      "aliases": [
+        "Android"
+      ],
+      "category": "Mobile",
+      "related_skills": [
+        "Kotlin",
+        "Java"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Angular",
+      "aliases": [
+        "AngularJS",
+        "Angular 2+"
+      ],
+      "category": "Frontend Framework",
+      "related_skills": [
+        "TypeScript",
+        "RxJS"
+      ],
+      "transferability_from": {
+        "React": 55,
+        "Vue": 60
+      }
+    },
+    {
+      "canonical_name": "ARM",
+      "aliases": [
+        "ARM Architecture",
+        "ARM Cortex",
+        "ARM Processor"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "Microcontroller",
+        "Embedded Systems",
+        "C"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "AWS",
+      "aliases": [
+        "Amazon Web Services"
+      ],
+      "category": "Cloud Platform",
+      "related_skills": [
+        "EC2",
+        "S3",
+        "Lambda"
+      ],
+      "transferability_from": {
+        "Azure": 65,
+        "GCP": 60
+      }
+    },
+    {
+      "canonical_name": "Azure",
+      "aliases": [
+        "Microsoft Azure"
+      ],
+      "category": "Cloud Platform",
+      "related_skills": [
+        "Azure DevOps"
+      ],
+      "transferability_from": {
+        "AWS": 65,
+        "GCP": 60
+      }
+    },
+    {
+      "canonical_name": "B2B SaaS",
+      "aliases": [
+        "B2B",
+        "SaaS",
+        "Enterprise Software",
+        "B2B SaaS Kenntnisse",
+        "Software as a Service"
+      ],
+      "category": "Domain",
+      "related_skills": [
+        "Enterprise Sales",
+        "Subscription Models",
+        "Product Management"
+      ],
+      "transferability_from": {
+        "B2C SaaS": 70,
+        "Enterprise": 80
+      }
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "aliases": [
+        "finanzbuchhaltung",
+        "lohnbuchhaltung",
+        "bilanzbuchhaltung",
+        "debitorenbuchhaltung",
+        "kreditorenbuchhaltung",
+        "anlagenbuchhaltung",
+        "buchhalter",
+        "buchführung",
+        "fibu",
+        "accounting",
+        "bookkeeping",
+        "buchhalterisch",
+        "finanzwesen"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "rechnungswesen": 85,
+        "controlling": 70,
+        "steuerrecht": 60
+      }
+    },
+    {
+      "canonical_name": "C#",
+      "aliases": [
+        "CSharp",
+        "C Sharp",
+        ".NET"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        ".NET",
+        "ASP.NET"
+      ],
+      "transferability_from": {
+        "Java": 65
+      }
+    },
+    {
+      "canonical_name": "CAN Bus",
+      "aliases": [
+        "CAN",
+        "Controller Area Network",
+        "CAN Protocol"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "Automotive",
+        "Embedded Systems",
+        "Industrial Automation"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "CI/CD",
+      "aliases": [
+        "Continuous Integration",
+        "Continuous Deployment"
+      ],
+      "category": "DevOps",
+      "related_skills": [
+        "Jenkins",
+        "GitHub Actions",
+        "GitLab CI"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "controlling",
+      "aliases": [
+        "finanzcontrolling",
+        "kostenrechnung",
+        "budgetierung",
+        "controller",
+        "controllerin",
+        "financial controlling",
+        "kostencontrolling",
+        "betriebswirtschaft",
+        "bwl",
+        "kalkulation",
+        "deckungsbeitragsrechnung"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "rechnungswesen": 75,
+        "buchhaltung": 65,
+        "sap co": 80
+      }
+    },
+    {
+      "canonical_name": "Data Science",
+      "aliases": [
+        "Data Analytics"
+      ],
+      "category": "Data Science",
+      "related_skills": [
+        "Python",
+        "R",
+        "SQL"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "datev",
+      "aliases": [
+        "datev unternehmen online",
+        "datev buchhaltung",
+        "datev lohn",
+        "datev kanzlei-rechnungswesen",
+        "duo",
+        "datev comfort",
+        "datev pro"
+      ],
+      "category": "Finance Software",
+      "related_skills": null,
+      "transferability_from": {
+        "lexware": 80,
+        "sage": 80,
+        "addison": 85,
+        "navision": 60
+      }
+    },
+    {
+      "canonical_name": "debitorenbuchhaltung",
+      "aliases": [
+        "accounts receivable",
+        "ar",
+        "ausgangsrechnungen",
+        "kundenrechnungen",
+        "debitorenmanagement",
+        "forderungsverwaltung"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "buchhaltung": 95,
+        "kreditorenbuchhaltung": 85
+      }
+    },
+    {
+      "canonical_name": "Design System",
+      "aliases": [
+        "Design Systems",
+        "Component Library",
+        "Style Guide"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "UI Design",
+        "Figma",
+        "Storybook"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "Django",
+      "aliases": [],
+      "category": "Backend Framework",
+      "related_skills": [
+        "Python",
+        "Django REST"
+      ],
+      "transferability_from": {
+        "Flask": 70,
+        "FastAPI": 65
+      }
+    },
+    {
+      "canonical_name": "Docker",
+      "aliases": [],
+      "category": "DevOps",
+      "related_skills": [
+        "Kubernetes",
+        "Containerization"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Elasticsearch",
+      "aliases": [
+        "ES",
+        "Elastic"
+      ],
+      "category": "Database",
+      "related_skills": [
+        "Search",
+        "Kibana"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Embedded Systems",
+      "aliases": [
+        "Embedded",
+        "Embedded Software",
+        "Embedded Development",
+        "Embedded C"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "C",
+        "C++",
+        "RTOS",
+        "Microcontroller",
+        "ARM"
+      ],
+      "transferability_from": {
+        "C": 70,
+        "C++": 60
+      }
+    },
+    {
+      "canonical_name": "Express",
+      "aliases": [
+        "Express.js",
+        "ExpressJS"
+      ],
+      "category": "Backend Framework",
+      "related_skills": [
+        "Node.js"
+      ],
+      "transferability_from": {
+        "Fastify": 80,
+        "Koa": 75
+      }
+    },
+    {
+      "canonical_name": "FastAPI",
+      "aliases": [],
+      "category": "Backend Framework",
+      "related_skills": [
+        "Python"
+      ],
+      "transferability_from": {
+        "Django": 60,
+        "Flask": 70
+      }
+    },
+    {
+      "canonical_name": "Figma",
+      "aliases": [
+        "Figma Design",
+        "Figma Tool"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "UI Design",
+        "UX Design",
+        "Prototyping"
+      ],
+      "transferability_from": {
+        "Sketch": 85,
+        "Adobe XD": 80
+      }
+    },
+    {
+      "canonical_name": "Flutter",
+      "aliases": [],
+      "category": "Mobile",
+      "related_skills": [
+        "Dart",
+        "Mobile"
+      ],
+      "transferability_from": {
+        "React Native": 55
+      }
+    },
+    {
+      "canonical_name": "FPGA",
+      "aliases": [
+        "Field Programmable Gate Array",
+        "FPGA Design"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "VHDL",
+        "Verilog",
+        "Xilinx",
+        "Altera",
+        "Intel FPGA"
+      ],
+      "transferability_from": {
+        "Digital Design": 80
+      }
+    },
+    {
+      "canonical_name": "GCP",
+      "aliases": [
+        "Google Cloud",
+        "Google Cloud Platform"
+      ],
+      "category": "Cloud Platform",
+      "related_skills": [
+        "BigQuery",
+        "Firebase"
+      ],
+      "transferability_from": {
+        "AWS": 60,
+        "Azure": 60
+      }
+    },
+    {
+      "canonical_name": "Go",
+      "aliases": [
+        "Golang"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        "Kubernetes",
+        "Docker"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "GraphQL",
+      "aliases": [],
+      "category": "Architecture",
+      "related_skills": [
+        "API",
+        "Apollo"
+      ],
+      "transferability_from": {
+        "REST API": 50
+      }
+    },
+    {
+      "canonical_name": "hgb",
+      "aliases": [
+        "handelsgesetzbuch",
+        "hgb bilanzierung",
+        "deutsche rechnungslegung",
+        "handelsrecht",
+        "deutsches handelsrecht"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "ifrs": 70,
+        "rechnungswesen": 85,
+        "bilanzierung": 90
+      }
+    },
+    {
+      "canonical_name": "ifrs",
+      "aliases": [
+        "international financial reporting standards",
+        "ias",
+        "internationale rechnungslegung",
+        "ifrs 16",
+        "ifrs 15",
+        "ifrs 9"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "hgb": 70,
+        "gaap": 80,
+        "rechnungswesen": 80
+      }
+    },
+    {
+      "canonical_name": "iOS Development",
+      "aliases": [
+        "iOS",
+        "iPhone Development"
+      ],
+      "category": "Mobile",
+      "related_skills": [
+        "Swift",
+        "Objective-C",
+        "Xcode"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Java",
+      "aliases": [
+        "Java SE",
+        "Java EE",
+        "JDK"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        "Spring",
+        "Kotlin"
+      ],
+      "transferability_from": {
+        "Kotlin": 75,
+        "C#": 60
+      }
+    },
+    {
+      "canonical_name": "JavaScript",
+      "aliases": [
+        "JS",
+        "ECMAScript",
+        "ES6",
+        "ES2015"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        "TypeScript",
+        "Node.js",
+        "React"
+      ],
+      "transferability_from": {
+        "TypeScript": 85
+      }
+    },
+    {
+      "canonical_name": "Kanban",
+      "aliases": [
+        "Kanban Board",
+        "Kanban Method"
+      ],
+      "category": "Methodology",
+      "related_skills": [
+        "Agile",
+        "Lean",
+        "Jira"
+      ],
+      "transferability_from": {
+        "Agile": 85
+      }
+    },
+    {
+      "canonical_name": "Kotlin",
+      "aliases": [],
+      "category": "Programming Language",
+      "related_skills": [
+        "Android",
+        "Java"
+      ],
+      "transferability_from": {
+        "Java": 75
+      }
+    },
+    {
+      "canonical_name": "kreditorenbuchhaltung",
+      "aliases": [
+        "accounts payable",
+        "ap",
+        "eingangsrechnungen",
+        "lieferantenrechnungen",
+        "kreditorenmanagement",
+        "rechnungsprüfung"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "buchhaltung": 95,
+        "debitorenbuchhaltung": 85
+      }
+    },
+    {
+      "canonical_name": "Kubernetes",
+      "aliases": [
+        "K8s"
+      ],
+      "category": "DevOps",
+      "related_skills": [
+        "Docker",
+        "Helm"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "LabVIEW",
+      "aliases": [
+        "National Instruments LabVIEW",
+        "NI LabVIEW"
+      ],
+      "category": "Industrial Automation",
+      "related_skills": [
+        "Test Automation",
+        "Data Acquisition",
+        "Measurement"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "Laravel",
+      "aliases": [],
+      "category": "Backend Framework",
+      "related_skills": [
+        "PHP"
+      ],
+      "transferability_from": {
+        "Symfony": 70
+      }
+    },
+    {
+      "canonical_name": "lexware",
+      "aliases": [
+        "lexware buchhaltung",
+        "lexware financial office",
+        "lexware lohn",
+        "lexware warenwirtschaft",
+        "lexoffice"
+      ],
+      "category": "Finance Software",
+      "related_skills": null,
+      "transferability_from": {
+        "datev": 75,
+        "sage": 85
+      }
+    },
+    {
+      "canonical_name": "lohnbuchhaltung",
+      "aliases": [
+        "lohnabrechnung",
+        "payroll",
+        "gehaltsabrechnung",
+        "entgeltabrechnung",
+        "lohn und gehalt",
+        "personalabrechnung",
+        "lohnbuchhalter",
+        "sv-meldungen",
+        "sozialversicherung",
+        "lohnsteuer"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "buchhaltung": 80,
+        "hr": 60
+      }
+    },
+    {
+      "canonical_name": "Machine Learning",
+      "aliases": [
+        "ML"
+      ],
+      "category": "Data Science",
+      "related_skills": [
+        "Python",
+        "TensorFlow",
+        "PyTorch"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "mahnwesen",
+      "aliases": [
+        "forderungsmanagement",
+        "inkasso",
+        "debitorenmanagement",
+        "zahlungsverkehr",
+        "offene posten",
+        "op-verwaltung",
+        "mahnverfahren",
+        "accounts receivable",
+        "ar"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "buchhaltung": 85,
+        "debitorenbuchhaltung": 95
+      }
+    },
+    {
+      "canonical_name": "Mentoring",
+      "aliases": [
+        "Coaching",
+        "Developer Mentoring"
+      ],
+      "category": "Leadership",
+      "related_skills": [
+        "Team Leadership",
+        "Knowledge Transfer"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "Microcontroller",
+      "aliases": [
+        "MCU",
+        "Mikrokontroller",
+        "Embedded Microcontroller"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "ARM",
+        "Arduino",
+        "STM32",
+        "PIC",
+        "AVR"
+      ],
+      "transferability_from": {
+        "Embedded Systems": 80
+      }
+    },
+    {
+      "canonical_name": "Microservices",
+      "aliases": [
+        "Microservice Architecture"
+      ],
+      "category": "Architecture",
+      "related_skills": [
+        "Docker",
+        "Kubernetes",
+        "API"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "MongoDB",
+      "aliases": [
+        "Mongo"
+      ],
+      "category": "Database",
+      "related_skills": [
+        "NoSQL",
+        "Mongoose"
+      ],
+      "transferability_from": {
+        "DynamoDB": 60
+      }
+    },
+    {
+      "canonical_name": "MySQL",
+      "aliases": [
+        "MariaDB"
+      ],
+      "category": "Database",
+      "related_skills": [
+        "SQL"
+      ],
+      "transferability_from": {
+        "PostgreSQL": 80
+      }
+    },
+    {
+      "canonical_name": "NestJS",
+      "aliases": [
+        "Nest.js"
+      ],
+      "category": "Backend Framework",
+      "related_skills": [
+        "Node.js",
+        "TypeScript"
+      ],
+      "transferability_from": {
+        "Express": 70
+      }
+    },
+    {
+      "canonical_name": "Next.js",
+      "aliases": [
+        "NextJS"
+      ],
+      "category": "Frontend Framework",
+      "related_skills": [
+        "React",
+        "Vercel"
+      ],
+      "transferability_from": {
+        "React": 90
+      }
+    },
+    {
+      "canonical_name": "Node.js",
+      "aliases": [
+        "NodeJS",
+        "Node"
+      ],
+      "category": "Backend Runtime",
+      "related_skills": [
+        "Express",
+        "NestJS",
+        "JavaScript"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "OKR",
+      "aliases": [
+        "Objectives and Key Results",
+        "OKR Framework"
+      ],
+      "category": "Methodology",
+      "related_skills": [
+        "Strategy",
+        "Goal Setting",
+        "Product Management"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "PCB Design",
+      "aliases": [
+        "PCB",
+        "Leiterplattendesign",
+        "Circuit Board Design"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "Altium",
+        "Cadence",
+        "Eagle",
+        "KiCad",
+        "Electronics"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "PHP",
+      "aliases": [
+        "PHP7",
+        "PHP8"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        "Laravel",
+        "Symfony"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "PostgreSQL",
+      "aliases": [
+        "Postgres",
+        "PG"
+      ],
+      "category": "Database",
+      "related_skills": [
+        "SQL",
+        "TimescaleDB"
+      ],
+      "transferability_from": {
+        "MySQL": 80,
+        "SQL Server": 70
+      }
+    },
+    {
+      "canonical_name": "Product Management",
+      "aliases": [
+        "PM",
+        "Product Manager",
+        "Produktmanagement",
+        "Product Lead"
+      ],
+      "category": "Product",
+      "related_skills": [
+        "Roadmapping",
+        "Stakeholder Management",
+        "User Stories",
+        "Agile"
+      ],
+      "transferability_from": {
+        "Business Analysis": 60,
+        "Project Management": 50
+      }
+    },
+    {
+      "canonical_name": "Product Owner",
+      "aliases": [
+        "PO",
+        "Scrum Product Owner"
+      ],
+      "category": "Product",
+      "related_skills": [
+        "Product Management",
+        "Agile",
+        "Scrum",
+        "User Stories"
+      ],
+      "transferability_from": {
+        "Product Management": 90
+      }
+    },
+    {
+      "canonical_name": "Project Management",
+      "aliases": [
+        "PM",
+        "Projektmanagement",
+        "Project Manager"
+      ],
+      "category": "Management",
+      "related_skills": [
+        "Agile",
+        "Jira",
+        "Planning",
+        "Risk Management"
+      ],
+      "transferability_from": {
+        "Product Management": 50
+      }
+    },
+    {
+      "canonical_name": "Prototyping",
+      "aliases": [
+        "Prototype",
+        "Rapid Prototyping",
+        "Interactive Prototype"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "Figma",
+        "InVision",
+        "Principle"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "Python",
+      "aliases": [
+        "Python3",
+        "Py"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        "Django",
+        "FastAPI",
+        "Flask"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "PyTorch",
+      "aliases": [],
+      "category": "AI Framework",
+      "related_skills": [
+        "Python",
+        "Machine Learning"
+      ],
+      "transferability_from": {
+        "TensorFlow": 70
+      }
+    },
+    {
+      "canonical_name": "Rails",
+      "aliases": [
+        "Ruby on Rails",
+        "RoR"
+      ],
+      "category": "Backend Framework",
+      "related_skills": [
+        "Ruby"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "React",
+      "aliases": [
+        "ReactJS",
+        "React.js"
+      ],
+      "category": "Frontend Framework",
+      "related_skills": [
+        "JavaScript",
+        "TypeScript",
+        "Redux",
+        "Next.js"
+      ],
+      "transferability_from": {
+        "Vue": 70,
+        "Angular": 55
+      }
+    },
+    {
+      "canonical_name": "React Native",
+      "aliases": [
+        "RN"
+      ],
+      "category": "Mobile",
+      "related_skills": [
+        "React",
+        "JavaScript",
+        "Mobile"
+      ],
+      "transferability_from": {
+        "Flutter": 55
+      }
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "aliases": [
+        "rechnungslegung",
+        "bilanzierung",
+        "jahresabschluss",
+        "monatsabschluss",
+        "quartalsabschluss",
+        "financial reporting",
+        "konsolidierung",
+        "abschluss",
+        "bilanz",
+        "guv",
+        "gewinn- und verlustrechnung"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "buchhaltung": 85,
+        "controlling": 75,
+        "hgb": 80
+      }
+    },
+    {
+      "canonical_name": "Redis",
+      "aliases": [],
+      "category": "Database",
+      "related_skills": [
+        "Caching",
+        "NoSQL"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "REST API",
+      "aliases": [
+        "RESTful",
+        "REST"
+      ],
+      "category": "Architecture",
+      "related_skills": [
+        "API Design",
+        "HTTP"
+      ],
+      "transferability_from": {
+        "GraphQL": 50
+      }
+    },
+    {
+      "canonical_name": "Roadmapping",
+      "aliases": [
+        "Product Roadmap",
+        "Strategic Roadmap"
+      ],
+      "category": "Product",
+      "related_skills": [
+        "Product Management",
+        "Strategy",
+        "OKR"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "RTOS",
+      "aliases": [
+        "Real-Time Operating System",
+        "FreeRTOS",
+        "VxWorks"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "Embedded Systems",
+        "C",
+        "C++"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "Ruby",
+      "aliases": [],
+      "category": "Programming Language",
+      "related_skills": [
+        "Rails",
+        "Ruby on Rails"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Rust",
+      "aliases": [],
+      "category": "Programming Language",
+      "related_skills": [
+        "C++",
+        "Systems Programming"
+      ],
+      "transferability_from": {
+        "C++": 50
+      }
+    },
+    {
+      "canonical_name": "sage",
+      "aliases": [
+        "sage 50",
+        "sage 100",
+        "sage buchhaltung",
+        "sage hr",
+        "sage x3",
+        "sage one",
+        "sage business cloud"
+      ],
+      "category": "Finance Software",
+      "related_skills": null,
+      "transferability_from": {
+        "datev": 75,
+        "lexware": 85,
+        "navision": 70
+      }
+    },
+    {
+      "canonical_name": "Salesforce",
+      "aliases": [
+        "SFDC",
+        "Salesforce CRM"
+      ],
+      "category": "Enterprise",
+      "related_skills": [
+        "Apex",
+        "Lightning"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "SAP",
+      "aliases": [
+        "SAP ERP",
+        "SAP S/4HANA"
+      ],
+      "category": "Enterprise",
+      "related_skills": [
+        "ABAP",
+        "SAP HANA"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "sap co",
+      "aliases": [
+        "sap controlling",
+        "sap fi/co",
+        "sap fico",
+        "s4 hana controlling",
+        "sap kostenrechnung"
+      ],
+      "category": "Finance Software",
+      "related_skills": null,
+      "transferability_from": {
+        "sap fi": 90,
+        "controlling": 75
+      }
+    },
+    {
+      "canonical_name": "sap fi",
+      "aliases": [
+        "sap finance",
+        "sap finanzwesen",
+        "sap fi/co",
+        "sap fico",
+        "s4 hana finance",
+        "sap financial accounting"
+      ],
+      "category": "Finance Software",
+      "related_skills": null,
+      "transferability_from": {
+        "sap co": 90,
+        "datev": 50,
+        "buchhaltung": 70
+      }
+    },
+    {
+      "canonical_name": "Scrum",
+      "aliases": [
+        "Scrum Framework",
+        "Scrum Master"
+      ],
+      "category": "Methodology",
+      "related_skills": [
+        "Agile",
+        "Sprint Planning",
+        "Jira"
+      ],
+      "transferability_from": {
+        "Agile": 90
+      }
+    },
+    {
+      "canonical_name": "Signal Processing",
+      "aliases": [
+        "DSP",
+        "Digital Signal Processing",
+        "Signalverarbeitung"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "MATLAB",
+        "Python",
+        "FPGA"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "Sketch",
+      "aliases": [
+        "Sketch App",
+        "Sketch Design"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "UI Design",
+        "UX Design",
+        "Prototyping"
+      ],
+      "transferability_from": {
+        "Figma": 85,
+        "Adobe XD": 80
+      }
+    },
+    {
+      "canonical_name": "Spring",
+      "aliases": [
+        "Spring Boot",
+        "Spring Framework"
+      ],
+      "category": "Backend Framework",
+      "related_skills": [
+        "Java",
+        "Kotlin"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "SPS/PLC",
+      "aliases": [
+        "SPS",
+        "PLC",
+        "Speicherprogrammierbare Steuerung",
+        "Programmable Logic Controller"
+      ],
+      "category": "Industrial Automation",
+      "related_skills": [
+        "TIA Portal",
+        "TwinCAT",
+        "Siemens",
+        "Beckhoff",
+        "Industrial Automation"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "SQL",
+      "aliases": [
+        "Structured Query Language"
+      ],
+      "category": "Database",
+      "related_skills": [
+        "PostgreSQL",
+        "MySQL"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Stakeholder Management",
+      "aliases": [
+        "Stakeholder Engagement",
+        "Stakeholder Communication"
+      ],
+      "category": "Product",
+      "related_skills": [
+        "Product Management",
+        "Project Management"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "steuerrecht",
+      "aliases": [
+        "steuererklärung",
+        "umsatzsteuer",
+        "ust",
+        "ust-va",
+        "einkommensteuer",
+        "körperschaftsteuer",
+        "gewerbesteuer",
+        "steuerfachangestellte",
+        "tax",
+        "steuerberater",
+        "steuern",
+        "steuerliche",
+        "abgabenordnung",
+        "ao"
+      ],
+      "category": "Finance",
+      "related_skills": null,
+      "transferability_from": {
+        "buchhaltung": 70,
+        "lohnbuchhaltung": 60
+      }
+    },
+    {
+      "canonical_name": "Svelte",
+      "aliases": [
+        "SvelteKit"
+      ],
+      "category": "Frontend Framework",
+      "related_skills": [
+        "JavaScript"
+      ],
+      "transferability_from": {
+        "React": 60,
+        "Vue": 65
+      }
+    },
+    {
+      "canonical_name": "Swift",
+      "aliases": [],
+      "category": "Programming Language",
+      "related_skills": [
+        "iOS",
+        "Xcode"
+      ],
+      "transferability_from": {
+        "Objective-C": 60
+      }
+    },
+    {
+      "canonical_name": "TDD",
+      "aliases": [
+        "Test-Driven Development"
+      ],
+      "category": "Methodology",
+      "related_skills": [
+        "Unit Testing",
+        "Jest"
+      ],
+      "transferability_from": {}
+    },
+    {
+      "canonical_name": "Team Leadership",
+      "aliases": [
+        "Teamleitung",
+        "People Management",
+        "Team Lead",
+        "Engineering Manager"
+      ],
+      "category": "Leadership",
+      "related_skills": [
+        "Mentoring",
+        "Hiring",
+        "Performance Management"
+      ],
+      "transferability_from": {
+        "Project Management": 60
+      }
+    },
+    {
+      "canonical_name": "Technical Leadership",
+      "aliases": [
+        "Tech Lead",
+        "Technical Lead",
+        "Engineering Lead"
+      ],
+      "category": "Leadership",
+      "related_skills": [
+        "Architecture",
+        "Code Review",
+        "Mentoring"
+      ],
+      "transferability_from": {
+        "Team Leadership": 80
+      }
+    },
+    {
+      "canonical_name": "TensorFlow",
+      "aliases": [
+        "TF AI"
+      ],
+      "category": "AI Framework",
+      "related_skills": [
+        "Python",
+        "Machine Learning"
+      ],
+      "transferability_from": {
+        "PyTorch": 70
+      }
+    },
+    {
+      "canonical_name": "Terraform",
+      "aliases": [
+        "TF"
+      ],
+      "category": "DevOps",
+      "related_skills": [
+        "Infrastructure as Code",
+        "AWS"
+      ],
+      "transferability_from": {
+        "Pulumi": 70,
+        "CloudFormation": 65
+      }
+    },
+    {
+      "canonical_name": "TIA Portal",
+      "aliases": [
+        "Siemens TIA",
+        "TIA Portal V17",
+        "Siemens Step 7"
+      ],
+      "category": "Industrial Automation",
+      "related_skills": [
+        "SPS/PLC",
+        "Siemens",
+        "Industrial Automation"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "TwinCAT",
+      "aliases": [
+        "Beckhoff TwinCAT",
+        "TwinCAT 3"
+      ],
+      "category": "Industrial Automation",
+      "related_skills": [
+        "SPS/PLC",
+        "Beckhoff",
+        "Industrial Automation"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "TypeScript",
+      "aliases": [
+        "TS"
+      ],
+      "category": "Programming Language",
+      "related_skills": [
+        "JavaScript",
+        "Node.js",
+        "Angular"
+      ],
+      "transferability_from": {
+        "JavaScript": 70
+      }
+    },
+    {
+      "canonical_name": "UI Design",
+      "aliases": [
+        "UI",
+        "User Interface",
+        "User Interface Design"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "Figma",
+        "Sketch",
+        "Visual Design",
+        "Design System"
+      ],
+      "transferability_from": {
+        "UX Design": 70,
+        "Graphic Design": 60
+      }
+    },
+    {
+      "canonical_name": "User Research",
+      "aliases": [
+        "UX Research",
+        "User Testing",
+        "Usability Testing"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "UX Design",
+        "Interviews",
+        "Analytics"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "User Stories",
+      "aliases": [
+        "User Story",
+        "User Story Mapping"
+      ],
+      "category": "Product",
+      "related_skills": [
+        "Agile",
+        "Scrum",
+        "Product Management"
+      ],
+      "transferability_from": null
+    },
+    {
+      "canonical_name": "UX Design",
+      "aliases": [
+        "UX",
+        "User Experience",
+        "UX/UI",
+        "User Experience Design"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "Figma",
+        "User Research",
+        "Prototyping",
+        "Wireframing"
+      ],
+      "transferability_from": {
+        "UI Design": 75,
+        "Graphic Design": 50
+      }
+    },
+    {
+      "canonical_name": "Verilog",
+      "aliases": [
+        "Verilog HDL",
+        "SystemVerilog"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "FPGA",
+        "VHDL",
+        "Digital Design",
+        "ASIC"
+      ],
+      "transferability_from": {
+        "VHDL": 90
+      }
+    },
+    {
+      "canonical_name": "VHDL",
+      "aliases": [
+        "VHSIC Hardware Description Language",
+        "VHDL Programming"
+      ],
+      "category": "Hardware",
+      "related_skills": [
+        "FPGA",
+        "Verilog",
+        "Digital Design",
+        "ASIC"
+      ],
+      "transferability_from": {
+        "Verilog": 90
+      }
+    },
+    {
+      "canonical_name": "Vue",
+      "aliases": [
+        "Vue.js",
+        "VueJS",
+        "Vue 3"
+      ],
+      "category": "Frontend Framework",
+      "related_skills": [
+        "JavaScript",
+        "Nuxt.js"
+      ],
+      "transferability_from": {
+        "React": 70,
+        "Angular": 60
+      }
+    },
+    {
+      "canonical_name": "Wireframing",
+      "aliases": [
+        "Wireframe",
+        "Low-Fidelity Design"
+      ],
+      "category": "Design",
+      "related_skills": [
+        "UX Design",
+        "Prototyping"
+      ],
+      "transferability_from": null
+    }
+  ],
+  "synonyms": [
+    {
+      "canonical_name": "agile",
+      "synonym": "scrum",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "angular",
+      "synonym": "angularjs",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "angular",
+      "synonym": "ng",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "aws",
+      "synonym": "amazon web services",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "azure",
+      "synonym": "microsoft azure",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "accounting",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "anlagenbuchhaltung",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "bilanzbuchhaltung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "bookkeeping",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "buchführung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "buchhalter",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "debitorenbuchhaltung",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "fibu",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "finanzbuchhaltung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "finanzwesen",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "kreditorenbuchhaltung",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "lohnbuchhaltung",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "buchhaltung",
+      "synonym": "rechnungswesen",
+      "confidence": 0.85,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "c#",
+      "synonym": ".net",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "c#",
+      "synonym": "csharp",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "c#",
+      "synonym": "dotnet",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "ci/cd",
+      "synonym": "cicd",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "ci/cd",
+      "synonym": "continuous integration",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "controlling",
+      "synonym": "budgetierung",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "controlling",
+      "synonym": "controller",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "controlling",
+      "synonym": "controllerin",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "controlling",
+      "synonym": "finanzcontrolling",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "controlling",
+      "synonym": "kalkulation",
+      "confidence": 0.85,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "controlling",
+      "synonym": "kostenrechnung",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "datev",
+      "synonym": "datev unternehmen online",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "datev",
+      "synonym": "duo",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "debitorenbuchhaltung",
+      "synonym": "accounts receivable",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "debitorenbuchhaltung",
+      "synonym": "ar",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "deep learning",
+      "synonym": "dl",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "docker",
+      "synonym": "container",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "elasticsearch",
+      "synonym": "elastic",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "flutter",
+      "synonym": "dart",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "gcp",
+      "synonym": "google cloud",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "gcp",
+      "synonym": "google cloud platform",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "git",
+      "synonym": "github",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "git",
+      "synonym": "gitlab",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "go",
+      "synonym": "golang",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "hgb",
+      "synonym": "deutsche rechnungslegung",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "hgb",
+      "synonym": "handelsgesetzbuch",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "hgb",
+      "synonym": "ifrs",
+      "confidence": 0.7,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "ifrs",
+      "synonym": "ias",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "ifrs",
+      "synonym": "international financial reporting standards",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "java",
+      "synonym": "java 11",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "java",
+      "synonym": "java 17",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "java",
+      "synonym": "java 8",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "javascript",
+      "synonym": "ecmascript",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "javascript",
+      "synonym": "es6",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "javascript",
+      "synonym": "js",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "kreditorenbuchhaltung",
+      "synonym": "accounts payable",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "kreditorenbuchhaltung",
+      "synonym": "ap",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "kubernetes",
+      "synonym": "k8s",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "kubernetes",
+      "synonym": "kube",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lexware",
+      "synonym": "lexoffice",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lexware",
+      "synonym": "lexware buchhaltung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lohnbuchhaltung",
+      "synonym": "entgeltabrechnung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lohnbuchhaltung",
+      "synonym": "gehaltsabrechnung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lohnbuchhaltung",
+      "synonym": "lohnabrechnung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lohnbuchhaltung",
+      "synonym": "payroll",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "lohnbuchhaltung",
+      "synonym": "personalabrechnung",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "machine learning",
+      "synonym": "ai",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "machine learning",
+      "synonym": "ml",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "mahnwesen",
+      "synonym": "debitorenmanagement",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "mahnwesen",
+      "synonym": "forderungsmanagement",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "mahnwesen",
+      "synonym": "inkasso",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "mongodb",
+      "synonym": "mongo",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "mysql",
+      "synonym": "mariadb",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "next.js",
+      "synonym": "next",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "next.js",
+      "synonym": "nextjs",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "node.js",
+      "synonym": "node",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "node.js",
+      "synonym": "nodejs",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "postgresql",
+      "synonym": "postgres",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "postgresql",
+      "synonym": "psql",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "python",
+      "synonym": "py",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "python",
+      "synonym": "python3",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "pytorch",
+      "synonym": "torch",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "react",
+      "synonym": "react.js",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "react",
+      "synonym": "reactjs",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "react native",
+      "synonym": "reactnative",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "react native",
+      "synonym": "rn",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "abschluss",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "bilanz",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "bilanzierung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "financial reporting",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "guv",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "jahresabschluss",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "monatsabschluss",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "quartalsabschluss",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "rechnungswesen",
+      "synonym": "rechnungslegung",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "ruby",
+      "synonym": "rails",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "ruby",
+      "synonym": "ruby on rails",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sage",
+      "synonym": "sage 100",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sage",
+      "synonym": "sage 50",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sap co",
+      "synonym": "sap controlling",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sap fi",
+      "synonym": "sap fico",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sap fi",
+      "synonym": "sap finance",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sap fi",
+      "synonym": "sap finanzwesen",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "sass",
+      "synonym": "scss",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "steuerrecht",
+      "synonym": "steuerberater",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "steuerrecht",
+      "synonym": "steuererklärung",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "steuerrecht",
+      "synonym": "steuerfachangestellte",
+      "confidence": 0.95,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "steuerrecht",
+      "synonym": "steuern",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "steuerrecht",
+      "synonym": "umsatzsteuer",
+      "confidence": 0.9,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "tailwind",
+      "synonym": "tailwindcss",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "tensorflow",
+      "synonym": "keras",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "terraform",
+      "synonym": "tf",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "typescript",
+      "synonym": "ts",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "vue",
+      "synonym": "vue.js",
+      "confidence": 1,
+      "bidirectional": true
+    },
+    {
+      "canonical_name": "vue",
+      "synonym": "vuejs",
+      "confidence": 1,
+      "bidirectional": true
+    }
+  ]
+}

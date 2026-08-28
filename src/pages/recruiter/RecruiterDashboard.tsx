@@ -48,7 +48,8 @@ import {
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
-import { useInfluenceAlerts } from '@/hooks/useInfluenceAlerts';
+import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
@@ -92,6 +93,8 @@ interface UpcomingInterview {
   jobTitle: string;
   companyInfo: string;
   isRevealed: boolean;
+  confirmed: boolean;
+  submissionId: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -146,6 +149,14 @@ const getAlertTypeLabel = (alertType: string): { label: string; color: string } 
     'high_closing_probability': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
     'closing_opportunity': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
     'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    // Abgeleitete Aufgaben aus der Unified Inbox
+    'client_review_stalled': { label: 'Nachfassen', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    'interview_debrief_due': { label: 'Debrief', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    // Manuelle Aufgaben
+    'call': { label: 'Anruf', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
+    'email': { label: 'E-Mail', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
+    'follow_up': { label: 'Follow-up', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
+    'meeting': { label: 'Meeting', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
   };
   return map[alertType] || { label: 'Aufgabe', color: 'bg-muted text-muted-foreground' };
 };
@@ -173,7 +184,6 @@ export default function RecruiterDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
-  const [candidateMap, setCandidateMap] = useState<Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string; earning?: number }>>({});
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -181,13 +191,30 @@ export default function RecruiterDashboard() {
   const [candidateFormOpen, setCandidateFormOpen] = useState(false);
   const [candidateFormProcessing, setCandidateFormProcessing] = useState(false);
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
-  const [upcomingInterviews, setUpcomingInterviews] = useState<UpcomingInterview[]>([]);
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
-  const [revealedCompanyNames, setRevealedCompanyNames] = useState<Map<string, string>>(new Map());
-  const [companyProfiles, setCompanyProfiles] = useState<Record<string, { logo_url: string | null; website: string | null; headcount: number | null; industry: string | null }>>({});
 
-  const { alerts, loading: alertsLoading, takeAction } = useInfluenceAlerts();
+  // Gleiche Quelle wie /recruiter/influence: Alerts + manuelle + abgeleitete Aufgaben
+  const { allItems: taskItems, markDone: taskMarkDone } = useUnifiedTaskInbox();
+  const { data: interviewAgenda } = useRecruiterInterviewAgenda();
   const { logActivity } = useActivityLogger();
+
+  // Anstehende Interviews aus der reveal-sicheren Agenda (inkl. unbestätigter Termine)
+  const upcomingInterviews: UpcomingInterview[] = useMemo(() => {
+    if (!interviewAgenda) return [];
+    return interviewAgenda.agendaDays
+      .flatMap(d => d.items)
+      .slice(0, 4)
+      .map(iv => ({
+        date: iv.scheduledAt!,
+        candidateName: iv.candidateName,
+        candidateId: iv.candidateId || '',
+        jobTitle: iv.jobTitle,
+        companyInfo: iv.companyLabel,
+        isRevealed: iv.companyRevealed,
+        confirmed: iv.confirmed,
+        submissionId: iv.submissionId,
+      }));
+  }, [interviewAgenda]);
 
   usePageViewTracking('recruiter_dashboard');
 
@@ -197,28 +224,33 @@ export default function RecruiterDashboard() {
     if (user) {
       fetchDashboardData();
       fetchPipelineData();
-      fetchUpcomingInterviews();
       fetchRevealedJobs();
       ensureInterviewAlerts();
     }
   }, [user]);
 
-  useEffect(() => {
-    if (user && alerts.length > 0) {
-      fetchCandidateMapForAlerts();
-    }
-  }, [user, alerts.length]);
 
   const ensureInterviewAlerts = async () => {
     if (!user) return;
     try {
       const { data: irSubmissions } = await supabase
         .from('submissions')
-        .select('id, candidate_id, job_id, candidates(full_name), jobs(title)')
+        .select('id, candidate_id, job_id, candidates(full_name)')
         .eq('recruiter_id', user.id)
         .eq('stage', 'interview_requested');
 
       if (!irSubmissions || irSubmissions.length === 0) return;
+
+      // Job-Titel separat: Recruiter lesen Jobs nur ueber recruiter_jobs_view.
+      const irJobIds = [...new Set(irSubmissions.map((s: any) => s.job_id).filter(Boolean))] as string[];
+      let irJobTitles: Record<string, string> = {};
+      if (irJobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('recruiter_jobs_view')
+          .select('id, title')
+          .in('id', irJobIds);
+        irJobTitles = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j.title]));
+      }
 
       const { data: existingAlerts } = await supabase
         .from('influence_alerts')
@@ -231,7 +263,7 @@ export default function RecruiterDashboard() {
       const missing = irSubmissions.filter(s => !existingSubmissionIds.has(s.id));
       for (const s of missing) {
         const candidateName = (s as any).candidates?.full_name || 'Kandidat';
-        const jobTitle = (s as any).jobs?.title || 'Position';
+        const jobTitle = irJobTitles[(s as any).job_id] || 'Position';
         await supabase.from('influence_alerts').insert({
           submission_id: s.id,
           recruiter_id: user.id,
@@ -250,23 +282,16 @@ export default function RecruiterDashboard() {
   const fetchRevealedJobs = async () => {
     if (!user) return;
     try {
+      // Kein Join auf jobs mehr: den Firmennamen liefert recruiter_jobs_view
+      // selbst — und zwar nur dann, wenn dieser Recruiter den Reveal hat.
       const { data, error } = await supabase
         .from('submissions')
-        .select('job_id, jobs(company_name)')
+        .select('job_id')
         .eq('recruiter_id', user.id)
         .eq('company_revealed', true);
 
       if (!error && data) {
-        const ids = new Set<string>();
-        const nameMap = new Map<string, string>();
-        data.forEach((s: any) => {
-          ids.add(s.job_id);
-          if (s.jobs?.company_name) {
-            nameMap.set(s.job_id, s.jobs.company_name);
-          }
-        });
-        setRevealedJobIds(ids);
-        setRevealedCompanyNames(nameMap);
+        setRevealedJobIds(new Set(data.map(s => s.job_id)));
       }
     } catch (error) {
       console.error('Error fetching revealed jobs:', error);
@@ -276,8 +301,8 @@ export default function RecruiterDashboard() {
   const fetchDashboardData = async () => {
     try {
       const { data: jobs, error: jobsError } = await supabase
-        .from('jobs')
-        .select('id, title, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, client_id, created_at')
+        .from('recruiter_jobs_view')
+        .select('id, title, company_name, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, created_at')
         .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(4);
@@ -286,27 +311,15 @@ export default function RecruiterDashboard() {
         setRecentJobs(jobs);
 
         const { count: totalJobsCount } = await supabase
-          .from('jobs')
+          .from('recruiter_jobs_view')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'published');
 
         setStats(prev => ({ ...prev, openJobs: totalJobsCount || 0 }));
 
-        const clientIds = [...new Set(jobs.map(j => j.client_id).filter(Boolean))];
-        if (clientIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('company_profiles')
-            .select('user_id, logo_url, website, headcount, industry')
-            .in('user_id', clientIds);
-
-          if (profiles) {
-            const profileMap: Record<string, { logo_url: string | null; website: string | null; headcount: number | null; industry: string | null }> = {};
-            profiles.forEach(p => {
-              profileMap[p.user_id] = { logo_url: p.logo_url, website: p.website, headcount: p.headcount, industry: p.industry };
-            });
-            setCompanyProfiles(profileMap);
-          }
-        }
+        // Kein company_profiles-Fetch mehr: recruiter_jobs_view liefert bewusst
+        // keine client_id, und company_profiles ist fuer Recruiter per RLS
+        // gesperrt (der Aufruf lieferte immer 0 Zeilen).
       }
 
       const { count: candidatesCount } = await supabase
@@ -339,11 +352,24 @@ export default function RecruiterDashboard() {
     try {
       const { data: submissions } = await supabase
         .from('submissions')
-        .select('id, status, job_id, jobs(salary_min, salary_max, recruiter_fee_percentage)')
+        .select('id, status, job_id')
         .eq('recruiter_id', user.id)
         .not('status', 'in', '("rejected","withdrawn","hired","client_rejected")');
 
       if (!submissions) return;
+
+      // Gehalts-/Fee-Daten separat: Recruiter lesen Jobs nur ueber
+      // recruiter_jobs_view.
+      const pipelineJobIds = [...new Set(submissions.map((s: any) => s.job_id).filter(Boolean))] as string[];
+      let pipelineJobsById: Record<string, any> = {};
+      if (pipelineJobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('recruiter_jobs_view')
+          .select('id, salary_min, salary_max, recruiter_fee_percentage')
+          .in('id', pipelineJobIds);
+        pipelineJobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+      }
+      submissions.forEach((s: any) => { s.jobs = pipelineJobsById[s.job_id] ?? null; });
 
       const stages: PipelineStage[] = [
         { key: 'submitted', label: 'Eingereicht', statuses: ['submitted', 'pending'], color: 'bg-amber-500', count: 0 },
@@ -396,120 +422,50 @@ export default function RecruiterDashboard() {
     }
   };
 
-  const fetchUpcomingInterviews = async () => {
-    if (!user) return;
-    try {
-      const { data: interviews } = await supabase
-        .from('interviews')
-        .select('scheduled_at, submissions!inner(recruiter_id, candidate_id, job_id, company_revealed, candidates(full_name), jobs(title, company_name, industry))')
-        .eq('submissions.recruiter_id', user.id)
-        .eq('status', 'scheduled')
-        .gte('scheduled_at', new Date().toISOString())
-        .order('scheduled_at', { ascending: true })
-        .limit(3);
-
-      if (interviews) {
-        const events: UpcomingInterview[] = interviews.map((i: any) => {
-          const sub = i.submissions;
-          const isRevealed = sub?.company_revealed || false;
-          return {
-            date: i.scheduled_at,
-            candidateName: sub?.candidates?.full_name || 'Kandidat',
-            candidateId: sub?.candidate_id || '',
-            jobTitle: sub?.jobs?.title || 'Position',
-            companyInfo: isRevealed
-              ? (sub?.jobs?.company_name || 'Unternehmen')
-              : (sub?.jobs?.industry ? `[${sub.jobs.industry}]` : '[Unternehmen]'),
-            isRevealed,
-          };
-        });
-        setUpcomingInterviews(events);
-      }
-    } catch (error) {
-      console.error('Error fetching upcoming interviews:', error);
-    }
-  };
-
-  const fetchCandidateMapForAlerts = async () => {
-    if (!alerts.length) return;
-
-    const submissionIds = alerts.map(a => a.submission_id);
-
-    const { data: submissions } = await supabase
-      .from('submissions')
-      .select('id, candidate_id, job_id, company_revealed, candidates(id, full_name, email, phone), jobs(title, company_name, industry, salary_min, salary_max, recruiter_fee_percentage)')
-      .in('id', submissionIds);
-
-    if (submissions) {
-      const map: Record<string, { name: string; email: string; phone?: string; candidateId?: string; jobTitle?: string; companyName?: string; earning?: number }> = {};
-      submissions.forEach((s: any) => {
-        if (s.candidates) {
-          const earning = s.jobs ? calculatePotentialEarning(s.jobs.salary_min, s.jobs.salary_max, s.jobs.recruiter_fee_percentage) : null;
-          map[s.id] = {
-            name: s.candidates.full_name,
-            email: s.candidates.email,
-            phone: s.candidates.phone || undefined,
-            candidateId: s.candidates.id,
-            jobTitle: s.jobs?.title || undefined,
-            companyName: s.company_revealed ? (s.jobs?.company_name || undefined) : (s.jobs?.industry ? `[${s.jobs.industry}]` : undefined),
-            earning: earning || undefined,
-          };
-        }
-      });
-      setCandidateMap(map);
-    }
-  };
-
   // ─── Actions ────────────────────────────────────────────────────────────
 
-  const handleMarkDone = async (alertId: string) => {
-    const alert = alerts.find(a => a.id === alertId);
-    if (alert) {
-      await takeAction(alertId, 'marked_done');
+  const handleMarkDone = async (item: UnifiedTaskItem) => {
+    await taskMarkDone(item.itemType, item.itemId);
 
-      const { data: submission } = await supabase
-        .from('submissions')
-        .select('candidate_id')
-        .eq('id', alert.submission_id)
-        .single();
-
-      if (submission?.candidate_id) {
-        await logActivity(
-          submission.candidate_id,
-          'alert_actioned',
-          `Alert erledigt: ${alert.title}`,
-          alert.message,
-          { alert_type: alert.alert_type, priority: alert.priority },
-          alert.submission_id,
-          alert.id
-        );
-      }
-
-      toast.success('Erledigt');
+    if (item.candidateId) {
+      await logActivity(
+        item.candidateId,
+        'alert_actioned',
+        `Aufgabe erledigt: ${item.title}`,
+        item.description || undefined,
+        { item_type: item.itemType, task_category: item.taskCategory, priority: item.priority },
+        item.submissionId || undefined,
+        item.itemType === 'alert' ? item.itemId : undefined
+      );
     }
+
+    toast.success(
+      item.itemType === 'derived'
+        ? 'Erledigt — kommt wieder, falls sich weiterhin nichts bewegt'
+        : 'Erledigt'
+    );
   };
 
-  const handleViewCandidate = (submissionId: string, alertId?: string) => {
-    const candidateInfo = candidateMap[submissionId];
-    if (candidateInfo?.candidateId) {
-      const taskParam = alertId ? `?task=${alertId}` : '';
-      navigate(`/recruiter/candidates/${candidateInfo.candidateId}${taskParam}`);
+  const handleViewTask = (item: UnifiedTaskItem) => {
+    if (item.candidateId) {
+      const taskParam = item.itemType === 'alert' ? `?task=${item.itemId}` : '';
+      navigate(`/recruiter/candidates/${item.candidateId}${taskParam}`);
+    } else if (item.submissionId) {
+      navigate(`/recruiter/submissions/${item.submissionId}`);
+    } else {
+      navigate('/recruiter/influence');
     }
   };
 
   // ─── Derived Data ───────────────────────────────────────────────────────
 
-  const pendingAlerts = useMemo(() => {
-    return alerts.filter(a => !a.action_taken).slice(0, 5);
-  }, [alerts]);
+  const topTasks = useMemo(() => taskItems.slice(0, 5), [taskItems]);
 
   const urgentCount = useMemo(() => {
-    return alerts.filter(a => !a.action_taken && a.priority === 'critical').length;
-  }, [alerts]);
+    return taskItems.filter(i => i.priority === 'critical').length;
+  }, [taskItems]);
 
-  const totalPendingAlerts = useMemo(() => {
-    return alerts.filter(a => !a.action_taken).length;
-  }, [alerts]);
+  const totalPendingAlerts = useMemo(() => taskItems.length, [taskItems]);
 
   const maxPipelineCount = useMemo(() => {
     return Math.max(...pipelineStages.map(s => s.count), 1);
@@ -546,13 +502,17 @@ export default function RecruiterDashboard() {
     if (upcomingInterviews.length > 0) {
       return `${upcomingInterviews.length} Interview${upcomingInterviews.length > 1 ? 's' : ''} geplant diese Woche.`;
     }
-    // No interviews, tasks pending
+    // No interviews, tasks pending → konkrete Top-Aufgabe nennen
     if (totalPendingAlerts > 0) {
+      const top = topTasks[0];
+      if (top?.candidateName) {
+        return `${totalPendingAlerts} Aufgaben offen — Top-Priorität: ${top.candidateName} (${getAlertTypeLabel(top.taskCategory).label}).`;
+      }
       return `${totalPendingAlerts} Aufgaben warten – pack sie an!`;
     }
     // All clear
     return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
-  }, [urgentCount, upcomingInterviews, totalPendingAlerts]);
+  }, [urgentCount, upcomingInterviews, totalPendingAlerts, topTasks]);
 
   const inboundEmail = useMemo(() => {
     if (!user?.id) return '';
@@ -699,18 +659,17 @@ export default function RecruiterDashboard() {
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {pendingAlerts.map((alert) => {
-                    const candidate = candidateMap[alert.submission_id];
-                    const typeInfo = getAlertTypeLabel(alert.alert_type);
-                    const isUrgent = alert.priority === 'critical';
+                  {topTasks.map((item) => {
+                    const typeInfo = getAlertTypeLabel(item.taskCategory);
+                    const isUrgent = item.priority === 'critical';
 
                     return (
                       <div
-                        key={alert.id}
+                        key={`${item.itemType}-${item.itemId}`}
                         role="button"
                         tabIndex={0}
-                        onClick={() => handleViewCandidate(alert.submission_id, alert.id)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleViewCandidate(alert.submission_id, alert.id); }}
+                        onClick={() => handleViewTask(item)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleViewTask(item); }}
                         className={cn(
                           'flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition-all cursor-pointer group',
                           isUrgent
@@ -726,31 +685,31 @@ export default function RecruiterDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-medium truncate">
-                              {candidate?.name || 'Kandidat'}
+                              {item.candidateName || item.title}
                             </span>
                             <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border-0 shrink-0', typeInfo.color)}>
                               {typeInfo.label}
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {candidate?.jobTitle}
-                            {candidate?.companyName ? ` · ${candidate.companyName}` : ''}
+                            {item.jobTitle}
+                            {item.companyName ? ` · ${item.companyName}` : ''}
                           </p>
                         </div>
 
-                        {candidate?.earning && (
+                        {item.feeValue != null && item.feeValue > 0 && (
                           <span className="text-xs font-semibold text-emerald-600 shrink-0 tabular-nums">
-                            {formatEuro(candidate.earning)}
+                            {formatEuro(item.feeValue)}
                           </span>
                         )}
 
                         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {candidate?.phone && (
+                          {item.candidatePhone && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost" size="sm" className="h-6 w-6 p-0"
-                                  onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${candidate.phone}`; }}
+                                  onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${item.candidatePhone}`; }}
                                 >
                                   <Phone className="h-3 w-3" />
                                 </Button>
@@ -763,7 +722,7 @@ export default function RecruiterDashboard() {
                               <Button
                                 variant="ghost" size="sm"
                                 className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                                onClick={(e) => { e.stopPropagation(); handleMarkDone(alert.id); }}
+                                onClick={(e) => { e.stopPropagation(); handleMarkDone(item); }}
                               >
                                 <Check className="h-3 w-3" />
                               </Button>
@@ -850,20 +809,36 @@ export default function RecruiterDashboard() {
               {/* Interviews inside Pipeline cell */}
               {upcomingInterviews.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-border/40">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">ANSTEHENDE INTERVIEWS</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">ANSTEHENDE INTERVIEWS</p>
+                    <Link
+                      to="/recruiter/interviews"
+                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-0.5"
+                    >
+                      Alle
+                      <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                   <div className="space-y-2">
                     {upcomingInterviews.map((interview, i) => (
                       <div
                         key={i}
                         role="button"
                         tabIndex={0}
-                        onClick={() => interview.candidateId && navigate(`/recruiter/candidates/${interview.candidateId}`)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && interview.candidateId) navigate(`/recruiter/candidates/${interview.candidateId}`); }}
+                        onClick={() => navigate(`/recruiter/submissions/${interview.submissionId}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/recruiter/submissions/${interview.submissionId}`); }}
                         className="flex gap-2.5 p-2 rounded-md bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
                       >
                         <Video className="h-3.5 w-3.5 text-purple-500 mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium">{formatInterviewDate(interview.date)}</p>
+                          <p className="text-xs font-medium flex items-center gap-1.5">
+                            {formatInterviewDate(interview.date)}
+                            {!interview.confirmed && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
+                                unbestätigt
+                              </Badge>
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {interview.candidateName} · {interview.jobTitle}
                           </p>
@@ -909,11 +884,11 @@ export default function RecruiterDashboard() {
                         {revealedJobIds.has(job.id) ? (
                           <div className="h-8 w-8 rounded-md overflow-hidden bg-background border border-border/50 flex items-center justify-center shrink-0">
                             <img
-                              src={getCompanyLogoUrl(companyProfiles[job.client_id]?.logo_url, companyProfiles[job.client_id]?.website, revealedCompanyNames.get(job.id) || '')}
+                              src={getCompanyLogoUrl(undefined, undefined, job.company_name || '')}
                               alt=""
                               className="h-6 w-6 object-contain"
                               onError={(e) => {
-                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(revealedCompanyNames.get(job.id) || 'U')}&background=1e3a5f&color=fff&size=64&bold=true`;
+                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_name || 'U')}&background=1e3a5f&color=fff&size=64&bold=true`;
                               }}
                             />
                           </div>
@@ -929,7 +904,7 @@ export default function RecruiterDashboard() {
                           </p>
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             {revealedJobIds.has(job.id) ? (
-                              <span className="truncate">{revealedCompanyNames.get(job.id)}</span>
+                              <span className="truncate">{job.company_name}</span>
                             ) : (
                               <span className="flex items-center gap-0.5 truncate">
                                 <Lock className="h-2.5 w-2.5" />

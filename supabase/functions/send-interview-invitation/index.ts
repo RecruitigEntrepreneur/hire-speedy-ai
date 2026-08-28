@@ -261,9 +261,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Update submission stage
     await supabase
       .from('submissions')
+      // Nur stage schreiben — status leitet der DB-Trigger ab.
       .update({ 
-        stage: 'interview_requested',
-        status: 'interview'
+        stage: 'interview_requested'
       })
       .eq('id', submissionId);
 

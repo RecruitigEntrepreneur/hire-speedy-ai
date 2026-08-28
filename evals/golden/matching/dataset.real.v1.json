@@ -1,0 +1,2805 @@
+{
+  "_meta": {
+    "source": "Lovable-DB-Export 2026-07-18 (read-only, PII-minimiert)",
+    "pseudonymized": "IDs sha256-gekürzt; candidates.city entfernt",
+    "exclusions": {
+      "seed_candidates": 8,
+      "seed_and_test_jobs": 8,
+      "test_artifact_jobs": {
+        "2c4c9f21-aa8d-43ad-95a2-12d7ad98bee7": "location=\"teststadt\"",
+        "6490d139-e7ad-49a3-a1df-449cf0da4631": "Gehalt 600k-5M, must_have \"top hunter\""
+      },
+      "dropped_submissions": [
+        {
+          "id": "bbbb2221-2222-2222-2222-222222222222",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb3331-3333-3333-3333-333333333333",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb1111-1111-1111-1111-111111111111",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb2222-2222-2222-2222-222222222222",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb1112-1111-1111-1111-111111111111",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb4441-4444-4444-4444-444444444444",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb5551-5555-5555-5555-555555555555",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "bbbb1113-1111-1111-1111-111111111111",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "91ea0095-0403-4d8f-a5d2-10612417d847",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "8aab0d87-77d8-4388-ae31-f3516c91c2bd",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "afe61c1a-f705-4a2b-b297-1e7264440202",
+          "reason": "Demo-Seed-Kandidat"
+        },
+        {
+          "id": "2450da90-a9fe-4045-89c5-19ab4208c1f7",
+          "reason": "Demo-Seed-Job"
+        },
+        {
+          "id": "a7fa2ccf-24ad-454e-a2d1-5a999af00b71",
+          "reason": "Demo-Seed-Job"
+        },
+        {
+          "id": "33b747b6-d69b-469a-87c2-c3acb005182a",
+          "reason": "Demo-Seed-Job"
+        },
+        {
+          "id": "4fa1b2dc-6d41-4efa-bd78-9a170dbf13e2",
+          "reason": "Test-Artefakt-Job"
+        },
+        {
+          "id": "5fb305e1-a199-4b0f-bf25-6107191071b3",
+          "reason": "Test-Artefakt-Job"
+        }
+      ]
+    },
+    "label_counts": {
+      "hired": 0,
+      "interviewed": 7,
+      "submitted": 3,
+      "rejected": 9
+    },
+    "note": "Echte Produktionsdaten. Keine hired-Labels im produktiven Anteil (beide hired-Outcomes waren Demo-Seeds). Sprach-Level nutzen die DB-Werte (native/fluent/…), NICHT die a1–c2-Skala des Matchers."
+  },
+  "version": "real-v1",
+  "is_synthetic": false,
+  "reference_date": "2026-07-18T12:00:00.000Z",
+  "description": "Echtes Golden-Dataset aus Submission-Outcomes (pseudonymisiert). Labels: interviewed=2, submitted=1 (Positives), rejected=0 (Hard-Negatives). Demo-Seeds und Test-Artefakte ausgeschlossen (siehe _meta).",
+  "jobs": [
+    {
+      "id": "real-j-54ede5063a",
+      "is_synthetic": false,
+      "title": "Frontend Developer (React/Vue)",
+      "industry": "Technology",
+      "skills": [
+        "Vue.js",
+        "React",
+        "TypeScript",
+        "Node.js"
+      ],
+      "must_haves": [
+        "React",
+        "TypeScript"
+      ],
+      "nice_to_haves": [
+        "Vue.js",
+        "Node.js"
+      ],
+      "salary_min": 50000,
+      "salary_max": 65000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Dresden",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-f41b2a3e99",
+      "is_synthetic": false,
+      "title": "Senior Frontend Developer (Vue.js/Nuxt)",
+      "industry": "Technology",
+      "skills": [
+        "Vue.js",
+        "TypeScript",
+        "Tailwind CSS",
+        "Nuxt.js",
+        "JavaScript"
+      ],
+      "must_haves": [
+        "Vue.js",
+        "TypeScript",
+        "Tailwind CSS"
+      ],
+      "nice_to_haves": [
+        "Nuxt.js",
+        "Testing",
+        "CI/CD"
+      ],
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Leipzig",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-992b595212",
+      "is_synthetic": false,
+      "title": "Business Specialist CRM (m/w/d)",
+      "industry": null,
+      "skills": [
+        "Excel",
+        "SAP ERP",
+        "Business Intelligence"
+      ],
+      "must_haves": [
+        "Abgeschlossenes Bachelorstudium im Bereich Wirtschaft",
+        "Finance",
+        "BWL oder abgeschlossene kaufmännische Ausbildung",
+        "Erste praktische Erfahrungen durch Praktika oder Werkstudententätigkeiten",
+        "Sehr gute Excel-Kenntnisse",
+        "Strukturierte Arbeitsweise",
+        "Eigeninitiative und hohe Lernbereitschaft",
+        "Teamgeist und Freude an der Arbeit in interdisziplinären Teams",
+        "Gute Deutsch- und Englischkenntnisse"
+      ],
+      "nice_to_haves": [
+        "Erste Erfahrung mit Business InteIligence-Tools",
+        "Erste Erfahrungen mit SAP ERP"
+      ],
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-1369abc189",
+      "is_synthetic": false,
+      "title": "Senior Java & AWS Lead Developer",
+      "industry": null,
+      "skills": [
+        "Java",
+        "AWS",
+        "Spring Boot",
+        "Hibernate",
+        "Kubernetes",
+        "Docker",
+        "DevOps",
+        "CI/CD"
+      ],
+      "must_haves": [
+        "7+ years experience in software development with focus on Java and enterprise solutions",
+        "Proven experience in a leadership or architectural role within complex projects",
+        "Proficiency in modern frameworks (Spring Boot",
+        "Hibernate) and cloud technologies",
+        "Extensive experience with AWS (or similar cloud platforms)",
+        "Significant experience with Kubernetes & Docker",
+        "Experience with agile methodologies (SCRUM/Kanban/Scrumban & SAFe)",
+        "Excellent communication skills in Dutch and English",
+        "Strong analytical skills and strategic thinking",
+        "Extensive experience with DevOps",
+        "CI/CD pipelines and/or other forms of platform automation and development"
+      ],
+      "nice_to_haves": [
+        "German communication skills"
+      ],
+      "salary_min": 65000,
+      "salary_max": 90000,
+      "experience_level": "senior",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Zwolle, Netherlands",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-627d8705f2",
+      "is_synthetic": false,
+      "title": "Buchhalter (m/w/d)",
+      "industry": "EdTech",
+      "skills": [
+        "Excel",
+        "Datev"
+      ],
+      "must_haves": [
+        "abgeschlossene Ausbildung oder vergleichbare Qualifikation",
+        "mehrjährige Berufserfahrung im Bereich Buchhaltung",
+        "umfangreiche Kenntnisse der Rechnungslegung"
+      ],
+      "nice_to_haves": [
+        "schnelle Auffassungsgabe",
+        "Fähigkeit",
+        "sich in komplexe Fragestellungen reinzudenken"
+      ],
+      "salary_min": 54999,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Schwalbach am Taunus",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-8124e604de",
+      "is_synthetic": false,
+      "title": "Buchhalter (m/w/d)",
+      "industry": "EdTech",
+      "skills": [
+        "Excel",
+        "Datev"
+      ],
+      "must_haves": [
+        "abgeschlossene Ausbildung oder vergleichbare Qualifikation",
+        "mehrjährige Berufserfahrung im Bereich Buchhaltung",
+        "umfangreiche Kenntnisse der Rechnungslegung",
+        "schnelle Auffassungsgabe",
+        "Fähigkeit",
+        "sich in komplexe Fragestellungen reinzudenken",
+        "gute Kenntnisse im Umgang mit Excel",
+        "Erfahrung mit Datev"
+      ],
+      "nice_to_haves": [],
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Schwalbach am Taunus",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-466762f106",
+      "is_synthetic": false,
+      "title": "Buchhalter (m/w/d)",
+      "industry": "Fitness",
+      "skills": [
+        "Excel",
+        "Datev"
+      ],
+      "must_haves": [
+        "abgeschlossene Ausbildung oder vergleichbare Qualifikation im Bereich Buchhaltung",
+        "mehrjährige Berufserfahrung in der Buchhaltung",
+        "umfangreiche Kenntnisse der Rechnungslegung",
+        "schnelle Auffassungsgabe",
+        "Fähigkeit",
+        "sich in komplexe Fragestellungen reinzudenken"
+      ],
+      "nice_to_haves": [],
+      "salary_min": 50000,
+      "salary_max": 69000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "onsite",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Schwalbach am Taunus",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-f437919d2d",
+      "is_synthetic": false,
+      "title": "Buchhalter (m/w/d)",
+      "industry": "HealthTech",
+      "skills": [
+        "Debitoren Buchhaltung",
+        "Kreditoren Buchhaltung",
+        "Anlagenbuchhaltung",
+        "Finanzbuchhaltung",
+        "TypeScript",
+        "Jahresabschluss",
+        "Kontenabstimmung",
+        "Kontenklärung",
+        "Mahnwesen",
+        "Excel",
+        "Datev"
+      ],
+      "must_haves": [
+        "abgeschlossene Ausbildung oder vergleichbare Qualifikation",
+        "mehrjährige Berufserfahrung im Bereich Buchhaltung",
+        "umfangreiche Kenntnisse der Rechnungslegung",
+        "schnelle Auffassungsgabe",
+        "Fähigkeit",
+        "sich in komplexe Fragestellungen reinzudenken"
+      ],
+      "nice_to_haves": [],
+      "salary_min": 16000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Schwalbach am Taunus",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-b5f944daed",
+      "is_synthetic": false,
+      "title": "Buchhalter (m/w/d)",
+      "industry": "FinTech",
+      "skills": [
+        "SAP",
+        "Gute Kenntnisse in Excel",
+        "Datev"
+      ],
+      "must_haves": [
+        "Abgeschlossene Ausbildung oder vergleichbare Qualifikation im Bereich Buchhaltung",
+        "Mehrjährige Berufserfahrung in der Buchhaltung",
+        "Umfangreiche Kenntnisse der Rechnungslegung"
+      ],
+      "nice_to_haves": [
+        "Schnelle Auffassungsgabe",
+        "Fähigkeit",
+        "sich in komplexe Fragestellungen reinzudenken"
+      ],
+      "salary_min": 50000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Schwalbach am Taunus",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-def326c10c",
+      "is_synthetic": false,
+      "title": "Service – Techniker Rechenzentrum (w/m/d)",
+      "industry": "IT",
+      "skills": [
+        "LWL Datenverkabelung",
+        "Kupfer Datenverkabelung",
+        "Kabelinstallation",
+        "Kabelmontage",
+        "Fehleranalyse",
+        "Spleißen",
+        "Patch-Verkabelung",
+        "Infrastrukturverkabelung"
+      ],
+      "must_haves": [
+        "Abgeschlossene technische Berufsausbildung oder 3 Jahre Erfahrung in einem ähnlichen Arbeitsgebiet",
+        "Kenntnisse im Bereich der passiven LWL und Kupfer Datenverkabelung",
+        "Erfahrungen im Bereich der Kabelinstallation und Kabelmontage",
+        "Eigeninitiative",
+        "Selbstständige Arbeitsweise",
+        "Flexible Arbeitsweise",
+        "Teamfähigkeit",
+        "Organisationsgeschick",
+        "Gute Deutschkenntnisse",
+        "Gute Englischkenntnisse",
+        "Gültiger Führerschein",
+        "Polizeiliches Führungszeugnis ohne Einträge"
+      ],
+      "nice_to_haves": [
+        "Kenntnisse im Umgang mit Messmitteln und Messmethoden im Bereich der passiven Datenverkabelung"
+      ],
+      "salary_min": 50000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Großraum Frankfurt am Main",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-80150520e3",
+      "is_synthetic": false,
+      "title": "Referent Bereichsleitung IT (m/w/d)",
+      "industry": "Technology",
+      "skills": [
+        "Projektmanagement",
+        "Prozessmanagement",
+        "IT-Kenntnisse"
+      ],
+      "must_haves": [
+        "abgeschlossenes Studium der Wirtschaftsinformatik",
+        "Informatik oder vergleichbare Qualifikation",
+        "mehrjährige Berufserfahrung in einer vergleichbaren Position im IT-Umfeld",
+        "sehr gute Deutschkenntnisse in Wort und Schrift"
+      ],
+      "nice_to_haves": [
+        "Zertifizierung in Projekt- und Prozessmanagement",
+        "Kenntnisse gängiger Methoden im Projekt- und Prozessmanagement"
+      ],
+      "salary_min": 50000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-3e8da70091",
+      "is_synthetic": false,
+      "title": "Data & Dashboard Engineer – Analytics & Business Intelligence (m/w/d)",
+      "industry": "Beratungsunternehmen, Immobilienwirtschaft",
+      "skills": [
+        "Power BI",
+        "Tableau",
+        "Qlik",
+        "Looker",
+        "Python",
+        ".NET",
+        "SQL"
+      ],
+      "must_haves": [
+        "Abgeschlossenes Studium (Wirtschaftsinformatik",
+        "Data Analytics",
+        "Informatik oder vergleichbar)",
+        "Erfahrung mit Power BI",
+        "Verständnis für Datenmodellierung",
+        "ETL-Prozesse und BI-Integration",
+        "Gute Kenntnisse in Python",
+        "C#",
+        ".NET",
+        "SQL",
+        "Sehr gute Deutschkenntnisse (mind. C1)",
+        "Offenheit für KI- und Datenprojekte",
+        "Analytische und strukturierte Arbeitsweise",
+        "Gute Kommunikationsfähigkeit"
+      ],
+      "nice_to_haves": [],
+      "salary_min": 70000,
+      "salary_max": 90000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München, Stuttgart, Hannover, Hamburg, Berlin, Köln",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-d0c51d4c9a",
+      "is_synthetic": false,
+      "title": "Senior Vehicle AI Architect (f/m/x)",
+      "industry": "Automobil",
+      "skills": [
+        "Rust",
+        "C++",
+        "Kotlin",
+        "API-Technologien",
+        "LiteRT LM",
+        "ONNX GenAI",
+        "ExecuTorch",
+        "Llama-Stack"
+      ],
+      "must_haves": [
+        "Master- oder PhD-Abschluss in Computer Science",
+        "AI",
+        "Machine Learning",
+        "Data Science oder einem verwandten Bereich",
+        "Über fünf Jahre Erfahrung in AI/Datenarchitektur",
+        "Starke Erfahrung mit Fahrzeug-AI-Architekturen und der Implementierung von Small Language Models",
+        "Vision Language Models oder autonomen Fahrmodellen",
+        "Kenntnisse in der Orchestrierung von Multi-Agenten-Systemen",
+        "Multi-Turn-Dialogen und verwandten offenen Standards (z.B. A2A",
+        "MCP)",
+        "Erfahrung mit AI-Trainings-Toolchains und Workflows (Pruning",
+        "Fine-Tuning",
+        "multimodale Kodierung)",
+        "Vertrautheit mit Open-Source-AI-Frameworks (LiteRT LM",
+        "ONNX GenAI",
+        "ExecuTorch",
+        "Llama-Stack) und Vergleich zu proprietären Frameworks",
+        "Fundiertes Verständnis von AI-Modellen",
+        "die auf Hardware-Beschleunigern ausgeführt werden",
+        "mit Fokus auf Low-Level-Software auf Neural Processing Units (NPUs)",
+        "Führungserfahrung in agilen Teams"
+      ],
+      "nice_to_haves": [
+        "Erfahrung in automobiler E/E-Architektur und AI-Fahrzeuganwendungen"
+      ],
+      "salary_min": 75000,
+      "salary_max": 120000,
+      "experience_level": "senior",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "onsite",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-c90b4e7208",
+      "is_synthetic": false,
+      "title": "Projektmanager (m/w/d) Infrastruktur (Verkehr / Bahn, Energie)",
+      "industry": "Ingenieurwesen, Beratung, Infrastruktur, Bauprojektmanagement",
+      "skills": [
+        "MS Office",
+        "MS Project"
+      ],
+      "must_haves": [
+        "Studium im Bereich Verkehrsingenieurwesen",
+        "Bauingenieurwesen",
+        "Raumplanung",
+        "Architektur oder vergleichbar",
+        "Kenntnisse der Phasen und Handlungsbereiche gemäß Heft Nr. 9 der AHO-Schriftenreihe",
+        "Sichere MS-Office-Kenntnisse",
+        "Vorausschauendes",
+        "analytisches und strategisches Denken",
+        "Gewissenhafte und sorgfältige Arbeitsweise",
+        "Sicheres Auftreten und Fähigkeit zum Führen von Besprechungen",
+        "Teamfähigkeit",
+        "Zielstrebigkeit",
+        "Hohe Bereitschaft zur persönlichen Weiterentwicklung",
+        "Gute Deutschkenntnisse",
+        "C2-Level und besser",
+        "in Wort und Schrift"
+      ],
+      "nice_to_haves": [
+        "Erfahrung in der Bauwirtschaft/ Planung/ Projektsteuerung",
+        "Kenntnisse in MS Project"
+      ],
+      "salary_min": 50000,
+      "salary_max": 64999,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Darmstadt",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-c05ca5f11a",
+      "is_synthetic": false,
+      "title": "software architect",
+      "industry": null,
+      "skills": [],
+      "must_haves": [],
+      "nice_to_haves": [],
+      "salary_min": null,
+      "salary_max": null,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": null,
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-efd1ed2fa0",
+      "is_synthetic": false,
+      "title": "Produktmanager:in (m/w/d)",
+      "industry": null,
+      "skills": [],
+      "must_haves": [
+        "4+ Jahre Produktmanagement in B2B SaaS",
+        "Erfahrung mit Discovery und Datenanalyse",
+        "sehr gutes Deutsch",
+        "sehr gutes Englisch"
+      ],
+      "nice_to_haves": [
+        "Erfahrung im Fintech"
+      ],
+      "salary_min": 75000,
+      "salary_max": 95000,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-d099949e6a",
+      "is_synthetic": false,
+      "title": "Senior DevOps Engineer",
+      "industry": null,
+      "skills": [],
+      "must_haves": [],
+      "nice_to_haves": [],
+      "salary_min": null,
+      "salary_max": null,
+      "experience_level": "senior",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-91d39a0267",
+      "is_synthetic": false,
+      "title": "Senior Controller (m/w/d)",
+      "industry": null,
+      "skills": [
+        "SAP FI/CO",
+        "Konzernkonsolidierung"
+      ],
+      "must_haves": [
+        "SAP FI/CO Kenntnisse",
+        "Erfahrung in Konzernkonsolidierung"
+      ],
+      "nice_to_haves": [],
+      "salary_min": 75000,
+      "salary_max": 85000,
+      "experience_level": "senior",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "real-j-6bc4f635b4",
+      "is_synthetic": false,
+      "title": "Lohnbuchhalter (m/w/d)",
+      "industry": null,
+      "skills": [
+        "DATEV"
+      ],
+      "must_haves": [
+        "DATEV-Kenntnisse"
+      ],
+      "nice_to_haves": [],
+      "salary_min": null,
+      "salary_max": null,
+      "experience_level": "mid",
+      "experience_min": null,
+      "experience_max": null,
+      "visa_sponsorship": null,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": null,
+      "skill_requirements": []
+    }
+  ],
+  "candidates": [
+    {
+      "id": "real-c-f01eeeeb91",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "React",
+        "TypeScript",
+        "Node.js",
+        "AWS"
+      ],
+      "experience_years": 5,
+      "seniority": null,
+      "expected_salary": 85000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-12b92fbbe6",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "DevOps",
+        "AWS",
+        "Kubernetes",
+        "Terraform",
+        "Python"
+      ],
+      "experience_years": 7,
+      "seniority": null,
+      "expected_salary": 90000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-23fa9439a1",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "React",
+        "Vue.js",
+        "TypeScript",
+        "GraphQL",
+        "PostgreSQL"
+      ],
+      "experience_years": 4,
+      "seniority": null,
+      "expected_salary": 70000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-d90bc08595",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "Microservices",
+        "Docker"
+      ],
+      "experience_years": 8,
+      "seniority": null,
+      "expected_salary": 95000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-b177523bcd",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Product Management",
+        "Agile",
+        "Scrum",
+        "Jira",
+        "Analytics"
+      ],
+      "experience_years": 6,
+      "seniority": null,
+      "expected_salary": 80000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-1e1df3b5da",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Leadership",
+        "Automotive",
+        "Project Management",
+        "German",
+        "English"
+      ],
+      "experience_years": 12,
+      "seniority": null,
+      "expected_salary": 115000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-074141bf22",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "React",
+        "TypeScript",
+        "Next.js",
+        "TailwindCSS"
+      ],
+      "experience_years": 3,
+      "seniority": null,
+      "expected_salary": 65000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-9af936627f",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "AWS",
+        "Azure",
+        "Kubernetes",
+        "CI/CD",
+        "Python"
+      ],
+      "experience_years": 5,
+      "seniority": null,
+      "expected_salary": 82000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-dbe8289256",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Node.js",
+        "React",
+        "MongoDB",
+        "GraphQL",
+        "AWS"
+      ],
+      "experience_years": 6,
+      "seniority": null,
+      "expected_salary": 78000,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-aebd7b7ef7",
+      "is_synthetic": false,
+      "persona": "Echt: Senior Frontend Developer",
+      "job_title": "Senior Frontend Developer",
+      "skills": [
+        "React",
+        "TypeScript",
+        "Node.js",
+        "GraphQL",
+        "AWS"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 88000,
+      "salary_expectation_min": 82000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Spanisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-7a2a5f3ef0",
+      "is_synthetic": false,
+      "persona": "Echt: Frontend Developer",
+      "job_title": "Frontend Developer",
+      "skills": [
+        "Vue.js",
+        "TypeScript",
+        "Tailwind",
+        "Nuxt",
+        "JavaScript"
+      ],
+      "experience_years": 3,
+      "seniority": "mid",
+      "expected_salary": 62000,
+      "salary_expectation_min": 58000,
+      "availability_in_days": -178,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "conversational"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-3425f3c2e1",
+      "is_synthetic": false,
+      "persona": "Echt: DevOps Engineer",
+      "job_title": "DevOps Engineer",
+      "skills": [
+        "Kubernetes",
+        "Docker",
+        "Terraform",
+        "AWS",
+        "CI/CD"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 92000,
+      "salary_expectation_min": 85000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "remote",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-580b0db0fa",
+      "is_synthetic": false,
+      "persona": "Echt: Product Manager",
+      "job_title": "Product Manager",
+      "skills": [
+        "Agile",
+        "Scrum",
+        "JIRA",
+        "Product Strategy",
+        "User Research"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 82000,
+      "salary_expectation_min": 75000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Französisch",
+          "level": "conversational"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-828966413c",
+      "is_synthetic": false,
+      "persona": "Echt: Data Engineer",
+      "job_title": "Data Engineer",
+      "skills": [
+        "Python",
+        "Apache Spark",
+        "Airflow",
+        "SQL",
+        "Snowflake"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 90000,
+      "salary_expectation_min": 82000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-bd54a183a2",
+      "is_synthetic": false,
+      "persona": "Echt: UX/UI Designer",
+      "job_title": "UX/UI Designer",
+      "skills": [
+        "Figma",
+        "Adobe XD",
+        "User Research",
+        "Prototyping",
+        "Design Systems"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 70000,
+      "salary_expectation_min": 65000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "onsite",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Italienisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-fdd020cd89",
+      "is_synthetic": false,
+      "persona": "Echt: Full-Stack Developer",
+      "job_title": "Full-Stack Developer",
+      "skills": [
+        "React",
+        "Node.js",
+        "PostgreSQL",
+        "TypeScript",
+        "Docker"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 78000,
+      "salary_expectation_min": 72000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "conversational"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-95cc53e88c",
+      "is_synthetic": false,
+      "persona": "Echt: Backend Developer",
+      "job_title": "Backend Developer",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "Microservices",
+        "Kafka",
+        "PostgreSQL"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 95000,
+      "salary_expectation_min": 88000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Russisch",
+          "level": "conversational"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-240b53259c",
+      "is_synthetic": false,
+      "persona": "Echt: Cloud Architect",
+      "job_title": "Cloud Architect",
+      "skills": [
+        "AWS",
+        "Azure",
+        "GCP",
+        "Terraform",
+        "Architecture"
+      ],
+      "experience_years": 9,
+      "seniority": "senior",
+      "expected_salary": 115000,
+      "salary_expectation_min": 105000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "remote",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Niederländisch",
+          "level": "conversational"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-ba2c3320ca",
+      "is_synthetic": false,
+      "persona": "Echt: Engineering Manager",
+      "job_title": "Engineering Manager",
+      "skills": [
+        "Team Leadership",
+        "Agile",
+        "Technical Strategy",
+        "Hiring",
+        "Mentoring"
+      ],
+      "experience_years": 12,
+      "seniority": "senior",
+      "expected_salary": 130000,
+      "salary_expectation_min": 120000,
+      "availability_in_days": -127,
+      "remote_preference": null,
+      "work_model": "hybrid",
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Polnisch",
+          "level": "native"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-a08d57e51e",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 70,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-b2655c258e",
+      "is_synthetic": false,
+      "persona": "Echt: Projektmanager Aktiv-passiv Infrastruktur / Applikation Rollout",
+      "job_title": "Projektmanager Aktiv-passiv Infrastruktur / Applikation Rollout",
+      "skills": [
+        "Projektmanagement",
+        "Ressourcenmanagement",
+        "Servicemanagement",
+        "Changemanagement",
+        "RZ-Server",
+        "Data Center",
+        "SAN",
+        "NAS",
+        "Rolloutmanagement",
+        "Prince2",
+        "Cobit 5",
+        "SCRUM",
+        "ITIL 2011",
+        "RZ-Inbetriebnahme",
+        "Umstrukturierung der IT",
+        "Patch Plan",
+        "Personalplanung",
+        "Personalmanagement",
+        "Anforderungsmanagement",
+        "Lieferantenmanagement",
+        "Budgetmanagement",
+        "Softwareausrollung",
+        "Infrastrukturänderungen",
+        "Web Spell Checker",
+        "ASA-Assistenzsysteme",
+        "ELSAM Verfahren",
+        "Anti-Korruption-Überprüfungsverfahren",
+        "Multiprojektmanagement",
+        "Netzwerktopologie",
+        "Security Richtlinien",
+        "Windows Server 2008",
+        "Windows Server 2016",
+        "SQL",
+        "Linux",
+        "Windows",
+        "Exchange Systeme",
+        "Office 2013",
+        "OBD2",
+        "CAN Bus",
+        "Java",
+        "HTML5",
+        "SAP-Prozesse",
+        "Visio",
+        "IT-Security",
+        "Social Responsibility",
+        "Export Control",
+        "Import Compliance",
+        "Peoplesoft",
+        "Bausteinprogrammierung",
+        "MS Certified Professional",
+        "MS Certified Solutions Expert",
+        "Certified Netware Engineer",
+        "Certified Netware Administrator"
+      ],
+      "experience_years": 25,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-8e3dc15029",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Manager Financing"
+      ],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-817c4c848f",
+      "is_synthetic": false,
+      "persona": "Echt: Entwicklungsingenieur",
+      "job_title": "Entwicklungsingenieur",
+      "skills": [
+        "Elektronik Design Engineering FPGA",
+        "Hardware Entwicklung Embedded Bereich",
+        "FPGA",
+        "VHDL",
+        "Embedded Software-Entwicklung",
+        "C/C++",
+        "Cadence - OrCAD",
+        "Altium - PCAD",
+        "Eagle",
+        "Xilinx - Vivado / ISE",
+        "Siemens TIA Portal",
+        "Beckhoff TwinCAT",
+        "Projektleitung",
+        "Schaltplanerstellung",
+        "Inbetriebnahme",
+        "Fertigungsüberleitung"
+      ],
+      "experience_years": 21,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-e3d16e0761",
+      "is_synthetic": false,
+      "persona": "Echt: Buchhalter",
+      "job_title": "Buchhalter",
+      "skills": [
+        "SAP",
+        "SAP Business ByDesign",
+        "Addison",
+        "DATEV",
+        "Microsoft Dynamics Navision",
+        "Agenda",
+        "CSS eGecko",
+        "FixAv",
+        "MS Word",
+        "MS Excel",
+        "Umsatzsteuerrecht",
+        "Buchführungsgrundlagen",
+        "Kommunikation",
+        "Jahresabschluss",
+        "Monatsabschluss",
+        "Kreditorenbuchhaltung",
+        "Debitorenbuchhaltung",
+        "Zahlungseingänge",
+        "Reisekostenabrechnung",
+        "Mahnwesen",
+        "Anlagenbuchhaltung",
+        "Lohnbuchhaltung",
+        "USt-Voranmeldungen",
+        "ZM-Meldungen",
+        "OSS",
+        "VAT Return UK",
+        "Außenhandelsstatistik",
+        "Controlling (einfach)",
+        "Forderungsmanagement",
+        "Inkasso",
+        "Insolvenzfälle",
+        "Kreditmanagement",
+        "Prozessoptimierung",
+        "Berichtswesen",
+        "Stammdatenpflege",
+        "Intercompany-Abrechnung",
+        "Rechnungsabgrenzung",
+        "Rückstellungen",
+        "Debitorencontrolling",
+        "Lastschrifteinreichung",
+        "Scheckeinreichung"
+      ],
+      "experience_years": 20,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "advanced"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-359131ad4d",
+      "is_synthetic": false,
+      "persona": "Echt: Kesselwärter / Objekt Betreuer",
+      "job_title": "Kesselwärter / Objekt Betreuer",
+      "skills": [
+        "Microsoft Office",
+        "Word",
+        "Excel",
+        "Outlook",
+        "Calender",
+        "Mos´aik",
+        "SAP",
+        "Citrix",
+        "SAP/R3",
+        "Kranschein",
+        "Flurfördermittelschein",
+        "PKW",
+        "Führerschein Kl. B",
+        "Gebäude-technische Objektbetreuung",
+        "Analyse von Wasserproben",
+        "Klima-Umweltschutz",
+        "Hygiene / Qualitätsvorschriften",
+        "Wartung von Medizinprodukten",
+        "Bedienung – Überwachung Kessel -Dampf – Kälte - RLT Anlage",
+        "Umkehr,- Osmoseanlage",
+        "BMA",
+        "Dokumentation",
+        "Wartungsleistungen",
+        "Reparaturleistungen",
+        "Betreiberleistungen",
+        "Terminplanung",
+        "Koordinierung",
+        "Störungsbehebungen",
+        "Akquise",
+        "Stördienst",
+        "Datenpflegesysteme",
+        "Kostenminimierung",
+        "Instandhaltung",
+        "Lagerverwaltung",
+        "Datensystempflege",
+        "Disposition",
+        "Inventarmanagement",
+        "Facility-Management",
+        "Baustellen",
+        "Montage",
+        "Kranführung",
+        "Flurförderzeuge",
+        "Elektropneumatik",
+        "Steuerung",
+        "Fertigung",
+        "Maschinenbau",
+        "Technische Zeichnung",
+        "Programmierung",
+        "Oberflächenbehandlung",
+        "Oberflächenbemessung",
+        "Lackierer",
+        "Fräsen",
+        "Maschinenbedienung",
+        "Produktion",
+        "Qualitätsprüfung",
+        "Überwachung",
+        "Fertigungskontrolle",
+        "Qualitätssicherung"
+      ],
+      "experience_years": 10,
+      "seniority": "mid",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Türkisch",
+          "level": "advanced"
+        },
+        {
+          "language": "Englisch",
+          "level": "advanced"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-d4545e30ef",
+      "is_synthetic": false,
+      "persona": "Echt: Buchhalter (für Kurzzeitprojekte)",
+      "job_title": "Buchhalter (für Kurzzeitprojekte)",
+      "skills": [
+        "Jahresabschluss",
+        "Lieferantenkontenabstimmung",
+        "Debitorenkontenabstimmung",
+        "Finanzbuchhaltung",
+        "Kontenklärung",
+        "PayPal",
+        "Kreditkartenabrechnungen",
+        "Eingangsrechnungen",
+        "Wareneingangskontrolle",
+        "Zahlungseingänge verbuchen",
+        "Monatsabschluss",
+        "Bankkontenabstimmung",
+        "Anlagevermögen buchen",
+        "Fraudmanagement",
+        "Mahnwesen",
+        "Debitorenbuchhaltung",
+        "Reisekostenabrechnung",
+        "USt. - Voranmeldungen",
+        "ZM Meldungen",
+        "OSS",
+        "VAT Return UK",
+        "Außenhandelsstatistik",
+        "Controlling",
+        "Provisionsabrechnung",
+        "Lohnbuchhaltung",
+        "HR Fragen",
+        "Zeiterfassungsmanagement",
+        "Officemanagement",
+        "Kreditmanagement",
+        "Kundenstammdatenpflege",
+        "Inkasso",
+        "Insolvenzfälle",
+        "Forderungsmanagement",
+        "SAP Business ByDesign",
+        "SAP",
+        "Addison",
+        "DATEV",
+        "Microsoft Dynamics Navision",
+        "Agenda",
+        "CSS eGecko",
+        "FixAv",
+        "Berichtswesen",
+        "Auswertungen",
+        "Intercompany-Abrechnungen",
+        "Bestellsystem",
+        "Purchase Order",
+        "Debitoren- und Kreditorenbuchhaltung",
+        "Sachkontenabstimmung",
+        "Zahlläufe",
+        "Rechnungsabgrenzung",
+        "Rückstellungen",
+        "Lastschrifteinreichung",
+        "Scheckeinreichung",
+        "Debitorencontrolling",
+        "Z4 Meldungen",
+        "Verbuchung von Zahlungseingängen",
+        "Kundenbetreuung",
+        "Systemeinführung",
+        "Mitarbeiterschulung",
+        "Schnittstellenkontrolle",
+        "Lastschriftbearbeitung",
+        "Rücklastschriftbearbeitung",
+        "Disposition",
+        "Kontaktpflege",
+        "Koordination",
+        "Kassenabschluss",
+        "Reinigung",
+        "Zustellung",
+        "MS Word",
+        "MS Excel"
+      ],
+      "experience_years": 25,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "advanced"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-cd74ec0f55",
+      "is_synthetic": false,
+      "persona": "Echt: Branch Manager",
+      "job_title": "Branch Manager",
+      "skills": [
+        "CRM-Systeme",
+        "ERP-Systeme",
+        "SAP",
+        "Microsoft Office",
+        "Business Development",
+        "Leadership",
+        "Entrepreneurial Thinking",
+        "Sales Skills",
+        "Negotiation Skills",
+        "Resilience",
+        "Organization and Planning",
+        "Mentoring",
+        "Prioritization",
+        "Presentation Techniques",
+        "Rhetoric",
+        "Networking",
+        "Strategy",
+        "Communication",
+        "Marketing",
+        "Project Management",
+        "SharePoint",
+        "Cluster Analysis",
+        "Vertriebsstrategie"
+      ],
+      "experience_years": 10,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "advanced"
+        },
+        {
+          "language": "Italienisch",
+          "level": "basic"
+        },
+        {
+          "language": "Portugiesisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-e29ad0184f",
+      "is_synthetic": false,
+      "persona": "Echt: Senior Fullstack Developer / Tech Lead",
+      "job_title": "Senior Fullstack Developer / Tech Lead",
+      "skills": [
+        "React",
+        "Next.js",
+        "Vue.js",
+        "TypeScript",
+        "JavaScript (ES2023)",
+        "HTML5",
+        "CSS3",
+        "Tailwind",
+        "SCSS",
+        "Accessibility (WCAG)",
+        "Performance-Tuning",
+        "Node.js",
+        "NestJS",
+        "Express",
+        "Java (Spring Boot)",
+        "REST",
+        "GraphQL",
+        "gRPC",
+        "Auth-Systeme (OAuth2",
+        "JWT)",
+        "AWS (EC2",
+        "ECS",
+        "EKS",
+        "Lambda",
+        "RDS",
+        "S3",
+        "CloudWatch)",
+        "Docker",
+        "Kubernetes",
+        "Terraform",
+        "CI/CD",
+        "PostgreSQL",
+        "MySQL",
+        "MongoDB",
+        "Redis",
+        "Event Stores",
+        "Agile (Scrum",
+        "Kanban)",
+        "Domain Driven Design (DDD)",
+        "Clean Architecture",
+        "SOLID",
+        "TDD"
+      ],
+      "experience_years": 10,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": 75000,
+      "availability_in_days": -108,
+      "remote_preference": "flexible",
+      "work_model": "fulltime",
+      "city": null,
+      "max_commute_minutes": 90,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-f61bccc652",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Senior C# Entwickler .Net / Azure Cloud Ops"
+      ],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 85,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-3c45580ddb",
+      "is_synthetic": false,
+      "persona": "Echt: Scrum Master und Entwickler",
+      "job_title": "Scrum Master und Entwickler",
+      "skills": [
+        "Java",
+        "HTML",
+        "PL/SQL",
+        "JavaScript",
+        "Tomcat",
+        "Spring Boot",
+        "Docker",
+        "Struts",
+        "Spring",
+        "JUnit",
+        "FOP",
+        "JasperReports",
+        "Maven",
+        "BIRT",
+        "iBatis",
+        "Thymeleaf",
+        "AngularJS",
+        "Eclipse",
+        "Git",
+        "SVN",
+        "Jenkins",
+        "Jira",
+        "Scrum",
+        "Kanban",
+        "Bloomreach",
+        "REST",
+        "Azure",
+        "SOAP",
+        "Playwright",
+        "Spring Security",
+        "Solr",
+        "GWT",
+        "JSF",
+        "JEE",
+        "Spring Security SAML",
+        "JSON",
+        "SAML",
+        "Swing",
+        "Apache CXF",
+        "Oracle",
+        "jQuery",
+        "Hudson",
+        "iET ITSM",
+        "Typo3",
+        "OC4J",
+        "JPA",
+        "Hibernate",
+        "MySQL",
+        "J2EE",
+        "ATG Dynamo",
+        "JBOSS",
+        "CVS",
+        "ANT",
+        "ATG",
+        "Teamsite",
+        "IIS",
+        "ASP",
+        "SQL-Server",
+        "Visual Basic"
+      ],
+      "experience_years": 24,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "intermediate"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-672fb1c0e1",
+      "is_synthetic": false,
+      "persona": "Echt: Projektmanager Aktiv-passiv Infrastruktur / Applikation Rollout",
+      "job_title": "Projektmanager Aktiv-passiv Infrastruktur / Applikation Rollout",
+      "skills": [
+        "Projektmanagement",
+        "Ressourcenmanagement",
+        "Servicemanagement",
+        "Changemanagement",
+        "SAN / NAS",
+        "Prince2",
+        "Cobit 5",
+        "SCRUM",
+        "ITIL 2011",
+        "RZ-Inbetriebnahme",
+        "IT-Umstrukturierung",
+        "Patch Plan",
+        "Personalplanung",
+        "Softwaremanagement",
+        "Budgetmanagement",
+        "Anforderungsmanagement",
+        "Lieferantenmanagement",
+        "Hardware Rollout",
+        "Software Rollout",
+        "Infrastruktur Management",
+        "Security Richtlinien",
+        "Windows Server 2008",
+        "Windows Server 2016",
+        "SQL",
+        "Linux",
+        "Exchange Systeme",
+        "Office 2013",
+        "OBD2",
+        "CAN Bus",
+        "Java",
+        "HTML5",
+        "SAP",
+        "Visio",
+        "IT-Security",
+        "Social Responsibility",
+        "Export Control",
+        "Import Compliance",
+        "Microsoft Certified Professional",
+        "Microsoft Certified Solutions Expert / NT 4.0",
+        "Certified Netware Administrator",
+        "Certified Netware Engineer",
+        "Peoplesoft – Bausteinprogrammierung"
+      ],
+      "experience_years": 26,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-d11dc9f4e3",
+      "is_synthetic": false,
+      "persona": "Echt: Controllerin",
+      "job_title": "Controllerin",
+      "skills": [
+        "Office Applications",
+        "Lexware",
+        "Sage",
+        "SAP",
+        "Buchhaltungssoftware",
+        "Finanzbuchhaltung",
+        "Lohnbuchhaltung",
+        "Verkehrsleiterin",
+        "Fuhrparkmanagement",
+        "Personalwesen",
+        "Rechnungswesen",
+        "Organisationstalent",
+        "Führungsqualität",
+        "Gewissenhaft",
+        "Ehrgeizig",
+        "Zahlenaffinität",
+        "Zuverlässigkeit"
+      ],
+      "experience_years": 15,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Türkisch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-473478271b",
+      "is_synthetic": false,
+      "persona": "Echt: Mitarbeiter Buchhaltung",
+      "job_title": "Mitarbeiter Buchhaltung",
+      "skills": [
+        "Debitoren- und Kreditorenbuchhaltung",
+        "DATEV Unternehmen online",
+        "OPOS Klärung",
+        "Rechnungserstellung",
+        "Gutschriftenerstellung",
+        "Prozessoptimierung",
+        "Digitalisierung",
+        "Monatsbudgetverwaltung",
+        "Kidling",
+        "Yokoy",
+        "Angebotserstellung",
+        "Kundenbetreuung",
+        "Lohnabrechnung (Vorbereitung)",
+        "Zahlungspläne (DATEV)",
+        "Mahnwesen (DATEV)",
+        "Kontoverwaltung",
+        "Wareneingangskontrolle",
+        "Lagerführung",
+        "Rechnungsprüfung",
+        "Sekretariatsaufgaben",
+        "Terminkoordinierung",
+        "Projektbetreuung",
+        "Aufmaßprüfung",
+        "Mitarbeiterkoordinierung",
+        "Kassenführung",
+        "Personalführung",
+        "MS Office",
+        "SAP-ISU",
+        "Warenwirtschaftssysteme",
+        "Lotus Notes",
+        "Finanzmarktanalyse",
+        "Forex Märkte",
+        "Krypto Investments"
+      ],
+      "experience_years": 25,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 90,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-aff6cf978c",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Salesperson"
+      ],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-532d70e88b",
+      "is_synthetic": false,
+      "persona": "Echt: Group-Director Finance and Accounting und Prokurist",
+      "job_title": "Group-Director Finance and Accounting und Prokurist",
+      "skills": [
+        "Treasury",
+        "Controlling",
+        "Buchhaltung",
+        "Steuern",
+        "Reporting",
+        "Cash Management",
+        "Deckungsbeitragsrechnung",
+        "Abweichungsanalyse",
+        "Cost-Improvement Tools",
+        "Werksperformance Reporting",
+        "KPI-Tracking",
+        "Kostenmanagement",
+        "Dashboards",
+        "SAP",
+        "Absatz- und Umsatzplanung (APO)",
+        "SCM-Produktivität Tracking",
+        "Kalkulationstools",
+        "Prozesskostenrechnung",
+        "Managementreporting",
+        "Analyse-Tools",
+        "KPI-Systeme"
+      ],
+      "experience_years": 25,
+      "seniority": "director",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 65,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-37f352a222",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-8403730e96",
+      "is_synthetic": false,
+      "persona": "Echt: Scrum Master & Agile Coach",
+      "job_title": "Scrum Master & Agile Coach",
+      "skills": [
+        "Scrum",
+        "Kanban",
+        "Lean",
+        "SAFe",
+        "OKR",
+        "Servant Leadership",
+        "LeSS",
+        "Nexus",
+        "EBM",
+        "Jira",
+        "Confluence",
+        "Miro",
+        "MS Project",
+        "MS Office",
+        "Datenbanken/SQL",
+        "Java",
+        "Web-Technologien",
+        "LLMs"
+      ],
+      "experience_years": 14,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Französisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-ed5eb7fe3a",
+      "is_synthetic": false,
+      "persona": "Echt: Projektmanager",
+      "job_title": "Projektmanager",
+      "skills": [
+        "Projektmanagement",
+        "Agile",
+        "Scrum",
+        "Kanban",
+        "Jira",
+        "Confluence",
+        "JavaScript",
+        "Java",
+        "Python",
+        "Selenium WebDriver",
+        "Playwright",
+        "Git",
+        "GitHub",
+        "VBA",
+        "AI Tools"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Bulgarisch",
+          "level": "native"
+        },
+        {
+          "language": "Russisch",
+          "level": "native"
+        },
+        {
+          "language": "Deutsch",
+          "level": "fluent"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-2c42a27488",
+      "is_synthetic": false,
+      "persona": "Echt: Geschäftsführer & CEO",
+      "job_title": "Geschäftsführer & CEO",
+      "skills": [
+        "Corporate Strategy & Vision Development",
+        "M&A",
+        "Due Diligence",
+        "Exit-Strategien",
+        "Private Equity",
+        "Kapitalstrukturierung",
+        "Turnaround Management",
+        "Restrukturierung",
+        "Internationalisierung",
+        "Markteintrittsstrategien",
+        "Board Advisory",
+        "Governance",
+        "P&L-Verantwortung",
+        "KPI- & Performance-Management-Systeme",
+        "Lean Management",
+        "Prozessoptimierung",
+        "Digitale Transformation",
+        "Change-Management",
+        "Kulturentwicklung",
+        "Executive Leadership",
+        "Talent Development",
+        "ERP-Systeme",
+        "SAP",
+        "Oracle",
+        "Business Intelligence",
+        "Power BI",
+        "Tableau",
+        "Financial Modeling",
+        "Forecasting",
+        "Advanced Excel",
+        "Data Analytics",
+        "CRM-Systeme",
+        "Salesforce",
+        "HubSpot",
+        "Projektmanagement-Tools",
+        "Jira",
+        "Asana",
+        "MS Project"
+      ],
+      "experience_years": 30,
+      "seniority": "director",
+      "expected_salary": 200000,
+      "salary_expectation_min": 185000,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 60,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Kroatisch",
+          "level": "fluent"
+        },
+        {
+          "language": "Spanisch",
+          "level": "advanced"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-a90bf57adc",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-6856a37258",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [
+        "Test and development engineer at in-tech GmbH"
+      ],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-00f820bfe2",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-4f2f9d03f7",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-fc239cad97",
+      "is_synthetic": false,
+      "persona": "Echt: Technischer Vertriebsmanager",
+      "job_title": "Technischer Vertriebsmanager",
+      "skills": [
+        "B2B Vertrieb",
+        "Neukundenakquise",
+        "Kundenbetreuung",
+        "Vertragsverhandlungen",
+        "Produktpräsentation",
+        "Marketingkampagnen",
+        "Vertriebsteamführung",
+        "Strategische Planung",
+        "Analyse und Kalkulation",
+        "SAP",
+        "CRM",
+        "Windows",
+        "Microsoft Office",
+        "Internet"
+      ],
+      "experience_years": 25,
+      "seniority": "senior",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-4183b41bce",
+      "is_synthetic": false,
+      "persona": "Echt: Sachbearbeiterin",
+      "job_title": "Sachbearbeiterin",
+      "skills": [
+        "Personalbetreuung",
+        "Personaladministration",
+        "Personalaktenführung",
+        "Vertragsmanagement",
+        "Fristenmanagement",
+        "Datenschutz DSGVO",
+        "Mitarbeiterkommunikation",
+        "Bescheinigungswesen",
+        "Lohn- und Gehaltsabrechnung",
+        "Microsoft Word",
+        "Microsoft Excel",
+        "DocuWare",
+        "Landwehr (zvoove)",
+        "Prosoft",
+        "Tutum Archiv"
+      ],
+      "experience_years": 7,
+      "seniority": "mid",
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "native"
+        },
+        {
+          "language": "Ungarisch",
+          "level": "native"
+        },
+        {
+          "language": "Englisch",
+          "level": "basic"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "real-c-9de7bec5fb",
+      "is_synthetic": false,
+      "persona": "Echt: ohne Titel",
+      "job_title": null,
+      "skills": [],
+      "experience_years": null,
+      "seniority": null,
+      "expected_salary": null,
+      "salary_expectation_min": null,
+      "availability_in_days": null,
+      "remote_preference": null,
+      "work_model": null,
+      "city": null,
+      "max_commute_minutes": 30,
+      "industry_experience": [],
+      "languages": [],
+      "certifications": [],
+      "visa_required": false
+    }
+  ],
+  "labels": [
+    {
+      "job_id": "real-j-f41b2a3e99",
+      "candidate_id": "real-c-7a2a5f3ef0",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-f41b2a3e99",
+      "candidate_id": "real-c-e29ad0184f",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-54ede5063a",
+      "candidate_id": "real-c-e29ad0184f",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-992b595212",
+      "candidate_id": "real-c-e3d16e0761",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-1369abc189",
+      "candidate_id": "real-c-e29ad0184f",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "real-j-1369abc189",
+      "candidate_id": "real-c-3c45580ddb",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "real-j-b5f944daed",
+      "candidate_id": "real-c-532d70e88b",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-b5f944daed",
+      "candidate_id": "real-c-d11dc9f4e3",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "real-j-f437919d2d",
+      "candidate_id": "real-c-d11dc9f4e3",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "real-j-f437919d2d",
+      "candidate_id": "real-c-e3d16e0761",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-b5f944daed",
+      "candidate_id": "real-c-e3d16e0761",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-b5f944daed",
+      "candidate_id": "real-c-473478271b",
+      "label": "submitted"
+    },
+    {
+      "job_id": "real-j-80150520e3",
+      "candidate_id": "real-c-532d70e88b",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "real-j-b5f944daed",
+      "candidate_id": "real-c-a08d57e51e",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-3e8da70091",
+      "candidate_id": "real-c-ed5eb7fe3a",
+      "label": "submitted"
+    },
+    {
+      "job_id": "real-j-80150520e3",
+      "candidate_id": "real-c-cd74ec0f55",
+      "label": "rejected"
+    },
+    {
+      "job_id": "real-j-3e8da70091",
+      "candidate_id": "real-c-2c42a27488",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "real-j-b5f944daed",
+      "candidate_id": "real-c-2c42a27488",
+      "label": "submitted"
+    },
+    {
+      "job_id": "real-j-992b595212",
+      "candidate_id": "real-c-2c42a27488",
+      "label": "interviewed"
+    }
+  ]
+}

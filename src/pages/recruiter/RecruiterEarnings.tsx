@@ -72,10 +72,12 @@ export default function RecruiterEarnings() {
     try {
       const { data: submissionsData, error } = await supabase
         .from('submissions')
+        // Kein jobs(...)-Join: Recruiter lesen Jobs nur ueber
+        // recruiter_jobs_view — der Join liefert sonst still null.
         .select(`
           id,
+          job_id,
           candidates (full_name),
-          jobs (title, company_name, recruiter_fee_percentage),
           placements (
             id,
             agreed_salary,
@@ -89,9 +91,22 @@ export default function RecruiterEarnings() {
           )
         `)
         .eq('recruiter_id', user?.id)
-        .eq('status', 'hired');
+        // stage statt status: 'hired' gab es im Status-Vokabular nie —
+        // der kanonische Wert fuer eine erfolgreiche Vermittlung ist 'placed'.
+        .eq('stage', 'placed');
 
       if (!error && submissionsData) {
+        const jobIds = [...new Set(submissionsData.map((s: any) => s.job_id).filter(Boolean))] as string[];
+        let jobsById: Record<string, any> = {};
+        if (jobIds.length > 0) {
+          const { data: jobRows } = await supabase
+            .from('recruiter_jobs_view')
+            .select('id, title, company_name, recruiter_fee_percentage')
+            .in('id', jobIds);
+          jobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+        }
+        submissionsData.forEach((s: any) => { s.jobs = jobsById[s.job_id] ?? null; });
+
         const placementsWithDetails: Placement[] = [];
         let pending = 0, confirmed = 0, paid = 0;
 

@@ -129,7 +129,7 @@ export function useJobMatching(candidate: CandidateForMatching | null) {
 
       // Fetch all published jobs
       const { data: jobs, error } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('id, title, company_name, location, salary_min, salary_max, urgency, skills, must_haves, nice_to_haves, experience_level, remote_type, status')
         .eq('status', 'published')
         .order('created_at', { ascending: false });

@@ -132,8 +132,11 @@ export function ExposeQuickDecisionWidget({ maxCandidates = 4 }: { maxCandidates
     try {
       await supabase
         .from('submissions')
-        .update({ 
-          status: 'rejected',
+        // stage ist die Wahrheit; status leitet der Trigger ab. Frueher stand
+        // hier nur status='rejected' — genau dadurch blieb die stage auf einem
+        // aktiven Wert stehen und 16 Submissions widersprachen sich.
+        .update({
+          stage: 'client_rejected',
           rejection_reason: reason,
           rejection_details: details
         })

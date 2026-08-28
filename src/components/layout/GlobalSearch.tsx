@@ -141,7 +141,7 @@ export function GlobalSearch() {
   const quickActions = [
     { label: 'Neuen Job erstellen', icon: <Plus className="h-4 w-4" />, href: '/dashboard/jobs/new' },
     { label: 'Alle Jobs', icon: <Briefcase className="h-4 w-4" />, href: '/dashboard/jobs' },
-    { label: 'Talent Hub', icon: <Users className="h-4 w-4" />, href: '/dashboard/talent' },
+    { label: 'Bewerber', icon: <Users className="h-4 w-4" />, href: '/dashboard/candidates' },
     { label: 'Interviews', icon: <Calendar className="h-4 w-4" />, href: '/dashboard/interviews' },
     { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/dashboard/analytics' },
     { label: 'Einstellungen', icon: <Settings className="h-4 w-4" />, href: '/dashboard/settings' },

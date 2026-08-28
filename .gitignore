@@ -25,3 +25,6 @@ dist-ssr
 
 # Claude Code Session-Daten (lokal)
 .claude/
+
+# Lokaler Ablage-Ordner (Archive), gehoert nicht ins Repo
+_to_delete/

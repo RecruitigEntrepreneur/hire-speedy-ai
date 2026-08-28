@@ -60,14 +60,29 @@ export default function RecruiterCandidateDetail() {
   const { data: submissions } = useQuery({
     queryKey: ['candidate-submissions-header', id],
     queryFn: async () => {
+      // Kein jobs(...)-Join mehr: Recruiter lesen Jobs nur ueber
+      // recruiter_jobs_view (reveal-gated).
       const { data, error } = await supabase
         .from('submissions')
-        .select('id, status, submitted_at, job:jobs(id, title)')
+        .select('id, status, submitted_at, job_id')
         .eq('candidate_id', id!)
         .eq('recruiter_id', user!.id)
         .order('submitted_at', { ascending: false });
       if (error) throw error;
-      return data as { id: string; status: string; submitted_at: string; job: { id: string; title: string } }[];
+
+      const jobIds = [...new Set((data || []).map((s: any) => s.job_id).filter(Boolean))] as string[];
+      let jobsById: Record<string, { id: string; title: string }> = {};
+      if (jobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('recruiter_jobs_view')
+          .select('id, title')
+          .in('id', jobIds);
+        jobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+      }
+
+      return (data || []).map((s: any) => ({ ...s, job: jobsById[s.job_id] ?? null })) as {
+        id: string; status: string; submitted_at: string; job: { id: string; title: string };
+      }[];
     },
     enabled: !!id && !!user,
   });

@@ -7,10 +7,14 @@ import {
   Search,
   Check,
   Flame,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { getCompanyLogoUrl } from '@/lib/companyLogo';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 interface CompanyProfile {
   logo_url: string | null;
@@ -22,7 +26,8 @@ interface CompanyProfile {
 interface JobActionCardProps {
   job: {
     id: string;
-    client_id: string;
+    // client_id bewusst nicht Teil der Props: recruiter_jobs_view liefert die
+    // Spalte seit Welle 1 nicht mehr aus (Identitaetsvektor).
     title: string;
     company_name: string;
     location: string;
@@ -36,6 +41,7 @@ interface JobActionCardProps {
     company_size_band: string | null;
     funding_stage: string | null;
     tech_environment: string[] | null;
+    updated_at?: string | null;
   };
   earning: number | null;
   isRevealed: boolean;
@@ -44,11 +50,18 @@ interface JobActionCardProps {
   isSelected: boolean;
   isActive: boolean;
   recruiterCount: number;
-  pipelinePercent: number;
   submittedCount: number;
   onSelect: () => void;
   onToggleActive: (e: React.MouseEvent) => void;
 }
+
+const formatSalaryRange = (min: number | null, max: number | null): string | null => {
+  const k = (n: number) => `${Math.round(n / 1000)}k`;
+  if (min && max) return `€${k(min)}–${k(max)}`;
+  if (min) return `ab €${k(min)}`;
+  if (max) return `bis €${k(max)}`;
+  return null;
+};
 
 export function JobActionCard({
   job,
@@ -59,10 +72,17 @@ export function JobActionCard({
   isSelected,
   isActive,
   recruiterCount,
-  pipelinePercent,
+  submittedCount,
   onSelect,
   onToggleActive,
 }: JobActionCardProps) {
+  const salaryRange = formatSalaryRange(job.salary_min, job.salary_max);
+  const topSkills = (job.skills || []).slice(0, 3);
+  const moreSkills = Math.max((job.skills?.length || 0) - 3, 0);
+  const freshness = job.updated_at
+    ? formatDistanceToNow(new Date(job.updated_at), { locale: de, addSuffix: true })
+    : null;
+
   return (
     <div
       role="button"
@@ -86,9 +106,16 @@ export function JobActionCard({
             <h3 className="font-medium text-sm leading-snug">{job.title}</h3>
           </div>
         </div>
-        <span className="text-sm font-bold text-emerald-500 tabular-nums shrink-0">
-          {earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage}%`}
-        </span>
+        <div className="text-right shrink-0">
+          <span className="block text-sm font-bold text-emerald-500 tabular-nums">
+            {earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage}%`}
+          </span>
+          {earning != null && (
+            <span className="block text-[10px] text-muted-foreground tabular-nums">
+              {job.recruiter_fee_percentage} % Fee
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Row 2: Company */}
@@ -127,34 +154,60 @@ export function JobActionCard({
       {/* Row 3: Location */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
         <MapPin className="h-3 w-3 shrink-0" />
-        <span>{job.location}</span>
+        <span className="truncate">{job.location}</span>
         <span className="text-border">·</span>
         <span className="capitalize">{job.remote_type}</span>
       </div>
 
-      {/* Row 4: Bottom — Recruiter count + Pipeline | Ich suche */}
-      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-border/20">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Users className="h-3 w-3" />
-            {recruiterCount === 0 ? 'Erster!' : recruiterCount}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <div className="w-12 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary/60"
-                style={{ width: `${Math.min(pipelinePercent, 100)}%` }}
-              />
-            </div>
-            <span className="tabular-nums">{pipelinePercent}%</span>
-          </div>
+      {/* Row 4: Salary + Skills chips */}
+      {(salaryRange || topSkills.length > 0) && (
+        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          {salaryRange && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground tabular-nums">
+              {salaryRange}
+            </span>
+          )}
+          {topSkills.map((skill) => (
+            <span
+              key={skill}
+              className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground max-w-[120px] truncate"
+            >
+              {skill}
+            </span>
+          ))}
+          {moreSkills > 0 && (
+            <span className="text-[11px] text-muted-foreground/70">+{moreSkills}</span>
+          )}
+        </div>
+      )}
+
+      {/* Row 5: Bottom — Competition + Freshness | Ich suche */}
+      <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-border/20">
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground min-w-0">
+          {recruiterCount === 0 ? (
+            <span className="flex items-center gap-1 text-amber-500 font-medium shrink-0">
+              <Sparkles className="h-3 w-3" />
+              Noch kein Recruiter — Erster!
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 shrink-0">
+              <Users className="h-3 w-3" />
+              {recruiterCount} Recruiter · {submittedCount} {submittedCount === 1 ? 'Einreichung' : 'Einreichungen'}
+            </span>
+          )}
+          {freshness && (
+            <span className="hidden sm:flex items-center gap-1 truncate">
+              <Clock className="h-3 w-3 shrink-0" />
+              Aktiv {freshness}
+            </span>
+          )}
         </div>
 
         <Button
           variant="ghost"
           size="sm"
           className={cn(
-            'h-6 text-[11px] px-2',
+            'h-6 text-[11px] px-2 shrink-0',
             isActive
               ? 'text-emerald-500 cursor-default pointer-events-none'
               : 'text-muted-foreground hover:text-foreground',

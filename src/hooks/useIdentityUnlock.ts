@@ -97,27 +97,10 @@ export function useIdentityUnlock() {
         reason: reason || null,
       });
 
-      // Get client info for notification
-      const { data: submission } = await supabase
-        .from('submissions')
-        .select('job_id, jobs(client_id)')
-        .eq('id', submissionId)
-        .single();
-
-      if (submission?.jobs) {
-        const jobData = submission.jobs as { client_id: string };
-        // Create notification for client
-        await supabase.from('notifications').insert({
-          user_id: jobData.client_id,
-          type: approved ? 'opt_in_approved' : 'opt_in_denied',
-          title: approved ? 'Kandidat hat zugestimmt' : 'Kandidat hat abgelehnt',
-          message: approved 
-            ? 'Die Identität des Kandidaten wurde freigegeben. Sie können jetzt die vollständigen Daten sehen.'
-            : 'Der Kandidat hat die Freigabe seiner Identität abgelehnt.',
-          related_id: submissionId,
-          related_type: 'submission',
-        });
-      }
+      // Die Benachrichtigung an den Kunden erzeugt jetzt der DB-Trigger
+      // trg_notify_client_on_opt_in_response (Migration 20260725120200).
+      // Frueher stand hier ein clientseitiger Insert, der jobs.client_id lesen
+      // musste — genau der Identitaetsvektor, den Welle 1 geschlossen hat.
 
       toast({ 
         title: approved ? 'Identität freigegeben' : 'Anfrage abgelehnt',

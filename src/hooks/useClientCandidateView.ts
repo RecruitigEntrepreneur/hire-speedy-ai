@@ -163,6 +163,18 @@ function formatAvailability(
     }
   }
   if (noticePeriod) {
+    // Rohe DB-Enums nie ungefiltert anzeigen („6_months" → „6 Monate Kündigungsfrist")
+    const noticeLabels: Record<string, string> = {
+      immediately: 'Sofort verfügbar',
+      '2_weeks': '2 Wochen Kündigungsfrist',
+      '1_month': '1 Monat Kündigungsfrist',
+      '2_months': '2 Monate Kündigungsfrist',
+      '3_months': '3 Monate Kündigungsfrist',
+      '6_months': '6 Monate Kündigungsfrist',
+    };
+    if (noticeLabels[noticePeriod]) return noticeLabels[noticePeriod];
+    const monthsMatch = noticePeriod.match(/^(\d+)_months?$/);
+    if (monthsMatch) return `${monthsMatch[1]} Monate Kündigungsfrist`;
     return noticePeriod;
   }
   return getSemanticExplanation('availability', { hasInterview, stage: '' });

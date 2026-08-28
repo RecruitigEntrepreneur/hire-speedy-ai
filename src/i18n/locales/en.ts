@@ -575,6 +575,479 @@ const en: typeof de = {
     "legal_privacy": "Privacy Policy",
     "legal_terms": "Terms & Conditions",
     "legal_imprint": "Imprint"
+  },
+  "bewerber": {
+    "title": "Candidates",
+    "header": {
+      "empty": "No active candidates yet",
+      "all_done": "All caught up — {{count}} candidates in progress",
+      "your_turn_single": "1 candidate is waiting for your action · {{rest}} more in progress",
+      "your_turn_plural": "{{count}} candidates are waiting for your action · {{rest}} more in progress"
+    },
+    "sections": {
+      "mine": "Your turn",
+      "others": "Waiting on others"
+    },
+    "state": {
+      "wait_today": "New · today",
+      "wait_yesterday": "Since yesterday",
+      "wait_days": "For {{days}} days",
+      "wait_warn": "Waiting for {{days}} days",
+      "wait_crit": "Overdue · {{days}} days",
+      "pruefung": "In review by recruiter",
+      "opted_in": "Consented — pick a slot",
+      "wartet_kandidat": "Waiting on candidate",
+      "terminvorschlag": "New time proposal",
+      "abgesagt": "Candidate declined",
+      "termin_abgesagt": "Interview cancelled",
+      "no_show": "Did not attend",
+      "geplant": "Interview · {{date}}",
+      "feedback": "Feedback due · was {{date}}",
+      "feedback_nodate": "Feedback due",
+      "interview_phase": "In interview process",
+      "offer_prep": "Offer in preparation",
+      "offer_sent": "Offer sent",
+      "offer_viewed": "Offer viewed",
+      "offer_negotiating": "Counter offer received",
+      "offer_rejected": "Offer declined",
+      "offer_expired": "Offer expired",
+      "offer_accepted": "Offer accepted"
+    },
+    "tabs": {
+      "neu": "New",
+      "pruefung": "In review",
+      "interview": "Interview",
+      "angebot": "Offer",
+      "alle": "All",
+      "archiv": "Archive"
+    },
+    "filter": {
+      "search": "Search …",
+      "all_jobs": "All jobs"
+    },
+    "sort": {
+      "newest": "Newest first",
+      "match": "Best match",
+      "waiting": "Longest waiting"
+    },
+    "loaded_hint": "{{loaded}} of {{total}} loaded",
+    "select_prompt": "Select a candidate from the list",
+    "card": {
+      "no_role": "Profile without role"
+    },
+    "actions": {
+      "request_interview": "Request interview",
+      "plan_interview": "Schedule interview",
+      "rerequest": "Request again",
+      "review_proposal": "Review proposal",
+      "view_appointment": "View appointment",
+      "view_request": "View request",
+      "give_feedback": "Give feedback",
+      "view_interviews": "View interviews",
+      "view_offer": "View offer",
+      "review_counter": "Review counter offer",
+      "reject": "Reject",
+      "ask_recruiter": "Ask recruiter"
+    },
+    "notes": {
+      "title": "Team notes",
+      "empty": "No notes yet.",
+      "placeholder": "Write a note for your team …",
+      "save": "Save",
+      "save_error": "The note could not be saved. Please try again.",
+      "visibility": "Visible to your team and your recruiter — not to the candidate.",
+      "author_you": "You",
+      "author_member": "Team member"
+    },
+    "chips": {
+      "salary_locked": "Salary after consent"
+    },
+    "ai": {
+      "more": "Show more",
+      "less": "Show less"
+    },
+    "skills": {
+      "less": "Show less"
+    },
+    "detail": {
+      "back": "Back to candidates",
+      "unlocked_hint": "Profile shared by the candidate · code {{code}}",
+      "locked_hint": "Anonymous profile — name, contact and CV after interview consent",
+      "match": "{{score}} % match",
+      "ctx": {
+        "wait_new": "New suggestion from your recruiter — decide whether you want to meet this candidate.",
+        "wait_old": "This suggestion has been waiting {{days}} days for your decision.",
+        "pruefung": "Your recruiter is clarifying open questions — you can still decide already.",
+        "opted_in": "The candidate consented and is waiting for you to pick a slot.",
+        "wartet_kandidat": "Your interview request is unanswered — the ball is with the candidate.",
+        "terminvorschlag": "The candidate proposes a different time — please review.",
+        "geplant": "The interview is confirmed for {{date}}.",
+        "feedback": "The interview took place on {{date}} — your feedback decides the next step.",
+        "feedback_nodate": "The interview is over — your feedback decides the next step.",
+        "abgesagt": "The candidate cancelled the appointment. You can propose new slots or reject.",
+        "termin_abgesagt": "The appointment was cancelled. You can propose new slots.",
+        "no_show": "The candidate did not attend. You can request again or reject.",
+        "interview_phase": "The interview process is running — details in the interview agenda.",
+        "offer_prep": "Prepare the offer — the candidate has completed the interviews.",
+        "offer_sent": "Your offer is with the candidate — decision pending.",
+        "offer_viewed": "The candidate viewed your offer — decision pending.",
+        "offer_negotiating": "The candidate made a counter offer — please review.",
+        "offer_rejected": "The candidate declined the offer.",
+        "offer_expired": "The offer expired — you can send a new one.",
+        "offer_accepted": "The candidate accepted the offer.",
+        "archiv": "This application is closed."
+      },
+      "agenda": "To agenda",
+      "cv_open": "Open CV",
+      "cv_locked": "CV after interview consent",
+      "cv_missing": "No CV on file — ask your recruiter",
+      "profile": "Profile",
+      "career": "Career",
+      "verlauf": "History",
+      "verlauf_submitted": "Submitted by your recruiter",
+      "verlauf_iv_requested": "Interview requested",
+      "verlauf_iv_scheduled": "Appointment confirmed · {{time}}",
+      "verlauf_iv_completed": "Interview held",
+      "verlauf_iv_cancelled": "Appointment cancelled",
+      "verlauf_iv_declined": "Candidate declined",
+      "verlauf_iv_pending": "Waiting for the candidate's reply",
+      "verlauf_offer_created": "Offer created",
+      "verlauf_offer_sent": "Offer sent",
+      "branchen": "Industries",
+      "zielrollen": "Target roles",
+      "karriereziele": "Career goals",
+      "sprachen": "Languages",
+      "zertifikate": "Certifications",
+      "companies_after_optin": "Company names after interview consent",
+      "readonly": "Read-only access"
+    },
+    "identity_unlocked": "Identity shared",
+    "error": {
+      "load": "Candidates could not be loaded.",
+      "retry": "Try again"
+    },
+    "empty": {
+      "search_title": "No results for “{{query}}”",
+      "search_text": "Check the search term or reset the search.",
+      "neu_title": "All caught up",
+      "neu_text": "New candidates appear here as soon as your recruiter submits them. You will be notified by email.",
+      "pruefung_title": "Nobody in review",
+      "pruefung_text": "Candidates land here while your recruiter clarifies open questions — before you decide.",
+      "interview_title": "No interview scheduled yet",
+      "interview_text": "As soon as you choose “Request interview” for a new candidate, you will see date and status here.",
+      "angebot_title": "No offer under way",
+      "angebot_text": "Once you make a candidate an offer after the interviews, you can track its status here until acceptance.",
+      "archiv_title": "The archive is empty",
+      "archiv_text": "Rejected, hired and withdrawn candidates land here — nothing gets lost.",
+      "alle_title": "No candidates yet",
+      "alle_text": "Your recruiter is sourcing matching candidates. New suggestions will appear here."
+    },
+    "archive": {
+      "kind": {
+        "abgelehnt": "Rejected",
+        "eingestellt": "Hired",
+        "zurueckgezogen": "Withdrawn",
+        "abgelaufen": "Expired"
+      },
+      "closed_info": "This application is closed.",
+      "hired_info": "This candidate was hired via Matchunt.",
+      "view_placement": "View placement",
+      "retention_hint": "Archived applications are deleted according to the retention policy."
+    }
+  },
+  "jobdetail": {
+    "back": "Back to overview",
+    "not_found": "Job not found",
+    "error_load": "Loading failed",
+    "error_save": "Saving failed — you may not have permission for this.",
+    "bewerber_error": "Candidates could not be loaded.",
+    "toast": {
+      "paused": "Position paused",
+      "resumed": "Position reactivated"
+    },
+    "state": {
+      "aktiv": "Active",
+      "pausiert": "Paused",
+      "geschlossen": "Closed",
+      "besetzt": "Filled"
+    },
+    "meta": {
+      "live_today": "Live since today",
+      "live_since_one": "Live for 1 day",
+      "live_since": "Live for {{days}} days",
+      "paused_since": "Paused since {{date}}"
+    },
+    "employment": {
+      "full-time": "Full-time",
+      "part-time": "Part-time",
+      "contract": "Fixed-term",
+      "freelance": "Freelance",
+      "internship": "Internship"
+    },
+    "remote": {
+      "remote": "Remote",
+      "hybrid": "Hybrid",
+      "onsite": "On-site"
+    },
+    "banner": {
+      "pausiert": "Paused since {{date}} — recruiters cannot see this position. Ongoing applications stay active.",
+      "ueberfaellig_single": "Overdue: one candidate has been waiting for your decision for over 21 days.",
+      "ueberfaellig_plural": "Overdue: {{count}} candidates have been waiting for your decision for over 21 days.",
+      "dringend_single": "One candidate urgently needs your decision.",
+      "dringend_plural": "{{count}} candidates urgently need your decision.",
+      "feedback_single": "The interview was on {{date}} — your feedback is missing.",
+      "feedback_single_nodate": "One interview is waiting for your feedback.",
+      "feedback_plural": "{{count}} interviews are waiting for your feedback.",
+      "antwort_single": "One candidate is waiting for your reply.",
+      "antwort_plural": "{{count}} candidates are waiting for your reply.",
+      "aktion_single": "One new suggestion is waiting for your review.",
+      "aktion_plural": "{{count}} suggestions are waiting for your review.",
+      "leer_lang": "Live for {{days}} days with no suggestions yet. Most common cause: salary band too narrow or too many must-haves.",
+      "frisch": "Your position is live — recruiters are sourcing matching candidates. New suggestions appear here first.",
+      "laeuft_heute": "Everything in progress — nothing to do. Latest suggestion today.",
+      "laeuft_one": "Everything in progress — nothing to do. Latest suggestion yesterday.",
+      "laeuft": "Everything in progress — nothing to do. Latest suggestion {{days}} days ago.",
+      "geschlossen": "This position is closed — recruiters can no longer see it.",
+      "besetzt": "This position is filled — the search is complete."
+    },
+    "banner_action": {
+      "entscheiden": "Decide now",
+      "feedback": "Give feedback",
+      "antworten": "Reply",
+      "pruefen": "Review now",
+      "briefing": "Sharpen briefing",
+      "reaktivieren": "Reactivate"
+    },
+    "funnel": {
+      "hint": "Dot = waiting for you · Click opens the candidate inbox filtered to this position",
+      "hired": "{{count}} hired"
+    },
+    "wait": {
+      "title": "Waiting for you",
+      "open_inbox": "Open in inbox",
+      "match": "match",
+      "more": "+{{count}} more in the inbox"
+    },
+    "actions": {
+      "edit": "Edit",
+      "pause": "Pause",
+      "resume": "Reactivate",
+      "invite": "Invite department"
+    },
+    "termine": {
+      "title": "Interviews & feedback",
+      "all": "All interviews",
+      "feedback": "Feedback due: {{name}} — interview was on {{date}}",
+      "feedback_nodate": "Feedback due: {{name}}",
+      "counter": "Time proposal from {{name}} — please reply",
+      "next": "Next interview: {{date}} — {{name}}",
+      "waiting": "Invitation sent to {{name}} — awaiting reply",
+      "more": "+{{count}} more interviews"
+    },
+    "sections": {
+      "stelle": "Job details",
+      "konditionen": "Terms & anonymity",
+      "team": "Team & access",
+      "verlauf": "History",
+      "verwalten": "Manage"
+    },
+    "stelle": {
+      "standort": "Location",
+      "anstellung": "Employment",
+      "branche": "Industry",
+      "onsite_days": "{{count}} days on-site",
+      "muss": "Must-haves",
+      "wunsch": "Nice to have",
+      "beschreibung": "Description",
+      "mehr": "Show more",
+      "weniger": "Show less",
+      "edit": "Edit job details"
+    },
+    "konditionen": {
+      "salary": "Salary band",
+      "fee": "Fee",
+      "fee_value": "{{pct}} % of target annual salary — due only upon hire",
+      "fee_hint": "Visible to owner, admin & finance only",
+      "reveal": "Identity release",
+      "reveal_opt_in": "After the candidate opts in",
+      "reveal_offer": "Only at offer stage",
+      "reveal_interview": "After the first interview",
+      "preview_title": "How recruiters see your company",
+      "preview_empty": "Anonymous company descriptor not set yet",
+      "preview_hint": "Your company name stays hidden until you release it."
+    },
+    "team": {
+      "empty": "No team members with access to this position yet.",
+      "pending": "· invited"
+    },
+    "verlauf": {
+      "empty": "No events yet.",
+      "published": "Position published",
+      "vorschlag": "New suggestion: {{name}}",
+      "interview": "Interview arranged: {{name}}, {{date}}",
+      "pausiert": "Position paused",
+      "geschlossen": "Position closed"
+    },
+    "verwalten": {
+      "hint": "Pausing and closing explain the consequence first — nothing happens without confirmation.",
+      "cancel": "Cancel",
+      "pause_title": "Pause this position?",
+      "pause_text": "Recruiters will no longer see the position and won't suggest new candidates. Ongoing applications and interviews stay active. You can reactivate anytime.",
+      "close": "Close position",
+      "close_title": "Close this position?",
+      "close_text": "The search ends and recruiters will no longer see the position. Ongoing applications remain visible to you.",
+      "close_reason": "Reason",
+      "close_reason_placeholder": "Select a reason…",
+      "close_pause_hint": "Only temporary? Pausing is the better choice.",
+      "close_confirm": "Close position",
+      "reason_filled_matchunt": "Filled via Matchunt",
+      "reason_filled_elsewhere": "Filled elsewhere",
+      "reason_on_hold": "Position on hold",
+      "reason_cancelled": "Position cancelled"
+    },
+    "toast_closed": "Position closed"
+  },
+  "terminsheet": {
+    "pill": {
+      "counter": "Counter-proposal",
+      "awaiting": "Awaiting reply",
+      "expired": "Slots expired",
+      "scheduled": "Interview confirmed",
+      "requested": "Interview requested",
+      "feedback": "Feedback due",
+      "declined": "Declined by candidate",
+      "cancelled": "Cancelled",
+      "no_show": "No-show",
+      "completed": "Completed"
+    },
+    "ctx_counter": "Your slots didn't fit — the candidate suggests alternatives. It's your turn.",
+    "ctx_awaiting": "Invited {{time}} ago — the candidate hasn't replied yet.",
+    "ctx_awaiting_expired": "Invited {{time}} ago — no reply. All proposed times are now in the past.",
+    "ctx_scheduled": "The interview is confirmed.",
+    "ctx_requested": "Interview requested — confirmation pending.",
+    "ctx_feedback": "The interview was on {{date}} — your feedback is still missing.",
+    "ctx_declined": "The candidate declined the interview request.",
+    "ctx_cancelled": "This interview was cancelled.",
+    "ctx_no_show": "The candidate did not show up.",
+    "ctx_completed": "This interview is completed.",
+    "slots_title": "Proposed times",
+    "counter_title": "Candidate's suggestions",
+    "expired_tag": "expired",
+    "duration": "{{min}} min",
+    "meeting_video": "Video call",
+    "meeting_phone": "Phone",
+    "meeting_onsite": "On-site",
+    "join": "Join",
+    "msg": "Message from the candidate",
+    "notes": "Notes",
+    "feedback_title": "Your feedback",
+    "actions": {
+      "new_slots": "Propose new slots",
+      "remind": "Remind",
+      "withdraw": "Withdraw request",
+      "respond": "Reply to proposal",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel interview",
+      "edit": "Edit interview",
+      "feedback": "Give feedback",
+      "profile": "Open candidate profile"
+    }
+  },
+  "recruiterInterviews": {
+    "title": "Interviews",
+    "subtitle": "All appointments for your candidates — confirmed, pending, and awaiting debrief",
+    "stats": {
+      "today": "Today",
+      "week": "This week",
+      "unconfirmed": "Unconfirmed",
+      "awaiting": "No date yet",
+      "debrief": "Debrief due"
+    },
+    "next_up": "Next appointment · {{time}}",
+    "open_submission": "Open submission",
+    "sections": {
+      "counter": "Alternative date proposed ({{count}})",
+      "debrief": "Debrief due ({{count}})",
+      "awaiting": "Awaiting scheduling ({{count}})",
+      "cancelled": "Cancelled and no-shows ({{count}})",
+      "past": "Past interviews ({{count}})"
+    },
+    "empty": "No upcoming interviews — submit candidates or follow up on open submissions.",
+    "cancel_hint": "{{percent}}% of your interviews never happen. The reasons show where you can step in earlier.",
+    "row": {
+      "duration": "{{min}} min",
+      "unconfirmed": "unconfirmed",
+      "slots_expired": "Slots expired",
+      "counter": "Alternative date",
+      "no_show": "no-show",
+      "cancelled": "cancelled",
+      "waiting_since": "Waiting for {{time}}",
+      "join": "Join"
+    }
+  },
+  "recruiterTermin": {
+    "pill": {
+      "scheduled": "Confirmed",
+      "unconfirmed": "Unconfirmed",
+      "awaiting": "Awaiting date choice",
+      "expired": "Dates expired",
+      "counter": "Alternative date",
+      "debrief": "Debrief due",
+      "cancelled": "Cancelled",
+      "no_show": "No-show",
+      "done": "Completed"
+    },
+    "ctx": {
+      "scheduled": "The date is set. Keep your candidate engaged and send a reminder shortly before.",
+      "unconfirmed": "This date isn't confirmed yet. Check with your candidate whether it works.",
+      "awaiting": "Your candidate hasn't picked a date for {{time}}. A call beats another email.",
+      "expired": "All proposed dates have passed. Only the client can send new ones — reach your candidate first.",
+      "counter": "An alternative date is on the table. The client decides whether to accept — make sure your candidate stays available.",
+      "debrief": "The interview on {{date}} is done, your take is still missing. It's most valuable while fresh.",
+      "cancelled": "This appointment was cancelled. Check whether the process continues or you should close the case.",
+      "no_show": "Nobody showed up. Find out from your candidate what happened.",
+      "done": "This appointment is closed."
+    },
+    "meeting": {
+      "video": "Video call",
+      "phone": "Phone",
+      "onsite": "On site"
+    },
+    "duration": "{{min}} min",
+    "no_address": "No address on file — your candidate doesn't know where to go.",
+    "slots_title": "Proposed dates",
+    "expired_tag": "expired",
+    "counter_title": "Alternative date",
+    "cancel_title": "Reason",
+    "no_show_by": {
+      "candidate": "Candidate didn't show",
+      "client": "Client didn't show",
+      "technical": "Technical problem",
+      "unknown": "No reason on file"
+    },
+    "msg": "Message from your candidate",
+    "notes": "Notes on this appointment",
+    "client_feedback": "Client's feedback",
+    "debrief_title": "Your take",
+    "debrief_placeholder": "How did it go? What's keeping the candidate interested, what's holding them back?",
+    "debrief_save": "Save your take",
+    "debrief_update": "Update your take",
+    "recommendation": {
+      "next_round": "Proceed",
+      "hire": "Hire",
+      "undecided": "Unclear",
+      "reject": "Out"
+    },
+    "fee": "Your fee on close: ~{{amount}}k €",
+    "action": {
+      "join": "Join meeting",
+      "call": "Call candidate",
+      "mail": "Email candidate",
+      "call_short": "Call",
+      "mail_short": "Email",
+      "submission": "Submission",
+      "candidate": "Profile"
+    }
   }
 };
 

@@ -98,11 +98,15 @@ export function NewCandidateFeed({ limit = 5 }: NewCandidateFeedProps) {
     setProcessing(submissionId);
     
     try {
-      let newStatus = action === 'accept' ? 'accepted' : action === 'reject' ? 'rejected' : 'interview';
-      
+      // stage ist die Wahrheit; status leitet der Trigger ab.
+      const newStage =
+        action === 'accept' ? 'in_review'
+        : action === 'reject' ? 'client_rejected'
+        : 'interview_requested';
+
       const { error } = await supabase
         .from('submissions')
-        .update({ status: newStatus })
+        .update({ stage: newStage })
         .eq('id', submissionId);
 
       if (error) throw error;

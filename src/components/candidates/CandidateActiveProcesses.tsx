@@ -181,7 +181,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
 
       const jobIds = [...new Set(submissions.map(s => s.job_id))];
       const { data: jobs } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('id, title, company_name, industry')
         .in('id', jobIds);
 

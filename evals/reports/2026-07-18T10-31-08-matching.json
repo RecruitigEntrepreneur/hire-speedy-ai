@@ -1,0 +1,3082 @@
+{
+  "created_at": "2026-07-18T10:31:08.743Z",
+  "dataset": {
+    "version": "real-v1",
+    "sha256": "6a5a4efe03708b3ca1af0b288bc4aa0d9ed0d5fc1904f24dcde497615baa9080",
+    "jobs": 19,
+    "candidates": 46
+  },
+  "results": [
+    {
+      "adapter": "v31-live-config",
+      "description": "HISTORISCH: Live-Zustand bis zum Config-Fix am 2026-07-18 (v3.0-Config ohne seniority-Key → NaN-Fallback, Fit=50 für alle) + Live-Datenrealität. Verifiziert per DB-Abfrage, dann gefixt.",
+      "macro": {
+        "recall10": 0.3888888888888889,
+        "recall50": 1,
+        "recall100": 1,
+        "ndcg10": 0.20846682595388846,
+        "mrr": 0.1601591343951276,
+        "leak10": 0.3055555555555555
+      },
+      "perJob": [
+        {
+          "jobId": "real-j-54ede5063a",
+          "title": "Frontend Developer (React/Vue)",
+          "positives": 0,
+          "hardNegatives": 1,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f41b2a3e99",
+          "title": "Senior Frontend Developer (Vue.js/Nuxt)",
+          "positives": 0,
+          "hardNegatives": 2,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-bd54a183a2",
+              "score": 70
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 70,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-992b595212",
+          "title": "Business Specialist CRM (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.02631578947368421,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-1369abc189",
+          "title": "Senior Java & AWS Lead Developer",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.6052602440527058,
+          "mrr": 0.5,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-b2655c258e",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-828966413c",
+              "score": 70
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-3c45580ddb",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-e29ad0184f",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-627d8705f2",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-8124e604de",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-466762f106",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f437919d2d",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.38685280723454163,
+          "mrr": 0.2,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-b5f944daed",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 0.3333333333333333,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.25868790443608336,
+          "mrr": 0.16666666666666666,
+          "leak10": 0.3333333333333333,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-473478271b",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-def326c10c",
+          "title": "Service – Techniker Rechenzentrum (w/m/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-bd54a183a2",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-80150520e3",
+          "title": "Referent Bereichsleitung IT (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.03225806451612903,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-bd54a183a2",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-532d70e88b",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-3e8da70091",
+          "title": "Data & Dashboard Engineer – Analytics & Business Intelligence (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.03571428571428571,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-dbe8289256",
+              "score": 70
+            },
+            {
+              "id": "real-c-fdd020cd89",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-ed5eb7fe3a",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-d0c51d4c9a",
+          "title": "Senior Vehicle AI Architect (f/m/x)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 70
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-828966413c",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 70,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c90b4e7208",
+          "title": "Projektmanager (m/w/d) Infrastruktur (Verkehr / Bahn, Energie)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c05ca5f11a",
+          "title": "software architect",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-074141bf22",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 70
+            },
+            {
+              "id": "real-c-aff6cf978c",
+              "score": 70
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 70
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-efd1ed2fa0",
+          "title": "Produktmanager:in (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-b177523bcd",
+              "score": 42,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-d099949e6a",
+          "title": "Senior DevOps Engineer",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-b2655c258e",
+              "score": 70
+            },
+            {
+              "id": "real-c-817c4c848f",
+              "score": 70
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 70
+            },
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 70
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 70
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-91d39a0267",
+          "title": "Senior Controller (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 70,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 70
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 70
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 70,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-6bc4f635b4",
+          "title": "Lohnbuchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 70
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 70
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 70
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 70
+            },
+            {
+              "id": "real-c-1e1df3b5da",
+              "score": 70
+            }
+          ],
+          "lostPositives": []
+        }
+      ],
+      "killStats": {
+        "excluded": 790
+      },
+      "scoredPairs": 874
+    },
+    {
+      "adapter": "v31-code-defaults",
+      "description": "AKTUELLER LIVE-ZUSTAND (seit Config-Fix 2026-07-18) und CI-Baseline: Code-Default-Config + Live-Datenrealität (Phantom-Spalten fehlen, language_skills/certifications leer — DB-verifiziert).",
+      "macro": {
+        "recall10": 0.3888888888888889,
+        "recall50": 1,
+        "recall100": 1,
+        "ndcg10": 0.2827412857051727,
+        "mrr": 0.26079446701043796,
+        "leak10": 0.3055555555555555
+      },
+      "perJob": [
+        {
+          "jobId": "real-j-54ede5063a",
+          "title": "Frontend Developer (React/Vue)",
+          "positives": 0,
+          "hardNegatives": 1,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 93
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 92
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 69
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 69
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 55
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f41b2a3e99",
+          "title": "Senior Frontend Developer (Vue.js/Nuxt)",
+          "positives": 0,
+          "hardNegatives": 2,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 93
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 77
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 73
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 62,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-992b595212",
+          "title": "Business Specialist CRM (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.02631578947368421,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-1369abc189",
+          "title": "Senior Java & AWS Lead Developer",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 73
+            },
+            {
+              "id": "real-c-e29ad0184f",
+              "score": 71
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 60,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 57,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-627d8705f2",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 53
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 52,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 52
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 52,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-8124e604de",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 57,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 44,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-466762f106",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 45
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f437919d2d",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.3333333333333333,
+          "mrr": 0.14285714285714285,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 47
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-b5f944daed",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 0.3333333333333333,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.3631143808977028,
+          "mrr": 0.3333333333333333,
+          "leak10": 0.3333333333333333,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 55,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 52
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 52
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 51
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-473478271b",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-def326c10c",
+          "title": "Service – Techniker Rechenzentrum (w/m/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 38,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-80150520e3",
+          "title": "Referent Bereichsleitung IT (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.027777777777777776,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-532d70e88b",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-3e8da70091",
+          "title": "Data & Dashboard Engineer – Analytics & Business Intelligence (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.034482758620689655,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-fdd020cd89",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-f01eeeeb91",
+              "score": 59,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-12b92fbbe6",
+              "score": 53,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-9af936627f",
+              "score": 53,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-ed5eb7fe3a",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-d0c51d4c9a",
+          "title": "Senior Vehicle AI Architect (f/m/x)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-828966413c",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 52,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e29ad0184f",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 50,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c90b4e7208",
+          "title": "Projektmanager (m/w/d) Infrastruktur (Verkehr / Bahn, Energie)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 35,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c05ca5f11a",
+          "title": "software architect",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-074141bf22",
+              "score": 75
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 75
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 75
+            },
+            {
+              "id": "real-c-aff6cf978c",
+              "score": 75
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 75
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-efd1ed2fa0",
+          "title": "Produktmanager:in (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b177523bcd",
+              "score": 37,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-d099949e6a",
+          "title": "Senior DevOps Engineer",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 75
+            },
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 75
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 72
+            },
+            {
+              "id": "real-c-817c4c848f",
+              "score": 72
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 72
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-91d39a0267",
+          "title": "Senior Controller (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 99
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 75
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 72
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 70
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-6bc4f635b4",
+          "title": "Lohnbuchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 59
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        }
+      ],
+      "killStats": {
+        "excluded": 816
+      },
+      "scoredPairs": 874
+    },
+    {
+      "adapter": "v31-ideal-inputs",
+      "description": "V3.1-Replika mit Code-Default-Config und vollständigen Inputs (Obergrenze der heutigen Engine bei reparierten Daten).",
+      "macro": {
+        "recall10": 0.3888888888888889,
+        "recall50": 1,
+        "recall100": 1,
+        "ndcg10": 0.2827412857051727,
+        "mrr": 0.26079446701043796,
+        "leak10": 0.3055555555555555
+      },
+      "perJob": [
+        {
+          "jobId": "real-j-54ede5063a",
+          "title": "Frontend Developer (React/Vue)",
+          "positives": 0,
+          "hardNegatives": 1,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 93
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 92
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 69
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 69
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 55
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f41b2a3e99",
+          "title": "Senior Frontend Developer (Vue.js/Nuxt)",
+          "positives": 0,
+          "hardNegatives": 2,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 93
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 77
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 73
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 62,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-992b595212",
+          "title": "Business Specialist CRM (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.02631578947368421,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-1369abc189",
+          "title": "Senior Java & AWS Lead Developer",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 73
+            },
+            {
+              "id": "real-c-e29ad0184f",
+              "score": 71
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 60,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 57,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-627d8705f2",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 53
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 52,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 52
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 52,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-8124e604de",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 57,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 44,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-466762f106",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 45
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f437919d2d",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.3333333333333333,
+          "mrr": 0.14285714285714285,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 47
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-b5f944daed",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 0.3333333333333333,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.3631143808977028,
+          "mrr": 0.3333333333333333,
+          "leak10": 0.3333333333333333,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 55,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 52
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 52
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 51
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-473478271b",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-def326c10c",
+          "title": "Service – Techniker Rechenzentrum (w/m/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 38,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-80150520e3",
+          "title": "Referent Bereichsleitung IT (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.027777777777777776,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-532d70e88b",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-3e8da70091",
+          "title": "Data & Dashboard Engineer – Analytics & Business Intelligence (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.034482758620689655,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-fdd020cd89",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-f01eeeeb91",
+              "score": 59,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-12b92fbbe6",
+              "score": 53,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-9af936627f",
+              "score": 53,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-ed5eb7fe3a",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-d0c51d4c9a",
+          "title": "Senior Vehicle AI Architect (f/m/x)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-828966413c",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 52,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e29ad0184f",
+              "score": 51,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 50,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c90b4e7208",
+          "title": "Projektmanager (m/w/d) Infrastruktur (Verkehr / Bahn, Energie)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 35,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c05ca5f11a",
+          "title": "software architect",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-074141bf22",
+              "score": 75
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 75
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 75
+            },
+            {
+              "id": "real-c-aff6cf978c",
+              "score": 75
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 75
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-efd1ed2fa0",
+          "title": "Produktmanager:in (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b177523bcd",
+              "score": 37,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-d099949e6a",
+          "title": "Senior DevOps Engineer",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 75
+            },
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 75
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 72
+            },
+            {
+              "id": "real-c-817c4c848f",
+              "score": 72
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 72
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-91d39a0267",
+          "title": "Senior Controller (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 99
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 75
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 72
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 70
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-6bc4f635b4",
+          "title": "Lohnbuchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 59
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        }
+      ],
+      "killStats": {
+        "excluded": 816
+      },
+      "scoredPairs": 874
+    },
+    {
+      "adapter": "v31-normalized-reqs",
+      "description": "WHAT-IF für Phase 2.1: wie v31-code-defaults (aktueller Live-Zustand), aber mit kuratiert normalisierten Anforderungen (Satzfragmente → kanonische Skills) statt roher must_haves. Misst den Hebel der Anforderungs-Normalisierung, bevor der LLM-Normalizer gebaut wird.",
+      "macro": {
+        "recall10": 0.4444444444444444,
+        "recall50": 1,
+        "recall100": 1,
+        "ndcg10": 0.29693265392781537,
+        "mrr": 0.25874251814185073,
+        "leak10": 0.3055555555555555
+      },
+      "perJob": [
+        {
+          "jobId": "real-j-54ede5063a",
+          "title": "Frontend Developer (React/Vue)",
+          "positives": 0,
+          "hardNegatives": 1,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 93
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 92
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 69
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 69
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 55
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f41b2a3e99",
+          "title": "Senior Frontend Developer (Vue.js/Nuxt)",
+          "positives": 0,
+          "hardNegatives": 2,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": 0.5,
+          "top5": [
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 92
+            },
+            {
+              "id": "real-c-074141bf22",
+              "score": 85
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 76
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 62,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-992b595212",
+          "title": "Business Specialist CRM (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.034482758620689655,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 85
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 78
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 32,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-1369abc189",
+          "title": "Senior Java & AWS Lead Developer",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 1,
+          "mrr": 1,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-e29ad0184f",
+              "score": 89
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 83
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 55,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-627d8705f2",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 56
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-8124e604de",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-4183b41bce",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 51
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-466762f106",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 56
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 54,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-f437919d2d",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 1,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.4306765580733931,
+          "mrr": 0.25,
+          "leak10": 1,
+          "top5": [
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 58,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 56
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 54,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-b5f944daed",
+          "title": "Buchhalter (m/w/d)",
+          "positives": 3,
+          "hardNegatives": 3,
+          "recall10": 0.6666666666666666,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0.35091936549349917,
+          "mrr": 0.2,
+          "leak10": 0.3333333333333333,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 62,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 59,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 56
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-473478271b",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-def326c10c",
+          "title": "Service – Techniker Rechenzentrum (w/m/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-bd54a183a2",
+              "score": 29,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-80150520e3",
+          "title": "Referent Bereichsleitung IT (m/w/d)",
+          "positives": 1,
+          "hardNegatives": 1,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.03225806451612903,
+          "leak10": 0,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 55,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 55,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 44,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-532d70e88b",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-3e8da70091",
+          "title": "Data & Dashboard Engineer – Analytics & Business Intelligence (m/w/d)",
+          "positives": 2,
+          "hardNegatives": 0,
+          "recall10": 0,
+          "recall50": 1,
+          "recall100": 1,
+          "ndcg10": 0,
+          "mrr": 0.03571428571428571,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-fdd020cd89",
+              "score": 61,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-12b92fbbe6",
+              "score": 61,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-9af936627f",
+              "score": 61,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": [
+            {
+              "id": "real-c-ed5eb7fe3a",
+              "reason": "excluded"
+            },
+            {
+              "id": "real-c-2c42a27488",
+              "reason": "excluded"
+            }
+          ]
+        },
+        {
+          "jobId": "real-j-d0c51d4c9a",
+          "title": "Senior Vehicle AI Architect (f/m/x)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-828966413c",
+              "score": 80
+            },
+            {
+              "id": "real-c-e29ad0184f",
+              "score": 75
+            },
+            {
+              "id": "real-c-3c45580ddb",
+              "score": 65
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 65
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 62
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c90b4e7208",
+          "title": "Projektmanager (m/w/d) Infrastruktur (Verkehr / Bahn, Energie)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-359131ad4d",
+              "score": 54,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-6856a37258",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 49,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 38,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-c05ca5f11a",
+          "title": "software architect",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-074141bf22",
+              "score": 75
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 75
+            },
+            {
+              "id": "real-c-23fa9439a1",
+              "score": 75
+            },
+            {
+              "id": "real-c-aff6cf978c",
+              "score": 75
+            },
+            {
+              "id": "real-c-7a2a5f3ef0",
+              "score": 75
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-efd1ed2fa0",
+          "title": "Produktmanager:in (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-6856a37258",
+              "score": 68
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-4183b41bce",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-8e3dc15029",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b177523bcd",
+              "score": 41,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-d099949e6a",
+          "title": "Senior DevOps Engineer",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-12b92fbbe6",
+              "score": 59
+            },
+            {
+              "id": "real-c-aebd7b7ef7",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-95cc53e88c",
+              "score": 50,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 48,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-817c4c848f",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-91d39a0267",
+          "title": "Senior Controller (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 98
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 80
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 78
+            },
+            {
+              "id": "real-c-672fb1c0e1",
+              "score": 73
+            },
+            {
+              "id": "real-c-b2655c258e",
+              "score": 48,
+              "note": "excluded"
+            }
+          ],
+          "lostPositives": []
+        },
+        {
+          "jobId": "real-j-6bc4f635b4",
+          "title": "Lohnbuchhalter (m/w/d)",
+          "positives": 0,
+          "hardNegatives": 0,
+          "recall10": null,
+          "recall50": null,
+          "recall100": null,
+          "ndcg10": null,
+          "mrr": null,
+          "leak10": null,
+          "top5": [
+            {
+              "id": "real-c-4183b41bce",
+              "score": 75
+            },
+            {
+              "id": "real-c-359131ad4d",
+              "score": 67,
+              "note": "excluded"
+            },
+            {
+              "id": "real-c-d11dc9f4e3",
+              "score": 59
+            },
+            {
+              "id": "real-c-e3d16e0761",
+              "score": 59
+            },
+            {
+              "id": "real-c-d4545e30ef",
+              "score": 58
+            }
+          ],
+          "lostPositives": []
+        }
+      ],
+      "killStats": {
+        "excluded": 807
+      },
+      "scoredPairs": 874
+    }
+  ]
+}

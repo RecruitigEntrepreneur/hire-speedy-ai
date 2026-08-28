@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -15,6 +15,7 @@ import { AgendaRow } from '@/components/interview/agenda/AgendaRow';
 import { ActionChips, type AgendaFocus } from '@/components/interview/agenda/ActionChips';
 import { CounterProposalDialog } from '@/components/interview/agenda/CounterProposalDialog';
 import { CancelInterviewDialog } from '@/components/interview/agenda/CancelInterviewDialog';
+import { TerminSheet, type TerminVariant } from '@/components/interview/agenda/TerminSheet';
 import { useClientInterviewAgenda, type AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { useInterviewKeyboardShortcuts } from '@/hooks/useInterviewKeyboardShortcuts';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -47,6 +48,7 @@ const toLegacyShape = (iv: AgendaInterview) => ({
 
 export default function ClientInterviews() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading, error, refetch } = useClientInterviewAgenda();
 
   usePageViewTracking('client_interviews');
@@ -62,6 +64,9 @@ export default function ClientInterviews() {
   const [feedbackFor, setFeedbackFor] = useState<AgendaInterview | null>(null);
   const [counterFor, setCounterFor] = useState<AgendaInterview | null>(null);
   const [cancelFor, setCancelFor] = useState<AgendaInterview | null>(null);
+  // Termin-Panel: Klick auf eine Zeile zeigt den TERMIN (Slots, Status, Aktionen)
+  // statt ins Bewerberprofil zu springen — das bleibt als Ausstieg im Panel.
+  const [terminFor, setTerminFor] = useState<{ iv: AgendaInterview; variant: TerminVariant } | null>(null);
   const [processing, setProcessing] = useState(false);
   const [companionOpen, setCompanionOpen] = useState(false);
   const [companionInterview, setCompanionInterview] = useState<any>(null);
@@ -74,6 +79,7 @@ export default function ClientInterviews() {
       setFeedbackFor(null);
       setCounterFor(null);
       setCancelFor(null);
+      setTerminFor(null);
     },
     enabled: true,
   });
@@ -105,9 +111,20 @@ export default function ClientInterviews() {
   const hasAny = (data?.all.length || 0) > 0;
   const hasActiveFilters = meetingTypeFilter !== 'all' || searchQuery.trim() !== '';
 
+  // Deep-Link von „Feedback geben" (CandidateDetail): direkt das Formular des
+  // gemeinten Kandidaten öffnen, statt den Kunden nur auf die Liste zu werfen.
+  const openFeedbackFor = (location.state as { openFeedbackFor?: string } | null)?.openFeedbackFor;
+  useEffect(() => {
+    if (!openFeedbackFor || !data?.feedbackDue?.length) return;
+    const match = data.feedbackDue.find((iv) => iv.submissionId === openFeedbackFor);
+    if (match) setFeedbackFor(match);
+    // State konsumiert — verhindert erneutes Öffnen bei Re-Render / Zurück-Navigation.
+    navigate(location.pathname, { replace: true, state: null });
+  }, [openFeedbackFor, data?.feedbackDue, navigate, location.pathname]);
+
   // ---- Aktionen ----------------------------------------------------------
 
-  const openDetails = (iv: AgendaInterview) => navigate(`/dashboard/candidates/${iv.submissionId}`);
+  const openTermin = (variant: TerminVariant) => (iv: AgendaInterview) => setTerminFor({ iv, variant });
 
   const handleOpenGuide = async (iv: AgendaInterview) => {
     if (!iv.identityUnlocked) return;
@@ -387,7 +404,7 @@ export default function ClientInterviews() {
                           key={iv.id}
                           iv={iv}
                           variant="counter"
-                          onDetails={openDetails}
+                          onDetails={openTermin('counter')}
                           onRespondCounter={setCounterFor}
                           onCancel={setCancelFor}
                           onOpenGuide={handleOpenGuide}
@@ -414,7 +431,7 @@ export default function ClientInterviews() {
                                 key={iv.id}
                                 iv={iv}
                                 variant="agenda"
-                                onDetails={openDetails}
+                                onDetails={openTermin('agenda')}
                                 onEdit={setEditing}
                                 onCancel={setCancelFor}
                                 onOpenGuide={handleOpenGuide}
@@ -440,7 +457,7 @@ export default function ClientInterviews() {
                           key={iv.id}
                           iv={iv}
                           variant="awaiting"
-                          onDetails={openDetails}
+                          onDetails={openTermin('awaiting')}
                           onEdit={setEditing}
                           onCancel={setCancelFor}
                           onRemind={handleRemind}
@@ -462,7 +479,7 @@ export default function ClientInterviews() {
                           key={iv.id}
                           iv={iv}
                           variant="feedback"
-                          onDetails={openDetails}
+                          onDetails={openTermin('feedback')}
                           onFeedback={setFeedbackFor}
                           onNoShow={handleNoShow}
                           onOpenGuide={handleOpenGuide}
@@ -486,7 +503,7 @@ export default function ClientInterviews() {
                     {showPast && (
                       <div className="mt-1 space-y-0.5">
                         {past.map((iv) => (
-                          <AgendaRow key={iv.id} iv={iv} variant="past" onDetails={openDetails} onFeedback={setFeedbackFor} />
+                          <AgendaRow key={iv.id} iv={iv} variant="past" onDetails={openTermin('past')} onFeedback={setFeedbackFor} />
                         ))}
                       </div>
                     )}
@@ -503,6 +520,19 @@ export default function ClientInterviews() {
           </div>
         )}
       </div>
+
+      {/* Termin-Panel */}
+      <TerminSheet
+        interview={terminFor?.iv ?? null}
+        variant={terminFor?.variant ?? 'agenda'}
+        open={!!terminFor}
+        onOpenChange={(o) => !o && setTerminFor(null)}
+        onEdit={setEditing}
+        onRemind={handleRemind}
+        onCancel={setCancelFor}
+        onRespondCounter={setCounterFor}
+        onFeedback={setFeedbackFor}
+      />
 
       {/* Dialoge */}
       <InterviewEditDialog

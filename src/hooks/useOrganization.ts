@@ -113,7 +113,9 @@ export function useOrganization() {
     mutationFn: async ({ id, ...data }: Partial<Organization> & { id: string }) => {
       const { error } = await supabase
         .from('organizations')
-        .update(data)
+        // settings ist hier Record<string, unknown>, in den generierten Typen Json —
+        // strukturell identisch, aber nicht zuweisungskompatibel.
+        .update(data as Record<string, unknown>)
         .eq('id', id);
 
       if (error) throw error;

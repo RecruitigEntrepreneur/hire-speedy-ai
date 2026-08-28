@@ -117,7 +117,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
         // Fetch published jobs WITHOUT company_name (Triple-Blind) + revealed submissions in parallel
         const [jobsRes, revealedRes] = await Promise.all([
           supabase
-            .from('jobs')
+            .from('recruiter_jobs_view')
             .select('id, title, industry, company_size_band, funding_stage, tech_environment, location, salary_max, salary_min, remote_type')
             .eq('status', 'published')
             .order('created_at', { ascending: false })

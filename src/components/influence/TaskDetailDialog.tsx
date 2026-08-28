@@ -60,7 +60,7 @@ import { SnoozeDropdown } from './SnoozeDropdown';
 
 // Generic task item that can be constructed from either UnifiedTaskItem or CandidateTask
 export interface TaskDetailItem {
-  itemType: 'alert' | 'task' | 'expose';
+  itemType: 'alert' | 'task' | 'expose' | 'derived';
   itemId: string;
   title: string;
   description: string | null;
@@ -729,11 +729,23 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
       if (item.submissionId) {
         const { data: sub } = await supabase
           .from('submissions')
-          .select('stage, match_score, company_revealed, jobs(industry), candidates(job_title, city, experience_years, expected_salary)')
+          .select('stage, match_score, company_revealed, job_id, candidates(job_title, city, experience_years, expected_salary)')
           .eq('id', item.submissionId)
           .single();
 
         if (sub) {
+          // Branche separat ueber recruiter_jobs_view: Recruiter lesen Jobs
+          // nicht mehr direkt.
+          let jobIndustry: string | null = null;
+          if ((sub as any).job_id) {
+            const { data: jobRow } = await supabase
+              .from('recruiter_jobs_view')
+              .select('industry')
+              .eq('id', (sub as any).job_id)
+              .maybeSingle();
+            jobIndustry = (jobRow as any)?.industry ?? null;
+          }
+          (sub as any).jobs = { industry: jobIndustry };
           setSubmissionContext({
             stage: sub.stage,
             matchScore: (sub as any).match_score,

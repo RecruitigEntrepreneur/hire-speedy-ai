@@ -1,0 +1,3060 @@
+{
+  "version": "v1",
+  "is_synthetic": true,
+  "reference_date": "2026-07-17T12:00:00.000Z",
+  "description": "Synthetisches Golden-Dataset für Matching-Evals (Handarbeit, deterministisch). Labels: hired/interviewed/shortlisted = Positives, rejected = Hard-Negatives mit Begründung. Distraktoren ohne Label wirken als Easy Negatives, da pro Job der gesamte Pool gerankt wird.",
+  "jobs": [
+    {
+      "id": "job-backend-senior",
+      "is_synthetic": true,
+      "title": "Senior Backend Entwickler (Java)",
+      "industry": "software",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "PostgreSQL",
+        "Kafka",
+        "AWS"
+      ],
+      "must_haves": [
+        "Java",
+        "Spring Boot",
+        "SQL"
+      ],
+      "nice_to_haves": [
+        "Kafka",
+        "Kubernetes"
+      ],
+      "salary_min": 75000,
+      "salary_max": 95000,
+      "experience_level": "senior",
+      "experience_min": 5,
+      "experience_max": 12,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [
+        {
+          "code": "de",
+          "minLevel": "c1"
+        }
+      ],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-frontend-mid",
+      "is_synthetic": true,
+      "title": "Frontend Entwickler React (m/w/d)",
+      "industry": "software",
+      "skills": [
+        "React",
+        "TypeScript",
+        "CSS",
+        "Vite"
+      ],
+      "must_haves": [
+        "React",
+        "TypeScript"
+      ],
+      "nice_to_haves": [
+        "Next.js",
+        "Tailwind"
+      ],
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": 2,
+      "experience_max": 6,
+      "visa_sponsorship": false,
+      "remote_type": "remote",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Berlin",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-data-ml",
+      "is_synthetic": true,
+      "title": "Machine Learning Engineer",
+      "industry": "software",
+      "skills": [
+        "Python",
+        "PyTorch",
+        "MLOps",
+        "SQL"
+      ],
+      "must_haves": [
+        "Python",
+        "Machine Learning"
+      ],
+      "nice_to_haves": [
+        "PyTorch",
+        "MLflow",
+        "AWS"
+      ],
+      "salary_min": 70000,
+      "salary_max": 90000,
+      "experience_level": "senior",
+      "experience_min": 4,
+      "experience_max": 10,
+      "visa_sponsorship": true,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-devops",
+      "is_synthetic": true,
+      "title": "DevOps Engineer (Kubernetes)",
+      "industry": "software",
+      "skills": [
+        "Kubernetes",
+        "Terraform",
+        "AWS",
+        "CI/CD",
+        "Linux"
+      ],
+      "must_haves": [
+        "Kubernetes",
+        "Terraform",
+        "CI/CD"
+      ],
+      "nice_to_haves": [
+        "Helm",
+        "Prometheus"
+      ],
+      "salary_min": 65000,
+      "salary_max": 85000,
+      "experience_level": "senior",
+      "experience_min": 4,
+      "experience_max": 10,
+      "visa_sponsorship": false,
+      "remote_type": "onsite",
+      "work_model": null,
+      "onsite_required": true,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Frankfurt",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-embedded",
+      "is_synthetic": true,
+      "title": "Embedded Software Entwickler (C/RTOS)",
+      "industry": "automotive",
+      "skills": [
+        "C",
+        "Embedded",
+        "RTOS",
+        "CAN Bus",
+        "Microcontroller"
+      ],
+      "must_haves": [
+        "C",
+        "Embedded"
+      ],
+      "nice_to_haves": [
+        "CAN Bus",
+        "AUTOSAR"
+      ],
+      "salary_min": 60000,
+      "salary_max": 80000,
+      "experience_level": "mid",
+      "experience_min": 3,
+      "experience_max": 8,
+      "visa_sponsorship": false,
+      "remote_type": "onsite",
+      "work_model": null,
+      "onsite_required": true,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Stuttgart",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-mobile-ios",
+      "is_synthetic": true,
+      "title": "iOS Entwickler (Swift)",
+      "industry": "software",
+      "skills": [
+        "Swift",
+        "SwiftUI",
+        "iOS",
+        "Xcode"
+      ],
+      "must_haves": [
+        "Swift",
+        "iOS"
+      ],
+      "nice_to_haves": [
+        "SwiftUI",
+        "Combine"
+      ],
+      "salary_min": 60000,
+      "salary_max": 75000,
+      "experience_level": "mid",
+      "experience_min": 3,
+      "experience_max": 8,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Hamburg",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-buchhalter",
+      "is_synthetic": true,
+      "title": "Finanzbuchhalter (m/w/d)",
+      "industry": "steuerberatung",
+      "skills": [
+        "DATEV",
+        "Finanzbuchhaltung",
+        "Umsatzsteuer"
+      ],
+      "must_haves": [
+        "Mehrjährige Berufserfahrung in der Buchhaltung",
+        "DATEV"
+      ],
+      "nice_to_haves": [
+        "Jahresabschluss nach HGB",
+        "Lohnbuchhaltung"
+      ],
+      "salary_min": 45000,
+      "salary_max": 55000,
+      "experience_level": "mid",
+      "experience_min": 3,
+      "experience_max": 10,
+      "visa_sponsorship": false,
+      "remote_type": "onsite",
+      "work_model": null,
+      "onsite_required": true,
+      "required_languages": [
+        {
+          "code": "de",
+          "minLevel": "c2"
+        }
+      ],
+      "required_certifications": [],
+      "location": "Köln",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-controller",
+      "is_synthetic": true,
+      "title": "Controller (m/w/d)",
+      "industry": "maschinenbau",
+      "skills": [
+        "Controlling",
+        "Kostenrechnung",
+        "Excel",
+        "Power BI"
+      ],
+      "must_haves": [
+        "Controlling",
+        "Kostenrechnung"
+      ],
+      "nice_to_haves": [
+        "Power BI",
+        "SAP CO"
+      ],
+      "salary_min": 60000,
+      "salary_max": 75000,
+      "experience_level": "senior",
+      "experience_min": 4,
+      "experience_max": 12,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Düsseldorf",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-sap-fi",
+      "is_synthetic": true,
+      "title": "SAP FI/CO Consultant",
+      "industry": "consulting",
+      "skills": [
+        "SAP FI",
+        "SAP CO",
+        "S/4HANA",
+        "Customizing"
+      ],
+      "must_haves": [
+        "SAP FI",
+        "Customizing"
+      ],
+      "nice_to_haves": [
+        "S/4HANA",
+        "ABAP Grundlagen"
+      ],
+      "salary_min": 80000,
+      "salary_max": 100000,
+      "experience_level": "senior",
+      "experience_min": 5,
+      "experience_max": 15,
+      "visa_sponsorship": false,
+      "remote_type": "remote",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Remote (DE)",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-hr-bp",
+      "is_synthetic": true,
+      "title": "HR Business Partner (m/w/d)",
+      "industry": "software",
+      "skills": [
+        "Personalentwicklung",
+        "Arbeitsrecht",
+        "Personio",
+        "HR"
+      ],
+      "must_haves": [
+        "HR",
+        "Arbeitsrecht"
+      ],
+      "nice_to_haves": [
+        "Personio",
+        "Employer Branding"
+      ],
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "experience_level": "mid",
+      "experience_min": 3,
+      "experience_max": 10,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Berlin",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-sales-kam",
+      "is_synthetic": true,
+      "title": "Key Account Manager B2B SaaS",
+      "industry": "software",
+      "skills": [
+        "Key Account",
+        "B2B SaaS",
+        "CRM",
+        "Verhandlungsführung"
+      ],
+      "must_haves": [
+        "Key Account",
+        "B2B SaaS Kenntnisse"
+      ],
+      "nice_to_haves": [
+        "HubSpot",
+        "Salesforce"
+      ],
+      "salary_min": 60000,
+      "salary_max": 80000,
+      "experience_level": "senior",
+      "experience_min": 4,
+      "experience_max": 12,
+      "visa_sponsorship": false,
+      "remote_type": "remote",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Remote (DE)",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-design-ux",
+      "is_synthetic": true,
+      "title": "Senior UX Designer",
+      "industry": "software",
+      "skills": [
+        "UX Design",
+        "Figma",
+        "User Research",
+        "Prototyping"
+      ],
+      "must_haves": [
+        "UX Design",
+        "Figma"
+      ],
+      "nice_to_haves": [
+        "Design System",
+        "Usability Testing"
+      ],
+      "salary_min": 60000,
+      "salary_max": 78000,
+      "experience_level": "senior",
+      "experience_min": 4,
+      "experience_max": 10,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "München",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-po",
+      "is_synthetic": true,
+      "title": "Product Owner (m/w/d)",
+      "industry": "software",
+      "skills": [
+        "Product Owner",
+        "Scrum",
+        "Backlog",
+        "Stakeholder Management"
+      ],
+      "must_haves": [
+        "Mehrjährige Erfahrung im agilen Produktmanagement",
+        "Scrum"
+      ],
+      "nice_to_haves": [
+        "Jira",
+        "OKR"
+      ],
+      "salary_min": 65000,
+      "salary_max": 85000,
+      "experience_level": "senior",
+      "experience_min": 4,
+      "experience_max": 12,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [],
+      "location": "Berlin",
+      "skill_requirements": []
+    },
+    {
+      "id": "job-security",
+      "is_synthetic": true,
+      "title": "Security Engineer (SOC)",
+      "industry": "software",
+      "skills": [
+        "SIEM",
+        "SOC",
+        "Incident Response",
+        "Security"
+      ],
+      "must_haves": [
+        "SIEM",
+        "Security"
+      ],
+      "nice_to_haves": [
+        "Splunk",
+        "Zero Trust"
+      ],
+      "salary_min": 70000,
+      "salary_max": 90000,
+      "experience_level": "mid",
+      "experience_min": 3,
+      "experience_max": 9,
+      "visa_sponsorship": false,
+      "remote_type": "hybrid",
+      "work_model": null,
+      "onsite_required": false,
+      "required_languages": [],
+      "required_certifications": [
+        "CISSP"
+      ],
+      "location": "Frankfurt",
+      "skill_requirements": []
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand-backend-01",
+      "is_synthetic": true,
+      "persona": "Perfekter Senior-Java-Entwickler, alle Must-haves direkt",
+      "job_title": "Senior Java Entwickler",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "PostgreSQL",
+        "Kafka",
+        "Docker",
+        "AWS"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 88000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [
+        "software"
+      ],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-backend-02",
+      "is_synthetic": true,
+      "persona": "Kotlin/Java-Entwickler — Nachbar-Skills, transferierbar",
+      "job_title": "Backend Developer",
+      "skills": [
+        "Kotlin",
+        "Java",
+        "Spring",
+        "MySQL",
+        "Docker"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 82000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-backend-sparse",
+      "is_synthetic": true,
+      "persona": "Dünner CV: nur zwei Skills gepflegt, aber passender Titel/Erfahrung",
+      "job_title": "Java Entwickler",
+      "skills": [
+        "Java",
+        "SQL"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 80000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-backend-visa",
+      "is_synthetic": true,
+      "persona": "Starker Backend-Entwickler, braucht Visa-Sponsoring (Job bietet keins)",
+      "job_title": "Senior Backend Engineer",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "PostgreSQL",
+        "Kubernetes"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 85000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "en",
+          "level": "c1"
+        }
+      ],
+      "certifications": [],
+      "visa_required": true
+    },
+    {
+      "id": "cand-backend-salary",
+      "is_synthetic": true,
+      "persona": "Passender Java-Senior, Gehaltsvorstellung 25% über Budget",
+      "job_title": "Senior Java Entwickler",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "PostgreSQL",
+        "AWS"
+      ],
+      "experience_years": 10,
+      "seniority": "senior",
+      "expected_salary": 119000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-backend-embedded",
+      "is_synthetic": true,
+      "persona": "Embedded-Ingenieur mit Java-Hobby — falsche Domäne",
+      "job_title": "Embedded Software Engineer",
+      "skills": [
+        "C",
+        "C++",
+        "RTOS",
+        "Microcontroller",
+        "Java"
+      ],
+      "experience_years": 9,
+      "seniority": "senior",
+      "expected_salary": 78000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-frontend-01",
+      "is_synthetic": true,
+      "persona": "React/TypeScript-Entwicklerin, exakter Fit",
+      "job_title": "Frontend Developer",
+      "skills": [
+        "ReactJS",
+        "TypeScript",
+        "Next.js",
+        "Tailwind",
+        "CSS"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 63000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "Berlin",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-frontend-vue",
+      "is_synthetic": true,
+      "persona": "Vue-Entwickler — Nachbar-Framework, wechselwillig",
+      "job_title": "Frontend Entwickler",
+      "skills": [
+        "Vue.js",
+        "JavaScript",
+        "TypeScript",
+        "Nuxt.js",
+        "CSS"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 60000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "Leipzig",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-frontend-junior",
+      "is_synthetic": true,
+      "persona": "Ambitionierte Junior-Entwicklerin, knapp unter Mid-Level",
+      "job_title": "Junior Frontend Developer",
+      "skills": [
+        "React",
+        "JavaScript",
+        "CSS",
+        "HTML"
+      ],
+      "experience_years": 2,
+      "seniority": "junior",
+      "expected_salary": 48000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "Dresden",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-frontend-designer",
+      "is_synthetic": true,
+      "persona": "UI-Designerin mit Figma, kann kein React — falsches Profil",
+      "job_title": "UI Designerin",
+      "skills": [
+        "Figma",
+        "UI Design",
+        "Prototyping",
+        "CSS"
+      ],
+      "experience_years": 6,
+      "seniority": "mid",
+      "expected_salary": 58000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-frontend-salary",
+      "is_synthetic": true,
+      "persona": "Guter React-Entwickler, will 95k bei 70k-Budget",
+      "job_title": "Senior Frontend Engineer",
+      "skills": [
+        "React",
+        "TypeScript",
+        "Next.js",
+        "GraphQL"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 95000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ml-01",
+      "is_synthetic": true,
+      "persona": "ML-Engineer mit Produktions-Erfahrung, exakter Fit",
+      "job_title": "Machine Learning Engineer",
+      "skills": [
+        "Python",
+        "PyTorch",
+        "Machine Learning",
+        "MLflow",
+        "SQL",
+        "Docker"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 85000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ml-dataeng",
+      "is_synthetic": true,
+      "persona": "Data Engineer mit ML-Ambition — angrenzendes Profil",
+      "job_title": "Data Engineer",
+      "skills": [
+        "Python",
+        "Spark",
+        "Airflow",
+        "SQL",
+        "dbt",
+        "Machine Learning"
+      ],
+      "experience_years": 5,
+      "seniority": "senior",
+      "expected_salary": 78000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ml-visa",
+      "is_synthetic": true,
+      "persona": "ML-PhD aus dem Ausland, braucht Visa (Job sponsert!)",
+      "job_title": "ML Research Engineer",
+      "skills": [
+        "Python",
+        "PyTorch",
+        "Deep Learning",
+        "NLP",
+        "Machine Learning"
+      ],
+      "experience_years": 4,
+      "seniority": "senior",
+      "expected_salary": 80000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "en",
+          "level": "c2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": true
+    },
+    {
+      "id": "cand-ml-bi",
+      "is_synthetic": true,
+      "persona": "BI-Analyst mit Power BI — kein ML-Engineering",
+      "job_title": "BI Analyst",
+      "skills": [
+        "Power BI",
+        "SQL",
+        "Excel",
+        "Tableau"
+      ],
+      "experience_years": 7,
+      "seniority": "mid",
+      "expected_salary": 65000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-devops-01",
+      "is_synthetic": true,
+      "persona": "DevOps-Engineer, K8s in Produktion, Frankfurt lokal",
+      "job_title": "DevOps Engineer",
+      "skills": [
+        "K8s",
+        "Terraform",
+        "AWS",
+        "GitHub Actions",
+        "Helm",
+        "Linux"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 80000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Frankfurt",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-devops-backend",
+      "is_synthetic": true,
+      "persona": "Backend-Entwickler mit starkem K8s-Anteil — Plattform-Wechsel",
+      "job_title": "Backend Engineer (Platform)",
+      "skills": [
+        "Go",
+        "Kubernetes",
+        "Docker",
+        "Terraform",
+        "CI/CD"
+      ],
+      "experience_years": 5,
+      "seniority": "senior",
+      "expected_salary": 78000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Mainz",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-devops-remote",
+      "is_synthetic": true,
+      "persona": "Sehr guter DevOps, will ausschließlich remote (Job hat Präsenzpflicht)",
+      "job_title": "Senior DevOps Engineer",
+      "skills": [
+        "Kubernetes",
+        "Terraform",
+        "GCP",
+        "ArgoCD",
+        "Prometheus"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 84000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote_only",
+      "work_model": null,
+      "city": "Rostock",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-devops-junior",
+      "is_synthetic": true,
+      "persona": "Junior-Admin mit ersten Docker-Schritten — zu früh",
+      "job_title": "Junior Systemadministrator",
+      "skills": [
+        "Linux",
+        "Docker",
+        "Bash"
+      ],
+      "experience_years": 1,
+      "seniority": "junior",
+      "expected_salary": 45000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Frankfurt",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-embedded-01",
+      "is_synthetic": true,
+      "persona": "Embedded-Entwickler Automotive, exakter Fit",
+      "job_title": "Embedded Software Engineer",
+      "skills": [
+        "C",
+        "C++",
+        "Embedded",
+        "RTOS",
+        "CAN Bus",
+        "STM32"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 72000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Stuttgart",
+      "max_commute_minutes": 45,
+      "industry_experience": [
+        "automotive"
+      ],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-embedded-elektronik",
+      "is_synthetic": true,
+      "persona": "Elektronik-Ingenieurin mit Firmware-Anteil",
+      "job_title": "Hardware-Entwicklerin",
+      "skills": [
+        "Elektronik",
+        "Firmware",
+        "C",
+        "PCB",
+        "Oscilloscope"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 65000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Esslingen",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-embedded-java",
+      "is_synthetic": true,
+      "persona": "Java-Cloud-Entwickler — inkompatible Domäne",
+      "job_title": "Java Backend Entwickler",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "AWS",
+        "Microservices"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 75000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-embedded-sps",
+      "is_synthetic": true,
+      "persona": "SPS-Techniker ohne C-Programmierung",
+      "job_title": "SPS Programmierer",
+      "skills": [
+        "SPS",
+        "TIA Portal",
+        "Siemens S7"
+      ],
+      "experience_years": 8,
+      "seniority": "mid",
+      "expected_salary": 62000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Ludwigsburg",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ios-01",
+      "is_synthetic": true,
+      "persona": "iOS-Entwicklerin mit App-Store-Track-Record",
+      "job_title": "iOS Developer",
+      "skills": [
+        "Swift",
+        "SwiftUI",
+        "iOS",
+        "Xcode",
+        "Combine"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 70000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Hamburg",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ios-rn",
+      "is_synthetic": true,
+      "persona": "React-Native-Entwickler mit iOS-Grundlagen — Nachbar-Stack",
+      "job_title": "Mobile Developer",
+      "skills": [
+        "React Native",
+        "TypeScript",
+        "iOS",
+        "Android"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 64000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Bremen",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ios-backend",
+      "is_synthetic": true,
+      "persona": "Python-Backend-Entwickler ohne Mobile-Erfahrung",
+      "job_title": "Backend Developer",
+      "skills": [
+        "Python",
+        "Django",
+        "PostgreSQL",
+        "REST API"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 72000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-fibu-01",
+      "is_synthetic": true,
+      "persona": "Bilanzbuchhalterin mit DATEV, exakter Fit",
+      "job_title": "Bilanzbuchhalterin",
+      "skills": [
+        "Fibu",
+        "DATEV",
+        "Jahresabschluss",
+        "HGB",
+        "Umsatzsteuer"
+      ],
+      "experience_years": 7,
+      "seniority": "mid",
+      "expected_salary": 52000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Köln",
+      "max_commute_minutes": 45,
+      "industry_experience": [
+        "steuerberatung"
+      ],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [
+        "Bilanzbuchhalter IHK"
+      ],
+      "visa_required": false
+    },
+    {
+      "id": "cand-fibu-stfa",
+      "is_synthetic": true,
+      "persona": "Steuerfachangestellte — Synonym-Familie Buchhaltung",
+      "job_title": "Steuerfachangestellte",
+      "skills": [
+        "Buchführung",
+        "DATEV",
+        "Steuererklärung",
+        "Umsatzsteuer"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 48000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Leverkusen",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-fibu-kreditor",
+      "is_synthetic": true,
+      "persona": "Kreditorenbuchhalter, will breitere Fibu-Rolle",
+      "job_title": "Kreditorenbuchhalter",
+      "skills": [
+        "Kreditorenbuchhaltung",
+        "SAP FI",
+        "Rechnungsprüfung"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 46000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Bonn",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-fibu-english",
+      "is_synthetic": true,
+      "persona": "Erfahrener Accountant, spricht kein Deutsch (Job verlangt C2)",
+      "job_title": "Accountant",
+      "skills": [
+        "Accounting",
+        "General Ledger",
+        "IFRS",
+        "Excel"
+      ],
+      "experience_years": 8,
+      "seniority": "mid",
+      "expected_salary": 54000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Köln",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "en",
+          "level": "native"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-fibu-leiter",
+      "is_synthetic": true,
+      "persona": "Leiter Rechnungswesen — deutlich überqualifiziert, zu teuer",
+      "job_title": "Leiter Rechnungswesen",
+      "skills": [
+        "Rechnungswesen",
+        "Konsolidierung",
+        "HGB",
+        "IFRS",
+        "DATEV",
+        "Führung"
+      ],
+      "experience_years": 18,
+      "seniority": "head",
+      "expected_salary": 95000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Köln",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-controlling-01",
+      "is_synthetic": true,
+      "persona": "Senior-Controllerin Industrie, exakter Fit",
+      "job_title": "Senior Controllerin",
+      "skills": [
+        "Controlling",
+        "Kostenrechnung",
+        "Budgetierung",
+        "SAP CO",
+        "Power BI"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 72000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Düsseldorf",
+      "max_commute_minutes": 45,
+      "industry_experience": [
+        "maschinenbau"
+      ],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-controlling-quereinsteiger",
+      "is_synthetic": true,
+      "persona": "Quereinsteiger: Finanzbuchhalter mit Controlling-Weiterbildung",
+      "job_title": "Finanzbuchhalter",
+      "skills": [
+        "Finanzbuchhaltung",
+        "Kostenrechnung",
+        "Excel",
+        "SAP FI",
+        "Reporting"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 62000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Neuss",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-controlling-junior",
+      "is_synthetic": true,
+      "persona": "Junior-Controller, 2 Stufen unter Anforderung",
+      "job_title": "Junior Controller",
+      "skills": [
+        "Controlling",
+        "Excel"
+      ],
+      "experience_years": 1,
+      "seniority": "junior",
+      "expected_salary": 45000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-controlling-vertrieb",
+      "is_synthetic": true,
+      "persona": "Vertriebler ohne Finanz-Hintergrund",
+      "job_title": "Account Manager",
+      "skills": [
+        "Vertrieb",
+        "CRM",
+        "Salesforce",
+        "Key Account"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 68000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sap-01",
+      "is_synthetic": true,
+      "persona": "SAP-FI/CO-Consultant mit S/4HANA-Projekten",
+      "job_title": "SAP FI/CO Consultant",
+      "skills": [
+        "SAP FI",
+        "SAP CO",
+        "S/4HANA",
+        "SAP Customizing",
+        "Buchhaltung"
+      ],
+      "experience_years": 9,
+      "seniority": "senior",
+      "expected_salary": 95000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sap-keyuser",
+      "is_synthetic": true,
+      "persona": "Buchhalter und SAP-FI-Key-User — Beratungs-Quereinstieg",
+      "job_title": "Finanzbuchhalter / SAP Key User",
+      "skills": [
+        "Buchhaltung",
+        "SAP FI",
+        "Jahresabschluss",
+        "Prozessoptimierung"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 82000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sap-sd",
+      "is_synthetic": true,
+      "persona": "SAP-SD-Consultant — falsches Modul",
+      "job_title": "SAP SD Consultant",
+      "skills": [
+        "SAP SD",
+        "SAP MM",
+        "Customizing",
+        "S/4HANA"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 92000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sap-java",
+      "is_synthetic": true,
+      "persona": "Java-Entwickler ohne SAP-Bezug",
+      "job_title": "Software Engineer",
+      "skills": [
+        "Java",
+        "Spring",
+        "REST API",
+        "Docker"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 85000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-hr-01",
+      "is_synthetic": true,
+      "persona": "HR-Generalistin mit Arbeitsrecht-Schwerpunkt",
+      "job_title": "HR Business Partnerin",
+      "skills": [
+        "HR",
+        "Arbeitsrecht",
+        "Personalentwicklung",
+        "Personio",
+        "Onboarding"
+      ],
+      "experience_years": 6,
+      "seniority": "mid",
+      "expected_salary": 64000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Berlin",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-hr-recruiter",
+      "is_synthetic": true,
+      "persona": "Recruiterin, will in die HR-Generalisten-Rolle",
+      "job_title": "Talent Acquisition Managerin",
+      "skills": [
+        "Recruiting",
+        "Bewerbermanagement",
+        "Employer Branding",
+        "HR"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 58000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Potsdam",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-hr-sales",
+      "is_synthetic": true,
+      "persona": "Sales-Manager ohne HR-Erfahrung",
+      "job_title": "Sales Manager",
+      "skills": [
+        "Vertrieb",
+        "CRM",
+        "Lead Generation"
+      ],
+      "experience_years": 8,
+      "seniority": "senior",
+      "expected_salary": 68000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sales-01",
+      "is_synthetic": true,
+      "persona": "KAM mit SaaS-Track-Record, exakter Fit",
+      "job_title": "Key Account Manager",
+      "skills": [
+        "Key Account",
+        "B2B SaaS",
+        "Salesforce",
+        "Verhandlungsführung",
+        "Account Management"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 75000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sales-bdm",
+      "is_synthetic": true,
+      "persona": "Business Development Manager, Software-Umfeld",
+      "job_title": "Business Development Manager",
+      "skills": [
+        "Business Development",
+        "Lead Generation",
+        "CRM",
+        "HubSpot",
+        "SaaS"
+      ],
+      "experience_years": 5,
+      "seniority": "senior",
+      "expected_salary": 68000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "remote",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sales-marketing",
+      "is_synthetic": true,
+      "persona": "Marketing-Managerin — verwandtes, aber anderes Feld",
+      "job_title": "Marketing Managerin",
+      "skills": [
+        "Content Marketing",
+        "SEO",
+        "Social Media",
+        "Marketing"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 62000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ux-01",
+      "is_synthetic": true,
+      "persona": "Senior-UX-Designerin, Research-getrieben",
+      "job_title": "Senior UX Designerin",
+      "skills": [
+        "UX Design",
+        "Figma",
+        "User Research",
+        "Prototyping",
+        "Design System"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 74000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ux-ui",
+      "is_synthetic": true,
+      "persona": "UI-Designer mit UX-Ambition",
+      "job_title": "UI Designer",
+      "skills": [
+        "UI Design",
+        "Figma",
+        "Sketch",
+        "Wireframing"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 62000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Augsburg",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ux-frontend",
+      "is_synthetic": true,
+      "persona": "Frontend-Entwickler mit CSS-Gefühl, kein Designer",
+      "job_title": "Frontend Developer",
+      "skills": [
+        "React",
+        "CSS",
+        "Tailwind",
+        "HTML"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 65000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-ux-print",
+      "is_synthetic": true,
+      "persona": "Grafikdesignerin Print ohne digitale Produkt-Erfahrung",
+      "job_title": "Grafikdesignerin",
+      "skills": [
+        "Photoshop",
+        "Illustrator",
+        "InDesign",
+        "Print"
+      ],
+      "experience_years": 10,
+      "seniority": "senior",
+      "expected_salary": 55000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-po-01",
+      "is_synthetic": true,
+      "persona": "Product Owner mit B2B-SaaS-Erfahrung, exakter Fit",
+      "job_title": "Product Owner",
+      "skills": [
+        "Product Owner",
+        "Scrum",
+        "Backlog",
+        "User Stories",
+        "Jira",
+        "Produktmanagement"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 78000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Berlin",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-po-design",
+      "is_synthetic": true,
+      "persona": "Produktdesignerin, wechselt Richtung Product Ownership",
+      "job_title": "Product Designerin",
+      "skills": [
+        "UX Design",
+        "User Research",
+        "Product Management",
+        "Stakeholder Management"
+      ],
+      "experience_years": 5,
+      "seniority": "senior",
+      "expected_salary": 70000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Berlin",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-po-bauleiter",
+      "is_synthetic": true,
+      "persona": "Projektleiter Bau — Titel-Verwechslung, fachfremd",
+      "job_title": "Projektmanager Hochbau",
+      "skills": [
+        "Projektmanagement",
+        "Bauleitung",
+        "VOB",
+        "Terminplanung"
+      ],
+      "experience_years": 12,
+      "seniority": "senior",
+      "expected_salary": 80000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-po-scrummaster",
+      "is_synthetic": true,
+      "persona": "Scrum Master ohne Produktverantwortung",
+      "job_title": "Scrum Master",
+      "skills": [
+        "Scrum",
+        "Kanban",
+        "Moderation",
+        "Jira"
+      ],
+      "experience_years": 5,
+      "seniority": "senior",
+      "expected_salary": 68000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Berlin",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sec-01",
+      "is_synthetic": true,
+      "persona": "SOC-Analystin mit CISSP und Splunk",
+      "job_title": "SOC Analystin",
+      "skills": [
+        "SIEM",
+        "Splunk",
+        "Incident Response",
+        "Security",
+        "SOC"
+      ],
+      "experience_years": 5,
+      "seniority": "mid",
+      "expected_salary": 82000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Frankfurt",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [
+        "CISSP"
+      ],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sec-devops",
+      "is_synthetic": true,
+      "persona": "DevOps-Engineer mit Security-Fokus und CISSP",
+      "job_title": "DevSecOps Engineer",
+      "skills": [
+        "DevSecOps",
+        "Kubernetes",
+        "Security",
+        "SIEM",
+        "Terraform"
+      ],
+      "experience_years": 6,
+      "seniority": "senior",
+      "expected_salary": 86000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "Darmstadt",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [
+        "CISSP"
+      ],
+      "visa_required": false
+    },
+    {
+      "id": "cand-sec-compliance",
+      "is_synthetic": true,
+      "persona": "Compliance-Officer ohne technisches Security-Profil und ohne CISSP",
+      "job_title": "Compliance Officer",
+      "skills": [
+        "Compliance",
+        "ISO 27001",
+        "GDPR",
+        "Audit"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 75000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-koch",
+      "is_synthetic": true,
+      "persona": "Distraktor: Koch",
+      "job_title": "Koch",
+      "skills": [
+        "Küchenleitung",
+        "HACCP",
+        "Menüplanung"
+      ],
+      "experience_years": 10,
+      "seniority": "mid",
+      "expected_salary": 38000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-pflege",
+      "is_synthetic": true,
+      "persona": "Distraktor: Pflegefachkraft",
+      "job_title": "Pflegefachkraft",
+      "skills": [
+        "Grundpflege",
+        "Dokumentation",
+        "Medikamentengabe"
+      ],
+      "experience_years": 8,
+      "seniority": "mid",
+      "expected_salary": 42000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-lagerist",
+      "is_synthetic": true,
+      "persona": "Distraktor: Lagerist",
+      "job_title": "Fachkraft Lagerlogistik",
+      "skills": [
+        "Kommissionierung",
+        "Staplerschein",
+        "SAP WM"
+      ],
+      "experience_years": 6,
+      "seniority": "mid",
+      "expected_salary": 34000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-kfz",
+      "is_synthetic": true,
+      "persona": "Distraktor: KFZ-Mechatroniker",
+      "job_title": "KFZ-Mechatroniker",
+      "skills": [
+        "Fahrzeugdiagnose",
+        "Wartung",
+        "Elektrik"
+      ],
+      "experience_years": 9,
+      "seniority": "mid",
+      "expected_salary": 40000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-lehrer",
+      "is_synthetic": true,
+      "persona": "Distraktor: Lehrer",
+      "job_title": "Gymnasiallehrer",
+      "skills": [
+        "Unterricht",
+        "Didaktik",
+        "Korrekturen"
+      ],
+      "experience_years": 12,
+      "seniority": "senior",
+      "expected_salary": 60000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-anwalt",
+      "is_synthetic": true,
+      "persona": "Distraktor: Rechtsanwältin",
+      "job_title": "Rechtsanwältin",
+      "skills": [
+        "Vertragsrecht",
+        "Prozessführung",
+        "Legal Research"
+      ],
+      "experience_years": 7,
+      "seniority": "senior",
+      "expected_salary": 85000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-friseur",
+      "is_synthetic": true,
+      "persona": "Distraktor: Friseurin",
+      "job_title": "Friseurmeisterin",
+      "skills": [
+        "Schneiden",
+        "Colorationen",
+        "Kundenberatung"
+      ],
+      "experience_years": 15,
+      "seniority": "mid",
+      "expected_salary": 30000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-uebersetzer",
+      "is_synthetic": true,
+      "persona": "Distraktor: Übersetzerin",
+      "job_title": "Übersetzerin",
+      "skills": [
+        "Übersetzung",
+        "Lektorat",
+        "CAT-Tools"
+      ],
+      "experience_years": 6,
+      "seniority": "mid",
+      "expected_salary": 42000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "c2"
+        },
+        {
+          "language": "fr",
+          "level": "c1"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-bauleiter",
+      "is_synthetic": true,
+      "persona": "Distraktor: Bauleiter",
+      "job_title": "Bauleiter",
+      "skills": [
+        "Bauleitung",
+        "VOB",
+        "Ausschreibung"
+      ],
+      "experience_years": 11,
+      "seniority": "senior",
+      "expected_salary": 72000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    },
+    {
+      "id": "dist-barkeeper",
+      "is_synthetic": true,
+      "persona": "Distraktor: Barkeeper",
+      "job_title": "Barkeeper",
+      "skills": [
+        "Cocktails",
+        "Service",
+        "Kasse"
+      ],
+      "experience_years": 4,
+      "seniority": "mid",
+      "expected_salary": 28000,
+      "salary_expectation_min": null,
+      "availability_in_days": 30,
+      "remote_preference": "hybrid",
+      "work_model": null,
+      "city": "München",
+      "max_commute_minutes": 45,
+      "industry_experience": [],
+      "languages": [
+        {
+          "language": "de",
+          "level": "native"
+        },
+        {
+          "language": "en",
+          "level": "b2"
+        }
+      ],
+      "certifications": [],
+      "visa_required": false
+    }
+  ],
+  "labels": [
+    {
+      "job_id": "job-backend-senior",
+      "candidate_id": "cand-backend-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-backend-senior",
+      "candidate_id": "cand-backend-02",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-backend-senior",
+      "candidate_id": "cand-backend-sparse",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-backend-senior",
+      "candidate_id": "cand-backend-visa",
+      "label": "rejected",
+      "reason": "Kein Visa-Sponsoring für diese Stelle; zudem Deutsch unter C1"
+    },
+    {
+      "job_id": "job-backend-senior",
+      "candidate_id": "cand-backend-salary",
+      "label": "rejected",
+      "reason": "Gehaltsvorstellung deutlich über Budget-Maximum"
+    },
+    {
+      "job_id": "job-backend-senior",
+      "candidate_id": "cand-backend-embedded",
+      "label": "rejected",
+      "reason": "Kern-Erfahrung Embedded, kein produktives Backend-Cloud-Profil"
+    },
+    {
+      "job_id": "job-frontend-mid",
+      "candidate_id": "cand-frontend-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-frontend-mid",
+      "candidate_id": "cand-frontend-vue",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-frontend-mid",
+      "candidate_id": "cand-frontend-junior",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-frontend-mid",
+      "candidate_id": "cand-frontend-designer",
+      "label": "rejected",
+      "reason": "Design-Profil ohne Entwicklungs-Skills; React fehlt komplett"
+    },
+    {
+      "job_id": "job-frontend-mid",
+      "candidate_id": "cand-frontend-salary",
+      "label": "rejected",
+      "reason": "Gehalt 35% über Budget, zudem überqualifiziert für Mid-Level"
+    },
+    {
+      "job_id": "job-data-ml",
+      "candidate_id": "cand-ml-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-data-ml",
+      "candidate_id": "cand-ml-dataeng",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-data-ml",
+      "candidate_id": "cand-ml-visa",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-data-ml",
+      "candidate_id": "cand-ml-bi",
+      "label": "rejected",
+      "reason": "Reporting-Profil ohne ML-Engineering-Erfahrung"
+    },
+    {
+      "job_id": "job-devops",
+      "candidate_id": "cand-devops-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-devops",
+      "candidate_id": "cand-devops-backend",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-devops",
+      "candidate_id": "cand-devops-remote",
+      "label": "rejected",
+      "reason": "Remote-only, Stelle hat Präsenzpflicht in Frankfurt"
+    },
+    {
+      "job_id": "job-devops",
+      "candidate_id": "cand-devops-junior",
+      "label": "rejected",
+      "reason": "Zwei Seniority-Stufen unter Anforderung, kein K8s/Terraform"
+    },
+    {
+      "job_id": "job-embedded",
+      "candidate_id": "cand-embedded-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-embedded",
+      "candidate_id": "cand-embedded-elektronik",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-embedded",
+      "candidate_id": "cand-embedded-java",
+      "label": "rejected",
+      "reason": "Backend-Cloud-Profil, keinerlei Embedded-Erfahrung"
+    },
+    {
+      "job_id": "job-embedded",
+      "candidate_id": "cand-embedded-sps",
+      "label": "rejected",
+      "reason": "Automatisierungstechnik ohne Embedded-C-Entwicklung"
+    },
+    {
+      "job_id": "job-mobile-ios",
+      "candidate_id": "cand-ios-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-mobile-ios",
+      "candidate_id": "cand-ios-rn",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-mobile-ios",
+      "candidate_id": "cand-ios-backend",
+      "label": "rejected",
+      "reason": "Kein Mobile-Stack; Swift/iOS fehlen vollständig"
+    },
+    {
+      "job_id": "job-buchhalter",
+      "candidate_id": "cand-fibu-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-buchhalter",
+      "candidate_id": "cand-fibu-stfa",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-buchhalter",
+      "candidate_id": "cand-fibu-kreditor",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-buchhalter",
+      "candidate_id": "cand-fibu-english",
+      "label": "rejected",
+      "reason": "Mandanten-Kommunikation auf Deutsch (C2) zwingend, nicht vorhanden"
+    },
+    {
+      "job_id": "job-buchhalter",
+      "candidate_id": "cand-fibu-leiter",
+      "label": "rejected",
+      "reason": "Überqualifiziert; Gehaltsvorstellung 70% über Budget"
+    },
+    {
+      "job_id": "job-controller",
+      "candidate_id": "cand-controlling-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-controller",
+      "candidate_id": "cand-controlling-quereinsteiger",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-controller",
+      "candidate_id": "cand-controlling-junior",
+      "label": "rejected",
+      "reason": "Deutlich zu junior für Senior-Rolle"
+    },
+    {
+      "job_id": "job-controller",
+      "candidate_id": "cand-controlling-vertrieb",
+      "label": "rejected",
+      "reason": "Kein Controlling-/Finanz-Profil"
+    },
+    {
+      "job_id": "job-sap-fi",
+      "candidate_id": "cand-sap-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-sap-fi",
+      "candidate_id": "cand-sap-keyuser",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-sap-fi",
+      "candidate_id": "cand-sap-sd",
+      "label": "rejected",
+      "reason": "Vertriebsmodul statt Finance; FI/CO-Tiefe fehlt"
+    },
+    {
+      "job_id": "job-sap-fi",
+      "candidate_id": "cand-sap-java",
+      "label": "rejected",
+      "reason": "Kein SAP-Profil"
+    },
+    {
+      "job_id": "job-hr-bp",
+      "candidate_id": "cand-hr-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-hr-bp",
+      "candidate_id": "cand-hr-recruiter",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-hr-bp",
+      "candidate_id": "cand-hr-sales",
+      "label": "rejected",
+      "reason": "Kein HR-Hintergrund"
+    },
+    {
+      "job_id": "job-sales-kam",
+      "candidate_id": "cand-sales-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-sales-kam",
+      "candidate_id": "cand-sales-bdm",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-sales-kam",
+      "candidate_id": "cand-sales-marketing",
+      "label": "rejected",
+      "reason": "Marketing- statt Vertriebsprofil; kein Account-Ownership"
+    },
+    {
+      "job_id": "job-design-ux",
+      "candidate_id": "cand-ux-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-design-ux",
+      "candidate_id": "cand-ux-ui",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-design-ux",
+      "candidate_id": "cand-ux-frontend",
+      "label": "rejected",
+      "reason": "Entwicklungs- statt Design-Profil; keine Research-/Konzept-Erfahrung"
+    },
+    {
+      "job_id": "job-design-ux",
+      "candidate_id": "cand-ux-print",
+      "label": "rejected",
+      "reason": "Print-Fokus; UX-Methoden und Figma fehlen"
+    },
+    {
+      "job_id": "job-po",
+      "candidate_id": "cand-po-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-po",
+      "candidate_id": "cand-po-design",
+      "label": "shortlisted"
+    },
+    {
+      "job_id": "job-po",
+      "candidate_id": "cand-po-bauleiter",
+      "label": "rejected",
+      "reason": "Bauprojekte statt Software-Produktmanagement"
+    },
+    {
+      "job_id": "job-po",
+      "candidate_id": "cand-po-scrummaster",
+      "label": "rejected",
+      "reason": "Prozess- statt Produktrolle; kein Backlog-Ownership"
+    },
+    {
+      "job_id": "job-security",
+      "candidate_id": "cand-sec-01",
+      "label": "hired"
+    },
+    {
+      "job_id": "job-security",
+      "candidate_id": "cand-sec-devops",
+      "label": "interviewed"
+    },
+    {
+      "job_id": "job-security",
+      "candidate_id": "cand-sec-compliance",
+      "label": "rejected",
+      "reason": "Governance- statt Engineering-Profil; CISSP fehlt"
+    }
+  ]
+}

@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,14 +16,48 @@ import {
   Sparkles,
   GraduationCap,
   Building2,
+  Archive,
+  LockOpen,
+  MessageSquare,
+  Pencil,
+  RefreshCw,
+  FileText,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { BewerberItem, CareerEntry } from '@/hooks/useBewerber';
+import { BewerberStatusPill } from './BewerberStatusPill';
+import { BewerberNotes } from './BewerberNotes';
+import type { BewerberItem } from '@/hooks/useBewerber';
+import type { CareerEntry } from '@/hooks/useBewerber';
+import type { LucideIcon } from 'lucide-react';
 
 interface BewerberPreviewPanelProps {
   item: BewerberItem;
   onInterviewRequest?: () => void;
   onReject?: () => void;
+}
+
+export interface PrimaryAction {
+  labelKey: string;
+  icon: LucideIcon;
+  run: 'wizard' | string; // 'wizard' öffnet den Interview-Wizard, sonst Navigationsziel
+}
+
+// Genau EINE Primäraktion pro Zustand — sie beantwortet „Was ist jetzt zu tun?".
+export function primaryActionFor(stateKey: string): PrimaryAction {
+  if (stateKey === 'opted_in') return { labelKey: 'bewerber.actions.plan_interview', icon: Calendar, run: 'wizard' };
+  if (stateKey === 'abgesagt' || stateKey === 'termin_abgesagt' || stateKey === 'no_show')
+    return { labelKey: 'bewerber.actions.rerequest', icon: RefreshCw, run: 'wizard' };
+  if (stateKey === 'terminvorschlag') return { labelKey: 'bewerber.actions.review_proposal', icon: Calendar, run: '/dashboard/interviews' };
+  if (stateKey === 'geplant') return { labelKey: 'bewerber.actions.view_appointment', icon: Calendar, run: '/dashboard/interviews' };
+  if (stateKey === 'wartet_kandidat') return { labelKey: 'bewerber.actions.view_request', icon: Eye, run: '/dashboard/interviews' };
+  if (stateKey === 'feedback' || stateKey === 'feedback_nodate')
+    return { labelKey: 'bewerber.actions.give_feedback', icon: Pencil, run: '/dashboard/interviews' };
+  if (stateKey === 'interview_phase') return { labelKey: 'bewerber.actions.view_interviews', icon: Eye, run: '/dashboard/interviews' };
+  if (stateKey === 'offer_negotiating') return { labelKey: 'bewerber.actions.review_counter', icon: FileText, run: '/dashboard/offers' };
+  if (stateKey.startsWith('offer_')) return { labelKey: 'bewerber.actions.view_offer', icon: FileText, run: '/dashboard/offers' };
+  // wait_* und pruefung
+  return { labelKey: 'bewerber.actions.request_interview', icon: Calendar, run: 'wizard' };
 }
 
 function formatSalary(min: number | null, max: number | null): string {
@@ -68,8 +104,30 @@ function formatDuration(years: number | null): string {
 }
 
 export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: BewerberPreviewPanelProps) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const score = item.matchScore || 0;
-  const initials = item.anonymizedName.slice(0, 2);
+  const displayName =
+    item.fullName || item.currentRole || item.career[0]?.jobTitle || t('bewerber.card.no_role');
+  const initials = displayName.slice(0, 2).toUpperCase();
+  const isArchived = item.tab === 'archiv';
+  const primary = primaryActionFor(item.state.key);
+  const PrimaryIcon = primary.icon;
+  const [aiExpanded, setAiExpanded] = useState(false);
+  const [skillsExpanded, setSkillsExpanded] = useState(false);
+
+  useEffect(() => {
+    setAiExpanded(false);
+    setSkillsExpanded(false);
+  }, [item.submissionId]);
+
+  const runPrimary = () => {
+    if (primary.run === 'wizard') {
+      onInterviewRequest?.();
+    } else {
+      navigate(primary.run);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -82,12 +140,24 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <Link to={`/dashboard/candidates/${item.submissionId}`} className="text-lg font-bold text-foreground hover:text-primary transition-colors">
-              {item.anonymizedName}
-            </Link>
-            <p className="text-sm text-muted-foreground">{item.currentRole || 'Keine Rolle angegeben'}</p>
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              <Link to={`/dashboard/candidates/${item.submissionId}`} className="text-lg font-bold text-foreground hover:text-primary transition-colors truncate">
+                {displayName}
+              </Link>
+              {item.identityUnlocked && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success shrink-0">
+                  <LockOpen className="h-3 w-3" />
+                  {t('bewerber.identity_unlocked')}
+                </span>
+              )}
+              <BewerberStatusPill item={item} />
+            </div>
+            {item.fullName && item.currentRole && (
+              <p className="text-sm text-muted-foreground">{item.currentRole}</p>
+            )}
             <p className="text-xs text-muted-foreground/70 mt-0.5">
               Für: <span className="font-medium text-muted-foreground">{item.jobTitle}</span>
+              <span className="ml-2 font-mono text-muted-foreground/50">{item.anonymizedName}</span>
             </p>
           </div>
         </div>
@@ -104,7 +174,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </span>
           <span className="flex items-center gap-1">
             <Banknote className="h-3 w-3" />
-            {item.salaryBand}
+            {item.salaryBand || t('bewerber.chips.salary_locked')}
           </span>
           <span className="flex items-center gap-1">
             <Laptop className="h-3 w-3" />
@@ -122,17 +192,47 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           )}
         </div>
 
-        {/* CTAs */}
-        <div className="flex gap-2">
-          <Button size="sm" className="flex-1" onClick={onInterviewRequest}>
-            <Calendar className="h-3.5 w-3.5 mr-1.5" />
-            Interview anfragen
-          </Button>
-          <Button variant="destructive" size="sm" className="flex-1" onClick={onReject}>
-            <X className="h-3.5 w-3.5 mr-1.5" />
-            Ablehnen
-          </Button>
-        </div>
+        {/* CTAs bzw. Archiv-Status */}
+        {isArchived ? (
+          <div className="rounded-lg border bg-muted/40 px-3 py-2.5 flex items-start gap-2">
+            <Archive className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {t(`bewerber.archive.kind.${item.archiveKind || 'abgelehnt'}`)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {item.archiveKind === 'eingestellt'
+                  ? t('bewerber.archive.hired_info')
+                  : t('bewerber.archive.closed_info')}
+              </p>
+              {item.archiveKind === 'eingestellt' && (
+                <Button variant="outline" size="sm" className="mt-2" asChild>
+                  <Link to="/dashboard/placements">{t('bewerber.archive.view_placement')}</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={runPrimary}>
+              <PrimaryIcon className="h-3.5 w-3.5 mr-1.5" />
+              {t(primary.labelKey)}
+            </Button>
+            <Button variant="outline" size="sm" className="text-muted-foreground" onClick={onReject}>
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              {t('bewerber.actions.reject')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto text-muted-foreground"
+              onClick={() => navigate('/dashboard/messages')}
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+              {t('bewerber.actions.ask_recruiter')}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ─── BODY: 50/50 Split ─── */}
@@ -148,15 +248,25 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
                   Skills
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {item.skills.slice(0, 8).map((skill, idx) => (
+                  {(skillsExpanded ? item.skills : item.skills.slice(0, 8)).map((skill, idx) => (
                     <Badge key={idx} variant="secondary" className="text-xs font-normal">
                       {skill}
                     </Badge>
                   ))}
                   {item.skills.length > 8 && (
-                    <Badge variant="outline" className="text-xs font-normal">
-                      +{item.skills.length - 8}
-                    </Badge>
+                    <button
+                      type="button"
+                      onClick={() => setSkillsExpanded((v) => !v)}
+                      className="rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                      aria-expanded={skillsExpanded}
+                    >
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-normal cursor-pointer hover:bg-muted transition-colors"
+                      >
+                        {skillsExpanded ? t('bewerber.skills.less') : `+${item.skills.length - 8}`}
+                      </Badge>
+                    </button>
                   )}
                 </div>
               </div>
@@ -182,11 +292,20 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
                 </div>
               )}
 
-              {/* AI Summary */}
+              {/* AI Summary — auf 3 Zeilen verdichtet, Volltext auf Klick */}
               {item.aiSummary && (
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  {item.aiSummary}
-                </p>
+                <div className="mb-3">
+                  <p className={cn('text-xs text-muted-foreground leading-relaxed', !aiExpanded && 'line-clamp-3')}>
+                    {item.aiSummary}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAiExpanded((v) => !v)}
+                    className="text-xs text-muted-foreground underline underline-offset-2 mt-1 hover:text-foreground transition-colors"
+                  >
+                    {aiExpanded ? t('bewerber.ai.less') : t('bewerber.ai.more')}
+                  </button>
+                </div>
               )}
 
               {/* Disclaimer */}
@@ -260,6 +379,9 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             )}
           </div>
         </div>
+
+        {/* Team-Notizen */}
+        <BewerberNotes submissionId={item.submissionId} />
       </div>
 
       {/* ─── FOOTER ─── */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -6,7 +6,13 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SubmissionsFunnelGrid } from '@/components/recruiter/SubmissionsFunnelGrid';
-import { useRecruiterStats } from '@/hooks/useRecruiterStats';
+import {
+  STAGE_COLUMNS,
+  isClosedStage,
+  normalizeStage,
+  stageLabel,
+  type CanonicalStage,
+} from '@/lib/submissionStage';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -45,6 +51,7 @@ import {
 } from 'lucide-react';
 import { CompanyRevealIcon } from '@/components/recruiter/CompanyRevealBadge';
 import { getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
+import { cn } from '@/lib/utils';
 
 interface CandidateBehavior {
   confidence_score: number | null;
@@ -61,6 +68,9 @@ interface InfluenceAlert {
 
 interface Submission {
   id: string;
+  /** Wahrheit fuer den Prozessfortschritt (CHECK submissions_stage_check). */
+  stage: string;
+  /** Abgeleitet aus stage via DB-Trigger — nur noch fuer Altcode. */
   status: string;
   submitted_at: string;
   updated_at: string;
@@ -99,15 +109,47 @@ interface Submission {
   influence_alerts: InfluenceAlert[];
 }
 
-const STATUS_COLUMNS = [
-  { key: 'submitted', label: 'Eingereicht', color: 'bg-blue-500' },
-  { key: 'reviewing', label: 'In Prüfung', color: 'bg-amber-500' },
-  { key: 'interview_scheduled', label: 'Interview geplant', color: 'bg-purple-500' },
-  { key: 'interviewed', label: 'Interview geführt', color: 'bg-indigo-500' },
-  { key: 'offer', label: 'Angebot', color: 'bg-emerald-500' },
-  { key: 'hired', label: 'Eingestellt', color: 'bg-green-600' },
-  { key: 'rejected', label: 'Abgelehnt', color: 'bg-destructive' },
-];
+// Stage-Vokabular und Normalisierung liegen in src/lib/submissionStage.ts —
+// eine Quelle fuer Kanban, Liste und Funnel-Uebersicht. Vorher hatten Kanban
+// und Funnel zwei verschiedene Stage-Listen direkt uebereinander.
+
+/**
+ * client_notes enthaelt teils JSON (pending_interview_request der Terminanfrage)
+ * statt Prosa — das landete roh als `{"pending_interview_request": {"client_...`
+ * auf der Karte. Hier wird daraus ein Satz; freier Text bleibt unveraendert.
+ */
+function clientNoteText(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const text = String(raw).trim();
+  if (!text.startsWith('{') && !text.startsWith('[')) return text;
+  try {
+    const parsed = JSON.parse(text);
+    const req = parsed?.pending_interview_request;
+    if (req) {
+      const slots = Array.isArray(req.client_time_slots) ? req.client_time_slots.length : 0;
+      const msg = typeof req.client_message === 'string' ? req.client_message.trim() : '';
+      if (msg) return msg;
+      return slots > 0
+        ? `Interview-Anfrage mit ${slots} Terminvorschlägen`
+        : 'Interview-Anfrage liegt vor';
+    }
+    return null;
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * Naechster Termin der Einreichung. Ohne scheduled_at ergab
+ * `new Date(null)` den 1.1.1970 — genau das stand auf den Karten.
+ */
+function nextInterviewDate(sub: Submission): string | null {
+  const dated = (sub.interviews || [])
+    .filter((iv) => !!iv.scheduled_at)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+  if (!dated.length) return null;
+  return new Date(dated[0].scheduled_at).toLocaleDateString('de-DE');
+}
 
 function ScoreBadge({ score, label, icon: Icon }: { score: number | null; label: string; icon: React.ElementType }) {
   const value = score ?? 0;
@@ -182,10 +224,10 @@ export default function RecruiterSubmissions() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [alertFilter, setAlertFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [showClosed, setShowClosed] = useState(false);
   const [selectedPlaybookSubmission, setSelectedPlaybookSubmission] = useState<string | null>(null);
   const [selectedPlaybook, setSelectedPlaybook] = useState<any | null>(null);
   const [playbooks, setPlaybooks] = useState<any[]>([]);
-  const { stats: recruiterStats } = useRecruiterStats();
 
   useEffect(() => {
     if (user) {
@@ -196,11 +238,12 @@ export default function RecruiterSubmissions() {
 
   const fetchSubmissions = async () => {
     try {
+      // Kein eingebetteter jobs(...)-Join: Recruiter duerfen public.jobs nicht
+      // mehr direkt lesen, der Join liefert sonst still null.
       const { data, error } = await supabase
         .from('submissions')
         .select(`
           *,
-          jobs (id, title, company_name, industry, company_size_band, funding_stage, tech_environment, hiring_urgency, location, remote_type),
           candidates (id, full_name, email, phone),
           interviews (id, scheduled_at, status),
           candidate_behavior (confidence_score, interview_readiness_score, closing_probability, engagement_level),
@@ -210,6 +253,16 @@ export default function RecruiterSubmissions() {
         .order('submitted_at', { ascending: false });
 
       if (!error && data) {
+        const jobIds = [...new Set(data.map((s: any) => s.job_id).filter(Boolean))] as string[];
+        let jobsById: Record<string, any> = {};
+        if (jobIds.length > 0) {
+          const { data: jobRows } = await supabase
+            .from('recruiter_jobs_view')
+            .select('id, title, company_name, industry, company_size_band, funding_stage, tech_environment, hiring_urgency, location, remote_type, salary_min, salary_max, recruiter_fee_percentage')
+            .in('id', jobIds);
+          jobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+        }
+        data.forEach((s: any) => { s.jobs = jobsById[s.job_id] ?? null; });
         setSubmissions(data as any);
       }
     } catch (error) {
@@ -227,22 +280,76 @@ export default function RecruiterSubmissions() {
     if (data) setPlaybooks(data);
   };
 
-  const filteredSubmissions = submissions.filter(sub => {
-    const matchesSearch = 
+  // Eine normalisierte Stage pro Submission — Kanban, Liste, Filter und Funnel
+  // rechnen damit, statt jeweils sub.stage roh zu lesen.
+  const normalized = useMemo(
+    () => submissions.map((sub) => ({ sub, stage: normalizeStage(sub.stage, sub.status) })),
+    [submissions],
+  );
+
+  const filteredSubmissions = normalized.filter(({ sub, stage }) => {
+    const matchesSearch =
       sub.candidates?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sub.jobs?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sub.jobs?.company_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || sub.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || stage === statusFilter;
     const hasAlerts = sub.influence_alerts && sub.influence_alerts.length > 0;
-    const matchesAlertFilter = alertFilter === 'all' || 
+    const matchesAlertFilter = alertFilter === 'all' ||
       (alertFilter === 'with_alerts' && hasAlerts) ||
       (alertFilter === 'no_alerts' && !hasAlerts);
     return matchesSearch && matchesStatus && matchesAlertFilter;
   });
 
-  const getSubmissionsByStatus = (status: string) => {
-    return filteredSubmissions.filter(sub => sub.status === status);
-  };
+  const getSubmissionsByStatus = (stage: string) =>
+    filteredSubmissions.filter((x) => x.stage === stage).map((x) => x.sub);
+
+  /** Der Kanban ist die Arbeitsansicht: nur belegte UND laufende Phasen. Leere
+   *  Spalten zeigen nichts, beendete Vorgaenge sind erledigt — beide zusammen
+   *  fressen die Breite, die den aktiven Phasen fehlt. Die Zahlen zu Absagen
+   *  stehen vollstaendig in der Uebersicht darueber. */
+  const visibleColumns = useMemo(() => {
+    const counts = new Map<CanonicalStage, number>();
+    filteredSubmissions.forEach(({ stage }) => counts.set(stage, (counts.get(stage) ?? 0) + 1));
+    const belegt = STAGE_COLUMNS.filter((c) => (counts.get(c.key) ?? 0) > 0);
+    const aktiv = belegt.filter((c) => !c.closed);
+    const beendet = belegt.filter((c) => c.closed);
+    return {
+      columns: showClosed ? belegt : aktiv,
+      leer: STAGE_COLUMNS.filter((c) => !c.closed).length - aktiv.length,
+      beendetSpalten: beendet.length,
+      beendetCount: beendet.reduce((sum, c) => sum + (counts.get(c.key) ?? 0), 0),
+    };
+  }, [filteredSubmissions, showClosed]);
+
+  /** Funnel-Zahlen aus derselben Quelle wie der Kanban. Vorher speiste sich die
+   *  Uebersicht aus useRecruiterStats mit eigenem Stage-Vokabular und zeigte
+   *  deshalb andere Zahlen als die Spalten 200 px darunter. */
+  const funnelBreakdown = useMemo(() => {
+    const acc = new Map<CanonicalStage, { count: number; potentialEarning: number }>();
+    normalized.forEach(({ sub, stage }) => {
+      const job = sub.jobs as any;
+      const min = job?.salary_min ?? null;
+      const max = job?.salary_max ?? null;
+      const pct = job?.recruiter_fee_percentage ?? null;
+      const avg = min && max ? (min + max) / 2 : min || max || 0;
+      const fee = pct && avg ? Math.round(avg * (pct / 100)) : 0;
+      const cur = acc.get(stage) ?? { count: 0, potentialEarning: 0 };
+      acc.set(stage, { count: cur.count + 1, potentialEarning: cur.potentialEarning + fee });
+    });
+    return STAGE_COLUMNS.map((c) => ({
+      stage: c.key,
+      label: c.label,
+      closed: !!c.closed,
+      count: acc.get(c.key)?.count ?? 0,
+      potentialEarning: acc.get(c.key)?.potentialEarning ?? 0,
+    }));
+  }, [normalized]);
+
+  /** Kopfzeile: "in Bearbeitung" darf nur zaehlen, was wirklich laeuft. */
+  const activeCount = useMemo(
+    () => normalized.filter(({ stage }) => !isClosedStage(stage)).length,
+    [normalized],
+  );
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -256,7 +363,7 @@ export default function RecruiterSubmissions() {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = STATUS_COLUMNS.find(s => s.key === status);
+    const statusConfig = STAGE_COLUMNS.find(s => s.key === status);
     return (
       <Badge className={`${statusConfig?.color || 'bg-muted'} text-white`}>
         {statusConfig?.label || status}
@@ -294,7 +401,13 @@ export default function RecruiterSubmissions() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Meine Pipeline</h1>
               <p className="text-muted-foreground">
-                {submissions.length} Kandidaten in Bearbeitung
+                {activeCount} in Bearbeitung
+                {submissions.length > activeCount && (
+                  <span className="text-muted-foreground/70">
+                    {' '}
+                    · {submissions.length - activeCount} beendet
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex gap-2">
@@ -322,7 +435,7 @@ export default function RecruiterSubmissions() {
           </div>
 
           {/* Submissions Funnel Overview */}
-          <SubmissionsFunnelGrid statusBreakdown={recruiterStats.statusBreakdown} />
+          <SubmissionsFunnelGrid breakdown={funnelBreakdown} />
 
           {/* Filters */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -354,7 +467,7 @@ export default function RecruiterSubmissions() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Alle Status</SelectItem>
-                  {STATUS_COLUMNS.map((status) => (
+                  {STAGE_COLUMNS.map((status) => (
                     <SelectItem key={status.key} value={status.key}>
                       {status.label}
                     </SelectItem>
@@ -366,12 +479,36 @@ export default function RecruiterSubmissions() {
 
           {/* Kanban View */}
           {viewMode === 'kanban' && (
+            <>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {visibleColumns.leer > 0 && <span>{visibleColumns.leer} leere Phasen ausgeblendet</span>}
+              {visibleColumns.beendetCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowClosed((v) => !v)}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {showClosed
+                    ? `${visibleColumns.beendetCount} beendete ausblenden`
+                    : `${visibleColumns.beendetCount} beendete einblenden`}
+                </button>
+              )}
+            </div>
+            {/* Spalten teilen sich die Breite (flex-1 + basis-0) und greifen erst
+                bei zu vielen Phasen auf Scrollen zurueck — vorher belegte jede
+                fix 320 px, wodurch schon drei Spalten den Bereich sprengten. */}
             <div className="overflow-x-auto pb-4">
-              <div className="flex gap-4 min-w-max">
-                {STATUS_COLUMNS.map((column) => {
+              <div className="flex gap-4">
+                {visibleColumns.columns.map((column) => {
                   const columnSubmissions = getSubmissionsByStatus(column.key);
                   return (
-                    <div key={column.key} className="w-80 flex-shrink-0">
+                    <div
+                      key={column.key}
+                      className={cn(
+                        'min-w-[15rem] flex-1 basis-0',
+                        column.closed && 'opacity-75',
+                      )}
+                    >
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`h-3 w-3 rounded-full ${column.color}`} />
                         <h3 className="font-semibold">{column.label}</h3>
@@ -389,10 +526,10 @@ export default function RecruiterSubmissions() {
                             <Card key={sub.id} className="cursor-pointer hover:shadow-md transition-shadow">
                               <CardContent className="p-4">
                                 <div className="space-y-3">
-                                  <div className="flex items-start justify-between">
-                                    <div>
-                                      <p className="font-medium">{sub.candidates?.full_name}</p>
-                                      <p className="text-sm text-muted-foreground">{sub.candidates?.email}</p>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate font-medium">{sub.candidates?.full_name}</p>
+                                      <p className="truncate text-sm text-muted-foreground">{sub.candidates?.email}</p>
                                     </div>
                                     {alertCount > 0 && (
                                       <Badge variant={criticalCount > 0 ? "destructive" : "secondary"} className="text-xs">
@@ -450,18 +587,16 @@ export default function RecruiterSubmissions() {
                                     <Clock className="h-3 w-3" />
                                     <span>{formatDate(sub.updated_at)}</span>
                                   </div>
-                                  {sub.client_notes && (
+                                  {clientNoteText(sub.client_notes) && (
                                     <div className="flex items-start gap-2 text-xs bg-muted/50 p-2 rounded">
                                       <MessageSquare className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                                      <span className="line-clamp-2">{sub.client_notes}</span>
+                                      <span className="line-clamp-2">{clientNoteText(sub.client_notes)}</span>
                                     </div>
                                   )}
-                                  {sub.interviews && sub.interviews.length > 0 && (
+                                  {nextInterviewDate(sub) && (
                                     <div className="flex items-center gap-2 text-xs text-purple-600">
                                       <Calendar className="h-3 w-3" />
-                                      <span>
-                                        Interview: {new Date(sub.interviews[0].scheduled_at).toLocaleDateString('de-DE')}
-                                      </span>
+                                      <span>Interview: {nextInterviewDate(sub)}</span>
                                     </div>
                                   )}
                                   {sub.rejection_reason && (
@@ -480,17 +615,13 @@ export default function RecruiterSubmissions() {
                             </Card>
                           );
                         })}
-                        {columnSubmissions.length === 0 && (
-                          <div className="text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-                            Keine Kandidaten
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
+            </>
           )}
 
           {/* List View */}
@@ -514,10 +645,10 @@ export default function RecruiterSubmissions() {
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {filteredSubmissions.map((sub) => {
+                    {filteredSubmissions.map(({ sub, stage }) => {
                       const behavior = getBehavior(sub);
                       const alertCount = getAlertCount(sub);
-                      
+
                       return (
                         <div key={sub.id} className="p-4 hover:bg-muted/30 transition-colors">
                           <div className="flex items-center justify-between gap-4">
@@ -587,7 +718,7 @@ export default function RecruiterSubmissions() {
                             <div className="hidden lg:block text-sm text-muted-foreground">
                               {formatDate(sub.updated_at)}
                             </div>
-                            {getStatusBadge(sub.status)}
+                            {getStatusBadge(stage)}
                             
                             {/* Quick Actions in List */}
                             <div className="flex items-center gap-1">
@@ -618,9 +749,10 @@ export default function RecruiterSubmissions() {
                               </Button>
                             </div>
                           </div>
-                          {sub.client_notes && (
+                          {clientNoteText(sub.client_notes) && (
                             <div className="mt-3 ml-14 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                              <span className="font-medium">Feedback:</span> {sub.client_notes}
+                              <span className="font-medium">Feedback:</span>{' '}
+                              {clientNoteText(sub.client_notes)}
                             </div>
                           )}
                         </div>

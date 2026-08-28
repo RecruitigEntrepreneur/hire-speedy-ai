@@ -42,6 +42,9 @@ import { cn } from '@/lib/utils';
 import { JobActionCard } from '@/components/recruiter/JobActionCard';
 import { JobPreviewPanel } from '@/components/recruiter/JobPreviewPanel';
 import { ActivationConfirmDialog, SlotLimitDialog } from '@/components/recruiter/ActivationConfirmDialog';
+import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { TrustLevelBadge } from '@/components/recruiter/TrustLevelBadge';
 import { useJobSubmissionStats } from '@/hooks/useJobSubmissionStats';
 import { useRecruiterTrustLevel } from '@/hooks/useRecruiterTrustLevel';
@@ -52,19 +55,12 @@ import { de } from 'date-fns/locale';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface CompanyProfile {
-  logo_url: string | null;
-  website: string | null;
-  headcount: number | null;
-  industry: string | null;
-}
-
 interface Job {
   id: string;
-  client_id: string;
   title: string;
-  company_name: string;
-  description?: string;
+  // Nur nach dem Reveal befuellt — recruiter_jobs_view liefert sonst null.
+  company_name: string | null;
+  description?: string | null;
   location: string;
   remote_type: string;
   employment_type: string;
@@ -74,6 +70,7 @@ interface Job {
   recruiter_fee_percentage: number;
   skills: string[];
   created_at: string;
+  updated_at?: string | null;
   industry: string | null;
   company_size_band: string | null;
   funding_stage: string | null;
@@ -82,6 +79,9 @@ interface Job {
 }
 
 type TabKey = 'all' | 'urgent' | 'new' | 'top' | 'revealed';
+type SortKey = 'newest' | 'fee' | 'competition';
+
+const TOP_TAB_LIMIT = 10;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -185,15 +185,14 @@ export default function RecruiterJobs() {
   // Data
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyProfiles, setCompanyProfiles] = useState<Record<string, CompanyProfile>>({});
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
-  const [revealedCompanyNames, setRevealedCompanyNames] = useState<Map<string, string>>(new Map());
 
   // UI State
   const [searchQuery, setSearchQuery] = useState('');
   const [remoteFilter, setRemoteFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
   const [industryFilter, setIndustryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [activeJobSubmissions, setActiveJobSubmissions] = useState<ActiveJobSubmission[]>([]);
@@ -201,6 +200,18 @@ export default function RecruiterJobs() {
   // Activation dialogs
   const [activationDialogJobId, setActivationDialogJobId] = useState<string | null>(null);
   const [slotLimitOpen, setSlotLimitOpen] = useState(false);
+
+  // Quick-submit dialog (after activation or from success step)
+  const [submitDialogJob, setSubmitDialogJob] = useState<{ jobId: string; title: string; candidateId?: string } | null>(null);
+
+  // Viewport: Preview-Panel inline (lg+) vs. Sheet (mobile)
+  const [isLgUp, setIsLgUp] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setIsLgUp(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   // Active jobs scroll ref
   const activeScrollRef = useRef<HTMLDivElement>(null);
@@ -230,9 +241,16 @@ export default function RecruiterJobs() {
   const { stats: submissionStats, kpis, computeKpis } = useJobSubmissionStats(jobIds);
 
   // Trust level & job activations (DB-based, replaces localStorage)
-  const { trustLevel, refetch: refetchTrust, getLevelInfo, canActivate } = useRecruiterTrustLevel();
+  const { trustLevel, refetch: refetchTrust, getLevelInfo } = useRecruiterTrustLevel();
   const { isActivated, activateJob, activatedJobIds, refetch: refetchActivations } = useJobActivation(jobIds);
   const activeJobIds = useMemo(() => new Set(activatedJobIds), [activatedJobIds]);
+
+  // Fallback bis Repair-Migration deployed ist: active_count in der DB wird
+  // nicht gepflegt (Trigger fehlt live) — echte Aktivierungen zählen mit.
+  const effectiveActiveCount = Math.max(trustLevel?.active_count ?? 0, activatedJobIds.length);
+  const effectiveCanActivate = !!trustLevel
+    && trustLevel.trust_level !== 'suspended'
+    && effectiveActiveCount < (trustLevel.max_active_slots ?? 5);
 
   // ─── Data Fetching ──────────────────────────────────────────────────────
 
@@ -252,30 +270,16 @@ export default function RecruiterJobs() {
 
   const fetchJobs = async () => {
     try {
+      // recruiter_jobs_view statt jobs: maskiert die Firmenidentitaet
+      // serverseitig und liefert company_name erst nach dem Reveal.
       const { data, error } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('*')
         .eq('status', 'published')
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        setJobs(data);
-
-        const clientIds = [...new Set(data.map(j => j.client_id).filter(Boolean))];
-        if (clientIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('company_profiles')
-            .select('user_id, logo_url, website, headcount, industry')
-            .in('user_id', clientIds);
-
-          if (profiles) {
-            const map: Record<string, CompanyProfile> = {};
-            profiles.forEach(p => {
-              map[p.user_id] = { logo_url: p.logo_url, website: p.website, headcount: p.headcount, industry: p.industry };
-            });
-            setCompanyProfiles(map);
-          }
-        }
+        setJobs(data as unknown as Job[]);
       }
     } catch (err) {
       console.error('Error fetching jobs:', err);
@@ -287,21 +291,16 @@ export default function RecruiterJobs() {
   const fetchRevealedJobs = async () => {
     if (!user) return;
     try {
+      // Kein Join auf jobs mehr: den Firmennamen liefert recruiter_jobs_view
+      // selbst — und zwar nur dann, wenn dieser Recruiter den Reveal hat.
       const { data } = await supabase
         .from('submissions')
-        .select('job_id, jobs(company_name)')
+        .select('job_id')
         .eq('recruiter_id', user.id)
         .eq('company_revealed', true);
 
       if (data) {
-        const ids = new Set<string>();
-        const names = new Map<string, string>();
-        data.forEach((s: any) => {
-          ids.add(s.job_id);
-          if (s.jobs?.company_name) names.set(s.job_id, s.jobs.company_name);
-        });
-        setRevealedJobIds(ids);
-        setRevealedCompanyNames(names);
+        setRevealedJobIds(new Set(data.map(s => s.job_id)));
       }
     } catch (err) {
       console.error('Error fetching revealed jobs:', err);
@@ -334,30 +333,33 @@ export default function RecruiterJobs() {
 
   const handleActivateClick = useCallback((jobId: string) => {
     if (isActivated(jobId)) return; // Already activated, irreversible
-    if (!canActivate) {
+    if (!effectiveCanActivate) {
       setSlotLimitOpen(true);
       return;
     }
     setActivationDialogJobId(jobId);
-  }, [isActivated, canActivate]);
+  }, [isActivated, effectiveCanActivate]);
 
-  const handleConfirmActivation = useCallback(async () => {
-    if (!activationDialogJobId || !trustLevel) return;
+  const handleConfirmActivation = useCallback(async (): Promise<boolean> => {
+    if (!activationDialogJobId || !trustLevel) return false;
     const result = await activateJob(activationDialogJobId, trustLevel.trust_level);
     if (result.success) {
       refetchTrust();
+      return true;
     }
-    setActivationDialogJobId(null);
+    return false;
   }, [activationDialogJobId, trustLevel, activateJob, refetchTrust]);
 
-  // Combined reveal: submission-based OR activation-based
+  // Reveal ist ausschliesslich submission-basiert (company_revealed = true).
+  // Eine Aktivierung ist KEIN Reveal: sie sagt nur, dass der Recruiter an dem
+  // Job arbeitet, nicht dass der Kunde seine Identitaet freigegeben hat.
   const isJobRevealed = useCallback((jobId: string): boolean => {
-    return revealedJobIds.has(jobId) || isActivated(jobId);
-  }, [revealedJobIds, isActivated]);
+    return revealedJobIds.has(jobId);
+  }, [revealedJobIds]);
 
   const getRevealedCompanyName = useCallback((jobId: string): string | undefined => {
-    return revealedCompanyNames.get(jobId) || (isActivated(jobId) ? jobs.find(j => j.id === jobId)?.company_name : undefined);
-  }, [revealedCompanyNames, isActivated, jobs]);
+    return jobs.find(j => j.id === jobId)?.company_name ?? undefined;
+  }, [jobs]);
 
   const closePreview = useCallback(() => {
     setSelectedJobId(null);
@@ -365,9 +367,9 @@ export default function RecruiterJobs() {
 
   // ─── Filtering ──────────────────────────────────────────────────────────
 
-  const oneWeekAgo = useMemo(() => {
+  const newSince = useMemo(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 7);
+    d.setDate(d.getDate() - 14);
     return d;
   }, []);
 
@@ -377,7 +379,7 @@ export default function RecruiterJobs() {
   }, [jobs]);
 
   const filteredJobs = useMemo(() => {
-    let result = jobs.filter(job => {
+    const result = jobs.filter(job => {
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q ||
         job.title.toLowerCase().includes(q) ||
@@ -388,22 +390,30 @@ export default function RecruiterJobs() {
       const matchesIndustry = industryFilter === 'all' || job.industry === industryFilter;
 
       if (activeTab === 'urgent') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && job.hiring_urgency === 'urgent';
-      if (activeTab === 'new') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && new Date(job.created_at) >= oneWeekAgo;
+      if (activeTab === 'new') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && new Date(job.created_at) >= newSince;
       if (activeTab === 'revealed') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && revealedJobIds.has(job.id);
 
       return matchesSearch && matchesRemote && matchesLevel && matchesIndustry;
     });
 
+    const earningOf = (j: Job) => calculateEarning(j.salary_min, j.salary_max, j.recruiter_fee_percentage) || 0;
+
     if (activeTab === 'top') {
-      result = [...result].sort((a, b) => {
-        const ea = calculateEarning(a.salary_min, a.salary_max, a.recruiter_fee_percentage) || 0;
-        const eb = calculateEarning(b.salary_min, b.salary_max, b.recruiter_fee_percentage) || 0;
-        return eb - ea;
-      });
+      return [...result].sort((a, b) => earningOf(b) - earningOf(a)).slice(0, TOP_TAB_LIMIT);
     }
 
-    return result;
-  }, [jobs, searchQuery, remoteFilter, levelFilter, industryFilter, activeTab, revealedJobIds, oneWeekAgo]);
+    // Dringende Jobs immer gepinnt, danach gewählte Sortierung
+    return [...result].sort((a, b) => {
+      const ua = a.hiring_urgency === 'urgent' ? 1 : 0;
+      const ub = b.hiring_urgency === 'urgent' ? 1 : 0;
+      if (ua !== ub) return ub - ua;
+      if (sortBy === 'fee') return earningOf(b) - earningOf(a);
+      if (sortBy === 'competition') {
+        return (submissionStats[a.id]?.recruiterCount ?? 0) - (submissionStats[b.id]?.recruiterCount ?? 0);
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [jobs, searchQuery, remoteFilter, levelFilter, industryFilter, activeTab, revealedJobIds, newSince, sortBy, submissionStats]);
 
   const myActiveJobsData = useMemo(() => {
     return jobs
@@ -430,10 +440,11 @@ export default function RecruiterJobs() {
           stage: bestSub?.stage || null,
           submittedAt: bestSub?.submitted_at || null,
           companyRevealed: bestSub?.company_revealed || revealedJobIds.has(j.id),
-          companyName: revealedCompanyNames.get(j.id) || j.company_name,
+          // Kommt aus recruiter_jobs_view und ist ohne Reveal bereits null.
+          companyName: j.company_name,
         };
       });
-  }, [jobs, activeJobIds, submissionStats, activeJobSubmissions, revealedJobIds, revealedCompanyNames]);
+  }, [jobs, activeJobIds, submissionStats, activeJobSubmissions, revealedJobIds]);
 
   const selectedJob = useMemo(() => jobs.find(j => j.id === selectedJobId), [jobs, selectedJobId]);
   const isPanelOpen = !!selectedJob;
@@ -441,10 +452,10 @@ export default function RecruiterJobs() {
   const tabCounts = useMemo(() => ({
     all: jobs.length,
     urgent: jobs.filter(j => j.hiring_urgency === 'urgent').length,
-    new: jobs.filter(j => new Date(j.created_at) >= oneWeekAgo).length,
-    top: jobs.length,
+    new: jobs.filter(j => new Date(j.created_at) >= newSince).length,
+    top: Math.min(TOP_TAB_LIMIT, jobs.length),
     revealed: revealedJobIds.size,
-  }), [jobs, revealedJobIds, oneWeekAgo]);
+  }), [jobs, revealedJobIds, newSince]);
 
   const urgentCount = tabCounts.urgent;
 
@@ -632,22 +643,22 @@ export default function RecruiterJobs() {
               />
             </div>
             <Select value={remoteFilter} onValueChange={setRemoteFilter}>
-              <SelectTrigger className="w-[100px] h-8 text-xs">
+              <SelectTrigger className="w-[120px] h-8 text-xs">
                 <SelectValue placeholder="Remote" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle</SelectItem>
+                <SelectItem value="all">Remote: alle</SelectItem>
                 <SelectItem value="remote">Remote</SelectItem>
                 <SelectItem value="hybrid">Hybrid</SelectItem>
                 <SelectItem value="onsite">Vor Ort</SelectItem>
               </SelectContent>
             </Select>
             <Select value={levelFilter} onValueChange={setLevelFilter}>
-              <SelectTrigger className="w-[100px] h-8 text-xs">
+              <SelectTrigger className="w-[110px] h-8 text-xs">
                 <SelectValue placeholder="Level" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle</SelectItem>
+                <SelectItem value="all">Level: alle</SelectItem>
                 <SelectItem value="junior">Junior</SelectItem>
                 <SelectItem value="mid">Mid</SelectItem>
                 <SelectItem value="senior">Senior</SelectItem>
@@ -657,17 +668,27 @@ export default function RecruiterJobs() {
             </Select>
             {industries.length > 0 && (
               <Select value={industryFilter} onValueChange={setIndustryFilter}>
-                <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectTrigger className="w-[130px] h-8 text-xs">
                   <SelectValue placeholder="Branche" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Alle</SelectItem>
+                  <SelectItem value="all">Branche: alle</SelectItem>
                   {industries.map(ind => (
                     <SelectItem key={ind} value={ind}>{ind}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+              <SelectTrigger className="w-[150px] h-8 text-xs">
+                <SelectValue placeholder="Sortierung" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Neueste zuerst</SelectItem>
+                <SelectItem value="fee">Höchste Fee</SelectItem>
+                <SelectItem value="competition">Wenig Konkurrenz</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex gap-1 flex-wrap">
@@ -724,11 +745,9 @@ export default function RecruiterJobs() {
                     earning={earning}
                     isRevealed={isJobRevealed(job.id)}
                     revealedCompanyName={getRevealedCompanyName(job.id)}
-                    profile={companyProfiles[job.client_id]}
                     isSelected={selectedJobId === job.id}
                     isActive={isActivated(job.id)}
                     recruiterCount={stats?.recruiterCount || 0}
-                    pipelinePercent={stats ? Math.round((stats.submissionCount / 10) * 100) : 0}
                     submittedCount={stats?.submissionCount || 0}
                     onSelect={() => {
                       if (selectedJobId === job.id) {
@@ -754,7 +773,6 @@ export default function RecruiterJobs() {
                     earning={calculateEarning(selectedJob.salary_min, selectedJob.salary_max, selectedJob.recruiter_fee_percentage)}
                     isRevealed={isJobRevealed(selectedJob.id)}
                     revealedCompanyName={getRevealedCompanyName(selectedJob.id)}
-                    profile={companyProfiles[selectedJob.client_id]}
                     isActive={isActivated(selectedJob.id)}
                     onToggleActive={() => handleActivateClick(selectedJob.id)}
                     onClose={closePreview}
@@ -784,10 +802,25 @@ export default function RecruiterJobs() {
               urgency: dialogJob.hiring_urgency,
               remoteType: dialogJob.remote_type,
             })}
-            activeCount={trustLevel.active_count}
+            earning={calculateEarning(dialogJob.salary_min, dialogJob.salary_max, dialogJob.recruiter_fee_percentage)}
+            feePercentage={dialogJob.recruiter_fee_percentage}
+            hiringUrgency={dialogJob.hiring_urgency}
+            recruiterCount={submissionStats[dialogJob.id]?.recruiterCount || 0}
+            activeCount={effectiveActiveCount}
             maxSlots={trustLevel.max_active_slots}
-            levelInfo={getLevelInfo()}
+            companyName={dialogJob.company_name}
+            companyLogoUrl={null}
+            companyIndustry={dialogJob.industry}
+            companyLocation={dialogJob.location}
             onConfirm={handleConfirmActivation}
+            onSubmitCandidate={(candidateId) => {
+              setActivationDialogJobId(null);
+              setSubmitDialogJob({ jobId: dialogJob.id, title: dialogJob.title, candidateId });
+            }}
+            onGoToJob={() => {
+              setActivationDialogJobId(null);
+              navigate(`/recruiter/jobs/${dialogJob.id}`);
+            }}
           />
         );
       })()}
@@ -797,11 +830,51 @@ export default function RecruiterJobs() {
         <SlotLimitDialog
           open={slotLimitOpen}
           onOpenChange={setSlotLimitOpen}
-          activeCount={trustLevel.active_count}
+          activeCount={effectiveActiveCount}
           maxSlots={trustLevel.max_active_slots}
           levelInfo={getLevelInfo()}
         />
       )}
+
+      {/* Mobile: Preview als Sheet statt verstecktem Panel */}
+      <Sheet open={isPanelOpen && !isLgUp} onOpenChange={(o) => { if (!o) closePreview(); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0">
+          {selectedJob && (
+            <div className="h-full overflow-hidden pt-8">
+              <JobPreviewPanel
+                job={selectedJob}
+                earning={calculateEarning(selectedJob.salary_min, selectedJob.salary_max, selectedJob.recruiter_fee_percentage)}
+                isRevealed={isJobRevealed(selectedJob.id)}
+                revealedCompanyName={getRevealedCompanyName(selectedJob.id)}
+                isActive={isActivated(selectedJob.id)}
+                onToggleActive={() => handleActivateClick(selectedJob.id)}
+                onClose={closePreview}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Quick-Submit Dialog (from activation success step) */}
+      <Dialog open={!!submitDialogJob} onOpenChange={(o) => { if (!o) setSubmitDialogJob(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Kandidat einreichen</DialogTitle>
+          </DialogHeader>
+          {submitDialogJob && (
+            <CandidateSubmitForm
+              jobId={submitDialogJob.jobId}
+              jobTitle={submitDialogJob.title}
+              initialCandidateId={submitDialogJob.candidateId}
+              onSuccess={() => {
+                setSubmitDialogJob(null);
+                fetchRevealedJobs();
+                refetchActivations();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

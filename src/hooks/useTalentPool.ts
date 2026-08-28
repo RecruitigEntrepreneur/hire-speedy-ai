@@ -214,15 +214,12 @@ export function useTalentAlerts() {
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['talent-alerts', user?.id],
     queryFn: async () => {
+      // Kein jobs(...)-Join: Recruiter lesen Jobs nur ueber
+      // recruiter_jobs_view — der Join liefert sonst still null.
       const { data, error } = await supabase
         .from('talent_alerts')
         .select(`
           *,
-          jobs (
-            title,
-            company_name,
-            location
-          ),
           talent_pool (
             *,
             candidates (
@@ -235,6 +232,17 @@ export function useTalentAlerts() {
         .order('match_score', { ascending: false });
 
       if (error) throw error;
+
+      const alertJobIds = [...new Set((data || []).map((a: any) => a.job_id).filter(Boolean))] as string[];
+      if (alertJobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('recruiter_jobs_view')
+          .select('id, title, company_name, location')
+          .in('id', alertJobIds);
+        const jobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+        (data || []).forEach((a: any) => { a.jobs = jobsById[a.job_id] ?? null; });
+      }
+
       return data as TalentAlert[];
     },
     enabled: !!user,

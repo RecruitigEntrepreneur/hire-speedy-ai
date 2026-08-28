@@ -38,6 +38,7 @@ interface CandidateSubmitFormProps {
   jobId: string;
   jobTitle: string;
   mustHaves?: string[];
+  initialCandidateId?: string;
   onSuccess: () => void;
 }
 
@@ -57,7 +58,7 @@ interface ExistingCandidate {
   cv_ai_bullets: Json | null;
 }
 
-export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess }: CandidateSubmitFormProps) {
+export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCandidateId, onSuccess }: CandidateSubmitFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { calculateSingleMatch, loading: matchLoading } = useMatchScoreV31();
@@ -153,6 +154,15 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], onSuccess
   useEffect(() => {
     fetchExistingCandidates();
   }, []);
+
+  // Preselect candidate when opened from quick-submit (activation success step)
+  useEffect(() => {
+    if (!initialCandidateId || selectedCandidate || createNew) return;
+    if (existingCandidates.some(c => c.id === initialCandidateId)) {
+      handleCandidateSelect(initialCandidateId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCandidateId, existingCandidates]);
 
   const fetchExistingCandidates = async () => {
     if (!user) return;

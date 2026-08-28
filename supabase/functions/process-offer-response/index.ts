@@ -118,7 +118,8 @@ serve(async (req) => {
         // Update submission status
         await supabase
           .from('submissions')
-          .update({ status: 'placed', stage: 'placed' })
+          // Nur stage schreiben — status leitet der DB-Trigger ab.
+          .update({ stage: 'placed' })
           .eq('id', offer.submission_id);
 
         // Calculate fees and create placement

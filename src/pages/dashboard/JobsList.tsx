@@ -443,8 +443,8 @@ export default function JobsList() {
                   )}
                   {lifecycle === 'active' && (
                     <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1 text-xs">
-                      <Link to={`/dashboard/command/${j.id}`}>
-                        <Users className="h-3.5 w-3.5" /> Pipeline{j.submissions_count > 0 ? ` (${j.submissions_count})` : ''}
+                      <Link to={`/dashboard/candidates?job=${j.id}&tab=alle`}>
+                        <Users className="h-3.5 w-3.5" /> Bewerber{j.submissions_count > 0 ? ` (${j.submissions_count})` : ''}
                       </Link>
                     </Button>
                   )}

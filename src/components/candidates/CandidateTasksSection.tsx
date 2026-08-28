@@ -30,6 +30,7 @@ import { de } from 'date-fns/locale';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { useRecruiterTasks } from '@/hooks/useRecruiterTasks';
+import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 
@@ -226,6 +227,10 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const [detailOpen, setDetailOpen] = useState(false);
   const { logActivity } = useActivityLogger();
   const { pendingTasks: manualTasks, completeTask } = useRecruiterTasks();
+  // Abgeleitete Aufgaben (Nachfassen/Debrief) aus derselben Quelle wie
+  // /recruiter/influence und das Dashboard — sonst behauptet die Sektion
+  // "Alles erledigt", während die Inbox offene Aufgaben zum Kandidaten zeigt.
+  const { allItems: inboxItems, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
 
   // Horizontal scroll
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -289,7 +294,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
       // Fetch job info for enrichment
       const jobIds = [...new Set(submissions.map(s => s.job_id))];
       const { data: jobs } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('id, title, company_name')
         .in('id', jobIds);
 
@@ -367,6 +372,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   };
 
   const handleMarkDoneFromDialog = async (taskId: string) => {
+    if (detailItem?.itemType === 'derived') {
+      const item = inboxItems.find(i => i.itemId === taskId);
+      if (item) await handleCompleteDerivedTask(item);
+      return;
+    }
     await handleMarkDone(taskId);
   };
 
@@ -416,6 +426,49 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const completedTasks = tasks.filter(t => t.action_taken);
   const exposeTasks = buildExposeTasks(candidate, hasInterview);
   const candidateManualTasks = manualTasks.filter(t => t.candidate_id === candidateId);
+  const derivedTasks = inboxItems.filter(i => i.itemType === 'derived' && i.candidateId === candidateId);
+
+  const derivedLabel = (category: string) =>
+    category === 'interview_debrief_due' ? 'Debrief' : 'Nachfassen';
+
+  const handleCompleteDerivedTask = async (item: UnifiedTaskItem, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await inboxMarkDone('derived', item.itemId);
+    await logActivity(
+      candidateId,
+      'alert_actioned',
+      `Aufgabe erledigt: ${item.title}`,
+      undefined,
+      { item_type: 'derived', task_category: item.taskCategory },
+      item.submissionId || undefined
+    );
+    toast.success('Erledigt — kommt wieder, falls sich weiterhin nichts bewegt');
+  };
+
+  const openDerivedDetail = (item: UnifiedTaskItem) => {
+    setDetailItem({
+      itemType: 'derived',
+      itemId: item.itemId,
+      title: item.title,
+      description: item.description,
+      recommendedAction: item.recommendedAction,
+      taskCategory: item.taskCategory,
+      priority: item.priority,
+      submissionId: item.submissionId,
+      candidateId,
+      jobId: item.jobId,
+      playbookId: null,
+      createdAt: item.createdAt,
+      dueAt: item.dueAt,
+      impactScore: item.impactScore,
+      candidateName: item.candidateName || candidate?.full_name || null,
+      candidatePhone: item.candidatePhone || contact.phone || null,
+      candidateEmail: item.candidateEmail || contact.email || null,
+      jobTitle: item.jobTitle,
+      companyName: item.companyName,
+    });
+    setDetailOpen(true);
+  };
 
   const handleCompleteManualTask = async (taskId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -494,7 +547,10 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     setDetailOpen(true);
   };
 
-  const totalPending = pendingTasks.length + exposeTasks.length + candidateManualTasks.length;
+  const totalPending = pendingTasks.length + exposeTasks.length + candidateManualTasks.length + derivedTasks.length;
+  const criticalCount =
+    pendingTasks.filter(t => t.priority === 'critical').length +
+    derivedTasks.filter(t => t.priority === 'critical').length;
 
   if (loading) {
     return (
@@ -526,9 +582,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Aufgaben{totalPending > 0 ? ` (${totalPending})` : ''}
           </span>
-          {pendingTasks.filter(t => t.priority === 'critical').length > 0 && (
+          {criticalCount > 0 && (
             <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
-              {pendingTasks.filter(t => t.priority === 'critical').length} kritisch
+              {criticalCount} kritisch
             </Badge>
           )}
           {completedTasks.length > 0 && totalPending === 0 && (
@@ -568,6 +624,68 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
             className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
+            {/* Abgeleitete Aufgaben (Nachfassen/Debrief) aus der Unified Inbox */}
+            {derivedTasks.map(item => {
+              const config = priorityConfig[item.priority];
+              return (
+                <div
+                  key={item.itemId}
+                  onClick={() => openDerivedDetail(item)}
+                  className={cn(
+                    'shrink-0 w-64 rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
+                    config.borderColor
+                  )}
+                >
+                  {/* Row 1: Badge + Fee */}
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', config.color)}>
+                      {derivedLabel(item.taskCategory)}
+                    </Badge>
+                    {item.feeValue != null && item.feeValue > 0 && (
+                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        ~€{Math.round(item.feeValue / 1000)}k
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Row 2: Title (2 lines) */}
+                  <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{item.title}</p>
+
+                  {/* Row 3: Job context */}
+                  {(item.jobTitle || item.companyName) && (
+                    <div className="flex items-center gap-1 mt-1 min-w-0">
+                      <Shield className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {item.companyName || ''}{item.jobTitle ? ` · ${item.jobTitle}` : ''}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Row 4: Quick actions */}
+                  <div className="flex items-center justify-end mt-1.5 gap-0.5">
+                    {contact.phone && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${contact.phone}`; }}
+                      >
+                        <Phone className="h-2.5 w-2.5" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      onClick={(e) => handleCompleteDerivedTask(item, e)}
+                    >
+                      <Check className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
             {/* DB-based tasks (Influence Alerts) — enhanced cards */}
             {pendingTasks.map(task => {
               const config = priorityConfig[task.priority];
@@ -765,6 +883,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         item={detailItem}
         onMarkDone={handleMarkDoneFromDialog}
         onSnooze={async (itemId, until) => {
+          if (detailItem?.itemType === 'derived') {
+            await inboxSnooze('derived', itemId, until);
+            toast.success('Aufgabe zurückgestellt');
+            return;
+          }
           // Snooze: update snoozed_until on the alert
           const task = tasks.find(t => t.id === itemId);
           if (task) {

@@ -34,7 +34,8 @@ interface CompanyProfile {
 interface JobPreviewPanelProps {
   job: {
     id: string;
-    client_id: string;
+    // client_id bewusst nicht Teil der Props: recruiter_jobs_view liefert die
+    // Spalte seit Welle 1 nicht mehr aus (Identitaetsvektor).
     title: string;
     company_name: string;
     description?: string;

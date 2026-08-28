@@ -82,7 +82,7 @@ export function CreateTaskDialog({
           .order('full_name')
           .limit(100),
         supabase
-          .from('jobs')
+          .from('recruiter_jobs_view')
           .select('id, title, company_name')
           .eq('status', 'published')
           .order('title')

@@ -4,6 +4,13 @@ export function generateAnonymousId(id: string): string {
   return `Kandidat #${id.slice(0, 8).toUpperCase()}`;
 }
 
+// DER eine Anonym-Code der Client-Seiten (Inbox, Cockpit, Jobseite, Agenda):
+// stabil pro Kandidat (candidate_id), nicht pro Bewerbung — derselbe Mensch
+// trägt überall dieselbe Kennung.
+export function candidateAnonCode(candidateId: string | null | undefined): string {
+  return `PR-${String(candidateId ?? '').slice(0, 6).toUpperCase()}`;
+}
+
 // Grobe Region statt spezifischer Stadt
 export function anonymizeRegionBroad(city: string | null): string {
   if (!city) return 'DACH';

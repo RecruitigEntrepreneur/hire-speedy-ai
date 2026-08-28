@@ -63,11 +63,11 @@ function getRequirementIcon(verdict: RequirementAssessment['verdict']) {
 
 function getVerdictLabel(verdict: RequirementAssessment['verdict']) {
   switch (verdict) {
-    case 'fulfilled': return 'Erfuellt';
+    case 'fulfilled': return 'Erfüllt';
     case 'partially_fulfilled': return 'Teilweise';
     case 'inferred_from_experience': return 'Abgeleitet';
     case 'trainable': return 'Trainierbar';
-    case 'gap': return 'Luecke';
+    case 'gap': return 'Lücke';
   }
 }
 
@@ -76,24 +76,37 @@ function getVerdictLabel(verdict: RequirementAssessment['verdict']) {
 // ============================================================================
 
 function RequirementRow({ req }: { req: RequirementAssessment }) {
+  // Belege nur zeigen, wenn sie über die Begründung hinausgehen — die KI liefert
+  // beide Felder oft wortgleich, und der doppelte Text liest sich wie ein Fehler.
+  const normalizedReasoning = (req.reasoning || '').trim().toLowerCase();
+  const extraEvidence = req.evidence
+    .slice(0, 2)
+    .filter((e) => {
+      const ev = (e || '').trim().toLowerCase();
+      return ev && ev !== normalizedReasoning && !normalizedReasoning.includes(ev) && !ev.includes(normalizedReasoning);
+    });
+
   return (
-    <div className="flex items-start gap-2 py-1.5">
-      <div className="mt-0.5">{getRequirementIcon(req.verdict)}</div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
+    <details className="group py-1">
+      <summary className="flex items-start gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <div className="mt-0.5">{getRequirementIcon(req.verdict)}</div>
+        <div className="min-w-0 flex-1 flex items-baseline gap-2">
           <span className="text-sm font-medium">{req.requirement}</span>
           {req.requirement_type === 'nice_to_have' && (
             <span className="text-[10px] text-muted-foreground">(Nice-to-have)</span>
           )}
         </div>
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-1 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="pl-6 pb-1.5">
         <p className="text-xs text-muted-foreground mt-0.5">{req.reasoning}</p>
-        {req.evidence.length > 0 && req.verdict !== 'gap' && (
+        {extraEvidence.length > 0 && req.verdict !== 'gap' && (
           <p className="text-[11px] text-muted-foreground/70 mt-0.5 italic">
-            Evidence: {req.evidence.slice(0, 2).join(' · ')}
+            Beleg: {extraEvidence.join(' · ')}
           </p>
         )}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -214,16 +227,37 @@ export function CandidateFitAssessmentCard({
 
           {/* Executive Summary */}
           <p className="text-sm leading-relaxed mt-3">{assessment.executive_summary}</p>
+
+          {/* Abgleich als Zahl: sofort erfassbar, Details darunter auf Klick */}
+          {assessment.requirement_assessments.length > 0 && (() => {
+            const total = assessment.requirement_assessments.length;
+            const ok = assessment.requirement_assessments.filter(r => r.verdict === 'fulfilled').length;
+            const semi = assessment.requirement_assessments.filter(r =>
+              r.verdict === 'partially_fulfilled' || r.verdict === 'inferred_from_experience' || r.verdict === 'trainable'
+            ).length;
+            const pct = Math.round(((ok + semi * 0.5) / total) * 100);
+            return (
+              <div className="flex items-center gap-3 mt-3">
+                <span className="text-xs font-medium shrink-0">Anforderungs-Abgleich</span>
+                <div className="flex-1 h-1.5 rounded-full bg-background/60 overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {ok} von {total} erfüllt{semi > 0 ? `, ${semi} teilweise` : ''}
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── Recruiter Notes (if any) ── */}
         {(recruiterNotes || (keySellingPoints && keySellingPoints.length > 0)) && (
           <div className="px-5 py-3 border-b bg-muted/20">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Das sagt Ihr Recruiter
+            </p>
             {recruiterNotes && (
-              <div className="flex items-start gap-2">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Recruiter:</span>
-                <p className="text-sm text-muted-foreground">{recruiterNotes}</p>
-              </div>
+              <p className="text-sm text-muted-foreground">{recruiterNotes}</p>
             )}
             {keySellingPoints && keySellingPoints.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -245,7 +279,7 @@ export function CandidateFitAssessmentCard({
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                Erfuellt ({fulfilled.length})
+                Erfüllt ({fulfilled.length})
               </p>
               <div className="divide-y divide-border/50">
                 {fulfilled.map((req, idx) => <RequirementRow key={idx} req={req} />)}
@@ -284,7 +318,7 @@ export function CandidateFitAssessmentCard({
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <XCircle className="h-3.5 w-3.5 text-red-400" />
-                Luecken ({gaps.length})
+                Lücken ({gaps.length})
                 {mustHaveGaps.length > 0 && (
                   <Badge variant="destructive" className="text-[9px] h-4 px-1">{mustHaveGaps.length} Must-Have</Badge>
                 )}
@@ -298,7 +332,7 @@ export function CandidateFitAssessmentCard({
           {/* Rejection reasoning for no-fit */}
           {isNoFit && assessment.rejection_reasoning && (
             <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-              <p className="text-[11px] font-semibold text-red-600 uppercase tracking-wider mb-1">Begruendung</p>
+              <p className="text-[11px] font-semibold text-red-600 uppercase tracking-wider mb-1">Begründung</p>
               <p className="text-sm text-muted-foreground">{assessment.rejection_reasoning}</p>
             </div>
           )}
@@ -341,7 +375,7 @@ export function CandidateFitAssessmentCard({
               {/* Gap Analysis with trainability */}
               {assessment.gap_analysis.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Luecken-Analyse</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lücken-Analyse</p>
                   <div className="space-y-2">
                     {assessment.gap_analysis.map((gap, idx) => (
                       <div key={idx} className={cn(

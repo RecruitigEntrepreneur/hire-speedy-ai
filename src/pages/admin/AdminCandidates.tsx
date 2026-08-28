@@ -52,6 +52,7 @@ interface Candidate {
     id: string;
     job_title: string;
     status: string;
+    stage: string;
     company_name: string;
     identity_unlocked: boolean;
     opt_in_response: string | null;
@@ -69,13 +70,18 @@ interface UnlockLog {
   created_at: string;
 }
 
-const STATUS_OPTIONS = [
+// Kanonisches Stage-Vokabular — muss zum CHECK submissions_stage_check passen
+// (Migration 20260725130000). Abweichende Werte lehnt die DB ab.
+const STAGE_OPTIONS = [
   { value: 'submitted', label: 'Eingereicht' },
-  { value: 'screening', label: 'Screening' },
-  { value: 'interview', label: 'Interview' },
-  { value: 'second_interview', label: '2. Interview' },
+  { value: 'in_review', label: 'In Prüfung' },
+  { value: 'interview_requested', label: 'Interview angefragt' },
+  { value: 'candidate_opted_in', label: 'Opt-In erteilt' },
+  { value: 'interview_scheduled', label: 'Interview geplant' },
+  { value: 'interview_completed', label: 'Interview geführt' },
   { value: 'offer', label: 'Angebot' },
-  { value: 'hired', label: 'Eingestellt' },
+  { value: 'placed', label: 'Vermittelt' },
+  { value: 'client_rejected', label: 'Vom Kunden abgelehnt' },
   { value: 'rejected', label: 'Abgelehnt' },
 ];
 
@@ -128,7 +134,7 @@ export default function AdminCandidates() {
     const candidateIds = candidatesData.map(c => c.id);
     const { data: submissionsData } = await supabase
       .from('submissions')
-      .select('id, candidate_id, status, identity_unlocked, opt_in_response, unlocked_at, job:jobs(title, company_name)')
+      .select('id, candidate_id, status, stage, identity_unlocked, opt_in_response, unlocked_at, job:jobs(title, company_name)')
       .in('candidate_id', candidateIds);
 
     const submissionMap: Record<string, any[]> = {};
@@ -141,6 +147,7 @@ export default function AdminCandidates() {
         job_title: s.job?.title || 'Unbekannt',
         company_name: s.job?.company_name || 'Unbekannt',
         status: s.status,
+        stage: s.stage,
         identity_unlocked: s.identity_unlocked || false,
         opt_in_response: s.opt_in_response,
         unlocked_at: s.unlocked_at,
@@ -196,10 +203,11 @@ export default function AdminCandidates() {
     setSelectedCandidate(null);
   };
 
-  const handleUpdateSubmissionStatus = async (submissionId: string, newStatus: string) => {
+  const handleUpdateSubmissionStage = async (submissionId: string, newStage: string) => {
+    // Nur stage schreiben — status leitet der Trigger ab.
     const { error } = await supabase
       .from('submissions')
-      .update({ status: newStatus, stage: newStatus })
+      .update({ stage: newStage })
       .eq('id', submissionId);
 
     if (error) {
@@ -285,8 +293,8 @@ export default function AdminCandidates() {
       c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.recruiter_name?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || 
-      c.submissions.some(s => s.status === statusFilter);
+    const matchesStatus = statusFilter === 'all' ||
+      c.submissions.some(s => s.stage === statusFilter);
     
     const matchesDuplicates = !duplicatesOnly || c.isDuplicate;
     
@@ -386,7 +394,7 @@ export default function AdminCandidates() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alle Status</SelectItem>
-                {STATUS_OPTIONS.map(opt => (
+                {STAGE_OPTIONS.map(opt => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -561,14 +569,14 @@ export default function AdminCandidates() {
                               <div className="flex items-center gap-2">
                                 {getIdentityStatusBadge(sub)}
                                 <Select 
-                                  value={sub.status} 
-                                  onValueChange={(val) => handleUpdateSubmissionStatus(sub.id, val)}
+                                  value={sub.stage} 
+                                  onValueChange={(val) => handleUpdateSubmissionStage(sub.id, val)}
                                 >
                                   <SelectTrigger className="w-[130px]">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {STATUS_OPTIONS.map(opt => (
+                                    {STAGE_OPTIONS.map(opt => (
                                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                     ))}
                                   </SelectContent>

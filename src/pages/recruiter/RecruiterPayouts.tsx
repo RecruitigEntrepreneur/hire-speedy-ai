@@ -64,18 +64,31 @@ export default function RecruiterPayouts() {
           payment_status,
           submission:submissions!inner (
             recruiter_id,
+            job_id,
             candidate:candidates (
               full_name
-            ),
-            job:jobs (
-              title,
-              company_name
             )
           )
         `)
         .eq("submission.recruiter_id", user.id);
 
       if (placementsError) throw placementsError;
+
+      // Job separat ueber recruiter_jobs_view: Recruiter duerfen public.jobs
+      // nicht mehr direkt lesen, ein eingebetteter Join liefert still null.
+      const payoutJobIds = [
+        ...new Set((placementsData || []).map((p: any) => p.submission?.job_id).filter(Boolean)),
+      ] as string[];
+      if (payoutJobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from("recruiter_jobs_view")
+          .select("id, title, company_name")
+          .in("id", payoutJobIds);
+        const jobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
+        (placementsData || []).forEach((p: any) => {
+          if (p.submission) p.submission.job = jobsById[p.submission.job_id] ?? null;
+        });
+      }
 
       // Fetch payout requests
       const { data: payoutRequests } = await supabase

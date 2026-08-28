@@ -164,7 +164,7 @@ export default function JobDetail() {
     try {
       // Fetch job details
       const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
+        .from('recruiter_jobs_view')
         .select('*')
         .eq('id', id)
         .single();
@@ -177,18 +177,9 @@ export default function JobDetail() {
       };
       setJob(typedJob);
 
-      // Fetch company profile for Partner Facts
-      if (jobData.client_id) {
-        const { data: profileData } = await supabase
-          .from('company_profiles')
-          .select('headcount, annual_revenue, founded_year, unique_selling_point, company_awards, industry')
-          .eq('user_id', jobData.client_id)
-          .maybeSingle();
-
-        if (profileData) {
-          setCompanyProfile(profileData);
-        }
-      }
+      // Kein company_profiles-Fetch mehr: recruiter_jobs_view liefert bewusst
+      // keine client_id, und company_profiles ist fuer Recruiter ohnehin per
+      // RLS gesperrt (der Aufruf lieferte immer 0 Zeilen).
 
       // Fetch my submissions for this job
       if (user) {

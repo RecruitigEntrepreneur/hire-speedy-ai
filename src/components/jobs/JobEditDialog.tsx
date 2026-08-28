@@ -36,20 +36,7 @@ import {
   Settings,
   Save,
   Trash2,
-  Pause,
-  Play,
-  XCircle,
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 interface Job {
   id: string;
@@ -94,7 +81,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
       setActiveTab(initialTab);
     }
   }, [open, initialTab]);
-  const [showCloseDialog, setShowCloseDialog] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -204,57 +190,12 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
     }
   };
 
-  const handleStatusChange = async (action: 'publish' | 'pause' | 'resume' | 'close') => {
-    if (!job) return;
-    
-    setSaving(true);
-    try {
-      let updates: Record<string, any> = {};
-      
-      switch (action) {
-        case 'publish':
-          updates = { status: 'pending_approval', paused_at: null };
-          break;
-        case 'pause':
-          updates = { paused_at: new Date().toISOString() };
-          break;
-        case 'resume':
-          updates = { paused_at: null };
-          break;
-        case 'close':
-          updates = { status: 'closed' };
-          setShowCloseDialog(false);
-          break;
-      }
-
-      const { error } = await supabase
-        .from('jobs')
-        .update(updates)
-        .eq('id', job.id);
-
-      if (error) throw error;
-
-      toast({ 
-        title: action === 'publish' ? 'Zur Prüfung eingereicht' :
-               action === 'pause' ? 'Job pausiert' :
-               action === 'resume' ? 'Job reaktiviert' :
-               'Job geschlossen'
-      });
-      onSave();
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({ title: 'Fehler', variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Lebenszyklus-Aktionen (Einreichen/Pausieren/Schließen) leben bewusst NICHT
+  // mehr in diesem Dialog: die Seite hat dafür die sicheren Flows (interne
+  // Freigabe-Routing im Entwurf, Konsequenz-Dialoge unter Verwalten).
 
   if (!job) return null;
 
-  const isPaused = !!job.paused_at;
-  const isDraft = job.status === 'draft';
-  const isClosed = job.status === 'closed';
 
   return (
     <>
@@ -579,51 +520,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
           <Separator />
 
           <DialogFooter className="px-6 py-4 flex-col sm:flex-row gap-2">
-            <div className="flex gap-2 flex-1">
-              {isDraft && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleStatusChange('publish')}
-                  disabled={saving}
-                  className="text-green-600 border-green-200 hover:bg-green-50"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Zur Prüfung einreichen
-                </Button>
-              )}
-              {!isDraft && !isClosed && (
-                isPaused ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleStatusChange('resume')}
-                    disabled={saving}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Reaktivieren
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleStatusChange('pause')}
-                    disabled={saving}
-                  >
-                    <Pause className="h-4 w-4 mr-2" />
-                    Pausieren
-                  </Button>
-                )
-              )}
-              {!isClosed && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCloseDialog(true)}
-                  disabled={saving}
-                  className="text-destructive border-destructive/20 hover:bg-destructive/10"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Schließen
-                </Button>
-              )}
-            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Abbrechen
@@ -641,27 +537,6 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
         </DialogContent>
       </Dialog>
 
-      {/* Close Confirmation Dialog */}
-      <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Job wirklich schließen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Wenn du diesen Job schließt, wird er nicht mehr für Recruiter sichtbar sein. 
-              Aktive Bewerbungen bleiben erhalten. Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleStatusChange('close')}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Job schließen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

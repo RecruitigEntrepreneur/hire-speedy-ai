@@ -25,16 +25,21 @@ export function NotificationBell() {
 
     switch (notification.related_type) {
       case "submission":
+        // related_id ist die submission_id — vorher landete der Recruiter auf
+        // der Pipeline-Liste und musste den Vorgang selbst suchen.
         return role === "recruiter"
-          ? `/recruiter/submissions`
-          : `/dashboard/candidates`;
+          ? `/recruiter/submissions/${notification.related_id}`
+          : `/dashboard/candidates/${notification.related_id}`;
       case "job":
         return role === "recruiter"
           ? `/recruiter/jobs/${notification.related_id}`
           : `/dashboard/jobs/${notification.related_id}`;
       case "interview":
+        // related_id ist die interview_id: ?interview= öffnet in der Recruiter-
+        // Agenda das Termin-Sheet für genau diesen Termin. Die Client-Agenda
+        // wertet den Parameter noch nicht aus — dort deshalb ohne.
         return role === "recruiter"
-          ? `/recruiter/submissions`
+          ? `/recruiter/interviews?interview=${notification.related_id}`
           : `/dashboard/interviews`;
       case "placement":
         return role === "recruiter"

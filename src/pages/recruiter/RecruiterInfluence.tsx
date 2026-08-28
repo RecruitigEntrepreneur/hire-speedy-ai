@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PerformanceIntel } from '@/components/influence/PerformanceIntel';
-import { TeamLeaderboard } from '@/components/influence/TeamLeaderboard';
+import { TodayInterviewsRail } from '@/components/influence/TodayInterviewsRail';
 import { PlaybookViewer } from '@/components/influence/PlaybookViewer';
 import { InfluenceScoreBadge } from '@/components/influence/InfluenceScoreBadge';
 import { TaskCard } from '@/components/influence/TaskCard';
@@ -16,7 +16,7 @@ import { useRecruiterInfluenceScore } from '@/hooks/useRecruiterInfluenceScore';
 import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
 import { useActionSession } from '@/hooks/useActionSession';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
-import { CheckSquare, Plus, Play, AlertCircle, Circle, ChevronDown, Loader2 } from 'lucide-react';
+import { CheckSquare, Plus, Play, AlertCircle, Circle, CalendarDays, CalendarRange, ChevronDown, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,15 +32,13 @@ export default function RecruiterInfluence() {
   const {
     items,
     allItems,
-    urgentItems,
-    openItems,
+    completedItems,
     loading,
     markDone,
     snooze,
     dismiss,
     filterCounts,
     pendingCount,
-    urgentCount,
     refetch,
   } = useUnifiedTaskInbox(activeFilter);
   const { score, loading: scoreLoading } = useRecruiterInfluenceScore();
@@ -82,7 +80,11 @@ export default function RecruiterInfluence() {
       );
     }
 
-    toast.success('Erledigt');
+    toast.success(
+      item.itemType === 'derived'
+        ? 'Erledigt — kommt wieder, falls sich weiterhin nichts bewegt'
+        : 'Erledigt'
+    );
   };
 
   const handleSnooze = async (item: typeof items[0], until: Date) => {
@@ -172,6 +174,35 @@ export default function RecruiterInfluence() {
 
   // Estimated session duration (3 min per task)
   const estimatedMinutes = Math.ceil(pendingCount * 3);
+
+  // Zeit-Gruppierung: Überfällig/Dringend → Heute → Diese Woche → Später.
+  // Items ohne dueAt landen bei "Später", außer sie sind kritisch.
+  const timeGroups = useMemo(() => {
+    const now = new Date();
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    const endOfWeek = new Date(now.getTime() + 7 * 86_400_000);
+
+    const overdue: typeof items = [];
+    const today: typeof items = [];
+    const week: typeof items = [];
+    const later: typeof items = [];
+
+    for (const item of items) {
+      const due = item.dueAt ? new Date(item.dueAt) : null;
+      if ((due && due < now) || item.priority === 'critical') overdue.push(item);
+      else if (due && due <= endOfToday) today.push(item);
+      else if (due && due <= endOfWeek) week.push(item);
+      else later.push(item);
+    }
+
+    return [
+      { key: 'overdue', label: `Überfällig & Dringend (${overdue.length})`, items: overdue, icon: <AlertCircle className="h-3 w-3" />, tone: 'text-destructive' },
+      { key: 'today', label: `Heute fällig (${today.length})`, items: today, icon: <CalendarDays className="h-3 w-3" />, tone: 'text-amber-600 dark:text-amber-400' },
+      { key: 'week', label: `Diese Woche (${week.length})`, items: week, icon: <CalendarRange className="h-3 w-3" />, tone: 'text-muted-foreground' },
+      { key: 'later', label: `Später & ohne Termin (${later.length})`, items: later, icon: <Circle className="h-3 w-3" />, tone: 'text-muted-foreground' },
+    ].filter(g => g.items.length > 0);
+  }, [items]);
 
   return (
     <DashboardLayout>
@@ -267,15 +298,14 @@ export default function RecruiterInfluence() {
               </Card>
             ) : (
               <>
-                {/* Urgent Section */}
-                {urgentItems.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Dringend ({urgentItems.length})
+                {timeGroups.map(group => (
+                  <div key={group.key} className="space-y-2">
+                    <p className={cn('text-xs font-medium uppercase tracking-wider flex items-center gap-1', group.tone)}>
+                      {group.icon}
+                      {group.label}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {urgentItems.map(item => (
+                      {group.items.map(item => (
                         <TaskCard
                           key={`${item.itemType}-${item.itemId}`}
                           item={item}
@@ -288,40 +318,17 @@ export default function RecruiterInfluence() {
                       ))}
                     </div>
                   </div>
-                )}
-
-                {/* Open Section */}
-                {openItems.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                      <Circle className="h-3 w-3" />
-                      Offen ({openItems.length})
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {openItems.map(item => (
-                        <TaskCard
-                          key={`${item.itemType}-${item.itemId}`}
-                          item={item}
-                          onMarkDone={() => handleMarkDone(item)}
-                          onSnooze={(until) => handleSnooze(item, until)}
-                          onDelete={item.itemType === 'task' ? () => handleDelete(item) : undefined}
-                          onOpenPlaybook={item.playbookId ? () => handleOpenPlaybook(item) : undefined}
-                          onClick={() => handleClickItem(item)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                ))}
               </>
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar: Interviews → Performance → Erledigt */}
           <div className="space-y-6">
+            <TodayInterviewsRail />
             <PerformanceIntel score={score} loading={scoreLoading} />
-            <TeamLeaderboard limit={3} />
 
-            {/* Completed */}
+            {/* Completed — echte Liste der letzten Erledigungen */}
             <Card>
               <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
                 <CollapsibleTrigger asChild>
@@ -338,10 +345,30 @@ export default function RecruiterInfluence() {
                   </CardHeader>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <p className="text-xs text-muted-foreground">
-                      {score?.alerts_actioned || 0} Aufgaben insgesamt erledigt
-                    </p>
+                  <CardContent className="pt-0 space-y-1.5">
+                    {completedItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Noch nichts erledigt — starte mit deiner ersten Aufgabe.
+                      </p>
+                    ) : (
+                      completedItems.map(item => (
+                        <div
+                          key={`${item.itemType}-${item.itemId}`}
+                          className="flex items-start gap-2 py-1"
+                        >
+                          <Check className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs truncate">{item.title}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {item.candidateName ? `${item.candidateName} · ` : ''}
+                              {item.completedAt
+                                ? formatDistanceToNow(new Date(item.completedAt), { locale: de, addSuffix: true })
+                                : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </CardContent>
                 </CollapsibleContent>
               </Collapsible>

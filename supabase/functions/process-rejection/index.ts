@@ -80,8 +80,9 @@ serve(async (req) => {
     // Update submission status
     const { error: updateError } = await supabase
       .from('submissions')
+      // Nur stage schreiben — status leitet der DB-Trigger ab.
       .update({ 
-        status: 'rejected',
+        stage: 'client_rejected',
         rejection_reason: custom_feedback || reason_category
       })
       .eq('id', submission_id);

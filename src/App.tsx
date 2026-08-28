@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -15,15 +15,12 @@ import JobsList from "./pages/dashboard/JobsList";
 import CreateJob from "./pages/dashboard/CreateJob";
 import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
 import CandidateDetail from "./pages/dashboard/CandidateDetail";
-import ClientCandidatesOverview from "./pages/dashboard/ClientCandidatesOverview";
 import ClientBewerberPage from "./pages/dashboard/ClientBewerberPage";
-import TalentHub from "./pages/dashboard/TalentHub";
 import ClientPlacements from "./pages/dashboard/ClientPlacements";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
 import ClientBilling from "./pages/dashboard/ClientBilling";
 import DataPrivacy from "./pages/dashboard/DataPrivacy";
-import JobCommandCenter from "./pages/dashboard/JobCommandCenter";
 
 // Recruiter pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
@@ -38,6 +35,7 @@ import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
+import RecruiterInterviews from "./pages/recruiter/RecruiterInterviews";
 import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
 import RecruiterIntegrations from "./pages/recruiter/RecruiterIntegrations";
 import RecruiterCandidateDetail from "./pages/recruiter/RecruiterCandidateDetail";
@@ -110,6 +108,12 @@ import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 
 const queryClient = new QueryClient();
 
+// Alt-Route /dashboard/command/:jobId → Bewerber-Inbox mit Job-Filter
+function CommandRedirect() {
+  const { jobId } = useParams<{ jobId: string }>();
+  return <Navigate to={`/dashboard/candidates${jobId ? `?job=${jobId}&tab=alle` : ''}`} replace />;
+}
+
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { user, role, loading } = useAuth();
 
@@ -155,11 +159,9 @@ function AppRoutes() {
           <JobsList />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/command/:jobId" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <JobCommandCenter />
-        </ProtectedRoute>
-      } />
+      {/* Alt-Route "Command Center": Bookmarks/alte Mails landen in der Bewerber-Inbox,
+          vorgefiltert auf den Job. Die Seite selbst war ein Triple-Blind-Leck. */}
+      <Route path="/dashboard/command/:jobId" element={<CommandRedirect />} />
       <Route path="/dashboard/jobs/new" element={
         <ProtectedRoute allowedRoles={['client']}>
           <CreateJob />
@@ -240,6 +242,11 @@ function AppRoutes() {
       <Route path="/recruiter" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/interviews" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterInterviews />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/jobs" element={

@@ -99,6 +99,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   const recruiterNavItems: NavItem[] = [
     { label: 'Übersicht', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Aufgaben', href: '/recruiter/influence', icon: <CheckSquare className="h-4 w-4" /> },
+    { label: 'Interviews', href: '/recruiter/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Offene Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
@@ -235,8 +236,12 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 md:ml-64">
+        {/* Main Content. min-w-0 ist Pflicht: als Flex-Kind haette main
+            min-width:auto und wuerde von breitem Inhalt (z.B. dem Kanban mit
+            min-w-max) auf dessen Breite aufgeblaeht — dann sprengt die Seite
+            den Viewport und innere overflow-x-auto-Container koennen nicht
+            mehr scrollen. */}
+        <main className="min-w-0 flex-1 md:ml-64">
           <div className={cn(fluid ? 'w-full px-4 md:px-6' : 'container', 'py-6')}>
             {children}
           </div>

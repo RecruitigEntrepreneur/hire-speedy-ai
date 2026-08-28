@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -181,6 +181,11 @@ function getActivityIcon(type: string): { icon: React.ElementType; color: string
 
 export default function SubmissionDetail() {
   const { submissionId } = useParams<{ submissionId: string }>();
+  // ?interview=<id> kommt aus Agenda und Benachrichtigungen und benennt den
+  // Termin, auf den geklickt wurde. Ohne ihn muss die Seite raten — bei
+  // mehreren Interview-Zeilen pro Einreichung war das nachweislich der falsche.
+  const [searchParams] = useSearchParams();
+  const focusInterviewId = searchParams.get('interview');
   const [recruiterNote, setRecruiterNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
@@ -195,13 +200,23 @@ export default function SubmissionDetail() {
         .from('submissions')
         .select(`
           *,
-          candidates(id, full_name, email, phone, job_title, city, linkedin_url),
-          jobs(id, title, company_name, industry, description)
+          candidates(id, full_name, email, phone, job_title, city, linkedin_url)
         `)
         .eq('id', submissionId)
         .single();
 
       if (subErr) throw subErr;
+
+      // Job separat ueber recruiter_jobs_view: maskiert die Firmenidentitaet
+      // und gibt company_name/description erst nach dem Reveal frei.
+      if (submission?.job_id) {
+        const { data: jobRow } = await supabase
+          .from('recruiter_jobs_view')
+          .select('id, title, company_name, industry, description')
+          .eq('id', submission.job_id)
+          .maybeSingle();
+        (submission as any).jobs = jobRow ?? null;
+      }
 
       // Fetch interviews for this submission
       const { data: interviews } = await supabase
@@ -329,7 +344,9 @@ export default function SubmissionDetail() {
 
   const { submission, interviews, activities, alerts } = data;
   const candidate = submission.candidates as any;
-  const job = submission.jobs as any;
+  // jobs wird oben zur Laufzeit aus recruiter_jobs_view angehaengt (Zeile 218) —
+  // die Query-Typen kennen die Spalte deshalb nicht.
+  const job = (submission as any).jobs;
 
   const companyRevealed = !!submission.company_revealed;
   const identityUnlocked = !!submission.identity_unlocked;
@@ -337,9 +354,13 @@ export default function SubmissionDetail() {
     ? job?.company_name
     : formatSimpleAnonymousCompany(job?.industry);
 
-  const activeInterview = interviews.find(
-    (iv: any) => iv.status === 'pending_response' || iv.status === 'scheduled'
-  );
+  // Vorrang hat immer der explizit adressierte Termin. Der find-Fallback greift
+  // nur ohne Deeplink und kann bei mehreren Zeilen den falschen erwischen.
+  const activeInterview =
+    (focusInterviewId && interviews.find((iv: any) => iv.id === focusInterviewId)) ||
+    interviews.find(
+      (iv: any) => iv.status === 'pending_response' || iv.status === 'scheduled'
+    );
 
   const pendingAlerts = alerts.filter((a: any) => !a.action_taken);
   const doneAlerts = alerts.filter((a: any) => !!a.action_taken);

@@ -149,7 +149,12 @@ export default function RecruiterNotifications() {
       case 'job':
         return `/recruiter/jobs/${notification.related_id}`;
       case 'submission':
-        return '/recruiter/submissions';
+        // Direkt auf die Einreichung statt auf die Pipeline-Liste.
+        return `/recruiter/submissions/${notification.related_id}`;
+      case 'interview':
+        // Fehlte komplett: Interview-Meldungen fielen in den default-Zweig und
+        // waren dadurch nicht anklickbar.
+        return `/recruiter/interviews?interview=${notification.related_id}`;
       case 'placement':
         return '/recruiter/earnings';
       default:

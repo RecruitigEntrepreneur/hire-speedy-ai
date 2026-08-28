@@ -36,6 +36,9 @@ const ALERT_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   'document_missing': { label: 'Dokument', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   'client_feedback_positive': { label: 'Feedback+', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
   'client_feedback_negative': { label: 'Feedback-', color: 'bg-destructive/10 text-destructive' },
+  // Abgeleitete Aufgaben (client-seitig aus submissions/interviews berechnet)
+  'client_review_stalled': { label: 'Nachfassen', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  'interview_debrief_due': { label: 'Debrief', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   // Manual task types
   'call': { label: 'Anruf', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
   'email': { label: 'E-Mail', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
@@ -128,10 +131,17 @@ export function TaskCard({ item, onMarkDone, onSnooze, onDelete, onOpenPlaybook,
         </span>
       </div>
 
-      {/* Row 3: Job @ Company */}
-      {(item.jobTitle || item.companyName) && (
-        <div className="text-xs text-muted-foreground truncate">
-          {item.jobTitle}{item.companyName ? ` · ${item.companyName}` : ''}
+      {/* Row 3: Job @ Company + Fee */}
+      {(item.jobTitle || item.companyName || item.feeValue) && (
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <span className="text-xs text-muted-foreground truncate">
+            {item.jobTitle}{item.companyName ? ` · ${item.companyName}` : ''}
+          </span>
+          {item.feeValue != null && item.feeValue > 0 && (
+            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">
+              ~€{Math.round(item.feeValue / 1000)}k
+            </span>
+          )}
         </div>
       )}
 
