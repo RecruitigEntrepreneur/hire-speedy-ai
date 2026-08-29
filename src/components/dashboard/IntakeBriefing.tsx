@@ -377,7 +377,6 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
           </p>
         </div>
         <Button variant="outline" onClick={() => setCursor(0)}>Antworten ansehen</Button>
-        <Button variant="hero" className="ml-2" onClick={onDone}>Weiter zur Übergabe</Button>
       </div>
     );
   }

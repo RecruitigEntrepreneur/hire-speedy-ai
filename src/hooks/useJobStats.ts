@@ -8,7 +8,10 @@ export interface JobStats {
   companyName: string;
   status: string;
   createdAt: string;
+  /** Recruiter mit mindestens einer NICHT abgelehnten Einreichung. */
   activeRecruiters: number;
+  /** Zeitpunkt der juengsten Einreichung — null, wenn es keine gibt. */
+  lastSubmittedAt: string | null;
   totalCandidates: number;
   newCandidates: number;
   shortlisted: number;
@@ -45,13 +48,23 @@ export function useJobStats(limit: number = 5) {
           // Get submissions for this job
           const { data: submissions } = await supabase
             .from('submissions')
-            .select('id, status, recruiter_id')
+            .select('id, status, recruiter_id, submitted_at')
             .eq('job_id', job.id);
 
           const submissionsList = submissions || [];
-          
-          // Count unique recruiters
-          const uniqueRecruiters = new Set(submissionsList.map(s => s.recruiter_id));
+
+          // "Aktiv" heisst: mindestens eine Einreichung, die nicht abgelehnt ist.
+          // Vorher zaehlte hier jede Einreichung mit, auch eine vor Monaten
+          // abgelehnte — die Kachel meldete dann Arbeit, die niemand tut.
+          const uniqueRecruiters = new Set(
+            submissionsList.filter(s => s.status !== 'rejected').map(s => s.recruiter_id)
+          );
+
+          const lastSubmittedAt = submissionsList
+            .map(s => s.submitted_at)
+            .filter(Boolean)
+            .sort()
+            .at(-1) ?? null;
 
           // Count by status
           const statusCounts = submissionsList.reduce((acc, sub) => {
@@ -66,6 +79,7 @@ export function useJobStats(limit: number = 5) {
             status: job.status,
             createdAt: job.created_at,
             activeRecruiters: uniqueRecruiters.size,
+            lastSubmittedAt,
             totalCandidates: submissionsList.length,
             newCandidates: statusCounts['submitted'] || 0,
             shortlisted: statusCounts['accepted'] || 0,

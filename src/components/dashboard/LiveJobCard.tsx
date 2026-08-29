@@ -49,7 +49,10 @@ export function LiveJobCard({ job, onBoost }: LiveJobCardProps) {
 
         {/* Live Recruiter Activity */}
         <div className="mb-3">
-          <RecruiterActivityIndicator activeRecruiters={job.activeRecruiters} />
+          <RecruiterActivityIndicator
+            activeRecruiters={job.activeRecruiters}
+            lastSubmittedAt={job.lastSubmittedAt}
+          />
         </div>
 
         {/* Stats Grid - Compact */}

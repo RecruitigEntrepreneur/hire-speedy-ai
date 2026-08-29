@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -53,28 +52,11 @@ export function JobBoostDialog({
   jobTitle,
   onBoosted,
 }: JobBoostDialogProps) {
-  const [boosting, setBoosting] = useState(false);
-
-  const handleBoost = async (optionId: string) => {
-    if (optionId !== 'notify') {
-      toast.info('Diese Funktion kommt bald!');
-      return;
-    }
-
-    setBoosting(true);
-    try {
-      // TODO: Implement actual boost notification via edge function
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('Recruiter wurden benachrichtigt!');
-      onOpenChange(false);
-      onBoosted?.();
-    } catch (error) {
-      console.error('Error boosting job:', error);
-      toast.error('Fehler beim Boosten');
-    } finally {
-      setBoosting(false);
-    }
+  // Keine der Boost-Optionen ist heute hinterlegt — es gibt keine Edge Function,
+  // die Recruiter benachrichtigt. Bis dahin sagt der Dialog das auch. Vorher
+  // meldete er nach einer Sekunde Kunstpause "Recruiter wurden benachrichtigt!".
+  const handleBoost = async (_optionId: string) => {
+    toast.info('Diese Funktion kommt bald!');
   };
 
   return (
@@ -95,7 +77,7 @@ export function JobBoostDialog({
             <button
               key={option.id}
               onClick={() => handleBoost(option.id)}
-              disabled={option.disabled || boosting}
+              disabled={option.disabled}
               className={`w-full flex items-start gap-3 p-4 rounded-lg border text-left transition-all ${
                 option.disabled 
                   ? 'opacity-50 cursor-not-allowed bg-muted/30' 

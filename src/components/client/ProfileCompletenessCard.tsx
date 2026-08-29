@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Users, TrendingUp, Calendar, Sparkles, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Users, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface CompanyProfile {
   company_name: string;
@@ -31,8 +31,9 @@ export function ProfileCompletenessCard({ profile, onScrollToSection }: ProfileC
     { key: 'website', label: 'Website', icon: <CheckCircle2 className="h-4 w-4" /> },
     { key: 'description', label: 'Beschreibung', icon: <CheckCircle2 className="h-4 w-4" /> },
     { key: 'headcount', label: 'Mitarbeiteranzahl', icon: <Users className="h-4 w-4" /> },
-    { key: 'annual_revenue', label: 'Jahresumsatz', icon: <TrendingUp className="h-4 w-4" /> },
-    { key: 'founded_year', label: 'Gründungsjahr', icon: <Calendar className="h-4 w-4" /> },
+    // Jahresumsatz und Gruendungsjahr sind bewusst KEINE Pflichtangaben: exakte
+    // Kennzahlen machen ein Unternehmen identifizierbar — in einem Produkt, das
+    // Anonymitaet gegenueber Recruitern verspricht, ist das ein Widerspruch.
     { key: 'unique_selling_point', label: 'Unique Selling Point', icon: <Sparkles className="h-4 w-4" /> },
   ];
 
@@ -62,10 +63,10 @@ export function ProfileCompletenessCard({ profile, onScrollToSection }: ProfileC
           </div>
           <div className="flex-1">
             <CardTitle className="text-base font-semibold">
-              Dein Profil ist zu {completionPercentage}% vollständig
+              Ihr Firmenprofil ist zu {completionPercentage}% vollständig
             </CardTitle>
             <CardDescription className="mt-1">
-              Vervollständige dein Profil, damit Recruiter dein Unternehmen besser präsentieren können
+              Jede Angabe spart Ihnen bei jeder neuen Stelle eine Frage
             </CardDescription>
           </div>
         </div>
@@ -86,7 +87,8 @@ export function ProfileCompletenessCard({ profile, onScrollToSection }: ProfileC
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Diese Infos werden Recruitern angezeigt, um dein Unternehmen als attraktiven Arbeitgeber darzustellen.
+          Wir übernehmen diese Angaben automatisch in jede neue Stellenaufnahme, damit Sie sie nicht
+          erneut eingeben müssen.
         </p>
 
         {onScrollToSection && (

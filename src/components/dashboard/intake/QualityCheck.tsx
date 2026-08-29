@@ -16,7 +16,6 @@ interface Props {
   built: BuiltJob;
   freelance: FreelanceTerms;
   answers: Answers;
-  progressPct: number;
   openQuestions: OpenQuestion[];
   revealDescriptor: string;
 }
@@ -27,9 +26,17 @@ const answerText = (a: Answers[string] | undefined): string =>
 /** AGG-Guardrail: erkennt Kriterien, die nicht berufsbezogen sind. */
 const AGG_PATTERN = /\balter\b|\bjung(e|er)?\b|männlich|weiblich|\bfrau(en)?\b|\bmann\b|herkunft|nationalität|religion|schwanger|behindert|behinderung|\bgeschlecht/i;
 
-/** Beratender Qualitäts-Check vor der Übergabe — warnt und zeigt Hebel, blockiert NIE. */
-export function QualityCheck({ type, built, freelance, answers, progressPct, openQuestions, revealDescriptor }: Props) {
-  const { score, warnings, levers } = useMemo(() => {
+/**
+ * Beratender Qualitäts-Check vor der Übergabe — warnt und zeigt Hebel, blockiert NIE.
+ *
+ * Ohne Punktzahl: die frühere "Briefing-Reife x/100" rechnete
+ * 0,6 × Fortschritt + 0,4 × Formularpunkte und stand damit bei einem vollständig
+ * ausgefüllten Profil und NULL beantworteten Fragen bereits bei 40. Sie stand
+ * ausserdem im Widerspruch zur Prozentzahl in der Kopfzeile. Was bleibt, sind die
+ * Warnungen und die Hebel — die sind belegbar.
+ */
+export function QualityCheck({ type, built, freelance, answers, openQuestions, revealDescriptor }: Props) {
+  const { warnings, levers } = useMemo(() => {
     const isFreelance = type === 'freelance';
     const warnings: string[] = [];
     const levers: string[] = [];
@@ -76,29 +83,20 @@ export function QualityCheck({ type, built, freelance, answers, progressPct, ope
       levers.push(`„${q.text.length > 60 ? q.text.slice(0, 57) + '…' : q.text}" beantworten: +${q.weight * 3} P`);
     }
 
-    const score = Math.max(0, Math.min(100, Math.round(progressPct * 0.6 + profilePts * 0.4 - warnings.length * 5)));
-    return { score, warnings, levers: levers.slice(0, 3) };
-  }, [type, built, freelance, answers, progressPct, openQuestions, revealDescriptor]);
+    return { warnings, levers: levers.slice(0, 3) };
+  }, [type, built, freelance, answers, openQuestions, revealDescriptor]);
 
-  const level = score >= 80 ? 'gut' : score >= 55 ? 'mittel' : 'niedrig';
+  // Nichts zu sagen heisst nichts anzeigen. Vorher stand hier bei null Antworten
+  // "Keine Auffälligkeiten — die Recruiter haben, was sie brauchen." — im
+  // KI-Pfad war dieser Satz sogar zwingend, weil openQuestions dort immer leer ist.
+  if (warnings.length === 0 && levers.length === 0) return null;
 
   return (
     <div className="rounded-xl border bg-card p-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-sm font-semibold">
-          <BadgeCheck className={cn('h-4 w-4', level === 'gut' ? 'text-emerald-500' : level === 'mittel' ? 'text-amber-500' : 'text-muted-foreground')} />
-          Briefing-Reife
-        </p>
-        <span className={cn('text-sm font-bold tabular-nums', level === 'gut' ? 'text-emerald-600' : level === 'mittel' ? 'text-amber-600' : 'text-muted-foreground')}>
-          {score}/100
-        </span>
-      </div>
-      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn('h-full rounded-full transition-all', level === 'gut' ? 'bg-emerald-500' : level === 'mittel' ? 'bg-amber-500' : 'bg-muted-foreground/40')}
-          style={{ width: `${score}%` }}
-        />
-      </div>
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+        <BadgeCheck className="h-4 w-4 text-muted-foreground" />
+        Vor der Übergabe
+      </p>
 
       {warnings.map((w) => (
         <p key={w} className="mb-1.5 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
@@ -110,9 +108,6 @@ export function QualityCheck({ type, built, freelance, answers, progressPct, ope
           <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" /> {l}
         </p>
       ))}
-      {warnings.length === 0 && levers.length === 0 && (
-        <p className="text-xs text-muted-foreground">Keine Auffälligkeiten — die Recruiter haben, was sie brauchen.</p>
-      )}
       <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
         Nur Beratung — übergeben ist jederzeit möglich.
       </p>

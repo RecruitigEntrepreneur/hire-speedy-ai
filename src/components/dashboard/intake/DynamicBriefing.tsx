@@ -264,10 +264,10 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
       ) : state.done ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border bg-card p-5 text-center">
           <Sparkles className="h-5 w-5 text-primary" />
-          <p className="text-sm font-medium">Briefing vollständig — die Recruiter haben alles.</p>
-          <Button size="sm" variant="outline" onClick={onDone}>
-            Fertig
-          </Button>
+          <p className="text-sm font-medium">Briefing vollständig.</p>
+          <p className="text-xs text-muted-foreground">
+            Sie können die Stelle jetzt unten übergeben.
+          </p>
         </div>
       ) : null}
     </div>

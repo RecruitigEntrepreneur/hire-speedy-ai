@@ -806,6 +806,8 @@ const de = {
       "laeuft_heute": "Alles in Arbeit — nichts zu tun. Letzter Vorschlag heute.",
       "laeuft_one": "Alles in Arbeit — nichts zu tun. Letzter Vorschlag gestern.",
       "laeuft": "Alles in Arbeit — nichts zu tun. Letzter Vorschlag vor {{days}} Tagen.",
+      "laeuft_zaeh": "Seit {{days}} Tagen keine Bewegung. Häufigste Ursache: zu enges Gehaltsband oder zu strenge Muss-Kriterien.",
+      "laeuft_stockt": "Seit {{days}} Tagen steht die Suche. Bitte entscheiden Sie: Kriterien lockern, Budget anheben oder Stelle schließen.",
       "geschlossen": "Diese Stelle ist geschlossen — Recruiter sehen sie nicht mehr.",
       "besetzt": "Diese Stelle ist besetzt — die Suche ist abgeschlossen."
     },

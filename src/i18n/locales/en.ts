@@ -807,6 +807,8 @@ const en: typeof de = {
       "laeuft_heute": "Everything in progress — nothing to do. Latest suggestion today.",
       "laeuft_one": "Everything in progress — nothing to do. Latest suggestion yesterday.",
       "laeuft": "Everything in progress — nothing to do. Latest suggestion {{days}} days ago.",
+      "laeuft_zaeh": "No movement for {{days}} days. Most common cause: salary band too narrow or must-have criteria too strict.",
+      "laeuft_stockt": "The search has stalled for {{days}} days. Please decide: loosen criteria, raise the budget, or close the role.",
       "geschlossen": "This position is closed — recruiters can no longer see it.",
       "besetzt": "This position is filled — the search is complete."
     },

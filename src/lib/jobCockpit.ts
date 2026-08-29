@@ -42,6 +42,12 @@ const isFeedback = (i: BewerberItem) =>
 export const severity = (i: BewerberItem) =>
   i.state.tone === 'crit' ? 3 : i.state.tone === 'warn' ? 2 : 1;
 
+// Ab wann eine laufende Suche nicht mehr als "laeuft" durchgeht. Eine Stelle
+// ohne Bewegung ist kein gruener Zustand — vorher meldete der Banner auch nach
+// 187 Tagen noch "Alles in Arbeit — nichts zu tun".
+export const STALE_WARN_DAYS = 21;
+export const STALE_ALERT_DAYS = 45;
+
 export function daysSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
 }
@@ -178,6 +184,22 @@ export function diagnoseJob(
   const days = lastSubmitted ? daysSince(lastSubmitted) : 0;
   if (days === 0) return { key: 'laeuft_heute', tone: 'ok', action: { labelKey: '', type: 'none' } };
   if (days === 1) return { key: 'laeuft_one', tone: 'ok', action: { labelKey: '', type: 'none' } };
+  if (days >= STALE_ALERT_DAYS) {
+    return {
+      key: 'laeuft_stockt',
+      tone: 'crit',
+      params: { days },
+      action: { labelKey: 'entscheiden', type: 'edit' },
+    };
+  }
+  if (days >= STALE_WARN_DAYS) {
+    return {
+      key: 'laeuft_zaeh',
+      tone: 'warn',
+      params: { days },
+      action: { labelKey: 'briefing', type: 'edit' },
+    };
+  }
   return { key: 'laeuft', tone: 'ok', params: { days }, action: { labelKey: '', type: 'none' } };
 }
 

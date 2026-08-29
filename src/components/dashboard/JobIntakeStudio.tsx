@@ -116,7 +116,15 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
   const [submittedStatus, setSubmittedStatus] = useState<IntakeSubmitStatus>('pending_approval');
 
   const staticProg = built ? briefingProgress(type, { remote_type: built.remote_type }, answers) : { pct: 0, open: 0, totalQ: 0 };
+  // Wird nur noch fuer jobs.intake_completeness gespeichert, nicht mehr angezeigt.
   const progressPct = dyn.available ? dyn.completeness : staticProg.pct;
+
+  // Was in der Kopfzeile steht: gezaehlte Antworten und offene Kapitel statt
+  // einer Prozentzahl, die niemand nachrechnen kann.
+  const openChapters = dyn.chapterProgress.filter((c) => c.state === 'open').length;
+  const briefingSummary = dyn.available
+    ? `${dyn.answers.length} beantwortet${openChapters ? ` · ${openChapters} Kapitel offen` : ''}`
+    : `${staticProg.open} von ${staticProg.totalQ} Fragen offen`;
 
   // ---- Firmenprofil (nur lesend): nie zweimal nach Bekanntem fragen --------
   const { data: companyProfile } = useQuery({
@@ -312,16 +320,15 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Live-Build: Felder nacheinander mit Häkchen aufdecken.
+  // Sobald die KI geantwortet hat, ist die Arbeit fertig — dann wird auch nicht
+  // mehr gewartet. Vorher liefen hier 7 × 280 ms + 350 ms reine Inszenierung ab,
+  // NACHDEM das Ergebnis bereits vorlag. Der Spinner waehrend des echten Aufrufs
+  // bleibt; er ist die einzige ehrliche Rueckmeldung in dieser Stufe.
   useEffect(() => {
     if (stage !== 'building' || !built) return;
-    if (reveal >= facts.length) {
-      const t = setTimeout(() => setStage('built'), 350);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setReveal((r) => r + 1), 280);
-    return () => clearTimeout(t);
-  }, [stage, built, reveal, facts.length]);
+    setReveal(facts.length);
+    setStage('built');
+  }, [stage, built, facts.length]);
 
   // ---- Persistenz ----------------------------------------------------------
 
@@ -513,12 +520,10 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
 
           {stage === 'built' && (
             <div className="ml-auto flex items-center gap-3">
-              <div className="hidden items-center gap-2 md:flex">
-                <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
-                </div>
-                <span className="text-xs text-muted-foreground">{progressPct}%</span>
-              </div>
+              {/* Gezaehlt statt geschaetzt: die frueheren Prozentzahlen kamen aus
+                  zwei verschiedenen Rechenwegen und widersprachen sich auf demselben
+                  Bildschirm (Kopf 42 %, Briefing-Reife 65/100). */}
+              <span className="hidden text-xs text-muted-foreground md:inline">{briefingSummary}</span>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={handleSaveDraft} disabled={savingDraft}>
                 {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Später weiter
@@ -637,7 +642,6 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
                   built={built}
                   freelance={freelance}
                   answers={answers}
-                  progressPct={progressPct}
                   openQuestions={dyn.available ? [] : openBriefingQuestions(type, toBriefBuilt(built), answers)}
                   revealDescriptor={revealSetup.descriptor}
                 />
@@ -663,15 +667,15 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
                 {(submittedStatus === 'pending_client_approval'
                   ? [
                       { label: 'Interne Freigabe (Ihr Team)', hint: null, active: true },
-                      { label: 'Prüfung durch Matchunt', hint: 'ca. 4 Std', active: false },
+                      { label: 'Prüfung durch Matchunt', hint: null, active: false },
                       { label: 'Stelle geht live', hint: null, active: false },
-                      { label: 'Erste Kandidaten', hint: 'Ø 3–5 Tage', active: false },
+                      { label: 'Erste Kandidaten', hint: null, active: false },
                     ]
                   : [
-                      { label: 'Prüfung durch Matchunt', hint: 'ca. 4 Std', active: true },
+                      { label: 'Prüfung durch Matchunt', hint: null, active: true },
                       { label: 'Stelle geht live', hint: null, active: false },
                       { label: 'Recruiter beginnen die Suche', hint: null, active: false },
-                      { label: 'Erste Kandidaten', hint: 'Ø 3–5 Tage', active: false },
+                      { label: 'Erste Kandidaten', hint: null, active: false },
                     ]).map((s) => (
                   <div key={s.label} className={cn('flex items-center gap-2.5', !s.active && 'text-muted-foreground')}>
                     {s.active ? (

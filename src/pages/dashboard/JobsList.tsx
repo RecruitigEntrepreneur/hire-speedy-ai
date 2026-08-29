@@ -424,7 +424,7 @@ export default function JobsList() {
                       {lifecycle === 'review' &&
                         (j.status === 'pending_client_approval'
                           ? `eingereicht am ${formatDate(j.updated_at || j.created_at)} · wartet auf interne Freigabe (Admin/HR)`
-                          : `eingereicht am ${formatDate(j.updated_at || j.created_at)} · Prüfung i. d. R. unter 24 Std`)}
+                          : `eingereicht am ${formatDate(j.updated_at || j.created_at)} · wird von Matchunt geprüft`)}
                       {lifecycle === 'drafts' && `zuletzt bearbeitet vor ${daysSince(j.updated_at || j.created_at)} Tagen${j.location ? ` · ${j.location}` : ''}`}
                       {lifecycle === 'archive' && `geschlossen · ${j.submissions_count} Kandidaten insgesamt`}
                     </p>

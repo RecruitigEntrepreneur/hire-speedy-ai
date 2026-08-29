@@ -194,7 +194,7 @@ export default function ClientSettings() {
         <div className="space-y-6 max-w-3xl">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
-            <p className="text-muted-foreground">Verwalte dein Firmenprofil und Einstellungen</p>
+            <p className="text-muted-foreground">Verwalten Sie Ihr Firmenprofil und Ihre Einstellungen</p>
           </div>
 
           {/* Profile Completeness Banner */}
@@ -211,7 +211,7 @@ export default function ClientSettings() {
                 Firmenprofil
               </CardTitle>
               <CardDescription>
-                Informationen zu deinem Unternehmen
+                Informationen zu Ihrem Unternehmen
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -301,7 +301,7 @@ export default function ClientSettings() {
                   id="description"
                   value={profile.description || ''}
                   onChange={(e) => setProfile({ ...profile, description: e.target.value })}
-                  placeholder="Kurze Beschreibung deines Unternehmens..."
+                  placeholder="Kurze Beschreibung Ihres Unternehmens ..."
                   rows={3}
                 />
               </div>
@@ -341,7 +341,7 @@ export default function ClientSettings() {
                 Partner Facts für Recruiter
               </CardTitle>
               <CardDescription>
-                Diese Informationen werden Recruitern angezeigt, um dein Unternehmen zu präsentieren
+                Diese Angaben übernehmen wir automatisch in jede neue Stellenaufnahme
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -398,7 +398,7 @@ export default function ClientSettings() {
                   rows={2}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Was macht dein Unternehmen besonders attraktiv für Kandidaten?
+                  Was macht Ihr Unternehmen für Kandidaten besonders attraktiv?
                 </p>
               </div>
             </CardContent>
@@ -409,7 +409,7 @@ export default function ClientSettings() {
             <CardHeader>
               <CardTitle>Team-Mitglieder</CardTitle>
               <CardDescription>
-                Verwalte wer Zugriff auf dein Dashboard hat
+                Verwalten Sie, wer Zugriff auf Ihr Dashboard hat
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -418,7 +418,7 @@ export default function ClientSettings() {
                   Team-Verwaltung kommt bald
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Hier kannst du bald Hiring Manager, HR und Viewer einladen.
+                  Hier können Sie bald Hiring Manager, HR und Viewer einladen.
                 </p>
               </div>
             </CardContent>
