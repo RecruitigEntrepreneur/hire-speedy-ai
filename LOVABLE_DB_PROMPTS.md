@@ -162,3 +162,77 @@ Exception ab, falls danach noch ein Widerspruch existiert.
 In 4 von 20 veröffentlichten Jobs stehen Ortsdetails („Rhein-Main", „Taunus") auch
 in der redigierten Fassung `formatted_content`. Der Firmenname selbst steckt in
 keiner. Das Bereinigen dieser Texte ist eine eigene Aufgabe (KI-Redaktionslauf).
+
+---
+
+## Prompt 5 — RLS-Härtung (DRINGEND, vor allem anderen)
+
+**Warum zuerst:** Mit dem öffentlichen anon-Key aus dem ausgelieferten Browser-Bundle
+sind ohne Login **48 Tabellen** lesbar, davon 9 mit Daten — darunter `match_outcomes`
+mit **10.081 Zeilen** (`candidate_id` × `job_id` × `rejection_reason`, also genau die
+Verknüpfung, die Triple-Blind schützen soll). Gemessen am 2026-08-29.
+
+> Bitte führe die Migration aus Datei
+> `supabase/migrations/20260829110000_rls_close_open_policies.sql`
+> auf Supabase aus. Sie entfernt 54 Policies vom Muster
+> `FOR ALL USING (true)` ohne `TO`-Klausel, die für PUBLIC (inkl. anon) gelten
+> und alle korrekten Policies derselben Tabelle per ODER aushebeln.
+> Ändere sonst nichts am Code.
+
+**Danach prüfen** — mit demselben öffentlichen Key, ohne Login:
+
+```bash
+curl -sS -I "https://dngycrrhbnwdohbftpzq.supabase.co/rest/v1/match_outcomes?select=id" -H "apikey: $(grep VITE_SUPABASE_PUBLISHABLE_KEY .env | cut -d= -f2-)" -H "Prefer: count=exact" | grep -i content-range
+```
+
+Erwartet: `*/0`. Kommen weiterhin Zeilen, ist eine Policy übrig geblieben.
+
+**Nicht enthalten (bewusst):** die vier Token-Flow-Policies auf `reference_requests`,
+`reference_responses`, `organization_invites` und `interview_participants`. Sie erlauben
+ebenfalls anonymen Zugriff auf alle Zeilen statt nur auf die zum Token gehörende, tragen
+aber öffentliche Seiten. Sie sauber zu machen heißt, den Zugriff in eine Edge Function zu
+verlegen — eigene Aufgabe mit eigenem Test.
+
+---
+
+## Prompt 6 — Contracting-Konditionen und Entwurfsstand
+
+**Warum nötig:** Eine Contracting-Stelle geht heute **ohne jede Vergütungsangabe** an die
+Recruiter. Das Studio setzt `salary_min/max` bei `freelance` auf NULL und legt Tagessatz,
+Laufzeit und Auslastung in `intake_payload.contracting` ab — einer Spalte, die produktiv
+fehlt. Dasselbe beim Entwurf: „Später weiter" schreibt den Studio-Zustand nach
+`intake_payload.draft_state` und verliert ihn still.
+
+> Bitte führe die Migration aus Datei
+> `supabase/migrations/20260829120000_contracting_terms_and_draft_state.sql`
+> auf Supabase aus. Sie ergänzt auf `public.jobs` die Spalten `day_rate_min`,
+> `day_rate_max`, `contract_duration_months`, `utilization_days_per_week`,
+> `extension_possible` und `draft_state`, legt zwei CHECK-Constraints an und
+> erneuert `public.recruiter_jobs_view`, damit die Konditionen beim Recruiter
+> ankommen. Die View muss weiterhin mit Owner-Rechten laufen — setze **nicht**
+> `security_invoker = true`. Ändere sonst nichts am Code.
+
+**Danach prüfen:** `jobs?select=day_rate_min` und `recruiter_jobs_view?select=day_rate_min`
+müssen beide antworten; `recruiter_jobs_view?select=draft_state` muss mit 42703 scheitern.
+
+---
+
+## Prompt 7 — Die drei liegengebliebenen Migrationen
+
+Diese drei Dateien liegen seit Wochen im Repo und sind nie angewandt worden. Jede
+verursacht einen konkreten Defekt:
+
+| Datei | Was heute kaputt ist |
+|---|---|
+| `20260619120000_intake_hybrid_foundation.sql` | `intake_payload` fehlt → das gesamte Briefing wird beim Speichern verworfen |
+| `20260710120000_job_review_feedback.sql` | `rejection_reason` fehlt → der Ablehnungsgrund wird beim Ergänzen gelöscht, und die interne Freigabe ist unerreichbar |
+| `20260716120000_job_close_reason.sql` | `closed_reason` fehlt → „über Matchunt besetzt" wird verworfen |
+
+> Bitte führe diese drei Migrationen in genau dieser Reihenfolge auf Supabase aus:
+> `20260619120000_intake_hybrid_foundation.sql`,
+> `20260710120000_job_review_feedback.sql`,
+> `20260716120000_job_close_reason.sql`.
+> Alle drei sind additiv. Ändere sonst nichts am Code.
+
+**Wichtig vorher zu klären:** Warum wurden sie übersprungen, während spätere Migrationen
+liefen? Solange die Ursache offen ist, wiederholt sich das beim nächsten Deploy.

@@ -33,7 +33,10 @@ export interface JobStats {
   companyName: string;
   status: string;
   createdAt: string;
+  /** Recruiter mit mindestens einer NICHT abgelehnten Einreichung. */
   activeRecruiters: number;
+  /** Zeitpunkt der juengsten Einreichung — null, wenn es keine gibt. */
+  lastSubmittedAt: string | null;
   totalCandidates: number;
   newCandidates: number;
   shortlisted: number;

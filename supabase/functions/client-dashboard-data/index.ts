@@ -38,7 +38,10 @@ interface JobStats {
   companyName: string;
   status: string;
   createdAt: string;
+  /** Recruiter mit mindestens einer NICHT abgelehnten Einreichung. */
   activeRecruiters: number;
+  /** Zeitpunkt der juengsten Einreichung -- null, wenn es keine gibt. */
+  lastSubmittedAt: string | null;
   totalCandidates: number;
   newCandidates: number;
   shortlisted: number;
@@ -278,11 +281,21 @@ async function fetchActiveJobs(supabase: any, jobIds: string[]): Promise<JobStat
     jobs.map(async (job: any) => {
       const { data: submissions } = await supabase
         .from('submissions')
-        .select('id, status, recruiter_id, match_score, candidate_id')
+        .select('id, status, recruiter_id, match_score, candidate_id, submitted_at')
         .eq('job_id', job.id);
 
       const submissionsList = submissions || [];
-      const uniqueRecruiters = new Set(submissionsList.map((s: any) => s.recruiter_id));
+      // "Aktiv" heisst: mindestens eine Einreichung, die nicht abgelehnt ist.
+      // Vorher zaehlte hier jede Einreichung mit, auch eine vor Monaten
+      // abgelehnte -- das Dashboard meldete dann Arbeit, die niemand tut.
+      const uniqueRecruiters = new Set(
+        submissionsList.filter((s: any) => s.status !== 'rejected').map((s: any) => s.recruiter_id)
+      );
+      const lastSubmittedAt = submissionsList
+        .map((s: any) => s.submitted_at)
+        .filter(Boolean)
+        .sort()
+        .at(-1) ?? null;
 
       const statusCounts = submissionsList.reduce((acc: Record<string, number>, sub: any) => {
         acc[sub.status] = (acc[sub.status] || 0) + 1;
@@ -318,6 +331,7 @@ async function fetchActiveJobs(supabase: any, jobIds: string[]): Promise<JobStat
         status: job.status,
         createdAt: job.created_at,
         activeRecruiters: uniqueRecruiters.size,
+        lastSubmittedAt,
         totalCandidates: submissionsList.length,
         newCandidates: statusCounts['submitted'] || 0,
         shortlisted: statusCounts['accepted'] || 0,
