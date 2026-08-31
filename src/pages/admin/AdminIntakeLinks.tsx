@@ -81,6 +81,17 @@ export default function AdminIntakeLinks() {
   const [created, setCreated] = useState<{ url: string; emailSent: boolean | null; warning?: string | null } | null>(null);
   /** Der zuletzt angezeigte oder erneuerte Link, direkt in der Zeile. */
   const [shown, setShown] = useState<{ id: string; url: string; rotated: boolean } | null>(null);
+  /** Wurde der frisch erzeugte Link kopiert? Steuert die Rückfrage beim Schließen. */
+  const [copiedOnce, setCopiedOnce] = useState(false);
+  /**
+   * Setzt sich, wenn Anzeigen oder Erneuern am Backend scheitert.
+   *
+   * Beides braucht die Migration 20260901190000 und die neue Fassung von
+   * intake-link-admin. Ohne sie tun die Menüpunkte nichts — und ein Toast, der
+   * nach drei Sekunden weg ist, erklärt das niemandem. Deshalb ein stehender
+   * Hinweis über der Tabelle und gesperrte Menüpunkte.
+   */
+  const [backendOutdated, setBackendOutdated] = useState<string | null>(null);
 
   const activeTemplate = useMemo(
     () => templates.find((t) => t.id === form.terms_template_id) ?? templates.find((t) => t.is_active),
@@ -141,11 +152,19 @@ export default function AdminIntakeLinks() {
   const copy = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
+      setCopiedOnce(true);
       toast.success('Link kopiert.');
+      return true;
     } catch {
-      toast.error('Kopieren nicht möglich — bitte manuell markieren.');
+      toast.error('Kopieren nicht möglich — bitte den Text markieren und mit Strg+C kopieren.');
+      return false;
     }
   };
+
+  /** Fehler, die bedeuten "das Backend ist älter als die Oberfläche". */
+  const looksUndeployed = (message: string) =>
+    /unbekannte aktion|not deployed|nicht erreichbar|42703|token_encrypted|schema cache|column .* does not exist/i
+      .test(message);
 
   /**
    * Link erneut anzeigen.
@@ -161,7 +180,9 @@ export default function AdminIntakeLinks() {
       setShown({ id, url: res.url as string, rotated: false });
       await copy(res.url as string);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Der Link konnte nicht angezeigt werden.');
+      const message = e instanceof Error ? e.message : 'Der Link konnte nicht angezeigt werden.';
+      if (looksUndeployed(message)) setBackendOutdated(message);
+      else toast.error(message);
     }
   };
 
@@ -177,7 +198,9 @@ export default function AdminIntakeLinks() {
       setShown({ id, url: res.url as string, rotated: true });
       await copy(res.url as string);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Der Link konnte nicht erneuert werden.');
+      const message = e instanceof Error ? e.message : 'Der Link konnte nicht erneuert werden.';
+      if (looksUndeployed(message)) setBackendOutdated(message);
+      else toast.error(message);
     }
   };
 
@@ -190,9 +213,21 @@ export default function AdminIntakeLinks() {
     }
   };
 
-  const close = () => {
+  const close = (force = false) => {
+    // Der Klartext-Token verlässt den Server genau einmal. Wer hier ohne
+    // Kopieren schließt, kommt an den Link nicht mehr heran — solange die
+    // Anzeigen-Funktion nicht deployt ist, endgültig nicht. Genau das ist
+    // dreimal passiert, deshalb die Rückfrage.
+    if (!force && created && !copiedOnce) {
+      const ok = window.confirm(
+        'Sie haben den Link noch nicht kopiert.\n\n' +
+        'Er wird nicht erneut angezeigt. Trotzdem schließen?',
+      );
+      if (!ok) return;
+    }
     setOpen(false);
     setCreated(null);
+    setCopiedOnce(false);
     setForm(EMPTY_FORM);
   };
 
@@ -216,6 +251,24 @@ export default function AdminIntakeLinks() {
           <Stat label="Begonnene Aufnahmen" value={stats.started} icon={Users} />
           <Stat label="Beauftragungsanfragen" value={stats.submitted} icon={TrendingUp} />
         </div>
+
+        {backendOutdated && (
+          <Alert>
+            <RefreshCw className="h-4 w-4" />
+            <AlertDescription className="space-y-1.5 text-sm">
+              <p>
+                <strong>Anzeigen und Erneuern sind noch nicht freigeschaltet.</strong> Beides
+                braucht die Migration <code className="text-xs">20260901190000_intake_link_token_recoverable.sql</code>{' '}
+                und eine neue Fassung der Function <code className="text-xs">intake-link-admin</code>.
+              </p>
+              <p className="text-muted-foreground">
+                Bis dahin: über „Neuer Link" anlegen und den Link <strong>sofort kopieren</strong> —
+                er wird nur einmal angezeigt. Bestehende Links lassen sich deaktivieren.
+              </p>
+              <p className="text-xs text-muted-foreground">Meldung des Servers: {backendOutdated}</p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card>
           <CardContent className="p-0">
@@ -301,13 +354,23 @@ export default function AdminIntakeLinks() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {l.can_reveal && (
-                              <DropdownMenuItem onClick={() => reveal(l.link_id)}>
+                              <DropdownMenuItem
+                                disabled={Boolean(backendOutdated)}
+                                onClick={() => reveal(l.link_id)}
+                              >
                                 <Copy className="mr-2 h-4 w-4" /> Link kopieren
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onClick={() => rotate(l.link_id, l.label)}>
+                            <DropdownMenuItem
+                              disabled={Boolean(backendOutdated)}
+                              onClick={() => rotate(l.link_id, l.label)}
+                            >
                               <RefreshCw className="mr-2 h-4 w-4" />
-                              {l.can_reveal ? 'Neuen Link erzeugen' : 'Link erzeugen (alter wird ungültig)'}
+                              {backendOutdated
+                                ? 'Erneuern — erst nach dem Deploy'
+                                : l.can_reveal
+                                ? 'Neuen Link erzeugen'
+                                : 'Link erzeugen (alter wird ungültig)'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggle(l.link_id, Boolean(l.revoked_at))}>
                               <Power className="mr-2 h-4 w-4" />
@@ -371,7 +434,14 @@ export default function AdminIntakeLinks() {
                 )}
               </div>
               <DialogFooter>
-                <Button onClick={close}>Fertig</Button>
+                {!copiedOnce && (
+                  <span className="mr-auto self-center text-xs text-amber-600">
+                    Noch nicht kopiert
+                  </span>
+                )}
+                <Button onClick={() => close()} variant={copiedOnce ? 'default' : 'outline'}>
+                  {copiedOnce ? 'Fertig' : 'Ohne Kopieren schließen'}
+                </Button>
               </DialogFooter>
             </>
           ) : (
@@ -500,7 +570,7 @@ export default function AdminIntakeLinks() {
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={close}>Abbrechen</Button>
+                <Button variant="outline" onClick={() => close(true)}>Abbrechen</Button>
                 <Button onClick={submit} disabled={action.isPending || form.label.trim().length < 3} className="gap-2">
                   {action.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Link erzeugen
                 </Button>
