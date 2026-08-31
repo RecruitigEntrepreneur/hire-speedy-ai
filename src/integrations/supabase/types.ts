@@ -3424,6 +3424,338 @@ export type Database = {
           },
         ]
       }
+      intake_draft_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          draft_id: string
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          note: string | null
+          origin: string
+          recipient_email: string | null
+          recipient_name: string | null
+          revoked_at: string | null
+          token_hash: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          draft_id: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          note?: string | null
+          origin?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          revoked_at?: string | null
+          token_hash: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          draft_id?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          note?: string | null
+          origin?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_draft_tokens_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_drafts: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          admin_note: string | null
+          anonymous_id: string | null
+          answers: Json | null
+          billing_email: string | null
+          built: Json | null
+          capture_state: string
+          client_user_id: string | null
+          commercial_state: string
+          company_city: string | null
+          company_country: string
+          company_domain: string | null
+          company_industry: string | null
+          company_legal_name: string | null
+          company_name: string | null
+          company_postal_code: string | null
+          company_registration_number: string | null
+          company_size: string | null
+          company_street: string | null
+          company_vat_id: string | null
+          company_website: string | null
+          completeness: number
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_role: string | null
+          contract_type: string
+          created_at: string
+          dyn: Json | null
+          flexibility: Json | null
+          freelance: Json | null
+          id: string
+          identity_state: string
+          intake_payload: Json | null
+          ip_hash: string | null
+          is_freemail: boolean
+          job_id: string | null
+          last_activity_at: string
+          link_id: string | null
+          match_confidence: string | null
+          matched_client_user_id: string | null
+          matched_organization_id: string | null
+          matched_outreach_company_id: string | null
+          organization_id: string | null
+          owner_user_id: string | null
+          purge_after: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          reminder_sent_at: string | null
+          reveal_setup: Json | null
+          review_state: string
+          skill_requirements: Json | null
+          submitted_at: string | null
+          title: string | null
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          admin_note?: string | null
+          anonymous_id?: string | null
+          answers?: Json | null
+          billing_email?: string | null
+          built?: Json | null
+          capture_state?: string
+          client_user_id?: string | null
+          commercial_state?: string
+          company_city?: string | null
+          company_country?: string
+          company_domain?: string | null
+          company_industry?: string | null
+          company_legal_name?: string | null
+          company_name?: string | null
+          company_postal_code?: string | null
+          company_registration_number?: string | null
+          company_size?: string | null
+          company_street?: string | null
+          company_vat_id?: string | null
+          company_website?: string | null
+          completeness?: number
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          contract_type?: string
+          created_at?: string
+          dyn?: Json | null
+          flexibility?: Json | null
+          freelance?: Json | null
+          id?: string
+          identity_state?: string
+          intake_payload?: Json | null
+          ip_hash?: string | null
+          is_freemail?: boolean
+          job_id?: string | null
+          last_activity_at?: string
+          link_id?: string | null
+          match_confidence?: string | null
+          matched_client_user_id?: string | null
+          matched_organization_id?: string | null
+          matched_outreach_company_id?: string | null
+          organization_id?: string | null
+          owner_user_id?: string | null
+          purge_after?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          reminder_sent_at?: string | null
+          reveal_setup?: Json | null
+          review_state?: string
+          skill_requirements?: Json | null
+          submitted_at?: string | null
+          title?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          admin_note?: string | null
+          anonymous_id?: string | null
+          answers?: Json | null
+          billing_email?: string | null
+          built?: Json | null
+          capture_state?: string
+          client_user_id?: string | null
+          commercial_state?: string
+          company_city?: string | null
+          company_country?: string
+          company_domain?: string | null
+          company_industry?: string | null
+          company_legal_name?: string | null
+          company_name?: string | null
+          company_postal_code?: string | null
+          company_registration_number?: string | null
+          company_size?: string | null
+          company_street?: string | null
+          company_vat_id?: string | null
+          company_website?: string | null
+          completeness?: number
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          contract_type?: string
+          created_at?: string
+          dyn?: Json | null
+          flexibility?: Json | null
+          freelance?: Json | null
+          id?: string
+          identity_state?: string
+          intake_payload?: Json | null
+          ip_hash?: string | null
+          is_freemail?: boolean
+          job_id?: string | null
+          last_activity_at?: string
+          link_id?: string | null
+          match_confidence?: string | null
+          matched_client_user_id?: string | null
+          matched_organization_id?: string | null
+          matched_outreach_company_id?: string | null
+          organization_id?: string | null
+          owner_user_id?: string | null
+          purge_after?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          reminder_sent_at?: string | null
+          reveal_setup?: Json | null
+          review_state?: string
+          skill_requirements?: Json | null
+          submitted_at?: string | null
+          title?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_matched_organization_id_fkey"
+            columns: ["matched_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_matched_outreach_company_id_fkey"
+            columns: ["matched_outreach_company_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_email_verifications: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed: boolean
+          created_at: string
+          draft_id: string
+          email: string
+          expires_at: string
+          id: string
+          ip_hash: string | null
+          max_attempts: number
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed?: boolean
+          created_at?: string
+          draft_id: string
+          email: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          max_attempts?: number
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed?: boolean
+          created_at?: string
+          draft_id?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          max_attempts?: number
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_email_verifications_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intake_link_events: {
         Row: {
           actor_user_id: string | null
@@ -3462,6 +3794,13 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "intake_link_events_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intake_link_events_link_id_fkey"
             columns: ["link_id"]
@@ -3573,6 +3912,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      intake_rate_limits: {
+        Row: {
+          count: number
+          key_hash: string
+          scope: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key_hash: string
+          scope: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key_hash?: string
+          scope?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       integration_mappings: {
         Row: {
@@ -9609,6 +9969,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      intake_drafts_purge_expired: { Args: never; Returns: number }
+      intake_rate_limit_hit: {
+        Args: { _key: string; _limit: number; _scope: string; _window?: string }
+        Returns: boolean
+      }
+      intake_rate_limits_prune: { Args: never; Returns: number }
       is_job_collaborator: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
