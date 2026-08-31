@@ -172,11 +172,18 @@ sind ohne Login **48 Tabellen** lesbar, davon 9 mit Daten — darunter `match_ou
 mit **10.081 Zeilen** (`candidate_id` × `job_id` × `rejection_reason`, also genau die
 Verknüpfung, die Triple-Blind schützen soll). Gemessen am 2026-08-29.
 
+**Warum die Migration im Katalog sucht statt Namen aufzuzählen:** Eine Zählung gegen die
+laufende Datenbank ergab **83** solcher Policies, während in den Migrationsdateien nur 54
+stehen. Der Rest ist außerhalb des Migrationspfads entstanden. Eine namentliche Liste würde
+diese übersehen.
+
 > Bitte führe die Migration aus Datei
 > `supabase/migrations/20260829110000_rls_close_open_policies.sql`
-> auf Supabase aus. Sie entfernt 54 Policies vom Muster
-> `FOR ALL USING (true)` ohne `TO`-Klausel, die für PUBLIC (inkl. anon) gelten
-> und alle korrekten Policies derselben Tabelle per ODER aushebeln.
+> auf Supabase aus. Sie durchsucht `pg_policies` nach permissiven Policies für
+> PUBLIC/anon, deren `qual` oder `with_check` unbedingt `true` ist, und entfernt
+> sie — mit vier namentlichen Ausnahmen für Token-Flows. Drei Nachschlagetabellen
+> bekommen stattdessen eine `TO authenticated`-Policy. Am Ende steht eine
+> Gegenprobe, die mit einer Exception abbricht, falls etwas übrig bleibt.
 > Ändere sonst nichts am Code.
 
 **Danach prüfen** — mit demselben öffentlichen Key, ohne Login:
@@ -185,7 +192,12 @@ Verknüpfung, die Triple-Blind schützen soll). Gemessen am 2026-08-29.
 curl -sS -I "https://dngycrrhbnwdohbftpzq.supabase.co/rest/v1/match_outcomes?select=id" -H "apikey: $(grep VITE_SUPABASE_PUBLISHABLE_KEY .env | cut -d= -f2-)" -H "Prefer: count=exact" | grep -i content-range
 ```
 
-Erwartet: `*/0`. Kommen weiterhin Zeilen, ist eine Policy übrig geblieben.
+Erwartet: `*/0`.
+
+**Bitte die NOTICE-Ausgabe mitschicken.** Der letzte Block meldet Tabellen, die danach gar
+keine Policy mehr haben — bei aktivem RLS heißt das „nur noch service_role". Für reine
+Systemtabellen ist das richtig; steht dort etwas, das das Frontend liest, fehlt eine Policy
+und wir ergänzen sie gezielt.
 
 **Nicht enthalten (bewusst):** die vier Token-Flow-Policies auf `reference_requests`,
 `reference_responses`, `organization_invites` und `interview_participants`. Sie erlauben
@@ -217,7 +229,7 @@ müssen beide antworten; `recruiter_jobs_view?select=draft_state` muss mit 42703
 
 ---
 
-## Prompt 7 — Die drei liegengebliebenen Migrationen
+## Prompt 7 — Die drei liegengebliebenen Migrationen ✅ ERLEDIGT (2026-08-29)
 
 Diese drei Dateien liegen seit Wochen im Repo und sind nie angewandt worden. Jede
 verursacht einen konkreten Defekt:
@@ -236,3 +248,19 @@ verursacht einen konkreten Defekt:
 
 **Wichtig vorher zu klären:** Warum wurden sie übersprungen, während spätere Migrationen
 liefen? Solange die Ursache offen ist, wiederholt sich das beim nächsten Deploy.
+
+---
+
+## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
+
+Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
+den Migrations-Flow angestoßen werden. Dateien, die direkt per Git in
+`supabase/migrations/` landen, werden **nie automatisch angewandt**.
+
+Das erklärt den gesamten Rückstand: `intake_hybrid_foundation` (19.06.),
+`job_review_feedback` (10.07.) und `job_close_reason` (16.07.) lagen wochenlang im Repo,
+während spätere, über Lovable angestoßene Migrationen längst liefen — daher der Eindruck,
+Migrationen würden „selektiv und außer der Reihe" angewandt.
+
+**Konsequenz für jede neue Migration:** erst pushen, dann hier einen Prompt dafür anlegen
+und ihn in Lovable ausführen. Ohne den zweiten Schritt passiert nichts.
