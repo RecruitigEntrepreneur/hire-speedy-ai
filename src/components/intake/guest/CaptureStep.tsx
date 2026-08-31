@@ -117,6 +117,9 @@ export function CaptureStep({
   );
 
   const start = (job: BuiltJob) => {
+    // Zurueck aus dem Einfuegen-/Link-Schirm, sonst bleibt die Ansicht darauf
+    // stehen, obwohl das Profil laengst gebaut ist.
+    setEntryMode(seedTitle ? 'confirm' : 'choose');
     onState((s) => ({
       ...s,
       built: job,

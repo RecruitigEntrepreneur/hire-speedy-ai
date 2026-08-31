@@ -168,8 +168,22 @@ PFLICHT-FELDER:
 - salary_min: Minimum Gehalt (nur Zahl in EUR, jährlich)
 - salary_max: Maximum Gehalt (nur Zahl in EUR, jährlich)
 - skills: Array von erforderlichen technischen Skills
-- must_haves: Array von Muss-Kriterien
-- nice_to_haves: Array von Kann-Kriterien
+- must_haves: KURZE, PRUEFBARE Muss-Kriterien. Jeder Eintrag hoechstens 5 Woerter
+  und einzeln pruefbar -- ein Recruiter muss "hat der Kandidat das: ja/nein"
+  beantworten koennen. Ein Satz aus der Anzeige wird in seine Kriterien zerlegt:
+    "Fundierte Erfahrung in DevSecOps, CI/CD, Infrastructure as Code und Container"
+      -> ["DevSecOps", "CI/CD", "Infrastructure as Code", "Container"]
+    "Sehr gute Sprachkenntnisse in Deutsch und Englisch"
+      -> ["Deutsch verhandlungssicher", "Englisch verhandlungssicher"]
+  NICHT uebernehmen: Persoenlichkeitsfloskeln ohne pruefbaren Kern
+  ("ganzheitliches Denkvermoegen", "Freude an der Zusammenarbeit",
+  "hohe Eigenverantwortung"). Die gehoeren nach requirements, nicht hierher --
+  sie sind nicht pruefbar und blaehen die Muss-Liste auf.
+  Hoechstens 8 Eintraege. Ist die Anzeige laenger, nimm die 8 wichtigsten.
+- nice_to_haves: Kann-Kriterien, gleiche Form und Laenge wie must_haves
+- requirements: der VOLLSTAENDIGE Anforderungstext der Anzeige im Fliesstext.
+  Hier gehoert alles hinein, was in must_haves zu lang oder zu weich war --
+  nichts geht verloren, es steht nur an der richtigen Stelle.
 
 TEAM & STRUKTUR (falls erwähnt):
 - team_size: Zahl (z.B. "12-köpfiges Team" → 12)
@@ -186,7 +200,12 @@ ARBEITSWEISE (falls erwähnt):
 KULTUR & BENEFITS:
 - company_culture: String (Tonfall der Anzeige, Du/Sie-Kultur, Werte)
 - benefits_extracted: Array ALLER genannten Benefits (Deutschlandticket, Fitness, etc.)
-- unique_selling_points: Array der besonderen Vorteile dieser Stelle
+- unique_selling_points: Array der Gruende, WARUM jemand diese Stelle nimmt --
+  aus Sicht des Kandidaten. Also: Technologie, Gestaltungsspielraum, Team,
+  Produkt, Marktposition, Entwicklungsperspektive.
+  KEINE Aufgabenbeschreibungen. "Verantwortung fuer CI/CD-Pipelines" ist eine
+  Aufgabe und gehoert nach description, nicht hierher. "Greenfield-Plattform
+  mit AI-Toolchain in einem 10.000-Mitarbeiter-Konzern" ist ein Grund.
 - career_path: String (Entwicklungsmöglichkeiten, Aufstiegschancen)
 
 DRINGLICHKEIT:
@@ -253,8 +272,16 @@ WICHTIGE REGELN:
                   salary_min: { type: "number", nullable: true },
                   salary_max: { type: "number", nullable: true },
                   skills: { type: "array", items: { type: "string" } },
-                  must_haves: { type: "array", items: { type: "string" } },
-                  nice_to_haves: { type: "array", items: { type: "string" } },
+                  must_haves: {
+                    type: "array",
+                    description: "Kurze, einzeln pruefbare Muss-Kriterien, hoechstens 5 Woerter je Eintrag und hoechstens 8 Eintraege. Keine Persoenlichkeitsfloskeln.",
+                    items: { type: "string" },
+                  },
+                  nice_to_haves: {
+                    type: "array",
+                    description: "Kann-Kriterien, gleiche Form wie must_haves.",
+                    items: { type: "string" },
+                  },
                   
                   // Team & Struktur
                   team_size: { type: "integer", nullable: true },
@@ -271,7 +298,11 @@ WICHTIGE REGELN:
                   // Kultur & Benefits
                   company_culture: { type: "string", nullable: true },
                   benefits_extracted: { type: "array", items: { type: "string" } },
-                  unique_selling_points: { type: "array", items: { type: "string" } },
+                  unique_selling_points: {
+                    type: "array",
+                    description: "Gruende aus Kandidatensicht, warum man diese Stelle nimmt. Keine Aufgabenbeschreibungen.",
+                    items: { type: "string" },
+                  },
                   career_path: { type: "string", nullable: true },
                   
                   // Dringlichkeit
