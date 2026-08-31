@@ -15,9 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Check, Loader2, Percent, Plus, TriangleAlert } from 'lucide-react';
-import { intakeDb } from '@/lib/intakeDb';
 import { useTermsTemplates } from '@/hooks/useAdminIntakes';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Pflege der veröffentlichten Konditionsregel.
@@ -69,7 +69,7 @@ export function CommercialTermsPanel() {
 
       // Erst die neue Fassung anlegen, dann die alte deaktivieren: der
       // partielle Unique-Index lässt nur eine aktive Fassung je key zu.
-      const { error: deactivateErr } = await intakeDb('commercial_terms_templates')
+      const { error: deactivateErr } = await supabase.from('commercial_terms_templates')
         .update({ is_active: false }).eq('key', 'standard').eq('is_active', true);
       if (deactivateErr) throw deactivateErr;
 
@@ -98,11 +98,11 @@ export function CommercialTermsPanel() {
         created_by: user?.id,
       };
 
-      const { error: insertErr } = await intakeDb('commercial_terms_templates').insert(payload);
+      const { error: insertErr } = await supabase.from('commercial_terms_templates').insert(payload);
       if (insertErr) {
         // Zurückdrehen, sonst steht das System ohne aktive Regel da und
         // nimmt gar keine Beauftragung mehr entgegen.
-        if (active) await intakeDb('commercial_terms_templates').update({ is_active: true }).eq('id', active.id);
+        if (active) await supabase.from('commercial_terms_templates').update({ is_active: true }).eq('id', active.id);
         throw insertErr;
       }
     },

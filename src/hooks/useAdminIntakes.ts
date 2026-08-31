@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { intakeDb } from '@/lib/intakeDb';
 
 /**
  * Aus einem Edge-Function-Fehler eine Meldung machen, mit der man etwas
@@ -78,7 +77,7 @@ export function useAdminIntakes(tab: IntakeTab, search: string) {
   return useQuery({
     queryKey: ['admin-intakes', tab, search],
     queryFn: async () => {
-      let q = intakeDb('intake_drafts').select(LIST_COLUMNS);
+      let q = supabase.from('intake_drafts').select(LIST_COLUMNS);
 
       if (tab === 'queue') {
         q = q.eq('review_state', 'pending_admin').order('submitted_at', { ascending: true });
@@ -111,11 +110,11 @@ export function useIntakeCounts() {
     queryKey: ['admin-intake-counts'],
     queryFn: async () => {
       const [queue, followup, terms, week] = await Promise.all([
-        intakeDb('intake_drafts').select('id', { count: 'exact', head: true }).eq('review_state', 'pending_admin'),
-        intakeDb('intake_drafts').select('id', { count: 'exact', head: true })
+        supabase.from('intake_drafts').select('id', { count: 'exact', head: true }).eq('review_state', 'pending_admin'),
+        supabase.from('intake_drafts').select('id', { count: 'exact', head: true })
           .in('review_state', ['not_submitted', 'changes_requested']).not('contact_email', 'is', null),
-        intakeDb('intake_drafts').select('id', { count: 'exact', head: true }).eq('commercial_state', 'discussion_requested'),
-        intakeDb('intake_drafts').select('id', { count: 'exact', head: true })
+        supabase.from('intake_drafts').select('id', { count: 'exact', head: true }).eq('commercial_state', 'discussion_requested'),
+        supabase.from('intake_drafts').select('id', { count: 'exact', head: true })
           .gte('created_at', new Date(Date.now() - 7 * 86_400_000).toISOString()),
       ]);
       return {
@@ -135,10 +134,10 @@ export function useIntakeDetail(id: string | undefined) {
     enabled: Boolean(id),
     queryFn: async () => {
       const [draft, mandates, events, tokens] = await Promise.all([
-        intakeDb('intake_drafts').select('*').eq('id', id!).maybeSingle(),
-        intakeDb('commercial_mandates').select('*').eq('draft_id', id!).order('created_at', { ascending: false }),
-        intakeDb('intake_link_events').select('*').eq('draft_id', id!).order('occurred_at', { ascending: false }).limit(120),
-        intakeDb('intake_draft_tokens')
+        supabase.from('intake_drafts').select('*').eq('id', id!).maybeSingle(),
+        supabase.from('commercial_mandates').select('*').eq('draft_id', id!).order('created_at', { ascending: false }),
+        supabase.from('intake_link_events').select('*').eq('draft_id', id!).order('occurred_at', { ascending: false }).limit(120),
+        supabase.from('intake_draft_tokens')
           .select('id, origin, recipient_email, recipient_name, expires_at, revoked_at, last_used_at, use_count, created_at')
           .eq('draft_id', id!).order('created_at', { ascending: false }),
       ]);
@@ -146,7 +145,7 @@ export function useIntakeDetail(id: string | undefined) {
 
       let link: Record<string, any> | null = null;
       if (draft.data?.link_id) {
-        const { data } = await intakeDb('intake_links')
+        const { data } = await supabase.from('intake_links')
           .select('id, label, link_type, campaign_key, source, owner_user_id, terms_template_id')
           .eq('id', draft.data.link_id).maybeSingle();
         link = data ?? null;
@@ -234,7 +233,7 @@ export function useTermsTemplates() {
   return useQuery({
     queryKey: ['commercial-terms-templates'],
     queryFn: async () => {
-      const { data, error } = await intakeDb('commercial_terms_templates')
+      const { data, error } = await supabase.from('commercial_terms_templates')
         .select('*').order('key').order('version', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Record<string, any>[];

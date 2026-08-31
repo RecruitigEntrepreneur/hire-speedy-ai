@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { useAuth } from '@/lib/auth';
-import { intakeDb } from '@/lib/intakeDb';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -110,13 +109,13 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
     setGateLoading(true);
     (async () => {
       // Die aktive Vorlage ist die Quelle der Voreinstellung und der Grenzen.
-      const { data: tpl } = await intakeDb('commercial_terms_templates')
+      const { data: tpl } = await supabase.from('commercial_terms_templates')
         .select('*').eq('key', 'standard').eq('is_active', true).maybeSingle();
 
       // Und der Vertragsstand, falls die Stelle aus einer Anfrage kam.
       let m: Record<string, any> | null = null;
       if (job.mandate_id) {
-        const { data } = await intakeDb('commercial_mandates')
+        const { data } = await supabase.from('commercial_mandates')
           .select('*').eq('id', job.mandate_id).maybeSingle();
         m = data ?? null;
       }
