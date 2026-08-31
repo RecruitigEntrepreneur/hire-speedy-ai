@@ -392,7 +392,32 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     [],
   );
 
-  return { state, save, flush, sendCode, confirmCode, loadTerms, requestTermsDiscussion, submit, forward, askAi, parseText, parseUrl };
+  /**
+   * PDF als base64 durch den Proxy.
+   *
+   * Der Gast lädt nicht selbst in den Storage: der Bucket erlaubt Uploads nur
+   * Angemeldeten, und eine anon-Policy wäre ein offenes Ablageziel im Netz.
+   * Die Datei geht durch intake-ai, wird dort mit Service-Role unter einem
+   * Pfad abgelegt, den der Browser nicht bestimmt, und nach dem Auslesen
+   * wieder entfernt.
+   */
+  const parsePdf = useCallback(async (file: File) => {
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    }).catch(() => null);
+
+    if (!base64) {
+      return { reason: 'invalid_request', message: 'Die Datei konnte nicht gelesen werden.' } as IntakeFailure;
+    }
+    return withToken<{ success?: boolean; data?: any }>('intake-ai', {
+      op: 'parse_pdf', payload: { file_base64: base64, file_name: file.name.slice(0, 120) },
+    });
+  }, []);
+
+  return { state, save, flush, sendCode, confirmCode, loadTerms, requestTermsDiscussion, submit, forward, askAi, parseText, parseUrl, parsePdf };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */

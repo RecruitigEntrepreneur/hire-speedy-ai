@@ -42,7 +42,8 @@ type StepKey = (typeof STEPS)[number]['key'];
 export default function GuestIntake() {
   const { token, draftToken } = useParams<{ token?: string; draftToken?: string }>();
   const intake = useGuestIntake(token, draftToken);
-  const { state, save, sendCode, confirmCode, loadTerms, requestTermsDiscussion, submit, forward, askAi, parseText, parseUrl } = intake;
+  const { state, save, sendCode, confirmCode, loadTerms, requestTermsDiscussion, submit, forward,
+          askAi, parseText, parseUrl, parsePdf } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
   const [capture, setCapture] = useState<CaptureState | null>(null);
@@ -284,7 +285,9 @@ export default function GuestIntake() {
         <CaptureStep
           state={capture}
           onState={updateCapture}
-          seedText={link?.prefill?.seed_text ?? link?.prefill?.seed_title ?? null}
+          seedTitle={link?.prefill?.seed_title ?? null}
+          seedText={link?.prefill?.seed_text ?? null}
+          contactName={firstName(draft.contact_name ?? link?.prefill?.contact_name ?? null)}
           companyDefaults={{
             industry: draft.company_industry ?? link?.prefill?.industry ?? null,
             size: draft.company_size ?? link?.prefill?.company_size ?? null,
@@ -294,6 +297,7 @@ export default function GuestIntake() {
           askAi={askAi}
           parseText={parseText}
           parseUrl={parseUrl}
+          parsePdf={parsePdf}
           onNext={() => setStep('contact')}
         />
       )}
@@ -372,6 +376,19 @@ export default function GuestIntake() {
       />
     </IntakeShell>
   );
+}
+
+/**
+ * Anrede aus dem, was der Link mitbringt.
+ *
+ * „Frau Weber" bleibt „Frau Weber", „Sabine Weber" wird zu „Frau Weber"? Nein —
+ * das Geschlecht ist aus einem Namen nicht ableitbar, und ein falscher Griff
+ * wiegt schwerer als gar keine Anrede. Deshalb: enthält die Vorbelegung bereits
+ * eine Anrede, wird sie übernommen; sonst der vollständige Name.
+ */
+function firstName(name: string | null): string | null {
+  if (!name) return null;
+  return name.trim() || null;
 }
 
 function Step({ icon: Icon, title, text }: { icon: any; title: string; text: string }) {

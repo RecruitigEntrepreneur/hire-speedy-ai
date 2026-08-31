@@ -53,11 +53,15 @@ export function IntakeShell({
           <MatchuntWordmark size="sm" />
 
           {/* Die Kondition steht ab der ersten Sekunde hier — nicht als
-              Überraschung am Ende. AGB § 9 sagt genau das zu. */}
+              Überraschung am Ende. AGB § 9 sagt genau das zu, und die gelockte
+              Spezifikation verlangt sie ausdrücklich ab der ersten Sekunde.
+              Deshalb auch auf dem Handy sichtbar, dort nur kürzer: der Zusatz
+              „keine Fixkosten" weicht, die Zahl bleibt. */}
           {terms && (
-            <Badge variant="secondary" className="hidden gap-1.5 font-normal sm:inline-flex">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              {terms.fee_percentage} % Erfolgshonorar · keine Fixkosten
+            <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              {terms.fee_percentage} % Erfolgshonorar
+              <span className="hidden sm:inline">· keine Fixkosten</span>
             </Badge>
           )}
 

@@ -50,6 +50,22 @@ serve(async (req) => {
 
     const { pdfPath, jobText } = await req.json();
 
+    // Pfadpruefung: pdfPath kam bisher ungeprueft aus dem Request-Body und ging
+    // direkt an einen Service-Role-Download — jeder Aufrufer konnte damit eine
+    // beliebige Datei des Buckets als Text zurueckbekommen. Ueber den
+    // Gast-Proxy intake-ai ist die Function jetzt mittelbar aus dem offenen
+    // Netz erreichbar; die Beschraenkung auf den Upload-Bereich gehoert
+    // nachgezogen.
+    if (pdfPath) {
+      const p = String(pdfPath);
+      if (!p.startsWith('uploads/') || p.includes('..')) {
+        return new Response(
+          JSON.stringify({ error: 'Ungültiger Dateipfad' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
     let textToAnalyze = jobText;
 
     // If PDF path provided, extract text first

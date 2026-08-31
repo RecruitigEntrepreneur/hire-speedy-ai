@@ -30,8 +30,12 @@ const TARGETS = {
   questions: 'intake-questions',
   parse_text: 'parse-job-url',
   parse_url: 'parse-job-url',
+  parse_pdf: 'parse-job-pdf',
 } as const;
 type Op = keyof typeof TARGETS;
+
+/** Obergrenze fuer hochgeladene Anzeigen. */
+const MAX_PDF_BYTES = 8 * 1024 * 1024;
 
 /**
  * SSRF-Vorfilter. parse-job-url:78-83 fetcht die uebergebene URL heute ohne
@@ -98,6 +102,8 @@ serve(async (req) => {
     // ---- Nutzlast bauen und deckeln ---------------------------------------
     const payload = (body?.payload ?? {}) as Record<string, unknown>;
     let forward: Record<string, unknown>;
+    /** Gesetzt beim PDF-Weg — die Ablage wird nach dem Auslesen wieder geraeumt. */
+    let pdfPath: string | null = null;
 
     if (op === 'questions') {
       const jobDraft = payload.job_draft ?? {};
@@ -119,11 +125,54 @@ serve(async (req) => {
         return fail('invalid_request', 'Bitte beschreiben Sie die Rolle etwas ausführlicher.');
       }
       forward = { jobText: text };
-    } else {
+    } else if (op === 'parse_url') {
       const url = String(payload.jobUrl ?? '').trim().slice(0, 2000);
       const safe = urlIsSafe(url);
       if (!safe.ok) return fail('invalid_request', safe.message!);
       forward = { jobUrl: url };
+    } else {
+      // ---- PDF ------------------------------------------------------------
+      // Der Gast laedt NICHT selbst in den Storage: der Bucket job-documents
+      // erlaubt Uploads nur "TO authenticated" (20251212181114:8-12), und eine
+      // anon-Policy dafuer waere ein offenes Ablageziel im Netz. Die Datei
+      // kommt stattdessen durch diesen Endpunkt und wird hier mit Service-Role
+      // unter einem Pfad abgelegt, den der Aufrufer nicht bestimmt.
+      const b64 = String(payload.file_base64 ?? '');
+      if (!b64) return fail('invalid_request', 'Keine Datei empfangen.');
+      // base64 ist rund 4/3 der Rohgroesse.
+      if (b64.length > MAX_PDF_BYTES * 1.4) {
+        return fail('invalid_request', 'Die Datei ist zu groß. Bitte fügen Sie den Text der Anzeige ein.');
+      }
+
+      let bytes: Uint8Array;
+      try {
+        const clean = b64.includes(',') ? b64.slice(b64.indexOf(',') + 1) : b64;
+        const bin = atob(clean);
+        bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      } catch {
+        return fail('invalid_request', 'Die Datei konnte nicht gelesen werden.');
+      }
+      if (bytes.length > MAX_PDF_BYTES) {
+        return fail('invalid_request', 'Die Datei ist größer als 8 MB.');
+      }
+      // Signatur pruefen, statt der Dateiendung zu glauben.
+      if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) {
+        return fail('invalid_request', 'Das ist keine PDF-Datei.');
+      }
+
+      // Pfad aus dem Entwurf, nicht aus der Anfrage — sonst waere der Upload
+      // ein frei adressierbarer Schreibzugriff auf den Bucket.
+      const path = `uploads/intake/${draft.id}/${crypto.randomUUID()}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from('job-documents')
+        .upload(path, bytes, { contentType: 'application/pdf', upsert: false });
+      if (upErr) {
+        console.error('[intake-ai] PDF-Upload:', upErr.message);
+        return fail('internal_error', 'Die Datei konnte nicht abgelegt werden.');
+      }
+      pdfPath = path;
+      forward = { pdfPath: path };
     }
 
     // ---- Weiterreichen ----------------------------------------------------
@@ -144,13 +193,25 @@ serve(async (req) => {
       });
     } catch (e) {
       console.error('[intake-ai] Aufruf von', target, 'fehlgeschlagen:', e);
+      if (pdfPath) {
+        await supabase.storage.from('job-documents').remove([pdfPath]).catch(() => {});
+      }
       return fail('upstream_error',
         'Die KI-Unterstützung ist gerade nicht erreichbar. Sie können alle Angaben auch von Hand eintragen.');
     }
 
     const elapsed = Date.now() - started;
 
+    // Die hochgeladene Anzeige wird nicht aufbewahrt: ihr Inhalt steckt danach
+    // im Entwurf, die Datei selbst hat keinen Zweck mehr.
+    const cleanupPdf = async () => {
+      if (!pdfPath) return;
+      const { error } = await supabase.storage.from('job-documents').remove([pdfPath]);
+      if (error) console.warn('[intake-ai] PDF nicht geraeumt:', pdfPath, error.message);
+    };
+
     if (!upstream.ok) {
+      await cleanupPdf();
       const text = (await upstream.text()).slice(0, 300);
       console.error('[intake-ai]', target, upstream.status, text);
       await logEvent(supabase, {
@@ -166,6 +227,7 @@ serve(async (req) => {
     }
 
     const data = await upstream.json();
+    await cleanupPdf();
 
     // Kostenspur: ohne sie gibt es fuer Missbrauch an einem oeffentlichen Link
     // keine Datenbasis.
