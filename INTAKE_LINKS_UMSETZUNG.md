@@ -1,8 +1,8 @@
 # Kundenseitiger Einstieg über Jobaufnahme-Links
 
-Stand: 2026-08-31 · Gebaut, typgeprüft, getestet. **Noch nicht deployt** — die
-Migrationen und Edge Functions müssen einzeln angestoßen werden, siehe
-[Was noch fehlt](#was-noch-fehlt).
+Stand: 2026-08-31 · Gebaut, typgeprüft, getestet — **Datenbank und Edge Functions sind
+deployt und gegen die Produktion verifiziert.** Offen sind zwei Handgriffe im
+Supabase-Dashboard und die Abnahmeprobe, siehe [Was noch fehlt](#was-noch-fehlt).
 
 ---
 
@@ -195,18 +195,27 @@ zurücksprangen.
 
 ## Was noch fehlt
 
-### Deploy (nichts davon läuft automatisch)
+### Erledigt am 2026-08-31
 
-1. **Migrationen anstoßen** — `LOVABLE_DB_PROMPTS.md`, Prompt 8. Migrationsdateien aus Git
-   werden bei Lovable nie automatisch angewandt.
-2. **Secrets setzen**: `INTAKE_TOKEN_PEPPER` (ohne ihn wären sechsstellige Codes aus einem
-   DB-Dump per Rainbow-Table auflösbar), `RESEND_FROM`, `APP_URL`,
-   `MANDATE_VENDOR_NAME`/`-_ADDRESS`/`-_REGISTER`.
-3. **Redirect-URL** `https://matchunt.ai/passwort` in Supabase → Authentication → URL
-   Configuration eintragen.
-4. **Edge Functions deployen** (11 neue + `parse-job-url`). Ohne sie meldet der Link
-   ehrlich „noch nicht freigeschaltet" statt still zu scheitern — das ist geprüft.
-5. **`supabase test db`** einmal laufen lassen.
+- ✅ **Sechs Migrationen angewandt.** Verifiziert: alle neun Tabellen und Views existieren,
+  keine liefert an `anon` Daten, alle sieben Brückenspalten auf `jobs` sind vorhanden.
+- ✅ **13 Edge Functions deployt.** Verifiziert: die acht Gast-Endpunkte antworten mit dem
+  Fehlervertrag (`reason` + `message`), die fünf geschützten mit `401 Missing
+  authorization header` — `config.toml` greift also wie vorgesehen.
+
+### Deploy — noch offen
+
+1. **Secret setzen**: `INTAKE_TOKEN_PEPPER` (mindestens 32 Zeichen). Ohne ihn wären die
+   sechsstelligen Codes aus einem DB-Dump per Rainbow-Table auflösbar — der Suchraum ist
+   nur eine Million. **Der einzige kritische Punkt.**
+   `RESEND_FROM` und `APP_URL` prüfen. `MANDATE_VENDOR_*` sind nicht nötig, die Firmierung
+   steht im Code.
+2. **Redirect-URL** `https://matchunt.ai/passwort` in Supabase → Authentication → URL
+   Configuration eintragen. Ohne sie kommt ein neu angelegtes Kundenkonto nicht hinein.
+3. **Abnahmeprobe**: in `/admin/intake-links` einen persönlichen Testlink anlegen und in
+   einem privaten Fenster öffnen. Das prüft in einem Zug die Admin-Function, die
+   Rollenprüfung, den Seed der Konditionsvorlage, die Tokenerzeugung und die Gaststrecke.
+4. **`supabase test db`** einmal laufen lassen (24 pgTAP-Prüfungen, braucht Docker).
 
 ### Vor dem ersten echten Link — nicht von mir entscheidbar
 

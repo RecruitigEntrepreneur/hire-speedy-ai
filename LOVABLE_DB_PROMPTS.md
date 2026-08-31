@@ -251,7 +251,14 @@ liefen? Solange die Ursache offen ist, wiederholt sich das beim nächsten Deploy
 
 ---
 
-## Prompt 8 — Kundenseitiger Einstieg über Jobaufnahme-Links
+## Prompt 8 — Kundenseitiger Einstieg über Jobaufnahme-Links ✅ 8a + 8b ERLEDIGT (2026-08-31)
+
+**Stand:** Alle sechs Migrationen sind angewandt, alle 13 Edge Functions deployt —
+gegen die Produktion verifiziert: die neun neuen Tabellen und Views existieren und
+liefern an `anon` durchweg leer; die sieben Brückenspalten auf `jobs` sind vorhanden;
+die acht Gast-Endpunkte antworten mit dem Fehlervertrag, die fünf geschützten mit
+`401 Missing authorization header`. **Offen: 8c** (Secret + Redirect-URL) und die
+Abnahmeprobe.
 
 Das Fundament für die login-freie Jobaufnahme: Links, Gast-Entwürfe, E-Mail-Verifizierung,
 Rate-Limit, Konditionsvorlagen, Vermittlungsvereinbarung, der Übergang in `jobs` und der
