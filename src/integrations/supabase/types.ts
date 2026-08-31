@@ -5185,15 +5185,19 @@ export type Database = {
           company_name: string
           company_size_band: string | null
           contract_creation_days: number | null
+          contract_duration_months: number | null
           contract_sensitive_topics: string | null
           contract_type: string | null
           core_hours: string | null
           created_at: string
           daily_routine: string | null
+          day_rate_max: number | null
+          day_rate_min: number | null
           deadline: string | null
           decision_makers: string[] | null
           department_structure: string | null
           description: string | null
+          draft_state: Json | null
           embedding: string | null
           embedding_model: string | null
           embedding_updated_at: string | null
@@ -5201,6 +5205,7 @@ export type Database = {
           experience_level: string | null
           experience_max: number | null
           experience_min: number | null
+          extension_possible: boolean | null
           failure_profile: string | null
           fee_percentage: number | null
           formatted_content: Json | null
@@ -5214,9 +5219,12 @@ export type Database = {
           industry_opportunities: string | null
           intake_briefing: string | null
           intake_completeness: number | null
+          intake_draft_id: string | null
+          intake_link_id: string | null
           intake_payload: Json | null
           job_summary: Json | null
           location: string | null
+          mandate_id: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
           negative_impact_if_unfilled: string | null
@@ -5230,6 +5238,7 @@ export type Database = {
           onsite_required: boolean | null
           organization_id: string | null
           overtime_policy: string | null
+          owner_user_id: string | null
           paused_at: string | null
           position_advantages: string[] | null
           recruiter_fee_percentage: number | null
@@ -5250,6 +5259,7 @@ export type Database = {
           screening_questions: Json | null
           search_difficulty: string | null
           skills: string[] | null
+          source: string | null
           status: string | null
           success_profile: string | null
           target_companies: string[] | null
@@ -5264,6 +5274,7 @@ export type Database = {
           unique_selling_points: string[] | null
           updated_at: string
           urgency: string | null
+          utilization_days_per_week: number | null
           vacancy_reason: string | null
           visa_sponsorship: boolean | null
           works_council: boolean | null
@@ -5290,15 +5301,19 @@ export type Database = {
           company_name: string
           company_size_band?: string | null
           contract_creation_days?: number | null
+          contract_duration_months?: number | null
           contract_sensitive_topics?: string | null
           contract_type?: string | null
           core_hours?: string | null
           created_at?: string
           daily_routine?: string | null
+          day_rate_max?: number | null
+          day_rate_min?: number | null
           deadline?: string | null
           decision_makers?: string[] | null
           department_structure?: string | null
           description?: string | null
+          draft_state?: Json | null
           embedding?: string | null
           embedding_model?: string | null
           embedding_updated_at?: string | null
@@ -5306,6 +5321,7 @@ export type Database = {
           experience_level?: string | null
           experience_max?: number | null
           experience_min?: number | null
+          extension_possible?: boolean | null
           failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
@@ -5319,9 +5335,12 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          intake_draft_id?: string | null
+          intake_link_id?: string | null
           intake_payload?: Json | null
           job_summary?: Json | null
           location?: string | null
+          mandate_id?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -5335,6 +5354,7 @@ export type Database = {
           onsite_required?: boolean | null
           organization_id?: string | null
           overtime_policy?: string | null
+          owner_user_id?: string | null
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
@@ -5355,6 +5375,7 @@ export type Database = {
           screening_questions?: Json | null
           search_difficulty?: string | null
           skills?: string[] | null
+          source?: string | null
           status?: string | null
           success_profile?: string | null
           target_companies?: string[] | null
@@ -5369,6 +5390,7 @@ export type Database = {
           unique_selling_points?: string[] | null
           updated_at?: string
           urgency?: string | null
+          utilization_days_per_week?: number | null
           vacancy_reason?: string | null
           visa_sponsorship?: boolean | null
           works_council?: boolean | null
@@ -5395,15 +5417,19 @@ export type Database = {
           company_name?: string
           company_size_band?: string | null
           contract_creation_days?: number | null
+          contract_duration_months?: number | null
           contract_sensitive_topics?: string | null
           contract_type?: string | null
           core_hours?: string | null
           created_at?: string
           daily_routine?: string | null
+          day_rate_max?: number | null
+          day_rate_min?: number | null
           deadline?: string | null
           decision_makers?: string[] | null
           department_structure?: string | null
           description?: string | null
+          draft_state?: Json | null
           embedding?: string | null
           embedding_model?: string | null
           embedding_updated_at?: string | null
@@ -5411,6 +5437,7 @@ export type Database = {
           experience_level?: string | null
           experience_max?: number | null
           experience_min?: number | null
+          extension_possible?: boolean | null
           failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
@@ -5424,9 +5451,12 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          intake_draft_id?: string | null
+          intake_link_id?: string | null
           intake_payload?: Json | null
           job_summary?: Json | null
           location?: string | null
+          mandate_id?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -5440,6 +5470,7 @@ export type Database = {
           onsite_required?: boolean | null
           organization_id?: string | null
           overtime_policy?: string | null
+          owner_user_id?: string | null
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
@@ -5460,6 +5491,7 @@ export type Database = {
           screening_questions?: Json | null
           search_difficulty?: string | null
           skills?: string[] | null
+          source?: string | null
           status?: string | null
           success_profile?: string | null
           target_companies?: string[] | null
@@ -5474,12 +5506,34 @@ export type Database = {
           unique_selling_points?: string[] | null
           updated_at?: string
           urgency?: string | null
+          utilization_days_per_week?: number | null
           vacancy_reason?: string | null
           visa_sponsorship?: boolean | null
           works_council?: boolean | null
           works_council_meeting_schedule?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_intake_draft_id_fkey"
+            columns: ["intake_draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_intake_link_id_fkey"
+            columns: ["intake_link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_mandate_id_fkey"
+            columns: ["mandate_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_organization_id_fkey"
             columns: ["organization_id"]
