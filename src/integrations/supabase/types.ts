@@ -9463,6 +9463,10 @@ export type Database = {
           skills: string[]
         }[]
       }
+      submissions_status_from_stage: {
+        Args: { p_stage: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "client" | "recruiter" | "admin"
