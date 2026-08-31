@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { useAuth } from '@/lib/auth';
+import { intakeDb } from '@/lib/intakeDb';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -36,6 +39,8 @@ import {
   MapPin,
   Euro,
   Sparkles,
+  FileSignature,
+  ExternalLink,
 } from 'lucide-react';
 
 interface Job {
@@ -60,7 +65,20 @@ interface Job {
   status: string | null;
   client_id?: string | null;
   briefing_notes?: string | null;
+  /** Aus einer Beauftragungsanfrage über einen Aufnahme-Link entstanden. */
+  mandate_id?: string | null;
+  intake_draft_id?: string | null;
 }
+
+const SIGNATURE_LABEL: Record<string, string> = {
+  pending: 'noch nicht versendet',
+  sent: 'versendet, Unterschrift ausstehend',
+  declined: 'vom Kunden abgelehnt',
+  expired: 'abgelaufen',
+  voided: 'aufgehoben',
+  not_required: 'nicht erforderlich',
+  signed: 'unterzeichnet',
+};
 
 interface JobApprovalDialogProps {
   job: Job | null;
@@ -77,14 +95,56 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
   const [recruiterFeePercentage, setRecruiterFeePercentage] = useState(15);
   const [urgency, setUrgency] = useState<string>('standard');
   const [rejectionNotes, setRejectionNotes] = useState('');
+  /** Die veröffentlichte Konditionsregel. Ersetzt die hartkodierten 20/15 und
+   *  die Slidergrenzen 15–30 / 10–25, die bisher nur im Code standen. */
+  const [terms, setTerms] = useState<Record<string, any> | null>(null);
+  /** Die Vermittlungsvereinbarung, falls die Stelle aus einer Anfrage stammt. */
+  const [mandate, setMandate] = useState<Record<string, any> | null>(null);
+  const [gateLoading, setGateLoading] = useState(false);
 
   useEffect(() => {
-    if (job) {
-      setFeePercentage(job.fee_percentage || 20);
-      setRecruiterFeePercentage(job.recruiter_fee_percentage || 15);
-      setUrgency(job.urgency || 'standard');
-    }
+    if (!job) return;
+    setUrgency(job.urgency || 'standard');
+
+    let cancelled = false;
+    setGateLoading(true);
+    (async () => {
+      // Die aktive Vorlage ist die Quelle der Voreinstellung und der Grenzen.
+      const { data: tpl } = await intakeDb('commercial_terms_templates')
+        .select('*').eq('key', 'standard').eq('is_active', true).maybeSingle();
+
+      // Und der Vertragsstand, falls die Stelle aus einer Anfrage kam.
+      let m: Record<string, any> | null = null;
+      if (job.mandate_id) {
+        const { data } = await intakeDb('commercial_mandates')
+          .select('*').eq('id', job.mandate_id).maybeSingle();
+        m = data ?? null;
+      }
+
+      if (cancelled) return;
+      setTerms(tpl ?? null);
+      setMandate(m);
+      // Ein bestätigtes Mandat schlägt alles: der Kunde hat GENAU diese Zahl
+      // bestätigt, sie darf hier nicht still überschrieben werden.
+      setFeePercentage(Number(m?.fee_percentage ?? job.fee_percentage ?? tpl?.fee_percentage ?? 20));
+      setRecruiterFeePercentage(
+        Number(m?.recruiter_fee_percentage ?? job.recruiter_fee_percentage ?? tpl?.recruiter_fee_percentage ?? 15),
+      );
+      setGateLoading(false);
+    })();
+
+    return () => { cancelled = true; };
   }, [job]);
+
+  // Aus einer Beauftragungsanfrage entstandene Stellen dürfen erst nach
+  // unterzeichnetem Vertrag live gehen. Der Trigger jobs_guard_privileged_columns
+  // erzwingt das ohnehin — hier steht nur, warum die Schaltfläche gesperrt ist.
+  const fromIntake = Boolean(job?.mandate_id || job?.intake_draft_id);
+  const contractOk =
+    !fromIntake ||
+    (mandate?.status === 'accepted' &&
+      ['signed', 'not_required'].includes(mandate?.signature_status ?? ''));
+  const feeLocked = Boolean(mandate?.client_confirmed_at);
 
   const formatJobForRecruiters = async (jobId: string) => {
     setFormatting(true);
@@ -316,13 +376,28 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
               <Slider
                 value={[feePercentage]}
                 onValueChange={(val) => setFeePercentage(val[0])}
-                min={15}
-                max={30}
-                step={1}
+                min={Number(terms?.min_fee_percentage ?? 15)}
+                max={Number(terms?.max_fee_percentage ?? 30)}
+                step={0.5}
+                disabled={feeLocked}
                 className="w-full"
               />
               <p className="text-xs text-muted-foreground">
-                Anteil vom Jahresgehalt, den der Kunde bei erfolgreicher Vermittlung zahlt
+                {feeLocked ? (
+                  <>
+                    Vom Kunden bestätigt am{' '}
+                    {new Date(mandate!.client_confirmed_at).toLocaleDateString('de-DE')} — nicht mehr
+                    änderbar. Für eine Änderung eine neue Konditionsversion vorlegen.
+                  </>
+                ) : terms ? (
+                  <>
+                    Anteil vom {terms.fee_basis === 'annual_target_salary' ? 'Zieljahresgehalt' : 'Jahresbruttogehalt'},
+                    den der Kunde bei erfolgreicher Vermittlung zahlt. Veröffentlichte Bandbreite:{' '}
+                    {terms.min_fee_percentage}–{terms.max_fee_percentage} %.
+                  </>
+                ) : (
+                  'Anteil vom Jahresgehalt, den der Kunde bei erfolgreicher Vermittlung zahlt.'
+                )}
               </p>
             </div>
 
@@ -335,9 +410,10 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
               <Slider
                 value={[recruiterFeePercentage]}
                 onValueChange={(val) => setRecruiterFeePercentage(val[0])}
-                min={10}
-                max={25}
-                step={1}
+                min={Number(terms?.min_recruiter_fee_percentage ?? 10)}
+                max={Number(terms?.max_recruiter_fee_percentage ?? 25)}
+                step={0.5}
+                disabled={feeLocked}
                 className="w-full"
               />
               {potentialEarning && (
@@ -381,6 +457,50 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
             </div>
           </div>
 
+          {fromIntake && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 font-semibold">
+                  <FileSignature className="h-4 w-4" />
+                  Vermittlungsvereinbarung
+                </h4>
+                {gateLoading ? (
+                  <p className="text-sm text-muted-foreground">Vertragsstand wird geprüft …</p>
+                ) : contractOk ? (
+                  <Alert>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      {mandate?.signature_status === 'signed'
+                        ? <>Unterzeichnet am {new Date(mandate.signature_signed_at).toLocaleDateString('de-DE')} ({mandate.mandate_number}). Die Stelle kann veröffentlicht werden.</>
+                        : <>Für dieses Mandat ist keine Unterschrift erforderlich. Die Stelle kann veröffentlicht werden.</>}
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert variant="destructive">
+                    <FileSignature className="h-4 w-4" />
+                    <AlertDescription className="space-y-2 text-sm">
+                      <p>
+                        Diese Stelle stammt aus einer Beauftragungsanfrage. Sie kann erst
+                        veröffentlicht werden, wenn die Vermittlungsvereinbarung angenommen und
+                        unterzeichnet ist
+                        {mandate ? <> — aktuell: {SIGNATURE_LABEL[mandate.signature_status] ?? mandate.signature_status}</> : null}.
+                        Die Datenbank verhindert die Freigabe unabhängig von dieser Anzeige.
+                      </p>
+                      {job.intake_draft_id && (
+                        <Button asChild variant="outline" size="sm" className="gap-1.5">
+                          <Link to={`/admin/intakes/${job.intake_draft_id}`}>
+                            <ExternalLink className="h-3.5 w-3.5" /> Zum Vertragslauf
+                          </Link>
+                        </Button>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </>
+          )}
+
           <Separator />
 
           {/* Rejection Notes (optional) */}
@@ -418,7 +538,8 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
           <Button
             variant="emerald"
             onClick={handleApprove}
-            disabled={loading || formatting}
+            disabled={loading || formatting || !contractOk}
+            title={!contractOk ? 'Erst nach unterzeichneter Vermittlungsvereinbarung' : undefined}
           >
             {loading || formatting ? (
               <>

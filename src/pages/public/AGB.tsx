@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { AGB_VERSION_LABEL } from '@/lib/legalVersions';
 import { Navbar } from "@/components/layout/Navbar";
 import { FooterSection } from "@/components/landing/FooterSection";
 import { ArrowLeft } from "lucide-react";
@@ -411,7 +412,7 @@ const AGB = () => {
               Vertrag ist, soweit gesetzlich zulässig, der Sitz der Bluewater &amp; Bridge GmbH (München).
               Sollten einzelne Bestimmungen dieser AGB unwirksam sein oder werden, bleibt die Wirksamkeit der
               übrigen Bestimmungen unberührt.<br /><br />
-              Stand: Juni 2026
+              {AGB_VERSION_LABEL}
             </p>
           </section>
         </div>

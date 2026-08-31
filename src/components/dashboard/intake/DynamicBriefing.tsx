@@ -67,6 +67,19 @@ interface Props {
   onDone: () => void;
   /** Fallback-Props für das statische Briefing (Function nicht erreichbar) */
   fallback: { built: BriefBuilt; value: Answers; onChange: (a: Answers) => void };
+  /**
+   * Wie die KI erreicht wird. Ohne diese Prop läuft der Dashboard-Weg:
+   * supabase.functions.invoke('intake-questions') mit dem JWT des Kunden.
+   * Die login-freie Aufnahme reicht hier den token-geprüften Proxy herein —
+   * dieselbe Komponente, dieselben Fragen, ein anderer Transportweg.
+   */
+  askAi?: (payload: {
+    contract_type: JobType;
+    job_draft: Record<string, unknown>;
+    answers: DynAnswered[];
+    asked_ids: string[];
+    max_questions: number;
+  }) => Promise<Record<string, any>>;
 }
 
 const stateIcon = (s: string) =>
@@ -78,7 +91,7 @@ const stateIcon = (s: string) =>
  * Zielkonflikte. Ist die Function nicht erreichbar (noch nicht deployed),
  * fällt die Komponente transparent auf das statische IntakeBriefing zurück.
  */
-export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToNice, onDone, fallback }: Props) {
+export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToNice, onDone, fallback, askAi }: Props) {
   const [queue, setQueue] = useState<DynQuestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [freeText, setFreeText] = useState('');
@@ -89,16 +102,22 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     async (answers: DynAnswered[], askedIds: string[]) => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('intake-questions', {
-          body: {
-            contract_type: type,
-            job_draft: jobDraft,
-            answers,
-            asked_ids: askedIds,
-            max_questions: 2,
-          },
-        });
-        if (error || !data || data.error) throw error || new Error(data?.error || 'no data');
+        const request = {
+          contract_type: type,
+          job_draft: jobDraft,
+          answers,
+          asked_ids: askedIds,
+          max_questions: 2,
+        };
+        let data: Record<string, any> | null;
+        if (askAi) {
+          data = await askAi(request);
+        } else {
+          const res = await supabase.functions.invoke('intake-questions', { body: request });
+          if (res.error) throw res.error;
+          data = res.data as Record<string, any> | null;
+        }
+        if (!data || data.error) throw new Error(data?.error || 'no data');
 
         onState((prev) => ({
           ...prev,
@@ -120,7 +139,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
         setLoading(false);
       }
     },
-    [type, jobDraft, onState],
+    [type, jobDraft, onState, askAi],
   );
 
   useEffect(() => {

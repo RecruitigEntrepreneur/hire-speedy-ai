@@ -251,6 +251,184 @@ liefen? Solange die Ursache offen ist, wiederholt sich das beim nächsten Deploy
 
 ---
 
+## Prompt 8 — Kundenseitiger Einstieg über Jobaufnahme-Links
+
+Das Fundament für die login-freie Jobaufnahme: Links, Gast-Entwürfe, E-Mail-Verifizierung,
+Rate-Limit, Konditionsvorlagen, Vermittlungsvereinbarung, der Übergang in `jobs` und der
+Statusguard.
+
+Drei Teile, in dieser Reihenfolge: **8a** (Datenbank) → **8b** (Edge Functions) → **8c**
+(zwei Handgriffe im Supabase-Dashboard, die Lovable nicht erledigen kann).
+
+Alle sechs Migrationen sind idempotent (`IF NOT EXISTS`, `DROP … IF EXISTS`) und können
+gefahrlos mehrfach laufen. Sie sind additiv: keine bestehende Policy und keine bestehende
+View wird verändert.
+
+---
+
+### 8a — Migrationen (in Lovable ausführen)
+
+> Bitte führe diese sechs Migrationen aus `supabase/migrations/` in **genau dieser
+> Reihenfolge** auf Supabase aus:
+>
+> 1. `20260901100000_intake_links_foundation.sql`
+> 2. `20260901100100_intake_drafts.sql`
+> 3. `20260901100200_commercial_terms_and_mandates.sql`
+> 4. `20260901100300_jobs_intake_bridge_and_guard.sql`
+> 5. `20260901100400_accept_intake_and_funnel.sql`
+> 6. `20260901100500_mandate_documents_bucket.sql`
+>
+> Die Reihenfolge ist zwingend: jede Datei setzt über Fremdschlüssel und
+> Funktionsaufrufe auf der vorigen auf.
+>
+> Alle sechs sind additiv und idempotent. Sie legen neue Tabellen an
+> (`intake_links`, `intake_link_events`, `intake_drafts`, `intake_draft_tokens`,
+> `intake_email_verifications`, `intake_rate_limits`, `commercial_terms_templates`,
+> `commercial_mandates`), ergänzen additive Spalten auf `jobs` und `organizations`,
+> legen einen BEFORE-UPDATE-Trigger auf `jobs` an und erzeugen den privaten
+> Storage-Bucket `mandate-documents`.
+>
+> Wichtig: **Ändere sonst nichts am Code.** Insbesondere nicht die bestehenden
+> RLS-Policies auf `jobs`, nicht die View `recruiter_jobs_view` und keine
+> Frontend-Datei. Die Migrationen enthalten alles Nötige.
+>
+> Führe danach anschließend `npx supabase gen types typescript` aus bzw. generiere
+> `src/integrations/supabase/types.ts` neu, damit die neuen Tabellen in den Typen stehen.
+
+**Danach prüfen** (als angemeldeter Admin in der Browser-Konsole oder über den
+SQL-Editor):
+
+```sql
+-- 1) Die Tabellen existieren
+select count(*) from public.intake_links;          -- 0
+select count(*) from public.intake_drafts;         -- 0
+
+-- 2) Genau eine aktive Konditionsregel, aus den heutigen Werten geseedet
+select key, version, fee_percentage, recruiter_fee_percentage,
+       min_fee_percentage, max_fee_percentage, requires_signature, agb_version
+  from public.commercial_terms_templates where is_active;
+-- erwartet: standard | 1 | 20.00 | 15.00 | 15.00 | 30.00 | true | 2026-06
+
+-- 3) Die Brückenspalten auf jobs sind da
+select column_name from information_schema.columns
+ where table_name = 'jobs'
+   and column_name in ('mandate_id','intake_draft_id','intake_link_id','source',
+                       'owner_user_id','day_rate_min','draft_state');
+-- erwartet: 7 Zeilen
+
+-- 4) Der Statusguard hängt
+select tgname from pg_trigger where tgrelid = 'public.jobs'::regclass
+   and tgname = 'trg_jobs_guard';
+-- erwartet: 1 Zeile
+
+-- 5) Kein anon-Zugriff auf die neuen Tabellen
+select tablename, policyname, roles from pg_policies
+ where tablename in ('intake_links','intake_drafts','intake_draft_tokens','commercial_mandates');
+-- erwartet: ausschliesslich {authenticated}, nirgends {anon} oder {public}
+```
+
+Und die schärfste Probe — sie muss **fehlschlagen**:
+
+```sql
+-- Als normaler Kunde (nicht Admin) ausgeführt:
+update public.jobs set fee_percentage = 5 where id = '<eine eigene Job-ID>';
+select fee_percentage from public.jobs where id = '<dieselbe ID>';
+-- erwartet: der ALTE Wert. Der Guard hat zurückgeschrieben.
+```
+
+---
+
+### 8b — Edge Functions deployen (in Lovable ausführen)
+
+> Bitte deploye diese Supabase Edge Functions. Elf sind neu, zwei bestehende sind
+> geändert bzw. waren nie deployt:
+>
+> **Neu:** `intake-start`, `intake-draft`, `intake-ai`, `intake-verify-email`,
+> `intake-terms`, `intake-submit`, `intake-forward`, `intake-resume`,
+> `intake-link-admin`, `intake-admin`, `generate-mandate-pdf`
+>
+> **Geändert / nachzuziehen:** `parse-job-url` (SSRF-Härtung), `intake-questions`
+>
+> Die `verify_jwt`-Einstellungen stehen bereits in `supabase/config.toml` und dürfen
+> nicht verändert werden: die acht Gast-Endpunkte laufen auf `verify_jwt = false` und
+> prüfen stattdessen selbst einen Token samt Rate-Limit; `intake-link-admin`,
+> `intake-admin` und `generate-mandate-pdf` laufen auf `verify_jwt = true` und prüfen
+> zusätzlich serverseitig die Admin-Rolle. `intake-questions`, `parse-job-url` und
+> `parse-job-pdf` bleiben ausdrücklich auf `verify_jwt = true` — der Gast erreicht sie
+> nur über den Proxy `intake-ai`.
+>
+> Die Functions teilen sich Module unter `supabase/functions/_shared/`
+> (`http.ts`, `tokens.ts`, `domain.ts`, `intake-limits.ts`, `app-url.ts`,
+> `intake-mail.ts`, `intake-core.ts`, `intake-mapping.ts`, `admin-auth.ts`) — die
+> müssen mit deployt werden.
+>
+> **Ändere sonst nichts am Code.**
+
+**Danach prüfen:** `/admin/intake-links` öffnen und einen persönlichen Testlink anlegen.
+Erscheint der Link mit Klartext-Token, laufen Migrationen und Functions. Den Link in einem
+privaten Fenster öffnen — es muss die Aufnahme erscheinen, nicht „noch nicht
+freigeschaltet".
+
+---
+
+### 8c — Zwei Handgriffe im Supabase-Dashboard
+
+Diese beiden kann Lovable nicht übernehmen.
+
+**1. Secret setzen** — *Project Settings → Edge Functions → Secrets*
+
+| Name | Wert |
+|---|---|
+| `INTAKE_TOKEN_PEPPER` | ein zufälliger String, mindestens 32 Zeichen |
+
+Ohne ihn wären die sechsstelligen Bestätigungscodes aus einem Datenbank-Dump per
+Rainbow-Table auflösbar — der Suchraum ist nur eine Million. **Das ist der einzige
+kritische Punkt der ganzen Liste.**
+
+Erzeugen z. B. mit:
+
+```bash
+openssl rand -base64 48
+```
+
+Zusätzlich prüfen, dass diese beiden bereits gesetzt sind (sonst greifen brauchbare
+Vorgaben, aber Mails kämen unter der Resend-Sandbox-Adresse an):
+
+| Name | Wert |
+|---|---|
+| `RESEND_FROM` | `Matchunt <noreply@matchunt.ai>` |
+| `APP_URL` | `https://matchunt.ai` |
+
+`MANDATE_VENDOR_NAME`, `-_ADDRESS` und `-_REGISTER` sind **nicht nötig**: die Firmierung
+steht als Vorgabe im Code (Bluewater & Bridge GmbH, Adlzreiterstraße 2, 80337 München,
+Amtsgericht München HRB 288632). Nur bei einem Sitzwechsel setzen.
+
+**2. Redirect-URL eintragen** — *Authentication → URL Configuration → Redirect URLs*
+
+```
+https://matchunt.ai/passwort
+```
+
+Ohne diesen Eintrag lehnt Supabase den Zugangslink aus der Annahme-Mail ab, und ein
+frisch angelegtes Kundenkonto käme nicht ins Dashboard — einen anderen Passwort-Weg gibt
+es im Projekt nicht.
+
+---
+
+### Reihenfolge und Risiko
+
+8a, 8b und der Frontend-Release sind in beliebiger Reihenfolge gefahrlos: Die Migrationen
+sind additiv, und das Frontend meldet bei fehlenden Functions ehrlich „noch nicht
+freigeschaltet" statt still zu scheitern. Empfohlen trotzdem **8a → 8b → 8c → Frontend**,
+damit ein versendeter Link vom ersten Klick an funktioniert.
+
+**Vorher zu klären:** Prompt 5 (RLS-Härtung, `20260829110000_rls_close_open_policies.sql`)
+trägt keinen Erledigt-Marker. Solange die offenen `USING(true)`-Policies leben, sind
+`match_outcomes`, `outreach_emails` und `outreach_send_queue` mit dem anon-Key erreichbar.
+Ein Feature, das Links per E-Mail verteilt, sollte nicht davor live gehen.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

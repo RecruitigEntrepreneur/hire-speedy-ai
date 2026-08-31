@@ -21,6 +21,12 @@ import { ProfileSections, type FlexibilityMap } from './intake/ProfileSections';
 import { QualityCheck } from './intake/QualityCheck';
 import { EMPTY_FREELANCE, type BuiltJob, type FreelanceTerms, type RevealSetup } from './intake/types';
 import { insertJobWithIntake, updateJobWithIntake, type ExtendedJobFields } from '@/lib/intakeCapture';
+// Die Abbildungen liegen in @/lib/intakeMapping, weil die login-freie Aufnahme
+// über /start/:token exakt dieselben benutzt. Zwei Kopien wären zwei Wahrheiten.
+import {
+  EMPTY_BUILT, fromParsedJobData, fromParsedJobProfile, toBriefBuilt,
+  remoteLabel, levelLabel, buildAiJobDraft, buildIntakePayload,
+} from '@/lib/intakeMapping';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, type IntakeSubmitStatus } from '@/lib/intakeApproval';
 import { cn } from '@/lib/utils';
 import {
@@ -32,43 +38,6 @@ type JobType = 'full-time' | 'freelance';
 type Stage = 'input' | 'building' | 'built' | 'submitted';
 type Source = 'text' | 'url' | 'pdf' | null;
 
-function fromData(d: ParsedJobData): BuiltJob {
-  return {
-    title: d.title || '', company_name: d.company_name || '', location: d.location || '',
-    remote_type: d.remote_type || 'hybrid', experience_level: d.experience_level || 'mid',
-    salary_min: d.salary_min, salary_max: d.salary_max, skills: d.skills || [],
-    must_haves: d.must_haves || [], nice_to_haves: d.nice_to_haves || [],
-    industry: d.industry || '', description: d.description || '', requirements: d.requirements || '',
-    vacancyReason: d.vacancy_reason ?? null, reportsTo: d.reports_to ?? null,
-    hiringUrgency: d.hiring_urgency ?? null, remoteDays: d.remote_days ?? null,
-    usps: d.unique_selling_points || [],
-  };
-}
-
-function fromProfile(p: ParsedJobProfile): BuiltJob {
-  const lvl: Record<string, string> = { junior: 'junior', mid: 'mid', senior: 'senior', lead: 'lead', principal: 'lead', director: 'lead' };
-  return {
-    title: p.title || '', company_name: p.company || '', location: p.location || '',
-    remote_type: p.remote_policy === 'remote' ? 'remote' : p.remote_policy === 'onsite' ? 'onsite' : 'hybrid',
-    experience_level: lvl[p.seniority_level] || 'mid', salary_min: p.salary_min, salary_max: p.salary_max,
-    skills: p.technical_skills || [], must_haves: p.requirements || [], nice_to_haves: p.nice_to_have || [],
-    industry: p.industry || '', description: p.description || '', requirements: (p.requirements || []).join('\n'),
-    vacancyReason: null, reportsTo: null, hiringUrgency: null, remoteDays: null, usps: [],
-  };
-}
-
-const toBriefBuilt = (j: BuiltJob) => ({
-  remote_type: j.remote_type,
-  must_haves: j.must_haves,
-  vacancyReason: j.vacancyReason,
-  reportsTo: j.reportsTo,
-  hiringUrgency: j.hiringUrgency,
-  remoteDays: j.remoteDays,
-  usps: j.usps,
-});
-
-const remoteLabel = (r: string) => (r === 'remote' ? 'Remote' : r === 'onsite' ? 'Vor Ort' : 'Hybrid');
-const levelLabel = (l: string) => (l === 'junior' ? 'Junior' : l === 'senior' ? 'Senior' : l === 'lead' ? 'Lead' : 'Mid-Level');
 
 /** Entwurf einer bestehenden Job-Zeile (Fortsetzen aus NeueStelleBar). */
 export interface StudioDraft {
@@ -211,36 +180,23 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
   const jobDraft = useMemo(
     () =>
       built
-        ? {
-            contract_type: type,
-            title: built.title,
-            location: built.location,
-            remote_type: built.remote_type,
-            experience_level: built.experience_level,
-            salary_min: built.salary_min,
-            salary_max: built.salary_max,
-            day_rate: isFreelance ? { min: freelance.dayRateMin, max: freelance.dayRateMax } : undefined,
-            must_haves: built.must_haves,
-            nice_to_haves: built.nice_to_haves,
-            skills: built.skills.slice(0, 15),
-            industry: built.industry,
-            vacancy_reason: built.vacancyReason,
-            reports_to: built.reportsTo,
-            usps: built.usps,
-            // Verhandelbarkeit je Muss-Kriterium (Flexibilitätsmatrix)
+        ? buildAiJobDraft({
+            type,
+            built,
+            freelance,
             flexibility,
             // Aus dem Firmenprofil bekannt — die KI darf das NIE erneut abfragen
-            company_defaults: companyProfile
+            companyDefaults: companyProfile
               ? {
                   industry: companyProfile.industry,
                   size: companyProfile.team_size_range || companyProfile.company_size,
                   remote_policy: companyProfile.remote_policy,
                   excluded_companies: companyProfile.excluded_companies,
                 }
-              : undefined,
-          }
+              : null,
+          })
         : {},
-    [built, type, isFreelance, freelance.dayRateMin, freelance.dayRateMax, flexibility, companyProfile],
+    [built, type, freelance, flexibility, companyProfile],
   );
 
   const startBuild = (job: BuiltJob | null) => {
@@ -258,20 +214,36 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
     setStage('building');
   };
 
+  /**
+   * "Ohne Vorlage starten" (M1 aus INTAKE_UMSETZUNG_WELLE_A.md:52-79).
+   *
+   * Der Ausweg, wenn die Parser-Function nicht antwortet oder schlicht keine
+   * Anzeige vorliegt. Ohne ihn hängt die Aufnahme vollständig an einer Edge
+   * Function, die laut ONBOARDING_INTAKE_MASTERANALYSE.md:698 am 29.08. mit
+   * 404 antwortete.
+   */
+  const startManual = () => {
+    const seed = text.trim();
+    setBuilt({ ...EMPTY_BUILT, title: seed.length <= 120 ? seed : '' });
+    setAnswers({});
+    setReveal(0);
+    setStage('built');
+  };
+
   const buildFromText = async (t: string) => {
     setStage('building'); setBuilt(null); setReveal(0);
     const d = await jp.parseJobText(t.trim());
-    startBuild(d ? fromData(d) : null);
+    startBuild(d ? fromParsedJobData(d) : null);
   };
   const buildFromUrl = async (u: string) => {
     setStage('building'); setBuilt(null); setReveal(0);
     const d = await jp.parseJobUrl(u.trim());
-    startBuild(d ? fromData(d) : null);
+    startBuild(d ? fromParsedJobData(d) : null);
   };
   const handlePdf = async (file: File) => {
     setStage('building'); setBuilt(null); setReveal(0);
     const p = await pdf.uploadAndParsePdf(file);
-    startBuild(p ? fromProfile(p) : null);
+    startBuild(p ? fromParsedJobProfile(p) : null);
   };
 
   const handleBuild = () => {
@@ -373,30 +345,15 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
         descriptor: revealSetup.descriptor || (dyn.envelopePatch as any)?.descriptor || null,
       },
       intake_payload: {
-        source: 'studio',
-        captured_at: new Date().toISOString(),
-        contract_type: type,
-        briefing_answers: answers,
-        briefing_text: serializeBriefing(answers) || null,
-        briefing_dynamic: dyn.answers.length ? dyn.answers : null,
-        dynamic_payload: Object.keys(dyn.payloadPatch).length ? dyn.payloadPatch : null,
-        typed_extras: {
-          required_languages: tf.required_languages ?? null,
-          required_certifications: tf.required_certifications ?? null,
-          onsite_required: tf.onsite_required ?? null,
-        },
-        skill_requirements: dyn.skillRequirements.length ? dyn.skillRequirements : null,
-        contracting: isFreelance ? freelance : null,
-        flexibility: Object.keys(flexibility).length ? flexibility : null,
-        profile_prefill: profileFacts.length ? profileFacts : null,
-        usps: built.usps.length ? built.usps : null,
-        vacancy_reason: built.vacancyReason,
-        reports_to: built.reportsTo,
-        hiring_urgency: built.hiringUrgency,
-        remote_days: built.remoteDays,
+        ...buildIntakePayload({
+          source: 'studio',
+          state: { type, built, answers, freelance, flexibility, revealSetup, dyn },
+          briefingText: serializeBriefing(answers) || null,
+          profileFacts,
+        }),
         // draft_state bleibt auch bei interner Freigabe erhalten, damit ein
-      // zurückgegebener Entwurf im Studio fortsetzbar ist.
-      ...(status !== 'pending_approval'
+        // zurückgegebener Entwurf im Studio fortsetzbar ist.
+        ...(status !== 'pending_approval'
           ? { draft_state: { type, built, answers, freelance, flexibility, revealSetup, dyn: { ...dyn, tensionFlags: [] } } }
           : { draft_state: null }),
       },
@@ -564,6 +521,11 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
                 </Button>
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowUrl((s) => !s)}>
                   <Link2 className="h-4 w-4" /> Link
+                </Button>
+                {/* Immer sichtbarer manueller Weg: die KI-Wege können ausfallen,
+                    die Aufnahme darf daran nicht scheitern. */}
+                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={startManual}>
+                  <FileText className="h-4 w-4" /> Ohne Vorlage starten
                 </Button>
                 <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdf(f); }} />
               </div>

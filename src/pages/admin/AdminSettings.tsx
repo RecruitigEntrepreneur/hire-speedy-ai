@@ -19,6 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { CommercialTermsPanel } from '@/components/admin/CommercialTermsPanel';
 
 interface PlatformSettings {
   platform_name: string;
@@ -137,7 +138,7 @@ export default function AdminSettings() {
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList>
             <TabsTrigger value="general">Allgemein</TabsTrigger>
-            <TabsTrigger value="fees">Gebühren</TabsTrigger>
+            <TabsTrigger value="fees">Konditionen</TabsTrigger>
             <TabsTrigger value="email">E-Mail</TabsTrigger>
             <TabsTrigger value="automation">Automatisierung</TabsTrigger>
           </TabsList>
@@ -208,63 +209,12 @@ export default function AdminSettings() {
             </Card>
           </TabsContent>
 
-          {/* Fee Settings */}
+          {/* Konditionen — echte Pflege statt der bisherigen Attrappe.
+              Der alte Tab hielt zwei Zahlen im useState, die nirgends gelesen
+              und nirgends gespeichert wurden; der Freigabe-Dialog nahm seine
+              Werte aus hartkodierten Konstanten. */}
           <TabsContent value="fees" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Percent className="h-5 w-5" />
-                  Gebühren-Konfiguration
-                </CardTitle>
-                <CardDescription>
-                  Standard-Provisionen und Gebühren
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="recruiter-fee">Standard Recruiter-Provision (%)</Label>
-                    <Input
-                      id="recruiter-fee"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={settings.default_recruiter_fee}
-                      onChange={(e) => setSettings({ ...settings, default_recruiter_fee: Number(e.target.value) })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Prozentsatz des Jahresgehalts für Recruiter
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="platform-fee">Plattform-Gebühr (%)</Label>
-                    <Input
-                      id="platform-fee"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={settings.platform_fee_percentage}
-                      onChange={(e) => setSettings({ ...settings, platform_fee_percentage: Number(e.target.value) })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Anteil der Provision für die Plattform
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Beispielrechnung</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Bei einem Jahresgehalt von €60.000:
-                  </p>
-                  <ul className="text-sm mt-2 space-y-1">
-                    <li>Gesamt-Fee: €{(60000 * settings.default_recruiter_fee / 100).toLocaleString()}</li>
-                    <li>Recruiter erhält: €{(60000 * settings.default_recruiter_fee / 100 * (1 - settings.platform_fee_percentage / 100)).toLocaleString()}</li>
-                    <li>Plattform erhält: €{(60000 * settings.default_recruiter_fee / 100 * settings.platform_fee_percentage / 100).toLocaleString()}</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+            <CommercialTermsPanel />
           </TabsContent>
 
           {/* Email Settings */}

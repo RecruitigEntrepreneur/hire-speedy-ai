@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import Index from "./pages/Index";
@@ -106,12 +107,34 @@ import AGB from "./pages/public/AGB";
 // GDPR Components
 import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 
+// Login-freie Jobaufnahme über Aufnahme-Links.
+// Bewusst lazy: alle übrigen ~90 Seiten werden eager importiert. Diese Seite
+// wird kalt aus einer E-Mail geöffnet, oft mobil — sie darf nicht das gesamte
+// Admin- und Recruiter-Bundle mitladen.
+const GuestIntake = lazy(() => import("./pages/intake/GuestIntake"));
+// Zugang einrichten nach der Annahme einer Beauftragungsanfrage. Vorher gab es
+// im ganzen Projekt keinen Passwort-Weg — ein serverseitig angelegtes Konto
+// hätte keinen Weg hinein gehabt.
+const SetPassword = lazy(() => import("./pages/SetPassword"));
+const AdminIntakes = lazy(() => import("./pages/admin/AdminIntakes"));
+const AdminIntakeDetail = lazy(() => import("./pages/admin/AdminIntakeDetail"));
+const AdminIntakeLinks = lazy(() => import("./pages/admin/AdminIntakeLinks"));
+
 const queryClient = new QueryClient();
 
 // Alt-Route /dashboard/command/:jobId → Bewerber-Inbox mit Job-Filter
 function CommandRedirect() {
   const { jobId } = useParams<{ jobId: string }>();
   return <Navigate to={`/dashboard/candidates${jobId ? `?job=${jobId}&tab=alle` : ''}`} replace />;
+}
+
+/** Ladeanzeige für die lazy geladenen Seiten. */
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+    </div>
+  );
 }
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
@@ -406,6 +429,21 @@ function AppRoutes() {
           <AdminDomains />
         </ProtectedRoute>
       } />
+      <Route path="/admin/intakes" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Suspense fallback={<RouteFallback />}><AdminIntakes /></Suspense>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/intakes/:id" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Suspense fallback={<RouteFallback />}><AdminIntakeDetail /></Suspense>
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/intake-links" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Suspense fallback={<RouteFallback />}><AdminIntakeLinks /></Suspense>
+        </ProtectedRoute>
+      } />
       <Route path="/admin/skill-synonyms" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminSkillSynonyms />
@@ -467,6 +505,15 @@ function AppRoutes() {
       <Route path="/impressum" element={<Impressum />} />
       <Route path="/datenschutz" element={<Datenschutz />} />
       <Route path="/agb" element={<AGB />} />
+
+      {/* Kundenseitiger Einstieg ohne Login.
+          /start/:token       — Aufnahme-Link (persönlich, Kampagne, öffentlich)
+          /aufnahme/:draftToken — Fortsetzen bzw. weitergeleiteter Zugang
+          Der Token steht im Pfad und nie in der Query: dort landet er in
+          Referrer-Headern und Server-Logs. */}
+      <Route path="/passwort" element={<Suspense fallback={<RouteFallback />}><SetPassword /></Suspense>} />
+      <Route path="/start/:token" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
+      <Route path="/aufnahme/:draftToken" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/interview/respond/:token" element={<InterviewResponsePage />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />

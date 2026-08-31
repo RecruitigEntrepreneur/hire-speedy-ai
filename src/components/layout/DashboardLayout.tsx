@@ -30,6 +30,8 @@ import {
   Mail,
   Keyboard,
   GraduationCap,
+  Inbox,
+  Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -119,6 +121,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Recruiter', href: '/admin/recruiters', icon: <Users className="h-4 w-4" /> },
     { label: 'Akademie', href: '/admin/academy', icon: <GraduationCap className="h-4 w-4" /> },
     { label: 'Alle Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: 'Jobaufnahmen', href: '/admin/intakes', icon: <Inbox className="h-4 w-4" /> },
+    { label: 'Aufnahme-Links', href: '/admin/intake-links', icon: <Link2 className="h-4 w-4" /> },
     { label: 'Kandidaten', href: '/admin/candidates', icon: <FileText className="h-4 w-4" /> },
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },

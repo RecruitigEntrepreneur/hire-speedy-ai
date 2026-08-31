@@ -110,8 +110,13 @@ export default function AdminJobs() {
   const getStatusBadge = (status: string | null) => {
     const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       draft: { label: 'Entwurf', variant: 'outline' },
+      // Fehlten bisher und fielen stumm auf "Entwurf" zurück — ein Job im
+      // Status pending_client_approval tauchte damit in keiner Liste auf.
+      pending_client_approval: { label: 'Interne Freigabe', variant: 'outline' },
       pending_approval: { label: 'Zur Prüfung', variant: 'secondary' },
+      pending_client_terms: { label: 'Vertrag offen', variant: 'secondary' },
       published: { label: 'Veröffentlicht', variant: 'default' },
+      filled: { label: 'Besetzt', variant: 'secondary' },
       closed: { label: 'Geschlossen', variant: 'secondary' },
       paused: { label: 'Pausiert', variant: 'destructive' },
     };
@@ -119,7 +124,11 @@ export default function AdminJobs() {
     return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>;
   };
 
-  const pendingJobs = jobs.filter(job => job.status === 'pending_approval');
+  // Stellen aus einer Beauftragungsanfrage warten in pending_client_terms auf
+  // die Unterschrift und gehören ebenfalls in die Prüfliste.
+  const pendingJobs = jobs.filter(
+    (job) => job.status === 'pending_approval' || job.status === 'pending_client_terms',
+  );
   const allJobs = jobs.filter(job => {
     const matchesSearch = 
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -308,8 +317,11 @@ export default function AdminJobs() {
                 <SelectContent>
                   <SelectItem value="all">Alle Status</SelectItem>
                   <SelectItem value="draft">Entwurf</SelectItem>
+                  <SelectItem value="pending_client_approval">Interne Freigabe</SelectItem>
                   <SelectItem value="pending_approval">Zur Prüfung</SelectItem>
+                  <SelectItem value="pending_client_terms">Vertrag offen</SelectItem>
                   <SelectItem value="published">Veröffentlicht</SelectItem>
+                  <SelectItem value="filled">Besetzt</SelectItem>
                   <SelectItem value="paused">Pausiert</SelectItem>
                   <SelectItem value="closed">Geschlossen</SelectItem>
                 </SelectContent>
@@ -372,7 +384,7 @@ export default function AdminJobs() {
                             {format(new Date(job.created_at), 'PP', { locale: de })}
                           </TableCell>
                           <TableCell>
-                            {job.status === 'pending_approval' ? (
+                            {job.status === 'pending_approval' || job.status === 'pending_client_terms' ? (
                               <Button 
                                 size="sm" 
                                 variant="emerald"
@@ -391,7 +403,10 @@ export default function AdminJobs() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="draft">Entwurf</SelectItem>
-                                  <SelectItem value="published">Veröffentlichen</SelectItem>
+                                  {/* "Veröffentlichen" ist hier bewusst nicht mehr wählbar:
+                                      der Weg umging den Freigabe-Dialog und liess Honorar,
+                                      approved_by, formatted_content und die Benachrichtigung
+                                      des Kunden leer. Veröffentlicht wird über "Prüfen". */}
                                   <SelectItem value="paused">Pausieren</SelectItem>
                                   <SelectItem value="closed">Schließen</SelectItem>
                                 </SelectContent>
