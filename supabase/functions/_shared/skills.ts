@@ -15,7 +15,21 @@
  * skill_taxonomy: die ist leer (0 Zeilen), weshalb die Function
  * normalize-skills faktisch nichts normalisiert.
  */
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+/**
+ * Nur der Ausschnitt des Supabase-Clients, den dieses Modul braucht.
+ *
+ * Bewusst strukturell statt `import type { SupabaseClient } from
+ * 'https://esm.sh/...'`: die Datei wird auch von src/lib/skills.test.ts
+ * importiert und landet damit im tsc-Programm der App -- dort ist ein
+ * URL-Import kein aufloesbares Modul. Deno stoert das nicht, tsc schon.
+ */
+interface SynonymSource {
+  from(table: string): {
+    select(columns: string): {
+      eq(column: string, value: unknown): Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+    };
+  };
+}
 
 export type SkillKind =
   | 'technology'    // Sprache, Framework, Werkzeug, Plattform -> matchbar
@@ -47,7 +61,7 @@ export type SynonymMap = Map<string, string>;
  * Synonyme laden. Die Tabelle ist klein (gut 100 Zeilen), ein voller Scan
  * kostet nichts und erspart eine Abfrage je Skill.
  */
-export async function loadSynonymMap(supabase: SupabaseClient): Promise<SynonymMap> {
+export async function loadSynonymMap(supabase: SynonymSource): Promise<SynonymMap> {
   const map: SynonymMap = new Map();
   const { data, error } = await supabase
     .from('skill_synonyms')
@@ -58,7 +72,8 @@ export async function loadSynonymMap(supabase: SupabaseClient): Promise<SynonymM
     console.warn('[skills] Synonyme nicht ladbar:', error.message);
     return map;
   }
-  for (const row of data ?? []) {
+  for (const raw of data ?? []) {
+    const row = raw as { canonical_name?: unknown; synonym?: unknown };
     const canonical = String(row.canonical_name ?? '').trim().toLowerCase();
     const synonym = String(row.synonym ?? '').trim().toLowerCase();
     if (!canonical) continue;
