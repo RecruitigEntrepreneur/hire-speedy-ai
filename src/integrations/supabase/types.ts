@@ -4378,6 +4378,8 @@ export type Database = {
           client_approved_at: string | null
           client_approved_by: string | null
           client_id: string
+          closed_at: string | null
+          closed_reason: string | null
           commute_flexibility: string | null
           company_culture: string | null
           company_name: string
@@ -4397,6 +4399,8 @@ export type Database = {
           embedding_updated_at: string | null
           employment_type: string | null
           experience_level: string | null
+          experience_max: number | null
+          experience_min: number | null
           failure_profile: string | null
           fee_percentage: number | null
           formatted_content: Json | null
@@ -4410,6 +4414,7 @@ export type Database = {
           industry_opportunities: string | null
           intake_briefing: string | null
           intake_completeness: number | null
+          intake_payload: Json | null
           job_summary: Json | null
           location: string | null
           must_have_criteria: string[] | null
@@ -4417,6 +4422,7 @@ export type Database = {
           negative_impact_if_unfilled: string | null
           nice_to_have_criteria: string[] | null
           nice_to_haves: string[] | null
+          nogo_companies: string[] | null
           office_address: string | null
           office_lat: number | null
           office_lng: number | null
@@ -4427,6 +4433,8 @@ export type Database = {
           paused_at: string | null
           position_advantages: string[] | null
           recruiter_fee_percentage: number | null
+          rejected_at: string | null
+          rejection_reason: string | null
           remote_policy: string | null
           remote_type: string | null
           reports_to: string | null
@@ -4435,12 +4443,16 @@ export type Database = {
           requirements: string | null
           requirements_normalization_version: string | null
           requirements_normalized_at: string | null
+          reveal_envelope: Json | null
+          reveal_trigger: string | null
           salary_max: number | null
           salary_min: number | null
           screening_questions: Json | null
+          search_difficulty: string | null
           skills: string[] | null
           status: string | null
           success_profile: string | null
+          target_companies: string[] | null
           task_breakdown: Json | null
           task_focus: string | null
           team_avg_age: string | null
@@ -4453,6 +4465,7 @@ export type Database = {
           updated_at: string
           urgency: string | null
           vacancy_reason: string | null
+          visa_sponsorship: boolean | null
           works_council: boolean | null
           works_council_meeting_schedule: string | null
         }
@@ -4470,6 +4483,8 @@ export type Database = {
           client_approved_at?: string | null
           client_approved_by?: string | null
           client_id: string
+          closed_at?: string | null
+          closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
           company_name: string
@@ -4489,6 +4504,8 @@ export type Database = {
           embedding_updated_at?: string | null
           employment_type?: string | null
           experience_level?: string | null
+          experience_max?: number | null
+          experience_min?: number | null
           failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
@@ -4502,6 +4519,7 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          intake_payload?: Json | null
           job_summary?: Json | null
           location?: string | null
           must_have_criteria?: string[] | null
@@ -4509,6 +4527,7 @@ export type Database = {
           negative_impact_if_unfilled?: string | null
           nice_to_have_criteria?: string[] | null
           nice_to_haves?: string[] | null
+          nogo_companies?: string[] | null
           office_address?: string | null
           office_lat?: number | null
           office_lng?: number | null
@@ -4519,6 +4538,8 @@ export type Database = {
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           remote_policy?: string | null
           remote_type?: string | null
           reports_to?: string | null
@@ -4527,12 +4548,16 @@ export type Database = {
           requirements?: string | null
           requirements_normalization_version?: string | null
           requirements_normalized_at?: string | null
+          reveal_envelope?: Json | null
+          reveal_trigger?: string | null
           salary_max?: number | null
           salary_min?: number | null
           screening_questions?: Json | null
+          search_difficulty?: string | null
           skills?: string[] | null
           status?: string | null
           success_profile?: string | null
+          target_companies?: string[] | null
           task_breakdown?: Json | null
           task_focus?: string | null
           team_avg_age?: string | null
@@ -4545,6 +4570,7 @@ export type Database = {
           updated_at?: string
           urgency?: string | null
           vacancy_reason?: string | null
+          visa_sponsorship?: boolean | null
           works_council?: boolean | null
           works_council_meeting_schedule?: string | null
         }
@@ -4562,6 +4588,8 @@ export type Database = {
           client_approved_at?: string | null
           client_approved_by?: string | null
           client_id?: string
+          closed_at?: string | null
+          closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
           company_name?: string
@@ -4581,6 +4609,8 @@ export type Database = {
           embedding_updated_at?: string | null
           employment_type?: string | null
           experience_level?: string | null
+          experience_max?: number | null
+          experience_min?: number | null
           failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
@@ -4594,6 +4624,7 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          intake_payload?: Json | null
           job_summary?: Json | null
           location?: string | null
           must_have_criteria?: string[] | null
@@ -4601,6 +4632,7 @@ export type Database = {
           negative_impact_if_unfilled?: string | null
           nice_to_have_criteria?: string[] | null
           nice_to_haves?: string[] | null
+          nogo_companies?: string[] | null
           office_address?: string | null
           office_lat?: number | null
           office_lng?: number | null
@@ -4611,6 +4643,8 @@ export type Database = {
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           remote_policy?: string | null
           remote_type?: string | null
           reports_to?: string | null
@@ -4619,12 +4653,16 @@ export type Database = {
           requirements?: string | null
           requirements_normalization_version?: string | null
           requirements_normalized_at?: string | null
+          reveal_envelope?: Json | null
+          reveal_trigger?: string | null
           salary_max?: number | null
           salary_min?: number | null
           screening_questions?: Json | null
+          search_difficulty?: string | null
           skills?: string[] | null
           status?: string | null
           success_profile?: string | null
+          target_companies?: string[] | null
           task_breakdown?: Json | null
           task_focus?: string | null
           team_avg_age?: string | null
@@ -4637,6 +4675,7 @@ export type Database = {
           updated_at?: string
           urgency?: string | null
           vacancy_reason?: string | null
+          visa_sponsorship?: boolean | null
           works_council?: boolean | null
           works_council_meeting_schedule?: string | null
         }
