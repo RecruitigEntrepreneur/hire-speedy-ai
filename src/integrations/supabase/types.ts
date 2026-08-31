@@ -2336,6 +2336,289 @@ export type Database = {
         }
         Relationships: []
       }
+      commercial_mandates: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          agb_accepted_at: string | null
+          agb_sha256: string | null
+          agb_version: string
+          client_confirmed_at: string | null
+          client_confirmed_email: string | null
+          client_confirmed_ip_hash: string | null
+          client_confirmed_name: string | null
+          client_confirmed_user_agent: string | null
+          client_user_id: string | null
+          contracting_margin_percentage: number | null
+          created_at: string
+          decline_reason: string | null
+          declined_at: string | null
+          declined_by: string | null
+          document_path: string | null
+          document_sha256: string | null
+          draft_id: string | null
+          fee_basis: string
+          fee_percentage: number
+          guarantee_days: number | null
+          id: string
+          job_id: string | null
+          mandate_number: string
+          organization_id: string | null
+          payment_terms_days: number
+          recruiter_fee_percentage: number
+          refund_rule: string | null
+          signature_envelope_id: string | null
+          signature_note: string | null
+          signature_provider: string
+          signature_recorded_by: string | null
+          signature_sent_at: string | null
+          signature_sent_by: string | null
+          signature_signed_at: string | null
+          signature_signer_name: string | null
+          signature_status: string
+          signed_document_path: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status: string
+          supersedes_id: string | null
+          template_id: string
+          template_version: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          agb_accepted_at?: string | null
+          agb_sha256?: string | null
+          agb_version: string
+          client_confirmed_at?: string | null
+          client_confirmed_email?: string | null
+          client_confirmed_ip_hash?: string | null
+          client_confirmed_name?: string | null
+          client_confirmed_user_agent?: string | null
+          client_user_id?: string | null
+          contracting_margin_percentage?: number | null
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          declined_by?: string | null
+          document_path?: string | null
+          document_sha256?: string | null
+          draft_id?: string | null
+          fee_basis: string
+          fee_percentage: number
+          guarantee_days?: number | null
+          id?: string
+          job_id?: string | null
+          mandate_number: string
+          organization_id?: string | null
+          payment_terms_days: number
+          recruiter_fee_percentage: number
+          refund_rule?: string | null
+          signature_envelope_id?: string | null
+          signature_note?: string | null
+          signature_provider?: string
+          signature_recorded_by?: string | null
+          signature_sent_at?: string | null
+          signature_sent_by?: string | null
+          signature_signed_at?: string | null
+          signature_signer_name?: string | null
+          signature_status?: string
+          signed_document_path?: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status?: string
+          supersedes_id?: string | null
+          template_id: string
+          template_version: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          agb_accepted_at?: string | null
+          agb_sha256?: string | null
+          agb_version?: string
+          client_confirmed_at?: string | null
+          client_confirmed_email?: string | null
+          client_confirmed_ip_hash?: string | null
+          client_confirmed_name?: string | null
+          client_confirmed_user_agent?: string | null
+          client_user_id?: string | null
+          contracting_margin_percentage?: number | null
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          declined_by?: string | null
+          document_path?: string | null
+          document_sha256?: string | null
+          draft_id?: string | null
+          fee_basis?: string
+          fee_percentage?: number
+          guarantee_days?: number | null
+          id?: string
+          job_id?: string | null
+          mandate_number?: string
+          organization_id?: string | null
+          payment_terms_days?: number
+          recruiter_fee_percentage?: number
+          refund_rule?: string | null
+          signature_envelope_id?: string | null
+          signature_note?: string | null
+          signature_provider?: string
+          signature_recorded_by?: string | null
+          signature_sent_at?: string | null
+          signature_sent_by?: string | null
+          signature_signed_at?: string | null
+          signature_signer_name?: string | null
+          signature_status?: string
+          signed_document_path?: string | null
+          snapshot?: Json
+          snapshot_sha256?: string
+          status?: string
+          supersedes_id?: string | null
+          template_id?: string
+          template_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_mandates_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_terms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commercial_terms_templates: {
+        Row: {
+          agb_sha256: string | null
+          agb_version: string
+          body_md: string
+          body_sha256: string
+          contracting_margin_percentage: number | null
+          contracting_recruiter_share_percentage: number | null
+          created_at: string
+          created_by: string
+          fee_basis: string
+          fee_percentage: number
+          guarantee_days: number | null
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          max_fee_percentage: number | null
+          max_recruiter_fee_percentage: number | null
+          min_fee_percentage: number | null
+          min_recruiter_fee_percentage: number | null
+          payment_terms_days: number
+          published_at: string | null
+          recruiter_fee_percentage: number
+          refund_rule: string | null
+          requires_kyb: boolean
+          requires_signature: boolean
+          updated_at: string
+          vat_note: string
+          version: number
+        }
+        Insert: {
+          agb_sha256?: string | null
+          agb_version: string
+          body_md: string
+          body_sha256: string
+          contracting_margin_percentage?: number | null
+          contracting_recruiter_share_percentage?: number | null
+          created_at?: string
+          created_by: string
+          fee_basis?: string
+          fee_percentage: number
+          guarantee_days?: number | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label: string
+          max_fee_percentage?: number | null
+          max_recruiter_fee_percentage?: number | null
+          min_fee_percentage?: number | null
+          min_recruiter_fee_percentage?: number | null
+          payment_terms_days?: number
+          published_at?: string | null
+          recruiter_fee_percentage: number
+          refund_rule?: string | null
+          requires_kyb?: boolean
+          requires_signature?: boolean
+          updated_at?: string
+          vat_note?: string
+          version: number
+        }
+        Update: {
+          agb_sha256?: string | null
+          agb_version?: string
+          body_md?: string
+          body_sha256?: string
+          contracting_margin_percentage?: number | null
+          contracting_recruiter_share_percentage?: number | null
+          created_at?: string
+          created_by?: string
+          fee_basis?: string
+          fee_percentage?: number
+          guarantee_days?: number | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          max_fee_percentage?: number | null
+          max_recruiter_fee_percentage?: number | null
+          min_fee_percentage?: number | null
+          min_recruiter_fee_percentage?: number | null
+          payment_terms_days?: number
+          published_at?: string | null
+          recruiter_fee_percentage?: number
+          refund_rule?: string | null
+          requires_kyb?: boolean
+          requires_signature?: boolean
+          updated_at?: string
+          vat_note?: string
+          version?: number
+        }
+        Relationships: []
+      }
       communication_log: {
         Row: {
           body: string
@@ -3909,6 +4192,13 @@ export type Database = {
             columns: ["outreach_lead_id"]
             isOneToOne: false
             referencedRelation: "outreach_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_links_terms_template_id_fkey"
+            columns: ["terms_template_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_terms_templates"
             referencedColumns: ["id"]
           },
         ]
