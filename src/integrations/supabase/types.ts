@@ -3963,6 +3963,13 @@ export type Database = {
             foreignKeyName: "intake_drafts_link_id_fkey"
             columns: ["link_id"]
             isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
             referencedRelation: "intake_links"
             referencedColumns: ["id"]
           },
@@ -4083,6 +4090,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "intake_drafts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_link_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
           },
           {
             foreignKeyName: "intake_link_events_link_id_fkey"
@@ -5524,6 +5538,13 @@ export type Database = {
             foreignKeyName: "jobs_intake_link_id_fkey"
             columns: ["intake_link_id"]
             isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
+          },
+          {
+            foreignKeyName: "jobs_intake_link_id_fkey"
+            columns: ["intake_link_id"]
+            isOneToOne: false
             referencedRelation: "intake_links"
             referencedColumns: ["id"]
           },
@@ -6573,6 +6594,7 @@ export type Database = {
           logo_url: string | null
           name: string
           owner_id: string
+          primary_domain: string | null
           settings: Json | null
           stripe_customer_id: string | null
           type: string
@@ -6585,6 +6607,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           owner_id: string
+          primary_domain?: string | null
           settings?: Json | null
           stripe_customer_id?: string | null
           type: string
@@ -6597,6 +6620,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           owner_id?: string
+          primary_domain?: string | null
           settings?: Json | null
           stripe_customer_id?: string | null
           type?: string
@@ -10215,6 +10239,31 @@ export type Database = {
           },
         ]
       }
+      intake_link_funnel: {
+        Row: {
+          accepted: number | null
+          campaign_key: string | null
+          completed: number | null
+          contacted: number | null
+          created_at: string | null
+          expires_at: string | null
+          label: string | null
+          last_event_at: string | null
+          link_id: string | null
+          link_type: string | null
+          opened: number | null
+          owner_user_id: string | null
+          published: number | null
+          revoked_at: string | null
+          signed: number | null
+          source: string | null
+          started: number | null
+          submitted: number | null
+          uses_count: number | null
+          verified: number | null
+        }
+        Relationships: []
+      }
       recruiter_jobs_view: {
         Row: {
           benefits: string[] | null
@@ -10260,6 +10309,17 @@ export type Database = {
       }
     }
     Functions: {
+      accept_intake_draft: {
+        Args: {
+          _admin_id: string
+          _client_user_id: string
+          _draft_id: string
+          _job: Json
+          _mandate_id?: string
+          _organization_id: string
+        }
+        Returns: string
+      }
       anon_experience_band: { Args: { years: number }; Returns: string }
       anon_region_broad: { Args: { city: string }; Returns: string }
       anon_salary_band: { Args: { salary: number }; Returns: string }
