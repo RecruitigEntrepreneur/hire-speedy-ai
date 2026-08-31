@@ -4130,7 +4130,10 @@ export type Database = {
           revoked_by: string | null
           source: string | null
           terms_template_id: string | null
+          token_encrypted: string | null
           token_hash: string
+          token_rotated_at: string | null
+          token_rotated_by: string | null
           updated_at: string
           uses_count: number
         }
@@ -4156,7 +4159,10 @@ export type Database = {
           revoked_by?: string | null
           source?: string | null
           terms_template_id?: string | null
+          token_encrypted?: string | null
           token_hash: string
+          token_rotated_at?: string | null
+          token_rotated_by?: string | null
           updated_at?: string
           uses_count?: number
         }
@@ -4182,7 +4188,10 @@ export type Database = {
           revoked_by?: string | null
           source?: string | null
           terms_template_id?: string | null
+          token_encrypted?: string | null
           token_hash?: string
+          token_rotated_at?: string | null
+          token_rotated_by?: string | null
           updated_at?: string
           uses_count?: number
         }
