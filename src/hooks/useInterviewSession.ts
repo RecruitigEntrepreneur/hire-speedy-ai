@@ -27,8 +27,8 @@ export function useInterviewSession(interviewId: string | null) {
     quickScores: {},
   });
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load existing session data
   useEffect(() => {

@@ -14,7 +14,7 @@ export function useDashboardKeyboardShortcuts(onHelpOpen?: () => void) {
   const location = useLocation();
   const { role } = useAuth();
   const [keyBuffer, setKeyBuffer] = useState<string[]>([]);
-  const [bufferTimeout, setBufferTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [bufferTimeout, setBufferTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Get dashboard base path based on role
   const getBasePath = useCallback(() => {
