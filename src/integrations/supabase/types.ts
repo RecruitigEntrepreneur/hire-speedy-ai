@@ -2336,6 +2336,289 @@ export type Database = {
         }
         Relationships: []
       }
+      commercial_mandates: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          agb_accepted_at: string | null
+          agb_sha256: string | null
+          agb_version: string
+          client_confirmed_at: string | null
+          client_confirmed_email: string | null
+          client_confirmed_ip_hash: string | null
+          client_confirmed_name: string | null
+          client_confirmed_user_agent: string | null
+          client_user_id: string | null
+          contracting_margin_percentage: number | null
+          created_at: string
+          decline_reason: string | null
+          declined_at: string | null
+          declined_by: string | null
+          document_path: string | null
+          document_sha256: string | null
+          draft_id: string | null
+          fee_basis: string
+          fee_percentage: number
+          guarantee_days: number | null
+          id: string
+          job_id: string | null
+          mandate_number: string
+          organization_id: string | null
+          payment_terms_days: number
+          recruiter_fee_percentage: number
+          refund_rule: string | null
+          signature_envelope_id: string | null
+          signature_note: string | null
+          signature_provider: string
+          signature_recorded_by: string | null
+          signature_sent_at: string | null
+          signature_sent_by: string | null
+          signature_signed_at: string | null
+          signature_signer_name: string | null
+          signature_status: string
+          signed_document_path: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status: string
+          supersedes_id: string | null
+          template_id: string
+          template_version: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          agb_accepted_at?: string | null
+          agb_sha256?: string | null
+          agb_version: string
+          client_confirmed_at?: string | null
+          client_confirmed_email?: string | null
+          client_confirmed_ip_hash?: string | null
+          client_confirmed_name?: string | null
+          client_confirmed_user_agent?: string | null
+          client_user_id?: string | null
+          contracting_margin_percentage?: number | null
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          declined_by?: string | null
+          document_path?: string | null
+          document_sha256?: string | null
+          draft_id?: string | null
+          fee_basis: string
+          fee_percentage: number
+          guarantee_days?: number | null
+          id?: string
+          job_id?: string | null
+          mandate_number: string
+          organization_id?: string | null
+          payment_terms_days: number
+          recruiter_fee_percentage: number
+          refund_rule?: string | null
+          signature_envelope_id?: string | null
+          signature_note?: string | null
+          signature_provider?: string
+          signature_recorded_by?: string | null
+          signature_sent_at?: string | null
+          signature_sent_by?: string | null
+          signature_signed_at?: string | null
+          signature_signer_name?: string | null
+          signature_status?: string
+          signed_document_path?: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status?: string
+          supersedes_id?: string | null
+          template_id: string
+          template_version: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          agb_accepted_at?: string | null
+          agb_sha256?: string | null
+          agb_version?: string
+          client_confirmed_at?: string | null
+          client_confirmed_email?: string | null
+          client_confirmed_ip_hash?: string | null
+          client_confirmed_name?: string | null
+          client_confirmed_user_agent?: string | null
+          client_user_id?: string | null
+          contracting_margin_percentage?: number | null
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          declined_by?: string | null
+          document_path?: string | null
+          document_sha256?: string | null
+          draft_id?: string | null
+          fee_basis?: string
+          fee_percentage?: number
+          guarantee_days?: number | null
+          id?: string
+          job_id?: string | null
+          mandate_number?: string
+          organization_id?: string | null
+          payment_terms_days?: number
+          recruiter_fee_percentage?: number
+          refund_rule?: string | null
+          signature_envelope_id?: string | null
+          signature_note?: string | null
+          signature_provider?: string
+          signature_recorded_by?: string | null
+          signature_sent_at?: string | null
+          signature_sent_by?: string | null
+          signature_signed_at?: string | null
+          signature_signer_name?: string | null
+          signature_status?: string
+          signed_document_path?: string | null
+          snapshot?: Json
+          snapshot_sha256?: string
+          status?: string
+          supersedes_id?: string | null
+          template_id?: string
+          template_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_mandates_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_mandates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_terms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commercial_terms_templates: {
+        Row: {
+          agb_sha256: string | null
+          agb_version: string
+          body_md: string
+          body_sha256: string
+          contracting_margin_percentage: number | null
+          contracting_recruiter_share_percentage: number | null
+          created_at: string
+          created_by: string
+          fee_basis: string
+          fee_percentage: number
+          guarantee_days: number | null
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          max_fee_percentage: number | null
+          max_recruiter_fee_percentage: number | null
+          min_fee_percentage: number | null
+          min_recruiter_fee_percentage: number | null
+          payment_terms_days: number
+          published_at: string | null
+          recruiter_fee_percentage: number
+          refund_rule: string | null
+          requires_kyb: boolean
+          requires_signature: boolean
+          updated_at: string
+          vat_note: string
+          version: number
+        }
+        Insert: {
+          agb_sha256?: string | null
+          agb_version: string
+          body_md: string
+          body_sha256: string
+          contracting_margin_percentage?: number | null
+          contracting_recruiter_share_percentage?: number | null
+          created_at?: string
+          created_by: string
+          fee_basis?: string
+          fee_percentage: number
+          guarantee_days?: number | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label: string
+          max_fee_percentage?: number | null
+          max_recruiter_fee_percentage?: number | null
+          min_fee_percentage?: number | null
+          min_recruiter_fee_percentage?: number | null
+          payment_terms_days?: number
+          published_at?: string | null
+          recruiter_fee_percentage: number
+          refund_rule?: string | null
+          requires_kyb?: boolean
+          requires_signature?: boolean
+          updated_at?: string
+          vat_note?: string
+          version: number
+        }
+        Update: {
+          agb_sha256?: string | null
+          agb_version?: string
+          body_md?: string
+          body_sha256?: string
+          contracting_margin_percentage?: number | null
+          contracting_recruiter_share_percentage?: number | null
+          created_at?: string
+          created_by?: string
+          fee_basis?: string
+          fee_percentage?: number
+          guarantee_days?: number | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          max_fee_percentage?: number | null
+          max_recruiter_fee_percentage?: number | null
+          min_fee_percentage?: number | null
+          min_recruiter_fee_percentage?: number | null
+          payment_terms_days?: number
+          published_at?: string | null
+          recruiter_fee_percentage?: number
+          refund_rule?: string | null
+          requires_kyb?: boolean
+          requires_signature?: boolean
+          updated_at?: string
+          vat_note?: string
+          version?: number
+        }
+        Relationships: []
+      }
       communication_log: {
         Row: {
           body: string
@@ -3424,6 +3707,537 @@ export type Database = {
           },
         ]
       }
+      intake_draft_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          draft_id: string
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          note: string | null
+          origin: string
+          recipient_email: string | null
+          recipient_name: string | null
+          revoked_at: string | null
+          token_hash: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          draft_id: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          note?: string | null
+          origin?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          revoked_at?: string | null
+          token_hash: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          draft_id?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          note?: string | null
+          origin?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_draft_tokens_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_drafts: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          admin_note: string | null
+          anonymous_id: string | null
+          answers: Json | null
+          billing_email: string | null
+          built: Json | null
+          capture_state: string
+          client_user_id: string | null
+          commercial_state: string
+          company_city: string | null
+          company_country: string
+          company_domain: string | null
+          company_industry: string | null
+          company_legal_name: string | null
+          company_name: string | null
+          company_postal_code: string | null
+          company_registration_number: string | null
+          company_size: string | null
+          company_street: string | null
+          company_vat_id: string | null
+          company_website: string | null
+          completeness: number
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_role: string | null
+          contract_type: string
+          created_at: string
+          dyn: Json | null
+          flexibility: Json | null
+          freelance: Json | null
+          id: string
+          identity_state: string
+          intake_payload: Json | null
+          ip_hash: string | null
+          is_freemail: boolean
+          job_id: string | null
+          last_activity_at: string
+          link_id: string | null
+          match_confidence: string | null
+          matched_client_user_id: string | null
+          matched_organization_id: string | null
+          matched_outreach_company_id: string | null
+          organization_id: string | null
+          owner_user_id: string | null
+          purge_after: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          reminder_sent_at: string | null
+          reveal_setup: Json | null
+          review_state: string
+          skill_requirements: Json | null
+          submitted_at: string | null
+          title: string | null
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          admin_note?: string | null
+          anonymous_id?: string | null
+          answers?: Json | null
+          billing_email?: string | null
+          built?: Json | null
+          capture_state?: string
+          client_user_id?: string | null
+          commercial_state?: string
+          company_city?: string | null
+          company_country?: string
+          company_domain?: string | null
+          company_industry?: string | null
+          company_legal_name?: string | null
+          company_name?: string | null
+          company_postal_code?: string | null
+          company_registration_number?: string | null
+          company_size?: string | null
+          company_street?: string | null
+          company_vat_id?: string | null
+          company_website?: string | null
+          completeness?: number
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          contract_type?: string
+          created_at?: string
+          dyn?: Json | null
+          flexibility?: Json | null
+          freelance?: Json | null
+          id?: string
+          identity_state?: string
+          intake_payload?: Json | null
+          ip_hash?: string | null
+          is_freemail?: boolean
+          job_id?: string | null
+          last_activity_at?: string
+          link_id?: string | null
+          match_confidence?: string | null
+          matched_client_user_id?: string | null
+          matched_organization_id?: string | null
+          matched_outreach_company_id?: string | null
+          organization_id?: string | null
+          owner_user_id?: string | null
+          purge_after?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          reminder_sent_at?: string | null
+          reveal_setup?: Json | null
+          review_state?: string
+          skill_requirements?: Json | null
+          submitted_at?: string | null
+          title?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          admin_note?: string | null
+          anonymous_id?: string | null
+          answers?: Json | null
+          billing_email?: string | null
+          built?: Json | null
+          capture_state?: string
+          client_user_id?: string | null
+          commercial_state?: string
+          company_city?: string | null
+          company_country?: string
+          company_domain?: string | null
+          company_industry?: string | null
+          company_legal_name?: string | null
+          company_name?: string | null
+          company_postal_code?: string | null
+          company_registration_number?: string | null
+          company_size?: string | null
+          company_street?: string | null
+          company_vat_id?: string | null
+          company_website?: string | null
+          completeness?: number
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          contract_type?: string
+          created_at?: string
+          dyn?: Json | null
+          flexibility?: Json | null
+          freelance?: Json | null
+          id?: string
+          identity_state?: string
+          intake_payload?: Json | null
+          ip_hash?: string | null
+          is_freemail?: boolean
+          job_id?: string | null
+          last_activity_at?: string
+          link_id?: string | null
+          match_confidence?: string | null
+          matched_client_user_id?: string | null
+          matched_organization_id?: string | null
+          matched_outreach_company_id?: string | null
+          organization_id?: string | null
+          owner_user_id?: string | null
+          purge_after?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          reminder_sent_at?: string | null
+          reveal_setup?: Json | null
+          review_state?: string
+          skill_requirements?: Json | null
+          submitted_at?: string | null
+          title?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_matched_organization_id_fkey"
+            columns: ["matched_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_matched_outreach_company_id_fkey"
+            columns: ["matched_outreach_company_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_email_verifications: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed: boolean
+          created_at: string
+          draft_id: string
+          email: string
+          expires_at: string
+          id: string
+          ip_hash: string | null
+          max_attempts: number
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed?: boolean
+          created_at?: string
+          draft_id: string
+          email: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          max_attempts?: number
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed?: boolean
+          created_at?: string
+          draft_id?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          max_attempts?: number
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_email_verifications_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_link_events: {
+        Row: {
+          actor_user_id: string | null
+          anonymous_id: string | null
+          draft_id: string | null
+          event_type: string
+          id: string
+          ip_hash: string | null
+          link_id: string | null
+          meta: Json
+          occurred_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          anonymous_id?: string | null
+          draft_id?: string | null
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          link_id?: string | null
+          meta?: Json
+          occurred_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          anonymous_id?: string | null
+          draft_id?: string | null
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          link_id?: string | null
+          meta?: Json
+          occurred_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_link_events_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_link_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
+          },
+          {
+            foreignKeyName: "intake_link_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_links: {
+        Row: {
+          allow_freemail: boolean
+          campaign_key: string | null
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          fee_percentage: number | null
+          id: string
+          internal_note: string | null
+          label: string
+          link_type: string
+          max_uses: number | null
+          organization_id: string | null
+          outreach_company_id: string | null
+          outreach_lead_id: string | null
+          owner_user_id: string | null
+          prefill: Json
+          recruiter_fee_percentage: number | null
+          revoked_at: string | null
+          revoked_by: string | null
+          source: string | null
+          terms_template_id: string | null
+          token_hash: string
+          updated_at: string
+          uses_count: number
+        }
+        Insert: {
+          allow_freemail?: boolean
+          campaign_key?: string | null
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          fee_percentage?: number | null
+          id?: string
+          internal_note?: string | null
+          label: string
+          link_type: string
+          max_uses?: number | null
+          organization_id?: string | null
+          outreach_company_id?: string | null
+          outreach_lead_id?: string | null
+          owner_user_id?: string | null
+          prefill?: Json
+          recruiter_fee_percentage?: number | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source?: string | null
+          terms_template_id?: string | null
+          token_hash: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Update: {
+          allow_freemail?: boolean
+          campaign_key?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          fee_percentage?: number | null
+          id?: string
+          internal_note?: string | null
+          label?: string
+          link_type?: string
+          max_uses?: number | null
+          organization_id?: string | null
+          outreach_company_id?: string | null
+          outreach_lead_id?: string | null
+          owner_user_id?: string | null
+          prefill?: Json
+          recruiter_fee_percentage?: number | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source?: string | null
+          terms_template_id?: string | null
+          token_hash?: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_links_outreach_company_id_fkey"
+            columns: ["outreach_company_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_links_outreach_lead_id_fkey"
+            columns: ["outreach_lead_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_links_terms_template_id_fkey"
+            columns: ["terms_template_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_terms_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_rate_limits: {
+        Row: {
+          count: number
+          key_hash: string
+          scope: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key_hash: string
+          scope: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key_hash?: string
+          scope?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       integration_mappings: {
         Row: {
           entity_type: string
@@ -4385,15 +5199,19 @@ export type Database = {
           company_name: string
           company_size_band: string | null
           contract_creation_days: number | null
+          contract_duration_months: number | null
           contract_sensitive_topics: string | null
           contract_type: string | null
           core_hours: string | null
           created_at: string
           daily_routine: string | null
+          day_rate_max: number | null
+          day_rate_min: number | null
           deadline: string | null
           decision_makers: string[] | null
           department_structure: string | null
           description: string | null
+          draft_state: Json | null
           embedding: string | null
           embedding_model: string | null
           embedding_updated_at: string | null
@@ -4401,6 +5219,7 @@ export type Database = {
           experience_level: string | null
           experience_max: number | null
           experience_min: number | null
+          extension_possible: boolean | null
           failure_profile: string | null
           fee_percentage: number | null
           formatted_content: Json | null
@@ -4414,9 +5233,12 @@ export type Database = {
           industry_opportunities: string | null
           intake_briefing: string | null
           intake_completeness: number | null
+          intake_draft_id: string | null
+          intake_link_id: string | null
           intake_payload: Json | null
           job_summary: Json | null
           location: string | null
+          mandate_id: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
           negative_impact_if_unfilled: string | null
@@ -4430,6 +5252,7 @@ export type Database = {
           onsite_required: boolean | null
           organization_id: string | null
           overtime_policy: string | null
+          owner_user_id: string | null
           paused_at: string | null
           position_advantages: string[] | null
           recruiter_fee_percentage: number | null
@@ -4450,6 +5273,7 @@ export type Database = {
           screening_questions: Json | null
           search_difficulty: string | null
           skills: string[] | null
+          source: string | null
           status: string | null
           success_profile: string | null
           target_companies: string[] | null
@@ -4464,6 +5288,7 @@ export type Database = {
           unique_selling_points: string[] | null
           updated_at: string
           urgency: string | null
+          utilization_days_per_week: number | null
           vacancy_reason: string | null
           visa_sponsorship: boolean | null
           works_council: boolean | null
@@ -4490,15 +5315,19 @@ export type Database = {
           company_name: string
           company_size_band?: string | null
           contract_creation_days?: number | null
+          contract_duration_months?: number | null
           contract_sensitive_topics?: string | null
           contract_type?: string | null
           core_hours?: string | null
           created_at?: string
           daily_routine?: string | null
+          day_rate_max?: number | null
+          day_rate_min?: number | null
           deadline?: string | null
           decision_makers?: string[] | null
           department_structure?: string | null
           description?: string | null
+          draft_state?: Json | null
           embedding?: string | null
           embedding_model?: string | null
           embedding_updated_at?: string | null
@@ -4506,6 +5335,7 @@ export type Database = {
           experience_level?: string | null
           experience_max?: number | null
           experience_min?: number | null
+          extension_possible?: boolean | null
           failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
@@ -4519,9 +5349,12 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          intake_draft_id?: string | null
+          intake_link_id?: string | null
           intake_payload?: Json | null
           job_summary?: Json | null
           location?: string | null
+          mandate_id?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -4535,6 +5368,7 @@ export type Database = {
           onsite_required?: boolean | null
           organization_id?: string | null
           overtime_policy?: string | null
+          owner_user_id?: string | null
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
@@ -4555,6 +5389,7 @@ export type Database = {
           screening_questions?: Json | null
           search_difficulty?: string | null
           skills?: string[] | null
+          source?: string | null
           status?: string | null
           success_profile?: string | null
           target_companies?: string[] | null
@@ -4569,6 +5404,7 @@ export type Database = {
           unique_selling_points?: string[] | null
           updated_at?: string
           urgency?: string | null
+          utilization_days_per_week?: number | null
           vacancy_reason?: string | null
           visa_sponsorship?: boolean | null
           works_council?: boolean | null
@@ -4595,15 +5431,19 @@ export type Database = {
           company_name?: string
           company_size_band?: string | null
           contract_creation_days?: number | null
+          contract_duration_months?: number | null
           contract_sensitive_topics?: string | null
           contract_type?: string | null
           core_hours?: string | null
           created_at?: string
           daily_routine?: string | null
+          day_rate_max?: number | null
+          day_rate_min?: number | null
           deadline?: string | null
           decision_makers?: string[] | null
           department_structure?: string | null
           description?: string | null
+          draft_state?: Json | null
           embedding?: string | null
           embedding_model?: string | null
           embedding_updated_at?: string | null
@@ -4611,6 +5451,7 @@ export type Database = {
           experience_level?: string | null
           experience_max?: number | null
           experience_min?: number | null
+          extension_possible?: boolean | null
           failure_profile?: string | null
           fee_percentage?: number | null
           formatted_content?: Json | null
@@ -4624,9 +5465,12 @@ export type Database = {
           industry_opportunities?: string | null
           intake_briefing?: string | null
           intake_completeness?: number | null
+          intake_draft_id?: string | null
+          intake_link_id?: string | null
           intake_payload?: Json | null
           job_summary?: Json | null
           location?: string | null
+          mandate_id?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -4640,6 +5484,7 @@ export type Database = {
           onsite_required?: boolean | null
           organization_id?: string | null
           overtime_policy?: string | null
+          owner_user_id?: string | null
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
@@ -4660,6 +5505,7 @@ export type Database = {
           screening_questions?: Json | null
           search_difficulty?: string | null
           skills?: string[] | null
+          source?: string | null
           status?: string | null
           success_profile?: string | null
           target_companies?: string[] | null
@@ -4674,12 +5520,41 @@ export type Database = {
           unique_selling_points?: string[] | null
           updated_at?: string
           urgency?: string | null
+          utilization_days_per_week?: number | null
           vacancy_reason?: string | null
           visa_sponsorship?: boolean | null
           works_council?: boolean | null
           works_council_meeting_schedule?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_intake_draft_id_fkey"
+            columns: ["intake_draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_intake_link_id_fkey"
+            columns: ["intake_link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
+          },
+          {
+            foreignKeyName: "jobs_intake_link_id_fkey"
+            columns: ["intake_link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_mandate_id_fkey"
+            columns: ["mandate_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_organization_id_fkey"
             columns: ["organization_id"]
@@ -5719,6 +6594,7 @@ export type Database = {
           logo_url: string | null
           name: string
           owner_id: string
+          primary_domain: string | null
           settings: Json | null
           stripe_customer_id: string | null
           type: string
@@ -5731,6 +6607,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           owner_id: string
+          primary_domain?: string | null
           settings?: Json | null
           stripe_customer_id?: string | null
           type: string
@@ -5743,6 +6620,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           owner_id?: string
+          primary_domain?: string | null
           settings?: Json | null
           stripe_customer_id?: string | null
           type?: string
@@ -9361,6 +10239,31 @@ export type Database = {
           },
         ]
       }
+      intake_link_funnel: {
+        Row: {
+          accepted: number | null
+          campaign_key: string | null
+          completed: number | null
+          contacted: number | null
+          created_at: string | null
+          expires_at: string | null
+          label: string | null
+          last_event_at: string | null
+          link_id: string | null
+          link_type: string | null
+          opened: number | null
+          owner_user_id: string | null
+          published: number | null
+          revoked_at: string | null
+          signed: number | null
+          source: string | null
+          started: number | null
+          submitted: number | null
+          uses_count: number | null
+          verified: number | null
+        }
+        Relationships: []
+      }
       recruiter_jobs_view: {
         Row: {
           benefits: string[] | null
@@ -9406,6 +10309,17 @@ export type Database = {
       }
     }
     Functions: {
+      accept_intake_draft: {
+        Args: {
+          _admin_id: string
+          _client_user_id: string
+          _draft_id: string
+          _job: Json
+          _mandate_id?: string
+          _organization_id: string
+        }
+        Returns: string
+      }
       anon_experience_band: { Args: { years: number }; Returns: string }
       anon_region_broad: { Args: { city: string }; Returns: string }
       anon_salary_band: { Args: { salary: number }; Returns: string }
@@ -9459,6 +10373,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      intake_drafts_purge_expired: { Args: never; Returns: number }
+      intake_rate_limit_hit: {
+        Args: { _key: string; _limit: number; _scope: string; _window?: string }
+        Returns: boolean
+      }
+      intake_rate_limits_prune: { Args: never; Returns: number }
       is_job_collaborator: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
