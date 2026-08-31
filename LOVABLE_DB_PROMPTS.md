@@ -378,6 +378,49 @@ freigeschaltet".
 
 ---
 
+### 8d — Nachträge (nach dem ersten Betrieb entstanden)
+
+Zwei kleine Migrationen und ein Secret. Beide Migrationen sind additiv und idempotent.
+
+> Bitte führe diese beiden Migrationen auf Supabase aus:
+>
+> 1. `20260901180000_intake_funnel_security_invoker.sql`
+>    Legt die View `public.intake_link_funnel` identisch neu an, diesmal mit
+>    `WITH (security_invoker = true)`. Behebt das `security_definer_view`-Finding:
+>    die Absicherung kommt danach aus der Admin-RLS der Basistabellen statt aus
+>    den Owner-Rechten der View. **Nicht** dasselbe bei `recruiter_jobs_view`
+>    machen — die muss die RLS umgehen, weil Recruiter kein SELECT auf `jobs` haben.
+>
+> 2. `20260901190000_intake_link_token_recoverable.sql`
+>    Ergänzt `intake_links` um `token_encrypted`, `token_rotated_at` und
+>    `token_rotated_by`, damit ein Aufnahme-Link erneut angezeigt werden kann.
+>
+> Ändere sonst nichts am Code.
+
+**Secret prüfen** — *Project Settings → Edge Functions → Secrets*:
+
+| Name | Wofür |
+|---|---|
+| `ENCRYPTION_KEY` | 64 Zeichen hex (32 Byte). Wird bereits für die OAuth-Token der CRM-Integrationen benutzt — ist er gesetzt, ist nichts zu tun. Fehlt er, funktionieren neue Links, lassen sich aber nicht erneut anzeigen; die Oberfläche sagt das dann ausdrücklich. |
+
+Erzeugen, falls nicht vorhanden:
+
+```bash
+openssl rand -hex 32
+```
+
+**Danach neu deployen:** `intake-link-admin` (Anzeigen und Erneuern),
+`parse-job-url` und `normalize-skills` (Skill-Aufbereitung), `intake-ai` und
+`parse-job-pdf` (PDF-Weg) — sowie das Frontend.
+
+**Hinweis zu bestehenden Links:** Links, die vor dieser Migration angelegt wurden,
+haben keinen verschlüsselten Token und lassen sich nicht anzeigen. Im Zeilenmenü
+steht für sie „Link erzeugen (alter wird ungültig)" — das erzeugt einen neuen
+Token; bereits begonnene Aufnahmen bleiben davon unberührt, sie hängen an einem
+eigenen Zugang.
+
+---
+
 ### 8c — Zwei Handgriffe im Supabase-Dashboard
 
 Diese beiden kann Lovable nicht übernehmen.

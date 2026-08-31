@@ -20,7 +20,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  Check, Copy, Link2, Loader2, MoreHorizontal, Plus, Power, Send, TrendingUp, Users,
+  Check, Copy, Link2, Loader2, MoreHorizontal, Plus, Power, RefreshCw, Send,
+  TrendingUp, Users,
 } from 'lucide-react';
 import { LinkTypeBadge } from '@/components/admin/IntakeStateBadges';
 import { useIntakeLinks, useLinkAction, useTermsTemplates } from '@/hooks/useAdminIntakes';
@@ -77,7 +78,9 @@ export default function AdminIntakeLinks() {
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [created, setCreated] = useState<{ url: string; emailSent: boolean | null } | null>(null);
+  const [created, setCreated] = useState<{ url: string; emailSent: boolean | null; warning?: string | null } | null>(null);
+  /** Der zuletzt angezeigte oder erneuerte Link, direkt in der Zeile. */
+  const [shown, setShown] = useState<{ id: string; url: string; rotated: boolean } | null>(null);
 
   const activeTemplate = useMemo(
     () => templates.find((t) => t.id === form.terms_template_id) ?? templates.find((t) => t.is_active),
@@ -125,7 +128,11 @@ export default function AdminIntakeLinks() {
                 contract_type: form.contract_type,
               },
       });
-      setCreated({ url: res.url as string, emailSent: (res.email_sent ?? null) as boolean | null });
+      setCreated({
+        url: res.url as string,
+        emailSent: (res.email_sent ?? null) as boolean | null,
+        warning: (res.warning ?? null) as string | null,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Der Link konnte nicht angelegt werden.');
     }
@@ -137,6 +144,40 @@ export default function AdminIntakeLinks() {
       toast.success('Link kopiert.');
     } catch {
       toast.error('Kopieren nicht möglich — bitte manuell markieren.');
+    }
+  };
+
+  /**
+   * Link erneut anzeigen.
+   *
+   * Möglich, seit der Token verschlüsselt statt gehasht abgelegt wird. Vorher
+   * war er nach dem Schließen des Anlegen-Dialogs endgültig weg — die
+   * Sicherheitsmaßnahme war an der falschen Stelle: der Link trägt nur die
+   * Vorbelegung, die vertraulichen Angaben hängen am Entwurfs-Token.
+   */
+  const reveal = async (id: string) => {
+    try {
+      const res = await action.mutateAsync({ action: 'reveal', link_id: id });
+      setShown({ id, url: res.url as string, rotated: false });
+      await copy(res.url as string);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Der Link konnte nicht angezeigt werden.');
+    }
+  };
+
+  /** Neuer Token auf denselben Link; der alte wird sofort ungültig. */
+  const rotate = async (id: string, label: string) => {
+    if (!window.confirm(
+      `Für „${label}" einen neuen Link erzeugen?\n\n` +
+      'Der bisherige wird sofort ungültig. Bereits begonnene Aufnahmen bleiben erhalten — ' +
+      'sie hängen an einem eigenen Zugang.',
+    )) return;
+    try {
+      const res = await action.mutateAsync({ action: 'rotate', link_id: id });
+      setShown({ id, url: res.url as string, rotated: true });
+      await copy(res.url as string);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Der Link konnte nicht erneuert werden.');
     }
   };
 
@@ -215,7 +256,27 @@ export default function AdminIntakeLinks() {
                           {l.campaign_key && <>Kampagne {l.campaign_key} · </>}
                           {l.source && <>{l.source} · </>}
                           angelegt {format(new Date(l.created_at), 'dd.MM.yyyy', { locale: de })}
+                          {l.token_rotated_at && <> · erneuert {format(new Date(l.token_rotated_at), 'dd.MM.yyyy', { locale: de })}</>}
                         </div>
+                        {shown?.id === l.link_id && (
+                          <div className="mt-2 flex max-w-md items-center gap-2">
+                            <Input
+                              readOnly
+                              value={shown.url}
+                              className="h-8 font-mono text-xs"
+                              onFocus={(e) => e.currentTarget.select()}
+                            />
+                            <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5"
+                              onClick={() => copy(shown.url)}>
+                              <Copy className="h-3.5 w-3.5" /> Kopieren
+                            </Button>
+                          </div>
+                        )}
+                        {shown?.id === l.link_id && shown.rotated && (
+                          <p className="mt-1 text-[11px] text-amber-600">
+                            Der bisherige Link ist ab sofort ungültig.
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell><LinkTypeBadge type={l.link_type} /></TableCell>
                       <TableCell className="text-right tabular-nums">{l.opened ?? 0}</TableCell>
@@ -239,6 +300,15 @@ export default function AdminIntakeLinks() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {l.can_reveal && (
+                              <DropdownMenuItem onClick={() => reveal(l.link_id)}>
+                                <Copy className="mr-2 h-4 w-4" /> Link kopieren
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => rotate(l.link_id, l.label)}>
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              {l.can_reveal ? 'Neuen Link erzeugen' : 'Link erzeugen (alter wird ungültig)'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggle(l.link_id, Boolean(l.revoked_at))}>
                               <Power className="mr-2 h-4 w-4" />
                               {l.revoked_at ? 'Wieder aktivieren' : 'Deaktivieren'}
@@ -255,8 +325,10 @@ export default function AdminIntakeLinks() {
         </Card>
 
         <p className="text-xs text-muted-foreground">
-          Der Link selbst enthält keine vertraulichen Daten — nur die Vorbelegung. Was ein Unternehmen
-          eingibt, hängt an einem eigenen Zugang je Aufnahme und ist einzeln entziehbar.
+          Der Link selbst enthält keine vertraulichen Daten — nur die Vorbelegung. Deshalb lässt er
+          sich über das Zeilenmenü jederzeit erneut kopieren. Was ein Unternehmen eingibt, hängt
+          dagegen an einem eigenen Zugang je Aufnahme, wird nur als Hashwert gespeichert und ist
+          einzeln entziehbar.
         </p>
       </div>
 
@@ -278,6 +350,11 @@ export default function AdminIntakeLinks() {
                     <Copy className="h-4 w-4" /> Kopieren
                   </Button>
                 </div>
+                {created.warning && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-xs">{created.warning}</AlertDescription>
+                  </Alert>
+                )}
                 {created.emailSent === true && (
                   <Alert>
                     <Check className="h-4 w-4" />

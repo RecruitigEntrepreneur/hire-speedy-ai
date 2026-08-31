@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { preflight, json, fail } from '../_shared/http.ts';
 import { generateToken, hashToken } from '../_shared/tokens.ts';
+import { encryptToken, decryptToken } from '../_shared/encryption.ts';
 import { normalizeDomain, isPlausibleEmail } from '../_shared/domain.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { requireAdmin } from '../_shared/admin-auth.ts';
@@ -17,6 +18,43 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
  */
 
 const LINK_TYPES = ['personal', 'campaign', 'public'] as const;
+
+/**
+ * Den Token verschluesselt ablegen, damit der Admin ihn erneut anzeigen kann.
+ *
+ * Anders als beim Entwurfs-Token, der hash-only bleibt: ein Link traegt nur die
+ * Vorbelegung und die Moeglichkeit, eine Aufnahme zu beginnen -- die
+ * vertraulichen Angaben haengen am Entwurf. Ohne ENCRYPTION_KEY wird nur der
+ * Hash gespeichert; der Link funktioniert dann, laesst sich aber nicht erneut
+ * anzeigen. Das wird gemeldet statt verschwiegen.
+ */
+async function sealToken(token: string): Promise<{ encrypted: string | null; note: string | null }> {
+  const key = Deno.env.get('ENCRYPTION_KEY');
+  if (!key || key.length !== 64) {
+    console.warn('[intake-link-admin] ENCRYPTION_KEY fehlt oder hat nicht 64 Zeichen — Link wird nicht wieder anzeigbar sein.');
+    return {
+      encrypted: null,
+      note: 'Der Link lässt sich später nicht erneut anzeigen: das Secret ENCRYPTION_KEY ist nicht gesetzt. Bitte jetzt kopieren.',
+    };
+  }
+  try {
+    return { encrypted: await encryptToken(token, key), note: null };
+  } catch (e) {
+    console.error('[intake-link-admin] Verschluesselung fehlgeschlagen:', e);
+    return { encrypted: null, note: 'Der Link lässt sich später nicht erneut anzeigen. Bitte jetzt kopieren.' };
+  }
+}
+
+async function openToken(encrypted: string | null): Promise<string | null> {
+  const key = Deno.env.get('ENCRYPTION_KEY');
+  if (!encrypted || !key || key.length !== 64) return null;
+  try {
+    return await decryptToken(encrypted, key);
+  } catch (e) {
+    console.error('[intake-link-admin] Entschluesselung fehlgeschlagen:', e);
+    return null;
+  }
+}
 
 /** Nur diese Schluessel duerfen in prefill. Alles andere waere ein Kanal, um
  *  beliebige Daten in den Gast-Flow zu schieben — insbesondere gilt die harte
@@ -73,8 +111,10 @@ serve(async (req) => {
       }
 
       const token = generateToken();
+      const sealed = await sealToken(token);
       const insert: Record<string, unknown> = {
         token_hash: await hashToken(token),
+        token_encrypted: sealed.encrypted,
         link_type: linkType,
         label,
         internal_note: String(body?.internal_note ?? '').trim().slice(0, 2000) || null,
@@ -156,8 +196,57 @@ serve(async (req) => {
       // Der Token wird hier zurueckgegeben und danach nie wieder. Der Hash
       // gehoert nicht in die Antwort -- er ist zwar mit Pfeffer gebildet und
       // damit nicht ruecklesbar, aber er hat im Browser trotzdem nichts verloren.
-      const { token_hash: _hash, ...safeLink } = link as Record<string, unknown>;
-      return json({ link: safeLink, url, token, email_sent: emailSent });
+      const { token_hash: _hash, token_encrypted: _enc, ...safeLink } = link as Record<string, unknown>;
+      return json({ link: safeLink, url, token, email_sent: emailSent, warning: sealed.note });
+    }
+
+    // ---------------------------------------------------------------- reveal
+    // Den Link erneut anzeigen. Nur fuer Admins, und nur wenn er
+    // verschluesselt abgelegt werden konnte.
+    if (action === 'reveal') {
+      const linkId = String(body?.link_id ?? '');
+      if (!linkId) return fail('invalid_request', 'link_id fehlt.');
+
+      const { data: row, error } = await supabase
+        .from('intake_links').select('id, label, token_encrypted, revoked_at').eq('id', linkId).maybeSingle();
+      if (error) return fail('internal_error', error.message);
+      if (!row) return fail('not_found', 'Link nicht gefunden.');
+
+      const token = await openToken(row.token_encrypted);
+      if (!token) {
+        return fail('conflict',
+          'Dieser Link kann nicht erneut angezeigt werden — er wurde angelegt, bevor Links speicherbar waren, oder das Secret ENCRYPTION_KEY fehlt. Erzeugen Sie über „Neuen Link erzeugen" einen Ersatz; der alte wird dabei ungültig.');
+      }
+      return json({ url: intakeStartUrl(token), token, revoked: Boolean(row.revoked_at) });
+    }
+
+    // ---------------------------------------------------------------- rotate
+    // Neuer Token auf denselben Link. Der alte wird sofort ungueltig, weil sich
+    // der Hash aendert -- genau das, was man nach einem Leck braucht, und die
+    // Rettung fuer Links, die nie anzeigbar waren.
+    if (action === 'rotate') {
+      const linkId = String(body?.link_id ?? '');
+      if (!linkId) return fail('invalid_request', 'link_id fehlt.');
+
+      const token = generateToken();
+      const sealed = await sealToken(token);
+      const { data, error } = await supabase
+        .from('intake_links')
+        .update({
+          token_hash: await hashToken(token),
+          token_encrypted: sealed.encrypted,
+          token_rotated_at: new Date().toISOString(),
+          token_rotated_by: admin.userId,
+        })
+        .eq('id', linkId)
+        .select('id, label')
+        .single();
+      if (error) return fail('internal_error', error.message);
+
+      return json({
+        link: data, url: intakeStartUrl(token), token, warning: sealed.note,
+        message: 'Neuer Link erzeugt. Der bisherige ist ab sofort ungültig.',
+      });
     }
 
     // ---------------------------------------------------------------- revoke
@@ -261,7 +350,8 @@ serve(async (req) => {
     const { data: links, error } = await supabase
       .from('intake_links')
       .select('id, label, link_type, campaign_key, source, owner_user_id, created_at,' +
-              ' revoked_at, expires_at, uses_count, max_uses, allow_freemail')
+              ' revoked_at, expires_at, uses_count, max_uses, allow_freemail,' +
+              ' token_encrypted, token_rotated_at')
       .order('created_at', { ascending: false })
       .limit(Number(body?.limit ?? 200));
     if (error) {
@@ -290,9 +380,13 @@ serve(async (req) => {
 
     const withFunnel = (links ?? []).map((l: Record<string, any>) => {
       const c = counters.get(l.id) ?? {};
+      // Der verschluesselte Token verlaesst den Server nicht -- nur die
+      // Information, ob sich der Link ueberhaupt wieder anzeigen laesst.
+      const { token_encrypted, ...rest } = l;
       return {
-        ...l,
+        ...rest,
         link_id: l.id,
+        can_reveal: Boolean(token_encrypted),
         opened: c.link_opened?.size ?? 0,
         started: c.intake_started?.size ?? 0,
         contacted: c.contact_provided?.size ?? 0,
