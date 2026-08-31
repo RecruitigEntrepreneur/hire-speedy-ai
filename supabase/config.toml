@@ -244,3 +244,57 @@ verify_jwt = true
 
 [functions.assess-candidate-fit]
 verify_jwt = true
+
+# ----------------------------------------------------------------------------
+# Kundenseitiger Einstieg über Jobaufnahme-Links
+# ----------------------------------------------------------------------------
+# verify_jwt = false NUR für die Gast-Endpunkte. Jeder von ihnen prüft
+# stattdessen selbst einen Token und läuft gegen ein Rate-Limit; keiner gibt
+# ohne gültigen Token Daten heraus. Die Admin-Endpunkte stehen auf true UND
+# prüfen zusätzlich has_role(admin) serverseitig — verify_jwt sagt nur, DASS
+# ein Token gültig ist, nicht wem es gehört.
+#
+# intake-questions, parse-job-url und parse-job-pdf bleiben ausdrücklich auf
+# verify_jwt = true. Der Gast erreicht sie ausschließlich über intake-ai, das
+# Token prüft, Eingaben deckelt und die Aufrufe zählt.
+
+[functions.intake-start]
+verify_jwt = false
+
+[functions.intake-draft]
+verify_jwt = false
+
+[functions.intake-ai]
+verify_jwt = false
+
+[functions.intake-verify-email]
+verify_jwt = false
+
+[functions.intake-terms]
+verify_jwt = false
+
+[functions.intake-submit]
+verify_jwt = false
+
+[functions.intake-forward]
+verify_jwt = false
+
+[functions.intake-resume]
+verify_jwt = false
+
+[functions.intake-link-admin]
+verify_jwt = true
+
+[functions.intake-admin]
+verify_jwt = true
+
+[functions.generate-mandate-pdf]
+verify_jwt = true
+
+# Fehlten bisher ganz und liefen deshalb stillschweigend im Default true.
+# Ausdrücklich eingetragen, damit der Zustand ablesbar ist.
+[functions.extract-intake-briefing]
+verify_jwt = true
+
+[functions.normalize-job-requirements]
+verify_jwt = true

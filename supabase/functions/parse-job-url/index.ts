@@ -49,6 +49,41 @@ interface ParsedJobData {
   company_size_estimate: string | null;
 }
 
+/**
+ * Zieladressen fuer ausgehende Abrufe pruefen.
+ *
+ * Blockiert Nicht-HTTP-Schemata (file:, gopher:, data:) und alle Adressen, die
+ * auf das eigene Netz zeigen. Eine DNS-Aufloesung findet hier bewusst nicht
+ * statt: sie kaeme mit einem Rebinding-Fenster zwischen Pruefung und Abruf und
+ * mit spuerbarer Latenz. Die Hostnamenpruefung deckt die realistischen Faelle
+ * ab; darueber hinaus schuetzt die Rate-Begrenzung in intake-ai.
+ */
+const PRIVATE_HOST_PATTERN = new RegExp(
+  [
+    "^localhost$", "^127\\.", "^0\\.", "^10\\.", "^192\\.168\\.",
+    "^172\\.(1[6-9]|2[0-9]|3[01])\\.", "^169\\.254\\.",
+    "^\\[?::1\\]?$", "^\\[?fc", "^\\[?fd", "^\\[?fe80:",
+    "\\.local$", "\\.internal$", "^metadata",
+  ].join("|"),
+  "i",
+);
+
+function validateOutboundUrl(raw: string): { ok: boolean; url?: URL; message?: string } {
+  let url: URL;
+  try {
+    url = new URL(String(raw).trim());
+  } catch {
+    return { ok: false, message: "Ungültige Adresse." };
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { ok: false, message: "Nur http- und https-Adressen werden geladen." };
+  }
+  if (PRIVATE_HOST_PATTERN.test(url.hostname) || !url.hostname.includes(".")) {
+    return { ok: false, message: "Diese Adresse kann nicht geladen werden." };
+  }
+  return { ok: true, url };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -73,13 +108,28 @@ serve(async (req) => {
 
     // Fetch the job posting page if URL provided
     if (jobUrl) {
-      console.log("Fetching job URL:", jobUrl);
+      // SSRF-Haertung: Diese Function fetchte bisher die URL aus dem
+      // Request-Body ungeprueft. Ueber den Gast-Proxy intake-ai ist sie jetzt
+      // mittelbar aus dem offenen Netz erreichbar -- ohne diese Pruefung waere
+      // sie ein Werkzeug fuer Cloud-Metadaten (169.254.169.254) und interne
+      // Hosts, deren Inhalt an den Aufrufer zurueckfliesst.
+      const guard = validateOutboundUrl(jobUrl);
+      if (!guard.ok) {
+        return new Response(JSON.stringify({ error: guard.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log("Fetching job URL:", guard.url!.hostname);
       try {
-        const pageResponse = await fetch(jobUrl, {
+        const pageResponse = await fetch(guard.url!.toString(), {
           headers: {
             "User-Agent": "Mozilla/5.0 (compatible; JobParser/1.0)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-          }
+          },
+          redirect: "follow",
+          signal: AbortSignal.timeout(15_000),
         });
         
         if (pageResponse.ok) {
