@@ -3424,6 +3424,156 @@ export type Database = {
           },
         ]
       }
+      intake_link_events: {
+        Row: {
+          actor_user_id: string | null
+          anonymous_id: string | null
+          draft_id: string | null
+          event_type: string
+          id: string
+          ip_hash: string | null
+          link_id: string | null
+          meta: Json
+          occurred_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          anonymous_id?: string | null
+          draft_id?: string | null
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          link_id?: string | null
+          meta?: Json
+          occurred_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          anonymous_id?: string | null
+          draft_id?: string | null
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          link_id?: string | null
+          meta?: Json
+          occurred_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_link_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "intake_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_links: {
+        Row: {
+          allow_freemail: boolean
+          campaign_key: string | null
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          fee_percentage: number | null
+          id: string
+          internal_note: string | null
+          label: string
+          link_type: string
+          max_uses: number | null
+          organization_id: string | null
+          outreach_company_id: string | null
+          outreach_lead_id: string | null
+          owner_user_id: string | null
+          prefill: Json
+          recruiter_fee_percentage: number | null
+          revoked_at: string | null
+          revoked_by: string | null
+          source: string | null
+          terms_template_id: string | null
+          token_hash: string
+          updated_at: string
+          uses_count: number
+        }
+        Insert: {
+          allow_freemail?: boolean
+          campaign_key?: string | null
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          fee_percentage?: number | null
+          id?: string
+          internal_note?: string | null
+          label: string
+          link_type: string
+          max_uses?: number | null
+          organization_id?: string | null
+          outreach_company_id?: string | null
+          outreach_lead_id?: string | null
+          owner_user_id?: string | null
+          prefill?: Json
+          recruiter_fee_percentage?: number | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source?: string | null
+          terms_template_id?: string | null
+          token_hash: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Update: {
+          allow_freemail?: boolean
+          campaign_key?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          fee_percentage?: number | null
+          id?: string
+          internal_note?: string | null
+          label?: string
+          link_type?: string
+          max_uses?: number | null
+          organization_id?: string | null
+          outreach_company_id?: string | null
+          outreach_lead_id?: string | null
+          owner_user_id?: string | null
+          prefill?: Json
+          recruiter_fee_percentage?: number | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source?: string | null
+          terms_template_id?: string | null
+          token_hash?: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_links_outreach_company_id_fkey"
+            columns: ["outreach_company_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_links_outreach_lead_id_fkey"
+            columns: ["outreach_lead_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_mappings: {
         Row: {
           entity_type: string
