@@ -17,6 +17,24 @@ export interface ParsedJobData {
   skills: string[];
   must_haves: string[];
   nice_to_haves: string[];
+
+  // Vom Parser eingeordnet und gegen skill_synonyms kanonisiert.
+  // must_haves/nice_to_haves enthalten dadurch nur noch matchbare Skillnamen;
+  // Sprachen, Zertifikate und Erfahrungsjahre stehen in eigenen Feldern statt
+  // als unerfüllbare Muss-Kriterien in der Skill-Liste.
+  requirements_classified?: {
+    text: string;
+    kind: 'technology' | 'method' | 'domain' | 'language'
+        | 'certification' | 'education' | 'experience' | 'soft';
+    skill?: string | null;
+    required?: boolean;
+    min_years?: number | null;
+    language_code?: string | null;
+    language_level?: string | null;
+  }[];
+  required_languages?: { code: string; minLevel: string }[];
+  required_certifications?: string[];
+  experience_min?: number | null;
   
   // Team & Struktur
   team_size: number | null;

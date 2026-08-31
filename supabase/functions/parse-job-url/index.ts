@@ -1,4 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  loadSynonymMap, normalizeSkillList, routeRequirements,
+  type ClassifiedRequirement,
+} from "../_shared/skills.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +25,10 @@ interface ParsedJobData {
   skills: string[];
   must_haves: string[];
   nice_to_haves: string[];
+  requirements_classified?: ClassifiedRequirement[];
+  required_languages?: { code: string; minLevel: string }[];
+  required_certifications?: string[];
+  experience_min?: number | null;
   
   // Team & Struktur
   team_size: number | null;
@@ -168,6 +177,25 @@ PFLICHT-FELDER:
 - salary_min: Minimum Gehalt (nur Zahl in EUR, jährlich)
 - salary_max: Maximum Gehalt (nur Zahl in EUR, jährlich)
 - skills: Array von erforderlichen technischen Skills
+- requirements_classified: DAS WICHTIGSTE FELD. Zerlege den Anforderungsteil der
+  Anzeige Satz fuer Satz und ordne JEDES Kriterium einer Klasse zu. Ein Satz
+  enthaelt oft mehrere Kriterien -- dann gib mehrere Eintraege aus.
+    technology  = Sprache, Framework, Werkzeug, Plattform (C#, Kubernetes, SAP)
+    method      = Vorgehen, Praxis (CI/CD, Scrum, Infrastructure as Code)
+    domain      = Fachgebiet (Serienentwicklung, Verpackungsmaschinen, FI/CO)
+    language    = natuerliche Sprache -> language_code + language_level (A1-C2)
+    certification = Zertifikat, Zulassung, Fuehrerschein
+    education   = Studium, Ausbildung, Abschluss
+    experience  = "X Jahre Berufserfahrung" -> min_years
+    soft        = Persoenlichkeit, Haltung, Arbeitsweise
+  Je Eintrag: text (Wortlaut aus der Anzeige), kind, skill (NUR bei
+  technology/method/domain: der kurze Name, hoechstens 3 Woerter),
+  required (true = Muss, false = Kann/wuenschenswert), min_years falls genannt.
+  Beispiel: "Fundierte Erfahrung in DevSecOps, CI/CD und Container" ergibt
+  DREI Eintraege mit kind=method bzw. technology und je einem kurzen skill.
+  "Sehr gute Deutsch- und Englischkenntnisse" ergibt ZWEI Eintraege mit
+  kind=language. "Ganzheitliches Denkvermoegen" ist kind=soft und bekommt
+  KEINEN skill.
 - must_haves: KURZE, PRUEFBARE Muss-Kriterien. Jeder Eintrag hoechstens 5 Woerter
   und einzeln pruefbar -- ein Recruiter muss "hat der Kandidat das: ja/nein"
   beantworten koennen. Ein Satz aus der Anzeige wird in seine Kriterien zerlegt:
@@ -272,6 +300,27 @@ WICHTIGE REGELN:
                   salary_min: { type: "number", nullable: true },
                   salary_max: { type: "number", nullable: true },
                   skills: { type: "array", items: { type: "string" } },
+                  requirements_classified: {
+                    type: "array",
+                    description: "Jedes Kriterium der Anzeige einzeln, mit seiner Klasse. Ein Satz kann mehrere Eintraege ergeben.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        text: { type: "string", description: "Wortlaut aus der Anzeige" },
+                        kind: {
+                          type: "string",
+                          enum: ["technology", "method", "domain", "language",
+                                 "certification", "education", "experience", "soft"],
+                        },
+                        skill: { type: "string", nullable: true, description: "Nur bei technology/method/domain: kurzer Name, hoechstens 3 Woerter" },
+                        required: { type: "boolean", description: "true = Muss, false = Kann" },
+                        min_years: { type: "integer", nullable: true },
+                        language_code: { type: "string", nullable: true },
+                        language_level: { type: "string", nullable: true },
+                      },
+                      required: ["text", "kind"],
+                    },
+                  },
                   must_haves: {
                     type: "array",
                     description: "Kurze, einzeln pruefbare Muss-Kriterien, hoechstens 5 Woerter je Eintrag und hoechstens 8 Eintraege. Keine Persoenlichkeitsfloskeln.",
@@ -318,7 +367,8 @@ WICHTIGE REGELN:
                   industry: { type: "string", nullable: true },
                   company_size_estimate: { type: "string", nullable: true }
                 },
-                required: ["title", "company_name", "skills", "must_haves", "nice_to_haves", "benefits_extracted", "unique_selling_points"]
+                required: ["title", "company_name", "skills", "must_haves", "nice_to_haves",
+                           "benefits_extracted", "unique_selling_points", "requirements_classified"]
               }
             }
           }
@@ -358,10 +408,61 @@ WICHTIGE REGELN:
 
     const parsedJob: ParsedJobData = JSON.parse(toolCall.function.arguments);
 
+    // ---- Einordnen und kanonisieren ---------------------------------------
+    // Das Modell liefert die Klassifikation; hier wird sie auf die Zielfelder
+    // verteilt und gegen skill_synonyms kanonisiert -- dieselbe Tabelle, die
+    // calculate-match-v3-1 laedt. Ohne diesen Schritt landen ganze Saetze in
+    // jobs.must_haves, und der Matcher haelt sie fuer Skillnamen: sie zaehlen
+    // gegen die mustHaveCoverage und druecken den Score jedes Kandidaten.
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } },
+      );
+      const synonyms = await loadSynonymMap(supabase);
+
+      const classified = Array.isArray(parsedJob.requirements_classified)
+        ? parsedJob.requirements_classified
+        : [];
+
+      if (classified.length > 0) {
+        const routed = routeRequirements(classified, synonyms);
+        parsedJob.must_haves = routed.mustHaves;
+        parsedJob.nice_to_haves = routed.niceToHaves;
+        // Frei genannte Skills bleiben erhalten, ergaenzen aber nur.
+        parsedJob.skills = normalizeSkillList(
+          [...routed.skills, ...(parsedJob.skills ?? [])], synonyms,
+        );
+        parsedJob.required_languages = routed.requiredLanguages;
+        parsedJob.required_certifications = routed.requiredCertifications;
+        parsedJob.experience_min = routed.experienceMin;
+
+        // Was nicht matchbar ist, geht nicht verloren -- es steht im
+        // Anforderungstext, nur eben nicht in der Muss-Liste.
+        if (routed.narrative.length > 0) {
+          const existing = (parsedJob.requirements ?? "").trim();
+          const added = routed.narrative.map((n) => `- ${n}`).join("\n");
+          parsedJob.requirements = existing ? `${existing}\n\n${added}` : added;
+        }
+      } else {
+        // Kein Klassifikationsergebnis: wenigstens trennen und kanonisieren.
+        parsedJob.skills = normalizeSkillList(parsedJob.skills, synonyms);
+        parsedJob.must_haves = normalizeSkillList(parsedJob.must_haves, synonyms, 8);
+        parsedJob.nice_to_haves = normalizeSkillList(parsedJob.nice_to_haves, synonyms, 12);
+      }
+    } catch (e) {
+      // Die Aufbereitung darf die Extraktion nicht scheitern lassen -- ein
+      // unkanonisiertes Ergebnis ist besser als gar keines.
+      console.warn("Skill-Aufbereitung uebersprungen:", e);
+    }
+
     console.log("Job parsed successfully:", {
       title: parsedJob.title,
       company: parsedJob.company_name,
-      skills_count: parsedJob.skills?.length
+      skills_count: parsedJob.skills?.length,
+      must_haves_count: parsedJob.must_haves?.length,
+      classified_count: parsedJob.requirements_classified?.length,
     });
 
     return new Response(

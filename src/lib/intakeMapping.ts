@@ -99,6 +99,25 @@ export function fromParsedJobProfile(p: ParsedJobProfile): BuiltJob {
   };
 }
 
+/**
+ * Die typisierten Felder, die der Parser bereits eingeordnet hat.
+ *
+ * Sie gehören nicht in BuiltJob — das ist der Formularzustand — sondern in
+ * dyn.typedFields, wo sie mit dem verschmelzen, was die KI im Briefing
+ * normalisiert. draftToJobRow und buildRecord lesen genau von dort.
+ *
+ * Ohne diesen Weg landeten Sprachanforderungen und Erfahrungsjahre wieder als
+ * unerfüllbare Einträge in der Muss-Liste — der Matcher hält jeden davon für
+ * einen Skillnamen (calculate-match-v3-1:1174).
+ */
+export function typedFieldsFromParsed(d: ParsedJobData): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (d.required_languages?.length) out.required_languages = d.required_languages;
+  if (d.required_certifications?.length) out.required_certifications = d.required_certifications;
+  if (d.experience_min != null) out.experience_min = d.experience_min;
+  return out;
+}
+
 /** Der Ausschnitt, den das statische Briefing zum Vorbefüllen braucht. */
 export const toBriefBuilt = (j: BuiltJob): BriefBuilt => ({
   remote_type: j.remote_type,

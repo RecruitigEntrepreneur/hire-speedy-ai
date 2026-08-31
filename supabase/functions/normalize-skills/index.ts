@@ -38,10 +38,41 @@ serve(async (req) => {
       );
     }
 
-    // Fetch taxonomy
-    const { data: taxonomy, error: taxError } = await supabase
+    // Fetch taxonomy.
+    //
+    // ACHTUNG: public.skill_taxonomy ist in Produktion LEER (0 Zeilen, geprueft
+    // am 2026-08-31). Damit greifen die Stufen 1-3 dieser Function nie, und
+    // Stufe 4 bekam bis eben zusaetzlich eine falsche Gateway-Adresse
+    // (api.lovable.dev statt ai.gateway.lovable.dev) -- die Function hat also
+    // faktisch nichts normalisiert und dabei ein LLM-Budget verbraucht.
+    //
+    // Die gepflegten Daten liegen in public.skill_synonyms (113 Zeilen); genau
+    // die laedt auch calculate-match-v3-1 (index.ts:660). Solange die Taxonomie
+    // leer ist, werden sie hier als Ersatz herangezogen: canonical_name plus
+    // synonym ergeben dieselbe Struktur wie canonical_name plus aliases.
+    let { data: taxonomy, error: taxError } = await supabase
       .from('skill_taxonomy')
       .select('canonical_name, aliases, category, related_skills, transferability_from');
+
+    if (!taxError && (!taxonomy || taxonomy.length === 0)) {
+      const { data: syn } = await supabase
+        .from('skill_synonyms')
+        .select('canonical_name, synonym, category')
+        .eq('active', true);
+      const grouped = new Map<string, { canonical_name: string; aliases: string[]; category: string | null; related_skills: string[]; transferability_from: string[] }>();
+      for (const row of syn ?? []) {
+        const key = String(row.canonical_name ?? '').trim();
+        if (!key) continue;
+        const entry = grouped.get(key) ?? {
+          canonical_name: key, aliases: [], category: row.category ?? null,
+          related_skills: [], transferability_from: [],
+        };
+        if (row.synonym) entry.aliases.push(String(row.synonym));
+        grouped.set(key, entry);
+      }
+      taxonomy = [...grouped.values()];
+      console.log(`[normalize-skills] skill_taxonomy leer — ${taxonomy.length} Eintraege aus skill_synonyms ersatzweise verwendet.`);
+    }
 
     if (taxError) {
       console.error('Error fetching taxonomy:', taxError);
@@ -118,7 +149,7 @@ serve(async (req) => {
         if (lovableApiKey) {
           const taxonomyNames = (taxonomy || []).map(t => t.canonical_name).join(', ');
           
-          const aiResponse = await fetch('https://api.lovable.dev/v1/chat/completions', {
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${lovableApiKey}`,

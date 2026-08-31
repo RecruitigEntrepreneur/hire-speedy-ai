@@ -25,7 +25,7 @@ import { insertJobWithIntake, updateJobWithIntake, type ExtendedJobFields } from
 // über /start/:token exakt dieselben benutzt. Zwei Kopien wären zwei Wahrheiten.
 import {
   EMPTY_BUILT, fromParsedJobData, fromParsedJobProfile, toBriefBuilt,
-  remoteLabel, levelLabel, buildAiJobDraft, buildIntakePayload,
+  remoteLabel, levelLabel, buildAiJobDraft, buildIntakePayload, typedFieldsFromParsed,
 } from '@/lib/intakeMapping';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, type IntakeSubmitStatus } from '@/lib/intakeApproval';
 import { cn } from '@/lib/utils';
@@ -230,14 +230,26 @@ export function JobIntakeStudio({ open, type: initialType, initialText, initialS
     setStage('built');
   };
 
+  /** Sprachen, Zertifikate und Erfahrungsjahre hat der Parser schon
+   *  eingeordnet — sie gehören in die typisierten Felder statt in die
+   *  Muss-Liste, wo der Matcher sie für Skillnamen hielte. */
+  const adoptTyped = (d: ParsedJobData) => {
+    const typed = typedFieldsFromParsed(d);
+    if (Object.keys(typed).length > 0) {
+      setDyn((prev) => ({ ...prev, typedFields: { ...typed, ...prev.typedFields } }));
+    }
+  };
+
   const buildFromText = async (t: string) => {
     setStage('building'); setBuilt(null); setReveal(0);
     const d = await jp.parseJobText(t.trim());
+    if (d) adoptTyped(d);
     startBuild(d ? fromParsedJobData(d) : null);
   };
   const buildFromUrl = async (u: string) => {
     setStage('building'); setBuilt(null); setReveal(0);
     const d = await jp.parseJobUrl(u.trim());
+    if (d) adoptTyped(d);
     startBuild(d ? fromParsedJobData(d) : null);
   };
   const handlePdf = async (file: File) => {

@@ -12,7 +12,7 @@ import {
 } from '@/components/dashboard/IntakeBriefing';
 import { EMPTY_FREELANCE, type BuiltJob, type FreelanceTerms, type RevealSetup } from '@/components/dashboard/intake/types';
 import {
-  EMPTY_BUILT, buildAiJobDraft, fromParsedJobData, toBriefBuilt,
+  EMPTY_BUILT, buildAiJobDraft, fromParsedJobData, toBriefBuilt, typedFieldsFromParsed,
 } from '@/lib/intakeMapping';
 import { isFailure } from '@/hooks/useGuestIntake';
 import { cn } from '@/lib/utils';
@@ -158,6 +158,14 @@ export function CaptureStep({
     if (!job.company_name && companyDefaults?.company_name) job.company_name = companyDefaults.company_name;
     if (!job.location && companyDefaults?.location) job.location = companyDefaults.location;
     if (!job.industry && companyDefaults?.industry) job.industry = companyDefaults.industry;
+
+    // Sprachen, Zertifikate und Erfahrungsjahre hat der Parser bereits
+    // eingeordnet — sie gehören in die typisierten Felder, nicht in die
+    // Muss-Liste. Das Briefing verfeinert sie später, überschreibt sie aber nicht.
+    const typed = typedFieldsFromParsed(parsed);
+    if (Object.keys(typed).length > 0) {
+      onState((s) => ({ ...s, dyn: { ...s.dyn, typedFields: { ...typed, ...s.dyn.typedFields } } }));
+    }
     start(job);
   };
 
