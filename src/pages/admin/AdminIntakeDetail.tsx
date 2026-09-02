@@ -23,7 +23,7 @@ import {
 import {
   CaptureBadge, CommercialBadge, IdentityBadge, ReviewBadge, SignatureBadge, nextStepFor,
 } from '@/components/admin/IntakeStateBadges';
-import { useIntakeDetail, useIntakeAction, useMandateDocument } from '@/hooks/useAdminIntakes';
+import { useIntakeDetail, useIntakeAction, useContractAction, useMandateDocument } from '@/hooks/useAdminIntakes';
 
 /**
  * Eine Aufnahme prüfen, annehmen und durch den Vertragslauf führen.
@@ -35,11 +35,16 @@ import { useIntakeDetail, useIntakeAction, useMandateDocument } from '@/hooks/us
  *   4. Unterschrift vermerken
  *   5. Stelle freigeben — die Datenbank lässt das erst danach zu
  */
+/** Zeitpunkt in der Schreibweise, die im Rest des Admin-Bereichs gilt. */
+const fmt = (iso?: string | null) =>
+  iso ? format(new Date(iso), 'dd.MM.yyyy HH:mm', { locale: de }) : '—';
+
 export default function AdminIntakeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error } = useIntakeDetail(id);
   const action = useIntakeAction(id);
+  const contract = useContractAction(id);
   const document = useMandateDocument();
 
   const [rejectOpen, setRejectOpen] = useState<false | 'reject' | 'request_changes'>(false);
@@ -85,6 +90,17 @@ export default function AdminIntakeDetail() {
     job_status: data.job?.status,
   });
 
+  const runContract = async (payload: Record<string, unknown>, success: string) => {
+    try {
+      await contract.mutateAsync(payload);
+      toast.success(success);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Vertragsschritt fehlgeschlagen.');
+      return false;
+    }
+  };
+
   const run = async (payload: Record<string, unknown>, success: string) => {
     try {
       await action.mutateAsync(payload);
@@ -111,7 +127,6 @@ export default function AdminIntakeDetail() {
     }
   };
 
-  const fmt = (iso?: string | null) => (iso ? format(new Date(iso), 'dd.MM.yyyy HH:mm', { locale: de }) : '—');
 
   return (
     <DashboardLayout>
@@ -318,79 +333,25 @@ export default function AdminIntakeDetail() {
                   </CardContent>
                 </Card>
 
-                {/* ---- Vertragslauf ---------------------------------------- */}
-                <Card>
-                  <CardContent className="space-y-4 p-5">
-                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      <FileSignature className="h-3.5 w-3.5" /> Vermittlungsvereinbarung
-                    </p>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" className="gap-1.5"
-                        onClick={createDocument} disabled={document.isPending || !mandate.client_confirmed_at}>
-                        {document.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                        Vertragsdokument erzeugen
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Das Dokument entsteht aus dem bestätigten Snapshot — nicht aus dem heutigen Stand
-                      der Tabellen. Es enthält eine Signaturmarke, an der DocuSign das Unterschriftsfeld
-                      ausrichtet.
-                    </p>
-
-                    <Separator />
-
-                    {mandate.signature_status === 'signed' ? (
-                      <Alert>
-                        <Check className="h-4 w-4" />
-                        <AlertDescription className="text-sm">
-                          Unterzeichnet am {fmt(mandate.signature_signed_at)}
-                          {mandate.signature_signer_name && <> durch {mandate.signature_signer_name}</>}.
-                          Die Stelle kann jetzt über die Jobliste freigegeben werden.
-                        </AlertDescription>
-                      </Alert>
-                    ) : (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg border p-3">
-                          <p className="mb-2 text-sm font-medium">1 · Über DocuSign versenden</p>
-                          <Label className="text-xs text-muted-foreground">DocuSign-Envelope-ID (optional)</Label>
-                          <Input value={envelopeId} onChange={(e) => setEnvelopeId(e.target.value)}
-                            className="mt-1" placeholder="zur Nachverfolgung" />
-                          <Button size="sm" className="mt-2 w-full gap-1.5"
-                            variant={mandate.signature_status === 'sent' ? 'outline' : 'default'}
-                            disabled={mandate.status !== 'accepted' || action.isPending}
-                            onClick={() => run({ action: 'mark_contract_sent', envelope_id: envelopeId }, 'Als versendet vermerkt.')}>
-                            <Send className="h-3.5 w-3.5" />
-                            {mandate.signature_status === 'sent' ? 'Erneut vermerken' : 'Als versendet vermerken'}
-                          </Button>
-                          {mandate.signature_sent_at && (
-                            <p className="mt-2 text-xs text-muted-foreground">Versendet {fmt(mandate.signature_sent_at)}</p>
-                          )}
-                        </div>
-
-                        <div className="rounded-lg border p-3">
-                          <p className="mb-2 text-sm font-medium">2 · Unterschrift vermerken</p>
-                          <Label className="text-xs text-muted-foreground">Unterzeichnet von</Label>
-                          <Input value={signerName} onChange={(e) => setSignerName(e.target.value)}
-                            className="mt-1" placeholder={mandate.client_confirmed_name ?? 'Name'} />
-                          <Button size="sm" className="mt-2 w-full gap-1.5"
-                            disabled={mandate.status !== 'accepted' || action.isPending}
-                            onClick={() => run(
-                              { action: 'mark_contract_signed', signer_name: signerName, envelope_id: envelopeId },
-                              'Unterschrift vermerkt. Die Stelle kann jetzt freigegeben werden.',
-                            )}>
-                            <FileSignature className="h-3.5 w-3.5" /> Als unterzeichnet vermerken
-                          </Button>
-                          {mandate.status !== 'accepted' && (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              Erst nach der Annahme möglich.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* ---- Vertragslauf, zweistufig ---------------------------- */}
+                {/* Erst der Kunde, dann Matchunt. Erst die Gegenzeichnung macht
+                    den Vertrag wirksam — und erst dann lässt die Datenbank die
+                    Veröffentlichung zu (jobs_guard_privileged_columns). Die
+                    Reihenfolge steht in Triggern, nicht in dieser Oberfläche;
+                    hier wird sie nur sichtbar gemacht. */}
+                <ContractPanel
+                  framework={data.framework}
+                  mandate={mandate}
+                  envelopeId={envelopeId}
+                  setEnvelopeId={setEnvelopeId}
+                  signerName={signerName}
+                  setSignerName={setSignerName}
+                  busy={contract.isPending}
+                  onCreateDocument={createDocument}
+                  documentPending={document.isPending}
+                  onRun={runContract}
+                  draftId={data.draft.id}
+                />
 
                 {data.mandates.length > 1 && (
                   <Card>
@@ -574,5 +535,221 @@ function Rows({ rows }: { rows: [string, unknown][] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * Der Unterschriftslauf in vier Stufen.
+ *
+ * Rahmenvertrag einmal je Kunde, Einzelauftrag je Position darunter. Beide
+ * laufen denselben Weg: freigeben → versenden → Kunde unterschreibt →
+ * Matchunt zeichnet gegen. Die Reihenfolge erzwingen die Trigger; hier steht
+ * sie, damit man sieht, wo der Vorgang gerade hängt.
+ */
+function ContractPanel({
+  framework, mandate, envelopeId, setEnvelopeId, signerName, setSignerName,
+  busy, onCreateDocument, documentPending, onRun, draftId,
+}: {
+  framework: Record<string, any> | null;
+  mandate: Record<string, any>;
+  envelopeId: string;
+  setEnvelopeId: (v: string) => void;
+  signerName: string;
+  setSignerName: (v: string) => void;
+  busy: boolean;
+  onCreateDocument: () => void;
+  documentPending: boolean;
+  onRun: (payload: Record<string, unknown>, success: string) => Promise<boolean>;
+  draftId: string;
+}) {
+  const rvAktiv = framework?.status === 'active';
+  const auftragFertig = Boolean(mandate.countersigned_at);
+
+  return (
+    <div className="space-y-4">
+      {/* --- Rahmenvertrag ---------------------------------------------- */}
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileSignature className="h-3.5 w-3.5" /> Rahmenvertrag
+            </p>
+            {framework && <Badge variant="outline">{framework.agreement_number}</Badge>}
+          </div>
+
+          {!framework ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Für diesen Kunden gibt es noch keinen Rahmenvertrag. Er wird einmal geschlossen;
+                alle weiteren Positionen hängen als Einzelaufträge darunter.
+              </p>
+              <Button size="sm" disabled={busy}
+                onClick={() => onRun({ action: 'create_framework', draft_id: draftId },
+                                     'Rahmenvertrag angelegt.')}>
+                Rahmenvertrag anlegen
+              </Button>
+            </>
+          ) : rvAktiv ? (
+            <Alert>
+              <Check className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Wirksam seit {fmt(framework.countersigned_at)}. Kunde unterzeichnete
+                am {fmt(framework.customer_signed_at)}.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <SignatureSteps
+              stand={framework.status}
+              freigegeben={Boolean(framework.released_for_signature_at)}
+              versendet={Boolean(framework.envelope_sent_at)}
+              kundeUnterschrieben={Boolean(framework.customer_signed_at)}
+              busy={busy}
+              envelopeId={envelopeId}
+              setEnvelopeId={setEnvelopeId}
+              signerName={signerName}
+              setSignerName={setSignerName}
+              onRun={onRun}
+              ziel={{ framework_id: framework.id }}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* --- Einzelauftrag ------------------------------------------------ */}
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileSignature className="h-3.5 w-3.5" /> Einzelauftrag
+            </p>
+            <Badge variant="outline">{mandate.mandate_number}</Badge>
+          </div>
+
+          <Button variant="outline" size="sm" className="gap-1.5"
+            onClick={onCreateDocument} disabled={documentPending || !mandate.client_confirmed_at}>
+            {documentPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Vertragsdokument erzeugen
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Das Dokument entsteht aus dem bestätigten Snapshot — nicht aus dem heutigen Stand der
+            Tabellen. Es enthält eine Signaturmarke, an der DocuSign das Unterschriftsfeld ausrichtet.
+          </p>
+
+          <Separator />
+
+          {!mandate.framework_agreement_id && framework && (
+            <Button size="sm" variant="secondary" disabled={busy}
+              onClick={() => onRun(
+                { action: 'link_framework', mandate_id: mandate.id, framework_id: framework.id },
+                'Mit dem Rahmenvertrag verknüpft.')}>
+              Mit {framework.agreement_number} verknüpfen
+            </Button>
+          )}
+
+          {auftragFertig ? (
+            <Alert>
+              <Check className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Beidseitig unterzeichnet — Kunde am {fmt(mandate.customer_signed_at)}, Matchunt
+                am {fmt(mandate.countersigned_at)}. Die Stelle kann jetzt freigegeben werden.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <SignatureSteps
+              stand={mandate.signature_status}
+              freigegeben={Boolean(mandate.released_for_signature_at)}
+              versendet={Boolean(mandate.signature_sent_at)}
+              kundeUnterschrieben={Boolean(mandate.customer_signed_at)}
+              busy={busy}
+              envelopeId={envelopeId}
+              setEnvelopeId={setEnvelopeId}
+              signerName={signerName}
+              setSignerName={setSignerName}
+              onRun={onRun}
+              ziel={{ mandate_id: mandate.id }}
+              gesperrt={!rvAktiv
+                ? 'Erst den Rahmenvertrag gegenzeichnen — ohne ihn hängt der Einzelauftrag an nichts.'
+                : mandate.status !== 'accepted'
+                ? 'Erst die Anfrage annehmen.'
+                : null}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function SignatureSteps({
+  stand, freigegeben, versendet, kundeUnterschrieben, busy,
+  envelopeId, setEnvelopeId, signerName, setSignerName, onRun, ziel, gesperrt,
+}: {
+  stand: string;
+  freigegeben: boolean; versendet: boolean; kundeUnterschrieben: boolean;
+  busy: boolean;
+  envelopeId: string; setEnvelopeId: (v: string) => void;
+  signerName: string; setSignerName: (v: string) => void;
+  onRun: (payload: Record<string, unknown>, success: string) => Promise<boolean>;
+  ziel: Record<string, string>;
+  gesperrt?: string | null;
+}) {
+  if (gesperrt) {
+    return <p className="text-sm text-muted-foreground">{gesperrt}</p>;
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-lg border p-3">
+        <p className="mb-2 text-sm font-medium">1 · Zur Unterschrift freigeben</p>
+        <p className="mb-2 text-xs text-muted-foreground">
+          Der Moment, in dem ein Mensch das fertige Dokument ansieht.
+        </p>
+        <Button size="sm" className="w-full" disabled={busy || freigegeben}
+          onClick={() => onRun({ action: 'release_for_signature', ...ziel }, 'Freigegeben.')}>
+          {freigegeben ? 'Freigegeben' : 'Freigeben'}
+        </Button>
+      </div>
+
+      <div className="rounded-lg border p-3">
+        <p className="mb-2 text-sm font-medium">2 · Über DocuSign versenden</p>
+        <Label className="text-xs text-muted-foreground">Envelope-ID (optional)</Label>
+        <Input value={envelopeId} onChange={(e) => setEnvelopeId(e.target.value)}
+          className="mt-1" placeholder="zur Nachverfolgung" />
+        <Button size="sm" className="mt-2 w-full gap-1.5" variant={versendet ? 'outline' : 'default'}
+          disabled={busy || !freigegeben}
+          onClick={() => onRun({ action: 'mark_sent', envelope_id: envelopeId, ...ziel },
+                               'Als versendet vermerkt.')}>
+          <Send className="h-3.5 w-3.5" /> {versendet ? 'Erneut vermerken' : 'Als versendet vermerken'}
+        </Button>
+      </div>
+
+      <div className="rounded-lg border p-3">
+        <p className="mb-2 text-sm font-medium">3 · Kunde hat unterschrieben</p>
+        <Label className="text-xs text-muted-foreground">Unterzeichnet von</Label>
+        <Input value={signerName} onChange={(e) => setSignerName(e.target.value)}
+          className="mt-1" placeholder="Name" />
+        <Button size="sm" className="mt-2 w-full gap-1.5" disabled={busy || !versendet}
+          onClick={() => onRun(
+            { action: 'record_customer_signature', signer_name: signerName, envelope_id: envelopeId, ...ziel },
+            'Kundenunterschrift vermerkt.')}>
+          <FileSignature className="h-3.5 w-3.5" /> Unterschrift vermerken
+        </Button>
+      </div>
+
+      <div className="rounded-lg border p-3">
+        <p className="mb-2 text-sm font-medium">4 · Matchunt zeichnet gegen</p>
+        <p className="mb-2 text-xs text-muted-foreground">
+          Erst danach ist der Vertrag wirksam.
+        </p>
+        <Button size="sm" className="w-full" disabled={busy || !kundeUnterschrieben}
+          onClick={() => onRun({ action: 'countersign', ...ziel }, 'Gegengezeichnet — der Vertrag ist wirksam.')}>
+          Gegenzeichnen
+        </Button>
+        {!kundeUnterschrieben && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Matchunt zeichnet zuletzt.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

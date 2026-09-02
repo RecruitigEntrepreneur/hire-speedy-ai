@@ -150,6 +150,29 @@ export function useIntakeDetail(id: string | undefined) {
           .eq('id', draft.data.link_id).maybeSingle();
         link = data ?? null;
       }
+      // Der Rahmenvertrag des Kunden. Er haengt nicht am Entwurf, sondern an
+      // der Organisation -- ein zweiter Auftrag desselben Kunden findet ihn
+      // deshalb wieder, statt einen neuen zu erzeugen.
+      let framework: Record<string, any> | null = null;
+      const orgId = draft.data?.organization_id ?? draft.data?.matched_organization_id;
+      if (orgId || draft.data?.id) {
+        const q = supabase.from('client_framework_agreements').select('*')
+          .order('created_at', { ascending: false }).limit(1);
+        const { data } = orgId
+          ? await q.eq('organization_id', orgId)
+          : await q.eq('origin_draft_id', draft.data!.id);
+        framework = data?.[0] ?? null;
+      }
+
+      // Der juengste Pruefbericht zur Firma.
+      let verification: Record<string, any> | null = null;
+      if (draft.data?.id) {
+        const { data } = await supabase.from('company_verification_reports')
+          .select('*').eq('draft_id', draft.data.id)
+          .order('created_at', { ascending: false }).limit(1);
+        verification = data?.[0] ?? null;
+      }
+
       let job: Record<string, any> | null = null;
       if (draft.data?.job_id) {
         const { data } = await supabase.from('jobs')
@@ -165,6 +188,8 @@ export function useIntakeDetail(id: string | undefined) {
         tokens: (tokens.data ?? []) as Record<string, any>[],
         link,
         job,
+        framework,
+        verification,
       };
     },
   });
@@ -186,6 +211,27 @@ export function useIntakeAction(draftId: string | undefined) {
       qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });
       qc.invalidateQueries({ queryKey: ['admin-intakes'] });
       qc.invalidateQueries({ queryKey: ['admin-intake-counts'] });
+    },
+  });
+}
+
+/**
+ * Der Vertragslauf. Eigene Funktion, weil er zweistufig ist und zwei Dokumente
+ * umfasst -- Rahmenvertrag und Einzelauftrag. intake-admin behandelt weiter
+ * die Pruefung der Anfrage selbst.
+ */
+export function useContractAction(draftId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const { data, error } = await supabase.functions.invoke('contract-admin', { body: payload });
+      if (error) throw await describeFunctionError(error);
+      if (data && typeof data === 'object' && 'reason' in data) throw new Error((data as any).message);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });
+      qc.invalidateQueries({ queryKey: ['admin-intakes'] });
     },
   });
 }

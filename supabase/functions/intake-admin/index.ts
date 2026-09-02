@@ -271,228 +271,27 @@ serve(async (req) => {
     }
 
     // ======================================================== Vertragszustand
-    if (action === 'mark_contract_sent') {
-      const mandate = await currentMandate();
-      if (!mandate) return fail('not_found', 'Keine Vereinbarung vorhanden.');
-      if (mandate.signature_status === 'signed') {
-        return fail('conflict', 'Der Vertrag ist bereits unterzeichnet.');
-      }
-      const { data, error } = await supabase
-        .from('commercial_mandates')
-        .update({
-          signature_status: 'sent',
-          signature_sent_at: new Date().toISOString(),
-          signature_sent_by: adminId,
-          signature_envelope_id: String(body?.envelope_id ?? '').trim().slice(0, 200) || null,
-          signature_note: String(body?.note ?? '').trim().slice(0, 1000) || null,
-        })
-        .eq('id', mandate.id)
-        .select('*')
-        .single();
-      if (error) return fail('internal_error', error.message);
-
-      await logEvent(supabase, {
-        type: 'contract_sent', linkId: draft.link_id, draftId, actorUserId: adminId,
-        meta: { mandate: mandate.mandate_number, envelope: data.signature_envelope_id },
-      });
-      return json({ ok: true, mandate: data });
+    // ---- Vertragslauf: umgezogen nach contract-admin ------------------------
+    // 'mark_contract_sent', 'mark_contract_signed' und 'propose_new_terms'
+    // sind am 2026-09-02 entfallen.
+    //
+    // Die ersten beiden bildeten einen EINSEITIGEN Unterschriftslauf ab: ein
+    // signature_status, ein Unterzeichner, kein Gegenzeichner. Seit der
+    // Rahmenvertrag existiert, wird in fester Reihenfolge unterschrieben --
+    // erst der Kunde, dann Matchunt -- und der Lauf umfasst zwei Dokumente
+    // statt einem. Beides liegt jetzt in contract-admin.
+    //
+    // 'propose_new_terms' erzeugte ein Mandat mit abweichenden Prozentsaetzen.
+    // Es gibt drei Pakete und keine individuellen Konditionen; der Trigger
+    // commercial_mandates_check_pricing wuerde so ein Mandat ohnehin ablehnen.
+    if (['mark_contract_sent', 'mark_contract_signed', 'propose_new_terms'].includes(action)) {
+      return fail('gone', action === 'propose_new_terms'
+        ? 'Abweichende Konditionen gibt es nicht mehr. Es stehen genau drei Pakete zur Wahl; '
+          + 'der Kunde wählt sie selbst.'
+        : 'Der Vertragslauf ist nach contract-admin umgezogen und läuft jetzt zweistufig '
+          + '(Kunde zuerst, Matchunt zuletzt).');
     }
 
-    if (action === 'mark_contract_signed') {
-      const mandate = await currentMandate();
-      if (!mandate) return fail('not_found', 'Keine Vereinbarung vorhanden.');
-      if (mandate.status !== 'accepted') {
-        return fail('conflict',
-          'Der Auftrag muss zuerst angenommen werden, bevor eine Unterschrift vermerkt werden kann.');
-      }
-
-      const signedAt = body?.signed_at ? new Date(body.signed_at).toISOString() : new Date().toISOString();
-      const { data, error } = await supabase
-        .from('commercial_mandates')
-        .update({
-          signature_status: 'signed',
-          signature_signed_at: signedAt,
-          signature_recorded_by: adminId,
-          signature_signer_name: String(body?.signer_name ?? mandate.client_confirmed_name ?? '').slice(0, 120) || null,
-          signature_envelope_id:
-            String(body?.envelope_id ?? mandate.signature_envelope_id ?? '').trim().slice(0, 200) || null,
-          signed_document_path: String(body?.document_path ?? '').trim().slice(0, 500) || null,
-          signature_note: String(body?.note ?? mandate.signature_note ?? '').slice(0, 1000) || null,
-        })
-        .eq('id', mandate.id)
-        .select('*')
-        .single();
-      if (error) return fail('internal_error', error.message);
-
-      // Der Vertrag ist die Voraussetzung fuer die Veroeffentlichung. Also
-      // muss der Admin es erfahren, ohne die Liste zu beobachten.
-      const { data: admins } = await supabase.from('user_roles').select('user_id').eq('role', 'admin').limit(10);
-      const recipients = new Set<string>((admins ?? []).map((a) => a.user_id));
-      if (draft.owner_user_id) recipients.add(draft.owner_user_id);
-      if (recipients.size > 0 && draft.job_id) {
-        await supabase.from('notifications').insert(
-          [...recipients].map((user_id) => ({
-            user_id,
-            type: 'mandate_signed',
-            title: 'Vertrag unterzeichnet — Stelle freigebbar',
-            message: `${summary.company} · ${summary.title} (${mandate.mandate_number}) kann jetzt veröffentlicht werden.`,
-            related_type: 'job',
-            related_id: draft.job_id,
-          })),
-        );
-      }
-
-      await logEvent(supabase, {
-        type: 'contract_signed', linkId: draft.link_id, draftId, actorUserId: adminId,
-        meta: { mandate: mandate.mandate_number },
-      });
-      return json({ ok: true, mandate: data });
-    }
-
-    // ============================================= neue Konditionsversion
-    if (action === 'propose_new_terms') {
-      const previous = await currentMandate();
-      if (!previous) return fail('not_found', 'Keine Vereinbarung vorhanden.');
-      if (previous.signature_status === 'signed') {
-        return fail('conflict',
-          'Der Vertrag ist unterzeichnet. Eine Änderung erfordert eine Aufhebung außerhalb des Systems.');
-      }
-
-      let link: Record<string, any> | null = null;
-      if (draft.link_id) {
-        const { data } = await supabase.from('intake_links').select('*').eq('id', draft.link_id).maybeSingle();
-        link = data ?? null;
-      }
-      const template = await resolveTemplate(supabase, body?.template_id ?? link?.terms_template_id);
-      if (!template) return fail('not_found', 'Konditionsvorlage nicht gefunden.');
-
-      const overrides = {
-        fee_percentage: body?.fee_percentage != null ? Number(body.fee_percentage) : null,
-        recruiter_fee_percentage:
-          body?.recruiter_fee_percentage != null ? Number(body.recruiter_fee_percentage) : null,
-      };
-
-      // Auch der Admin bleibt in der veroeffentlichten Bandbreite.
-      const min = template.min_fee_percentage, max = template.max_fee_percentage;
-      if (overrides.fee_percentage != null &&
-          ((min != null && overrides.fee_percentage < Number(min)) ||
-           (max != null && overrides.fee_percentage > Number(max)))) {
-        return fail('invalid_request',
-          `Das Honorar muss zwischen ${min} % und ${max} % liegen — das ist die veröffentlichte Regel.`);
-      }
-
-      const t = effectiveTerms(template, { ...link, ...overrides } as Record<string, any>);
-      const now = new Date().toISOString();
-      const snapshot = {
-        ...(previous.snapshot as Record<string, any>),
-        captured_at: now,
-        revision_of: previous.mandate_number,
-        terms: {
-          template_id: template.id,
-          template_key: template.key,
-          template_version: template.version,
-          label: template.label,
-          body_md: template.body_md,
-          body_sha256: template.body_sha256,
-          fee_percentage: t.fee_percentage,
-          fee_basis: t.fee_basis,
-          payment_terms_days: t.payment_terms_days,
-          guarantee_days: t.guarantee_days,
-          refund_rule: t.refund_rule,
-          vat_note: t.vat_note,
-          requires_signature: t.requires_signature,
-        },
-      };
-
-      // Erst die alte Zeile schliessen: der partielle Unique-Index laesst nur
-      // ein offenes bzw. ein lebendes Angebot je Entwurf zu.
-      await supabase.from('commercial_mandates')
-        .update({ status: 'superseded' }).eq('id', previous.id);
-
-      const { data: next, error } = await supabase
-        .from('commercial_mandates')
-        .insert({
-          draft_id: draftId,
-          job_id: draft.job_id ?? null,
-          organization_id: draft.organization_id ?? null,
-          client_user_id: draft.client_user_id ?? null,
-          template_id: template.id,
-          template_version: template.version,
-          fee_percentage: t.fee_percentage,
-          recruiter_fee_percentage: t.recruiter_fee_percentage,
-          fee_basis: t.fee_basis,
-          contracting_margin_percentage: t.contracting_margin_percentage,
-          payment_terms_days: t.payment_terms_days,
-          guarantee_days: t.guarantee_days,
-          refund_rule: t.refund_rule,
-          snapshot,
-          snapshot_sha256: await contentHash(JSON.stringify(snapshot)),
-          agb_version: template.agb_version,
-          agb_sha256: template.agb_sha256 ?? null,
-          status: 'proposed',
-          supersedes_id: previous.id,
-          proposed_by: adminId,
-          signature_status: t.requires_signature ? 'pending' : 'not_required',
-        })
-        .select('*')
-        .single();
-
-      if (error) {
-        // Rollback der Statusaenderung, sonst steht der Vorgang ohne Angebot da.
-        await supabase.from('commercial_mandates').update({ status: previous.status }).eq('id', previous.id);
-        return fail('internal_error', error.message);
-      }
-
-      // Der Job darf ohne erneute Bestaetigung nicht live gehen.
-      if (draft.job_id) {
-        await supabase.from('jobs')
-          .update({ mandate_id: next.id, status: 'pending_client_terms' })
-          .eq('id', draft.job_id);
-      }
-      await supabase.from('intake_drafts')
-        .update({ commercial_state: 'presented', last_activity_at: now }).eq('id', draftId);
-
-      let resumeUrl: string | null = null;
-      if (draft.contact_email) {
-        const issued = await issueDraftToken(supabase, {
-          draftId, origin: 'admin', recipientEmail: draft.contact_email, createdBy: adminId,
-        });
-        if (!('error' in issued)) resumeUrl = intakeResumeUrl(issued.token);
-
-        const html = layout({
-          preheader: 'Angepasste Konditionen zu Ihrer Anfrage.',
-          heading: 'Angepasste Konditionen',
-          body: `
-            <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name ?? '')},</p>
-            <p style="margin:0 0 16px 0;">
-              wie besprochen erhalten Sie angepasste Konditionen für <strong>${esc(summary.title)}</strong>.
-              Die bisherige Fassung ${esc(previous.mandate_number)} ist damit hinfällig.
-            </p>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:18px 0;">
-              <tr><td style="padding:6px 0;color:#6b7280;width:45%;">Neue Vorgangsnummer</td><td style="padding:6px 0;font-weight:600;">${esc(next.mandate_number)}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280;">Erfolgshonorar</td><td style="padding:6px 0;font-weight:600;">${esc(t.fee_percentage)} %</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280;">Zahlungsziel</td><td style="padding:6px 0;">${esc(t.payment_terms_days)} Tage netto</td></tr>
-            </table>
-            <p style="margin:0;">Bitte bestätigen Sie die neuen Konditionen — erst danach starten wir.</p>`,
-          cta: resumeUrl ? { label: 'Konditionen ansehen', url: resumeUrl } : undefined,
-        });
-        await sendIntakeMail(supabase, {
-          to: draft.contact_email,
-          subject: `Angepasste Konditionen — ${next.mandate_number}`,
-          html, template: 'intake_terms_revised', replyTo: admin.email,
-          meta: { draft_id: draftId, mandate_id: next.id, supersedes: previous.mandate_number },
-        });
-      }
-
-      await logEvent(supabase, {
-        type: 'terms_presented', linkId: draft.link_id, draftId, actorUserId: adminId,
-        meta: { mandate: next.mandate_number, supersedes: previous.mandate_number, fee: t.fee_percentage },
-      });
-
-      return json({ ok: true, mandate: next });
-    }
-
-    // ================================================================ assign
     if (action === 'assign_owner') {
       const owner = body?.owner_user_id ?? null;
       const { error } = await supabase

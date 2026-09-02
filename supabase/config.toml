@@ -307,3 +307,9 @@ verify_jwt = false
 # ueber sich selbst nicht ausloesen koennen.
 [functions.verify-company]
 verify_jwt = true
+
+# Rahmenvertrag und Einzelauftrag durch den zweistufigen Unterschriftslauf.
+# Loest die einseitigen Aktionen mark_contract_sent/mark_contract_signed und
+# das entfallene propose_new_terms aus intake-admin ab.
+[functions.contract-admin]
+verify_jwt = true
