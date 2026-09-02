@@ -3336,6 +3336,68 @@ export type Database = {
           },
         ]
       }
+      company_verification_reports: {
+        Row: {
+          claimed: Json
+          confidence: number | null
+          created_at: string
+          deviations: Json
+          draft_id: string
+          duration_ms: number | null
+          error: string | null
+          findings: Json
+          id: string
+          model: string | null
+          prompt_version: string | null
+          recommendation: string
+          risk_notes: Json
+          sources: Json
+          summary: string | null
+        }
+        Insert: {
+          claimed: Json
+          confidence?: number | null
+          created_at?: string
+          deviations?: Json
+          draft_id: string
+          duration_ms?: number | null
+          error?: string | null
+          findings?: Json
+          id?: string
+          model?: string | null
+          prompt_version?: string | null
+          recommendation: string
+          risk_notes?: Json
+          sources?: Json
+          summary?: string | null
+        }
+        Update: {
+          claimed?: Json
+          confidence?: number | null
+          created_at?: string
+          deviations?: Json
+          draft_id?: string
+          duration_ms?: number | null
+          error?: string | null
+          findings?: Json
+          id?: string
+          model?: string | null
+          prompt_version?: string | null
+          recommendation?: string
+          risk_notes?: Json
+          sources?: Json
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_verification_reports_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consents: {
         Row: {
           consent_type: string
@@ -4109,6 +4171,71 @@ export type Database = {
           },
         ]
       }
+      intake_clarifications: {
+        Row: {
+          answer: string | null
+          answered_at: string | null
+          asked_by: string
+          created_at: string
+          draft_id: string
+          draft_revision: number | null
+          expires_at: string
+          id: string
+          opened_at: string | null
+          question: string
+          resolved_at: string | null
+          resolved_by: string | null
+          scope_fields: string[]
+          status: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string | null
+          asked_by: string
+          created_at?: string
+          draft_id: string
+          draft_revision?: number | null
+          expires_at: string
+          id?: string
+          opened_at?: string | null
+          question: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          scope_fields?: string[]
+          status?: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string | null
+          asked_by?: string
+          created_at?: string
+          draft_id?: string
+          draft_revision?: number | null
+          expires_at?: string
+          id?: string
+          opened_at?: string | null
+          question?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          scope_fields?: string[]
+          status?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_clarifications_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intake_draft_tokens: {
         Row: {
           created_at: string
@@ -4177,7 +4304,10 @@ export type Database = {
           capture_state: string
           client_user_id: string | null
           commercial_state: string
+          company_checked_at: string | null
           company_city: string | null
+          company_cleared_at: string | null
+          company_cleared_by: string | null
           company_country: string
           company_domain: string | null
           company_industry: string | null
@@ -4186,6 +4316,7 @@ export type Database = {
           company_postal_code: string | null
           company_registration_number: string | null
           company_size: string | null
+          company_state: string
           company_street: string | null
           company_vat_id: string | null
           company_website: string | null
@@ -4197,6 +4328,7 @@ export type Database = {
           contract_type: string
           created_at: string
           dyn: Json | null
+          estimate_basis_cents: number | null
           flexibility: Json | null
           freelance: Json | null
           id: string
@@ -4213,6 +4345,7 @@ export type Database = {
           matched_outreach_company_id: string | null
           organization_id: string | null
           owner_user_id: string | null
+          package_selected_at: string | null
           purge_after: string
           rejected_at: string | null
           rejected_by: string | null
@@ -4220,6 +4353,8 @@ export type Database = {
           reminder_sent_at: string | null
           reveal_setup: Json | null
           review_state: string
+          selected_package_key: string | null
+          selected_package_version: number | null
           skill_requirements: Json | null
           submitted_at: string | null
           title: string | null
@@ -4237,7 +4372,10 @@ export type Database = {
           capture_state?: string
           client_user_id?: string | null
           commercial_state?: string
+          company_checked_at?: string | null
           company_city?: string | null
+          company_cleared_at?: string | null
+          company_cleared_by?: string | null
           company_country?: string
           company_domain?: string | null
           company_industry?: string | null
@@ -4246,6 +4384,7 @@ export type Database = {
           company_postal_code?: string | null
           company_registration_number?: string | null
           company_size?: string | null
+          company_state?: string
           company_street?: string | null
           company_vat_id?: string | null
           company_website?: string | null
@@ -4257,6 +4396,7 @@ export type Database = {
           contract_type?: string
           created_at?: string
           dyn?: Json | null
+          estimate_basis_cents?: number | null
           flexibility?: Json | null
           freelance?: Json | null
           id?: string
@@ -4273,6 +4413,7 @@ export type Database = {
           matched_outreach_company_id?: string | null
           organization_id?: string | null
           owner_user_id?: string | null
+          package_selected_at?: string | null
           purge_after?: string
           rejected_at?: string | null
           rejected_by?: string | null
@@ -4280,6 +4421,8 @@ export type Database = {
           reminder_sent_at?: string | null
           reveal_setup?: Json | null
           review_state?: string
+          selected_package_key?: string | null
+          selected_package_version?: number | null
           skill_requirements?: Json | null
           submitted_at?: string | null
           title?: string | null
@@ -4297,7 +4440,10 @@ export type Database = {
           capture_state?: string
           client_user_id?: string | null
           commercial_state?: string
+          company_checked_at?: string | null
           company_city?: string | null
+          company_cleared_at?: string | null
+          company_cleared_by?: string | null
           company_country?: string
           company_domain?: string | null
           company_industry?: string | null
@@ -4306,6 +4452,7 @@ export type Database = {
           company_postal_code?: string | null
           company_registration_number?: string | null
           company_size?: string | null
+          company_state?: string
           company_street?: string | null
           company_vat_id?: string | null
           company_website?: string | null
@@ -4317,6 +4464,7 @@ export type Database = {
           contract_type?: string
           created_at?: string
           dyn?: Json | null
+          estimate_basis_cents?: number | null
           flexibility?: Json | null
           freelance?: Json | null
           id?: string
@@ -4333,6 +4481,7 @@ export type Database = {
           matched_outreach_company_id?: string | null
           organization_id?: string | null
           owner_user_id?: string | null
+          package_selected_at?: string | null
           purge_after?: string
           rejected_at?: string | null
           rejected_by?: string | null
@@ -4340,6 +4489,8 @@ export type Database = {
           reminder_sent_at?: string | null
           reveal_setup?: Json | null
           review_state?: string
+          selected_package_key?: string | null
+          selected_package_version?: number | null
           skill_requirements?: Json | null
           submitted_at?: string | null
           title?: string | null
@@ -4395,6 +4546,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_drafts_package_fkey"
+            columns: ["selected_package_key", "selected_package_version"]
+            isOneToOne: false
+            referencedRelation: "commercial_packages"
+            referencedColumns: ["package_key", "version"]
+          },
+          {
+            foreignKeyName: "intake_drafts_package_fkey"
+            columns: ["selected_package_key", "selected_package_version"]
+            isOneToOne: false
+            referencedRelation: "commercial_packages_public"
+            referencedColumns: ["package_key", "version"]
           },
         ]
       }
