@@ -46,6 +46,26 @@ export interface DynState {
   done: boolean;
 }
 
+/**
+ * Die Startfrage.
+ *
+ * Der Kunde soll nicht auf die KI warten. "KI waehlt die naechste wichtige
+ * Frage..." war das Erste, was er sah -- eine Wartezeit an der schlechtesten
+ * Stelle, direkt nachdem er etwas getan hat.
+ *
+ * Diese eine Frage passt IMMER und steht nie in einer Stellenanzeige: warum
+ * die Stelle offen ist, bestimmt Story, Dringlichkeit und Risiko. Der Kunde
+ * beantwortet sie, waehrend die KI im Hintergrund die naechsten waehlt --
+ * und seine Antwort geht in deren Auswahl mit ein.
+ */
+const STARTFRAGE: DynQuestion = {
+  id: 'why_open',
+  chapter: 'Rolle & Scope',
+  question: 'Warum ist die Stelle offen?',
+  why: 'Bestimmt Story, Dringlichkeit und Risiko-Profil — und steht in keiner Anzeige.',
+  chips: ['Wachstum / neu geschaffen', 'Nachbesetzung', 'Ablösung', 'Elternzeit-Vertretung'],
+};
+
 export const EMPTY_DYN_STATE: DynState = {
   available: null,
   answers: [],
@@ -97,6 +117,12 @@ const stateIcon = (s: string) =>
 export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToNice, onDone, fallback, askAi }: Props) {
   const [queue, setQueue] = useState<DynQuestion[]>([]);
   const [loading, setLoading] = useState(false);
+  // Laufende Nummer je Anfrage. Beantwortet der Kunde die Startfrage, waehrend
+  // schon eine Anfrage unterwegs ist, kennt diese seine Antwort nicht -- traefe
+  // sie spaeter ein, wuerde sie das Richtige ueberschreiben. Nur die zuletzt
+  // gestartete Anfrage darf ihr Ergebnis anwenden.
+  const anfrageNr = useRef(0);
+  const startfrageAktiv = useRef(false);
   const [freeText, setFreeText] = useState('');
   const [kapitelOffen, setKapitelOffen] = useState(false);
   const [dismissedFlags, setDismissedFlags] = useState<string[]>([]);
@@ -104,6 +130,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
 
   const fetchNext = useCallback(
     async (answers: DynAnswered[], askedIds: string[]) => {
+      const meine = ++anfrageNr.current;
       setLoading(true);
       try {
         const request = {
@@ -122,6 +149,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           data = res.data as Record<string, any> | null;
         }
         if (!data || data.error) throw new Error(data?.error || 'no data');
+        if (meine !== anfrageNr.current) return;   // ueberholt
 
         onState((prev) => ({
           ...prev,
@@ -138,12 +166,16 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           tensionFlags: data.tension_flags || [],
           done: (data.next_questions || []).length === 0,
         }));
-        setQueue(data.next_questions || []);
+        // Nichts wieder aufmachen, was schon beantwortet ist -- die Startfrage
+        // stellt die KI sonst ein zweites Mal.
+        setQueue((data.next_questions || []).filter(
+          (q: DynQuestion) => !askedIds.includes(q.id)));
       } catch (e) {
+        if (meine !== anfrageNr.current) return;
         console.warn('intake-questions nicht erreichbar — statisches Briefing als Fallback:', e);
         onState((prev) => ({ ...prev, available: false }));
       } finally {
-        setLoading(false);
+        if (meine === anfrageNr.current) setLoading(false);
       }
     },
     [type, jobDraft, onState, askAi],
@@ -170,7 +202,16 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     );
   }
 
-  const current = queue[0] ?? null;
+  // Solange die KI laedt und noch nichts beantwortet wurde, steht die
+  // Startfrage da. Sie ist eine echte Frage, keine Beschaeftigung: ihre
+  // Antwort geht in die naechste Auswahl der KI ein.
+  // Einmal gezeigt, bleibt die Startfrage stehen, bis sie beantwortet ist.
+  // Sonst tauscht die eintreffende KI-Antwort dem Kunden die Frage unter der
+  // Hand aus, waehrend er sie noch liest.
+  if (loading && queue.length === 0 && state.answers.length === 0 && !state.askedIds.includes(STARTFRAGE.id)) {
+    startfrageAktiv.current = true;
+  }
+  const current = startfrageAktiv.current ? STARTFRAGE : (queue[0] ?? null);
 
   const answer = (text: string) => {
     if (!current) return;
@@ -179,8 +220,13 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     const askedIds = [...state.askedIds, current.id];
     onState((prev) => ({ ...prev, answers, askedIds }));
     setFreeText('');
-    const rest = queue.slice(1);
+    // Die Startfrage steht neben der Warteschlange, nicht darin -- ihre Antwort
+    // darf keine bereits geholte Frage verschlucken.
+    const rest = (startfrageAktiv.current ? queue : queue.slice(1)).filter((q) => q.id !== current.id);
+    startfrageAktiv.current = false;
     setQueue(rest);
+    // Auch dann neu anfragen, wenn gerade eine Anfrage laeuft: die kennt die
+    // eben gegebene Antwort noch nicht. Die spaetere Antwort gewinnt.
     if (rest.length === 0) void fetchNext(answers, askedIds);
   };
 
