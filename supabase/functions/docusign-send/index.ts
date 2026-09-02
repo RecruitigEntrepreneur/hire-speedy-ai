@@ -134,16 +134,36 @@ serve(async (req) => {
     const orgId = draft.organization_id ?? draft.matched_organization_id ?? null;
     let framework: Record<string, any> | null = null;
 
-    const bestehend = orgId
-      ? await supabase.from('client_framework_agreements').select('*')
-          .eq('organization_id', orgId)
-          .in('status', ['draft', 'pending_release', 'sent', 'customer_signed', 'active'])
-          .order('created_at', { ascending: false }).limit(1).maybeSingle()
-      : await supabase.from('client_framework_agreements').select('*')
-          .eq('origin_draft_id', draftId)
-          .in('status', ['draft', 'pending_release', 'sent', 'customer_signed', 'active'])
-          .order('created_at', { ascending: false }).limit(1).maybeSingle();
-    framework = bestehend.data ?? null;
+    const LEBEND = ['draft', 'pending_release', 'sent', 'customer_signed', 'active'];
+
+    if (orgId) {
+      const { data } = await supabase.from('client_framework_agreements').select('*')
+        .eq('organization_id', orgId).in('status', LEBEND)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      framework = data ?? null;
+    } else {
+      // Ohne Organisation zuerst am eigenen Entwurf suchen ...
+      const { data: eigen } = await supabase.from('client_framework_agreements').select('*')
+        .eq('origin_draft_id', draftId).in('status', LEBEND)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      framework = eigen ?? null;
+
+      // ... und sonst ueber die Firmendomain. Ein Gast-Entwurf hat noch keine
+      // Organisation; ohne diesen Schritt bekaeme dieselbe Firma fuer ihre
+      // zweite Position einen ZWEITEN Rahmenvertrag -- und die Zusage
+      // "einmal je Kunde" waere eine Absichtserklaerung.
+      if (!framework && draft.company_domain) {
+        const { data: geschwister } = await supabase.from('intake_drafts')
+          .select('id').eq('company_domain', draft.company_domain).neq('id', draftId);
+        const ids = (geschwister ?? []).map((d: { id: string }) => d.id);
+        if (ids.length) {
+          const { data } = await supabase.from('client_framework_agreements').select('*')
+            .in('origin_draft_id', ids).in('status', LEBEND)
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          framework = data ?? null;
+        }
+      }
+    }
 
     if (!framework) {
       const { data: tpl } = await supabase.from('contract_templates').select('*')
