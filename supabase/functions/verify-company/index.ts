@@ -79,11 +79,11 @@ function factualChecks(d: Record<string, any>): { deviations: Deviation[]; findi
       });
     } else if (!muster.test(vat)) {
       deviations.push({
-        // Ein Formatfehler ist ein Tippfehler, kein Widerspruch. 'critical'
-        // hiess frueher: der Vertrag geht nicht raus -- fuer eine vertippte
-        // Ziffer war das eine Sackgasse.
-        field: 'company_vat_id', claimed: vat, found: null, severity: 'warning',
-        note: `Die USt-IdNr. entspricht nicht dem Muster fuer ${land}. Bitte pruefen.`,
+        // Haelt den Vertrag an: eine USt-IdNr., die nicht zum Laendermuster
+        // passt, steht so auch nicht auf einer Rechnung. Der Admin klaert das
+        // mit dem Kunden und gibt danach frei.
+        field: 'company_vat_id', claimed: vat, found: null, severity: 'critical',
+        note: `Die USt-IdNr. entspricht nicht dem Muster fuer ${land}.`,
       });
     } else {
       findings.vat_format_ok = true;
@@ -107,9 +107,12 @@ function factualChecks(d: Record<string, any>): { deviations: Deviation[]; findi
     .filter((f) => !String(d[f] ?? '').trim());
   if (fehlend.length) {
     findings.missing_fields = fehlend;
+    // Fehlende Pflichtangaben halten den Vertrag an (Entscheidung des
+    // Auftraggebers, 02.09.2026): ohne vollstaendige Firmierung und Anschrift
+    // laesst sich kein Vertrag ausstellen, der etwas wert ist.
     deviations.push({
-      field: fehlend.join(', '), claimed: null, found: null, severity: 'warning',
-      note: 'Angaben zur Firmenanschrift fehlen.',
+      field: fehlend.join(', '), claimed: null, found: null, severity: 'critical',
+      note: 'Pflichtangaben zur Firma fehlen: ' + fehlend.join(', ') + '.',
     });
   }
 

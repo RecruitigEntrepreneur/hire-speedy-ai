@@ -48,6 +48,9 @@ serve(async (req) => {
     // Gast ueber sein Entwurfs-Token -- er darf den Lauf fuer die eigene
     // Aufnahme anstossen, aber fuer keine fremde.
     let draftId = String(body?.draft_id ?? '');
+    // Nur ein Admin darf die Pruefsperre uebergehen -- der Gast nicht, auch
+    // nicht mit einem manipulierten Aufruf.
+    let adminAufruf = isServiceRole(req);
     if (!isServiceRole(req)) {
       if (body?.draft_token) {
         const found = await resolveDraft(supabase, body.draft_token);
@@ -56,6 +59,7 @@ serve(async (req) => {
       } else {
         const admin = await requireAdmin(req, supabase);
         if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
+        adminAufruf = true;
       }
     }
     if (!draftId) return fail('invalid_request', 'draft_id fehlt.');
@@ -71,18 +75,27 @@ serve(async (req) => {
       .from('intake_drafts').select('*').eq('id', draftId).maybeSingle();
     if (!draft) return fail('not_found', 'Die Aufnahme wurde nicht gefunden.');
 
-    // Die Firmenpruefung blockiert den Versand NICHT mehr.
+    // Harte Widersprueche halten den Vertrag an (Entscheidung des
+    // Auftraggebers, 02.09.2026): fehlende Pflichtangaben oder eine
+    // USt-IdNr., die nicht zum Laendermuster passt. Es muss zusammenpassen,
+    // sonst geht es hier nicht weiter.
     //
-    // Sie tat es, und das war an der falschen Stelle: der Kunde sah eine rote
-    // Meldung und konnte nichts tun -- eine Sackgasse fuer etwas, das er nicht
-    // verursacht hat und oft nicht einmal ein Fehler war.
+    // Damit das keine Sackgasse ist, braucht es beide Gegenstuecke -- und die
+    // gibt es: der Admin sieht den Bericht, kann per Rueckfrage beim Kunden
+    // nachfassen (intake-clarify), die Angaben trotz Befund freigeben
+    // (intake-admin, clear_company) und den Vertrag danach selbst ausloesen.
+    // Ohne diesen Weg bliebe der Vorgang einfach liegen.
     //
-    // Die Entscheidung faellt ohnehin spaeter und an besserer Stelle: der
-    // Vertrag wird erst mit MATCHUNTS GEGENZEICHNUNG wirksam, und dort liegt
-    // der Pruefbericht vor. Einen Umschlag zurueckzuhalten schuetzt nichts --
-    // es haelt nur den Kunden auf.
-    const pruefungAuffaellig = draft.company_state === 'failed'
-      || draft.company_state === 'needs_review';
+    // Die Einschaetzung des MODELLS haelt nichts an. Sie warnt. "Kein
+    // Unternehmen dieses Namens gefunden" ist ein Hinweis, kein Beweis --
+    // kleine Firmen, junge Gruendungen und Umfirmierungen sehen genauso aus.
+    const durchAdmin = body?.override === true && adminAufruf;
+    if (draft.company_state === 'failed' && !durchAdmin) {
+      return fail('conflict',
+        'Die Firmenangaben sind noch nicht vollständig oder stimmig. '
+        + 'Wir sehen uns das an und melden uns bei Ihnen — Ihre Anfrage ist eingegangen.');
+    }
+    const pruefungAuffaellig = draft.company_state !== 'verified';
 
     const { data: mandate } = await supabase
       .from('commercial_mandates').select('*')

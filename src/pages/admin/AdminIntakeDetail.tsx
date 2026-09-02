@@ -666,6 +666,20 @@ function ContractPanel({
             <Badge variant="outline">{mandate.mandate_number}</Badge>
           </div>
 
+          {/* Der Vertrag geht normalerweise unmittelbar nach der Anfrage raus.
+              Wurde er wegen der Firmenpruefung zurueckgehalten, ist DIES der
+              Weg weiter -- vorher gab es keinen, und der Vorgang blieb liegen. */}
+          {!mandate.envelope_id && (
+            <Button size="sm" className="gap-1.5" disabled={busy}
+              onClick={() => onRun(
+                { action: 'send_contract', draft_id: draftId, override: true },
+                'Vertrag ist zur Unterschrift unterwegs.')}>
+              <Send className="h-3.5 w-3.5" />
+              Vertrag jetzt senden
+              {companyState !== 'verified' && ' (trotz Befund)'}
+            </Button>
+          )}
+
           <Button variant="outline" size="sm" className="gap-1.5"
             onClick={onCreateDocument} disabled={documentPending || !mandate.client_confirmed_at}>
             {documentPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
@@ -920,6 +934,22 @@ function VerificationPanel({
               <p className="text-xs text-muted-foreground">
                 Manuell freigegeben am {fmt(clearedAt)}.
               </p>
+            )}
+
+            {/* Was bei einem harten Befund passiert -- und was der Admin
+                dagegen tun kann. Ohne diesen Hinweis bliebe der Vorgang
+                liegen, und niemand wuesste, dass er am Zug ist. */}
+            {state === 'failed' && !clearedAt && (
+              <div className="rounded border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs">
+                <p className="font-medium text-amber-700 dark:text-amber-400">
+                  Der Vertrag wurde zurückgehalten.
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Der Kunde hat die Anfrage abgeschickt und wartet auf uns. Klären Sie die
+                  Angaben — per Rückfrage unten oder telefonisch —, geben Sie sie dann oben
+                  frei und senden Sie den Vertrag.
+                </p>
+              </div>
             )}
           </>
         )}

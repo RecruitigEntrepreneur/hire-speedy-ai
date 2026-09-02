@@ -233,7 +233,11 @@ export function useContractAction(draftId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      const { data, error } = await supabase.functions.invoke('contract-admin', { body: payload });
+      // Der Vertragsversand liegt in docusign-send, nicht in contract-admin --
+      // dieselbe Funktion, die der Kunde ausloest, damit es nur einen Weg gibt,
+      // auf dem ein Umschlag entsteht.
+      const ziel = payload.action === 'send_contract' ? 'docusign-send' : 'contract-admin';
+      const { data, error } = await supabase.functions.invoke(ziel, { body: payload });
       if (error) throw await describeFunctionError(error);
       if (data && typeof data === 'object' && 'reason' in data) throw new Error((data as any).message);
       return data;
