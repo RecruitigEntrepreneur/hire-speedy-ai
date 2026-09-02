@@ -175,13 +175,17 @@ export function buildAiJobDraft(args: {
     salary_min: built.salary_min,
     salary_max: built.salary_max,
     day_rate: isFreelance ? { min: freelance.dayRateMin, max: freelance.dayRateMax } : undefined,
-    must_haves: built.must_haves,
-    nice_to_haves: built.nice_to_haves,
-    skills: built.skills.slice(0, 15),
+    // Die Listen kommen aus einem Entwurf, der noch nicht vollstaendig sein
+    // muss -- waehrend des Bauens ist er es nie. Ein ungeschuetztes
+    // built.skills.slice() liess die gesamte Aufnahme mit weisser Seite
+    // abstuerzen, genau in dem Moment, in dem das Profil entstand.
+    must_haves: built.must_haves ?? [],
+    nice_to_haves: built.nice_to_haves ?? [],
+    skills: (built.skills ?? []).slice(0, 15),
     industry: built.industry,
     vacancy_reason: built.vacancyReason,
     reports_to: built.reportsTo,
-    usps: built.usps,
+    usps: built.usps ?? [],
     flexibility,
     company_defaults: companyDefaults ?? undefined,
   };

@@ -109,11 +109,14 @@ export default function GuestIntake() {
           skill_requirements: next.dyn.skillRequirements,
           completeness: next.dyn.available ? next.dyn.completeness : undefined,
           title: next.built?.title ?? null,
-          intake_payload: buildIntakePayload({
+          // Ohne Profil gibt es nichts zu erzeugen. Vorher wurde hier ein
+          // leeres Objekt mit `as any` durchgereicht -- der Cast stellte den
+          // Typecheck still, und zur Laufzeit fehlten die Listen.
+          intake_payload: next.built ? buildIntakePayload({
             source: 'guest_intake',
             state: {
               type: next.type,
-              built: next.built ?? ({} as any),
+              built: next.built,
               answers: next.answers,
               freelance: next.freelance,
               flexibility: next.flexibility,
@@ -121,7 +124,7 @@ export default function GuestIntake() {
               dyn: next.dyn,
             },
             briefingText: captureBriefingText(next.answers),
-          }),
+          }) : undefined,
         });
         return next;
       });
