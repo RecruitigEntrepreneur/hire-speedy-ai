@@ -4,7 +4,6 @@ import { hashKey, contentHash } from '../_shared/tokens.ts';
 import { isPlausibleEmail } from '../_shared/domain.ts';
 import {
   serviceClient, resolveDraft, logEvent, publicDraft,
-  resolveTemplate, effectiveTerms, clientFacingTerms,
 } from '../_shared/intake-core.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
@@ -79,11 +78,68 @@ serve(async (req) => {
       const { data } = await supabase.from('intake_links').select('*').eq('id', draft.link_id).maybeSingle();
       link = data ?? null;
     }
-    const template = await resolveTemplate(supabase, link?.terms_template_id);
-    if (!template) return fail('not_deployed', 'Die Konditionen sind nicht hinterlegt.');
+    // Ohne Paketwahl gibt es keine Anfrage. Die Constraint
+    // intake_drafts_submit_requires_verified wuerde es ohnehin ablehnen --
+    // hier steht es, damit der Kunde einen Satz statt eines Datenbankfehlers
+    // bekommt.
+    if (!draft.selected_package_key) {
+      return fail('invalid',
+        'Bitte wählen Sie zuerst eines der drei Pakete aus.');
+    }
+    if (!['verified', 'needs_review'].includes(draft.company_state)) {
+      return fail('conflict',
+        'Die Prüfung Ihrer Firmenangaben läuft noch. Bitte versuchen Sie es in einem Moment erneut.');
+    }
 
-    const t = effectiveTerms(template, link);
-    const shown = clientFacingTerms(template, link);
+    const { data: pkg } = await supabase
+      .from('commercial_packages')
+      .select('*')
+      .eq('package_key', draft.selected_package_key)
+      .eq('version', draft.selected_package_version)
+      .maybeSingle();
+    if (!pkg) return fail('not_deployed', 'Das gewählte Paket ist nicht hinterlegt.');
+
+    // Der Vertragstext des Einzelauftrags, zentral gepflegt.
+    const { data: contractTpl } = await supabase
+      .from('contract_templates')
+      .select('*')
+      .eq('doc_type', 'assignment')
+      .eq('language', 'de')
+      .eq('is_active', true)
+      .maybeSingle();
+    if (!contractTpl) return fail('not_deployed', 'Der Vertragstext ist nicht hinterlegt.');
+
+    // Der Preis-Snapshot. Ab hier wird aus IHM gerechnet, nie mehr aus
+    // commercial_packages -- sonst wuerde eine spaetere Preisaenderung diesen
+    // Auftrag rueckwirkend veraendern.
+    const pricingSnapshot = {
+      packageKey: pkg.package_key,
+      packageVersion: pkg.version,
+      publicName: pkg.public_name,
+      clientFeePct: Number(pkg.client_fee_pct),
+      continuityDays: pkg.continuity_days,
+      recruiterInitialPct: Number(pkg.recruiter_initial_pct),
+      recruiterRetentionPct: Number(pkg.recruiter_retention_pct),
+      matchuntPct: Number(pkg.matchunt_pct),
+      researchBountyPct: Number(pkg.research_bounty_pct),
+      matchuntOnClaimPct: Number(pkg.matchunt_on_claim_pct),
+      researchMaxActiveDays: pkg.research_max_active_days,
+      claimNoticeDays: pkg.claim_notice_days,
+      eligibleClaimCategories: pkg.eligible_claim_categories ?? [],
+      excludedClaimCategories: pkg.excluded_claim_categories ?? [],
+      capturedAt: new Date().toISOString(),
+    };
+    const pricingSha = await contentHash(JSON.stringify(pricingSnapshot));
+
+    // Die Schaetzgrundlage aus der Aufnahme. Unverbindlich -- abgerechnet wird
+    // spaeter nach dem unterzeichneten Arbeitsvertrag.
+    const basisCents: number | null = draft.estimate_basis_cents ?? null;
+    const feeCents = basisCents
+      ? Math.round((basisCents * Number(pkg.client_fee_pct)) / 100) : null;
+    const initCents = basisCents
+      ? Math.round((basisCents * Number(pkg.recruiter_initial_pct)) / 100) : null;
+    const retCents = basisCents
+      ? Math.round((basisCents * Number(pkg.recruiter_retention_pct)) / 100) : null;
 
     // ---- Der unveraenderliche Snapshot -------------------------------------
     // Vollstaendiges Abbild dessen, was der Kunde gesehen und bestaetigt hat.
@@ -93,25 +149,46 @@ serve(async (req) => {
     const snapshot = {
       captured_at: now,
       consent_version: CONSENT_VERSION,
-      terms: {
-        template_id: template.id,
-        template_key: template.key,
-        template_version: template.version,
-        label: template.label,
-        body_md: template.body_md,
-        body_sha256: template.body_sha256,
-        fee_percentage: t.fee_percentage,
-        fee_basis: t.fee_basis,
-        payment_terms_days: t.payment_terms_days,
-        guarantee_days: t.guarantee_days,
-        refund_rule: t.refund_rule,
-        vat_note: t.vat_note,
-        requires_signature: t.requires_signature,
+      // Was der Kunde gesehen und gewaehlt hat -- ohne die Innenaufteilung.
+      // Der Snapshot geht spaeter in das Vertragsdokument; dort haette der
+      // Recruiter-Anteil nichts zu suchen.
+      package: {
+        key: pkg.package_key,
+        version: pkg.version,
+        name: pkg.public_name,
+        summary: pkg.summary,
+        fee_percentage: Number(pkg.client_fee_pct),
+        fee_basis: 'gross_annual_target_compensation',
+        continuity_days: pkg.continuity_days,
+        claim_notice_days: pkg.claim_notice_days,
+        payment_terms_days: pkg.payment_terms_days,
+        eligible_claim_categories: pkg.eligible_claim_categories ?? [],
+        excluded_claim_categories: pkg.excluded_claim_categories ?? [],
+      },
+      estimate: basisCents
+        ? { basis_cents: basisCents, fee_cents: feeCents, binding: false,
+            note: 'Unverbindliche Schaetzung. Abgerechnet wird nach dem '
+                + 'Bruttojahreszielgehalt aus dem unterzeichneten Arbeitsvertrag.' }
+        : null,
+      contract: {
+        template_id: contractTpl.id,
+        template_version: contractTpl.version,
+        title: contractTpl.title,
+        body_sha256: contractTpl.body_sha256,
+        vendor: {
+          legal_name: contractTpl.vendor_legal_name,
+          brand: contractTpl.vendor_brand,
+          street: contractTpl.vendor_street,
+          postal_code: contractTpl.vendor_postal_code,
+          city: contractTpl.vendor_city,
+          register: contractTpl.vendor_register,
+          court: contractTpl.vendor_court,
+        },
       },
       agb: {
-        version: template.agb_version,
+        version: contractTpl.agb_version,
         url: `${getPublicAppUrl()}/agb`,
-        sha256: template.agb_sha256 ?? null,
+        sha256: contractTpl.agb_sha256 ?? null,
       },
       client: {
         contact_name: draft.contact_name,
@@ -156,19 +233,28 @@ serve(async (req) => {
 
     const mandateFields = {
       draft_id: draft.id,
-      template_id: template.id,
-      template_version: template.version,
-      fee_percentage: t.fee_percentage,
-      recruiter_fee_percentage: t.recruiter_fee_percentage,
-      fee_basis: t.fee_basis,
-      contracting_margin_percentage: t.contracting_margin_percentage,
-      payment_terms_days: t.payment_terms_days,
-      guarantee_days: t.guarantee_days,
-      refund_rule: t.refund_rule,
+      contract_template_id: contractTpl.id,
+      // fee_percentage und recruiter_fee_percentage werden vom Trigger
+      // commercial_mandates_check_pricing aus dem Paket gesetzt. Was hier
+      // stuende, wuerde ueberschrieben -- deshalb steht hier nichts.
+      fee_basis: 'annual_target_salary',
+      payment_terms_days: pkg.payment_terms_days,
+      package_key: pkg.package_key,
+      package_version: pkg.version,
+      pricing_snapshot: pricingSnapshot,
+      pricing_snapshot_sha256: pricingSha,
+      package_selected_at: draft.package_selected_at ?? now,
+      gross_annual_target_compensation_cents: basisCents,
+      compensation_basis: basisCents ? 'intake_estimate' : null,
+      client_fee_cents: feeCents,
+      recruiter_initial_cents: initCents,
+      recruiter_retention_cents: retCents,
+      matchunt_cents: feeCents != null
+        ? feeCents - (initCents ?? 0) - (retCents ?? 0) : null,
       snapshot,
       snapshot_sha256: snapshotSha,
-      agb_version: template.agb_version,
-      agb_sha256: template.agb_sha256 ?? null,
+      agb_version: contractTpl.agb_version,
+      agb_sha256: contractTpl.agb_sha256 ?? null,
       status: 'client_confirmed',
       client_confirmed_at: now,
       client_confirmed_name: signerName,
@@ -176,7 +262,9 @@ serve(async (req) => {
       client_confirmed_ip_hash: ipHash,
       client_confirmed_user_agent: ua,
       agb_accepted_at: now,
-      signature_status: t.requires_signature ? 'pending' : 'not_required',
+      // Unterschrieben wird immer. Der Vertrag geht erst nach der
+      // Admin-Freigabe raus, deshalb 'pending' und nicht 'sent'.
+      signature_status: 'pending',
     };
 
     const mandateQuery = open
@@ -210,8 +298,8 @@ serve(async (req) => {
 
     // ---- Nachweise ----------------------------------------------------------
     const consentRows = [
-      { consent_type: 'commercial_terms', version: `${template.key}-v${template.version}` },
-      { consent_type: 'agb', version: template.agb_version },
+      { consent_type: 'commercial_terms', version: `${pkg.package_key}-v${pkg.version}` },
+      { consent_type: 'agb', version: contractTpl.agb_version },
     ].map((c) => ({
       subject_type: 'intake_draft',
       subject_id: draft.id,
@@ -228,7 +316,8 @@ serve(async (req) => {
 
     await logEvent(supabase, {
       type: 'terms_confirmed', linkId: draft.link_id, draftId: draft.id, ipHash, userAgent: ua,
-      meta: { mandate: mandate.mandate_number, fee: t.fee_percentage, version: template.version },
+      meta: { mandate: mandate.mandate_number, package: pkg.package_key,
+              fee: Number(pkg.client_fee_pct), version: pkg.version },
     });
     await logEvent(supabase, {
       type: 'intake_completed', linkId: draft.link_id, draftId: draft.id, ipHash,
@@ -252,14 +341,16 @@ serve(async (req) => {
         </p>
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:18px 0;border-collapse:collapse;">
           <tr><td style="padding:6px 0;color:#6b7280;width:45%;">Vorgangsnummer</td><td style="padding:6px 0;font-weight:600;">${esc(mandate.mandate_number)}</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280;">Erfolgshonorar</td><td style="padding:6px 0;font-weight:600;">${esc(t.fee_percentage)} % ${t.fee_basis === 'annual_target_salary' ? 'des Zieljahresgehalts' : 'des Jahresbruttogehalts'}</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280;">Fällig</td><td style="padding:6px 0;">nur im Erfolgsfall, ${esc(t.payment_terms_days)} Tage netto</td></tr>
-          ${t.guarantee_days ? `<tr><td style="padding:6px 0;color:#6b7280;">Nachbesetzung</td><td style="padding:6px 0;">${esc(t.guarantee_days)} Tage</td></tr>` : ''}
-          <tr><td style="padding:6px 0;color:#6b7280;">AGB-Fassung</td><td style="padding:6px 0;">${esc(template.agb_version)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">Paket</td><td style="padding:6px 0;font-weight:600;">${esc(pkg.public_name)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">Erfolgshonorar</td><td style="padding:6px 0;font-weight:600;">${esc(Number(pkg.client_fee_pct))} % des Bruttojahreszielgehalts</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">Fällig</td><td style="padding:6px 0;">nur im Erfolgsfall, ${esc(pkg.payment_terms_days)} Tage netto</td></tr>
+          ${pkg.continuity_days ? `<tr><td style="padding:6px 0;color:#6b7280;">Erneuter Suchlauf</td><td style="padding:6px 0;">bei Ausscheiden in den ersten ${esc(pkg.continuity_days)} Tagen</td></tr>` : ''}
+          <tr><td style="padding:6px 0;color:#6b7280;">AGB-Fassung</td><td style="padding:6px 0;">${esc(contractTpl.agb_version)}</td></tr>
         </table>
         <p style="margin:0 0 8px 0;font-weight:600;">Wie es weitergeht</p>
         <p style="margin:0 0 16px 0;">
-          Wir prüfen das Mandat${t.requires_signature ? ' und senden Ihnen anschließend die Vermittlungsvereinbarung zur digitalen Unterschrift zu. Sobald sie unterzeichnet ist, starten wir die Suche.' : ' und melden uns mit der Freigabe.'}
+          Wir prüfen Ihre Anfrage und senden Ihnen anschließend den Vertrag zur digitalen
+          Unterschrift zu. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.
         </p>`,
       cta: { label: 'Anfrage ansehen', url: resumeUrl },
       footnote:
@@ -297,7 +388,7 @@ serve(async (req) => {
       review_state: 'pending_admin',
       mandate_number: mandate.mandate_number,
       confirmation_sent: mail.sent,
-      requires_signature: t.requires_signature,
+      requires_signature: true,
       draft: publicDraft(saved),
     });
   } catch (e) {

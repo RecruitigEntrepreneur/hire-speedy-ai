@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, ShieldCheck, TriangleAlert, Users } from 'lucide-react';
 import { CONSENT_TEXT } from './consentText';
-import { isFailure, type GuestDraft, type IntakeTerms } from '@/hooks/useGuestIntake';
+import { isFailure, type GuestDraft, type PackageSummary } from '@/hooks/useGuestIntake';
 
 /**
  * Prüfen und einreichen.
@@ -21,7 +21,7 @@ import { isFailure, type GuestDraft, type IntakeTerms } from '@/hooks/useGuestIn
 
 interface Props {
   draft: GuestDraft;
-  terms: IntakeTerms | null;
+  packages: PackageSummary[] | null;
   summary: { label: string; value: string }[];
   openQuestions: number;
   onSubmit: (signerName: string) => Promise<any>;
@@ -29,7 +29,8 @@ interface Props {
   onBack: () => void;
 }
 
-export function SummaryStep({ draft, terms, summary, openQuestions, onSubmit, onForward, onBack }: Props) {
+export function SummaryStep({ draft, packages, summary, openQuestions, onSubmit, onForward, onBack }: Props) {
+  const chosenPackage = packages?.find((p) => p.key === draft.selected_package_key) ?? null;
   const [signer, setSigner] = useState(draft.contact_name ?? '');
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,15 +86,20 @@ export function SummaryStep({ draft, terms, summary, openQuestions, onSubmit, on
         </Alert>
       )}
 
-      {terms && (
+      {/* Das gewaehlte Paket, nicht die ganze Liste: hier steht, was der Kunde
+          gleich anfragt. */}
+      {chosenPackage && (
         <Card className="border-primary/25">
           <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 text-sm">
             <Badge variant="secondary" className="gap-1.5 font-normal">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              {terms.fee_percentage} % Erfolgshonorar
+              {chosenPackage.name} · {chosenPackage.fee_percent} % Erfolgshonorar
             </Badge>
             <span className="text-muted-foreground">
-              fällig erst bei Einstellung · {terms.payment_terms_days} Tage netto · AGB {terms.agb_version}
+              fällig erst bei Einstellung · {chosenPackage.payment_terms_days} Tage netto
+              {chosenPackage.continuity_days
+                ? ` · erneuter Suchlauf in den ersten ${chosenPackage.continuity_days} Tagen`
+                : ''}
             </span>
           </CardContent>
         </Card>

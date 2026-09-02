@@ -27,21 +27,47 @@ export interface IntakeFailure {
   missing?: string[];
 }
 
-export interface IntakeTerms {
-  fee_percentage: number;
-  fee_basis: string;
+/**
+ * Ein Paket, so wie der Kunde es sieht.
+ *
+ * Was hier NICHT steht, steht auch nicht im Netzwerkverkehr: Recruiter-Anteil,
+ * Marge, Einbehalt und Auslobung. Die Funktion liest dafuer die View
+ * commercial_packages_public statt der Basistabelle.
+ */
+export interface IntakePackage {
+  key: 'core' | 'continuity_90' | 'continuity_180';
+  version: number;
+  name: string;
+  summary: string;
+  bullets: string[];
+  fee_percent: number;
+  continuity_days: number | null;
+  claim_notice_days: number;
   payment_terms_days: number;
-  guarantee_days: number | null;
-  refund_rule: string | null;
-  vat_note: string | null;
-  requires_signature: boolean;
-  body_md: string;
-  template_id: string;
-  template_version: number;
-  agb_version: string;
-  label: string;
-  agb_url?: string;
-  signature_notice?: string | null;
+  /** Unverbindliche Schaetzung aus der Gehaltsangabe der Aufnahme. */
+  estimate_cents: number | null;
+  estimate_label: string | null;
+}
+
+/** Kurzform fuer den Seitenkopf -- Transparenz ab der ersten Sekunde. */
+export interface PackageSummary {
+  key: string;
+  name: string;
+  summary: string;
+  fee_percent: number;
+  continuity_days: number | null;
+  payment_terms_days: number;
+}
+
+export interface IntakePackageOffer {
+  packages: IntakePackage[];
+  suggested_key: string | null;
+  selected: { key: string; version: number; selected_at: string } | null;
+  basis: { cents: number; label: string; source: string } | null;
+  agb_url: string;
+  notice: string;
+  estimate_notice: string;
+  commercial_state: string;
 }
 
 export interface IntakeLinkInfo {
@@ -85,9 +111,15 @@ export interface GuestDraft {
   states: {
     capture: 'started' | 'in_progress' | 'complete';
     identity: 'anonymous' | 'contact_provided' | 'email_verified';
+    /** Firmenpruefung. Laeuft nach der E-Mail-Bestaetigung im Hintergrund. */
+    company: 'not_checked' | 'checking' | 'verified' | 'needs_review' | 'failed';
+    // 'discussion_requested' entsteht seit dem Drei-Paket-Modell nicht mehr,
+    // bleibt aber im Typ, weil Bestandsentwuerfe ihn noch tragen koennen.
     commercial: 'not_started' | 'presented' | 'confirmed' | 'discussion_requested' | 'declined';
     review: 'not_submitted' | 'pending_admin' | 'accepted' | 'changes_requested' | 'rejected';
   };
+  selected_package_key: 'core' | 'continuity_90' | 'continuity_180' | null;
+  selected_package_version: number | null;
   submitted_at: string | null;
   rejection_reason: string | null;
   purge_after: string | null;
@@ -168,7 +200,8 @@ export interface GuestIntakeState {
   status: 'loading' | 'ready' | 'failed';
   failure: IntakeFailure | null;
   link: IntakeLinkInfo | null;
-  terms: IntakeTerms | null;
+  /** Die drei Pakete als Uebersicht im Seitenkopf. Die Auswahl kommt spaeter. */
+  packages: PackageSummary[] | null;
   draft: GuestDraft | null;
   draftToken: string | null;
   locked: boolean;
@@ -183,7 +216,7 @@ export interface GuestIntakeState {
  */
 export function useGuestIntake(linkToken?: string, resumeToken?: string) {
   const [state, setState] = useState<GuestIntakeState>({
-    status: 'loading', failure: null, link: null, terms: null,
+    status: 'loading', failure: null, link: null, packages: null,
     draft: null, draftToken: null, locked: false,
     saving: false, saveError: null, lastSavedAt: null,
   });
@@ -207,7 +240,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       const existing = resumeToken ?? (linkToken ? readStored(tokenKey(linkToken)) : null);
 
       if (existing) {
-        const res = await call<{ draft: GuestDraft; link: IntakeLinkInfo | null; terms: IntakeTerms | null; locked: boolean }>(
+        const res = await call<{ draft: GuestDraft; link: IntakeLinkInfo | null; packages: PackageSummary[] | null; locked: boolean }>(
           'intake-draft', { draft_token: existing, action: 'get' },
         );
         if (!isFailure(res)) {
@@ -215,7 +248,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
           if (linkToken) writeStored(tokenKey(linkToken), existing);
           setState((s) => ({
             ...s, status: 'ready', failure: null,
-            draft: res.draft, link: res.link, terms: res.terms, draftToken: existing, locked: res.locked,
+            draft: res.draft, link: res.link, packages: res.packages, draftToken: existing, locked: res.locked,
           }));
           return;
         }
@@ -236,7 +269,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       }
 
       const res = await call<{
-        link: IntakeLinkInfo; terms: IntakeTerms | null; draft_token: string; draft: GuestDraft;
+        link: IntakeLinkInfo; packages: PackageSummary[] | null; draft_token: string; draft: GuestDraft;
       }>('intake-start', { token: linkToken, anonymous_id: anonymousId() });
 
       if (isFailure(res)) {
@@ -248,7 +281,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       writeStored(tokenKey(linkToken), res.draft_token);
       setState((s) => ({
         ...s, status: 'ready', failure: null,
-        link: res.link, terms: res.terms, draft: res.draft, draftToken: res.draft_token, locked: false,
+        link: res.link, packages: res.packages, draft: res.draft, draftToken: res.draft_token, locked: false,
       }));
     })();
   }, [linkToken, resumeToken]);
@@ -267,7 +300,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     inFlight.current = true;
     setState((s) => ({ ...s, saving: true }));
 
-    const res = await call<{ draft: GuestDraft; terms: IntakeTerms | null; locked: boolean }>(
+    const res = await call<{ draft: GuestDraft; packages: PackageSummary[] | null; locked: boolean }>(
       'intake-draft', { draft_token: tokenRef.current, action: 'patch', patch },
     );
     inFlight.current = false;
@@ -283,7 +316,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
 
     setState((s) => ({
       ...s, saving: false, saveError: null, lastSavedAt: new Date(),
-      draft: res.draft, terms: res.terms ?? s.terms, locked: res.locked,
+      draft: res.draft, packages: res.packages ?? s.packages, locked: res.locked,
     }));
   }, []);
 
@@ -326,18 +359,24 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     [],
   );
 
-  const loadTerms = useCallback(
-    () => withToken<{ terms: IntakeTerms; mandate: any; commercial_state: string }>('intake-terms', { action: 'get' }),
+  const loadPackages = useCallback(
+    () => withToken<IntakePackageOffer>('intake-packages', { action: 'get' }),
     [],
   );
 
-  const requestTermsDiscussion = useCallback(
-    async (note: string) => {
-      const res = await withToken<{ ok: boolean; message: string }>('intake-terms', {
-        action: 'request_discussion', note,
-      });
+  /**
+   * Ein Paket waehlen. Das ist das ANGEBOT des Kunden, nicht der
+   * Vertragsschluss -- Matchunt nimmt gesondert an. "Individuelle Konditionen
+   * anfragen" gibt es nicht mehr: es gibt drei Pakete und keine Verhandlung.
+   */
+  const selectPackage = useCallback(
+    async (packageKey: string) => {
+      const res = await withToken<{ ok: boolean; selected: { key: string; name: string } }>(
+        'intake-packages', { action: 'select', package_key: packageKey });
       if (!isFailure(res)) {
-        setState((s) => (s.draft ? { ...s, draft: { ...s.draft, states: { ...s.draft.states, commercial: 'discussion_requested' } } } : s));
+        setState((s) => (s.draft
+          ? { ...s, draft: { ...s.draft, states: { ...s.draft.states, commercial: 'confirmed' } } }
+          : s));
       }
       return res;
     },
@@ -417,7 +456,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     });
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, loadTerms, requestTermsDiscussion, submit, forward, askAi, parseText, parseUrl, parsePdf };
+  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, submit, forward, askAi, parseText, parseUrl, parsePdf };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */

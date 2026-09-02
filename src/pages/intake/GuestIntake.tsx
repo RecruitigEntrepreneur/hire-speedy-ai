@@ -9,7 +9,7 @@ import { IntakeShell, IntakeFailurePage, type StepDef } from '@/components/intak
 import { CaptureStep, emptyCapture, captureBriefingText, type CaptureState } from '@/components/intake/guest/CaptureStep';
 import { ContactStep } from '@/components/intake/guest/ContactStep';
 import { VerifyStep } from '@/components/intake/guest/VerifyStep';
-import { TermsStep } from '@/components/intake/guest/TermsStep';
+import { PackageStep } from '@/components/intake/guest/PackageStep';
 import { SummaryStep } from '@/components/intake/guest/SummaryStep';
 import { ForwardDialog, ResumeDialog } from '@/components/intake/guest/IntakeDialogs';
 import { buildIntakePayload, remoteLabel, levelLabel } from '@/lib/intakeMapping';
@@ -33,7 +33,7 @@ const STEPS: StepDef[] = [
   { key: 'capture', label: 'Position' },
   { key: 'contact', label: 'Kontakt' },
   { key: 'verify', label: 'Bestätigen' },
-  { key: 'terms', label: 'Konditionen' },
+  { key: 'packages', label: 'Paket' },
   { key: 'summary', label: 'Anfragen' },
 ];
 
@@ -42,7 +42,7 @@ type StepKey = (typeof STEPS)[number]['key'];
 export default function GuestIntake() {
   const { token, draftToken } = useParams<{ token?: string; draftToken?: string }>();
   const intake = useGuestIntake(token, draftToken);
-  const { state, save, sendCode, confirmCode, loadTerms, requestTermsDiscussion, submit, forward,
+  const { state, save, sendCode, confirmCode, loadPackages, selectPackage, submit, forward,
           askAi, parseText, parseUrl, parsePdf } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
@@ -79,7 +79,7 @@ export default function GuestIntake() {
 
     // Beim Fortsetzen dort einsteigen, wo es weitergeht.
     if (draft.states.review === 'pending_admin' || draft.states.review === 'accepted') setStep('summary');
-    else if (draft.states.identity === 'email_verified') setStep(draft.states.commercial === 'not_started' ? 'terms' : 'summary');
+    else if (draft.states.identity === 'email_verified') setStep(draft.states.commercial === 'confirmed' ? 'summary' : 'packages');
     else if (draft.states.identity === 'contact_provided') setStep('verify');
     else if (draft.built) setStep('capture');
   }, [draft]);
@@ -121,19 +121,14 @@ export default function GuestIntake() {
     [save],
   );
 
-  // ---- Konditionen laden, sobald der Schritt erreicht ist ------------------
-  useEffect(() => {
-    if (step !== 'terms') return;
-    void loadTerms();
-  }, [step, loadTerms]);
-
   // ---- Abgeleitetes -------------------------------------------------------
   const reachable = useMemo(() => {
     if (!draft) return ['capture'];
     const out: string[] = ['capture'];
     if (draft.built || draft.contact_name) out.push('contact');
     if (draft.states.identity !== 'anonymous') out.push('verify');
-    if (draft.states.identity === 'email_verified') out.push('terms', 'summary');
+    if (draft.states.identity === 'email_verified') out.push('packages');
+    if (draft.states.commercial === 'confirmed') out.push('summary');
     return out;
   }, [draft]);
 
@@ -207,7 +202,8 @@ export default function GuestIntake() {
   // ---- Eingereicht --------------------------------------------------------
   if (submitted || draft.states.review === 'pending_admin' || draft.states.review === 'accepted') {
     const mandate = submitted?.mandate;
-    const requiresSignature = submitted?.requiresSignature ?? state.terms?.requires_signature ?? true;
+    // Unterschrieben wird immer -- der Vertrag geht nach der Pruefung raus.
+    const requiresSignature = true;
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-lg">
@@ -256,7 +252,7 @@ export default function GuestIntake() {
       activeStep={step}
       reachable={reachable}
       onStep={(k) => setStep(k as StepKey)}
-      terms={state.terms}
+      packages={state.packages}
       ownerName={link?.owner_name}
       saving={state.saving}
       saveError={state.saveError}
@@ -272,7 +268,7 @@ export default function GuestIntake() {
         </Alert>
       )}
 
-      {knownCompany && step === 'terms' && (
+      {knownCompany && step === 'packages' && (
         <Alert className="mb-4">
           <AlertDescription className="text-sm">
             Wir kennen {knownCompany.name} bereits. Ihr Ansprechpartner prüft, ob eine bestehende
@@ -319,33 +315,23 @@ export default function GuestIntake() {
           onEditEmail={() => setStep('contact')}
           onVerified={(company) => {
             setKnownCompany(company);
-            setStep('terms');
+            setStep('packages');
           }}
         />
       )}
 
-      {step === 'terms' && state.terms && (
-        <TermsStep
-          terms={state.terms}
-          draft={draft}
-          onRequestDiscussion={requestTermsDiscussion}
+      {step === 'packages' && (
+        <PackageStep
+          load={loadPackages}
+          onSelect={selectPackage}
           onNext={() => setStep('summary')}
         />
-      )}
-      {step === 'terms' && !state.terms && (
-        <Alert>
-          <AlertDescription className="text-sm">
-            Die Konditionen sind gerade nicht abrufbar. Bitte laden Sie die Seite neu oder wenden Sie
-            sich an Ihren Ansprechpartner — ohne ausgewiesene Konditionen nehmen wir keine
-            Beauftragung entgegen.
-          </AlertDescription>
-        </Alert>
       )}
 
       {step === 'summary' && (
         <SummaryStep
           draft={draft}
-          terms={state.terms}
+          packages={state.packages}
           summary={summaryRows}
           openQuestions={openQuestionCount}
           onBack={() => setStep('capture')}

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Check, CloudOff, Loader2, ShieldCheck, TriangleAlert } from 'lucide-react';
-import type { IntakeTerms } from '@/hooks/useGuestIntake';
+import type { PackageSummary } from '@/hooks/useGuestIntake';
 
 /**
  * Rahmen der login-freien Jobaufnahme.
@@ -30,7 +30,7 @@ interface Props {
   /** Bis hierher darf zurückgesprungen werden. */
   reachable: string[];
   onStep: (key: string) => void;
-  terms: IntakeTerms | null;
+  packages: PackageSummary[] | null;
   ownerName?: string | null;
   saving?: boolean;
   saveError?: string | null;
@@ -40,7 +40,7 @@ interface Props {
 }
 
 export function IntakeShell({
-  steps, activeStep, reachable, onStep, terms, ownerName,
+  steps, activeStep, reachable, onStep, packages, ownerName,
   saving, saveError, lastSavedAt, onResumeLater, children,
 }: Props) {
   const activeIndex = Math.max(0, steps.findIndex((s) => s.key === activeStep));
@@ -57,10 +57,10 @@ export function IntakeShell({
               Spezifikation verlangt sie ausdrücklich ab der ersten Sekunde.
               Deshalb auch auf dem Handy sichtbar, dort nur kürzer: der Zusatz
               „keine Fixkosten" weicht, die Zahl bleibt. */}
-          {terms && (
+          {packages && packages.length > 0 && (
             <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-              {terms.fee_percentage} % Erfolgshonorar
+              ab {Math.min(...packages.map((p) => p.fee_percent))} % Erfolgshonorar
               <span className="hidden sm:inline">· keine Fixkosten</span>
             </Badge>
           )}

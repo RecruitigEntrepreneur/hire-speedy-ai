@@ -270,9 +270,6 @@ verify_jwt = false
 [functions.intake-verify-email]
 verify_jwt = false
 
-[functions.intake-terms]
-verify_jwt = false
-
 [functions.intake-submit]
 verify_jwt = false
 
@@ -297,4 +294,16 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.normalize-job-requirements]
+verify_jwt = true
+
+# --- Nachlauf der Aufnahme (02.09.2026) -------------------------------------
+# Die drei Pakete zeigen und eines auswaehlen. Ohne Login, wie die uebrige
+# Gast-Aufnahme. Loest intake-terms ab.
+[functions.intake-packages]
+verify_jwt = false
+
+# Firmenpruefung. Wird serverseitig nach der E-Mail-Bestaetigung angestossen
+# und ausserdem vom Admin. Kein Gastzugriff -- der Kunde soll die Pruefung
+# ueber sich selbst nicht ausloesen koennen.
+[functions.verify-company]
 verify_jwt = true

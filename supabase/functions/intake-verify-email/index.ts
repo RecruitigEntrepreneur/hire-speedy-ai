@@ -248,6 +248,21 @@ serve(async (req) => {
       meta: { domain, matched: Boolean(matchedOrg || matchedOutreach) },
     });
 
+    // Firmenpruefung anstossen. Absichtlich OHNE await: sie dauert einige
+    // Sekunden, und der Kunde soll dafuer nicht auf dem Bestaetigungsbildschirm
+    // warten. Waehrend sie laeuft, waehlt er sein Paket; erst das Absenden
+    // verlangt ein Ergebnis (Constraint intake_drafts_submit_requires_verified).
+    // Ein Fehlschlag hier darf die Bestaetigung nicht kippen -- deshalb nur
+    // protokolliert, nicht geworfen.
+    void fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/verify-company`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
+      },
+      body: JSON.stringify({ draft_id: draft.id }),
+    }).catch((e) => console.warn('[intake-verify-email] verify-company:', e?.message ?? e));
+
     const { data: fresh } = await supabase.from('intake_drafts').select('*').eq('id', draft.id).single();
 
     return json({

@@ -179,10 +179,18 @@ export async function touchDraft(
 export type IntakeEvent =
   | 'link_opened' | 'intake_started' | 'first_value' | 'contact_provided'
   | 'email_verification_sent' | 'email_verified' | 'intake_completed'
+  // Firmenpruefung
+  | 'company_check_started' | 'company_verified' | 'company_needs_review' | 'company_failed'
+  // Paketwahl. 'terms_discussion_requested' entsteht nicht mehr neu -- es gibt
+  // drei Pakete und keine Verhandlung -- bleibt aber fuer Bestandsdaten.
   | 'terms_presented' | 'terms_confirmed' | 'terms_discussion_requested'
   | 'forwarded' | 'resume_requested' | 'submitted'
   | 'accepted' | 'changes_requested' | 'rejected'
-  | 'contract_sent' | 'contract_signed' | 'published' | 'abandoned' | 'purged';
+  | 'clarification_requested' | 'clarification_answered'
+  // Unterschrift, zweistufig: der Kunde zuerst, Matchunt zuletzt.
+  | 'contract_released' | 'contract_sent' | 'contract_signed'
+  | 'contract_countersigned' | 'contract_declined'
+  | 'published' | 'abandoned' | 'purged';
 
 /** Ereignis protokollieren. Nie blockierend — ein fehlender Funnel-Eintrag
  *  darf keinen Kundenvorgang scheitern lassen. */
@@ -253,9 +261,14 @@ export function publicDraft(d: DraftRow) {
     states: {
       capture: d.capture_state,
       identity: d.identity_state,
+      // Die Firmenpruefung laeuft als eigene Spur -- der Kunde soll sehen,
+      // dass sie laeuft, statt vor einem stummen Ladebalken zu sitzen.
+      company: d.company_state ?? 'not_checked',
       commercial: d.commercial_state,
       review: d.review_state,
     },
+    selected_package_key: d.selected_package_key ?? null,
+    selected_package_version: d.selected_package_version ?? null,
     submitted_at: d.submitted_at ?? null,
     rejection_reason: d.review_state === 'changes_requested' ? d.rejection_reason ?? null : null,
     purge_after: d.purge_after,
@@ -367,4 +380,36 @@ export function clientFacingTerms(template: Record<string, any>, link: LinkRow |
     agb_version: template.agb_version as string,
     label: template.label as string,
   };
+}
+
+/**
+ * Die drei Pakete in Kundensicht -- fuer den Kopf der Aufnahmeseite.
+ *
+ * AGB Paragraph 9 sagt zu, die Kondition werde "vor Beginn des jeweiligen
+ * Vermittlungsprozesses transparent in der Plattform ausgewiesen". Die
+ * AUSWAHL passiert erst nach der Aufnahme und nach der Firmenpruefung; die
+ * TRANSPARENZ gilt trotzdem ab der ersten Sekunde. Deshalb steht hier eine
+ * Uebersicht ohne Auswahlmoeglichkeit.
+ *
+ * Gelesen wird commercial_packages_public. Die View fuehrt Recruiter-Anteil,
+ * Marge, Einbehalt und Auslobung nicht -- damit koennen sie hier auch nicht
+ * versehentlich mitgeschickt werden.
+ */
+export async function publicPackages(supabase: SupabaseClient): Promise<{
+  key: string; name: string; summary: string; fee_percent: number;
+  continuity_days: number | null; payment_terms_days: number;
+}[] | null> {
+  const { data, error } = await supabase
+    .from('commercial_packages_public')
+    .select('package_key, public_name, summary, client_fee_pct, continuity_days, payment_terms_days')
+    .order('sort_order');
+  if (error || !data?.length) return null;
+  return data.map((p: Record<string, any>) => ({
+    key: p.package_key,
+    name: p.public_name,
+    summary: p.summary,
+    fee_percent: Number(p.client_fee_pct),
+    continuity_days: p.continuity_days,
+    payment_terms_days: p.payment_terms_days,
+  }));
 }

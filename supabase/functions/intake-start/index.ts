@@ -4,7 +4,7 @@ import { hashToken, hashKey } from '../_shared/tokens.ts';
 import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import {
   serviceClient, logEvent, publicDraft, publicLink, linkState, issueDraftToken,
-  resolveTemplate, clientFacingTerms, inDays, DRAFT_DAYS,
+  publicPackages, inDays, DRAFT_DAYS,
 } from '../_shared/intake-core.ts';
 
 /**
@@ -88,8 +88,9 @@ serve(async (req) => {
     }
 
     // ---- Konditionen ------------------------------------------------------
-    const template = await resolveTemplate(supabase, link.terms_template_id);
-    const terms = template ? clientFacingTerms(template, link) : null;
+    // Uebersicht der drei Pakete fuer den Seitenkopf. Die Auswahl kommt
+    // spaeter (intake-packages) -- die Transparenz gilt ab jetzt.
+    const packages = await publicPackages(supabase);
 
     // ---- Entwurf anlegen --------------------------------------------------
     const prefill = (link.prefill ?? {}) as Record<string, any>;
@@ -163,7 +164,7 @@ serve(async (req) => {
 
     return json({
       link: publicLink(link, ownerName),
-      terms,
+      packages,
       draft_token: draftToken,
       draft: publicDraft(draft),
     });

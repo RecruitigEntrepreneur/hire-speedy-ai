@@ -5,7 +5,7 @@ import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import { normalizeDomain, isFreemailAddress, isPlausibleEmail } from '../_shared/domain.ts';
 import {
   serviceClient, resolveDraft, touchDraft, logEvent, publicDraft, publicLink,
-  resolveTemplate, clientFacingTerms, inDays, DRAFT_DAYS, TOKEN_DAYS,
+  publicPackages, inDays, DRAFT_DAYS, TOKEN_DAYS,
 } from '../_shared/intake-core.ts';
 
 /**
@@ -70,15 +70,16 @@ serve(async (req) => {
       const { data } = await supabase.from('profiles').select('full_name').eq('user_id', link.owner_user_id).maybeSingle();
       ownerName = data?.full_name ?? null;
     }
-    const template = await resolveTemplate(supabase, link?.terms_template_id);
-    const terms = template ? clientFacingTerms(template, link) : null;
+    // Uebersicht der drei Pakete fuer den Seitenkopf. Die Auswahl kommt
+    // spaeter (intake-packages) -- die Transparenz gilt ab jetzt.
+    const packages = await publicPackages(supabase);
 
     if (action === 'get') {
       await touchDraft(supabase, draft.id, {}, tokenId);
       return json({
         draft: publicDraft(draft),
         link: link ? publicLink(link, ownerName) : null,
-        terms,
+        packages,
         locked,
       });
     }
@@ -161,7 +162,7 @@ serve(async (req) => {
 
     if (Object.keys(update).length === 0) {
       await touchDraft(supabase, draft.id, {}, tokenId);
-      return json({ draft: publicDraft(draft), link: link ? publicLink(link, ownerName) : null, terms, locked: false });
+      return json({ draft: publicDraft(draft), link: link ? publicLink(link, ownerName) : null, packages, locked: false });
     }
 
     const { data: saved, error } = await supabase
@@ -208,7 +209,7 @@ serve(async (req) => {
     return json({
       draft: publicDraft(saved),
       link: link ? publicLink(link, ownerName) : null,
-      terms,
+      packages,
       locked: false,
     });
   } catch (e) {
