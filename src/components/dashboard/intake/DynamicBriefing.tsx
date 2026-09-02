@@ -258,7 +258,19 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           <p className="mb-3 text-sm font-medium">{current.question}</p>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {current.chips.map((chip) => (
-              <Button key={chip} size="sm" variant="outline" className="h-8 text-xs" onClick={() => answer(chip)}>
+              // h-8 und die feste Hoehe stammten aus der Zeit der statischen
+              // Chips: kurze Woerter wie "Wachstum / neu". Die KI schreibt
+              // ganze Saetze -- gemessen liefen sie 83 bis 139 Pixel ueber den
+              // Rand, der Kunde konnte nicht lesen, was er anklickt.
+              // max-w-full bricht die Flex-Regel, dass ein Element nicht unter
+              // seine Inhaltsbreite schrumpft.
+              <Button
+                key={chip}
+                size="sm"
+                variant="outline"
+                className="h-auto max-w-full whitespace-normal rounded-xl py-1.5 text-left text-xs leading-snug"
+                onClick={() => answer(chip)}
+              >
                 {chip}
               </Button>
             ))}
