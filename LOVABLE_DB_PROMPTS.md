@@ -481,11 +481,11 @@ Ein Feature, das Links per E-Mail verteilt, sollte nicht davor live gehen.
 
 ## Prompt 9 — Nachlauf der Aufnahme (Drei-Paket-Modell, Verträge, Abrechnung)
 
-Sieben Migrationen, in dieser Reihenfolge. Sie bauen aufeinander auf: 9b braucht die
+Acht Migrationen, in dieser Reihenfolge. Sie bauen aufeinander auf: 9b braucht die
 Pakettabelle aus 9a, 9c die Rahmenvertragstabelle aus 9b, und 9g füllt die Vertragstexte,
 ohne die 9b und 9c zwar stehen, aber jede Anfrage mit „not_deployed" abbricht.
 
-Geprüft: alle sieben laufen von Null auf eine frische Postgres-17-Datenbank durch
+Geprüft: alle acht laufen von Null auf eine frische Postgres-17-Datenbank durch
 (153 Migrationen des Repos, dieselben 10 vorbestehenden Ausfälle wie davor), danach
 72 pgTAP-Tests grün.
 
@@ -570,6 +570,17 @@ Rahmenvertrag und Einzelauftrag im Volltext. **Ohne diesen Schritt scheitert jed
 Beauftragungsanfrage** — `intake-submit` und `contract-admin` verlangen beide eine aktive
 Fassung.
 
+### 9g2 — Die Firmenprüfung darf nicht entscheiden
+
+```
+Führe die Migration supabase/migrations/20260902100700_company_check_does_not_decide.sql aus.
+```
+
+Korrektur an 9c: dort ließ die Constraint zum Absenden nur `verified` und `needs_review` zu.
+Ein `failed` hätte den Kunden endgültig blockiert — und `failed` entsteht schon bei einer
+USt-IdNr., die nicht zum Ländermuster passt, also bei einem Tippfehler. Ohne diese Migration
+ist eine vertippte Steuernummer eine Sackgasse.
+
 ### 9h — Edge Functions
 
 Neu zu deployen:
@@ -595,7 +606,7 @@ Neuer Schritt „Paket" statt „Konditionen" im Gastfluss, neue Antwortseite un
 
 ### Reihenfolge und Risiko
 
-**9a → 9b → 9c → 9d → 9e → 9f → 9g → 9h → 9i.** Die Reihenfolge ist nicht optional:
+**9a → 9b → 9c → 9d → 9e → 9f → 9g → 9g2 → 9h → 9i.** Die Reihenfolge ist nicht optional:
 9b legt Fremdschlüssel auf die Pakettabelle aus 9a, 9c schärft die Sperre auf die
 Tabellen aus 9b, und 9g füllt Texte in die Tabelle aus 9b.
 
