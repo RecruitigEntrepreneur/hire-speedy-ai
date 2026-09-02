@@ -26,9 +26,13 @@ import { getPublicAppUrl } from '../_shared/app-url.ts';
 /** Bruttojahreszielgehalt aus der Aufnahme, in Cent. */
 function estimateBasisCents(built: Record<string, any> | null): number | null {
   if (!built) return null;
+  // Das Gehaltsband liegt auf oberster Ebene des built-Objekts -- so legt es
+  // buildFromDraft in src/lib/intakeMapping.ts ab (Zeilen 175/176). Die
+  // verschachtelten Varianten bleiben als Rueckfallebene stehen, falls ein
+  // aelterer Entwurf sie noch traegt.
   const c = built.compensation ?? built.salary ?? {};
-  const min = Number(c.salary_min ?? c.min ?? c.annual_min ?? 0);
-  const max = Number(c.salary_max ?? c.max ?? c.annual_max ?? 0);
+  const min = Number(built.salary_min ?? c.salary_min ?? c.min ?? c.annual_min ?? 0);
+  const max = Number(built.salary_max ?? c.salary_max ?? c.max ?? c.annual_max ?? 0);
   const mid = min && max ? Math.round((min + max) / 2) : (min || max);
   if (!mid || !Number.isFinite(mid) || mid <= 0) return null;
   // Plausibilitaet: unter 10.000 ist es eher ein Monatsgehalt oder ein Tippfehler.

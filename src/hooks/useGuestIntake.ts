@@ -371,11 +371,20 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
    */
   const selectPackage = useCallback(
     async (packageKey: string) => {
-      const res = await withToken<{ ok: boolean; selected: { key: string; name: string } }>(
+      const res = await withToken<{ ok: boolean; selected: { key: string; version: number; name: string } }>(
         'intake-packages', { action: 'select', package_key: packageKey });
       if (!isFailure(res)) {
+        // Auch das gewaehlte Paket mitfuehren, nicht nur den Zustand: die
+        // Zusammenfassung zeigt sonst keine Kondition an, waehrend der Kunde
+        // dort bestaetigt, "die dargestellten Konditionen" zur Kenntnis
+        // genommen zu haben.
         setState((s) => (s.draft
-          ? { ...s, draft: { ...s.draft, states: { ...s.draft.states, commercial: 'confirmed' } } }
+          ? { ...s, draft: {
+              ...s.draft,
+              selected_package_key: res.selected.key as GuestDraft['selected_package_key'],
+              selected_package_version: res.selected.version,
+              states: { ...s.draft.states, commercial: 'confirmed' },
+            } }
           : s));
       }
       return res;
