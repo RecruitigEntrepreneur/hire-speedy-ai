@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Check, Info, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { isFailure, type IntakeFailure, type IntakePackage, type IntakePackageOffer } from '@/hooks/useGuestIntake';
 
 /**
@@ -17,10 +17,10 @@ import { isFailure, type IntakeFailure, type IntakePackage, type IntakePackageOf
  * Fristen. Recruiter-Anteil, Marge, Einbehalt und Auslobung erreichen den
  * Browser nicht — die View führt sie gar nicht.
  *
- * Die Beträge sind ausdrücklich Schätzungen. Abgerechnet wird nach dem
- * Bruttojahreszielgehalt aus dem unterzeichneten Arbeitsvertrag; steht das
- * fest, kann der Betrag abweichen. Das gehört auf die Karte und nicht ins
- * Kleingedruckte.
+ * Bewusst nur Prozentsätze, keine Euro-Beträge. Abgerechnet wird nach dem
+ * Bruttojahreszielgehalt aus dem unterzeichneten Arbeitsvertrag — eine Zahl
+ * auf Basis der Gehaltsangabe aus der Aufnahme würde später fast immer
+ * abweichen. Ein Prozentsatz stimmt in jedem Fall.
  */
 
 interface Props {
@@ -80,16 +80,6 @@ export function PackageStep({ load, onSelect, onNext }: Props) {
         </p>
       </div>
 
-      {offer.basis && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription className="text-sm">
-            Berechnet auf <strong>{offer.basis.label}</strong> Bruttojahreszielgehalt aus Ihren
-            Angaben. {offer.estimate_notice}
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="grid gap-4 md:grid-cols-3">
         {offer.packages.map((p) => (
           <PackageCard
@@ -140,12 +130,6 @@ function PackageCard({
         <div>
           <div className="text-3xl font-semibold tabular-nums">{pkg.fee_percent} %</div>
           <p className="text-xs text-muted-foreground">des Bruttojahreszielgehalts</p>
-          {pkg.estimate_label && (
-            <p className="mt-2 text-sm">
-              <span className="font-medium tabular-nums">≈ {pkg.estimate_label}</span>
-              <span className="text-muted-foreground"> geschätzt</span>
-            </p>
-          )}
         </div>
 
         <ul className="flex-1 space-y-2 text-sm">

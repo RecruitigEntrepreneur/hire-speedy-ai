@@ -44,9 +44,6 @@ export interface IntakePackage {
   continuity_days: number | null;
   claim_notice_days: number;
   payment_terms_days: number;
-  /** Unverbindliche Schaetzung aus der Gehaltsangabe der Aufnahme. */
-  estimate_cents: number | null;
-  estimate_label: string | null;
 }
 
 /** Kurzform fuer den Seitenkopf -- Transparenz ab der ersten Sekunde. */
@@ -63,10 +60,8 @@ export interface IntakePackageOffer {
   packages: IntakePackage[];
   suggested_key: string | null;
   selected: { key: string; version: number; selected_at: string } | null;
-  basis: { cents: number; label: string; source: string } | null;
   agb_url: string;
   notice: string;
-  estimate_notice: string;
   commercial_state: string;
 }
 

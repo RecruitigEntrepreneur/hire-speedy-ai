@@ -23,7 +23,18 @@ import { getPublicAppUrl } from '../_shared/app-url.ts';
  * Funktion liest dafuer commercial_packages_public, nicht die Basistabelle.
  */
 
-/** Bruttojahreszielgehalt aus der Aufnahme, in Cent. */
+/**
+ * Bruttojahreszielgehalt aus der Aufnahme, in Cent.
+ *
+ * Wird gespeichert (estimate_basis_cents), aber NICHT an den Browser gesendet.
+ * Entscheidung 02.09.2026: der Kunde sieht ausschliesslich den Prozentsatz.
+ * Ein Betrag auf der Karte waere eine Zahl, die spaeter fast immer abweicht --
+ * abgerechnet wird nach dem Bruttojahreszielgehalt aus dem unterzeichneten
+ * Arbeitsvertrag, nicht nach der Gehaltsangabe der Aufnahme.
+ *
+ * Intern bleibt der Wert nuetzlich: er zeigt dem Admin die erwartete
+ * Auftragsgroesse einer eingehenden Anfrage.
+ */
 function estimateBasisCents(built: Record<string, any> | null): number | null {
   if (!built) return null;
   // Das Gehaltsband liegt auf oberster Ebene des built-Objekts -- so legt es
@@ -39,10 +50,6 @@ function estimateBasisCents(built: Record<string, any> | null): number | null {
   if (mid < 10_000 || mid > 10_000_000) return null;
   return Math.round(mid * 100);
 }
-
-const euros = (cents: number) => (cents / 100).toLocaleString('de-DE', {
-  style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-});
 
 serve(async (req) => {
   const pre = preflight(req);
@@ -84,14 +91,6 @@ serve(async (req) => {
       continuity_days: p.continuity_days,
       claim_notice_days: p.claim_notice_days,
       payment_terms_days: p.payment_terms_days,
-      // Unverbindliche Schaetzung. Abgerechnet wird nach dem unterzeichneten
-      // Arbeitsvertrag -- das steht so auch auf der Karte.
-      estimate_cents: basisCents
-        ? Math.round((basisCents * Number(p.client_fee_pct)) / 100)
-        : null,
-      estimate_label: basisCents
-        ? euros(Math.round((basisCents * Number(p.client_fee_pct)) / 100))
-        : null,
     }));
 
     // ------------------------------------------------------------------- get
@@ -114,18 +113,11 @@ serve(async (req) => {
           ? { key: draft.selected_package_key, version: draft.selected_package_version,
               selected_at: draft.package_selected_at }
           : null,
-        basis: basisCents
-          ? { cents: basisCents, label: euros(basisCents), source: 'intake_estimate' }
-          : null,
         agb_url: `${getPublicAppUrl()}/agb`,
         // Was als Naechstes passiert. Steht hier und nicht erst hinterher.
         notice: 'Ihre Auswahl ist eine Anfrage, noch kein Vertrag. Wir prüfen sie '
               + 'und senden Ihnen anschließend den Vertrag zur digitalen Unterschrift. '
               + 'Erst nach beidseitiger Unterschrift starten wir die Suche.',
-        estimate_notice: basisCents
-          ? 'Unverbindliche Schätzung auf Basis Ihrer Gehaltsangabe. Abgerechnet wird '
-          + 'nach dem Bruttojahreszielgehalt aus dem unterzeichneten Arbeitsvertrag.'
-          : 'Sobald das Zielgehalt feststeht, zeigen wir Ihnen den Betrag.',
         commercial_state: draft.commercial_state === 'not_started' ? 'presented' : draft.commercial_state,
       });
     }

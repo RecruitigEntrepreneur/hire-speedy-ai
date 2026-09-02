@@ -170,11 +170,9 @@ serve(async (req) => {
         eligible_claim_categories: pkg.eligible_claim_categories ?? [],
         excluded_claim_categories: pkg.excluded_claim_categories ?? [],
       },
-      estimate: basisCents
-        ? { basis_cents: basisCents, fee_cents: feeCents, binding: false,
-            note: 'Unverbindliche Schaetzung. Abgerechnet wird nach dem '
-                + 'Bruttojahreszielgehalt aus dem unterzeichneten Arbeitsvertrag.' }
-        : null,
+      // Bewusst KEINE Schaetzung im Snapshot: der Snapshot ist das Abbild
+      // dessen, was der Kunde gesehen hat, und er hat keinen Betrag gesehen.
+      // Eine Zahl hier landete ueber generate-mandate-pdf im Vertragsdokument.
       contract: {
         template_id: contractTpl.id,
         template_version: contractTpl.version,
