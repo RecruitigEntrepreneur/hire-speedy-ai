@@ -2336,579 +2336,6 @@ export type Database = {
         }
         Relationships: []
       }
-      commercial_packages: {
-        Row: {
-          bullets: Json
-          claim_notice_days: number
-          client_fee_pct: number
-          continuity_days: number | null
-          created_at: string
-          eligible_claim_categories: Json
-          excluded_claim_categories: Json
-          fee_basis: string
-          id: string
-          is_active: boolean
-          matchunt_on_claim_pct: number
-          matchunt_pct: number
-          package_key: string
-          payment_terms_days: number
-          public_name: string
-          recruiter_initial_pct: number
-          recruiter_retention_pct: number
-          research_bounty_pct: number
-          research_max_active_days: number | null
-          sort_order: number
-          summary: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          bullets?: Json | null
-          claim_notice_days?: number | null
-          client_fee_pct: number
-          continuity_days?: number | null
-          created_at?: string | null
-          eligible_claim_categories?: Json | null
-          excluded_claim_categories?: Json | null
-          fee_basis?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          matchunt_on_claim_pct: number
-          matchunt_pct: number
-          package_key: string
-          payment_terms_days?: number | null
-          public_name: string
-          recruiter_initial_pct: number
-          recruiter_retention_pct: number
-          research_bounty_pct: number
-          research_max_active_days?: number | null
-          sort_order: number
-          summary: string
-          updated_at?: string | null
-          version?: number | null
-        }
-        Update: {
-          bullets?: Json
-          claim_notice_days?: number
-          client_fee_pct?: number
-          continuity_days?: number | null
-          created_at?: string
-          eligible_claim_categories?: Json
-          excluded_claim_categories?: Json
-          fee_basis?: string
-          id?: string
-          is_active?: boolean
-          matchunt_on_claim_pct?: number
-          matchunt_pct?: number
-          package_key?: string
-          payment_terms_days?: number
-          public_name?: string
-          recruiter_initial_pct?: number
-          recruiter_retention_pct?: number
-          research_bounty_pct?: number
-          research_max_active_days?: number | null
-          sort_order?: number
-          summary?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: []
-      }
-      contract_templates: {
-        Row: {
-          agb_sha256: string | null
-          agb_version: string
-          body_md: string
-          body_sha256: string
-          created_at: string
-          created_by: string | null
-          doc_type: string
-          effective_from: string
-          id: string
-          is_active: boolean
-          language: string
-          title: string
-          updated_at: string
-          vendor_brand: string
-          vendor_city: string
-          vendor_country: string
-          vendor_court: string
-          vendor_legal_name: string
-          vendor_postal_code: string
-          vendor_register: string
-          vendor_street: string
-          vendor_vat_id: string | null
-          version: number
-        }
-        Insert: {
-          agb_sha256?: string | null
-          agb_version: string
-          body_md: string
-          body_sha256: string
-          created_at?: string | null
-          created_by?: string | null
-          doc_type: string
-          effective_from?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          language?: string | null
-          title: string
-          updated_at?: string | null
-          vendor_brand?: string | null
-          vendor_city?: string | null
-          vendor_country?: string | null
-          vendor_court?: string | null
-          vendor_legal_name?: string | null
-          vendor_postal_code?: string | null
-          vendor_register?: string | null
-          vendor_street?: string | null
-          vendor_vat_id?: string | null
-          version: number
-        }
-        Update: {
-          agb_sha256?: string | null
-          agb_version?: string
-          body_md?: string
-          body_sha256?: string
-          created_at?: string
-          created_by?: string | null
-          doc_type?: string
-          effective_from?: string
-          id?: string
-          is_active?: boolean
-          language?: string
-          title?: string
-          updated_at?: string
-          vendor_brand?: string
-          vendor_city?: string
-          vendor_country?: string
-          vendor_court?: string
-          vendor_legal_name?: string
-          vendor_postal_code?: string
-          vendor_register?: string
-          vendor_street?: string
-          vendor_vat_id?: string | null
-          version?: number
-        }
-        Relationships: []
-      }
-      client_framework_agreements: {
-        Row: {
-          agb_sha256: string | null
-          agb_version: string
-          agreement_number: string
-          client_user_id: string | null
-          countersigned_at: string | null
-          countersigner_name: string | null
-          countersigner_user_id: string | null
-          created_at: string
-          customer_ip_hash: string | null
-          customer_signed_at: string | null
-          customer_signer_email: string | null
-          customer_signer_name: string | null
-          customer_signer_role: string | null
-          decline_reason: string | null
-          declined_at: string | null
-          document_path: string | null
-          document_sha256: string | null
-          envelope_id: string | null
-          envelope_sent_at: string | null
-          expires_at: string | null
-          id: string
-          organization_id: string | null
-          origin_draft_id: string | null
-          released_by: string | null
-          released_for_signature_at: string | null
-          signature_provider: string
-          signed_document_path: string | null
-          signed_document_sha256: string | null
-          snapshot: Json
-          snapshot_sha256: string
-          status: string
-          supersedes_id: string | null
-          template_id: string
-          template_version: number
-          terminated_at: string | null
-          termination_reason: string | null
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          agb_sha256?: string | null
-          agb_version: string
-          agreement_number: string
-          client_user_id?: string | null
-          countersigned_at?: string | null
-          countersigner_name?: string | null
-          countersigner_user_id?: string | null
-          created_at?: string | null
-          customer_ip_hash?: string | null
-          customer_signed_at?: string | null
-          customer_signer_email?: string | null
-          customer_signer_name?: string | null
-          customer_signer_role?: string | null
-          decline_reason?: string | null
-          declined_at?: string | null
-          document_path?: string | null
-          document_sha256?: string | null
-          envelope_id?: string | null
-          envelope_sent_at?: string | null
-          expires_at?: string | null
-          id?: string | null
-          organization_id?: string | null
-          origin_draft_id?: string | null
-          released_by?: string | null
-          released_for_signature_at?: string | null
-          signature_provider?: string | null
-          signed_document_path?: string | null
-          signed_document_sha256?: string | null
-          snapshot: Json
-          snapshot_sha256: string
-          status?: string | null
-          supersedes_id?: string | null
-          template_id: string
-          template_version: number
-          terminated_at?: string | null
-          termination_reason?: string | null
-          updated_at?: string | null
-          version?: number | null
-        }
-        Update: {
-          agb_sha256?: string | null
-          agb_version?: string
-          agreement_number?: string
-          client_user_id?: string | null
-          countersigned_at?: string | null
-          countersigner_name?: string | null
-          countersigner_user_id?: string | null
-          created_at?: string
-          customer_ip_hash?: string | null
-          customer_signed_at?: string | null
-          customer_signer_email?: string | null
-          customer_signer_name?: string | null
-          customer_signer_role?: string | null
-          decline_reason?: string | null
-          declined_at?: string | null
-          document_path?: string | null
-          document_sha256?: string | null
-          envelope_id?: string | null
-          envelope_sent_at?: string | null
-          expires_at?: string | null
-          id?: string
-          organization_id?: string | null
-          origin_draft_id?: string | null
-          released_by?: string | null
-          released_for_signature_at?: string | null
-          signature_provider?: string
-          signed_document_path?: string | null
-          signed_document_sha256?: string | null
-          snapshot?: Json
-          snapshot_sha256?: string
-          status?: string
-          supersedes_id?: string | null
-          template_id?: string
-          template_version?: number
-          terminated_at?: string | null
-          termination_reason?: string | null
-          updated_at?: string
-          version?: number
-        }
-        Relationships: []
-      }
-      company_verification_reports: {
-        Row: {
-          claimed: Json
-          confidence: number | null
-          created_at: string
-          deviations: Json
-          draft_id: string
-          duration_ms: number | null
-          error: string | null
-          findings: Json
-          id: string
-          model: string | null
-          prompt_version: string | null
-          recommendation: string
-          risk_notes: Json
-          sources: Json
-          summary: string | null
-        }
-        Insert: {
-          claimed: Json
-          confidence?: number | null
-          created_at?: string | null
-          deviations?: Json | null
-          draft_id: string
-          duration_ms?: number | null
-          error?: string | null
-          findings?: Json | null
-          id?: string | null
-          model?: string | null
-          prompt_version?: string | null
-          recommendation: string
-          risk_notes?: Json | null
-          sources?: Json | null
-          summary?: string | null
-        }
-        Update: {
-          claimed?: Json
-          confidence?: number | null
-          created_at?: string
-          deviations?: Json
-          draft_id?: string
-          duration_ms?: number | null
-          error?: string | null
-          findings?: Json
-          id?: string
-          model?: string | null
-          prompt_version?: string | null
-          recommendation?: string
-          risk_notes?: Json
-          sources?: Json
-          summary?: string | null
-        }
-        Relationships: []
-      }
-      intake_clarifications: {
-        Row: {
-          answer: string | null
-          answered_at: string | null
-          asked_by: string
-          created_at: string
-          draft_id: string
-          draft_revision: number | null
-          expires_at: string
-          id: string
-          opened_at: string | null
-          question: string
-          resolved_at: string | null
-          resolved_by: string | null
-          scope_fields: string[]
-          status: string
-          token_hash: string
-          updated_at: string
-        }
-        Insert: {
-          answer?: string | null
-          answered_at?: string | null
-          asked_by: string
-          created_at?: string | null
-          draft_id: string
-          draft_revision?: number | null
-          expires_at: string
-          id?: string | null
-          opened_at?: string | null
-          question: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          scope_fields?: string[] | null
-          status?: string | null
-          token_hash: string
-          updated_at?: string | null
-        }
-        Update: {
-          answer?: string | null
-          answered_at?: string | null
-          asked_by?: string
-          created_at?: string
-          draft_id?: string
-          draft_revision?: number | null
-          expires_at?: string
-          id?: string
-          opened_at?: string | null
-          question?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          scope_fields?: string[]
-          status?: string
-          token_hash?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      continuity_claims: {
-        Row: {
-          category: string
-          created_at: string
-          deadline: string
-          decided_at: string | null
-          decided_by: string | null
-          description: string | null
-          evidence: Json
-          id: string
-          known_at: string
-          mandate_id: string | null
-          placement_id: string
-          rejection_reason: string | null
-          reported_at: string
-          reported_by: string | null
-          separation_date: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          category: string
-          created_at?: string | null
-          deadline: string
-          decided_at?: string | null
-          decided_by?: string | null
-          description?: string | null
-          evidence?: Json | null
-          id?: string | null
-          known_at: string
-          mandate_id?: string | null
-          placement_id: string
-          rejection_reason?: string | null
-          reported_at?: string | null
-          reported_by?: string | null
-          separation_date: string
-          status?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          deadline?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          description?: string | null
-          evidence?: Json
-          id?: string
-          known_at?: string
-          mandate_id?: string | null
-          placement_id?: string
-          rejection_reason?: string | null
-          reported_at?: string
-          reported_by?: string | null
-          separation_date?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      research_assignments: {
-        Row: {
-          active_days_used: number
-          assigned_recruiter_id: string | null
-          bounty_cents: number
-          claim_id: string
-          created_at: string
-          ended_at: string | null
-          id: string
-          job_id: string | null
-          last_counted_on: string | null
-          max_active_days: number
-          original_recruiter_id: string | null
-          pause_reason: string | null
-          paused_since: string | null
-          placement_id: string
-          started_on: string | null
-          status: string
-          succeeded_at: string | null
-          succeeded_placement_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          active_days_used?: number | null
-          assigned_recruiter_id?: string | null
-          bounty_cents: number
-          claim_id: string
-          created_at?: string | null
-          ended_at?: string | null
-          id?: string | null
-          job_id?: string | null
-          last_counted_on?: string | null
-          max_active_days: number
-          original_recruiter_id?: string | null
-          pause_reason?: string | null
-          paused_since?: string | null
-          placement_id: string
-          started_on?: string | null
-          status?: string | null
-          succeeded_at?: string | null
-          succeeded_placement_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          active_days_used?: number
-          assigned_recruiter_id?: string | null
-          bounty_cents?: number
-          claim_id?: string
-          created_at?: string
-          ended_at?: string | null
-          id?: string
-          job_id?: string | null
-          last_counted_on?: string | null
-          max_active_days?: number
-          original_recruiter_id?: string | null
-          pause_reason?: string | null
-          paused_since?: string | null
-          placement_id?: string
-          started_on?: string | null
-          status?: string
-          succeeded_at?: string | null
-          succeeded_placement_id?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      recruiter_payout_tranches: {
-        Row: {
-          amount_cents: number
-          approved_at: string | null
-          approved_by: string | null
-          created_at: string
-          due_condition: string
-          due_date: string | null
-          forfeit_reason: string | null
-          forfeited_at: string | null
-          id: string
-          paid_at: string | null
-          payout_request_id: string | null
-          placement_id: string
-          recruiter_id: string
-          status: string
-          tranche_type: string
-          updated_at: string
-        }
-        Insert: {
-          amount_cents: number
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string | null
-          due_condition: string
-          due_date?: string | null
-          forfeit_reason?: string | null
-          forfeited_at?: string | null
-          id?: string | null
-          paid_at?: string | null
-          payout_request_id?: string | null
-          placement_id: string
-          recruiter_id: string
-          status?: string | null
-          tranche_type: string
-          updated_at?: string | null
-        }
-        Update: {
-          amount_cents?: number
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          due_condition?: string
-          due_date?: string | null
-          forfeit_reason?: string | null
-          forfeited_at?: string | null
-          id?: string
-          paid_at?: string | null
-          payout_request_id?: string | null
-          placement_id?: string
-          recruiter_id?: string
-          status?: string
-          tranche_type?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       commercial_mandates: {
         Row: {
           accepted_at: string | null
@@ -11026,12 +10453,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11055,11 +10482,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11080,11 +10507,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11105,11 +10532,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11122,11 +10549,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
