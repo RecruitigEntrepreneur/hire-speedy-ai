@@ -174,6 +174,11 @@ serve(async (req) => {
         template_id: contractTpl.id,
         template_version: contractTpl.version,
         title: contractTpl.title,
+        // Der Volltext gehoert in den Snapshot, nicht nur seine Pruefsumme:
+        // generate-mandate-pdf erzeugt das Dokument aus dem Snapshot allein.
+        // Mit blossem Hash liesse sich spaeter zwar pruefen, ob der Text sich
+        // geaendert hat, aber nicht mehr rekonstruieren, welcher es war.
+        body_md: contractTpl.body_md,
         body_sha256: contractTpl.body_sha256,
         vendor: {
           legal_name: contractTpl.vendor_legal_name,
