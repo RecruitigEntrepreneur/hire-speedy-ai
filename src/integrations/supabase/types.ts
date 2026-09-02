@@ -3443,6 +3443,81 @@ export type Database = {
         }
         Relationships: []
       }
+      continuity_claims: {
+        Row: {
+          category: string
+          created_at: string
+          deadline: string
+          decided_at: string | null
+          decided_by: string | null
+          description: string | null
+          evidence: Json
+          id: string
+          known_at: string
+          mandate_id: string | null
+          placement_id: string
+          rejection_reason: string | null
+          reported_at: string
+          reported_by: string | null
+          separation_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          deadline: string
+          decided_at?: string | null
+          decided_by?: string | null
+          description?: string | null
+          evidence?: Json
+          id?: string
+          known_at: string
+          mandate_id?: string | null
+          placement_id: string
+          rejection_reason?: string | null
+          reported_at?: string
+          reported_by?: string | null
+          separation_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          deadline?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          description?: string | null
+          evidence?: Json
+          id?: string
+          known_at?: string
+          mandate_id?: string | null
+          placement_id?: string
+          rejection_reason?: string | null
+          reported_at?: string
+          reported_by?: string | null
+          separation_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "continuity_claims_mandate_id_fkey"
+            columns: ["mandate_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "continuity_claims_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_templates: {
         Row: {
           agb_sha256: string | null
@@ -5544,59 +5619,100 @@ export type Database = {
       invoices: {
         Row: {
           amount: number
+          amount_cents: number | null
           client_id: string
+          corrects_invoice_id: string | null
           created_at: string
           currency: string | null
           due_date: string | null
           id: string
           invoice_number: string
+          invoice_type: string
+          issued_at: string | null
+          mandate_id: string | null
           paid_at: string | null
+          payment_terms_days: number
           pdf_url: string | null
           placement_id: string
+          pricing_snapshot: Json | null
           status: string | null
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
           tax_amount: number | null
+          tax_amount_cents: number | null
           total_amount: number
+          total_amount_cents: number | null
           updated_at: string
         }
         Insert: {
           amount: number
+          amount_cents?: number | null
           client_id: string
+          corrects_invoice_id?: string | null
           created_at?: string
           currency?: string | null
           due_date?: string | null
           id?: string
           invoice_number: string
+          invoice_type?: string
+          issued_at?: string | null
+          mandate_id?: string | null
           paid_at?: string | null
+          payment_terms_days?: number
           pdf_url?: string | null
           placement_id: string
+          pricing_snapshot?: Json | null
           status?: string | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           tax_amount?: number | null
+          tax_amount_cents?: number | null
           total_amount: number
+          total_amount_cents?: number | null
           updated_at?: string
         }
         Update: {
           amount?: number
+          amount_cents?: number | null
           client_id?: string
+          corrects_invoice_id?: string | null
           created_at?: string
           currency?: string | null
           due_date?: string | null
           id?: string
           invoice_number?: string
+          invoice_type?: string
+          issued_at?: string | null
+          mandate_id?: string | null
           paid_at?: string | null
+          payment_terms_days?: number
           pdf_url?: string | null
           placement_id?: string
+          pricing_snapshot?: Json | null
           status?: string | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           tax_amount?: number | null
+          tax_amount_cents?: number | null
           total_amount?: number
+          total_amount_cents?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_corrects_invoice_id_fkey"
+            columns: ["corrects_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_mandate_id_fkey"
+            columns: ["mandate_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_placement_id_fkey"
             columns: ["placement_id"]
@@ -8501,47 +8617,117 @@ export type Database = {
       placements: {
         Row: {
           agreed_salary: number | null
+          client_fee_cents: number | null
+          compensation_verified_at: string | null
+          compensation_verified_by: string | null
+          continuity_end_date: string | null
+          continuity_state: string
           created_at: string
+          end_reason: string | null
+          ended_at: string | null
           escrow_release_date: string | null
           escrow_status: string | null
+          first_working_day: string | null
+          gross_annual_target_compensation_cents: number | null
           id: string
+          invoice_state: string
+          mandate_id: string | null
+          matchunt_cents: number | null
+          package_key: string | null
+          package_version: number | null
           paid_at: string | null
           payment_status: string | null
+          placement_state: string
           platform_fee: number | null
+          pricing_snapshot: Json | null
+          recruiter_initial_cents: number | null
           recruiter_payout: number | null
+          recruiter_retention_cents: number | null
+          research_state: string
+          retention_release_date: string | null
+          retention_state: string
           start_date: string | null
           submission_id: string
           total_fee: number | null
         }
         Insert: {
           agreed_salary?: number | null
+          client_fee_cents?: number | null
+          compensation_verified_at?: string | null
+          compensation_verified_by?: string | null
+          continuity_end_date?: string | null
+          continuity_state?: string
           created_at?: string
+          end_reason?: string | null
+          ended_at?: string | null
           escrow_release_date?: string | null
           escrow_status?: string | null
+          first_working_day?: string | null
+          gross_annual_target_compensation_cents?: number | null
           id?: string
+          invoice_state?: string
+          mandate_id?: string | null
+          matchunt_cents?: number | null
+          package_key?: string | null
+          package_version?: number | null
           paid_at?: string | null
           payment_status?: string | null
+          placement_state?: string
           platform_fee?: number | null
+          pricing_snapshot?: Json | null
+          recruiter_initial_cents?: number | null
           recruiter_payout?: number | null
+          recruiter_retention_cents?: number | null
+          research_state?: string
+          retention_release_date?: string | null
+          retention_state?: string
           start_date?: string | null
           submission_id: string
           total_fee?: number | null
         }
         Update: {
           agreed_salary?: number | null
+          client_fee_cents?: number | null
+          compensation_verified_at?: string | null
+          compensation_verified_by?: string | null
+          continuity_end_date?: string | null
+          continuity_state?: string
           created_at?: string
+          end_reason?: string | null
+          ended_at?: string | null
           escrow_release_date?: string | null
           escrow_status?: string | null
+          first_working_day?: string | null
+          gross_annual_target_compensation_cents?: number | null
           id?: string
+          invoice_state?: string
+          mandate_id?: string | null
+          matchunt_cents?: number | null
+          package_key?: string | null
+          package_version?: number | null
           paid_at?: string | null
           payment_status?: string | null
+          placement_state?: string
           platform_fee?: number | null
+          pricing_snapshot?: Json | null
+          recruiter_initial_cents?: number | null
           recruiter_payout?: number | null
+          recruiter_retention_cents?: number | null
+          research_state?: string
+          retention_release_date?: string | null
+          retention_state?: string
           start_date?: string | null
           submission_id?: string
           total_fee?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "placements_mandate_id_fkey"
+            columns: ["mandate_id"]
+            isOneToOne: false
+            referencedRelation: "commercial_mandates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "placements_submission_id_fkey"
             columns: ["submission_id"]
@@ -8914,6 +9100,78 @@ export type Database = {
           total_revenue?: number | null
         }
         Relationships: []
+      }
+      recruiter_payout_tranches: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          due_condition: string
+          due_date: string | null
+          forfeit_reason: string | null
+          forfeited_at: string | null
+          id: string
+          paid_at: string | null
+          payout_request_id: string | null
+          placement_id: string
+          recruiter_id: string
+          status: string
+          tranche_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          due_condition: string
+          due_date?: string | null
+          forfeit_reason?: string | null
+          forfeited_at?: string | null
+          id?: string
+          paid_at?: string | null
+          payout_request_id?: string | null
+          placement_id: string
+          recruiter_id: string
+          status?: string
+          tranche_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          due_condition?: string
+          due_date?: string | null
+          forfeit_reason?: string | null
+          forfeited_at?: string | null
+          id?: string
+          paid_at?: string | null
+          payout_request_id?: string | null
+          placement_id?: string
+          recruiter_id?: string
+          status?: string
+          tranche_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_payout_tranches_payout_request_id_fkey"
+            columns: ["payout_request_id"]
+            isOneToOne: false
+            referencedRelation: "payout_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_payout_tranches_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recruiter_performance: {
         Row: {
@@ -9503,6 +9761,108 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "rejection_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_assignments: {
+        Row: {
+          active_days_used: number
+          assigned_recruiter_id: string | null
+          bounty_cents: number
+          claim_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          job_id: string | null
+          last_counted_on: string | null
+          max_active_days: number
+          original_recruiter_id: string | null
+          pause_reason: string | null
+          paused_since: string | null
+          placement_id: string
+          started_on: string | null
+          status: string
+          succeeded_at: string | null
+          succeeded_placement_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active_days_used?: number
+          assigned_recruiter_id?: string | null
+          bounty_cents: number
+          claim_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          job_id?: string | null
+          last_counted_on?: string | null
+          max_active_days: number
+          original_recruiter_id?: string | null
+          pause_reason?: string | null
+          paused_since?: string | null
+          placement_id: string
+          started_on?: string | null
+          status?: string
+          succeeded_at?: string | null
+          succeeded_placement_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active_days_used?: number
+          assigned_recruiter_id?: string | null
+          bounty_cents?: number
+          claim_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          job_id?: string | null
+          last_counted_on?: string | null
+          max_active_days?: number
+          original_recruiter_id?: string | null
+          pause_reason?: string | null
+          paused_since?: string | null
+          placement_id?: string
+          started_on?: string | null
+          status?: string
+          succeeded_at?: string | null
+          succeeded_placement_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_assignments_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: true
+            referencedRelation: "continuity_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_succeeded_placement_id_fkey"
+            columns: ["succeeded_placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
             referencedColumns: ["id"]
           },
         ]
