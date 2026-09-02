@@ -71,13 +71,18 @@ serve(async (req) => {
       .from('intake_drafts').select('*').eq('id', draftId).maybeSingle();
     if (!draft) return fail('not_found', 'Die Aufnahme wurde nicht gefunden.');
 
-    // Harte Widersprueche in den Firmenangaben: kein automatischer Versand.
-    // Ein Vertrag an eine Firma, deren Angaben sich widersprechen, ist genau
-    // der Fall, in dem ein Mensch hinsehen soll.
-    if (draft.company_state === 'failed') {
-      return fail('conflict',
-        'Die Firmenangaben weisen harte Widersprüche auf. Der Vertrag geht erst nach Prüfung raus.');
-    }
+    // Die Firmenpruefung blockiert den Versand NICHT mehr.
+    //
+    // Sie tat es, und das war an der falschen Stelle: der Kunde sah eine rote
+    // Meldung und konnte nichts tun -- eine Sackgasse fuer etwas, das er nicht
+    // verursacht hat und oft nicht einmal ein Fehler war.
+    //
+    // Die Entscheidung faellt ohnehin spaeter und an besserer Stelle: der
+    // Vertrag wird erst mit MATCHUNTS GEGENZEICHNUNG wirksam, und dort liegt
+    // der Pruefbericht vor. Einen Umschlag zurueckzuhalten schuetzt nichts --
+    // es haelt nur den Kunden auf.
+    const pruefungAuffaellig = draft.company_state === 'failed'
+      || draft.company_state === 'needs_review';
 
     const { data: mandate } = await supabase
       .from('commercial_mandates').select('*')
@@ -324,6 +329,9 @@ serve(async (req) => {
       type: 'contract_sent', linkId: draft.link_id, draftId,
       meta: { envelope: umschlag.envelopeId, mandate: mandate.mandate_number,
               signer_self: eigenhaendig,
+              // Steht im Trichter, damit der Admin es vor der Gegenzeichnung
+              // sieht, ohne den Bericht suchen zu muessen.
+              company_state: draft.company_state,
               framework: rahmenNochOffen ? framework!.agreement_number : 'bestehend',
               documents: dokumente.length },
     });
@@ -361,6 +369,9 @@ serve(async (req) => {
       // einen Entscheider -- dann sagt die Oberflaeche, an wen es ging.
       sign_url: signUrl,
       signer: { self: eigenhaendig, name: kundenName, email: kundenMail },
+      // Nicht fuer den Kunden gedacht -- der Admin-Bereich zeigt daran, dass
+      // vor der Gegenzeichnung ein Blick in den Pruefbericht faellig ist.
+      needs_review: pruefungAuffaellig,
     });
   } catch (e) {
     console.error('[docusign-send]', e);

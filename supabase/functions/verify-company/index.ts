@@ -79,8 +79,11 @@ function factualChecks(d: Record<string, any>): { deviations: Deviation[]; findi
       });
     } else if (!muster.test(vat)) {
       deviations.push({
-        field: 'company_vat_id', claimed: vat, found: null, severity: 'critical',
-        note: `Die USt-IdNr. entspricht nicht dem Muster fuer ${land}.`,
+        // Ein Formatfehler ist ein Tippfehler, kein Widerspruch. 'critical'
+        // hiess frueher: der Vertrag geht nicht raus -- fuer eine vertippte
+        // Ziffer war das eine Sackgasse.
+        field: 'company_vat_id', claimed: vat, found: null, severity: 'warning',
+        note: `Die USt-IdNr. entspricht nicht dem Muster fuer ${land}. Bitte pruefen.`,
       });
     } else {
       findings.vat_format_ok = true;
@@ -234,7 +237,16 @@ serve(async (req) => {
     };
     const m = await modelCheck(firma);
 
-    const alle = [...deviations, ...m.model_deviations];
+    // Das Modell darf WARNEN, nicht entscheiden. Eine Einschaetzung wie
+    // "kein Unternehmen dieses Namens gefunden" ist ein Hinweis, kein Beweis --
+    // kleine Firmen, junge Gruendungen und Umfirmierungen sehen genauso aus.
+    // Frueher setzte ein 'critical' des Modells den Zustand auf 'failed' und
+    // blockierte damit den Vertragsversand.
+    const modell = m.model_deviations.map((d) => ({
+      ...d,
+      severity: d.severity === 'critical' ? ('warning' as Severity) : d.severity,
+    }));
+    const alle = [...deviations, ...modell];
     const kritisch = alle.filter((d) => d.severity === 'critical').length;
     const warnungen = alle.filter((d) => d.severity === 'warning').length;
 

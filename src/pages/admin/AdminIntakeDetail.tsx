@@ -379,6 +379,7 @@ export default function AdminIntakeDetail() {
                 />
 
                 <ContractPanel
+                  companyState={data.draft.company_state}
                   framework={data.framework}
                   mandate={mandate}
                   envelopeId={envelopeId}
@@ -586,9 +587,10 @@ function Rows({ rows }: { rows: [string, unknown][] }) {
  * sie, damit man sieht, wo der Vorgang gerade hängt.
  */
 function ContractPanel({
-  framework, mandate, envelopeId, setEnvelopeId, signerName, setSignerName,
+  companyState, framework, mandate, envelopeId, setEnvelopeId, signerName, setSignerName,
   busy, onCreateDocument, documentPending, onRun, draftId,
 }: {
+  companyState: string;
   framework: Record<string, any> | null;
   mandate: Record<string, any>;
   envelopeId: string;
@@ -705,6 +707,7 @@ function ContractPanel({
               signerName={signerName}
               setSignerName={setSignerName}
               onRun={onRun}
+              companyState={companyState}
               ziel={{ mandate_id: mandate.id }}
               gesperrt={!rvAktiv
                 ? 'Erst den Rahmenvertrag gegenzeichnen — ohne ihn hängt der Einzelauftrag an nichts.'
@@ -721,7 +724,7 @@ function ContractPanel({
 
 function SignatureSteps({
   stand, freigegeben, versendet, kundeUnterschrieben, busy,
-  envelopeId, setEnvelopeId, signerName, setSignerName, onRun, ziel, gesperrt,
+  envelopeId, setEnvelopeId, signerName, setSignerName, onRun, ziel, gesperrt, companyState,
 }: {
   stand: string;
   freigegeben: boolean; versendet: boolean; kundeUnterschrieben: boolean;
@@ -731,6 +734,7 @@ function SignatureSteps({
   onRun: (payload: Record<string, unknown>, success: string) => Promise<boolean>;
   ziel: Record<string, string>;
   gesperrt?: string | null;
+  companyState?: string;
 }) {
   if (gesperrt) {
     return <p className="text-sm text-muted-foreground">{gesperrt}</p>;
@@ -779,6 +783,16 @@ function SignatureSteps({
         <p className="mb-2 text-xs text-muted-foreground">
           Erst danach ist der Vertrag wirksam.
         </p>
+        {/* Hier faellt die Entscheidung, also steht der Befund hier -- nicht
+            weiter oben, wo er beim Scrollen verlorengeht. Der Versand wird
+            deswegen nicht mehr blockiert: das war eine Sackgasse fuer den
+            Kunden, und geschuetzt hat es nichts. */}
+        {companyState && companyState !== 'verified' && (
+          <p className="mb-2 rounded border border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-400">
+            Die Firmenprüfung steht auf „{companyState}". Vor der Gegenzeichnung
+            den Prüfbericht oben ansehen.
+          </p>
+        )}
         <Button size="sm" className="w-full" disabled={busy || !kundeUnterschrieben}
           onClick={() => onRun({ action: 'countersign', ...ziel }, 'Gegengezeichnet — der Vertrag ist wirksam.')}>
           Gegenzeichnen
