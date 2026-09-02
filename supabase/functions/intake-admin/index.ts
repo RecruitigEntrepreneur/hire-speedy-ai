@@ -4,7 +4,7 @@ import { contentHash } from '../_shared/tokens.ts';
 import { isPlausibleEmail } from '../_shared/domain.ts';
 import { serviceClient, logEvent, resolveTemplate, effectiveTerms, issueDraftToken } from '../_shared/intake-core.ts';
 import { draftToJobRow, draftSummary } from '../_shared/intake-mapping.ts';
-import { requireAdmin } from '../_shared/admin-auth.ts';
+import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
 
@@ -23,9 +23,21 @@ serve(async (req) => {
 
   try {
     const supabase = serviceClient();
-    const admin = await requireAdmin(req, supabase);
-    if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
-    const adminId = admin.userId!;
+    // Zwei Aufrufer: ein angemeldeter Admin, und unser eigenes Backend --
+    // die Gegenzeichnung loest die Annahme selbst aus (docusign-apply). Wer
+    // gegengezeichnet hat, HAT entschieden; ein zweiter Klick "annehmen"
+    // waere eine Formalie, die vergessen werden kann.
+    let adminId: string | null;
+    if (isServiceRole(req)) {
+      // Die Gegenzeichnung kam ueber DocuSign, oft per Mail und damit ohne
+      // Sitzung bei uns. Dann steht hier niemand -- und das ist ehrlicher,
+      // als die Annahme einem beliebigen Admin zuzuschreiben.
+      adminId = (await req.clone().json().catch(() => ({})))?.acting_user_id ?? null;
+    } else {
+      const admin = await requireAdmin(req, supabase);
+      if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
+      adminId = admin.userId!;
+    }
 
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action ?? '');
@@ -158,10 +170,23 @@ serve(async (req) => {
             Vorgangsnummer <strong>${esc(mandate.mandate_number)}</strong>.
           </p>
           ${
-            requiresSignature
+            /* Der Vertrag geht seit dem 02.09.2026 unmittelbar nach der Anfrage
+               raus, nicht mehr nach der Annahme. Der alte Text kuendigte ihm
+               etwas an, das er laengst erledigt hatte. */
+            mandate.countersigned_at
               ? `<p style="margin:0 0 16px 0;">
-                   Sie erhalten in Kürze die Vermittlungsvereinbarung zur digitalen Unterschrift.
-                   Sobald sie unterzeichnet vorliegt, geben wir die Position für unsere Recruiter frei
+                   Rahmenvertrag und Einzelauftrag liegen <strong>beidseitig unterzeichnet</strong> vor.
+                   Wir geben die Position nun für unsere Recruiter frei und die Suche beginnt.
+                 </p>`
+              : mandate.customer_signed_at
+              ? `<p style="margin:0 0 16px 0;">
+                   Ihre Unterschrift liegt vor. Sobald wir gegengezeichnet haben, geben wir die
+                   Position für unsere Recruiter frei und die Suche beginnt.
+                 </p>`
+              : requiresSignature
+              ? `<p style="margin:0 0 16px 0;">
+                   Sie erhalten den Vertrag zur digitalen Unterschrift. Sobald beide Seiten
+                   unterzeichnet haben, geben wir die Position für unsere Recruiter frei
                    und die Suche beginnt.
                  </p>`
               : `<p style="margin:0 0 16px 0;">Wir geben die Position jetzt für unsere Recruiter frei.</p>`

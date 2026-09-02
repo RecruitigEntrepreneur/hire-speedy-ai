@@ -58,6 +58,11 @@ export async function applyEnvelopeState(
   if (!mandate && !framework) return leer;
 
   const draftId = mandate?.draft_id ?? framework?.origin_draft_id ?? null;
+  // Wer gegengezeichnet hat, falls es ueber unsere Oberflaeche lief. Kam die
+  // Unterschrift ueber die DocuSign-Mail, steht hier niemand -- das ist
+  // ehrlicher, als die Annahme einem beliebigen Admin zuzuschreiben.
+  const countersignerUserId = mandate?.countersigner_user_id
+    ?? framework?.countersigner_user_id ?? null;
   const ergebnis: ApplyResult = {
     matched: true,
     customerSigned: kundeFertig,
@@ -133,6 +138,42 @@ export async function applyEnvelopeState(
       }).eq('id', mandate.id);
       await logEvent(supabase, { type: 'contract_countersigned', draftId,
         meta: { envelope: envelopeId } });
+
+      // Die Gegenzeichnung IST die Annahme -- wer gegenzeichnet, hat
+      // entschieden. Ein zweiter Klick "annehmen" waere eine Formalie, die
+      // liegenbleiben kann, waehrend der Kunde auf seinen Zugang wartet.
+      //
+      // Angelegt wird: Stelle, Kundenkonto, Zugangslink, Annahmemail.
+      // NICHT veroeffentlicht: das bleibt ein bewusster Klick, damit ein
+      // duennes Briefing nicht ungeprueft ans Recruiter-Netz geht.
+      //
+      // Nicht blockierend: der Vertrag ist wirksam, auch wenn die Anlage
+      // scheitert. Sie laesst sich im Admin-Bereich nachholen.
+      if (draftId) {
+        try {
+          const res = await fetch(
+            `${Deno.env.get('SUPABASE_URL')}/functions/v1/intake-admin`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
+              },
+              body: JSON.stringify({
+                action: 'accept',
+                draft_id: draftId,
+                acting_user_id: countersignerUserId ?? null,
+              }),
+            });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            console.warn('[docusign-apply] Annahme nicht ausgefuehrt:', d?.message ?? res.status);
+          }
+        } catch (e) {
+          console.warn('[docusign-apply] Annahme fehlgeschlagen:',
+            e instanceof Error ? e.message : e);
+        }
+      }
     }
   }
 
