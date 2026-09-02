@@ -227,9 +227,21 @@ export default function GuestIntake() {
       else setSignerSentTo(res.signer?.email ?? null);
     };
 
+    // Was der Server ueber den Vertragslauf weiss. Entscheidend nach einem
+    // Neuladen: ohne das saehe ein Kunde, der den Tab geschlossen hat, nur
+    // eine Bestaetigung -- und keinen Weg mehr zur Unterschrift.
+    const vertrag = draft.contract;
+    const bereitsUnterschrieben = signed || Boolean(vertrag?.customer_signed);
+    const anDrittenVersandt = signerSentTo
+      ?? (vertrag?.has_envelope && !vertrag.customer_signed && vertrag.signer_email
+          && vertrag.signer_email !== draft.contact_email
+          ? vertrag.signer_email : null);
+
     // (1) Die Frage: wer unterschreibt. Solange sie offen ist, ist SIE die
     //     Seite -- der Kunde soll den Lauf abschliessen, solange er hier ist.
-    if (submitted && !signUrl && !signerSentTo && !signed) {
+    //     Greift auch nach einem Neuladen, solange nichts unterschrieben und
+    //     nichts an einen Dritten unterwegs ist.
+    if (!signUrl && !anDrittenVersandt && !bereitsUnterschrieben) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
           <div className="w-full max-w-lg space-y-6">
@@ -293,10 +305,10 @@ export default function GuestIntake() {
                 <Step icon={Mail} title="Bestätigung per E-Mail"
                   text={`Eine Übersicht Ihrer Anfrage samt Konditionen ist an ${draft.contact_email} unterwegs.`} />
                 <Step icon={FileSignature} title="Unterschrift"
-                  text={signed
+                  text={bereitsUnterschrieben
                     ? 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen — danach starten wir die Suche.'
-                    : signerSentTo
-                    ? `Der Vertrag ist an ${signerSentTo} unterwegs. Sobald dort unterschrieben ist, zeichnet Matchunt gegen und wir starten die Suche.`
+                    : anDrittenVersandt
+                    ? `Der Vertrag ist an ${anDrittenVersandt} unterwegs. Sobald dort unterschrieben ist, zeichnet Matchunt gegen und wir starten die Suche.`
                     : 'Sie erhalten den Vertrag zur digitalen Unterschrift. Sie unterschreiben zuerst, danach zeichnet Matchunt gegen — erst dann starten wir die Suche.'} />
               </div>
 

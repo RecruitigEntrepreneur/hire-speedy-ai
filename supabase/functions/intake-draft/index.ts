@@ -4,7 +4,7 @@ import { hashKey } from '../_shared/tokens.ts';
 import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import { normalizeDomain, isFreemailAddress, isPlausibleEmail } from '../_shared/domain.ts';
 import {
-  serviceClient, resolveDraft, touchDraft, logEvent, publicDraft, publicLink,
+  serviceClient, resolveDraft, touchDraft, logEvent, publicDraft, contractState, publicLink,
   publicPackages, inDays, DRAFT_DAYS, TOKEN_DAYS,
 } from '../_shared/intake-core.ts';
 
@@ -77,7 +77,7 @@ serve(async (req) => {
     if (action === 'get') {
       await touchDraft(supabase, draft.id, {}, tokenId);
       return json({
-        draft: publicDraft(draft),
+        draft: publicDraft(draft, await contractState(supabase, draft.id)),
         link: link ? publicLink(link, ownerName) : null,
         packages,
         locked,
@@ -162,7 +162,7 @@ serve(async (req) => {
 
     if (Object.keys(update).length === 0) {
       await touchDraft(supabase, draft.id, {}, tokenId);
-      return json({ draft: publicDraft(draft), link: link ? publicLink(link, ownerName) : null, packages, locked: false });
+      return json({ draft: publicDraft(draft, await contractState(supabase, draft.id)), link: link ? publicLink(link, ownerName) : null, packages, locked: false });
     }
 
     const { data: saved, error } = await supabase
@@ -207,7 +207,7 @@ serve(async (req) => {
     }
 
     return json({
-      draft: publicDraft(saved),
+      draft: publicDraft(saved, await contractState(supabase, saved.id)),
       link: link ? publicLink(link, ownerName) : null,
       packages,
       locked: false,

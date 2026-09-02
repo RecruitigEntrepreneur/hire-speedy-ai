@@ -3,7 +3,7 @@ import { preflight, json, fail, clientIp, userAgent, isMissingRelation } from '.
 import { hashToken, hashKey } from '../_shared/tokens.ts';
 import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import {
-  serviceClient, logEvent, publicDraft, publicLink, linkState, issueDraftToken,
+  serviceClient, logEvent, publicDraft, contractState, publicLink, linkState, issueDraftToken,
   publicPackages, inDays, DRAFT_DAYS,
 } from '../_shared/intake-core.ts';
 
@@ -166,7 +166,7 @@ serve(async (req) => {
       link: publicLink(link, ownerName),
       packages,
       draft_token: draftToken,
-      draft: publicDraft(draft),
+      draft: publicDraft(draft, await contractState(supabase, draft.id)),
     });
   } catch (e) {
     console.error('[intake-start]', e);

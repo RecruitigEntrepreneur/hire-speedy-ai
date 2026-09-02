@@ -228,8 +228,47 @@ export async function logEvent(
  * IP-Hash, interne Notizen, die erkannten Bestandskunden-Verweise und
  * owner_user_id. Der Kunde soll nicht erfahren, dass wir ihn im CRM fuehren.
  */
-export function publicDraft(d: DraftRow) {
+/**
+ * Stand des Vertragslaufs, soweit der Kunde ihn sehen darf.
+ *
+ * Ohne diese Angaben weiss die Seite nach einem Neuladen nicht, ob schon ein
+ * Umschlag unterwegs ist -- und der Kunde saehe eine Bestaetigung ohne jeden
+ * Weg zur Unterschrift. Wer den Tab schliesst und zurueckkommt, koennte den
+ * Vertrag nie abschliessen.
+ */
+export interface ContractState {
+  has_envelope: boolean;
+  customer_signed: boolean;
+  countersigned: boolean;
+  /** An wen der Vertrag ging, wenn nicht an den Absender selbst. */
+  signer_email: string | null;
+  signer_name: string | null;
+}
+
+/** Den Vertragsstand zu einem Entwurf holen. Nie blockierend. */
+export async function contractState(
+  supabase: SupabaseClient, draftId: string,
+): Promise<ContractState | null> {
+  const { data } = await supabase
+    .from('commercial_mandates')
+    .select('envelope_id, customer_signed_at, countersigned_at, customer_signer_email, customer_signer_name')
+    .eq('draft_id', draftId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
   return {
+    has_envelope: Boolean(data.envelope_id),
+    customer_signed: Boolean(data.customer_signed_at),
+    countersigned: Boolean(data.countersigned_at),
+    signer_email: data.customer_signer_email ?? null,
+    signer_name: data.customer_signer_name ?? null,
+  };
+}
+
+export function publicDraft(d: DraftRow, contract?: ContractState | null) {
+  return {
+    contract: contract ?? null,
     id: d.id,
     contract_type: d.contract_type,
     built: d.built ?? null,

@@ -113,6 +113,14 @@ export interface GuestDraft {
     commercial: 'not_started' | 'presented' | 'confirmed' | 'discussion_requested' | 'declined';
     review: 'not_submitted' | 'pending_admin' | 'accepted' | 'changes_requested' | 'rejected';
   };
+  /** Stand des Vertragslaufs. Null, solange keiner existiert. */
+  contract: {
+    has_envelope: boolean;
+    customer_signed: boolean;
+    countersigned: boolean;
+    signer_email: string | null;
+    signer_name: string | null;
+  } | null;
   selected_package_key: 'core' | 'continuity_90' | 'continuity_180' | null;
   selected_package_version: number | null;
   submitted_at: string | null;
