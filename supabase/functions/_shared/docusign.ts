@@ -236,13 +236,32 @@ export async function createEnvelope(c: DocuSignConfig, args: {
   return { envelopeId: data.envelopeId, status: data.status };
 }
 
-/** URL fuer die eingebettete Unterschrift. Gilt nur wenige Minuten. */
+/** Woher DocuSign seine eigene Oberflaeche ausliefert -- je Umgebung anders. */
+export function docusignAppOrigin(c: DocuSignConfig): string {
+  return c.oauthBase.includes('-d')
+    ? 'https://apps-d.docusign.com'
+    : 'https://apps.docusign.com';
+}
+
+/**
+ * URL fuer die eingebettete Unterschrift. Gilt nur wenige Minuten.
+ *
+ * frameAncestors und messageOrigins sind Pflicht, sobald die Ansicht in einem
+ * iframe laufen soll: ohne sie setzt DocuSign eine Content-Security-Policy, die
+ * das Einbetten verbietet, und der Rahmen bleibt leer. Sie sind zugleich der
+ * Schutz -- nur die hier genannten Herkuenfte duerfen die Ansicht einbetten,
+ * niemand sonst kann sie in eine fremde Seite haengen.
+ */
 export async function recipientView(c: DocuSignConfig, args: {
   envelopeId: string;
   name: string;
   email: string;
   clientUserId: string;
   returnUrl: string;
+  /** Seiten, die die Ansicht einbetten duerfen. Leer = kein iframe moeglich. */
+  frameAncestors?: string[];
+  /** Herkuenfte, von denen DocuSign Nachrichten an das Fenster erlaubt. */
+  messageOrigins?: string[];
 }): Promise<string> {
   const token = await accessToken(c);
   const res = await fetch(
@@ -256,6 +275,9 @@ export async function recipientView(c: DocuSignConfig, args: {
         userName: args.name,
         email: args.email,
         clientUserId: args.clientUserId,
+        ...(args.frameAncestors?.length
+          ? { frameAncestors: args.frameAncestors, messageOrigins: args.messageOrigins ?? [] }
+          : {}),
       }),
     });
   const data = await res.json().catch(() => ({}));

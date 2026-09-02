@@ -10,6 +10,7 @@ import { CaptureStep, emptyCapture, captureBriefingText, type CaptureState } fro
 import { ContactStep } from '@/components/intake/guest/ContactStep';
 import { VerifyStep } from '@/components/intake/guest/VerifyStep';
 import { PackageStep } from '@/components/intake/guest/PackageStep';
+import { SignFrame } from '@/components/intake/guest/SignFrame';
 import { SummaryStep } from '@/components/intake/guest/SummaryStep';
 import { ForwardDialog, ResumeDialog } from '@/components/intake/guest/IntakeDialogs';
 import { buildIntakePayload, remoteLabel, levelLabel } from '@/lib/intakeMapping';
@@ -51,6 +52,7 @@ export default function GuestIntake() {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [knownCompany, setKnownCompany] = useState<{ name: string } | null>(null);
   const [submitted, setSubmitted] = useState<{ mandate: string; requiresSignature: boolean; mailSent: boolean; signUrl: string | null } | null>(null);
+  const [signed, setSigned] = useState(false);
 
   const draft = state.draft;
 
@@ -204,6 +206,29 @@ export default function GuestIntake() {
     const mandate = submitted?.mandate;
     // Unterschrieben wird immer -- der Vertrag geht nach der Pruefung raus.
     const requiresSignature = true;
+
+    // Liegt eine Unterschriftsansicht vor, ist SIE die Seite -- nicht eine
+    // Bestaetigung mit einem Knopf daneben. Der Kunde soll unterschreiben,
+    // solange er ohnehin hier ist; jeder Zwischenschritt kostet Abschluesse.
+    if (submitted?.signUrl && !signed) {
+      return (
+        <div className="min-h-screen bg-background px-4 py-8">
+          <div className="mx-auto w-full max-w-4xl space-y-4">
+            <MatchuntWordmark size="sm" className="justify-center" />
+            <div className="text-center">
+              <h1 className="text-xl font-bold tracking-tight">Vertrag unterzeichnen</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Rahmenvertrag und Einzelauftrag in einem Durchgang. Vorgang{' '}
+                <strong className="text-foreground">{mandate}</strong>. Sie unterschreiben zuerst,
+                danach zeichnet Matchunt gegen.
+              </p>
+            </div>
+            <SignFrame url={submitted.signUrl} onDone={() => setSigned(true)} />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-lg">
@@ -224,26 +249,12 @@ export default function GuestIntake() {
                   Schritt — nicht eine Mail, die vielleicht im Spam landet.
                   Fehlt sie (DocuSign nicht erreichbar), sagt die Seite das
                   ehrlich, statt auf etwas zu verweisen, das nicht kommt. */}
-              {submitted?.signUrl && (
-                <div className="mt-6 space-y-3">
-                  <Button asChild className="w-full" size="lg">
-                    <a href={submitted.signUrl}>
-                      <FileSignature className="mr-2 h-4 w-4" /> Vertrag jetzt unterzeichnen
-                    </a>
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Rahmenvertrag und Einzelauftrag in einem Durchgang. Sie können auch später
-                    unterschreiben — den Link erhalten Sie zusätzlich per E-Mail.
-                  </p>
-                </div>
-              )}
-
               <div className="mt-6 space-y-3 text-left">
                 <Step icon={Mail} title="Bestätigung per E-Mail"
                   text={`Eine Übersicht Ihrer Anfrage samt Konditionen ist an ${draft.contact_email} unterwegs.`} />
                 <Step icon={FileSignature} title="Unterschrift"
-                  text={submitted?.signUrl
-                    ? 'Sie unterschreiben zuerst, danach zeichnet Matchunt gegen. Erst dann ist der Vertrag wirksam und wir starten die Suche.'
+                  text={signed
+                    ? 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen — danach starten wir die Suche.'
                     : 'Sie erhalten den Vertrag zur digitalen Unterschrift. Sie unterschreiben zuerst, danach zeichnet Matchunt gegen — erst dann starten wir die Suche.'} />
               </div>
 

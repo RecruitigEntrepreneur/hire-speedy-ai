@@ -113,6 +113,7 @@ import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 // Admin- und Recruiter-Bundle mitladen.
 const GuestIntake = lazy(() => import("./pages/intake/GuestIntake"));
 const ClarifyAnswer = lazy(() => import("./pages/intake/ClarifyAnswer"));
+const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 // Zugang einrichten nach der Annahme einer Beauftragungsanfrage. Vorher gab es
 // im ganzen Projekt keinen Passwort-Weg — ein serverseitig angelegtes Konto
 // hätte keinen Weg hinein gehabt.
@@ -516,6 +517,7 @@ function AppRoutes() {
       <Route path="/start/:token" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       {/* Vor der allgemeinen Entwurfsroute, sonst faengt :draftToken das Wort
           "rueckfrage" als Token ab. */}
+      <Route path="/aufnahme/unterschrift-fertig" element={<Suspense fallback={<RouteFallback />}><SignReturn /></Suspense>} />
       <Route path="/aufnahme/rueckfrage/:token" element={<Suspense fallback={<RouteFallback />}><ClarifyAnswer /></Suspense>} />
       <Route path="/aufnahme/:draftToken" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />

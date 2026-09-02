@@ -3,7 +3,7 @@ import { preflight, json, fail } from '../_shared/http.ts';
 import { contentHash } from '../_shared/tokens.ts';
 import { serviceClient, resolveDraft, logEvent } from '../_shared/intake-core.ts';
 import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
-import { docusignConfig, createEnvelope, recipientView, type Signer } from '../_shared/docusign.ts';
+import { docusignConfig, createEnvelope, recipientView, docusignAppOrigin, type Signer } from '../_shared/docusign.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 
 /**
@@ -235,12 +235,19 @@ serve(async (req) => {
     // ---- Eingebettete Unterschrift ------------------------------------------
     let signUrl: string | null = null;
     try {
+      const appUrl = getPublicAppUrl();
       signUrl = await recipientView(cfg, {
         envelopeId: umschlag.envelopeId,
         name: kundenName,
         email: kundenMail,
         clientUserId: `client-${draftId}`,
-        returnUrl: `${getPublicAppUrl()}/aufnahme/unterschrift-fertig`,
+        // Landet im iframe, nicht im Hauptfenster. Die Seite dort meldet dem
+        // umgebenden Fenster, dass unterschrieben wurde.
+        returnUrl: `${appUrl}/aufnahme/unterschrift-fertig`,
+        // Ohne diese beiden verbietet DocuSign das Einbetten, und der Kunde
+        // saehe einen leeren Rahmen.
+        frameAncestors: [appUrl, docusignAppOrigin(cfg)],
+        messageOrigins: [docusignAppOrigin(cfg)],
       });
     } catch (e) {
       // Der Umschlag ist raus -- das ist der Teil, der zaehlt. Ohne
