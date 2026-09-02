@@ -392,33 +392,18 @@ serve(async (req) => {
     }
 
     // ---- Vertrag zur Unterschrift -------------------------------------------
-    // Entscheidung 02.09.2026: der Vertrag geht unmittelbar nach der Anfrage
-    // raus. Das bindet Matchunt nicht -- der Kunde unterschreibt zuerst,
-    // Matchunt zeichnet zuletzt gegen, und erst die Gegenzeichnung ist die
-    // Annahme.
+    // Hier wird NICHT versendet. Der Kunde wird zuerst gefragt, wer
+    // unterschreibt -- er selbst oder ein Entscheider.
     //
-    // Mit await, nicht nebenher: der Kunde soll die Unterschriftsansicht
-    // direkt sehen. Scheitert es -- DocuSign nicht eingerichtet, Ausfall beim
-    // Anbieter --, ist die Anfrage trotzdem eingegangen. Sie ist der Vorgang,
-    // der zaehlt; die Unterschrift kann der Admin nachtraeglich anstossen.
-    let signUrl: string | null = null;
-    let signError: string | null = null;
-    try {
-      const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/docusign-send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
-        },
-        body: JSON.stringify({ draft_id: draft.id }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (res.ok && d?.ok) signUrl = d.sign_url ?? null;
-      else signError = d?.message ?? `DocuSign antwortete ${res.status}.`;
-    } catch (e) {
-      signError = e instanceof Error ? e.message : String(e);
-    }
-    if (signError) console.warn('[intake-submit] docusign-send:', signError);
+    // Der Grund ist kein technischer: im Mittelstand nimmt HR oder der Hiring
+    // Manager die Stelle auf, unterschreiben tut die Geschaeftsfuehrung. Wer
+    // sofort einen Umschlag an den Absender schickt, produziert bei genau den
+    // groesseren Mandaten einen Vertrag, den niemand zeichnen darf -- und muss
+    // ihn dann verwerfen und neu ausstellen.
+    //
+    // Die Frage steht auf der naechsten Seite; von dort ruft das Frontend
+    // docusign-send mit der Antwort auf. Zwischen Absenden und Umschlag liegen
+    // damit ein Klick und wenige Sekunden.
 
     return json({
       ok: true,
@@ -426,9 +411,6 @@ serve(async (req) => {
       mandate_number: mandate.mandate_number,
       confirmation_sent: mail.sent,
       requires_signature: true,
-      // Gesetzt = der Kunde kann sofort unterschreiben. Null = der Vertrag
-      // kommt spaeter; das sagt die Oberflaeche dann auch so.
-      sign_url: signUrl,
       draft: publicDraft(saved),
     });
   } catch (e) {

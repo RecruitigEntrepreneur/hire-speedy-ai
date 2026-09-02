@@ -10,6 +10,15 @@ import { getPublicAppUrl } from '../_shared/app-url.ts';
  * docusign-send — den Vertrag zur Unterschrift geben.
  *
  * Ausgeloest direkt nach der Beauftragungsanfrage (Entscheidung 02.09.2026).
+ *
+ * WER unterschreibt, entscheidet der Kunde -- und das ist der Punkt, an dem
+ * die meisten Vorgaenge sonst liegenbleiben: im Mittelstand nimmt HR oder der
+ * Hiring Manager die Stelle auf, unterschreiben tut die Geschaeftsfuehrung.
+ * Wer den Absender zwingt, selbst zu zeichnen, verliert genau die groesseren
+ * Mandate. Deshalb zwei Wege, EIN Umschlag:
+ *   self  -> eingebettet auf unserer Seite (clientUserId gesetzt), sofort fertig
+ *   other -> DocuSign stellt per Mail zu (kein clientUserId)
+ * Der Unterschied ist ein Feld, kein zweiter Code-Pfad.
  * Das bindet Matchunt nicht: der Kunde unterschreibt zuerst, Matchunt zeichnet
  * zuletzt gegen, und ERST die Gegenzeichnung ist die Annahme. Der Versand ist
  * ein Angebot zur Unterschrift, kein Vertragsschluss.
@@ -169,9 +178,28 @@ serve(async (req) => {
     dokumente.push({ base64: dEinzel.base64, name: `Einzelauftrag ${dEinzel.number}.pdf` });
 
     // ---- Umschlag -----------------------------------------------------------
-    const kundenName = mandate.client_confirmed_name || draft.contact_name || 'Auftraggeber';
-    const kundenMail = mandate.client_confirmed_email || draft.contact_email;
-    if (!kundenMail) return fail('conflict', 'Ohne E-Mail-Adresse kann nichts zur Unterschrift gehen.');
+    // ---- Wer unterschreibt --------------------------------------------------
+    const eigenhaendig = body?.signer_self !== false;   // Vorgabe: der Absender
+    const kundenName = eigenhaendig
+      ? (mandate.client_confirmed_name || draft.contact_name || 'Auftraggeber')
+      : String(body?.signer_name ?? '').trim().slice(0, 120);
+    const kundenMail = eigenhaendig
+      ? (mandate.client_confirmed_email || draft.contact_email)
+      : String(body?.signer_email ?? '').trim().toLowerCase().slice(0, 200);
+
+    if (!kundenMail) {
+      return fail('invalid_request', eigenhaendig
+        ? 'Ohne E-Mail-Adresse kann nichts zur Unterschrift gehen.'
+        : 'Bitte geben Sie die E-Mail-Adresse der unterzeichnenden Person an.');
+    }
+    if (!eigenhaendig) {
+      if (!kundenName) {
+        return fail('invalid_request', 'Bitte geben Sie den Namen der unterzeichnenden Person an.');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(kundenMail)) {
+        return fail('invalid_request', 'Die E-Mail-Adresse der unterzeichnenden Person ist unvollständig.');
+      }
+    }
 
     const gegenName = Deno.env.get('DOCUSIGN_COUNTERSIGNER_NAME') ?? 'Matchunt';
     const gegenMail = Deno.env.get('DOCUSIGN_COUNTERSIGNER_EMAIL');
@@ -181,7 +209,11 @@ serve(async (req) => {
     }
 
     const signers: Signer[] = [
-      { name: kundenName, email: kundenMail, clientUserId: `client-${draftId}`,
+      // clientUserId NUR beim eigenhaendigen Weg: es unterdrueckt die
+      // DocuSign-Mail und macht die Ansicht einbettbar. Beim Weg ueber einen
+      // Entscheider ist die Mail genau das, was wir wollen.
+      { name: kundenName, email: kundenMail,
+        ...(eigenhaendig ? { clientUserId: `client-${draftId}` } : {}),
         anchor: '/sig1/', routingOrder: 1, recipientId: '1' },
       // Kein clientUserId: Matchunt zeichnet aus dem Admin-Bereich gegen und
       // bekommt zusaetzlich die DocuSign-Mail. Faellt unsere Oberflaeche aus,
@@ -212,12 +244,18 @@ serve(async (req) => {
         .update({ status: 'pending_release', released_for_signature_at: jetzt })
         .eq('id', framework!.id);
       await supabase.from('client_framework_agreements')
-        .update({ status: 'sent', envelope_id: umschlag.envelopeId, envelope_sent_at: jetzt })
+        .update({ status: 'sent', envelope_id: umschlag.envelopeId, envelope_sent_at: jetzt,
+                  customer_signer_name: kundenName, customer_signer_email: kundenMail })
         .eq('id', framework!.id);
     }
 
     await supabase.from('commercial_mandates').update({
       framework_agreement_id: framework!.id,
+      // Wer unterschreiben SOLL. Der Webhook traegt spaeter ein, wer es
+      // tatsaechlich getan hat -- die beiden auseinanderzuhalten ist der
+      // Unterschied zwischen Absicht und Nachweis.
+      customer_signer_name: kundenName,
+      customer_signer_email: kundenMail,
       released_for_signature_at: jetzt,
       envelope_id: umschlag.envelopeId,
       signature_envelope_id: umschlag.envelopeId,
@@ -228,13 +266,14 @@ serve(async (req) => {
     await logEvent(supabase, {
       type: 'contract_sent', linkId: draft.link_id, draftId,
       meta: { envelope: umschlag.envelopeId, mandate: mandate.mandate_number,
+              signer_self: eigenhaendig,
               framework: rahmenNochOffen ? framework!.agreement_number : 'bestehend',
               documents: dokumente.length },
     });
 
     // ---- Eingebettete Unterschrift ------------------------------------------
     let signUrl: string | null = null;
-    try {
+    if (eigenhaendig) try {
       const appUrl = getPublicAppUrl();
       signUrl = await recipientView(cfg, {
         envelopeId: umschlag.envelopeId,
@@ -261,7 +300,10 @@ serve(async (req) => {
       mandate_id: mandate.id,
       framework_id: framework!.id,
       documents: dokumente.length,
+      // Gesetzt = der Kunde unterschreibt gleich hier. Null beim Weg ueber
+      // einen Entscheider -- dann sagt die Oberflaeche, an wen es ging.
       sign_url: signUrl,
+      signer: { self: eigenhaendig, name: kundenName, email: kundenMail },
     });
   } catch (e) {
     console.error('[docusign-send]', e);

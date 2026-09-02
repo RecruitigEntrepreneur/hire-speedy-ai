@@ -11,6 +11,7 @@ import { ContactStep } from '@/components/intake/guest/ContactStep';
 import { VerifyStep } from '@/components/intake/guest/VerifyStep';
 import { PackageStep } from '@/components/intake/guest/PackageStep';
 import { SignFrame } from '@/components/intake/guest/SignFrame';
+import { SignerChoice } from '@/components/intake/guest/SignerChoice';
 import { SummaryStep } from '@/components/intake/guest/SummaryStep';
 import { ForwardDialog, ResumeDialog } from '@/components/intake/guest/IntakeDialogs';
 import { buildIntakePayload, remoteLabel, levelLabel } from '@/lib/intakeMapping';
@@ -43,7 +44,7 @@ type StepKey = (typeof STEPS)[number]['key'];
 export default function GuestIntake() {
   const { token, draftToken } = useParams<{ token?: string; draftToken?: string }>();
   const intake = useGuestIntake(token, draftToken);
-  const { state, save, sendCode, confirmCode, loadPackages, selectPackage, submit, forward,
+  const { state, save, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward,
           askAi, parseText, parseUrl, parsePdf } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
@@ -51,8 +52,13 @@ export default function GuestIntake() {
   const [forwardOpen, setForwardOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
   const [knownCompany, setKnownCompany] = useState<{ name: string } | null>(null);
-  const [submitted, setSubmitted] = useState<{ mandate: string; requiresSignature: boolean; mailSent: boolean; signUrl: string | null } | null>(null);
+  const [submitted, setSubmitted] = useState<{ mandate: string; requiresSignature: boolean; mailSent: boolean } | null>(null);
   const [signed, setSigned] = useState(false);
+  // Der Unterschriftslauf nach dem Absenden: erst fragen, dann versenden.
+  const [signUrl, setSignUrl] = useState<string | null>(null);
+  const [signerSentTo, setSignerSentTo] = useState<string | null>(null);
+  const [signBusy, setSignBusy] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
 
   const draft = state.draft;
 
@@ -207,10 +213,43 @@ export default function GuestIntake() {
     // Unterschrieben wird immer -- der Vertrag geht nach der Pruefung raus.
     const requiresSignature = true;
 
-    // Liegt eine Unterschriftsansicht vor, ist SIE die Seite -- nicht eine
-    // Bestaetigung mit einem Knopf daneben. Der Kunde soll unterschreiben,
-    // solange er ohnehin hier ist; jeder Zwischenschritt kostet Abschluesse.
-    if (submitted?.signUrl && !signed) {
+    const waehlen = async (args: { self: boolean; name?: string; email?: string }) => {
+      setSignBusy(true);
+      setSignError(null);
+      const res = await sendContract(args);
+      setSignBusy(false);
+      if (isFailure(res)) {
+        setSignError(res.message);
+        return;
+      }
+      if (res.sign_url) setSignUrl(res.sign_url);
+      else setSignerSentTo(res.signer?.email ?? null);
+    };
+
+    // (1) Die Frage: wer unterschreibt. Solange sie offen ist, ist SIE die
+    //     Seite -- der Kunde soll den Lauf abschliessen, solange er hier ist.
+    if (submitted && !signUrl && !signerSentTo && !signed) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+          <div className="w-full max-w-lg space-y-6">
+            <MatchuntWordmark size="sm" className="justify-center" />
+            <p className="text-center text-sm text-muted-foreground">
+              Ihre Anfrage ist eingegangen — Vorgang{' '}
+              <strong className="text-foreground">{mandate}</strong>.
+            </p>
+            <SignerChoice
+              contactName={draft.contact_name}
+              busy={signBusy}
+              error={signError}
+              onChoose={waehlen}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // (2) Eigenhaendig: der Vertrag im Rahmen, auf unserer Seite.
+    if (signUrl && !signed) {
       return (
         <div className="min-h-screen bg-background px-4 py-8">
           <div className="mx-auto w-full max-w-4xl space-y-4">
@@ -223,7 +262,7 @@ export default function GuestIntake() {
                 danach zeichnet Matchunt gegen.
               </p>
             </div>
-            <SignFrame url={submitted.signUrl} onDone={() => setSigned(true)} />
+            <SignFrame url={signUrl} onDone={() => setSigned(true)} />
           </div>
         </div>
       );
@@ -255,6 +294,8 @@ export default function GuestIntake() {
                 <Step icon={FileSignature} title="Unterschrift"
                   text={signed
                     ? 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen — danach starten wir die Suche.'
+                    : signerSentTo
+                    ? `Der Vertrag ist an ${signerSentTo} unterwegs. Sobald dort unterschrieben ist, zeichnet Matchunt gegen und wir starten die Suche.`
                     : 'Sie erhalten den Vertrag zur digitalen Unterschrift. Sie unterschreiben zuerst, danach zeichnet Matchunt gegen — erst dann starten wir die Suche.'} />
               </div>
 
@@ -369,7 +410,6 @@ export default function GuestIntake() {
             const res = await submit(signerName);
             if (!isFailure(res)) {
               setSubmitted({
-                signUrl: res.sign_url ?? null,
                 mandate: res.mandate_number,
                 requiresSignature: res.requires_signature,
                 mailSent: res.confirmation_sent,

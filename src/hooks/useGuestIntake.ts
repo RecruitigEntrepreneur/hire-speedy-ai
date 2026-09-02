@@ -387,15 +387,32 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     [],
   );
 
+  /**
+   * Den Vertrag zur Unterschrift geben. Zwei Wege, ein Umschlag: entweder
+   * unterschreibt der Absender gleich hier (dann kommt eine sign_url zurueck),
+   * oder DocuSign stellt an die benannte Person zu.
+   */
+  const sendContract = useCallback(
+    (args: { self: boolean; name?: string; email?: string }) =>
+      withToken<{
+        ok: boolean;
+        sign_url: string | null;
+        signer: { self: boolean; name: string; email: string };
+        documents: number;
+      }>('docusign-send', {
+        signer_self: args.self,
+        signer_name: args.name,
+        signer_email: args.email,
+      }),
+    [],
+  );
+
   const submit = useCallback(
     async (signerName: string) => {
       await flush();
       const res = await withToken<{
         ok: boolean; review_state: string; mandate_number: string;
         confirmation_sent: boolean; requires_signature: boolean; draft: GuestDraft;
-        /** Eingebettete Unterschriftsansicht. Null, wenn DocuSign nicht
-         *  erreichbar war — die Anfrage ist dann trotzdem eingegangen. */
-        sign_url: string | null;
       }>('intake-submit', { accept_terms: true, accept_agb: true, signer_name: signerName });
       if (!isFailure(res) && res.draft) {
         setState((s) => ({ ...s, draft: res.draft, locked: true }));
@@ -463,7 +480,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     });
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, submit, forward, askAi, parseText, parseUrl, parsePdf };
+  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward, askAi, parseText, parseUrl, parsePdf };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */
