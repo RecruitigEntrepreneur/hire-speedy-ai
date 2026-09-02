@@ -2526,6 +2526,84 @@ export type Database = {
           },
         ]
       }
+      commercial_packages: {
+        Row: {
+          bullets: Json
+          claim_notice_days: number
+          client_fee_pct: number
+          continuity_days: number | null
+          created_at: string
+          eligible_claim_categories: Json
+          excluded_claim_categories: Json
+          fee_basis: string
+          id: string
+          is_active: boolean
+          matchunt_on_claim_pct: number
+          matchunt_pct: number
+          package_key: string
+          payment_terms_days: number
+          public_name: string
+          recruiter_initial_pct: number
+          recruiter_retention_pct: number
+          research_bounty_pct: number
+          research_max_active_days: number | null
+          sort_order: number
+          summary: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          bullets?: Json
+          claim_notice_days?: number
+          client_fee_pct: number
+          continuity_days?: number | null
+          created_at?: string
+          eligible_claim_categories?: Json
+          excluded_claim_categories?: Json
+          fee_basis?: string
+          id?: string
+          is_active?: boolean
+          matchunt_on_claim_pct: number
+          matchunt_pct: number
+          package_key: string
+          payment_terms_days?: number
+          public_name: string
+          recruiter_initial_pct: number
+          recruiter_retention_pct: number
+          research_bounty_pct: number
+          research_max_active_days?: number | null
+          sort_order: number
+          summary: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          bullets?: Json
+          claim_notice_days?: number
+          client_fee_pct?: number
+          continuity_days?: number | null
+          created_at?: string
+          eligible_claim_categories?: Json
+          excluded_claim_categories?: Json
+          fee_basis?: string
+          id?: string
+          is_active?: boolean
+          matchunt_on_claim_pct?: number
+          matchunt_pct?: number
+          package_key?: string
+          payment_terms_days?: number
+          public_name?: string
+          recruiter_initial_pct?: number
+          recruiter_retention_pct?: number
+          research_bounty_pct?: number
+          research_max_active_days?: number | null
+          sort_order?: number
+          summary?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       commercial_terms_templates: {
         Row: {
           agb_sha256: string | null
@@ -10248,6 +10326,54 @@ export type Database = {
           },
         ]
       }
+      commercial_packages_public: {
+        Row: {
+          bullets: Json | null
+          claim_notice_days: number | null
+          client_fee_pct: number | null
+          continuity_days: number | null
+          eligible_claim_categories: Json | null
+          excluded_claim_categories: Json | null
+          fee_basis: string | null
+          package_key: string | null
+          payment_terms_days: number | null
+          public_name: string | null
+          sort_order: number | null
+          summary: string | null
+          version: number | null
+        }
+        Insert: {
+          bullets?: Json | null
+          claim_notice_days?: number | null
+          client_fee_pct?: number | null
+          continuity_days?: number | null
+          eligible_claim_categories?: Json | null
+          excluded_claim_categories?: Json | null
+          fee_basis?: string | null
+          package_key?: string | null
+          payment_terms_days?: number | null
+          public_name?: string | null
+          sort_order?: number | null
+          summary?: string | null
+          version?: number | null
+        }
+        Update: {
+          bullets?: Json | null
+          claim_notice_days?: number | null
+          client_fee_pct?: number | null
+          continuity_days?: number | null
+          eligible_claim_categories?: Json | null
+          excluded_claim_categories?: Json | null
+          fee_basis?: string | null
+          package_key?: string | null
+          payment_terms_days?: number | null
+          public_name?: string | null
+          sort_order?: number | null
+          summary?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       intake_link_funnel: {
         Row: {
           accepted: number | null
@@ -10398,6 +10524,10 @@ export type Database = {
       }
       is_org_member: {
         Args: { _org_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      jsonb_text_arrays_disjoint: {
+        Args: { a: Json; b: Json }
         Returns: boolean
       }
       log_candidate_access: {
