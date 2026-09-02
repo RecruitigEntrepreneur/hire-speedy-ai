@@ -332,3 +332,10 @@ verify_jwt = false
 # verarbeitet.
 [functions.docusign-webhook]
 verify_jwt = false
+
+# Stand eines Umschlags aktiv bei DocuSign abfragen. Der Gegenpol zum Webhook:
+# ohne ihn wuerde ein einziges verlorenes Ereignis bedeuten, dass ein
+# unterschriebener Vertrag bei uns als offen gilt und die Stelle nie freigeht.
+# Damit ist der HMAC-Schluessel eine Bequemlichkeit, keine Voraussetzung.
+[functions.docusign-status]
+verify_jwt = false
