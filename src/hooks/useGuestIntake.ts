@@ -397,8 +397,10 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       withToken<{
         ok: boolean;
         sign_url: string | null;
-        signer: { self: boolean; name: string; email: string };
-        documents: number;
+        signer: { self: boolean; name: string | null; email: string | null } | null;
+        documents?: number;
+        /** Bereits unterschrieben — dann ist nichts mehr zu tun. */
+        customer_signed?: boolean;
       }>('docusign-send', {
         signer_self: args.self,
         signer_name: args.name,

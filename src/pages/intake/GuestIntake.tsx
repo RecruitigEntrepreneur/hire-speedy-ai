@@ -222,7 +222,8 @@ export default function GuestIntake() {
         setSignError(res.message);
         return;
       }
-      if (res.sign_url) setSignUrl(res.sign_url);
+      if (res.customer_signed) setSigned(true);
+      else if (res.sign_url) setSignUrl(res.sign_url);
       else setSignerSentTo(res.signer?.email ?? null);
     };
 

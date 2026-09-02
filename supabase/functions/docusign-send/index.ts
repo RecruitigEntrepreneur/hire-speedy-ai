@@ -86,11 +86,48 @@ serve(async (req) => {
       .order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (!mandate) return fail('conflict', 'Es liegt keine bestätigte Beauftragungsanfrage vor.');
 
-    // Schon unterwegs? Dann nicht noch einmal -- ein zweiter Umschlag zum
-    // selben Auftrag waere fuer den Kunden nicht unterscheidbar.
+    // Schon unterwegs? Dann keinen zweiten Umschlag -- der waere fuer den
+    // Kunden nicht vom ersten zu unterscheiden.
+    //
+    // Aber eine FRISCHE Unterschriftsansicht ausstellen, solange noch nicht
+    // unterschrieben ist: die alte gilt nur wenige Minuten. Wer laenger
+    // braucht, die Seite neu laedt oder spaeter zurueckkommt, koennte sonst
+    // nie mehr unterschreiben -- ein Vertrag, der am Zeitlimit einer URL
+    // scheitert.
     if (mandate.envelope_id) {
-      return json({ ok: true, already: true, envelope_id: mandate.envelope_id,
-                    mandate_id: mandate.id });
+      let frisch: string | null = null;
+      if (!mandate.customer_signed_at) {
+        try {
+          const appUrl = getPublicAppUrl();
+          frisch = await recipientView(cfg, {
+            envelopeId: mandate.envelope_id,
+            name: mandate.customer_signer_name || draft.contact_name || 'Auftraggeber',
+            email: mandate.customer_signer_email || draft.contact_email || '',
+            clientUserId: `client-${draftId}`,
+            returnUrl: `${appUrl}/aufnahme/unterschrift-fertig`,
+            frameAncestors: [appUrl, docusignAppOrigin(cfg)],
+            messageOrigins: [docusignAppOrigin(cfg)],
+          });
+        } catch (e) {
+          // Faellt fehl, wenn der Umschlag an einen Entscheider per Mail ging:
+          // dort gibt es keinen eingebetteten Empfaenger. Kein Fehlerfall --
+          // die Antwort sagt es dann ohne sign_url.
+          console.info('[docusign-send] keine eingebettete Ansicht:',
+            e instanceof Error ? e.message : e);
+        }
+      }
+      return json({
+        ok: true, already: true,
+        envelope_id: mandate.envelope_id,
+        mandate_id: mandate.id,
+        sign_url: frisch,
+        customer_signed: Boolean(mandate.customer_signed_at),
+        signer: {
+          self: Boolean(frisch),
+          name: mandate.customer_signer_name,
+          email: mandate.customer_signer_email,
+        },
+      });
     }
 
     // ---- Rahmenvertrag beschaffen -------------------------------------------
