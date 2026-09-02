@@ -283,29 +283,36 @@ serve(async (req) => {
     }
 
     // ---- Unterschriftsblock ------------------------------------------------
-    space(120);
+    space(150);
     y -= 24;
     rule();
     heading('Unterschriften');
-    y -= 8;
-    const sigY = y;
-    page.drawText('/sig1/', { x: MARGIN, y: sigY, size: 9, font, color: rgb(1, 1, 1) });
-    page.drawLine({ start: { x: MARGIN, y: sigY - 26 }, end: { x: MARGIN + 200, y: sigY - 26 },
-      thickness: 0.8, color: rgb(0.6, 0.62, 0.65) });
-    page.drawText('Auftraggeber', { x: MARGIN, y: sigY - 40, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
-    page.drawText(String(client.company_legal_name || client.company_name || ''), {
-      x: MARGIN, y: sigY - 52, size: 9, font, color: rgb(0.42, 0.45, 0.5),
-    });
 
-    const rightX = A4[0] / 2 + 20;
+    // Reichlich Luft zwischen Ueberschrift und Ankerpunkt. DocuSign setzt das
+    // Unterschriftsfeld NACH OBEN vom Anker weg -- steht der Anker direkt
+    // unter der Ueberschrift, deckt das Feld sie zu. Im ersten Testlauf
+    // ueberlappte es "Unterschriften" und "Auftraggeber".
+    y -= 52;
+    const sigY = y;
+
+    const unterschriftsfeld = (x: number, anker: string, rolle: string, partei: string) => {
+      // Der Anker sitzt auf Linienhoehe: das Feld steht darueber, wie bei
+      // einer Unterschrift auf Papier, die Beschriftung darunter.
+      page.drawText(anker, { x, y: sigY, size: 9, font, color: rgb(1, 1, 1) });
+      page.drawLine({ start: { x, y: sigY - 4 }, end: { x: x + 200, y: sigY - 4 },
+        thickness: 0.8, color: rgb(0.6, 0.62, 0.65) });
+      page.drawText(rolle, { x, y: sigY - 18, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
+      page.drawText(partei, { x, y: sigY - 30, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
+    };
+
+    unterschriftsfeld(MARGIN, '/sig1/', 'Auftraggeber',
+      String(client.company_legal_name || client.company_name || ''));
     // Zweiter Anker fuer die Gegenzeichnung. Ohne ihn haette DocuSign keinen
-    // Bezugspunkt fuer das zweite Unterschriftsfeld und setzte es nach
-    // Seitenkoordinaten -- die verrutschen, sobald der Vertragstext waechst.
-    page.drawText('/sig2/', { x: rightX, y: sigY, size: 9, font, color: rgb(1, 1, 1) });
-    page.drawLine({ start: { x: rightX, y: sigY - 26 }, end: { x: rightX + 200, y: sigY - 26 },
-      thickness: 0.8, color: rgb(0.6, 0.62, 0.65) });
-    page.drawText('Auftragnehmer', { x: rightX, y: sigY - 40, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
-    page.drawText(vendorName, { x: rightX, y: sigY - 52, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
+    // Bezugspunkt und setzte das Feld nach Seitenkoordinaten -- die
+    // verrutschen, sobald der Vertragstext waechst.
+    unterschriftsfeld(A4[0] / 2 + 20, '/sig2/', 'Auftragnehmer', vendorName);
+
+    y = sigY - 44;
 
     // Fusszeile auf jeder Seite
     const pages = pdf.getPages();

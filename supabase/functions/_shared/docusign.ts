@@ -204,12 +204,10 @@ export async function createEnvelope(c: DocuSignConfig, args: {
             anchorYOffset: '0',
             anchorIgnoreIfNotPresent: 'false',
           }],
-          dateSignedTabs: [{
-            anchorString: s.anchor,
-            anchorUnits: 'pixels',
-            anchorXOffset: '0',
-            anchorYOffset: '40',
-          }],
+          // Kein Datumsfeld am selben Anker: es landete auf der Beschriftung
+          // "Auftraggeber" und ueberdeckte sie. Der Zeitpunkt steht ohnehin im
+          // Abschlusszertifikat von DocuSign und in customer_signed_at -- ein
+          // kollidierendes Feld im Vertrag waere schlechter als keines.
         },
       })),
     },

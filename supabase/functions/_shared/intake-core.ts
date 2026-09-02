@@ -237,6 +237,9 @@ export async function logEvent(
  * Vertrag nie abschliessen.
  */
 export interface ContractState {
+  /** Sprechende Vorgangsnummer, MV-…. Ohne sie stuende nach einem Neuladen
+   *  "Vorgang ." auf der Seite -- ein Vertrag ohne Nummer. */
+  number: string | null;
   has_envelope: boolean;
   customer_signed: boolean;
   countersigned: boolean;
@@ -251,13 +254,14 @@ export async function contractState(
 ): Promise<ContractState | null> {
   const { data } = await supabase
     .from('commercial_mandates')
-    .select('envelope_id, customer_signed_at, countersigned_at, customer_signer_email, customer_signer_name')
+    .select('mandate_number, envelope_id, customer_signed_at, countersigned_at, customer_signer_email, customer_signer_name')
     .eq('draft_id', draftId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!data) return null;
   return {
+    number: data.mandate_number ?? null,
     has_envelope: Boolean(data.envelope_id),
     customer_signed: Boolean(data.customer_signed_at),
     countersigned: Boolean(data.countersigned_at),

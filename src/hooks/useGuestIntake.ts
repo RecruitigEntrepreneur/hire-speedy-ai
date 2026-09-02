@@ -115,6 +115,7 @@ export interface GuestDraft {
   };
   /** Stand des Vertragslaufs. Null, solange keiner existiert. */
   contract: {
+    number: string | null;
     has_envelope: boolean;
     customer_signed: boolean;
     countersigned: boolean;

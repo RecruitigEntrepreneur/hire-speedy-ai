@@ -209,7 +209,9 @@ export default function GuestIntake() {
 
   // ---- Eingereicht --------------------------------------------------------
   if (submitted || draft.states.review === 'pending_admin' || draft.states.review === 'accepted') {
-    const mandate = submitted?.mandate;
+    // Nach einem Neuladen ist submitted leer -- dann traegt der Entwurf die
+    // Nummer. Ohne das stand dort "Vorgang ." ohne Nummer.
+    const mandate = submitted?.mandate ?? draft.contract?.number ?? null;
     // Unterschrieben wird immer -- der Vertrag geht nach der Pruefung raus.
     const requiresSignature = true;
 
@@ -247,8 +249,7 @@ export default function GuestIntake() {
           <div className="w-full max-w-lg space-y-6">
             <MatchuntWordmark size="sm" className="justify-center" />
             <p className="text-center text-sm text-muted-foreground">
-              Ihre Anfrage ist eingegangen — Vorgang{' '}
-              <strong className="text-foreground">{mandate}</strong>.
+              Ihre Anfrage ist eingegangen{mandate ? <> — Vorgang <strong className="text-foreground">{mandate}</strong></> : null}.
             </p>
             <SignerChoice
               contactName={draft.contact_name}
@@ -270,9 +271,8 @@ export default function GuestIntake() {
             <div className="text-center">
               <h1 className="text-xl font-bold tracking-tight">Vertrag unterzeichnen</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Rahmenvertrag und Einzelauftrag in einem Durchgang. Vorgang{' '}
-                <strong className="text-foreground">{mandate}</strong>. Sie unterschreiben zuerst,
-                danach zeichnet Matchunt gegen.
+                Rahmenvertrag und Einzelauftrag in einem Durchgang{mandate ? <>, Vorgang <strong className="text-foreground">{mandate}</strong></> : null}.
+                Sie unterschreiben zuerst, danach zeichnet Matchunt gegen.
               </p>
             </div>
             <SignFrame url={signUrl} onDone={() => setSigned(true)} />
