@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { IntakeBriefing, type Answers, type BriefBuilt, type JobType } from '../IntakeBriefing';
 import { cn } from '@/lib/utils';
 import {
-  AlertTriangle, CheckCircle2, Circle, CircleDashed, HelpCircle, Loader2, Sparkles,
-} from 'lucide-react';
+  AlertTriangle, CheckCircle2, Circle, CircleDashed, HelpCircle, Loader2, Sparkles, ChevronDown } from 'lucide-react';
 
 export interface DynQuestion {
   id: string;
@@ -99,6 +98,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
   const [queue, setQueue] = useState<DynQuestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [freeText, setFreeText] = useState('');
+  const [kapitelOffen, setKapitelOffen] = useState(false);
   const [dismissedFlags, setDismissedFlags] = useState<string[]>([]);
   const probing = useRef(false);
 
@@ -189,28 +189,72 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
   return (
     <div className="space-y-3">
       {/* Kapitel-Fortschritt */}
+      {/* Fortschritt in EINER Zeile.
+          Vorher: elf Zeilen mit Symbol und Kapitelnamen -- mehr Platz fuer die
+          Orientierung als fuer die Frage, um die es geht. Die Kapitelnamen
+          sagen dem Kunden auch wenig; was zaehlt, ist wie weit er ist und wo
+          er gerade steht. Wer die Liste sehen will, klappt sie auf. */}
       {state.chapterProgress.length > 0 && (
-        <div className="rounded-xl border bg-card p-3">
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Briefing · {state.completeness}% vollständig</p>
-          <div className="space-y-0.5">
-            {state.chapterProgress.map((c) => {
-              const Icon = stateIcon(c.state);
-              return (
-                <div
-                  key={c.chapter}
-                  className={cn('flex items-center gap-2 text-xs', c.state === 'open' ? 'text-muted-foreground' : '')}
-                >
-                  <Icon
-                    className={cn(
-                      'h-3.5 w-3.5 shrink-0',
-                      c.state === 'done' ? 'text-emerald-500' : c.state === 'partial' ? 'text-primary' : 'text-muted-foreground/40',
-                    )}
-                  />
-                  <span className={cn(c.state === 'skipped' && 'line-through opacity-60')}>{c.chapter}</span>
-                </div>
-              );
-            })}
+        <div className="rounded-xl border bg-card px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setKapitelOffen((v) => !v)}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            <span className="text-xs font-medium text-muted-foreground">
+              Briefing · {state.completeness}%
+            </span>
+            {current?.chapter && (
+              <span className="truncate text-xs text-foreground">{current.chapter}</span>
+            )}
+            <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
+              {state.chapterProgress.filter((c) => c.state === 'done').length}/
+              {state.chapterProgress.length}
+              <ChevronDown className={cn('h-3 w-3 transition-transform', kapitelOffen && 'rotate-180')} />
+            </span>
+          </button>
+
+          {/* Ein Segment je Kapitel. Der Name steht im title -- sichtbar auf
+              Wunsch, nicht dauerhaft im Weg. */}
+          <div className="mt-1.5 flex gap-0.5">
+            {state.chapterProgress.map((c) => (
+              <span
+                key={c.chapter}
+                title={`${c.chapter} — ${
+                  c.state === 'done' ? 'vollständig'
+                  : c.state === 'partial' ? 'teilweise'
+                  : c.state === 'skipped' ? 'übersprungen' : 'offen'}`}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full',
+                  c.state === 'done' ? 'bg-emerald-500'
+                  : c.state === 'partial' ? 'bg-primary'
+                  : c.state === 'skipped' ? 'bg-muted-foreground/20'
+                  : 'bg-muted',
+                )}
+              />
+            ))}
           </div>
+
+          {kapitelOffen && (
+            <div className="mt-2 space-y-0.5 border-t pt-2">
+              {state.chapterProgress.map((c) => {
+                const Icon = stateIcon(c.state);
+                return (
+                  <div key={c.chapter} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Icon
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0',
+                        c.state === 'done' ? 'text-emerald-500'
+                        : c.state === 'partial' ? 'text-primary'
+                        : 'text-muted-foreground/40',
+                      )}
+                    />
+                    <span className={cn(c.state === 'skipped' && 'line-through opacity-60')}>{c.chapter}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
