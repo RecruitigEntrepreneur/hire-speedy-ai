@@ -86,7 +86,12 @@ serve(async (req) => {
       return fail('invalid',
         'Bitte wählen Sie zuerst eines der drei Pakete aus.');
     }
-    if (!['verified', 'needs_review'].includes(draft.company_state)) {
+    // Gelaufen, nicht zugestimmt. Ein 'failed' entsteht schon bei einer
+    // USt-IdNr., die nicht zum Laendermuster passt -- also bei einem Tippfehler.
+    // Den Kunden daran endgueltig scheitern zu lassen, hiesse die automatische
+    // Pruefung entscheiden zu lassen. Sie liefert einen Bericht; entschieden
+    // wird im Admin-Bereich.
+    if (['not_checked', 'checking'].includes(draft.company_state)) {
       return fail('conflict',
         'Die Prüfung Ihrer Firmenangaben läuft noch. Bitte versuchen Sie es in einem Moment erneut.');
     }

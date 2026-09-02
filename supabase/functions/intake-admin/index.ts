@@ -292,6 +292,29 @@ serve(async (req) => {
           + '(Kunde zuerst, Matchunt zuletzt).');
     }
 
+    // ---- Firmenangaben trotz Befunden freigeben -----------------------------
+    // Der Gegenpol zur automatischen Pruefung: sie stellt fest, ein Mensch
+    // entscheidet. Ohne diesen Weg waere ein 'failed' eine Sackgasse.
+    if (action === 'clear_company') {
+      const { error } = await supabase.from('intake_drafts')
+        .update({
+          company_state: 'verified',
+          company_cleared_at: new Date().toISOString(),
+          company_cleared_by: adminId,
+          admin_note: [draft.admin_note,
+                       `Firmenangaben trotz Befunden freigegeben: ${String(body?.note ?? '—').slice(0, 500)}`]
+            .filter(Boolean).join('\n\n').slice(0, 4000),
+        })
+        .eq('id', draftId);
+      if (error) return fail('internal_error', error.message);
+
+      await logEvent(supabase, {
+        type: 'company_verified', linkId: draft.link_id, draftId, actorUserId: adminId,
+        meta: { manual: true },
+      });
+      return json({ ok: true });
+    }
+
     if (action === 'assign_owner') {
       const owner = body?.owner_user_id ?? null;
       const { error } = await supabase

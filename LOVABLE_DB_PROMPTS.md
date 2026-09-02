@@ -479,6 +479,137 @@ Ein Feature, das Links per E-Mail verteilt, sollte nicht davor live gehen.
 
 ---
 
+## Prompt 9 — Nachlauf der Aufnahme (Drei-Paket-Modell, Verträge, Abrechnung)
+
+Sieben Migrationen, in dieser Reihenfolge. Sie bauen aufeinander auf: 9b braucht die
+Pakettabelle aus 9a, 9c die Rahmenvertragstabelle aus 9b, und 9g füllt die Vertragstexte,
+ohne die 9b und 9c zwar stehen, aber jede Anfrage mit „not_deployed" abbricht.
+
+Geprüft: alle sieben laufen von Null auf eine frische Postgres-17-Datenbank durch
+(153 Migrationen des Repos, dieselben 10 vorbestehenden Ausfälle wie davor), danach
+72 pgTAP-Tests grün.
+
+### 9a — Die drei Pakete
+
+```
+Führe die Migration supabase/migrations/20260902100000_commercial_packages.sql aus.
+```
+
+Legt `commercial_packages` an und füllt Core (20 %), Continuity 90 (23 %) und
+Continuity 180 (26 %). Beide Verteilungsinvarianten stehen als CHECK, ein viertes Paket
+ist nicht anlegbar. Dazu die View `commercial_packages_public`, die dem Kunden Honorarsatz
+und Fristen zeigt, aber Recruiter-Anteil, Marge, Einbehalt und Auslobung nicht führt.
+
+### 9b — Rahmenvertrag und Einzelauftrag
+
+```
+Führe die Migration supabase/migrations/20260902100100_framework_and_assignment.sql aus.
+```
+
+`contract_templates` (Vertragstexte zentral, mit dem Bluewater-&-Bridge-Block),
+`client_framework_agreements` (Rahmenvertrag, einer je Kunde), und der Umbau von
+`commercial_mandates` zum Einzelauftrag mit Paket, Preis-Snapshot und beiden
+Unterschriften. Schaltet das Bandmodell ab: der Trigger `trg_intake_links_fee_band`
+fällt weg, abweichende Prozentsätze am Link werden auf NULL gesetzt.
+
+### 9c — Prozesszustände und Veröffentlichungssperre
+
+```
+Führe die Migration supabase/migrations/20260902100200_intake_process_states.sql aus.
+```
+
+Firmenprüfung als eigene Spur, Paketwahl am Entwurf, `company_verification_reports`,
+`intake_clarifications`. Und die **schärfere Veröffentlichungssperre**: bisher genügte
+`signature_status = 'signed'`, jetzt müssen Einzelauftrag angenommen, vom Kunden
+unterzeichnet und von Matchunt gegengezeichnet sein — plus ein wirksamer Rahmenvertrag.
+
+Setzt `commercial_state = 'discussion_requested'` auf `'not_started'` zurück, bevor die
+Constraint enger wird. Ohne diesen Schritt würde die Migration bei jedem Kunden scheitern,
+der auf „Konditionen besprechen" gedrückt hat.
+
+### 9d — Abrechnung, Continuity, Ersatzsuche
+
+```
+Führe die Migration supabase/migrations/20260902100300_placement_settlement.sql aus.
+```
+
+`placements` bekommt Paket, Abrechnungsgrundlage, Fristen und fünf getrennte
+Statusspuren. Dazu `continuity_claims`, `research_assignments`,
+`recruiter_payout_tranches` und die fehlenden Felder an `invoices`.
+
+### 9e — Fix: jedes UPDATE auf `placements` scheitert
+
+```
+Führe die Migration supabase/migrations/20260902100400_fix_log_activity_missing_status.sql aus.
+```
+
+**Das ist ein Fehler im Bestand, kein Teil des neuen Features.** `log_activity` liest im
+UPDATE-Zweig ungeprüft `OLD.status`. `placements` hat keine solche Spalte — sie heißt dort
+`payment_status`. Folge: jedes Update auf `placements` bricht ab, auch „als bezahlt
+markieren" in AdminPlacements. Steckt seit `20251212185019` im Code.
+
+Diese Migration ist unabhängig von den übrigen und kann auch allein gefahren werden.
+
+### 9f — Ereignistypen für den Trichter
+
+```
+Führe die Migration supabase/migrations/20260902100500_intake_event_types.sql aus.
+```
+
+Firmenprüfung, Rückfragen, Freigabe zur Unterschrift und Gegenzeichnung bekommen eigene
+Typen. `contract_signed` (Kunde) und `contract_countersigned` (Matchunt) bleiben getrennt:
+dazwischen liegt unsere eigene Bearbeitungszeit, und die will man im Trichter sehen.
+
+### 9g — Die Vertragstexte
+
+```
+Führe die Migration supabase/migrations/20260902100600_seed_contract_templates.sql aus.
+```
+
+Rahmenvertrag und Einzelauftrag im Volltext. **Ohne diesen Schritt scheitert jede
+Beauftragungsanfrage** — `intake-submit` und `contract-admin` verlangen beide eine aktive
+Fassung.
+
+### 9h — Edge Functions
+
+Neu zu deployen:
+
+- `intake-packages` (`verify_jwt = false`) — die drei Pakete zeigen und wählen
+- `verify-company` (`verify_jwt = true`) — Firmenprüfung
+- `contract-admin` (`verify_jwt = true`) — der zweistufige Unterschriftslauf
+- `intake-clarify` (`verify_jwt = false`) — Rückfragen
+
+Neu zu deployen, weil geändert:
+
+- `intake-submit`, `intake-start`, `intake-draft`, `intake-verify-email`, `intake-admin`
+- `_shared/intake-core.ts`, `_shared/app-url.ts` (von mehreren Functions genutzt)
+
+**Zu entfernen: `intake-terms`.** Sie ist abgelöst. Bleibt sie deployt, schlägt ihre
+Aktion `request_discussion` an der neuen Constraint fehl — das ist ungefährlich, aber
+unnötig.
+
+### 9i — Frontend
+
+Neuer Schritt „Paket" statt „Konditionen" im Gastfluss, neue Antwortseite unter
+`/aufnahme/rueckfrage/:token`, Vertragsbereich und Prüfbericht im Admin.
+
+### Reihenfolge und Risiko
+
+**9a → 9b → 9c → 9d → 9e → 9f → 9g → 9h → 9i.** Die Reihenfolge ist nicht optional:
+9b legt Fremdschlüssel auf die Pakettabelle aus 9a, 9c schärft die Sperre auf die
+Tabellen aus 9b, und 9g füllt Texte in die Tabelle aus 9b.
+
+**Zwischen 9c und 9h liegt ein Fenster**, in dem die alte `intake-terms` noch deployt ist,
+`discussion_requested` aber schon verboten. Ein Kunde, der in diesem Fenster auf
+„Konditionen besprechen" drückt, bekommt einen Fehler. Das Fenster ist harmlos, aber es
+spricht dafür, 9h zügig nach 9c zu fahren.
+
+**Nach 9g, vor 9i:** Der Gastfluss verlangt ab 9c eine Paketwahl. Entwürfe, die vorher
+begonnen wurden und schon `pending_admin` sind, bleiben davon unberührt — die Constraint
+greift nur bei neuen Übergängen.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

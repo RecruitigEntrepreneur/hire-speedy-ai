@@ -340,7 +340,14 @@ export default function AdminIntakeDetail() {
                     Veröffentlichung zu (jobs_guard_privileged_columns). Die
                     Reihenfolge steht in Triggern, nicht in dieser Oberfläche;
                     hier wird sie nur sichtbar gemacht. */}
-                <VerificationPanel report={data.verification} state={data.draft.company_state} />
+                <VerificationPanel
+                  report={data.verification}
+                  state={data.draft.company_state}
+                  clearedAt={data.draft.company_cleared_at}
+                  busy={action.isPending}
+                  onClear={(note) => run({ action: 'clear_company', note },
+                                         'Firmenangaben freigegeben.')}
+                />
 
                 <ClarificationPanel
                   items={data.clarifications}
@@ -793,7 +800,16 @@ function SignatureSteps({
  * Knopf „annehmen", sondern nur, was gefunden wurde. Angenommen wird oben,
  * durch einen Menschen, der das hier gelesen hat.
  */
-function VerificationPanel({ report, state }: { report: Record<string, any> | null; state: string }) {
+function VerificationPanel({
+  report, state, clearedAt, busy, onClear,
+}: {
+  report: Record<string, any> | null;
+  state: string;
+  clearedAt: string | null;
+  busy: boolean;
+  onClear: (note: string) => Promise<boolean>;
+}) {
+  const [freigabeNotiz, setFreigabeNotiz] = useState('');
   const label: Record<string, string> = {
     not_checked: 'noch nicht geprüft', checking: 'Prüfung läuft',
     verified: 'ohne Auffälligkeiten', needs_review: 'Abweichungen gefunden',
@@ -869,6 +885,28 @@ function VerificationPanel({ report, state }: { report: Record<string, any> | nu
             <p className="text-xs text-muted-foreground">
               Der Bericht ist eine Empfehlung, keine Entscheidung. Angenommen wird oben.
             </p>
+
+            {/* Der Gegenpol zur automatischen Prüfung. Ohne ihn wäre ein
+                „failed" eine Sackgasse — und ein failed entsteht schon bei
+                einer vertippten Umsatzsteuernummer. */}
+            {state !== 'verified' && (
+              <div className="space-y-2 border-t pt-3">
+                <Label className="text-xs text-muted-foreground">
+                  Trotz Befunden freigeben — mit Begründung
+                </Label>
+                <Input value={freigabeNotiz} onChange={(e) => setFreigabeNotiz(e.target.value)}
+                  placeholder="z. B. telefonisch bestätigt, Handelsregisterauszug liegt vor" />
+                <Button size="sm" variant="outline" disabled={busy || !freigabeNotiz.trim()}
+                  onClick={() => void onClear(freigabeNotiz.trim())}>
+                  Firmenangaben freigeben
+                </Button>
+              </div>
+            )}
+            {clearedAt && (
+              <p className="text-xs text-muted-foreground">
+                Manuell freigegeben am {fmt(clearedAt)}.
+              </p>
+            )}
           </>
         )}
       </CardContent>
