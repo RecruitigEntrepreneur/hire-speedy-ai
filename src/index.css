@@ -38,7 +38,11 @@
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 15%;
-    --input: 0 0% 15%;
+    /* Getrennt von --border: Trennlinien duerfen zurueckhaltend bleiben,
+       Bedienelemente muessen sich abheben. Bei 15 % lag der Rahmen eines
+       outline-Knopfes auf 4-%-Grund bei einem Kontrast von 1,3 -- unter dem,
+       was fuer Bedienelemente zumutbar ist. */
+    --input: 0 0% 26%;
     --ring: 0 0% 64%;
 
     --radius: 0.5rem;

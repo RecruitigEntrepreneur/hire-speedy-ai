@@ -74,7 +74,11 @@ interface Props {
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
-type EntryMode = 'confirm' | 'choose' | 'paste' | 'url';
+// 'choose' ist der Normalzustand vor dem ersten Profil -- start() setzt ihn
+// selbst. 'reselect' ist etwas anderes: der bewusste Rueckweg aus dem Editor
+// zur Startauswahl. Beides in einen Wert zu legen hiesse, den Rueckweg nicht
+// vom Ausgangszustand unterscheiden zu koennen.
+type EntryMode = 'confirm' | 'choose' | 'reselect' | 'paste' | 'url';
 
 export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
@@ -223,8 +227,11 @@ export function CaptureStep({
   // Vorher war hier eine leere Textarea. Sie hat die Vorbelegung des
   // persönlichen Links verschenkt und Arbeit verlangt, bevor irgendetwas
   // Sichtbares passiert war — genau der Punkt, an dem Leute abspringen.
-  if (!built || entryMode === 'paste' || entryMode === 'url') {
-    const showEntry = !built;
+  if (!built || entryMode === 'reselect' || entryMode === 'paste' || entryMode === 'url') {
+    // 'reselect' zeigt die Auswahl auch dann, wenn schon ein Profil begonnen
+    // wurde -- der Rueckweg aus dem Editor. Ohne diesen Fall klickte der Knopf
+    // "Zurueck zur Auswahl" ins Leere.
+    const showEntry = !built || entryMode === 'reselect';
 
     // Zurück zum begonnenen Profil, statt es unerreichbar zu machen.
     const backToProfile = built ? (
@@ -454,16 +461,21 @@ export function CaptureStep({
               ? `${dyn.answers.length} beantwortet${dyn.chapterProgress.filter((c) => c.state === 'open').length ? ` · ${dyn.chapterProgress.filter((c) => c.state === 'open').length} Kapitel offen` : ''}`
               : `${staticProg.open} von ${staticProg.totalQ} Fragen offen`}
           </span>
-          {/* Der Rückweg. Vorher war der Einstieg nach dem ersten Klick
-              unerreichbar: wer versehentlich „ohne Vorlage" wählte, tippte den
-              Rest von Hand. Das Profil bleibt dabei erhalten. */}
-          <button
+          {/* Der Rückweg zur Startauswahl. „Anzeige doch einfügen" stand hier
+              vorher allein und als unauffälliger Link — der Wortlaut sagte
+              nicht, dass man damit zurückkommt, und wer versehentlich „ohne
+              Vorlage" gewählt hatte, tippte den Rest von Hand.
+              Das Profil bleibt in beiden Fällen erhalten. */}
+          <Button
             type="button"
-            onClick={() => setEntryMode('paste')}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 text-xs"
+            onClick={() => setEntryMode('reselect')}
           >
-            Anzeige doch einfügen
-          </button>
+            <ArrowLeft className="h-3 w-3" />
+            Zurück zur Auswahl
+          </Button>
         </div>
       </div>
 

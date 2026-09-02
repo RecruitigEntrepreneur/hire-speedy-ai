@@ -133,7 +133,15 @@ export default function GuestIntake() {
   const reachable = useMemo(() => {
     if (!draft) return ['capture'];
     const out: string[] = ['capture'];
-    if (draft.built || draft.contact_name) out.push('contact');
+    // Nicht "existiert ein Entwurf", sondern "steht etwas drin". Nach
+    // "Von Hand beschreiben" existierte built als leeres Geruest -- damit
+    // liess sich Schritt 1 ueberspringen und man kam mit einer voellig leeren
+    // Position bis zur Anfrage. Der Jobtitel ist die kleinste Angabe, mit der
+    // ein Recruiter etwas anfangen kann.
+    const hatPosition = Boolean(
+      String(draft.built?.title ?? draft.title ?? '').trim()
+    );
+    if (hatPosition || draft.contact_name) out.push('contact');
     if (draft.states.identity !== 'anonymous') out.push('verify');
     if (draft.states.identity === 'email_verified') out.push('packages');
     if (draft.states.commercial === 'confirmed') out.push('summary');

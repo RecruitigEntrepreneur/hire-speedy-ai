@@ -427,7 +427,13 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
                 onClick={() => (q.multi ? toggleMulti(chip) : set({ value: chip }))}
                 className={cn(
                   'rounded-full border px-3 py-1.5 text-sm transition-colors',
-                  active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:border-primary/40 hover:bg-primary/5',
+                  // bg-background war exakt die Seitenfarbe und border-border
+                  // die zurueckhaltende Trennlinie -- die Antwortmoeglichkeiten
+                  // lasen sich dadurch als Text statt als Auswahl. Gemessen:
+                  // Flaeche 1,00 und Rahmen 1,31 gegen den Hintergrund.
+                  active
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-input bg-secondary/60 hover:border-primary/40 hover:bg-primary/10',
                 )}
               >
                 {chip}
