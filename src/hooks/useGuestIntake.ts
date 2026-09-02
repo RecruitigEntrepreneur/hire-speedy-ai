@@ -393,6 +393,9 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       const res = await withToken<{
         ok: boolean; review_state: string; mandate_number: string;
         confirmation_sent: boolean; requires_signature: boolean; draft: GuestDraft;
+        /** Eingebettete Unterschriftsansicht. Null, wenn DocuSign nicht
+         *  erreichbar war — die Anfrage ist dann trotzdem eingegangen. */
+        sign_url: string | null;
       }>('intake-submit', { accept_terms: true, accept_agb: true, signer_name: signerName });
       if (!isFailure(res) && res.draft) {
         setState((s) => ({ ...s, draft: res.draft, locked: true }));

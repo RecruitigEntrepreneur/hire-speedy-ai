@@ -318,3 +318,17 @@ verify_jwt = true
 # ('ask', 'resolve', 'withdraw') pruefen die Rolle deshalb serverseitig selbst.
 [functions.intake-clarify]
 verify_jwt = false
+
+# --- DocuSign (02.09.2026) ---------------------------------------------------
+# Versand des Vertrags unmittelbar nach der Beauftragungsanfrage. Kein
+# Gastzugriff ohne Entwurfs-Token: die Function prueft Service-Rolle, Admin
+# oder ein gueltiges Token fuer GENAU diese Aufnahme.
+[functions.docusign-send]
+verify_jwt = false
+
+# Connect-Ereignisse von DocuSign. verify_jwt aus, weil DocuSign kein
+# Supabase-Token mitschickt -- die Echtheit wird ueber die HMAC-Signatur
+# geprueft (DOCUSIGN_HMAC_KEY), und ohne gueltige Signatur wird nichts
+# verarbeitet.
+[functions.docusign-webhook]
+verify_jwt = false

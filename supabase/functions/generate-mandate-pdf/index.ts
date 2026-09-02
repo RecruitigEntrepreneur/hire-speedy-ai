@@ -1,8 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { preflight, json, fail } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
-import { requireAdmin } from '../_shared/admin-auth.ts';
+import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 
 /**
@@ -37,25 +38,57 @@ serve(async (req) => {
 
   try {
     const supabase = serviceClient();
-    const admin = await requireAdmin(req, supabase);
-    if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
+    // Zwei Aufrufer: ein angemeldeter Admin, und unser eigenes Backend --
+    // docusign-send braucht das Dokument, hat aber keine Admin-Sitzung.
+    if (!isServiceRole(req)) {
+      const admin = await requireAdmin(req, supabase);
+      if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
+    }
 
     const body = await req.json().catch(() => ({}));
     const mandateId = String(body?.mandate_id ?? '');
-    if (!mandateId) return fail('invalid_request', 'mandate_id fehlt.');
+    const frameworkId = String(body?.framework_id ?? '');
+    if (!mandateId && !frameworkId) {
+      return fail('invalid_request', 'mandate_id oder framework_id fehlt.');
+    }
 
-    const { data: m, error } = await supabase
-      .from('commercial_mandates').select('*').eq('id', mandateId).maybeSingle();
+    // Zwei Dokumentarten, EIN Generator. Ein zweiter waere ein zweites Layout
+    // fuer denselben Vertragslauf -- und damit zwei Wahrheiten darueber, wie
+    // ein Matchunt-Vertrag aussieht.
+    const istRahmen = Boolean(frameworkId);
+
+    const { data: m, error } = istRahmen
+      ? await supabase.from('client_framework_agreements').select('*').eq('id', frameworkId).maybeSingle()
+      : await supabase.from('commercial_mandates').select('*').eq('id', mandateId).maybeSingle();
     if (error) return fail('internal_error', error.message);
     if (!m) return fail('not_found', 'Vereinbarung nicht gefunden.');
-    if (!m.client_confirmed_at) {
+    if (!istRahmen && !m.client_confirmed_at) {
       return fail('conflict', 'Die Konditionen wurden vom Kunden noch nicht bestätigt.');
     }
+
+    // Die sprechende Nummer -- MV-… beim Einzelauftrag, RV-… beim Rahmenvertrag.
+    const nummer = istRahmen ? m.agreement_number : m.mandate_number;
 
     const snap = (m.snapshot ?? {}) as Record<string, any>;
     const client = (snap.client ?? {}) as Record<string, any>;
     const position = (snap.position ?? {}) as Record<string, any>;
-    const terms = (snap.terms ?? {}) as Record<string, any>;
+    // Seit dem Drei-Paket-Modell traegt der Snapshot 'package' und 'contract'
+    // statt 'terms'. Die alte Form bleibt als Rueckfallebene: Auftraege aus der
+    // Zeit davor muessen weiter ein richtiges Dokument ergeben.
+    const pkg = (snap.package ?? {}) as Record<string, any>;
+    const contract = (snap.contract ?? {}) as Record<string, any>;
+    const legacy = (snap.terms ?? {}) as Record<string, any>;
+    const terms = {
+      fee_percentage:     pkg.fee_percentage     ?? legacy.fee_percentage,
+      fee_basis:          pkg.fee_basis          ?? legacy.fee_basis,
+      payment_terms_days: pkg.payment_terms_days ?? legacy.payment_terms_days,
+      continuity_days:    pkg.continuity_days    ?? null,
+      claim_notice_days:  pkg.claim_notice_days  ?? null,
+      package_name:       pkg.name               ?? legacy.label,
+      body_md:            contract.body_md       ?? legacy.body_md,
+      vat_note:           legacy.vat_note
+        ?? 'Alle Beträge verstehen sich zzgl. der gesetzlichen Umsatzsteuer.',
+    } as Record<string, any>;
     const agb = (snap.agb ?? {}) as Record<string, any>;
 
     // Der Vertragspartner. Matchunt ist eine Marke der Bluewater & Bridge GmbH;
@@ -140,9 +173,10 @@ serve(async (req) => {
     // Kopf
     write('Matchunt', { size: 9, bold: true, color: [0.42, 0.45, 0.5] });
     y -= 6;
-    write('Vermittlungsvereinbarung', { size: 18, bold: true });
+    write(istRahmen ? 'Rahmenvertrag über Personalvermittlung'
+                    : 'Einzelauftrag zur Personalvermittlung', { size: 18, bold: true });
     y -= 4;
-    write(`Vorgangsnummer ${m.mandate_number}`, { size: 10, color: [0.42, 0.45, 0.5] });
+    write(`Vorgangsnummer ${nummer}`, { size: 10, color: [0.42, 0.45, 0.5] });
     rule();
 
     heading('Vertragsparteien');
@@ -162,6 +196,7 @@ serve(async (req) => {
     if (client.contact_phone) row('Telefon', client.contact_phone);
 
     rule();
+    if (!istRahmen) {
     heading('Gegenstand');
     row('Position', position.title || '—');
     if (position.location) row('Standort', position.location);
@@ -174,13 +209,17 @@ serve(async (req) => {
 
     rule();
     heading('Konditionen');
-    row(
-      'Erfolgshonorar',
-      `${eur(terms.fee_percentage)} % ${terms.fee_basis === 'annual_target_salary' ? 'des Zieljahresgehalts' : 'des Jahresbruttogehalts'}`,
-    );
+    if (terms.package_name) row('Paket', String(terms.package_name));
+    row('Erfolgshonorar', `${eur(terms.fee_percentage)} % des Bruttojahreszielgehalts`);
     row('Fällig', 'ausschließlich im Erfolgsfall, mit Unterzeichnung des Anstellungsvertrags');
     row('Zahlungsziel', `${terms.payment_terms_days ?? 14} Tage netto ohne Abzug`);
-    if (terms.guarantee_days) row('Nachbesetzung', `${terms.guarantee_days} Tage`);
+    // Bewusst kein Euro-Betrag: die Bemessungsgrundlage steht erst mit dem
+    // unterzeichneten Arbeitsvertrag fest. Eine Zahl hier waere eine Zusage,
+    // die wir spaeter korrigieren muessten.
+    if (terms.continuity_days) {
+      row('Erneuter Suchlauf', `einmalig, bei Ausscheiden in den ersten ${terms.continuity_days} Tagen`);
+      row('Meldefrist', `${terms.claim_notice_days ?? 14} Tage ab Kenntnis`);
+    }
     row('Fixkosten', 'keine — kein Retainer, keine Grundgebühr');
     if (terms.vat_note) { y -= 4; write(String(terms.vat_note), { size: 9, color: [0.42, 0.45, 0.5] }); }
 
@@ -190,9 +229,11 @@ serve(async (req) => {
       write(String(terms.refund_rule), { size: 10 });
     }
 
+    }   // Ende der Bloecke, die es nur beim Einzelauftrag gibt
+
     if (terms.body_md) {
       rule();
-      heading('Vereinbarte Konditionen im Wortlaut');
+      heading('Vertragstext');
       // Markdown-Auszeichnung entfernen: das PDF setzt seine eigene Typografie.
       write(String(terms.body_md).replace(/^#+\s*/gm, '').replace(/\*\*/g, ''), { size: 10 });
     }
@@ -206,15 +247,40 @@ serve(async (req) => {
 
     rule();
     heading('Zustandekommen und Nachweis');
-    write(
-      `Der Auftraggeber hat die vorstehenden Konditionen am ${date(m.client_confirmed_at)} elektronisch bestätigt und damit die Beauftragung angefragt. Bestätigt durch ${client.signer_name ?? client.contact_name ?? '—'} (${m.client_confirmed_email ?? '—'}).`,
-      { size: 10 },
-    );
-    y -= 4;
-    write(
-      `Der Auftragnehmer hat die Beauftragung am ${date(m.accepted_at)} angenommen. Prüfsumme des bestätigten Konditionsstands (SHA-256): ${m.snapshot_sha256}.`,
-      { size: 9, color: [0.42, 0.45, 0.5] },
-    );
+    if (istRahmen) {
+      write(
+        'Dieser Rahmenvertrag kommt mit der Unterzeichnung durch beide Parteien zustande. '
+        + 'Er begründet keine Pflicht, Positionen zu beauftragen; die einzelne Beauftragung '
+        + 'erfolgt durch gesonderten Einzelauftrag.',
+        { size: 10 },
+      );
+      y -= 4;
+      write(`Prüfsumme des Vertragsstands (SHA-256): ${m.snapshot_sha256}.`,
+        { size: 9, color: [0.42, 0.45, 0.5] });
+    } else {
+      write(
+        `Der Auftraggeber hat die vorstehenden Konditionen am ${date(m.client_confirmed_at)} elektronisch bestätigt und damit die Beauftragung angefragt. Bestätigt durch ${client.signer_name ?? client.contact_name ?? '—'} (${m.client_confirmed_email ?? '—'}).`,
+        { size: 10 },
+      );
+      y -= 4;
+      // Die Annahme steht hier nur, wenn sie schon erfolgt ist. Geht der
+      // Vertrag unmittelbar nach der Anfrage zur Unterschrift raus, ist sie es
+      // noch nicht -- dann waere "angenommen am —" eine Falschaussage im
+      // Vertragsdokument. Die Annahme erfolgt in diesem Fall mit der
+      // Gegenzeichnung, und die steht ohnehin darunter.
+      if (m.accepted_at) {
+        write(
+          `Der Auftragnehmer hat die Beauftragung am ${date(m.accepted_at)} angenommen. Prüfsumme des bestätigten Konditionsstands (SHA-256): ${m.snapshot_sha256}.`,
+          { size: 9, color: [0.42, 0.45, 0.5] },
+        );
+      } else {
+        write(
+          'Die Annahme durch den Auftragnehmer erfolgt mit dessen Gegenzeichnung. '
+          + `Prüfsumme des bestätigten Konditionsstands (SHA-256): ${m.snapshot_sha256}.`,
+          { size: 9, color: [0.42, 0.45, 0.5] },
+        );
+      }
+    }
 
     // ---- Unterschriftsblock ------------------------------------------------
     space(120);
@@ -232,6 +298,10 @@ serve(async (req) => {
     });
 
     const rightX = A4[0] / 2 + 20;
+    // Zweiter Anker fuer die Gegenzeichnung. Ohne ihn haette DocuSign keinen
+    // Bezugspunkt fuer das zweite Unterschriftsfeld und setzte es nach
+    // Seitenkoordinaten -- die verrutschen, sobald der Vertragstext waechst.
+    page.drawText('/sig2/', { x: rightX, y: sigY, size: 9, font, color: rgb(1, 1, 1) });
     page.drawLine({ start: { x: rightX, y: sigY - 26 }, end: { x: rightX + 200, y: sigY - 26 },
       thickness: 0.8, color: rgb(0.6, 0.62, 0.65) });
     page.drawText('Auftragnehmer', { x: rightX, y: sigY - 40, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
@@ -240,7 +310,7 @@ serve(async (req) => {
     // Fusszeile auf jeder Seite
     const pages = pdf.getPages();
     pages.forEach((p, i) => {
-      p.drawText(`${m.mandate_number} · Seite ${i + 1} von ${pages.length}`, {
+      p.drawText(`${nummer} · Seite ${i + 1} von ${pages.length}`, {
         x: MARGIN, y: 32, size: 8, font, color: rgb(0.6, 0.62, 0.65),
       });
     });
@@ -248,7 +318,7 @@ serve(async (req) => {
     const bytes = await pdf.save();
 
     // ---- Ablegen -----------------------------------------------------------
-    const path = `${m.id}/${m.mandate_number}.pdf`;
+    const path = `${m.id}/${nummer}.pdf`;
     const { error: upErr } = await supabase.storage
       .from('mandate-documents')
       .upload(path, bytes, { contentType: 'application/pdf', upsert: true });
@@ -265,7 +335,7 @@ serve(async (req) => {
     const documentSha = Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
-    await supabase.from('commercial_mandates')
+    await supabase.from(istRahmen ? 'client_framework_agreements' : 'commercial_mandates')
       .update({ document_path: path, document_sha256: documentSha }).eq('id', m.id);
 
     const { data: signed } = await supabase.storage
@@ -274,10 +344,18 @@ serve(async (req) => {
     return json({
       ok: true,
       path,
+      // Nur auf ausdrueckliche Anforderung und nur fuer das eigene Backend:
+      // docusign-send haengt die Bytes an den Umschlag, ein zweiter Download
+      // ueber eine signierte URL waere ein unnoetiger Umweg mit eigener
+      // Fehlerquelle.
+      base64: body?.include_base64 && isServiceRole(req)
+        ? encodeBase64(bytes)
+        : undefined,
+      sha256: documentSha,
       // 30 Minuten: lang genug zum Herunterladen und in DocuSign hochladen,
       // kurz genug, dass eine weitergegebene URL wertlos wird.
       url: signed?.signedUrl ?? null,
-      mandate_number: m.mandate_number,
+      number: nummer,
       pages: pages.length,
     });
   } catch (e) {

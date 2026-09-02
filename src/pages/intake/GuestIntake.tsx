@@ -50,7 +50,7 @@ export default function GuestIntake() {
   const [forwardOpen, setForwardOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
   const [knownCompany, setKnownCompany] = useState<{ name: string } | null>(null);
-  const [submitted, setSubmitted] = useState<{ mandate: string; requiresSignature: boolean; mailSent: boolean } | null>(null);
+  const [submitted, setSubmitted] = useState<{ mandate: string; requiresSignature: boolean; mailSent: boolean; signUrl: string | null } | null>(null);
 
   const draft = state.draft;
 
@@ -220,13 +220,31 @@ export default function GuestIntake() {
                 <strong className="text-foreground">{capture?.built?.title ?? draft.title ?? 'Ihre Position'}</strong>.
               </p>
 
+              {/* Liegt eine Unterschriftsansicht vor, ist sie der naechste
+                  Schritt — nicht eine Mail, die vielleicht im Spam landet.
+                  Fehlt sie (DocuSign nicht erreichbar), sagt die Seite das
+                  ehrlich, statt auf etwas zu verweisen, das nicht kommt. */}
+              {submitted?.signUrl && (
+                <div className="mt-6 space-y-3">
+                  <Button asChild className="w-full" size="lg">
+                    <a href={submitted.signUrl}>
+                      <FileSignature className="mr-2 h-4 w-4" /> Vertrag jetzt unterzeichnen
+                    </a>
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Rahmenvertrag und Einzelauftrag in einem Durchgang. Sie können auch später
+                    unterschreiben — den Link erhalten Sie zusätzlich per E-Mail.
+                  </p>
+                </div>
+              )}
+
               <div className="mt-6 space-y-3 text-left">
                 <Step icon={Mail} title="Bestätigung per E-Mail"
                   text={`Eine Übersicht Ihrer Anfrage samt Konditionen ist an ${draft.contact_email} unterwegs.`} />
-                <Step icon={FileSignature} title={requiresSignature ? 'Vermittlungsvereinbarung' : 'Prüfung'}
-                  text={requiresSignature
-                    ? 'Nach unserer Prüfung erhalten Sie die Vereinbarung zur digitalen Unterschrift. Sobald sie vorliegt, starten wir die Suche.'
-                    : 'Nach unserer Prüfung geben wir die Position für unsere Recruiter frei.'} />
+                <Step icon={FileSignature} title="Unterschrift"
+                  text={submitted?.signUrl
+                    ? 'Sie unterschreiben zuerst, danach zeichnet Matchunt gegen. Erst dann ist der Vertrag wirksam und wir starten die Suche.'
+                    : 'Sie erhalten den Vertrag zur digitalen Unterschrift. Sie unterschreiben zuerst, danach zeichnet Matchunt gegen — erst dann starten wir die Suche.'} />
               </div>
 
               <Alert className="mt-6 text-left">
@@ -340,6 +358,7 @@ export default function GuestIntake() {
             const res = await submit(signerName);
             if (!isFailure(res)) {
               setSubmitted({
+                signUrl: res.sign_url ?? null,
                 mandate: res.mandate_number,
                 requiresSignature: res.requires_signature,
                 mailSent: res.confirmation_sent,
