@@ -17,13 +17,13 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Building2, Check, Download, ExternalLink, FileSignature, FileText,
-  Loader2, Mail, MessageSquare, Send, TriangleAlert, X,
+  ArrowLeft, Building2, Check, Copy, Download, ExternalLink, FileSignature, FileText,
+  Loader2, Mail, MessageCircleQuestion, MessageSquare, Send, ShieldAlert, TriangleAlert, X,
 } from 'lucide-react';
 import {
   CaptureBadge, CommercialBadge, IdentityBadge, ReviewBadge, SignatureBadge, nextStepFor,
 } from '@/components/admin/IntakeStateBadges';
-import { useIntakeDetail, useIntakeAction, useContractAction, useMandateDocument } from '@/hooks/useAdminIntakes';
+import { useIntakeDetail, useIntakeAction, useContractAction, useClarifyAction, useMandateDocument } from '@/hooks/useAdminIntakes';
 
 /**
  * Eine Aufnahme prüfen, annehmen und durch den Vertragslauf führen.
@@ -45,6 +45,7 @@ export default function AdminIntakeDetail() {
   const { data, isLoading, error } = useIntakeDetail(id);
   const action = useIntakeAction(id);
   const contract = useContractAction(id);
+  const clarify = useClarifyAction(id);
   const document = useMandateDocument();
 
   const [rejectOpen, setRejectOpen] = useState<false | 'reject' | 'request_changes'>(false);
@@ -339,6 +340,37 @@ export default function AdminIntakeDetail() {
                     Veröffentlichung zu (jobs_guard_privileged_columns). Die
                     Reihenfolge steht in Triggern, nicht in dieser Oberfläche;
                     hier wird sie nur sichtbar gemacht. */}
+                <VerificationPanel report={data.verification} state={data.draft.company_state} />
+
+                <ClarificationPanel
+                  items={data.clarifications}
+                  busy={clarify.isPending}
+                  draftId={data.draft.id}
+                  onAsk={async (question, scope) => {
+                    try {
+                      const res = await clarify.mutateAsync({
+                        action: 'ask', draft_id: data.draft.id, question, scope_fields: scope,
+                      });
+                      if (res?.mail_sent) toast.success('Rückfrage gesendet.');
+                      // Bei fehlgeschlagenem Versand ist der Link das Einzige,
+                      // was den Vorgang noch rettet -- deshalb im Klartext.
+                      else toast.warning(`Mailversand fehlgeschlagen (${res?.mail_error ?? 'unbekannt'}). Link manuell weitergeben.`);
+                      return res;
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Rückfrage fehlgeschlagen.');
+                      return null;
+                    }
+                  }}
+                  onResolve={async (cid) => {
+                    try {
+                      await clarify.mutateAsync({ action: 'resolve', id: cid });
+                      toast.success('Als erledigt markiert.');
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Fehlgeschlagen.');
+                    }
+                  }}
+                />
+
                 <ContractPanel
                   framework={data.framework}
                   mandate={mandate}
@@ -751,5 +783,204 @@ function SignatureSteps({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Der Bericht der Firmenprüfung.
+ *
+ * Er enthält eine Empfehlung, keine Entscheidung — deshalb steht hier kein
+ * Knopf „annehmen", sondern nur, was gefunden wurde. Angenommen wird oben,
+ * durch einen Menschen, der das hier gelesen hat.
+ */
+function VerificationPanel({ report, state }: { report: Record<string, any> | null; state: string }) {
+  const label: Record<string, string> = {
+    not_checked: 'noch nicht geprüft', checking: 'Prüfung läuft',
+    verified: 'ohne Auffälligkeiten', needs_review: 'Abweichungen gefunden',
+    failed: 'harte Widersprüche',
+  };
+  const abweichungen = (report?.deviations ?? []) as Record<string, any>[];
+  const risiken = (report?.risk_notes ?? []) as Record<string, any>[];
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <ShieldAlert className="h-3.5 w-3.5" /> Firmenprüfung
+          </p>
+          <Badge variant={state === 'verified' ? 'secondary' : state === 'failed' ? 'destructive' : 'outline'}>
+            {label[state] ?? state}
+          </Badge>
+        </div>
+
+        {!report ? (
+          <p className="text-sm text-muted-foreground">
+            {state === 'checking'
+              ? 'Die Prüfung läuft gerade.'
+              : 'Es liegt noch kein Prüfbericht vor.'}
+          </p>
+        ) : (
+          <>
+            {report.summary && <p className="text-sm">{report.summary}</p>}
+
+            {abweichungen.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Abweichungen ({abweichungen.length})
+                </p>
+                {abweichungen.map((d, i) => (
+                  <div key={i} className="rounded-md border p-2.5 text-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium">{d.field}</span>
+                      <Badge variant={d.severity === 'critical' ? 'destructive' : 'outline'}
+                             className="shrink-0 text-[10px]">
+                        {d.severity}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">{d.note}</p>
+                    {d.claimed && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        angegeben: {d.claimed}{d.found ? ` · gefunden: ${d.found}` : ''}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {risiken.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Risikohinweise</p>
+                {risiken.map((r, i) => (
+                  <p key={i} className="text-sm text-muted-foreground">
+                    · {r.topic ? `${r.topic}: ` : ''}{r.note}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              Empfehlung: <strong>{report.recommendation}</strong>
+              {report.confidence != null && <> · Zuversicht {Math.round(report.confidence * 100)} %</>}
+              {report.model && <> · {report.model}</>}
+              {report.error && <> · unvollständig: {report.error}</>}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Der Bericht ist eine Empfehlung, keine Entscheidung. Angenommen wird oben.
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Rückfragen an den Kunden — der Link öffnet die Rückfrage, nicht den Entwurf. */
+const RUECKFRAGE_FELDER = [
+  'company_legal_name', 'company_street', 'company_postal_code', 'company_city',
+  'company_vat_id', 'company_registration_number', 'company_website',
+  'contact_name', 'contact_phone', 'contact_role', 'billing_email',
+];
+
+function ClarificationPanel({
+  items, busy, onAsk, onResolve,
+}: {
+  items: Record<string, any>[];
+  busy: boolean;
+  draftId: string;
+  onAsk: (question: string, scope: string[]) => Promise<Record<string, any> | null>;
+  onResolve: (id: string) => Promise<void>;
+}) {
+  const [frage, setFrage] = useState('');
+  const [umfang, setUmfang] = useState<string[]>([]);
+  const [letzterLink, setLetzterLink] = useState<string | null>(null);
+
+  const stellen = async () => {
+    const res = await onAsk(frage.trim(), umfang);
+    if (res) {
+      setFrage('');
+      setUmfang([]);
+      setLetzterLink(res.url ?? null);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <MessageCircleQuestion className="h-3.5 w-3.5" /> Rückfragen
+        </p>
+
+        {items.length > 0 && (
+          <div className="space-y-2">
+            {items.map((c) => (
+              <div key={c.id} className="rounded-md border p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium">{c.question}</p>
+                  <Badge variant={c.status === 'answered' ? 'secondary' : 'outline'} className="shrink-0">
+                    {c.status}
+                  </Badge>
+                </div>
+                {c.answer && (
+                  <p className="mt-2 rounded bg-muted/50 p-2 text-muted-foreground">{c.answer}</p>
+                )}
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  gestellt {fmt(c.created_at)}
+                  {c.answered_at && <> · beantwortet {fmt(c.answered_at)}</>}
+                  {c.scope_fields?.length > 0 && <> · Umfang: {c.scope_fields.join(', ')}</>}
+                </p>
+                {c.status === 'answered' && (
+                  <Button size="sm" variant="outline" className="mt-2" disabled={busy}
+                    onClick={() => onResolve(c.id)}>
+                    Als erledigt markieren
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {letzterLink && (
+          <Alert>
+            <Copy className="h-4 w-4" />
+            <AlertDescription className="space-y-1 text-sm">
+              <p>Antwortlink (14 Tage gültig):</p>
+              <code className="block break-all text-xs">{letzterLink}</code>
+              <Button size="sm" variant="outline" className="mt-1"
+                onClick={() => { void navigator.clipboard.writeText(letzterLink); toast.success('Kopiert.'); }}>
+                Kopieren
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Neue Rückfrage</Label>
+          <Textarea value={frage} onChange={(e) => setFrage(e.target.value)} rows={3}
+            placeholder="Was soll der Kunde klären?" />
+          <div>
+            <p className="mb-1.5 text-xs text-muted-foreground">
+              Felder, die der Link bearbeitbar macht (optional — leer heißt: nur Textantwort)
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {RUECKFRAGE_FELDER.map((f) => (
+                <Button key={f} size="sm" type="button"
+                  variant={umfang.includes(f) ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => setUmfang((s) =>
+                    s.includes(f) ? s.filter((x) => x !== f) : [...s, f])}>
+                  {f.replace(/^(company|contact)_/, '')}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Button size="sm" disabled={busy || !frage.trim()} onClick={stellen}>
+            {busy ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Wird gesendet …</>
+                  : 'Rückfrage senden'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

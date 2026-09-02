@@ -164,6 +164,14 @@ export function useIntakeDetail(id: string | undefined) {
         framework = data?.[0] ?? null;
       }
 
+      // Rueckfragen an den Kunden, juengste zuerst.
+      let clarifications: Record<string, any>[] = [];
+      if (draft.data?.id) {
+        const { data } = await supabase.from('intake_clarifications')
+          .select('*').eq('draft_id', draft.data.id).order('created_at', { ascending: false });
+        clarifications = data ?? [];
+      }
+
       // Der juengste Pruefbericht zur Firma.
       let verification: Record<string, any> | null = null;
       if (draft.data?.id) {
@@ -190,6 +198,7 @@ export function useIntakeDetail(id: string | undefined) {
         job,
         framework,
         verification,
+        clarifications,
       };
     },
   });
@@ -228,6 +237,23 @@ export function useContractAction(draftId: string | undefined) {
       if (error) throw await describeFunctionError(error);
       if (data && typeof data === 'object' && 'reason' in data) throw new Error((data as any).message);
       return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });
+      qc.invalidateQueries({ queryKey: ['admin-intakes'] });
+    },
+  });
+}
+
+/** Rueckfragen stellen und schliessen. */
+export function useClarifyAction(draftId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const { data, error } = await supabase.functions.invoke('intake-clarify', { body: payload });
+      if (error) throw await describeFunctionError(error);
+      if (data && typeof data === 'object' && 'reason' in data) throw new Error((data as any).message);
+      return data as Record<string, any>;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });

@@ -313,3 +313,8 @@ verify_jwt = true
 # das entfallene propose_new_terms aus intake-admin ab.
 [functions.contract-admin]
 verify_jwt = true
+
+# Rueckfragen. Ohne Login, weil der Kunde keines hat -- die Admin-Aktionen
+# ('ask', 'resolve', 'withdraw') pruefen die Rolle deshalb serverseitig selbst.
+[functions.intake-clarify]
+verify_jwt = false

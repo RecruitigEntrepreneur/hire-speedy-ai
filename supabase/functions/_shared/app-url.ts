@@ -36,3 +36,8 @@ export const intakeStartUrl = (token: string): string =>
 /** Fortsetzungslink eines konkreten Entwurfs. */
 export const intakeResumeUrl = (draftToken: string): string =>
   `${getPublicAppUrl()}/aufnahme/${encodeURIComponent(draftToken)}`;
+
+/** Antwortlink fuer eine Rueckfrage. Eigener Pfad, eigener Token, eigener
+ *  Umfang -- er oeffnet die Rueckfrage, nicht den Entwurf. */
+export const intakeClarifyUrl = (token: string): string =>
+  `${getPublicAppUrl()}/aufnahme/rueckfrage/${token}`;

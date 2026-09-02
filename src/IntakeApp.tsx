@@ -3,6 +3,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import GuestIntake from './pages/intake/GuestIntake';
+import ClarifyAnswer from './pages/intake/ClarifyAnswer';
 
 /**
  * Eigener Einstiegspunkt für die login-freie Jobaufnahme.
@@ -28,6 +29,9 @@ export default function IntakeApp() {
         <BrowserRouter>
           <Routes>
             <Route path="/start/:token" element={<GuestIntake />} />
+            {/* Vor der allgemeinen Entwurfsroute: sonst faengt :draftToken
+                "rueckfrage" als Token ab. */}
+            <Route path="/aufnahme/rueckfrage/:token" element={<ClarifyAnswer />} />
             <Route path="/aufnahme/:draftToken" element={<GuestIntake />} />
             {/* Alles andere gehört nicht hierher — zurück zur Hauptanwendung.
                 Ein harter Reload, damit App.tsx sauber übernimmt. */}

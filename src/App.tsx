@@ -112,6 +112,7 @@ import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 // wird kalt aus einer E-Mail geöffnet, oft mobil — sie darf nicht das gesamte
 // Admin- und Recruiter-Bundle mitladen.
 const GuestIntake = lazy(() => import("./pages/intake/GuestIntake"));
+const ClarifyAnswer = lazy(() => import("./pages/intake/ClarifyAnswer"));
 // Zugang einrichten nach der Annahme einer Beauftragungsanfrage. Vorher gab es
 // im ganzen Projekt keinen Passwort-Weg — ein serverseitig angelegtes Konto
 // hätte keinen Weg hinein gehabt.
@@ -513,6 +514,9 @@ function AppRoutes() {
           Referrer-Headern und Server-Logs. */}
       <Route path="/passwort" element={<Suspense fallback={<RouteFallback />}><SetPassword /></Suspense>} />
       <Route path="/start/:token" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
+      {/* Vor der allgemeinen Entwurfsroute, sonst faengt :draftToken das Wort
+          "rueckfrage" als Token ab. */}
+      <Route path="/aufnahme/rueckfrage/:token" element={<Suspense fallback={<RouteFallback />}><ClarifyAnswer /></Suspense>} />
       <Route path="/aufnahme/:draftToken" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/interview/respond/:token" element={<InterviewResponsePage />} />
