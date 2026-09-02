@@ -31,6 +31,9 @@ interface Props {
   onRevealChange: (r: RevealSetup) => void;
   flexibility: FlexibilityMap;
   onFlexibilityChange: (f: FlexibilityMap) => void;
+  /** Vorschlaege der KI: Skills, die zur Rolle gehoeren, aber fehlen. */
+  skillSuggestions?: { skill: string; because: string; kind?: 'must' | 'nice' }[];
+  onDismissSuggestion?: (skill: string) => void;
 }
 
 function Section({ title, icon: Icon, children, className }: { title: string; icon: any; children: React.ReactNode; className?: string }) {
@@ -87,8 +90,19 @@ const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number
 /** Linke Studio-Spalte: das KI-gefüllte Profil, in Sektionen editierbar. */
 export function ProfileSections({
   type, built, onChange, freelance, onFreelanceChange, reveal, onRevealChange, flexibility, onFlexibilityChange,
+  skillSuggestions, onDismissSuggestion,
 }: Props) {
   const set = (patch: Partial<BuiltJob>) => onChange({ ...built, ...patch });
+
+  // Nie vorschlagen, was schon dasteht -- das Modell weiss nicht immer, was
+  // der Kunde in der Zwischenzeit eingetragen hat.
+  const vorhanden = new Set(
+    [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])]
+      .map((x) => String(x).toLowerCase().trim()),
+  );
+  const vorschlaege = (skillSuggestions ?? [])
+    .filter((v) => v?.skill && !vorhanden.has(String(v.skill).toLowerCase().trim()))
+    .slice(0, 6);
   const isFreelance = type === 'freelance';
 
   const cycleFlex = (skill: string) => {
@@ -237,6 +251,37 @@ export function ProfileSections({
           onRemove={() => undefined}
           onAdd={(s) => set({ must_haves: [...built.must_haves, s] })}
         />
+        {/* Vorschlaege der KI. Bewusst UNTER den Muss-Kriterien und optisch
+            zurueckhaltend: es sind Angebote, keine Behauptungen. Jeder traegt
+            seine Begruendung bei sich -- eine Liste unbegruendeter Woerter
+            waere Raten, und Raten kostet hier Vertrauen. */}
+        {vorschlaege.length > 0 && (
+          <div className="mb-2 rounded-lg border border-dashed p-2.5">
+            <p className="mb-1.5 text-[11px] text-muted-foreground">
+              Passt das auch? Ein Klick übernimmt es.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {vorschlaege.map((v) => (
+                <button
+                  key={v.skill}
+                  type="button"
+                  title={v.because}
+                  onClick={() => {
+                    set(v.kind === 'nice'
+                      ? { nice_to_haves: [...(built.nice_to_haves ?? []), v.skill] }
+                      : { must_haves: [...(built.must_haves ?? []), v.skill] });
+                    onDismissSuggestion?.(v.skill);
+                  }}
+                  className="rounded-full border border-input bg-secondary/60 px-2.5 py-1 text-xs transition-colors hover:border-primary/50 hover:bg-primary/10"
+                >
+                  + {v.skill}
+                  <span className="ml-1.5 text-muted-foreground">{v.because}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {built.must_haves.length >= 8 && (
           <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />

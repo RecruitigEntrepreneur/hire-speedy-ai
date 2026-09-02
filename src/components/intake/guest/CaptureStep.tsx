@@ -491,6 +491,17 @@ export function CaptureStep({
             onRevealChange={(r) => onState((s) => ({ ...s, revealSetup: r }))}
             flexibility={flexibility}
             onFlexibilityChange={(f) => onState((s) => ({ ...s, flexibility: f }))}
+            skillSuggestions={dyn.skillSuggestions}
+            onDismissSuggestion={(skill) =>
+              onState((s) => ({
+                ...s,
+                dyn: {
+                  ...s.dyn,
+                  // Uebernommenes verschwindet aus der Liste. Ohne das stuende
+                  // der Vorschlag weiter da, obwohl er schon im Profil ist.
+                  skillSuggestions: (s.dyn.skillSuggestions ?? []).filter((v) => v.skill !== skill),
+                },
+              }))}
           />
         </div>
 

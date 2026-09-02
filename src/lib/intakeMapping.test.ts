@@ -99,7 +99,7 @@ describe('buildIntakePayload', () => {
     dyn: {
       available: true, answers: [], askedIds: [], completeness: 80, chapterProgress: [],
       typedFields: { required_languages: [{ code: 'de', minLevel: 'C1' }] },
-      skillRequirements: [{ skill: 'AWS', kind: 'must' as const }],
+      skillRequirements: [{ skill: 'AWS', kind: 'must' as const }], skillSuggestions: [],
       payloadPatch: { note: 'x' }, envelopePatch: {}, tensionFlags: [], done: false,
     },
   };

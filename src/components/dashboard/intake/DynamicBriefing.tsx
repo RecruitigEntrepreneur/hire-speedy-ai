@@ -38,6 +38,9 @@ export interface DynState {
   chapterProgress: { chapter: string; state: 'done' | 'partial' | 'open' | 'skipped' }[];
   typedFields: Record<string, unknown>;
   skillRequirements: { skill: string; kind: 'must' | 'nice'; min_years?: number; proficiency?: string; recency?: string }[];
+  /** Skills, die zur Rolle passen, aber noch nicht im Profil stehen.
+   *  Vorschlaege zum Anklicken -- der Kunde entscheidet, nicht die KI. */
+  skillSuggestions: { skill: string; because: string; kind?: 'must' | 'nice' }[];
   payloadPatch: Record<string, unknown>;
   envelopePatch: Record<string, unknown>;
   tensionFlags: TensionFlag[];
@@ -52,6 +55,7 @@ export const EMPTY_DYN_STATE: DynState = {
   chapterProgress: [],
   typedFields: {},
   skillRequirements: [],
+  skillSuggestions: [],
   payloadPatch: {},
   envelopePatch: {},
   tensionFlags: [],
@@ -126,6 +130,9 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           chapterProgress: data.chapter_progress?.length ? data.chapter_progress : prev.chapterProgress,
           typedFields: { ...prev.typedFields, ...(data.typed_fields || {}) },
           skillRequirements: data.skill_requirements?.length ? data.skill_requirements : prev.skillRequirements,
+          // Vorschlaege werden ERSETZT, nicht ergaenzt: was der Kunde
+          // uebernommen oder abgelehnt hat, soll nicht wiederkommen.
+          skillSuggestions: Array.isArray(data.skill_suggestions) ? data.skill_suggestions : [],
           payloadPatch: { ...prev.payloadPatch, ...(data.intake_payload_patch || {}) },
           envelopePatch: { ...prev.envelopePatch, ...(data.reveal_envelope_patch || {}) },
           tensionFlags: data.tension_flags || [],
