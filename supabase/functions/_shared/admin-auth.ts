@@ -55,3 +55,24 @@ export async function requireAdmin(
 
   return { ok: true, userId, email: userData.user.email ?? undefined };
 }
+
+/**
+ * Ob der Aufruf mit dem Service-Role-Key kam, also aus unserem eigenen Backend.
+ *
+ * Notwendig, weil `verify_jwt = true` in config.toml KEINE Rollenpruefung ist:
+ * der publishable Key ist selbst ein gueltiges JWT und liegt in jedem Browser.
+ * Die Einstellung stellt also nur sicher, dass ueberhaupt ein Token anliegt --
+ * wer den oeffentlichen Schluessel hat, kommt damit durch.
+ *
+ * Vergleich in konstanter Zeit, damit sich der Schluessel nicht zeichenweise
+ * erraten laesst.
+ */
+export function isServiceRole(req: Request): boolean {
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!key) return false;
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (jwt.length !== key.length) return false;
+  let diff = 0;
+  for (let i = 0; i < jwt.length; i++) diff |= jwt.charCodeAt(i) ^ key.charCodeAt(i);
+  return diff === 0;
+}

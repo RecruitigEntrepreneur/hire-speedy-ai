@@ -136,7 +136,7 @@ serve(async (req) => {
     const chosen = withEstimate.find((p) => p.key === key);
     if (!chosen) {
       // Kein viertes Paket, auch nicht ueber einen manipulierten Aufruf.
-      return fail('invalid', 'Bitte wählen Sie eines der drei angebotenen Pakete.');
+      return fail('invalid_request', 'Bitte wählen Sie eines der drei angebotenen Pakete.');
     }
 
     await touchDraft(supabase, draft.id, {
@@ -160,6 +160,6 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error('[intake-packages]', e);
-    return fail('server_error', 'Die Pakete konnten nicht geladen werden.');
+    return fail('internal_error', 'Die Pakete konnten nicht geladen werden.');
   }
 });

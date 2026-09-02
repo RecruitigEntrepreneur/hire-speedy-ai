@@ -42,7 +42,7 @@ serve(async (req) => {
     // ======================================================================
     if (action === 'create_framework') {
       const draftId = String(body?.draft_id ?? '');
-      if (!draftId) return fail('invalid', 'draft_id fehlt.');
+      if (!draftId) return fail('invalid_request', 'draft_id fehlt.');
 
       const { data: draft } = await supabase
         .from('intake_drafts').select('*').eq('id', draftId).maybeSingle();
@@ -142,7 +142,7 @@ serve(async (req) => {
       }
 
       const mandateId = String(body?.mandate_id ?? '');
-      if (!mandateId) return fail('invalid', 'mandate_id oder framework_id fehlt.');
+      if (!mandateId) return fail('invalid_request', 'mandate_id oder framework_id fehlt.');
 
       const { data: m } = await supabase.from('commercial_mandates')
         .select('*').eq('id', mandateId).maybeSingle();
@@ -359,9 +359,9 @@ serve(async (req) => {
       return json({ ok: true, mandate: data });
     }
 
-    return fail('invalid', `Unbekannte Aktion "${action}".`);
+    return fail('invalid_request', `Unbekannte Aktion "${action}".`);
   } catch (e) {
     console.error('[contract-admin]', e);
-    return fail('server_error', 'Der Vertragsschritt konnte nicht ausgeführt werden.');
+    return fail('internal_error', 'Der Vertragsschritt konnte nicht ausgeführt werden.');
   }
 });

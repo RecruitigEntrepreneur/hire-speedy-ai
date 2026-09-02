@@ -285,7 +285,7 @@ serve(async (req) => {
     // Es gibt drei Pakete und keine individuellen Konditionen; der Trigger
     // commercial_mandates_check_pricing wuerde so ein Mandat ohnehin ablehnen.
     if (['mark_contract_sent', 'mark_contract_signed', 'propose_new_terms'].includes(action)) {
-      return fail('gone', action === 'propose_new_terms'
+      return fail('conflict', action === 'propose_new_terms'
         ? 'Abweichende Konditionen gibt es nicht mehr. Es stehen genau drei Pakete zur Wahl; '
           + 'der Kunde wählt sie selbst.'
         : 'Der Vertragslauf ist nach contract-admin umgezogen und läuft jetzt zweistufig '

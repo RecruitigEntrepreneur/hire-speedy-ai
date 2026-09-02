@@ -83,7 +83,7 @@ serve(async (req) => {
     // hier steht es, damit der Kunde einen Satz statt eines Datenbankfehlers
     // bekommt.
     if (!draft.selected_package_key) {
-      return fail('invalid',
+      return fail('invalid_request',
         'Bitte wählen Sie zuerst eines der drei Pakete aus.');
     }
     // Gelaufen, nicht zugestimmt. Ein 'failed' entsteht schon bei einer

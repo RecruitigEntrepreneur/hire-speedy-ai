@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { preflight, json, fail } from '../_shared/http.ts';
 import { serviceClient, touchDraft, logEvent } from '../_shared/intake-core.ts';
+import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { normalizeDomain, domainFromEmail, isFreemailDomain } from '../_shared/domain.ts';
 
 /**
@@ -186,11 +187,24 @@ serve(async (req) => {
   if (pre) return pre;
 
   try {
+    const supabase = serviceClient();
+
+    // `verify_jwt = true` genuegt hier NICHT: der publishable Key ist selbst
+    // ein gueltiges JWT und liegt in jedem Browser. Ohne diese Pruefung koennte
+    // jeder mit dem oeffentlichen Schluessel Pruefungen auf fremden Aufnahmen
+    // ausloesen -- und am Unterschied zwischen 404 und 200 ablesen, welche
+    // draft_id existiert.
+    //
+    // Zwei Aufrufer sind vorgesehen: unser eigenes Backend (intake-verify-email
+    // stoesst die Pruefung nach der Bestaetigung an) und ein angemeldeter Admin.
+    if (!isServiceRole(req)) {
+      const admin = await requireAdmin(req, supabase);
+      if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
+    }
+
     const body = await req.json().catch(() => ({}));
     const draftId = String(body?.draft_id ?? '');
-    if (!draftId) return fail('invalid', 'draft_id fehlt.');
-
-    const supabase = serviceClient();
+    if (!draftId) return fail('invalid_request', 'draft_id fehlt.');
     const { data: draft } = await supabase.from('intake_drafts').select('*').eq('id', draftId).maybeSingle();
     if (!draft) return fail('not_found', 'Die Aufnahme wurde nicht gefunden.');
 
@@ -272,6 +286,6 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error('[verify-company]', e);
-    return fail('server_error', 'Die Firmenpruefung konnte nicht durchgefuehrt werden.');
+    return fail('internal_error', 'Die Firmenpruefung konnte nicht durchgefuehrt werden.');
   }
 });

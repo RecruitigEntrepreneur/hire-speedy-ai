@@ -55,7 +55,7 @@ serve(async (req) => {
 
       const draftId = String(body?.draft_id ?? '');
       const question = String(body?.question ?? '').trim().slice(0, 2000);
-      if (!draftId || !question) return fail('invalid', 'draft_id und question sind erforderlich.');
+      if (!draftId || !question) return fail('invalid_request', 'draft_id und question sind erforderlich.');
 
       const scope = (Array.isArray(body?.scope_fields) ? body.scope_fields : [])
         .map((f: unknown) => String(f))
@@ -157,7 +157,7 @@ serve(async (req) => {
     // ======================================================================
     if (action === 'open' || action === 'answer') {
       const token = String(body?.token ?? '');
-      if (!token) return fail('invalid', 'Der Link ist unvollständig.');
+      if (!token) return fail('invalid_request', 'Der Link ist unvollständig.');
 
       const { data: rf } = await supabase.from('intake_clarifications')
         .select('*').eq('token_hash', await hashToken(token)).maybeSingle();
@@ -173,7 +173,7 @@ serve(async (req) => {
         return fail('expired', 'Dieser Link ist abgelaufen. Bitte wenden Sie sich an Ihren Ansprechpartner.');
       }
       if (['withdrawn', 'resolved'].includes(rf.status)) {
-        return fail('gone', 'Diese Rückfrage ist bereits erledigt.');
+        return fail('conflict', 'Diese Rückfrage ist bereits erledigt.');
       }
 
       const { data: draft } = await supabase.from('intake_drafts')
@@ -204,7 +204,7 @@ serve(async (req) => {
 
       // ---- answer ----------------------------------------------------------
       const answer = String(body?.answer ?? '').trim().slice(0, 4000);
-      if (!answer) return fail('invalid', 'Bitte geben Sie eine Antwort ein.');
+      if (!answer) return fail('invalid_request', 'Bitte geben Sie eine Antwort ein.');
 
       // Feldkorrekturen, aber nur innerhalb des Umfangs.
       const updates: Record<string, unknown> = {};
@@ -235,9 +235,9 @@ serve(async (req) => {
       return json({ ok: true, clarification: { id: updated.id, status: updated.status } });
     }
 
-    return fail('invalid', `Unbekannte Aktion "${action}".`);
+    return fail('invalid_request', `Unbekannte Aktion "${action}".`);
   } catch (e) {
     console.error('[intake-clarify]', e);
-    return fail('server_error', 'Die Rückfrage konnte nicht verarbeitet werden.');
+    return fail('internal_error', 'Die Rückfrage konnte nicht verarbeitet werden.');
   }
 });
