@@ -115,9 +115,13 @@ export function CaptureStep({
     [built, type, freelance, flexibility, companyDefaults],
   );
 
+  // Im KI-Briefing sieht der Kunde die statischen Fragen nie -- sie als offene
+  // Hebel anzubieten ("... beantworten: +9 P") verspricht ihm etwas, das er
+  // nicht anklicken kann, und blieb selbst dann stehen, wenn er genau das
+  // gerade beantwortet hatte. Das Studio macht es an dieser Stelle schon so.
   const openQuestions = useMemo(
-    () => (built ? openBriefingQuestions(type, { remote_type: built.remote_type }, answers) : []),
-    [built, type, answers],
+    () => (built && !dyn.available ? openBriefingQuestions(type, { remote_type: built.remote_type }, answers) : []),
+    [built, type, answers, dyn.available],
   );
 
   const start = (job: BuiltJob) => {

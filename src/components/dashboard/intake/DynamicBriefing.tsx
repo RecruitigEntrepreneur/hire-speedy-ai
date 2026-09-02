@@ -47,24 +47,84 @@ export interface DynState {
 }
 
 /**
- * Die Startfrage.
+ * Reservefragen.
  *
- * Der Kunde soll nicht auf die KI warten. "KI waehlt die naechste wichtige
- * Frage..." war das Erste, was er sah -- eine Wartezeit an der schlechtesten
- * Stelle, direkt nachdem er etwas getan hat.
+ * Der Kunde soll nie auf die KI warten. "KI waehlt die naechste wichtige
+ * Frage..." mit Spinner stand am Anfang und immer dann wieder da, wenn die
+ * Warteschlange leerlief -- eine Wartezeit an der schlechtesten Stelle:
+ * direkt nachdem er etwas getan hat.
  *
- * Diese eine Frage passt IMMER und steht nie in einer Stellenanzeige: warum
- * die Stelle offen ist, bestimmt Story, Dringlichkeit und Risiko. Der Kunde
- * beantwortet sie, waehrend die KI im Hintergrund die naechsten waehlt --
+ * Diese Fragen passen IMMER und stehen in keiner Stellenanzeige -- die KI
+ * kann sie also nie aus dem Entwurf beantworten. Es ist genau das, was der
+ * Recruiter im Kandidatengespraech braucht: warum die Stelle offen ist, wer
+ * entscheidet, wie lang der Prozess ist, wann gestartet wird. Der Kunde
+ * beantwortet eine davon, waehrend die KI im Hintergrund weiterwaehlt --
  * und seine Antwort geht in deren Auswahl mit ein.
+ *
+ * Doppelfragen sind ausgeschlossen: die Antwort steht mit Fragetext in
+ * `answers` und die id in `asked_ids`, beides sieht die KI in ihrem Prompt.
  */
-const STARTFRAGE: DynQuestion = {
-  id: 'why_open',
-  chapter: 'Rolle & Scope',
-  question: 'Warum ist die Stelle offen?',
-  why: 'Bestimmt Story, Dringlichkeit und Risiko-Profil — und steht in keiner Anzeige.',
-  chips: ['Wachstum / neu geschaffen', 'Nachbesetzung', 'Ablösung', 'Elternzeit-Vertretung'],
-};
+const RESERVEFRAGEN: DynQuestion[] = [
+  {
+    id: 'why_open',
+    chapter: 'Rolle & Scope',
+    question: 'Warum ist die Stelle offen?',
+    why: 'Bestimmt Story, Dringlichkeit und Risiko-Profil — und steht in keiner Anzeige.',
+    chips: ['Wachstum / neu geschaffen', 'Nachbesetzung', 'Ablösung', 'Elternzeit-Vertretung'],
+  },
+  {
+    id: 'hiring_decider',
+    chapter: 'Prozess & Entscheider',
+    question: 'Wer trifft am Ende die Einstellungsentscheidung?',
+    why: 'Wer das weiß, argumentiert im Gespräch auf die richtige Person hin.',
+    chips: ['Fachbereich allein', 'Geschäftsführung', 'Fachbereich und HR gemeinsam', 'Team-Konsens'],
+  },
+  {
+    id: 'process_steps',
+    chapter: 'Prozess & Entscheider',
+    question: 'Wie viele Gespräche bis zur Zusage?',
+    why: 'Kandidaten fragen als Erstes danach — und lange Prozesse kosten die Guten.',
+    chips: ['1 Gespräch', '2 Gespräche', '3 Gespräche', 'Mehr als 3'],
+  },
+  {
+    id: 'start_when',
+    chapter: 'Timing & Vertrag',
+    question: 'Wann soll die Person spätestens anfangen?',
+    why: 'Entscheidet, ob gekündigte oder nur langfristig verfügbare Kandidaten passen.',
+    chips: ['So schnell wie möglich', 'In 1–3 Monaten', 'In 3–6 Monaten', 'Zeitlich flexibel'],
+  },
+  {
+    id: 'onsite_days',
+    chapter: 'Arbeitsmodell & Kultur',
+    question: 'Wie viele Tage pro Woche vor Ort sind Pflicht?',
+    why: 'Hartes Ausschlusskriterium — und der häufigste Absagegrund im Endspurt.',
+    chips: ['5 Tage', '3–4 Tage', '1–2 Tage', 'Frei wählbar / remote'],
+  },
+  {
+    id: 'team_size',
+    chapter: 'Rolle & Scope',
+    question: 'Wie groß ist das Team, in das die Person kommt?',
+    why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
+    chips: ['Alleinstellung', '2–5 Personen', '6–15 Personen', 'Mehr als 15'],
+  },
+  {
+    id: 'deal_breaker',
+    chapter: 'Muss & Kann & Anti-Profil',
+    question: 'Was führt bei Ihnen fast sicher zur Absage?',
+    why: 'Erspart beiden Seiten Gespräche, die von vornherein nicht enden können.',
+    chips: ['Häufige Jobwechsel', 'Fehlende Branchenerfahrung', 'Zu wenig Deutsch', 'Gehaltsvorstellung zu hoch'],
+  },
+];
+
+/**
+ * Die KI liefert gelegentlich selbst einen Chip "Weiss ich nicht" -- daneben
+ * steht der feste Knopf mit derselben Beschriftung, und der Kunde sieht die
+ * Auswahl doppelt. Nur der feste zaehlt: er schreibt __unknown__ und markiert
+ * das Kapitel als uebersprungen.
+ */
+const UNBEKANNT = /^(weiss|weiß)ichnicht$|^keineangabe$|^unbekannt$|^unklar$/;
+const istEigeneAntwortNoetig = (chip: string) =>
+  !UNBEKANNT.test(chip.toLowerCase().replace(/[^a-zäöüß]/g, ''));
 
 export const EMPTY_DYN_STATE: DynState = {
   available: null,
@@ -122,7 +182,8 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
   // sie spaeter ein, wuerde sie das Richtige ueberschreiben. Nur die zuletzt
   // gestartete Anfrage darf ihr Ergebnis anwenden.
   const anfrageNr = useRef(0);
-  const startfrageAktiv = useRef(false);
+  const laeuft = useRef(false);
+  const reserveAktiv = useRef<DynQuestion | null>(null);
   const [freeText, setFreeText] = useState('');
   const [kapitelOffen, setKapitelOffen] = useState(false);
   const [dismissedFlags, setDismissedFlags] = useState<string[]>([]);
@@ -131,6 +192,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
   const fetchNext = useCallback(
     async (answers: DynAnswered[], askedIds: string[]) => {
       const meine = ++anfrageNr.current;
+      laeuft.current = true;
       setLoading(true);
       try {
         const request = {
@@ -138,7 +200,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           job_draft: jobDraft,
           answers,
           asked_ids: askedIds,
-          max_questions: 2,
+          max_questions: 3,
         };
         let data: Record<string, any> | null;
         if (askAi) {
@@ -166,16 +228,25 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           tensionFlags: data.tension_flags || [],
           done: (data.next_questions || []).length === 0,
         }));
-        // Nichts wieder aufmachen, was schon beantwortet ist -- die Startfrage
-        // stellt die KI sonst ein zweites Mal.
-        setQueue((data.next_questions || []).filter(
-          (q: DynQuestion) => !askedIds.includes(q.id)));
+        // ERGAENZEN, nicht ersetzen: nachgeladen wird schon, waehrend noch eine
+        // Frage offen ist -- ein Ersetzen wuerde die verschlucken. Und nichts
+        // wieder aufmachen, was schon beantwortet oder schon in der Schlange
+        // steht.
+        setQueue((prev) => [
+          ...prev,
+          ...(data!.next_questions || []).filter(
+            (q: DynQuestion) =>
+              !askedIds.includes(q.id) && !prev.some((p) => p.id === q.id)),
+        ]);
       } catch (e) {
         if (meine !== anfrageNr.current) return;
         console.warn('intake-questions nicht erreichbar — statisches Briefing als Fallback:', e);
         onState((prev) => ({ ...prev, available: false }));
       } finally {
-        if (meine === anfrageNr.current) setLoading(false);
+        if (meine === anfrageNr.current) {
+          laeuft.current = false;
+          setLoading(false);
+        }
       }
     },
     [type, jobDraft, onState, askAi],
@@ -205,13 +276,14 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
   // Solange die KI laedt und noch nichts beantwortet wurde, steht die
   // Startfrage da. Sie ist eine echte Frage, keine Beschaeftigung: ihre
   // Antwort geht in die naechste Auswahl der KI ein.
-  // Einmal gezeigt, bleibt die Startfrage stehen, bis sie beantwortet ist.
-  // Sonst tauscht die eintreffende KI-Antwort dem Kunden die Frage unter der
-  // Hand aus, waehrend er sie noch liest.
-  if (loading && queue.length === 0 && state.answers.length === 0 && !state.askedIds.includes(STARTFRAGE.id)) {
-    startfrageAktiv.current = true;
+  // Laeuft die Warteschlange leer, waehrend die KI noch waehlt, springt eine
+  // Reservefrage ein statt eines Spinners. Einmal gezeigt, bleibt sie stehen,
+  // bis sie beantwortet ist -- sonst tauscht die eintreffende KI-Antwort dem
+  // Kunden die Frage unter der Hand aus, waehrend er sie noch liest.
+  if (!reserveAktiv.current && queue.length === 0 && !state.done) {
+    reserveAktiv.current = RESERVEFRAGEN.find((q) => !state.askedIds.includes(q.id)) ?? null;
   }
-  const current = startfrageAktiv.current ? STARTFRAGE : (queue[0] ?? null);
+  const current = reserveAktiv.current ?? queue[0] ?? null;
 
   const answer = (text: string) => {
     if (!current) return;
@@ -220,14 +292,16 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     const askedIds = [...state.askedIds, current.id];
     onState((prev) => ({ ...prev, answers, askedIds }));
     setFreeText('');
-    // Die Startfrage steht neben der Warteschlange, nicht darin -- ihre Antwort
-    // darf keine bereits geholte Frage verschlucken.
-    const rest = (startfrageAktiv.current ? queue : queue.slice(1)).filter((q) => q.id !== current.id);
-    startfrageAktiv.current = false;
+    // Die Reservefrage steht neben der Warteschlange, nicht darin -- ihre
+    // Antwort darf keine bereits geholte Frage verschlucken.
+    const rest = (reserveAktiv.current ? queue : queue.slice(1)).filter((q) => q.id !== current.id);
+    reserveAktiv.current = null;
     setQueue(rest);
-    // Auch dann neu anfragen, wenn gerade eine Anfrage laeuft: die kennt die
-    // eben gegebene Antwort noch nicht. Die spaetere Antwort gewinnt.
-    if (rest.length === 0) void fetchNext(answers, askedIds);
+    // Nachladen, BEVOR die Schlange leer ist: eine Anfrage dauert rund zehn
+    // Sekunden, ein Klick auf einen Chip zwei. Wer erst beim letzten Eintrag
+    // anfragt, laesst den Kunden warten. Mit dem Nachladen bei einer
+    // verbleibenden Frage ueberlappt die Wartezeit mit dem Antworten.
+    if (rest.length <= 1 && !laeuft.current) void fetchNext(answers, askedIds);
   };
 
   const visibleFlags = state.tensionFlags.filter((f) => !dismissedFlags.includes(f.id));
@@ -347,7 +421,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           </p>
           <p className="mb-3 text-sm font-medium">{current.question}</p>
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {current.chips.map((chip) => (
+            {current.chips.filter(istEigeneAntwortNoetig).map((chip) => (
               // h-8 und die feste Hoehe stammten aus der Zeit der statischen
               // Chips: kurze Woerter wie "Wachstum / neu". Die KI schreibt
               // ganze Saetze -- gemessen liefen sie 83 bis 139 Pixel ueber den
