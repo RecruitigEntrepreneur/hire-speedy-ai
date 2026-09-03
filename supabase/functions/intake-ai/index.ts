@@ -121,7 +121,11 @@ serve(async (req) => {
         job_draft: jobDraft,
         answers,
         asked_ids: askedIds,
-        max_questions: 2,
+        // Der Client fordert drei an, damit das Vorausladen greift und der
+        // Kunde nie auf eine Ladeanzeige sieht. Hier stand eine harte 2 --
+        // der Wert des Clients wurde stillschweigend halbiert, und im
+        // Gast-Pfad lief fast jede Antwort in einen neuen Aufruf.
+        max_questions: Math.min(3, Math.max(1, Number(payload.max_questions) || 3)),
       };
     } else if (op === 'parse_text') {
       const text = String(payload.jobText ?? '').slice(0, MAX_TEXT_CHARS);
