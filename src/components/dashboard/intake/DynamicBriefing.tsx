@@ -320,7 +320,25 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     answer(teile.join(' · '));
   };
 
-  const visibleFlags = state.tensionFlags.filter((f) => !dismissedFlags.includes(f.id));
+  /**
+   * Spannungswarnungen sind vorerst abgeschaltet.
+   *
+   * Grund ist nicht die Form, sondern die Grundlage: das Modell bekommt als
+   * Eingabe nur den Stellenentwurf, die bisherigen Antworten und die Liste
+   * gestellter Frage-IDs -- kein Gehaltsband, keinen Marktvergleich, keine
+   * Zahl aus unseren eigenen Vermittlungen. "140-160k koennte knapp sein" ist
+   * damit Weltwissen eines Sprachmodells, das der Kunde als Marktauskunft
+   * seines Dienstleisters liest.
+   *
+   * Die Daten bleiben erhalten (tension_flags kommt weiter aus der Function),
+   * nur die Anzeige ruht. Wieder einschalten heisst: diese Konstante auf true.
+   * Sinnvoll, sobald die Aussage auf ausgewerteten Placements steht statt auf
+   * Modellgefuehl -- oder mit sichtbarer Kennzeichnung der Herkunft.
+   */
+  const ZEIGE_SPANNUNGEN = false;
+  const visibleFlags = ZEIGE_SPANNUNGEN
+    ? state.tensionFlags.filter((f) => !dismissedFlags.includes(f.id))
+    : [];
 
   return (
     <div className="space-y-3">

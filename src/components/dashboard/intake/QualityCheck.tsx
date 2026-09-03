@@ -49,14 +49,15 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     if (built.remote_type === 'onsite' && onsiteAnswer.startsWith('0')) {
       warnings.push('Widerspruch: Vor-Ort-Stelle, aber 0 Bürotage im Briefing.');
     }
-    if (!isFreelance && (built.experience_level === 'senior' || built.experience_level === 'lead') && built.salary_max && built.salary_max < 70_000) {
-      warnings.push(`Budget wirkt niedrig für ${built.experience_level === 'lead' ? 'Lead' : 'Senior'} (max. €${(built.salary_max / 1000).toFixed(0)}k) — Markt-Feedback einplanen.`);
-    }
-    if (!isFreelance && built.experience_level === 'junior' && built.salary_max && built.salary_max > 95_000) {
-      warnings.push('Junior-Level mit Budget über €95k — passt Titel oder Level?');
-    }
+    // Die drei Marktaussagen sind vorerst raus: "Budget wirkt niedrig fuer
+    // Senior (unter 70k)", "Junior ueber 95k" und "der erreichbare Markt
+    // schrumpft erheblich" beruhten auf drei hart getippten Schwellen, nicht
+    // auf ausgewerteten Vermittlungen. Sie standen neben echten Pruefungen und
+    // sahen dadurch aus wie eine Marktauskunft.
+    //
+    // Der Hebel bleibt: viele Muss-Kriterien zu entschaerfen ist ein guter
+    // Rat, auch ohne Zahl dahinter -- er behauptet nichts ueber den Markt.
     if (built.must_haves.length >= 8) {
-      warnings.push(`${built.must_haves.length} Muss-Kriterien — der erreichbare Markt schrumpft erheblich.`);
       levers.push('1–2 Muss-Kriterien auf „verhandelbar" setzen: +5 P');
     }
     if (AGG_PATTERN.test(answerText(answers.exclusion_criteria))) {
