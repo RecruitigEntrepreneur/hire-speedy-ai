@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Building2, Check, ChevronDown, Loader2, Pencil, Sparkles, X } from 'lucide-react';
+import { Building2, Check, Loader2, Pencil, Sparkles, X } from 'lucide-react';
 import { isFailure } from '@/hooks/useGuestIntake';
 
 /**
@@ -77,6 +77,21 @@ const FELDER: { key: Feld; label: string; pflicht?: boolean; ph: string }[] = [
   { key: 'company_vat_id', label: 'USt-IdNr.', ph: 'z. B. DE123456789' },
 ];
 
+/**
+ * Zweispaltig, vier Zeilen -- nicht neun.
+ *
+ * Neun Zeilen untereinander schoben das Briefing aus dem Bild, eine
+ * zugeklappte Zeile verbarg zu viel. Dazwischen liegt: jeder Wert behaelt
+ * seine Beschriftung, aber PLZ und Ort teilen eine Zelle, und was
+ * zusammengehoert steht nebeneinander.
+ */
+const RASTER: { key: Feld; span?: boolean; mit?: Feld }[][] = [
+  [{ key: 'company_name' }, { key: 'company_industry' }],
+  [{ key: 'company_legal_name' }, { key: 'company_website' }],
+  [{ key: 'company_street' }, { key: 'company_postal_code', mit: 'company_city' }],
+  [{ key: 'company_registration_number' }, { key: 'company_vat_id' }],
+];
+
 /** Domain aus einer Website oder einem Firmennamen mit Punkt. */
 function domainVon(...kandidaten: (string | null | undefined)[]): string | null {
   for (const k of kandidaten) {
@@ -106,10 +121,6 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
    */
   const [lokal, setLokal] = useState<Partial<CompanyDraft>>(() => ({ ...werte }));
   const [offen, setOffen] = useState<Feld | null>(null);
-  // Zugeklappt ist der Normalfall: neun beschriftete Zeilen sind richtig, aber
-  // sie schoben das Briefing aus dem Bild. Aufgeklappt wird, wenn etwas fehlt
-  // oder etwas zu bestaetigen ist.
-  const [auf, setAuf] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [vorschlag, setVorschlag] = useState<Anreicherung | null>(null);
@@ -202,146 +213,134 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
   };
 
   const fehlendePflicht = FELDER.filter((f) => f.pflicht && !wert(f.key));
-  const fehlend = FELDER.filter((f) => !wert(f.key));
-  const zeigen = auf || fehlendePflicht.length > 0 || !!vorschlag;
+  const label = (k: Feld) => FELDER.find((f) => f.key === k)!;
 
-  // Eine Zeile, die den Datensatz erkennbar macht: Firmierung, Branche, Ort.
-  const zusammenfassung = [
-    wert('company_legal_name') || wert('company_name'),
-    wert('company_industry'),
-    wert('company_city'),
-  ].filter(Boolean).join(' · ');
+  /** Ein Wert mit dauerhafter Beschriftung. Klick oeffnet ihn. */
+  const zelle = (k: Feld, mit?: Feld) => {
+    const f = label(k);
+    const bearbeitet = offen === k || (mit ? offen === mit : false);
+    const zusammen = mit
+      ? [wert(k), wert(mit)].filter(Boolean).join(' ')
+      : wert(k);
+    const beschriftung = mit ? `${f.label} / ${label(mit).label}` : f.label;
+
+    return (
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {beschriftung}
+          {f.pflicht && <span className="ml-0.5 text-muted-foreground/60">*</span>}
+        </p>
+        {bearbeitet ? (
+          <div className={cn('flex gap-1', mit && 'grid grid-cols-[4rem_minmax(0,1fr)]')}>
+            <Input
+              autoFocus={offen === k}
+              value={lokal[k] ?? ''}
+              placeholder={f.ph}
+              onChange={(e) => setzen({ [k]: e.target.value } as Partial<CompanyDraft>, true)}
+              onBlur={() => !mit && setOffen(null)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setOffen(null); }}
+              className="h-6 text-xs"
+            />
+            {mit && (
+              <Input
+                autoFocus={offen === mit}
+                value={lokal[mit] ?? ''}
+                placeholder={label(mit).ph}
+                onChange={(e) => setzen({ [mit]: e.target.value } as Partial<CompanyDraft>, true)}
+                onBlur={() => setOffen(null)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setOffen(null); }}
+                className="h-6 text-xs"
+              />
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOffen(k)}
+            className={cn(
+              'group flex w-full items-center gap-1.5 rounded text-left text-xs hover:text-foreground',
+              !zusammen && (f.pflicht ? 'text-amber-600' : 'text-muted-foreground'),
+            )}
+          >
+            <span className="truncate">{zusammen || (f.pflicht ? 'fehlt' : 'ergänzen')}</span>
+            <Pencil className="h-2.5 w-2.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-40" />
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-xl border bg-card">
-      <button
-        type="button"
-        onClick={() => setAuf((v) => !v)}
-        className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
-      >
-        <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Unternehmen
-        </span>
-        <span className="min-w-0 flex-1 truncate text-xs">
-          {zusammenfassung || <span className="text-muted-foreground">noch nichts erkannt</span>}
-        </span>
-        {fehlend.length > 0 && (
-          <span className={cn('shrink-0 text-[11px]', fehlendePflicht.length ? 'text-amber-600' : 'text-muted-foreground')}>
-            {fehlend.length} offen
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <Building2 className="h-3.5 w-3.5" /> Ihr Unternehmen
+          <span className="hidden font-normal normal-case tracking-normal opacity-70 sm:inline">
+            — steht später auf der Vereinbarung
           </span>
-        )}
-        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', zeigen && 'rotate-180')} />
-      </button>
-
-      {!zeigen ? null : (
-      <>
-      <div className="flex flex-wrap items-start justify-between gap-2 border-y p-4 pb-3">
-        <div>
-          <p className="text-[11px] text-muted-foreground">
-            Aus Ihrer Anzeige gelesen — bitte prüfen. Diese Angaben stehen später auf der Vereinbarung.
-          </p>
-        </div>
+        </p>
         {busy ? (
-          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" /> Wir lesen Ihre Website
+          <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Website wird gelesen
           </span>
         ) : domain ? (
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 shrink-0 gap-1 text-[11px] text-muted-foreground"
+            className="h-6 shrink-0 gap-1 px-2 text-[11px] text-muted-foreground"
             onClick={() => holen(domain)}
           >
-            <Sparkles className="h-3 w-3" /> Aus Impressum ergänzen
+            <Sparkles className="h-3 w-3" /> Aus Impressum
           </Button>
         ) : null}
       </div>
 
-      <div className="divide-y">
-        {FELDER.map(({ key, label, pflicht, ph }) => {
-          const v = wert(key);
-          const bearbeitet = offen === key;
-          return (
-            <div key={key} className="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 px-4 py-2">
-              <span className="text-[11px] text-muted-foreground">
-                {label}
-                {pflicht && <span className="ml-0.5 text-muted-foreground/60">*</span>}
-              </span>
+      <div className="space-y-2 p-4 pt-3">
+        {RASTER.map((reihe, n) => (
+          <div key={n} className="grid grid-cols-2 gap-x-4">
+            {reihe.map((z) => <div key={z.key}>{zelle(z.key, z.mit)}</div>)}
+          </div>
+        ))}
 
-              {bearbeitet ? (
-                <Input
-                  autoFocus
-                  value={lokal[key] ?? ''}
-                  placeholder={ph}
-                  onChange={(e) => setzen({ [key]: e.target.value } as Partial<CompanyDraft>, true)}
-                  onBlur={() => setOffen(null)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setOffen(null); }}
-                  className="h-7 text-xs"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setOffen(key)}
-                  className={cn(
-                    'group flex min-h-7 w-full items-center gap-2 rounded px-1 py-0.5 text-left text-xs',
-                    'hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                    !v && (pflicht ? 'text-amber-600' : 'text-muted-foreground'),
-                  )}
-                >
-                  <span className="truncate">{v || (pflicht ? '— fehlt' : '— nicht angegeben')}</span>
-                  <Pencil className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-50" />
-                </button>
+        {fehlendePflicht.length > 0 && (
+          <p className="pt-1 text-[11px] text-amber-600">
+            Ohne {fehlendePflicht.map((f) => f.label).join(' und ')} können wir die Vereinbarung nicht ausstellen.
+          </p>
+        )}
+        {note && <p className="pt-1 text-[11px] text-amber-600">{note}</p>}
+
+        {vorschlag && (
+          <div className="mt-1 rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
+            <Badge variant="outline" className="mb-2 gap-1 text-[10px]">
+              <Sparkles className="h-2.5 w-2.5 text-primary" /> aus Ihrem Impressum gelesen
+            </Badge>
+            <ul className="mb-2.5 space-y-0.5 text-xs">
+              {vorschlag.legal_name && <li><span className="text-muted-foreground">Firmierung: </span>{vorschlag.legal_name}</li>}
+              {(vorschlag.street || vorschlag.city) && (
+                <li>
+                  <span className="text-muted-foreground">Adresse: </span>
+                  {[vorschlag.street, [vorschlag.postal_code, vorschlag.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                </li>
               )}
+              {vorschlag.registration_number && <li><span className="text-muted-foreground">Handelsregister: </span>{vorschlag.registration_number}</li>}
+              {vorschlag.vat_id && <li><span className="text-muted-foreground">USt-IdNr.: </span>{vorschlag.vat_id}</li>}
+              {vorschlag.industry && <li><span className="text-muted-foreground">Branche: </span>{vorschlag.industry}</li>}
+              {vorschlag.headcount ? <li><span className="text-muted-foreground">Mitarbeitende: </span>{vorschlag.headcount}</li> : null}
+            </ul>
+            <div className="flex gap-2">
+              <Button size="sm" className="h-7 gap-1 text-xs" onClick={uebernehmen}>
+                <Check className="h-3 w-3" /> Stimmt, übernehmen
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setVorschlag(null)}>
+                <X className="h-3 w-3" /> Verwerfen
+              </Button>
             </div>
-          );
-        })}
-      </div>
-
-      {(note || vorschlag || fehlendePflicht.length > 0) && (
-        <div className="space-y-2 border-t p-4">
-          {fehlendePflicht.length > 0 && (
-            <p className="text-[11px] text-amber-600">
-              Ohne {fehlendePflicht.map((f) => f.label).join(' und ')} können wir die Vereinbarung nicht ausstellen.
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Wir füllen nur leere Felder. Was Sie selbst eingetragen haben, bleibt stehen.
             </p>
-          )}
-          {note && <p className="text-[11px] text-amber-600">{note}</p>}
-
-          {vorschlag && (
-            <div className="rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
-              <Badge variant="outline" className="mb-2 gap-1 text-[10px]">
-                <Sparkles className="h-2.5 w-2.5 text-primary" /> aus Ihrem Impressum gelesen
-              </Badge>
-              <ul className="mb-2.5 space-y-0.5 text-xs">
-                {vorschlag.legal_name && <li><span className="text-muted-foreground">Firmierung: </span>{vorschlag.legal_name}</li>}
-                {(vorschlag.street || vorschlag.city) && (
-                  <li>
-                    <span className="text-muted-foreground">Adresse: </span>
-                    {[vorschlag.street, [vorschlag.postal_code, vorschlag.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
-                  </li>
-                )}
-                {vorschlag.registration_number && <li><span className="text-muted-foreground">Handelsregister: </span>{vorschlag.registration_number}</li>}
-                {vorschlag.vat_id && <li><span className="text-muted-foreground">USt-IdNr.: </span>{vorschlag.vat_id}</li>}
-                {vorschlag.industry && <li><span className="text-muted-foreground">Branche: </span>{vorschlag.industry}</li>}
-                {vorschlag.headcount ? <li><span className="text-muted-foreground">Mitarbeitende: </span>{vorschlag.headcount}</li> : null}
-              </ul>
-              <div className="flex gap-2">
-                <Button size="sm" className="h-7 gap-1 text-xs" onClick={uebernehmen}>
-                  <Check className="h-3 w-3" /> Stimmt, übernehmen
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setVorschlag(null)}>
-                  <X className="h-3 w-3" /> Verwerfen
-                </Button>
-              </div>
-              <p className="mt-2 text-[10px] text-muted-foreground">
-                Wir füllen nur leere Felder. Was Sie selbst eingetragen haben, bleibt stehen.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-      </>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
