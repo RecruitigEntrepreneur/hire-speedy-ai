@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Building2, Check, Loader2, Pencil, Sparkles, X } from 'lucide-react';
+import { Building2, Check, ChevronDown, Loader2, Pencil, Sparkles, X } from 'lucide-react';
 import { isFailure } from '@/hooks/useGuestIntake';
 
 /**
@@ -106,6 +106,10 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
    */
   const [lokal, setLokal] = useState<Partial<CompanyDraft>>(() => ({ ...werte }));
   const [offen, setOffen] = useState<Feld | null>(null);
+  // Zugeklappt ist der Normalfall: neun beschriftete Zeilen sind richtig, aber
+  // sie schoben das Briefing aus dem Bild. Aufgeklappt wird, wenn etwas fehlt
+  // oder etwas zu bestaetigen ist.
+  const [auf, setAuf] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [vorschlag, setVorschlag] = useState<Anreicherung | null>(null);
@@ -114,9 +118,16 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
 
   const wert = (k: Feld) => (lokal[k] ?? '').trim();
 
-  const setzen = (patch: Partial<CompanyDraft>) => {
+  const setzen = (patch: Partial<CompanyDraft>, ausEingabe = false) => {
     setLokal((v) => ({ ...v, ...patch }));
-    onChange(patch);
+    // Ein leerer String loescht: intake-draft macht daraus null (Zeile 113).
+    // Abgeleitete Werte duerfen deshalb nie leer rausgehen -- so verschwand
+    // eine bereits gespeicherte Firmierung. Aus einer echten Eingabe darf
+    // Leeren dagegen sehr wohl folgen: der Kunde raeumt ein Feld auf.
+    const raus = ausEingabe
+      ? patch
+      : Object.fromEntries(Object.entries(patch).filter(([, v]) => String(v ?? '').trim() !== ''));
+    if (Object.keys(raus).length > 0) onChange(raus as Partial<CompanyDraft>);
   };
 
   // Was der Parser gelesen hat, einmalig in die leeren Felder uebernehmen.
@@ -125,6 +136,9 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
     if (vorbelegt.current) return;
     const patch: Partial<CompanyDraft> = {};
     const ausName = (ausAnzeige.company_name ?? '').trim();
+    // Ohne Quelle kein Vorbelegen. Sonst laeuft dieser Effekt beim Aufbau
+    // einmal mit leeren Werten und schreibt Leere ueber Vorhandenes.
+    if (!ausName && !ausAnzeige.industry) return;
     if (!wert('company_name') && ausName) {
       // Der Alltagsname ohne Rechtsform, die Firmierung mit -- beides steht in
       // der Anzeige meist als ein String.
@@ -188,15 +202,43 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
   };
 
   const fehlendePflicht = FELDER.filter((f) => f.pflicht && !wert(f.key));
+  const fehlend = FELDER.filter((f) => !wert(f.key));
+  const zeigen = auf || fehlendePflicht.length > 0 || !!vorschlag;
+
+  // Eine Zeile, die den Datensatz erkennbar macht: Firmierung, Branche, Ort.
+  const zusammenfassung = [
+    wert('company_legal_name') || wert('company_name'),
+    wert('company_industry'),
+    wert('company_city'),
+  ].filter(Boolean).join(' · ');
 
   return (
     <div className="rounded-xl border bg-card">
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b p-4 pb-3">
+      <button
+        type="button"
+        onClick={() => setAuf((v) => !v)}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
+      >
+        <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Unternehmen
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs">
+          {zusammenfassung || <span className="text-muted-foreground">noch nichts erkannt</span>}
+        </span>
+        {fehlend.length > 0 && (
+          <span className={cn('shrink-0 text-[11px]', fehlendePflicht.length ? 'text-amber-600' : 'text-muted-foreground')}>
+            {fehlend.length} offen
+          </span>
+        )}
+        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', zeigen && 'rotate-180')} />
+      </button>
+
+      {!zeigen ? null : (
+      <>
+      <div className="flex flex-wrap items-start justify-between gap-2 border-y p-4 pb-3">
         <div>
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Building2 className="h-3.5 w-3.5" /> Ihr Unternehmen
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Aus Ihrer Anzeige gelesen — bitte prüfen. Diese Angaben stehen später auf der Vereinbarung.
           </p>
         </div>
@@ -232,7 +274,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
                   autoFocus
                   value={lokal[key] ?? ''}
                   placeholder={ph}
-                  onChange={(e) => setzen({ [key]: e.target.value } as Partial<CompanyDraft>)}
+                  onChange={(e) => setzen({ [key]: e.target.value } as Partial<CompanyDraft>, true)}
                   onBlur={() => setOffen(null)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setOffen(null); }}
                   className="h-7 text-xs"
@@ -297,6 +339,8 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );
