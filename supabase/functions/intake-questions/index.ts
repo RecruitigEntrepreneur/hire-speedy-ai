@@ -152,8 +152,19 @@ const OUTPUT_SCHEMA = {
         type: 'object',
         properties: {
           id: { type: 'string' },
-          message: { type: 'string', description: 'Der Zielkonflikt in 1-2 Sätzen, konkret mit Zahlen' },
-          suggestion: { type: 'string', description: 'konkreter Lösungsvorschlag' },
+          message: {
+            type: 'string',
+            description: 'Der Zielkonflikt in EINEM Satz, hoechstens 25 Woerter. Nenne die EINE '
+              + 'Zahl und den EINEN Punkt, der klemmt. KEINE Aufzaehlung aller Kriterien, keine '
+              + 'Wiederholung von Titel, Sprache, Herkunftsfirmen. Beispiel: '
+              + '"140-160k ist fuer fuenf Jahre Channel-Aufbau plus Compliance-Verantwortung knapp."',
+          },
+          suggestion: {
+            type: 'string',
+            description: 'Der Hebel in EINEM Satz, hoechstens 20 Woerter, beginnt mit einem Verb. '
+              + 'Nennt eine konkrete Alternative, nicht "pruefen Sie". Beispiel: '
+              + '"Decke auf 175k anheben -- oder Compliance-Verantwortung zu Kann machen."',
+          },
           move_skill_to_nice: { type: 'string', description: 'falls der Vorschlag ist, genau diesen Skill zu "Kann" zu verschieben' },
         },
         required: ['id', 'message', 'suggestion'],
@@ -195,6 +206,7 @@ REGELN:
    e) SUCHBILD: Aus welcher Rolle/welchen Firmen kommt der Ideal-Kandidat? Anti-Persona?
    f) TRIPLE-BLIND-REVEAL: was darf anonym genannt werden, was verrät die Firma.
 3. GATE: Bei Senior+/vielen Muss-Kriterien/engem Budget → search_difficulty=high setzen und aktiv drängen, Muss-Kriterien zu kürzen oder Budget zu flexibilisieren (Tension-Flag mit konkretem Vorschlag).
+3a. FORM DER SPANNUNG: message = ein Satz, höchstens 25 Wörter, EINE Zahl, EIN Konflikt. suggestion = ein Satz, höchstens 20 Wörter, beginnt mit einem Verb und nennt eine Alternative. Zähle NIE alle Anforderungen auf — der Kunde kennt sie. Ein Absatz, der Titel, Jahre, Herkunftsfirmen, Zielrolle und Sprachniveau aneinanderreiht, wird nicht gelesen und ändert nichts. Höchstens EIN Flag je Antwort.
 4. FRAGE-QUALITÄT: Jede Frage konkret auf DIESEN Entwurf bezogen (Zahlen/Skills aus dem Entwurf zitieren), Sie-Form, mit 2-4 realistischen Antwort-Chips.
 4a. EINE ODER MEHRERE ANTWORTEN: Verlangt die Frage eine Aufzählung ("welche 3 Hauptaufgaben", "welche Benefits", "welche Systeme", "was davon trifft zu"), setze multi=true und biete bis zu 6 Chips an — der Kunde kann dann mehrere anklicken. Bei Entweder-oder-Fragen ("wer entscheidet", "wie viele Gespräche") setze multi=false. Eine Frage, die drei Dinge erfragt, aber nur eine Antwort zulässt, verliert zwei Drittel der Auskunft. Niemals bereits Beantwortetes oder asked_ids erneut fragen. "Weiß ich nicht"-Antworten (__unknown__) NICHT wiederholen — Kapitel als skipped markieren.
 5. DE-ANONYMISIERUNGS-GUARDRAIL: Alles, was die Firma identifizieren könnte (Name, einzigartige Produkte, exakte Adresse, "Marktführer für X in Y") gehört auf die red_list und NIE in Texte, die Recruiter sehen. Baue den anonymen Descriptor aus Branche+Größe+Region.

@@ -400,9 +400,16 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-600">
             <AlertTriangle className="h-3.5 w-3.5" /> Spannung erkannt
           </p>
-          <p className="mb-2 text-xs text-muted-foreground">
-            {f.message} {f.suggestion}
-          </p>
+          {/* Zwei Zeilen, nicht ein Absatz. Vorher standen message und
+              suggestion aneinandergeklebt -- gemessen 58 Woerter am Stueck,
+              die kein Kunde liest. Erst die Spannung, dann der Hebel. */}
+          <p className="mb-1 text-xs text-muted-foreground">{f.message}</p>
+          {f.suggestion && (
+            <p className="mb-2 flex gap-1.5 text-xs text-foreground">
+              <span className="text-amber-600">→</span>
+              <span>{f.suggestion}</span>
+            </p>
+          )}
           <div className="flex gap-2">
             {f.move_skill_to_nice && (
               <Button
