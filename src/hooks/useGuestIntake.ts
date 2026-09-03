@@ -467,6 +467,24 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     [],
   );
 
+  /**
+   * Firmendaten aus Website und Impressum holen.
+   *
+   * Ein deutsches Impressum traegt nach Paragraph 5 TMG genau die Angaben, die
+   * eine Vereinbarung braucht: vollstaendige Firmierung, Adresse,
+   * Handelsregister, USt-IdNr. Der Kunde soll sie bestaetigen, nicht abtippen.
+   * Uebernommen wird nichts von selbst -- ermittelt ist nicht bestaetigt.
+   */
+  const enrichCompany = useCallback(
+    (domain?: string) => withToken<{
+      name?: string; legal_name?: string; industry?: string;
+      street?: string; postal_code?: string; city?: string; country?: string;
+      registration_number?: string; vat_id?: string; ceo_name?: string;
+      headcount?: number; description?: string;
+    }>('intake-ai', { op: 'enrich_company', payload: domain ? { domain } : {} }),
+    [],
+  );
+
   const parseText = useCallback(
     (jobText: string) => withToken<{ success?: boolean; data?: any }>('intake-ai', {
       op: 'parse_text', payload: { jobText },
@@ -506,7 +524,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     });
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward, askAi, parseText, parseUrl, parsePdf };
+  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */

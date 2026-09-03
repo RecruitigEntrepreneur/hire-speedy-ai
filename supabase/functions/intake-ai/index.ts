@@ -31,6 +31,10 @@ const TARGETS = {
   parse_text: 'parse-job-url',
   parse_url: 'parse-job-url',
   parse_pdf: 'parse-job-pdf',
+  // Firmendaten aus der eigenen Website und dem Impressum. Der Gast ruft die
+  // Function nicht selbst: sie laeuft mit Service-Role und haette ohne diesen
+  // Vorhof weder Token-Pruefung noch Rate-Limit.
+  enrich_company: 'enrich-company-from-domain',
 } as const;
 type Op = keyof typeof TARGETS;
 
@@ -125,6 +129,23 @@ serve(async (req) => {
         return fail('invalid_request', 'Bitte beschreiben Sie die Rolle etwas ausführlicher.');
       }
       forward = { jobText: text };
+    } else if (op === 'enrich_company') {
+      // Die Domain ist der Schluessel. Reihenfolge: was der Kunde als Website
+      // angegeben hat, sonst die Domain seiner Geschaeftsadresse.
+      const roh = String(payload.domain ?? draft.company_website ?? draft.company_domain ?? '').trim();
+      const domain = roh
+        .replace(/^https?:\/\//i, '')
+        .replace(/^www\./i, '')
+        .split(/[/?#]/)[0]
+        .toLowerCase()
+        .slice(0, 253);
+      // Eine Freemail-Domain ist kein Unternehmen -- gmail.com auszulesen
+      // liefert Google, nicht den Kunden.
+      if (!domain || !domain.includes('.') || draft.is_freemail) {
+        return fail('invalid_request',
+          'Für die automatische Ergänzung brauchen wir die Website Ihres Unternehmens.');
+      }
+      forward = { domain };
     } else if (op === 'parse_url') {
       const url = String(payload.jobUrl ?? '').trim().slice(0, 2000);
       const safe = urlIsSafe(url);

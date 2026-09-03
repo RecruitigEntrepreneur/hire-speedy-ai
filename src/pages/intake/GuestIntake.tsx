@@ -45,7 +45,7 @@ export default function GuestIntake() {
   const { token, draftToken } = useParams<{ token?: string; draftToken?: string }>();
   const intake = useGuestIntake(token, draftToken);
   const { state, save, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward,
-          askAi, parseText, parseUrl, parsePdf } = intake;
+          askAi, parseText, parseUrl, parsePdf, enrichCompany } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
   const [capture, setCapture] = useState<CaptureState | null>(null);
@@ -391,6 +391,19 @@ export default function GuestIntake() {
             company_name: draft.company_name ?? link?.prefill?.company_name ?? null,
             location: link?.prefill?.location ?? null,
           }}
+          company={{
+            company_name: draft.company_name ?? '',
+            company_legal_name: draft.company_legal_name ?? '',
+            company_website: draft.company_website ?? '',
+            company_industry: draft.company_industry ?? '',
+            company_street: draft.company_street ?? '',
+            company_postal_code: draft.company_postal_code ?? '',
+            company_city: draft.company_city ?? '',
+            company_vat_id: draft.company_vat_id ?? '',
+            company_registration_number: draft.company_registration_number ?? '',
+          }}
+          onCompany={(patch) => save(patch)}
+          onEnrich={enrichCompany}
           askAi={askAi}
           parseText={parseText}
           parseUrl={parseUrl}

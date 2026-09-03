@@ -11,6 +11,19 @@ interface EnrichmentResult {
   industry?: string;
   city?: string;
   country?: string;
+  /** Vertragsrelevante Felder aus dem Impressum.
+   *
+   *  Sie wurden hier schon immer aus der Impressum-Seite extrahiert (Schema
+   *  unten) und dann nicht ins Ergebnis uebernommen -- ausgerechnet die drei,
+   *  die eine Vereinbarung braucht. Ein deutsches Impressum traegt sie nach
+   *  Paragraph 5 TMG verpflichtend, es ist die genaueste Quelle, die es fuer
+   *  Firmierung, Adresse und Registernummer gibt. */
+  legal_name?: string;
+  street?: string;
+  postal_code?: string;
+  registration_number?: string;
+  vat_id?: string;
+  ceo_name?: string;
   headcount?: number;
   founding_year?: number;
   technologies?: string[];
@@ -147,16 +160,24 @@ Deno.serve(async (req) => {
                     type: 'object',
                     properties: {
                       company_name: { type: 'string' },
+                      legal_name: { type: 'string', description: 'Full legal name including legal form, e.g. "Muster GmbH"' },
+                      street: { type: 'string', description: 'Street and house number only, without city' },
+                      postal_code: { type: 'string' },
                       address: { type: 'string' },
                       city: { type: 'string' },
                       country: { type: 'string' },
                       founding_year: { type: 'string' },
                       ceo_name: { type: 'string' },
                       employee_count: { type: 'string' },
-                      registration_number: { type: 'string' },
+                      registration_number: { type: 'string', description: 'Commercial register entry, e.g. "HRB 288632"' },
+                      vat_id: { type: 'string', description: 'VAT identification number, e.g. "DE123456789"' },
                     },
                   },
-                  prompt: 'Extract company details from this impressum/about page. Look for address, city, founding year, CEO name, and any registration numbers.',
+                  prompt: 'Extract company details from this impressum/about page. A German Impressum '
+                    + 'legally contains the full legal name, street address, commercial register '
+                    + 'number (Handelsregister/HRB), VAT ID (USt-IdNr.) and the managing director '
+                    + '(Geschaeftsfuehrer). Extract them verbatim, do not guess or complete missing '
+                    + 'values -- a wrong register or VAT number ends up in a contract.',
                 },
               ],
               onlyMainContent: true,
@@ -199,6 +220,26 @@ Deno.serve(async (req) => {
     }
 
     if (aboutData) {
+      // Genau diese Felder fehlten bisher. Ohne sie muss der Kunde Firmierung,
+      // Adresse und Registernummer abtippen, obwohl sie auf seiner eigenen
+      // Impressum-Seite stehen.
+      if (aboutData.legal_name) result.legal_name = String(aboutData.legal_name).trim();
+      if (aboutData.street) result.street = String(aboutData.street).trim();
+      if (aboutData.postal_code) result.postal_code = String(aboutData.postal_code).trim();
+      if (aboutData.registration_number) result.registration_number = String(aboutData.registration_number).trim();
+      if (aboutData.vat_id) result.vat_id = String(aboutData.vat_id).trim();
+      if (aboutData.ceo_name) result.ceo_name = String(aboutData.ceo_name).trim();
+      // Fallback: manche Impressen fuehren nur eine Adresszeile.
+      if (!result.street && aboutData.address) {
+        const m = String(aboutData.address).match(/^(.+?)[,\n]\s*(\d{4,5})\s+(.+)$/);
+        if (m) {
+          result.street = m[1].trim();
+          result.postal_code = result.postal_code ?? m[2];
+          if (!result.city) result.city = m[3].trim();
+        } else {
+          result.street = String(aboutData.address).trim();
+        }
+      }
       if (!result.city && aboutData.city) result.city = aboutData.city;
       if (!result.founding_year && aboutData.founding_year) {
         const year = parseInt(aboutData.founding_year);

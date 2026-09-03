@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { ProfileSections, type FlexibilityMap } from '@/components/dashboard/intake/ProfileSections';
+import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
 import {
@@ -66,6 +67,11 @@ interface Props {
   seedText?: string | null;
   /** Name des Ansprechpartners aus der Vorbelegung — für die Anrede. */
   contactName?: string | null;
+  /** Die Firmenfelder des Entwurfs -- sie gehoeren in die Positionsaufnahme,
+   *  nicht erst unter Kontakt. */
+  company: Partial<CompanyDraft>;
+  onCompany: (patch: Partial<CompanyDraft>) => void;
+  onEnrich: (domain?: string) => Promise<Anreicherung | { reason: string; message: string }>;
   askAi: (payload: Record<string, unknown>) => Promise<Record<string, any>>;
   parseText: (text: string) => Promise<any>;
   parseUrl: (url: string) => Promise<any>;
@@ -82,7 +88,7 @@ type EntryMode = 'confirm' | 'choose' | 'reselect' | 'paste' | 'url';
 
 export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
-  askAi, parseText, parseUrl, parsePdf, onNext,
+  askAi, parseText, parseUrl, parsePdf, onNext, company, onCompany, onEnrich,
 }: Props) {
   const [text, setText] = useState(seedText ?? '');
   const [url, setUrl] = useState('');
@@ -484,7 +490,14 @@ export function CaptureStep({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="rounded-xl border">
+        <div className="space-y-4">
+          <CompanyBlock
+            werte={company}
+            ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
+            onChange={onCompany}
+            onEnrich={onEnrich}
+          />
+          <div className="rounded-xl border">
           <ProfileSections
             type={type}
             built={built}
@@ -507,6 +520,7 @@ export function CaptureStep({
                 },
               }))}
           />
+          </div>
         </div>
 
         <div className="space-y-4" ref={briefingRef}>
