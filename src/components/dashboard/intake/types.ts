@@ -20,6 +20,10 @@ export interface BuiltJob {
   hiringUrgency: string | null;
   remoteDays: number | null;
   usps: string[];
+  /** Aus einem festen Katalog angeklickt, nicht aus der Anzeige geraten.
+   *  Ziel ist jobs.benefits -- die Spalte steht in recruiter_jobs_view und
+   *  wurde bisher von keinem Aufnahmepfad gefuellt. */
+  benefits: string[];
 }
 
 /** Contracting-Fork: Tagessatz statt Gehalt (landet in intake_payload.contracting). */

@@ -45,6 +45,7 @@ export const EMPTY_BUILT: BuiltJob = {
   hiringUrgency: null,
   remoteDays: null,
   usps: [],
+  benefits: [],
 };
 
 /** Ergebnis von parse-job-url (Text oder Link) in den Studio-Zustand. */
@@ -68,6 +69,12 @@ export function fromParsedJobData(d: ParsedJobData): BuiltJob {
     hiringUrgency: d.hiring_urgency ?? null,
     remoteDays: d.remote_days ?? null,
     usps: d.unique_selling_points || [],
+    // Der Parser liest Benefits nicht zuverlaessig -- in Anzeigen stehen sie
+    // als Prosa. Sie werden im Formular aus einem festen Katalog angeklickt.
+    benefits: Array.isArray((d as unknown as Record<string, unknown>).benefits_extracted)
+      ? ((d as unknown as Record<string, unknown>).benefits_extracted as unknown[])
+          .filter((x): x is string => typeof x === 'string')
+      : [],
   };
 }
 
@@ -96,6 +103,7 @@ export function fromParsedJobProfile(p: ParsedJobProfile): BuiltJob {
     hiringUrgency: null,
     remoteDays: null,
     usps: [],
+  benefits: [],
   };
 }
 

@@ -79,6 +79,16 @@ export function draftToJobRow(draft: Json): Json {
     must_haves: asArray(built.must_haves),
     nice_to_haves: asArray(built.nice_to_haves),
 
+    // Diese fuenf standen bisher in recruiter_jobs_view und wurden von keinem
+    // Aufnahmepfad je gefuellt. Der Recruiter sah dafuer KI-erfundene
+    // "Selling Points" und "[Unternehmen]" statt der Branche.
+    benefits: asArray(built.benefits),
+    industry: String(built.industry ?? draft.company_industry ?? '').trim() || undefined,
+    required_languages: typed.required_languages ?? undefined,
+    required_certifications: typed.required_certifications ?? undefined,
+    onsite_required:
+      typeof typed.onsite_required === 'boolean' ? typed.onsite_required : undefined,
+
     briefing_notes: String(payload.briefing_text ?? '').trim() || undefined,
     vacancy_reason: built.vacancyReason ?? undefined,
     reports_to: built.reportsTo ?? undefined,

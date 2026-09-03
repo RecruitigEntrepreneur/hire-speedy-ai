@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { ProfileSections, type FlexibilityMap } from '@/components/dashboard/intake/ProfileSections';
 import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlock';
+import { BenefitsBlock } from './BenefitsBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
 import {
@@ -496,6 +497,13 @@ export function CaptureStep({
             ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
             onChange={onCompany}
             onEnrich={onEnrich}
+          />
+          {/* Benefits gehoeren zur Firma, nicht zur Position -- deshalb hier
+              neben dem Firmenblock und nicht als Frage im Briefing. Fester
+              Katalog: ein Modell wuerde hier Obstkorb und Kicker erfinden. */}
+          <BenefitsBlock
+            gewaehlt={built.benefits ?? []}
+            onChange={(b) => onState((s) => ({ ...s, built: { ...s.built, benefits: b } }))}
           />
           <div className="rounded-xl border">
           <ProfileSections
