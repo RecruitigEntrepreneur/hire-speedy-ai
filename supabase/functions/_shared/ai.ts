@@ -40,7 +40,28 @@ export interface AiResult {
   model: string;
 }
 
+/**
+ * Vorgabemodell.
+ *
+ * ACHTUNG: gemini-2.5-flash ist am Gateway als `deprecated: true` gefuehrt
+ * (abgefragt am 03.09.2026 ueber ai.gateway.lovable.dev/v1/models). Ein
+ * Ablaufdatum nennt der Gateway nicht, verlassen sollte man sich darauf nicht.
+ *
+ * Der Nachfolger mit dem besten Verhaeltnis ist `google/gemini-3.1-flash-lite`:
+ * neuer UND guenstiger (0,25 statt 0,30 je Mio Eingabe-Token, 1,50 statt 2,50
+ * bei der Ausgabe). Gewechselt wird trotzdem nicht blind -- erst messen.
+ *
+ * Zum Messen dient AI_MODEL: ein Supabase-Secret setzen und der naechste
+ * Aufruf laeuft auf dem anderen Modell, ohne Deploy. Haelt es stand, wandert
+ * der Wert hierher.
+ */
 const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+
+/** Umgebungsvorgabe. Leerer String zaehlt als nicht gesetzt. */
+function envModel(): string | undefined {
+  const m = Deno.env.get('AI_MODEL')?.trim();
+  return m && m.length > 0 ? m : undefined;
+}
 
 function provider(): AiProvider {
   const p = (Deno.env.get('AI_PROVIDER') ?? 'lovable').toLowerCase();
@@ -70,7 +91,10 @@ export async function aiChat(call: AiCall): Promise<AiResult> {
     throw new AiError(`${keyName} ist nicht gesetzt (Anbieter: ${p}).`);
   }
 
-  const model = call.model ?? DEFAULT_MODEL;
+  // Reihenfolge: was die Function ausdruecklich waehlt, schlaegt die
+  // Umgebung; die Umgebung schlaegt die Vorgabe. Eine Function, die bewusst
+  // ein bestimmtes Modell braucht, wird durch ein Experiment nicht umgebogen.
+  const model = call.model ?? envModel() ?? DEFAULT_MODEL;
   const messages = [
     ...(call.system ? [{ role: 'system', content: call.system }] : []),
     { role: 'user', content: call.user },

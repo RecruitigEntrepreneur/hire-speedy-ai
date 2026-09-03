@@ -257,7 +257,10 @@ serve(async (req) => {
       draft_id: draft.id,
       event_type: 'first_value',
       ip_hash: ipHash,
-      meta: { ai_op: op, ok: true, ms: elapsed, target },
+      // Das Modell gehoert ins Protokoll: ohne es laesst sich spaeter nicht
+      // sagen, welches Modell ein Ergebnis erzeugt hat.
+      meta: { ai_op: op, ok: true, ms: elapsed, target,
+              model: (data as Record<string, unknown>)?.model ?? null },
     });
 
     await touchDraft(supabase, draft.id);

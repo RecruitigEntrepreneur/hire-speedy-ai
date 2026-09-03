@@ -237,6 +237,8 @@ BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(kei
     // waehrend 28 andere Functions den Lovable-Gateway nutzten. Die
     // Fragengenerierung fiel dadurch still auf den statischen Katalog zurueck.
     let parsed: Record<string, unknown>;
+    // Ausserhalb des try, damit das verwendete Modell in die Antwort kann.
+    let benutztesModell = '';
     try {
       const antwort = await aiChat({
         system: systemPrompt,
@@ -249,6 +251,7 @@ BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(kei
         },
       });
 
+      benutztesModell = antwort.model;
       const raw = antwort.toolArguments ?? antwort.content;
       if (!raw) throw new AiError('Die Antwort war leer.');
       parsed = typeof raw === 'string' ? JSON.parse(raw) : (raw as Record<string, unknown>);
@@ -268,6 +271,10 @@ BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(kei
 
     // Defensive Defaults, damit das Frontend nie an fehlenden Keys scheitert
     const result = {
+      // Welches Modell geantwortet hat. Ohne diese Angabe laesst sich von
+      // aussen nicht pruefen, welches Modell ein Ergebnis erzeugt hat -- und
+      // ein Vergleich zweier Modelle waere Behauptung statt Messung.
+      model: benutztesModell,
       next_questions: Array.isArray(parsed.next_questions)
         ? parsed.next_questions.slice(0, max_questions).map((q: Record<string, unknown>) => ({
             ...q,
