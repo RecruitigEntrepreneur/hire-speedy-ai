@@ -2169,6 +2169,11 @@ export type Database = {
           id: string
           organization_id: string | null
           origin_draft_id: string | null
+          package_key: string | null
+          package_selected_at: string | null
+          package_version: number | null
+          pricing_snapshot: Json | null
+          pricing_snapshot_sha256: string | null
           released_by: string | null
           released_for_signature_at: string | null
           signature_provider: string
@@ -2209,6 +2214,11 @@ export type Database = {
           id?: string
           organization_id?: string | null
           origin_draft_id?: string | null
+          package_key?: string | null
+          package_selected_at?: string | null
+          package_version?: number | null
+          pricing_snapshot?: Json | null
+          pricing_snapshot_sha256?: string | null
           released_by?: string | null
           released_for_signature_at?: string | null
           signature_provider?: string
@@ -2249,6 +2259,11 @@ export type Database = {
           id?: string
           organization_id?: string | null
           origin_draft_id?: string | null
+          package_key?: string | null
+          package_selected_at?: string | null
+          package_version?: number | null
+          pricing_snapshot?: Json | null
+          pricing_snapshot_sha256?: string | null
           released_by?: string | null
           released_for_signature_at?: string | null
           signature_provider?: string
@@ -2293,6 +2308,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contract_templates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_framework_package_fkey"
+            columns: ["package_key", "package_version"]
+            isOneToOne: false
+            referencedRelation: "commercial_packages"
+            referencedColumns: ["package_key", "version"]
+          },
+          {
+            foreignKeyName: "client_framework_package_fkey"
+            columns: ["package_key", "package_version"]
+            isOneToOne: false
+            referencedRelation: "commercial_packages_public"
+            referencedColumns: ["package_key", "version"]
           },
         ]
       }
@@ -2528,6 +2557,12 @@ export type Database = {
           job_id: string | null
           mandate_number: string
           matchunt_cents: number | null
+          order_terms_version: number | null
+          ordered_at: string | null
+          ordered_by_email: string | null
+          ordered_by_name: string | null
+          ordered_ip_hash: string | null
+          ordered_user_agent: string | null
           organization_id: string | null
           package_key: string | null
           package_selected_at: string | null
@@ -2598,6 +2633,12 @@ export type Database = {
           job_id?: string | null
           mandate_number: string
           matchunt_cents?: number | null
+          order_terms_version?: number | null
+          ordered_at?: string | null
+          ordered_by_email?: string | null
+          ordered_by_name?: string | null
+          ordered_ip_hash?: string | null
+          ordered_user_agent?: string | null
           organization_id?: string | null
           package_key?: string | null
           package_selected_at?: string | null
@@ -2668,6 +2709,12 @@ export type Database = {
           job_id?: string | null
           mandate_number?: string
           matchunt_cents?: number | null
+          order_terms_version?: number | null
+          ordered_at?: string | null
+          ordered_by_email?: string | null
+          ordered_by_name?: string | null
+          ordered_ip_hash?: string | null
+          ordered_user_agent?: string | null
           organization_id?: string | null
           package_key?: string | null
           package_selected_at?: string | null
@@ -11306,6 +11353,60 @@ export type Database = {
           _organization_id: string
         }
         Returns: string
+      }
+      active_framework_for_draft: {
+        Args: { _draft_id: string }
+        Returns: {
+          agb_sha256: string | null
+          agb_version: string
+          agreement_number: string
+          client_user_id: string | null
+          countersigned_at: string | null
+          countersigner_name: string | null
+          countersigner_user_id: string | null
+          created_at: string
+          customer_ip_hash: string | null
+          customer_signed_at: string | null
+          customer_signer_email: string | null
+          customer_signer_name: string | null
+          customer_signer_role: string | null
+          decline_reason: string | null
+          declined_at: string | null
+          document_path: string | null
+          document_sha256: string | null
+          envelope_id: string | null
+          envelope_sent_at: string | null
+          expires_at: string | null
+          id: string
+          organization_id: string | null
+          origin_draft_id: string | null
+          package_key: string | null
+          package_selected_at: string | null
+          package_version: number | null
+          pricing_snapshot: Json | null
+          pricing_snapshot_sha256: string | null
+          released_by: string | null
+          released_for_signature_at: string | null
+          signature_provider: string
+          signed_document_path: string | null
+          signed_document_sha256: string | null
+          snapshot: Json
+          snapshot_sha256: string
+          status: string
+          supersedes_id: string | null
+          template_id: string
+          template_version: number
+          terminated_at: string | null
+          termination_reason: string | null
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "client_framework_agreements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       anon_experience_band: { Args: { years: number }; Returns: string }
       anon_region_broad: { Args: { city: string }; Returns: string }
