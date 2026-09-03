@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Check, Gift, Plus } from 'lucide-react';
+import { Check, ChevronDown, Gift, Plus } from 'lucide-react';
 
 /**
  * Benefits — angeklickt, nicht getippt, und aus einem FESTEN Katalog.
@@ -90,6 +90,12 @@ interface Props {
 
 export function BenefitsBlock({ gewaehlt, onChange, vererbt }: Props) {
   const [eigen, setEigen] = useState('');
+  /**
+   * Aufgeklappt, solange nichts gewaehlt ist -- dann muss der Kunde etwas tun.
+   * Sobald etwas steht, reicht die Zeile: sie zeigt die Auswahl selbst, statt
+   * sie zu verstecken. Genau das war beim Firmenblock der Fehler.
+   */
+  const [auf, setAuf] = useState(gewaehlt.length === 0);
   const an = (b: string) => gewaehlt.includes(b);
 
   const um = (b: string) =>
@@ -108,19 +114,32 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt }: Props) {
 
   return (
     <div className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Gift className="h-3.5 w-3.5" /> Benefits
-          <span className="hidden font-normal normal-case tracking-normal opacity-70 sm:inline">
-            — {vererbt ? 'aus Ihrem Firmenprofil, bitte bestätigen' : 'anklicken, was zutrifft'}
-          </span>
-        </p>
+      <button
+        type="button"
+        onClick={() => setAuf((v) => !v)}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
+      >
+        <Gift className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Benefits
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs">
+          {gewaehlt.length > 0 ? (
+            gewaehlt.join(' · ')
+          ) : (
+            <span className="text-muted-foreground">
+              {vererbt ? 'aus Ihrem Firmenprofil — bitte bestätigen' : 'anklicken, was zutrifft'}
+            </span>
+          )}
+        </span>
         {gewaehlt.length > 0 && (
-          <span className="shrink-0 text-[11px] text-muted-foreground">{gewaehlt.length} gewählt</span>
+          <span className="shrink-0 text-[11px] text-muted-foreground">{gewaehlt.length}</span>
         )}
-      </div>
+        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', auf && 'rotate-180')} />
+      </button>
 
-      <div className="space-y-2.5 p-4 pt-3">
+      {!auf ? null : (
+      <div className="space-y-2.5 border-t p-4 pt-3">
         {BENEFIT_GRUPPEN.map((g) => (
           <div key={g.titel}>
             <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">{g.titel}</p>
@@ -177,6 +196,7 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt }: Props) {
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }
