@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { isFailure, type IntakeFailure, type IntakePackage, type IntakePackageOffer } from '@/hooks/useGuestIntake';
+import { FileCheck2 } from 'lucide-react';
 
 /**
  * Die Paketwahl.
@@ -27,9 +28,12 @@ interface Props {
   load: () => Promise<IntakePackageOffer | IntakeFailure>;
   onSelect: (key: string) => Promise<any>;
   onNext: () => void;
+  /** Meldet die im Rahmenvertrag vereinbarte Kondition nach oben, damit die
+   *  Zusammenfassung sie zeigen kann statt einer leeren Paketzeile. */
+  onTerms?: (rv: IntakePackageOffer['framework']) => void;
 }
 
-export function PackageStep({ load, onSelect, onNext }: Props) {
+export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
   const [offer, setOffer] = useState<IntakePackageOffer | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -45,9 +49,10 @@ export function PackageStep({ load, onSelect, onNext }: Props) {
       }
       setOffer(res);
       setChosen(res.selected?.key ?? null);
+      onTerms?.(res.framework ?? null);
     });
     return () => { active = false; };
-  }, [load]);
+  }, [load, onTerms]);
 
   const select = async (key: string) => {
     setBusy(key);
@@ -66,6 +71,63 @@ export function PackageStep({ load, onSelect, onNext }: Props) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Pakete werden geladen …
+      </div>
+    );
+  }
+
+  // Bestandskunde: die Kondition wurde einmal im Rahmenvertrag vereinbart und
+  // gilt fuer jede weitere Position. Hier gibt es nichts mehr zu waehlen --
+  // eine zweite Auswahl waere eine zweite Vereinbarung.
+  if (offer.framework) {
+    const rv = offer.framework;
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold">Ihre Konditionen stehen</h2>
+          <p className="text-sm text-muted-foreground">
+            Sie haben mit uns einen Rahmenvertrag geschlossen. Diese Position wird darunter
+            beauftragt — ohne erneute Unterschrift.
+          </p>
+        </div>
+
+        <Card className="border-primary/30 bg-primary/[0.03]">
+          <CardContent className="space-y-4 pt-6">
+            <div className="flex items-start gap-3">
+              <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">
+                  {rv.name ?? 'Vereinbarte Kondition'}
+                  <Badge variant="secondary" className="ml-2">{rv.fee_percent} %</Badge>
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {rv.fee_percent} % des Bruttojahreszielgehalts, fällig nur im Erfolgsfall
+                  {rv.continuity_days
+                    ? `. Erneuter Suchlauf, wenn die Besetzung in den ersten ${rv.continuity_days} Tagen ausscheidet.`
+                    : '.'}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Rahmenvertrag <span className="font-medium text-foreground">{rv.agreement_number}</span>
+                  {rv.agreed_at
+                    ? ` · vereinbart am ${new Date(rv.agreed_at).toLocaleDateString('de-DE')}`
+                    : null}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-dashed">
+          <CardContent className="flex gap-3 pt-6 text-sm text-muted-foreground">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{offer.notice}</p>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button onClick={onNext}>
+            Weiter zur Zusammenfassung <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </div>
     );
   }

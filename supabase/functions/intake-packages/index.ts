@@ -106,8 +106,29 @@ serve(async (req) => {
         });
       }
 
+      // Besteht schon ein Rahmenvertrag, ist nichts mehr zu waehlen: die
+      // Kondition wurde dort einmal vereinbart und gilt fuer jede weitere
+      // Position. Der Kunde sieht sie, waehlt sie aber nicht neu.
+      const { data: rvRaw } = await supabase
+        .rpc('active_framework_for_draft', { _draft_id: draft.id });
+      const rv = rvRaw && (rvRaw as Record<string, any>).package_key
+        ? (rvRaw as Record<string, any>)
+        : null;
+      const festeKondition = rv
+        ? {
+            agreement_number: rv.agreement_number,
+            package_key: rv.package_key,
+            package_version: rv.package_version,
+            fee_percent: Number(rv.pricing_snapshot?.clientFeePct ?? 0),
+            name: rv.pricing_snapshot?.publicName ?? null,
+            continuity_days: rv.pricing_snapshot?.continuityDays ?? null,
+            agreed_at: rv.package_selected_at ?? rv.countersigned_at ?? null,
+          }
+        : null;
+
       return json({
-        packages: withEstimate,
+        packages: festeKondition ? [] : withEstimate,
+        framework: festeKondition,
         suggested_key: null,
         selected: draft.selected_package_key
           ? { key: draft.selected_package_key, version: draft.selected_package_version,
@@ -115,9 +136,13 @@ serve(async (req) => {
           : null,
         agb_url: `${getPublicAppUrl()}/agb`,
         // Was als Naechstes passiert. Steht hier und nicht erst hinterher.
-        notice: 'Ihre Auswahl ist eine Anfrage, noch kein Vertrag. Wir prüfen sie '
-              + 'und senden Ihnen anschließend den Vertrag zur digitalen Unterschrift. '
-              + 'Erst nach beidseitiger Unterschrift starten wir die Suche.',
+        notice: festeKondition
+          ? 'Ihre Konditionen stehen im Rahmenvertrag ' + festeKondition.agreement_number
+            + ' und gelten unverändert. Diese Position wird darunter beauftragt — '
+            + 'ohne erneute Unterschrift.'
+          : 'Ihre Auswahl ist eine Anfrage, noch kein Vertrag. Wir prüfen sie '
+            + 'und senden Ihnen anschließend den Vertrag zur digitalen Unterschrift. '
+            + 'Erst nach beidseitiger Unterschrift starten wir die Suche.',
         commercial_state: draft.commercial_state === 'not_started' ? 'presented' : draft.commercial_state,
       });
     }
@@ -126,6 +151,16 @@ serve(async (req) => {
     if (draft.review_state === 'accepted') {
       return fail('conflict',
         'Der Auftrag ist bereits angenommen. Bitte wenden Sie sich an Ihren Ansprechpartner.');
+    }
+
+    // Unter einem bestehenden Rahmenvertrag gibt es keine Wahl. Ein Aufruf
+    // hierher waere entweder eine veraltete Oberflaeche oder ein Versuch,
+    // die vereinbarte Kondition zu umgehen.
+    const { data: rvSel } = await supabase
+      .rpc('active_framework_for_draft', { _draft_id: draft.id });
+    if (rvSel && (rvSel as Record<string, any>).package_key) {
+      return fail('conflict',
+        'Ihre Konditionen sind im Rahmenvertrag vereinbart und gelten unverändert.');
     }
 
     const key = String(body?.package_key ?? '');

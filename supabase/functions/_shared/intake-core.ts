@@ -240,6 +240,8 @@ export interface ContractState {
   /** Sprechende Vorgangsnummer, MV-…. Ohne sie stuende nach einem Neuladen
    *  "Vorgang ." auf der Seite -- ein Vertrag ohne Nummer. */
   number: string | null;
+  /** Unter einem bestehenden Rahmenvertrag beauftragt statt unterschrieben. */
+  ordered: boolean;
   has_envelope: boolean;
   customer_signed: boolean;
   countersigned: boolean;
@@ -254,7 +256,7 @@ export async function contractState(
 ): Promise<ContractState | null> {
   const { data } = await supabase
     .from('commercial_mandates')
-    .select('mandate_number, envelope_id, customer_signed_at, countersigned_at, customer_signer_email, customer_signer_name')
+    .select('mandate_number, envelope_id, customer_signed_at, countersigned_at, customer_signer_email, customer_signer_name, ordered_at')
     .eq('draft_id', draftId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -262,6 +264,10 @@ export async function contractState(
   if (!data) return null;
   return {
     number: data.mandate_number ?? null,
+    // Unter einem bestehenden Rahmenvertrag wird beauftragt, nicht
+    // unterschrieben. Ohne dieses Feld zeigte die Oberflaeche nach einem
+    // Neuladen wieder die Unterschriftsfrage.
+    ordered: Boolean(data.ordered_at),
     has_envelope: Boolean(data.envelope_id),
     customer_signed: Boolean(data.customer_signed_at),
     countersigned: Boolean(data.countersigned_at),

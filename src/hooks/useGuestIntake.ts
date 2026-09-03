@@ -56,8 +56,21 @@ export interface PackageSummary {
   payment_terms_days: number;
 }
 
+/** Die einmal vereinbarte Kondition eines Bestandskunden. */
+export interface IntakeFrameworkTerms {
+  agreement_number: string;
+  package_key: string;
+  package_version: number;
+  fee_percent: number;
+  name: string | null;
+  continuity_days: number | null;
+  agreed_at: string | null;
+}
+
 export interface IntakePackageOffer {
   packages: IntakePackage[];
+  /** Gesetzt, wenn schon ein Rahmenvertrag gilt -- dann gibt es nichts zu waehlen. */
+  framework?: IntakeFrameworkTerms | null;
   suggested_key: string | null;
   selected: { key: string; version: number; selected_at: string } | null;
   agb_url: string;
@@ -116,6 +129,8 @@ export interface GuestDraft {
   /** Stand des Vertragslaufs. Null, solange keiner existiert. */
   contract: {
     number: string | null;
+    /** Unter bestehendem Rahmenvertrag beauftragt -- keine Unterschrift noetig. */
+    ordered?: boolean;
     has_envelope: boolean;
     customer_signed: boolean;
     countersigned: boolean;

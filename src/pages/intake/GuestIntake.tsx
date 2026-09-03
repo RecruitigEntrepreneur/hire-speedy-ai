@@ -50,6 +50,8 @@ export default function GuestIntake() {
   const [step, setStep] = useState<StepKey>('capture');
   const [capture, setCapture] = useState<CaptureState | null>(null);
   const [forwardOpen, setForwardOpen] = useState(false);
+  // Die im Rahmenvertrag vereinbarte Kondition, sobald der Paketschritt sie kennt.
+  const [rahmenvertrag, setRahmenvertrag] = useState<any>(null);
   const [resumeOpen, setResumeOpen] = useState(false);
   const [knownCompany, setKnownCompany] = useState<{ name: string } | null>(null);
   const [submitted, setSubmitted] = useState<{ mandate: string; requiresSignature: boolean; mailSent: boolean } | null>(null);
@@ -223,8 +225,13 @@ export default function GuestIntake() {
     // Nach einem Neuladen ist submitted leer -- dann traegt der Entwurf die
     // Nummer. Ohne das stand dort "Vorgang ." ohne Nummer.
     const mandate = submitted?.mandate ?? draft.contract?.number ?? null;
-    // Unterschrieben wird immer -- der Vertrag geht nach der Pruefung raus.
-    const requiresSignature = true;
+    // Unterschrieben wird nur beim ERSTEN Vorgang eines Kunden -- da entsteht
+    // der Rahmenvertrag. Jede weitere Position wird unter ihm beauftragt; der
+    // Vertragstext regelt, dass die Auftragserteilung ueber dieses System
+    // erfolgt. `ordered` traegt den Stand auch ueber ein Neuladen.
+    const unterRahmenvertrag =
+      submitted?.requiresSignature === false || Boolean(draft.contract?.ordered);
+    const requiresSignature = !unterRahmenvertrag;
 
     const waehlen = async (args: { self: boolean; name?: string; email?: string }) => {
       setSignBusy(true);
@@ -254,7 +261,7 @@ export default function GuestIntake() {
     //     Seite -- der Kunde soll den Lauf abschliessen, solange er hier ist.
     //     Greift auch nach einem Neuladen, solange nichts unterschrieben und
     //     nichts an einen Dritten unterwegs ist.
-    if (!signUrl && !anDrittenVersandt && !bereitsUnterschrieben) {
+    if (requiresSignature && !signUrl && !anDrittenVersandt && !bereitsUnterschrieben) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
           <div className="w-full max-w-lg space-y-6">
@@ -274,7 +281,7 @@ export default function GuestIntake() {
     }
 
     // (2) Eigenhaendig: der Vertrag im Rahmen, auf unserer Seite.
-    if (signUrl && !signed) {
+    if (requiresSignature && signUrl && !signed) {
       return (
         <div className="min-h-screen bg-background px-4 py-8">
           <div className="mx-auto w-full max-w-4xl space-y-4">
@@ -419,6 +426,7 @@ export default function GuestIntake() {
           load={loadPackages}
           onSelect={selectPackage}
           onNext={() => setStep('summary')}
+          onTerms={setRahmenvertrag}
         />
       )}
 
@@ -426,6 +434,7 @@ export default function GuestIntake() {
         <SummaryStep
           draft={draft}
           packages={state.packages}
+          framework={rahmenvertrag}
           summary={summaryRows}
           openQuestions={openQuestionCount}
           onBack={() => setStep('capture')}

@@ -22,6 +22,9 @@ import { isFailure, type GuestDraft, type PackageSummary } from '@/hooks/useGues
 interface Props {
   draft: GuestDraft;
   packages: PackageSummary[] | null;
+  /** Gesetzt, wenn schon ein Rahmenvertrag gilt: dann wird beauftragt statt
+   *  angefragt, und es wird nichts mehr unterschrieben. */
+  framework?: { agreement_number: string; fee_percent: number; name: string | null } | null;
   summary: { label: string; value: string }[];
   openQuestions: number;
   onSubmit: (signerName: string) => Promise<any>;
@@ -29,7 +32,7 @@ interface Props {
   onBack: () => void;
 }
 
-export function SummaryStep({ draft, packages, summary, openQuestions, onSubmit, onForward, onBack }: Props) {
+export function SummaryStep({ draft, packages, framework, summary, openQuestions, onSubmit, onForward, onBack }: Props) {
   const chosenPackage = packages?.find((p) => p.key === draft.selected_package_key) ?? null;
   const [signer, setSigner] = useState(draft.contact_name ?? '');
   const [consent, setConsent] = useState(false);
@@ -154,7 +157,7 @@ export function SummaryStep({ draft, packages, summary, openQuestions, onSubmit,
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={submit} disabled={!canSubmit} className="gap-2" variant="hero">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Beauftragung anfragen
+              {framework ? 'Position beauftragen' : 'Beauftragung anfragen'}
             </Button>
             <Button variant="outline" onClick={onForward} className="gap-2">
               <Users className="h-4 w-4" /> An Entscheider weiterleiten
@@ -162,7 +165,10 @@ export function SummaryStep({ draft, packages, summary, openQuestions, onSubmit,
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Mit dem Absenden kommt noch kein Vertrag zustande. Wir prüfen Ihre Anfrage und melden uns.
+            {framework
+              ? `Der Auftrag läuft unter Ihrem Rahmenvertrag ${framework.agreement_number} `
+                + `zu ${framework.fee_percent} % — keine erneute Unterschrift nötig.`
+              : 'Mit dem Absenden kommt noch kein Vertrag zustande. Wir prüfen Ihre Anfrage und melden uns.'}
           </p>
         </CardContent>
       </Card>

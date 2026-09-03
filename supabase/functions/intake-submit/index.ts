@@ -78,11 +78,29 @@ serve(async (req) => {
       const { data } = await supabase.from('intake_links').select('*').eq('id', draft.link_id).maybeSingle();
       link = data ?? null;
     }
+    // ---- Besteht schon ein Rahmenvertrag? ----------------------------------
+    // Wenn ja, sind die Konditionen dort EINMAL gewaehlt und stehen fest. Die
+    // Position wird dann unter diesem Vertrag beauftragt: ein protokollierter
+    // Vorgang, keine zweite Unterschrift. Der Vertragstext selbst regelt, dass
+    // die Auftragserteilung ueber dieses System erfolgt.
+    const { data: rvRaw } = await supabase
+      .rpc('active_framework_for_draft', { _draft_id: draft.id });
+    const framework = rvRaw && (rvRaw as Record<string, any>).id
+      ? (rvRaw as Record<string, any>)
+      : null;
+    // Ein Rahmenvertrag ohne Konditionen taugt nicht als Grundlage -- das kann
+    // nur ein Altvertrag aus dem Modell "ein Vertrag je Position" sein. Dann
+    // laeuft dieser Vorgang wie bisher.
+    const unterRahmenvertrag = !!(framework?.package_key && framework?.pricing_snapshot);
+
+    const packageKey     = unterRahmenvertrag ? framework!.package_key     : draft.selected_package_key;
+    const packageVersion = unterRahmenvertrag ? framework!.package_version : draft.selected_package_version;
+
     // Ohne Paketwahl gibt es keine Anfrage. Die Constraint
     // intake_drafts_submit_requires_verified wuerde es ohnehin ablehnen --
     // hier steht es, damit der Kunde einen Satz statt eines Datenbankfehlers
-    // bekommt.
-    if (!draft.selected_package_key) {
+    // bekommt. Unter einem Rahmenvertrag entfaellt die Wahl.
+    if (!packageKey) {
       return fail('invalid_request',
         'Bitte wählen Sie zuerst eines der drei Pakete aus.');
     }
@@ -99,8 +117,8 @@ serve(async (req) => {
     const { data: pkg } = await supabase
       .from('commercial_packages')
       .select('*')
-      .eq('package_key', draft.selected_package_key)
-      .eq('version', draft.selected_package_version)
+      .eq('package_key', packageKey)
+      .eq('version', packageVersion)
       .maybeSingle();
     if (!pkg) return fail('not_deployed', 'Das gewählte Paket ist nicht hinterlegt.');
 
@@ -134,7 +152,15 @@ serve(async (req) => {
       excludedClaimCategories: pkg.excluded_claim_categories ?? [],
       capturedAt: new Date().toISOString(),
     };
-    const pricingSha = await contentHash(JSON.stringify(pricingSnapshot));
+    // Unter einem Rahmenvertrag gilt DESSEN Abbild, nicht ein neu gebautes.
+    // Sonst wanderte eine zwischenzeitliche Preisaenderung still in die
+    // naechste Position -- obwohl die Kondition fest vereinbart ist.
+    const geltenderSnapshot = unterRahmenvertrag
+      ? framework!.pricing_snapshot
+      : pricingSnapshot;
+    const pricingSha = unterRahmenvertrag && framework!.pricing_snapshot_sha256
+      ? framework!.pricing_snapshot_sha256
+      : await contentHash(JSON.stringify(pricingSnapshot));
 
     // Die Schaetzgrundlage aus der Aufnahme. Unverbindlich -- abgerechnet wird
     // spaeter nach dem unterzeichneten Arbeitsvertrag.
@@ -249,7 +275,7 @@ serve(async (req) => {
       payment_terms_days: pkg.payment_terms_days,
       package_key: pkg.package_key,
       package_version: pkg.version,
-      pricing_snapshot: pricingSnapshot,
+      pricing_snapshot: geltenderSnapshot,
       pricing_snapshot_sha256: pricingSha,
       package_selected_at: draft.package_selected_at ?? now,
       gross_annual_target_compensation_cents: basisCents,
@@ -270,9 +296,30 @@ serve(async (req) => {
       client_confirmed_ip_hash: ipHash,
       client_confirmed_user_agent: ua,
       agb_accepted_at: now,
-      // Unterschrieben wird immer. Der Vertrag geht erst nach der
-      // Admin-Freigabe raus, deshalb 'pending' und nicht 'sent'.
-      signature_status: 'pending',
+      ...(unterRahmenvertrag
+        ? {
+            // Beauftragung unter bestehendem Rahmenvertrag. Der Nachweis ist
+            // der protokollierte Vorgang: wer, wann, unter welcher Fassung.
+            framework_agreement_id: framework!.id,
+            ordered_at: now,
+            ordered_by_name: signerName,
+            ordered_by_email: draft.contact_email,
+            ordered_ip_hash: ipHash,
+            ordered_user_agent: ua,
+            order_terms_version: framework!.template_version,
+            // Angenommen ist der Auftrag mit der Bestellung -- die Pruefung des
+            // Kunden hat beim Rahmenvertrag stattgefunden. Veroeffentlicht wird
+            // trotzdem erst auf Klick von Matchunt.
+            status: 'accepted',
+            accepted_at: now,
+            signature_status: 'not_required',
+          }
+        : {
+            // Erster Vorgang dieses Kunden: hier entsteht der Rahmenvertrag,
+            // und der wird unterschrieben. Er geht erst nach der Admin-Freigabe
+            // raus, deshalb 'pending' und nicht 'sent'.
+            signature_status: 'pending',
+          }),
     };
 
     const mandateQuery = open
@@ -339,14 +386,25 @@ serve(async (req) => {
     // ---- Eingangsbestaetigung: ausdruecklich noch kein Vertrag --------------
     const resumeUrl = intakeResumeUrl(String(body?.draft_token));
     const html = layout({
-      preheader: `Ihre Anfrage für ${esc(snapshot.position.title ?? 'die Position')} ist bei uns eingegangen.`,
-      heading: 'Ihre Beauftragungsanfrage ist eingegangen',
+      preheader: unterRahmenvertrag
+        ? `Ihr Auftrag für ${esc(snapshot.position.title ?? 'die Position')} ist eingegangen.`
+        : `Ihre Anfrage für ${esc(snapshot.position.title ?? 'die Position')} ist bei uns eingegangen.`,
+      heading: unterRahmenvertrag
+        ? 'Ihr Auftrag ist eingegangen'
+        : 'Ihre Beauftragungsanfrage ist eingegangen',
       body: `
         <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name)},</p>
         <p style="margin:0 0 16px 0;">
-          vielen Dank. Wir haben Ihre Anfrage für <strong>${esc(snapshot.position.title ?? 'die Position')}</strong>
-          erhalten und prüfen sie.
+          vielen Dank. Wir haben ${unterRahmenvertrag ? 'Ihren Auftrag' : 'Ihre Anfrage'} für
+          <strong>${esc(snapshot.position.title ?? 'die Position')}</strong>
+          erhalten${unterRahmenvertrag ? '' : ' und prüfen ihn'}.
         </p>
+        ${unterRahmenvertrag ? `
+        <p style="margin:0 0 16px 0;">
+          Der Auftrag läuft unter Ihrem bestehenden Rahmenvertrag
+          <strong>${esc(framework!.agreement_number)}</strong>. Eine erneute Unterschrift
+          ist nicht nötig — die vereinbarten Konditionen gelten unverändert.
+        </p>` : ''}
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:18px 0;border-collapse:collapse;">
           <tr><td style="padding:6px 0;color:#6b7280;width:45%;">Vorgangsnummer</td><td style="padding:6px 0;font-weight:600;">${esc(mandate.mandate_number)}</td></tr>
           <tr><td style="padding:6px 0;color:#6b7280;">Paket</td><td style="padding:6px 0;font-weight:600;">${esc(pkg.public_name)}</td></tr>
@@ -356,18 +414,24 @@ serve(async (req) => {
           <tr><td style="padding:6px 0;color:#6b7280;">AGB-Fassung</td><td style="padding:6px 0;">${esc(contractTpl.agb_version)}</td></tr>
         </table>
         <p style="margin:0 0 8px 0;font-weight:600;">Wie es weitergeht</p>
-        <p style="margin:0 0 16px 0;">
-          Wir prüfen Ihre Anfrage und senden Ihnen anschließend den Vertrag zur digitalen
-          Unterschrift zu. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.
+        <p style="margin:0 0 16px 0;">${unterRahmenvertrag
+          ? 'Wir sichten die Position und starten die Suche. Sie hören von uns, sobald sie läuft.'
+          : 'Wir prüfen Ihre Anfrage und senden Ihnen anschließend den Vertrag zur digitalen '
+            + 'Unterschrift zu. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.'}
         </p>`,
       cta: { label: 'Anfrage ansehen', url: resumeUrl },
-      footnote:
-        'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit unserer ausdrücklichen Annahme zustande. Bis dahin entstehen Ihnen keine Kosten.',
+      footnote: unterRahmenvertrag
+        ? 'Diese Bestätigung dokumentiert Ihre Auftragserteilung unter dem bestehenden '
+          + 'Rahmenvertrag. Kosten entstehen ausschließlich im Erfolgsfall.'
+        : 'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit '
+          + 'unserer ausdrücklichen Annahme zustande. Bis dahin entstehen Ihnen keine Kosten.',
     });
 
     const mail = await sendIntakeMail(supabase, {
       to: draft.contact_email,
-      subject: `Ihre Beauftragungsanfrage ${mandate.mandate_number} ist eingegangen`,
+      subject: unterRahmenvertrag
+        ? `Ihr Auftrag ${mandate.mandate_number} ist eingegangen`
+        : `Ihre Beauftragungsanfrage ${mandate.mandate_number} ist eingegangen`,
       html,
       template: 'intake_submitted',
       meta: { draft_id: draft.id, mandate_id: mandate.id },
@@ -383,7 +447,7 @@ serve(async (req) => {
         [...recipients].map((user_id) => ({
           user_id,
           type: 'intake_submitted',
-          title: 'Neue Beauftragungsanfrage',
+          title: unterRahmenvertrag ? 'Neuer Auftrag (Rahmenvertrag)' : 'Neue Beauftragungsanfrage',
           message: `${draft.company_name} · ${snapshot.position.title ?? 'Position'} — ${mandate.mandate_number}`,
           related_type: 'intake_draft',
           related_id: draft.id,
@@ -410,7 +474,9 @@ serve(async (req) => {
       review_state: 'pending_admin',
       mandate_number: mandate.mandate_number,
       confirmation_sent: mail.sent,
-      requires_signature: true,
+      // Unter bestehendem Rahmenvertrag wird nichts mehr unterschrieben.
+      requires_signature: !unterRahmenvertrag,
+      framework_agreement_number: unterRahmenvertrag ? framework!.agreement_number : null,
       draft: publicDraft(saved),
     });
   } catch (e) {
