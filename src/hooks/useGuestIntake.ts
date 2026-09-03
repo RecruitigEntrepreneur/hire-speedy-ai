@@ -476,12 +476,28 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
    * Uebernommen wird nichts von selbst -- ermittelt ist nicht bestaetigt.
    */
   const enrichCompany = useCallback(
-    (domain?: string) => withToken<{
-      name?: string; legal_name?: string; industry?: string;
-      street?: string; postal_code?: string; city?: string; country?: string;
-      registration_number?: string; vat_id?: string; ceo_name?: string;
-      headcount?: number; description?: string;
-    }>('intake-ai', { op: 'enrich_company', payload: domain ? { domain } : {} }),
+    async (domain?: string) => {
+      // Die Function antwortet mit { success, domain, data: {...} }, der
+      // Proxy reicht das unveraendert durch. Ohne Auspacken sah der Block
+      // immer leere Felder -- und meldete "kein Impressum gefunden", obwohl
+      // die Daten eine Ebene tiefer lagen.
+      const res = await withToken<{
+        success?: boolean;
+        data?: Record<string, unknown>;
+        warnings?: { step: string; status?: number; detail?: string }[];
+      }>('intake-ai', { op: 'enrich_company', payload: domain ? { domain } : {} });
+      if (isFailure(res)) return res;
+      if (res.warnings?.length) {
+        // Sichtbar machen, statt als "Website gab nichts her" zu verkaufen.
+        console.warn('[enrich] Firecrawl-Schritte fehlgeschlagen:', res.warnings);
+      }
+      return (res.data ?? {}) as {
+        name?: string; legal_name?: string; industry?: string;
+        street?: string; postal_code?: string; city?: string; country?: string;
+        registration_number?: string; vat_id?: string; ceo_name?: string;
+        headcount?: number; description?: string;
+      };
+    },
     [],
   );
 

@@ -58,6 +58,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    /**
+     * Diagnose. Bisher hat diese Function jeden Fehlschlag verschluckt: die
+     * drei Firecrawl-Aufrufe stehen hinter `if (response.ok)`, und was sonst
+     * passiert, erfaehrt niemand. Ergebnis war ein `success: true` mit einem
+     * einzigen Feld -- dem aus der Domain abgeleiteten Namen. Von aussen sah
+     * das aus, als haette die Seite nichts hergegeben.
+     */
+    const warnings: { step: string; status?: number; detail?: string }[] = [];
+    const merke = async (step: string, r: Response) => {
+      if (r.ok) return true;
+      let detail = '';
+      try { detail = (await r.clone().text()).slice(0, 200); } catch { /* egal */ }
+      warnings.push({ step, status: r.status, detail });
+      console.error(`[Enrich] ${step} fehlgeschlagen: ${r.status} ${detail}`);
+      return false;
+    };
+
     // Normalize domain
     let normalizedDomain = domain.trim().toLowerCase();
     normalizedDomain = normalizedDomain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
@@ -103,7 +120,7 @@ Deno.serve(async (req) => {
         }),
       });
 
-      if (scrapeResponse.ok) {
+      if (await merke('startseite', scrapeResponse)) {
         const scrapeData = await scrapeResponse.json();
         homepageData = scrapeData.data?.json || scrapeData.json;
         homepageMarkdown = scrapeData.data?.markdown || scrapeData.markdown || '';
@@ -132,7 +149,7 @@ Deno.serve(async (req) => {
         }),
       });
 
-      if (mapResponse.ok) {
+      if (await merke('seitenkarte', mapResponse)) {
         const mapData = await mapResponse.json();
         const links = mapData.links || [];
         
@@ -184,7 +201,7 @@ Deno.serve(async (req) => {
             }),
           });
 
-          if (aboutResponse.ok) {
+          if (await merke('impressum', aboutResponse)) {
             const aboutScrape = await aboutResponse.json();
             aboutData = aboutScrape.data?.json || aboutScrape.json;
             console.log(`[Enrich] About page scraped successfully`);
@@ -315,6 +332,10 @@ ${homepageMarkdown.slice(0, 3000)}`,
         success: true,
         domain: normalizedDomain,
         data: result,
+        // Leer heisst: alle drei Schritte liefen. Steht hier etwas, hat
+        // Firecrawl abgelehnt -- und der duenne Datensatz ist kein Befund
+        // ueber die Website, sondern ein Betriebsproblem.
+        warnings,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
