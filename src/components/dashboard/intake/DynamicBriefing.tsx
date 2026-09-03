@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { IntakeBriefing, type Answers, type BriefBuilt, type JobType } from '../IntakeBriefing';
 import { cn } from '@/lib/utils';
 import {
-  AlertTriangle, CheckCircle2, Circle, CircleDashed, HelpCircle, Loader2, Sparkles, ChevronDown } from 'lucide-react';
+  AlertTriangle, Check, CheckCircle2, Circle, CircleDashed, HelpCircle, Loader2, Sparkles, ChevronDown } from 'lucide-react';
 
 export interface DynQuestion {
   id: string;
@@ -13,6 +13,10 @@ export interface DynQuestion {
   question: string;
   why?: string;
   chips: string[];
+  /** Die Frage verlangt eine Aufzaehlung -- mehrere Chips duerfen zugleich
+   *  gelten. Ohne das nimmt die Oberflaeche bei "welche 3 Hauptaufgaben"
+   *  genau eine Antwort und wirft zwei Drittel der Auskunft weg. */
+  multi?: boolean;
 }
 
 export interface DynAnswered {
@@ -185,6 +189,8 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
   const laeuft = useRef(false);
   const reserveAktiv = useRef<DynQuestion | null>(null);
   const [freeText, setFreeText] = useState('');
+  // Angeklicktes bei Mehrfachfragen. Erst der Knopf "Weiter" sendet.
+  const [gewaehlt, setGewaehlt] = useState<string[]>([]);
   const [kapitelOffen, setKapitelOffen] = useState(false);
   const [dismissedFlags, setDismissedFlags] = useState<string[]>([]);
   const probing = useRef(false);
@@ -292,6 +298,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     const askedIds = [...state.askedIds, current.id];
     onState((prev) => ({ ...prev, answers, askedIds }));
     setFreeText('');
+    setGewaehlt([]);
     // Die Reservefrage steht neben der Warteschlange, nicht darin -- ihre
     // Antwort darf keine bereits geholte Frage verschlucken.
     const rest = (reserveAktiv.current ? queue : queue.slice(1)).filter((q) => q.id !== current.id);
@@ -302,6 +309,15 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     // anfragt, laesst den Kunden warten. Mit dem Nachladen bei einer
     // verbleibenden Frage ueberlappt die Wartezeit mit dem Antworten.
     if (rest.length <= 1 && !laeuft.current) void fetchNext(answers, askedIds);
+  };
+
+  /** Auswahl und Freitext zu EINER Antwort zusammenfuehren. Beides zugleich
+   *  ist der Normalfall: zwei Chips treffen zu, das Dritte tippt der Kunde. */
+  const absenden = () => {
+    const teile = [...gewaehlt];
+    if (freeText.trim()) teile.push(freeText.trim());
+    if (teile.length === 0) return;
+    answer(teile.join(' · '));
   };
 
   const visibleFlags = state.tensionFlags.filter((f) => !dismissedFlags.includes(f.id));
@@ -421,23 +437,36 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
           </p>
           <p className="mb-3 text-sm font-medium">{current.question}</p>
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {current.chips.filter(istEigeneAntwortNoetig).map((chip) => (
+            {current.chips.filter(istEigeneAntwortNoetig).map((chip) => {
               // h-8 und die feste Hoehe stammten aus der Zeit der statischen
               // Chips: kurze Woerter wie "Wachstum / neu". Die KI schreibt
               // ganze Saetze -- gemessen liefen sie 83 bis 139 Pixel ueber den
               // Rand, der Kunde konnte nicht lesen, was er anklickt.
               // max-w-full bricht die Flex-Regel, dass ein Element nicht unter
               // seine Inhaltsbreite schrumpft.
-              <Button
-                key={chip}
-                size="sm"
-                variant="outline"
-                className="h-auto max-w-full whitespace-normal rounded-xl py-1.5 text-left text-xs leading-snug"
-                onClick={() => answer(chip)}
-              >
-                {chip}
-              </Button>
-            ))}
+              const an = gewaehlt.includes(chip);
+              return (
+                <Button
+                  key={chip}
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    'h-auto max-w-full whitespace-normal rounded-xl py-1.5 text-left text-xs leading-snug',
+                    an && 'border-primary bg-primary/10 text-foreground',
+                  )}
+                  onClick={() =>
+                    current.multi
+                      // Umschalten statt senden: bei einer Aufzaehlung ist die
+                      // erste Auswahl selten die ganze Antwort.
+                      ? setGewaehlt((v) => (v.includes(chip) ? v.filter((x) => x !== chip) : [...v, chip]))
+                      : answer(chip)
+                  }
+                >
+                  {an && <Check className="mr-1 h-3 w-3 shrink-0" />}
+                  {chip}
+                </Button>
+              );
+            })}
             <Button
               size="sm"
               variant="ghost"
@@ -451,12 +480,17 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
             <Input
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && freeText.trim() && answer(freeText.trim())}
-              placeholder="Eigene Antwort …"
+              onKeyDown={(e) => e.key === 'Enter' && (freeText.trim() || gewaehlt.length) && absenden()}
+              placeholder={current.multi ? 'Ergänzen …' : 'Eigene Antwort …'}
               className="h-8 text-xs"
             />
-            <Button size="sm" className="h-8 text-xs" disabled={!freeText.trim()} onClick={() => answer(freeText.trim())}>
-              OK
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={!freeText.trim() && gewaehlt.length === 0}
+              onClick={absenden}
+            >
+              {current.multi ? `Weiter${gewaehlt.length ? ` (${gewaehlt.length})` : ''}` : 'OK'}
             </Button>
           </div>
           {current.why && (

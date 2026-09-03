@@ -64,7 +64,13 @@ const OUTPUT_SCHEMA = {
           chapter: { type: 'string', enum: CHAPTERS },
           question: { type: 'string', description: 'Die Frage, Sie-Form, konkret auf DIESEN Job bezogen' },
           why: { type: 'string', description: '1 Satz: warum diese Frage den Recruitern hilft' },
-          chips: { type: 'array', items: { type: 'string' }, description: '2-4 kurze, wahrscheinliche Antwortoptionen' },
+          chips: { type: 'array', items: { type: 'string' }, description: '2-6 kurze, wahrscheinliche Antwortoptionen' },
+          multi: {
+            type: 'boolean',
+            description: 'true, wenn die Frage eine Aufzaehlung verlangt und mehrere '
+              + 'Chips zugleich zutreffen koennen (z.B. "welche 3 Hauptaufgaben", '
+              + '"welche Benefits", "welche Systeme"). false bei Entweder-oder-Fragen.',
+          },
         },
         required: ['id', 'chapter', 'question', 'chips'],
       },
@@ -189,7 +195,8 @@ REGELN:
    e) SUCHBILD: Aus welcher Rolle/welchen Firmen kommt der Ideal-Kandidat? Anti-Persona?
    f) TRIPLE-BLIND-REVEAL: was darf anonym genannt werden, was verrät die Firma.
 3. GATE: Bei Senior+/vielen Muss-Kriterien/engem Budget → search_difficulty=high setzen und aktiv drängen, Muss-Kriterien zu kürzen oder Budget zu flexibilisieren (Tension-Flag mit konkretem Vorschlag).
-4. FRAGE-QUALITÄT: Jede Frage konkret auf DIESEN Entwurf bezogen (Zahlen/Skills aus dem Entwurf zitieren), Sie-Form, mit 2-4 realistischen Antwort-Chips. Niemals bereits Beantwortetes oder asked_ids erneut fragen. "Weiß ich nicht"-Antworten (__unknown__) NICHT wiederholen — Kapitel als skipped markieren.
+4. FRAGE-QUALITÄT: Jede Frage konkret auf DIESEN Entwurf bezogen (Zahlen/Skills aus dem Entwurf zitieren), Sie-Form, mit 2-4 realistischen Antwort-Chips.
+4a. EINE ODER MEHRERE ANTWORTEN: Verlangt die Frage eine Aufzählung ("welche 3 Hauptaufgaben", "welche Benefits", "welche Systeme", "was davon trifft zu"), setze multi=true und biete bis zu 6 Chips an — der Kunde kann dann mehrere anklicken. Bei Entweder-oder-Fragen ("wer entscheidet", "wie viele Gespräche") setze multi=false. Eine Frage, die drei Dinge erfragt, aber nur eine Antwort zulässt, verliert zwei Drittel der Auskunft. Niemals bereits Beantwortetes oder asked_ids erneut fragen. "Weiß ich nicht"-Antworten (__unknown__) NICHT wiederholen — Kapitel als skipped markieren.
 5. DE-ANONYMISIERUNGS-GUARDRAIL: Alles, was die Firma identifizieren könnte (Name, einzigartige Produkte, exakte Adresse, "Marktführer für X in Y") gehört auf die red_list und NIE in Texte, die Recruiter sehen. Baue den anonymen Descriptor aus Branche+Größe+Region.
 6. NORMALISIERUNG: Antworten in typed_fields (exakte Shapes!), skill_requirements (jeder Muss-Skill mit min_years wenn genannt), intake_payload_patch (narrativ) und reveal_envelope_patch übersetzen.
 7. SKILL-VORSCHLAEGE: Nenne in skill_suggestions bis zu 6 Skills, die zu dieser Rolle
@@ -249,7 +256,14 @@ BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(kei
 
     // Defensive Defaults, damit das Frontend nie an fehlenden Keys scheitert
     const result = {
-      next_questions: Array.isArray(parsed.next_questions) ? parsed.next_questions.slice(0, max_questions) : [],
+      next_questions: Array.isArray(parsed.next_questions)
+        ? parsed.next_questions.slice(0, max_questions).map((q: Record<string, unknown>) => ({
+            ...q,
+            // Ohne feste Umwandlung kaeme mal true, mal "true", mal nichts --
+            // die Oberflaeche wuerde dann mal umschalten und mal sofort senden.
+            multi: q.multi === true || q.multi === 'true',
+          }))
+        : [],
       weighted_completeness: typeof parsed.weighted_completeness === 'number' ? Math.max(0, Math.min(100, parsed.weighted_completeness)) : 0,
       chapter_progress: Array.isArray(parsed.chapter_progress) ? parsed.chapter_progress : [],
       typed_fields: parsed.typed_fields ?? {},
