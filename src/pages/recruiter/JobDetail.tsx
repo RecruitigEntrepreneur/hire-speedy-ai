@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
 import { CompanyRevealBadge } from '@/components/recruiter/CompanyRevealBadge';
 import { getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
-import { RecruiterQuickFacts } from '@/components/recruiter/RecruiterQuickFacts';
+import { JobFactsBar } from '@/components/recruiter/JobFactsBar';
+import { JobOpenPoints } from '@/components/recruiter/JobOpenPoints';
 import { AnonymousCompanyPitch } from '@/components/recruiter/AnonymousCompanyPitch';
 import { RoleSummaryCard } from '@/components/recruiter/RoleSummaryCard';
 import { SkillsDisplay } from '@/components/recruiter/SkillsDisplay';
@@ -29,6 +30,7 @@ import {
   Users,
   Loader2,
   Star,
+  Sparkles,
 } from 'lucide-react';
 import {
   Dialog,
@@ -82,6 +84,22 @@ interface Job {
   funding_stage: string | null;
   hiring_urgency: string | null;
   tech_environment: string[] | null;
+  // Spalten, die recruiter_jobs_view seit jeher liefert und die bis heute
+  // nirgends gerendert wurden -- der Recruiter sah sie nie.
+  benefits: string[] | null;
+  // jsonb in der Datenbank: mal ["Deutsch C1"], mal [{code,minLevel}].
+  // Die Normalisierung passiert in JobFactsBar.
+  required_languages: any;
+  required_certifications: any;
+  onsite_required: boolean | null;
+  onsite_days_required: number | null;
+  remote_policy: string | null;
+  job_summary: any;
+  // Die generierten Supabase-Typen sind aelter als Migration 20260829120000
+  // und kennen die Contracting-Spalten der View nicht. Zur Laufzeit liefert
+  // `select('*')` sie mit, deshalb optional statt Cast.
+  day_rate_min?: number | null;
+  day_rate_max?: number | null;
 }
 
 // Triple-Blind Reveal Status für diesen Job
@@ -314,14 +332,15 @@ export default function JobDetail() {
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div className="space-y-2">
               {/* AI Headline or Job Title */}
+              {/* Der Titel ist der echte Titel aus der Datenbank, nicht die
+                  KI-Headline. Gemessen an einem echten Job stand oben
+                  "Senior Backend Developer -- Tech-Hub Muenchen", waehrend die
+                  Stelle "Senior Softwareentwickler Backend" heisst und
+                  experience_level = 'mid' ist. Der Recruiter sourct sonst
+                  Senior-Profile fuer ein Mid-Budget, und "Tech-Hub Muenchen"
+                  gibt es nicht. */}
               <div className="flex items-center gap-3 flex-wrap">
-                {formattedContent?.headline ? (
-                  <h1 className="text-2xl lg:text-3xl font-bold">
-                    {formattedContent.headline}
-                  </h1>
-                ) : (
-                  <h1 className="text-2xl lg:text-3xl font-bold">{job.title}</h1>
-                )}
+                <h1 className="text-2xl lg:text-3xl font-bold">{job.title}</h1>
                 {(job.urgency === 'hot' || job.urgency === 'urgent') && getUrgencyBadge(job.urgency)}
               </div>
 
@@ -370,17 +389,6 @@ export default function JobDetail() {
                 )}
               </div>
 
-              {/* AI Highlights */}
-              {formattedContent?.highlights && formattedContent.highlights.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {formattedContent.highlights.map((highlight, i) => (
-                    <Badge key={i} variant="outline" className="bg-muted/50">
-                      <Star className="h-3 w-3 mr-1 text-amber-500" />
-                      {highlight}
-                    </Badge>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
@@ -418,17 +426,50 @@ export default function JobDetail() {
           />
         )}
 
-        {/* Quick Facts Bar */}
-        <RecruiterQuickFacts
-          quickFacts={formattedContent?.quick_facts}
-          companySize={job.company_size_band}
-          fundingStage={job.funding_stage}
-          techEnvironment={job.tech_environment}
+        {/* Eckdaten in einer Zeile -- nur belegte Spalten, keine erfundenen
+            quick_facts mehr. Siehe Kommentar in JobFactsBar. */}
+        <JobFactsBar
+          facts={{
+            salaryMin: job.salary_min,
+            salaryMax: job.salary_max,
+            dayRateMin: job.day_rate_min,
+            dayRateMax: job.day_rate_max,
+            onsiteRequired: job.onsite_required,
+            onsiteDaysRequired: job.onsite_days_required,
+            remotePolicy: job.remote_policy,
+            remoteType: job.remote_type,
+            requiredLanguages: job.required_languages,
+            requiredCertifications: job.required_certifications,
+            experienceLevel: job.experience_level,
+            companySizeBand: job.company_size_band,
+            deadline: job.deadline,
+          }}
         />
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content - 60% */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Was ab hier folgt, hat ein Modell aus der Anzeige geschrieben --
+                nicht der Kunde gesagt. Ohne diese Zeile liest der Recruiter
+                Erfundenes und Belegtes in derselben Schrift. */}
+            {formattedContent && (
+              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <Sparkles className="h-3 w-3" />
+                Aus der Anzeige erzeugt — nicht vom Kunden bestätigt
+              </p>
+            )}
+
+            {formattedContent?.highlights && formattedContent.highlights.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {formattedContent.highlights.map((highlight, i) => (
+                  <Badge key={i} variant="outline" className="bg-muted/50">
+                    <Star className="h-3 w-3 mr-1 text-amber-500" />
+                    {highlight}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
             {/* Anonymous Company Pitch */}
             <AnonymousCompanyPitch
               pitch={formattedContent?.anonymous_company_pitch || null}
@@ -509,9 +550,21 @@ export default function JobDetail() {
               remoteType={job.remote_type}
               employmentType={job.employment_type}
               experienceLevel={job.experience_level}
-              totalSubmissions={totalSubmissions}
+              totalSubmissions={mySubmissions.length}
               salaryMin={job.salary_min}
               salaryMax={job.salary_max}
+            />
+
+            <JobOpenPoints
+              punkte={[
+                { frage: 'Warum ist die Stelle offen?', vorhanden: false },
+                { frage: 'Woran arbeitet die Person in den ersten 90 Tagen?', vorhanden: false },
+                { frage: 'Wie viele Gespräche bis zur Zusage, wer entscheidet?', vorhanden: false },
+                { frage: 'Wie groß ist das Team?', vorhanden: false },
+                { frage: 'Gehaltsband', vorhanden: job.salary_min != null || job.salary_max != null },
+                { frage: 'Sprachanforderung', vorhanden: !!job.required_languages?.length },
+                { frage: 'Benefits', vorhanden: !!job.benefits?.length },
+              ]}
             />
 
             {/* Screening Questions */}
