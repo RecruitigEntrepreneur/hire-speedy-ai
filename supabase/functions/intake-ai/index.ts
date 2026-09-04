@@ -114,18 +114,20 @@ serve(async (req) => {
       if (JSON.stringify(jobDraft).length > MAX_JOB_DRAFT_BYTES) {
         return fail('invalid_request', 'Der Stellenentwurf ist zu groß.');
       }
-      const answers = Array.isArray(payload.answers) ? payload.answers.slice(-MAX_ANSWERS) : [];
-      const askedIds = Array.isArray(payload.asked_ids) ? payload.asked_ids.slice(-MAX_ANSWERS) : [];
+      // Seit dem 04.09.2026 erfindet intake-questions keine Fragen mehr: die
+      // stehen im Katalog (src/lib/briefCatalog.ts). Durchgereicht wird jetzt
+      // die gestellte Frage, die Antwort darauf und die noch offenen Zeilen --
+      // daraus erntet das Modell Felder und stellt hoechstens eine Nachfrage.
+      // Die alten Felder answers/asked_ids/max_questions entfallen.
+      const kappen = (v: unknown, n: number) => (Array.isArray(v) ? v.slice(0, n) : []);
       forward = {
         contract_type: draft.contract_type,
         job_draft: jobDraft,
-        answers,
-        asked_ids: askedIds,
-        // Der Client fordert drei an, damit das Vorausladen greift und der
-        // Kunde nie auf eine Ladeanzeige sieht. Hier stand eine harte 2 --
-        // der Wert des Clients wurde stillschweigend halbiert, und im
-        // Gast-Pfad lief fast jede Antwort in einen neuen Aufruf.
-        max_questions: Math.min(3, Math.max(1, Number(payload.max_questions) || 3)),
+        question: payload.question ?? undefined,
+        answer: String(payload.answer ?? '').slice(0, 4000),
+        open_slots: kappen(payload.open_slots, 60),
+        known: payload.known ?? {},
+        asked_followups: kappen(payload.asked_followups, MAX_ANSWERS),
       };
     } else if (op === 'parse_text') {
       const text = String(payload.jobText ?? '').slice(0, MAX_TEXT_CHARS);

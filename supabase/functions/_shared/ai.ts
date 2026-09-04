@@ -43,19 +43,29 @@ export interface AiResult {
 /**
  * Vorgabemodell.
  *
- * ACHTUNG: gemini-2.5-flash ist am Gateway als `deprecated: true` gefuehrt
- * (abgefragt am 03.09.2026 ueber ai.gateway.lovable.dev/v1/models). Ein
- * Ablaufdatum nennt der Gateway nicht, verlassen sollte man sich darauf nicht.
+ * GEWECHSELT AM 04.09.2026 von `google/gemini-2.5-flash` auf
+ * `google/gemini-3.6-flash`.
  *
- * Der Nachfolger mit dem besten Verhaeltnis ist `google/gemini-3.1-flash-lite`:
- * neuer UND guenstiger (0,25 statt 0,30 je Mio Eingabe-Token, 1,50 statt 2,50
- * bei der Ausgabe). Gewechselt wird trotzdem nicht blind -- erst messen.
+ * Der Anlass war die neue Aufgabenteilung in der Aufnahme: die Fragen kommen
+ * jetzt aus dem Katalog (src/lib/briefCatalog.ts), das Modell erntet nur noch
+ * Felder aus freien Antworten und stellt hoechstens EINE Nachfrage. Beides
+ * verlangt Verstehen statt Formulieren -- genau dort war 2.5-flash schwach:
+ * es hat 97 Fragen gestellt, ohne aus den Antworten Felder zu fuellen.
  *
- * Zum Messen dient AI_MODEL: ein Supabase-Secret setzen und der naechste
- * Aufruf laeuft auf dem anderen Modell, ohne Deploy. Haelt es stand, wandert
- * der Wert hierher.
+ * ZUR MODELLWAHL, abgefragt am 04.09.2026 ueber ai.gateway.lovable.dev/v1/models:
+ *   gemini-2.5-flash    deprecated  (die bisherige Vorgabe)
+ *   gemini-3.5-flash    deprecated  (ausdruecklich gewuenscht, aber abgekuendigt)
+ *   gemini-3.6-flash    aktuell     <- diese Wahl
+ *   gemini-3.1-pro-preview          staerker, aber Vorschau und teurer
+ * Auf ein abgekuendigtes Modell zu wechseln waere derselbe Fehler noch einmal;
+ * 3.6-flash ist der aktuelle Stand derselben Reihe.
+ *
+ * AI_MODEL bleibt als Uebersteuerung bestehen: ein Supabase-Secret setzen und
+ * der naechste Aufruf laeuft ohne Deploy auf einem anderen Modell. Welches
+ * Modell wirklich geantwortet hat, steht im Feld `model` jeder Antwort und im
+ * Ereignisprotokoll -- ein Wechsel ist damit pruefbar und nicht geglaubt.
  */
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_MODEL = 'google/gemini-3.6-flash';
 
 /** Umgebungsvorgabe. Leerer String zaehlt als nicht gesetzt. */
 function envModel(): string | undefined {

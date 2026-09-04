@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { IntakeBriefing, type Answers, type BriefBuilt, type JobType } from '../IntakeBriefing';
+import { EMPTY_CATALOG_STATE, type CatalogState } from '@/lib/briefCatalog';
 import { cn } from '@/lib/utils';
 import {
   AlertTriangle, Check, CheckCircle2, Circle, CircleDashed, HelpCircle, Loader2, Sparkles, ChevronDown } from 'lucide-react';
@@ -48,6 +49,15 @@ export interface DynState {
   envelopePatch: Record<string, unknown>;
   tensionFlags: TensionFlag[];
   done: boolean;
+  /**
+   * Der Zustand des katalog-gefuehrten Briefings (CatalogBriefing).
+   *
+   * Er haengt hier drin und nicht in einer eigenen Entwurfsspalte, weil
+   * intake-draft `dyn` bereits als Ganzes speichert -- CONTENT_FIELDS
+   * enthaelt es. Eine neue Spalte haette eine Migration gebraucht, um
+   * dasselbe zu erreichen.
+   */
+  catalog?: CatalogState;
 }
 
 /**
@@ -143,6 +153,7 @@ export const EMPTY_DYN_STATE: DynState = {
   envelopePatch: {},
   tensionFlags: [],
   done: false,
+  catalog: EMPTY_CATALOG_STATE,
 };
 
 interface Props {

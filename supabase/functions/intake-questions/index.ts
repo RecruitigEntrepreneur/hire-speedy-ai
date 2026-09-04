@@ -7,181 +7,158 @@ const corsHeaders = {
 };
 
 /**
- * intake-questions — voll-KI-dynamisches Briefing (ULTIMATE_INTAKE_PLAN Phase 2).
+ * intake-questions — die KI hinter der Jobaufnahme.
  *
- * STATELESS: kein DB-Zugriff, kein Service-Role. Input = aktueller Job-Entwurf
- * + bisherige Antworten; Output = nächste Fragen + normalisierte Felder.
- * Der Client persistiert selbst per eigenem JWT (RLS deckt es).
+ * =====================================================================
+ * NEUE AUFGABENTEILUNG (04.09.2026). Die Fragen kommen aus dem Katalog.
+ * =====================================================================
+ * Bis heute hat diese Function die Fragen selbst erfunden und dabei in EINEM
+ * Modellaufruf neun Dinge zugleich liefern sollen: naechste Fragen, Fortschritt,
+ * Kapitelstaende, typisierte Felder, Skill-Anforderungen, Skill-Vorschlaege,
+ * narrative Erkenntnisse, Anonymitaets-Huelle und Zielkonflikte.
  *
- * Encodiert die Orchestrierung aus dem Plan:
- * - Fork auf contract_type (Festanstellung vs. Contracting)
- * - Gate auf Seniorität/search_difficulty (drängt, Muss-Liste zu kürzen)
- * - Tension-Flags (Anforderungen vs. Budget vs. Markt)
- * - De-Anonymisierungs-Guardrail (Green-/Red-List für den Recruiter-Text)
- * - Frage-Ökonomie: Pflichtblöcke zuerst (Muss-Kriterien, Reveal/Protect,
- *   Ziel-/No-Go-Firmen), max. wenige, hochwertige Fragen pro Runde
+ * Gemessen an einer echten Stelle (FTAPI, 03.09.2026): 97 Fragen ohne
+ * Abschluss, danach EIN Muss-Kriterium in der Datenbank, 56 der 97 Fragen
+ * bohrten in den eigenen vorherigen Antworten, und der Fortschritt fiel im
+ * selben Durchgang von 85 auf 40. Ein Modell, das neun Dinge tun soll und
+ * keine Zielliste hat, tut zuverlaessig nur das leichteste davon: die naechste
+ * plausible Frage stellen.
+ *
+ * Die Fragen stehen jetzt in src/lib/briefCatalog.ts, im Wortlaut aus Markos
+ * Briefing-Leitfaden. Der Client entscheidet, welche als naechstes kommt.
+ * Diese Function hat nur noch zwei Aufgaben -- beide brauchen Verstehen, nicht
+ * Formulieren:
+ *
+ *   1. ERNTEN. Aus einer freien Antwort die Katalogzeilen fuellen, die darin
+ *      mitbeantwortet wurden. Wer eine typische Woche beschreibt, beantwortet
+ *      Schwerpunkt und Aufgabengewichtung mit -- danach noch einmal zu fragen
+ *      ist genau die Sorte Frage, die den Kunden vertrieben hat.
+ *
+ *   2. EINE NACHFRAGE. Nur wenn die Antwort etwas offen laesst, das fuer die
+ *      Suche zaehlt. Hoechstens eine je Frage; der Client kennzeichnet sie
+ *      sichtbar als Nachfrage, damit sie nicht mit Markos Fragen verwechselt
+ *      wird.
+ *
+ * Dazu kommt ein Nebenprodukt, das frueher unterging: WIDERSPRUECHE. Steht ein
+ * Feld schon anders da, wird das gemeldet statt still ueberschrieben. Im
+ * Live-Test hat ein Kunde dreimal Widerspruechliches zum Arbeitsmodell gesagt;
+ * zwei Antworten wurden ueberschrieben und niemand hat gefragt.
+ *
+ * STATELESS bleibt es: kein DB-Zugriff, kein Service-Role. Alles, was gewusst
+ * wird, steht im Aufruf.
  */
 
-interface AnsweredQuestion {
-  id: string;
-  chapter: string;
-  question: string;
-  answer: string; // "__unknown__" = "Weiß ich nicht"
+interface SlotSpec {
+  key: string;
+  label: string;
+  form: string;
+  chips?: string[];
 }
 
 interface RequestBody {
   contract_type: 'full-time' | 'freelance';
   job_draft: Record<string, unknown>;
-  answers: AnsweredQuestion[];
-  asked_ids: string[];
-  max_questions?: number;
+  /** Die Katalogfrage, die gerade beantwortet wurde. Fehlt beim Erst-Aufruf. */
+  question?: { key: string; text: string; slots: SlotSpec[] };
+  /** Was der Kunde geantwortet hat. */
+  answer?: string;
+  /** Alle noch offenen Zeilen -- hier hinein wird geerntet. */
+  open_slots?: SlotSpec[];
+  /** Was schon dasteht, fuer Kontext und Widerspruchserkennung. */
+  known?: Record<string, unknown>;
+  /** Schon gestellte Nachfragen, damit sich keine wiederholt. */
+  asked_followups?: string[];
 }
-
-const CHAPTERS = [
-  'Rolle & Scope',
-  'Muss & Kann & Anti-Profil',
-  'Harte K.O.-Kriterien',
-  'Vergütung & Flexibilität',
-  'Arbeitsmodell & Kultur',
-  'Timing & Vertrag',
-  'Sell & Story (EVP)',
-  'Prozess & Entscheider',
-  'Sourcing-Hinweise',
-  'Risiken & Ehrlichkeit',
-  'Triple-Blind & Reveal',
-];
 
 const OUTPUT_SCHEMA = {
   type: 'object',
   properties: {
-    next_questions: {
-      type: 'array',
-      description: 'Die 1-3 wertvollsten nächsten Fragen. Leer, wenn das Briefing vollständig genug ist.',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', description: 'stabiler snake_case-Schlüssel, z.B. comp_ceiling' },
-          chapter: { type: 'string', enum: CHAPTERS },
-          question: { type: 'string', description: 'Die Frage, Sie-Form, konkret auf DIESEN Job bezogen' },
-          why: { type: 'string', description: '1 Satz: warum diese Frage den Recruitern hilft' },
-          chips: { type: 'array', items: { type: 'string' }, description: '2-6 kurze, wahrscheinliche Antwortoptionen' },
-          multi: {
-            type: 'boolean',
-            description: 'true, wenn die Frage eine Aufzaehlung verlangt und mehrere '
-              + 'Chips zugleich zutreffen koennen (z.B. "welche 3 Hauptaufgaben", '
-              + '"welche Benefits", "welche Systeme"). false bei Entweder-oder-Fragen.',
-          },
-        },
-        required: ['id', 'chapter', 'question', 'chips'],
-      },
-    },
-    weighted_completeness: { type: 'integer', description: '0-100, gewichtet: Pflichtblöcke (Muss-Kriterien, K.O., Vergütung, Reveal) zählen doppelt' },
-    chapter_progress: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          chapter: { type: 'string', enum: CHAPTERS },
-          state: { type: 'string', enum: ['done', 'partial', 'open', 'skipped'] },
-        },
-        required: ['chapter', 'state'],
-      },
-    },
-    typed_fields: {
+    slot_values: {
       type: 'object',
-      description: 'Normalisierte Matching-Felder, NUR wenn aus Antworten ableitbar',
+      description:
+        'Die Katalogzeilen, die durch die Antwort belegt sind. Schluessel = slot key aus '
+        + 'open_slots oder aus der gestellten Frage. NUR was tatsaechlich gesagt wurde -- '
+        + 'nichts ergaenzen, nichts erfinden, nichts aus Berufserfahrung annehmen. '
+        + 'Bei form="multi" ein Array, bei form="range" ein Objekt {min,max}, sonst Text.',
+      additionalProperties: true,
+    },
+    follow_up: {
+      type: 'object',
+      description:
+        'HOECHSTENS EINE Nachfrage, und nur wenn die Antwort etwas fuer die Suche '
+        + 'Entscheidendes offen laesst. Im Zweifel weglassen: eine ueberfluessige Frage '
+        + 'kostet mehr Vertrauen als eine fehlende Auskunft. Niemals etwas fragen, das '
+        + 'im Entwurf oder in known bereits steht.',
       properties: {
-        visa_sponsorship: { type: 'boolean' },
-        experience_min: { type: 'integer' },
-        experience_max: { type: 'integer' },
-        onsite_required: { type: 'boolean' },
-        search_difficulty: { type: 'string', enum: ['low', 'medium', 'high'] },
-        required_languages: {
+        id: { type: 'string', description: 'stabiler snake_case-Schluessel' },
+        question: {
+          type: 'string',
+          description:
+            'Die Nachfrage, Sie-Form, EIN Satz, hoechstens 20 Woerter. Konkret auf das '
+            + 'bezogen, was der Kunde gerade gesagt hat -- zitiere sein Wort. '
+            + 'Beispiel: "Sie nennen Konsolidierung DE/CZ -- nach HGB oder IFRS?"',
+        },
+        why: { type: 'string', description: 'Ein kurzer Satz: warum das dem Recruiter hilft.' },
+        chips: {
           type: 'array',
-          items: { type: 'object', properties: { code: { type: 'string' }, minLevel: { type: 'string' } }, required: ['code', 'minLevel'] },
+          items: { type: 'string' },
+          description: '2-4 kurze, realistische Antwortoptionen. Leer lassen, wenn keine passen.',
         },
-        required_certifications: { type: 'array', items: { type: 'string' } },
-        target_companies: { type: 'array', items: { type: 'string' } },
-        nogo_companies: { type: 'array', items: { type: 'string' } },
-      },
-    },
-    skill_requirements: {
-      type: 'array',
-      description: 'Muss/Kann als strukturierte Anforderungen',
-      items: {
-        type: 'object',
-        properties: {
-          skill: { type: 'string' },
-          kind: { type: 'string', enum: ['must', 'nice'] },
-          min_years: { type: 'integer' },
-          proficiency: { type: 'string' },
-          recency: { type: 'string' },
+        multi: { type: 'boolean', description: 'true, wenn mehrere Optionen zugleich gelten koennen.' },
+        /** Damit die Antwort auf die Nachfrage nicht ins Leere laeuft. */
+        fills_slot: {
+          type: 'string',
+          description: 'Welche Katalogzeile die Antwort auf diese Nachfrage fuellen wird, falls eine passt.',
         },
-        required: ['skill', 'kind'],
       },
+      required: ['id', 'question', 'why'],
     },
-    skill_suggestions: {
+    conflicts: {
       type: 'array',
       description:
-        'Skills, die zu dieser Rolle typischerweise gehoeren, aber im Entwurf NOCH NICHT stehen. '
-        + 'Vorschlaege zum Anklicken, keine Behauptungen -- der Kunde entscheidet.',
+        'Widersprueche zwischen der neuen Antwort und dem, was in known schon steht. '
+        + 'NICHT stillschweigend ueberschreiben -- melden.',
       items: {
         type: 'object',
         properties: {
-          skill: { type: 'string' },
-          // Warum dieser Vorschlag: erlaubt dem Kunden, ihn in einer Sekunde
-          // zu beurteilen, statt eine Liste unbegruendeter Woerter zu sehen.
-          because: { type: 'string', description: 'Kurz: warum passt das hier? Max. 8 Woerter.' },
-          kind: { type: 'string', enum: ['must', 'nice'] },
+          slot: { type: 'string' },
+          existing: { type: 'string' },
+          neu: { type: 'string' },
+          note: { type: 'string', description: 'Ein Satz, was sich widerspricht.' },
         },
-        required: ['skill', 'because'],
+        required: ['slot', 'existing', 'neu'],
       },
     },
-    intake_payload_patch: { type: 'object', description: 'Narrative Erkenntnisse aus den letzten Antworten (recruiter-privat), snake_case-Keys' },
     reveal_envelope_patch: {
       type: 'object',
+      description:
+        'Was die Firma verraten wuerde. red_list = darf NIE in Recruiter-Texte '
+        + '(Name, einzigartige Produkte, exakte Adresse, "Marktfuehrer fuer X in Y"). '
+        + 'descriptor = anonyme Beschreibung aus Branche + Groesse + Region.',
       properties: {
-        descriptor: { type: 'string', description: 'anonymer Firmen-Descriptor, z.B. "Cloud-Beratung, 200 MA, Rhein-Main"' },
-        green_list: { type: 'array', items: { type: 'string' }, description: 'darf anonym genannt werden' },
-        red_list: { type: 'array', items: { type: 'string' }, description: 'würde die Firma de-anonymisieren — NIE in Recruiter-Texte' },
-      },
-    },
-    tension_flags: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          message: {
-            type: 'string',
-            description: 'Der Zielkonflikt in EINEM Satz, hoechstens 25 Woerter. Nenne die EINE '
-              + 'Zahl und den EINEN Punkt, der klemmt. KEINE Aufzaehlung aller Kriterien, keine '
-              + 'Wiederholung von Titel, Sprache, Herkunftsfirmen. Beispiel: '
-              + '"140-160k ist fuer fuenf Jahre Channel-Aufbau plus Compliance-Verantwortung knapp."',
-          },
-          suggestion: {
-            type: 'string',
-            description: 'Der Hebel in EINEM Satz, hoechstens 20 Woerter, beginnt mit einem Verb. '
-              + 'Nennt eine konkrete Alternative, nicht "pruefen Sie". Beispiel: '
-              + '"Decke auf 175k anheben -- oder Compliance-Verantwortung zu Kann machen."',
-          },
-          move_skill_to_nice: { type: 'string', description: 'falls der Vorschlag ist, genau diesen Skill zu "Kann" zu verschieben' },
-        },
-        required: ['id', 'message', 'suggestion'],
+        descriptor: { type: 'string' },
+        green_list: { type: 'array', items: { type: 'string' } },
+        red_list: { type: 'array', items: { type: 'string' } },
       },
     },
   },
-  required: ['next_questions', 'weighted_completeness', 'chapter_progress'],
+  required: ['slot_values'],
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
     const body: RequestBody = await req.json();
-    const { contract_type, job_draft, answers = [], asked_ids = [], max_questions = 2 } = body;
+    const {
+      contract_type,
+      job_draft,
+      question,
+      answer = '',
+      open_slots = [],
+      known = {},
+      asked_followups = [],
+    } = body;
 
     if (!job_draft) {
       return new Response(JSON.stringify({ error: 'job_draft required' }), {
@@ -190,67 +167,74 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Du bist der beste Recruiting-Briefing-Experte im DACH-Raum und führst die Jobaufnahme für eine Triple-Blind-Recruiting-Plattform (Kandidaten anonym bis Opt-In, Firma anonym gegenüber Recruitern bis Reveal).
+    const systemPrompt = `Du unterstuetzt die Jobaufnahme einer Triple-Blind-Recruiting-Plattform (Kandidaten anonym bis Opt-In, Firma anonym gegenueber Recruitern bis zum Reveal).
 
-DEINE AUFGABE: Entscheide, welche ${max_questions} Fragen JETZT den größten Wert für gezieltes, blindes Sourcing haben — und normalisiere alles bereits Beantwortete in strukturierte Felder.
+DU STELLST KEINE FRAGEN AUS EIGENEM ANTRIEB. Die Fragen stehen in einem festen Katalog und werden vom Client gestellt. Du hast drei Aufgaben:
 
-DIE 11 KAPITEL: ${CHAPTERS.join(' · ')}
+1. ERNTEN — ordne der Antwort des Kunden die passenden Katalogzeilen zu.
+   Nur was er WIRKLICH gesagt hat. Keine Ergaenzung aus Berufserfahrung, keine
+   plausible Annahme. Sagt er "sechskoepfiges Team", fuelle team_size. Sagt er
+   nichts ueber Ueberstunden, fuelle overtime_policy NICHT.
+   Eine freie Antwort belegt oft mehrere Zeilen: wer den Arbeitsalltag
+   beschreibt, sagt meist auch etwas ueber Schwerpunkt und Gewichtung. Genau
+   diese Zeilen mitzufuellen ist der Sinn dieser Aufgabe — sie werden dann
+   nicht mehr gefragt.
 
-REGELN:
-1. FORK: contract_type="${contract_type}". Bei "freelance" gelten Tagessatz/Dauer/Verlängerung/Auslastung statt Gehalt/Karrierepfad; frage danach.
-2. PFLICHT VOR KÜR — diese Themen MÜSSEN abgedeckt sein, bevor du Kür-Fragen stellst:
-   a) DIE ROLLE KONKRET: Welche 3 Aufgaben füllen die Woche? Woran arbeitet die Person in den ersten 3 Monaten (konkretes Projekt)? Hands-on-Anteil vs. Steuern? Woran wird nach 12 Monaten Erfolg gemessen? Ein Recruiter, der das nicht weiß, sucht blind.
-   b) SKILL-TIEFE: Für jeden wichtigen Muss-Skill aus dem Entwurf nachbohren, wie tief er sitzen muss (täglich genutzt, Projekte verantwortet oder selbst eingeführt?). Bei Fach-Skills (z. B. SAP FI/CO) nach Kontext fragen: welche Module/Umgebung/Größenordnung.
-   c) HARTE K.O.: Sprache mit Niveau, Visa, Vor-Ort-Pflicht.
-   d) VERGÜTUNGS-FLEXIBILITÄT: die echte Decke für den Top-Kandidaten.
-   e) SUCHBILD: Aus welcher Rolle/welchen Firmen kommt der Ideal-Kandidat? Anti-Persona?
-   f) TRIPLE-BLIND-REVEAL: was darf anonym genannt werden, was verrät die Firma.
-3. GATE: Bei Senior+/vielen Muss-Kriterien/engem Budget → search_difficulty=high setzen und aktiv drängen, Muss-Kriterien zu kürzen oder Budget zu flexibilisieren (Tension-Flag mit konkretem Vorschlag).
-3a. FORM DER SPANNUNG: message = ein Satz, höchstens 25 Wörter, EINE Zahl, EIN Konflikt. suggestion = ein Satz, höchstens 20 Wörter, beginnt mit einem Verb und nennt eine Alternative. Zähle NIE alle Anforderungen auf — der Kunde kennt sie. Ein Absatz, der Titel, Jahre, Herkunftsfirmen, Zielrolle und Sprachniveau aneinanderreiht, wird nicht gelesen und ändert nichts. Höchstens EIN Flag je Antwort.
-4. FRAGE-QUALITÄT: Jede Frage konkret auf DIESEN Entwurf bezogen (Zahlen/Skills aus dem Entwurf zitieren), Sie-Form, mit 2-4 realistischen Antwort-Chips.
-4a. EINE ODER MEHRERE ANTWORTEN: Verlangt die Frage eine Aufzählung ("welche 3 Hauptaufgaben", "welche Benefits", "welche Systeme", "was davon trifft zu"), setze multi=true und biete bis zu 6 Chips an — der Kunde kann dann mehrere anklicken. Bei Entweder-oder-Fragen ("wer entscheidet", "wie viele Gespräche") setze multi=false. Eine Frage, die drei Dinge erfragt, aber nur eine Antwort zulässt, verliert zwei Drittel der Auskunft. Niemals bereits Beantwortetes oder asked_ids erneut fragen. "Weiß ich nicht"-Antworten (__unknown__) NICHT wiederholen — Kapitel als skipped markieren.
-5. DE-ANONYMISIERUNGS-GUARDRAIL: Alles, was die Firma identifizieren könnte (Name, einzigartige Produkte, exakte Adresse, "Marktführer für X in Y") gehört auf die red_list und NIE in Texte, die Recruiter sehen. Baue den anonymen Descriptor aus Branche+Größe+Region.
-6. NORMALISIERUNG: Antworten in typed_fields (exakte Shapes!), skill_requirements (jeder Muss-Skill mit min_years wenn genannt), intake_payload_patch (narrativ) und reveal_envelope_patch übersetzen.
-7. SKILL-VORSCHLAEGE: Nenne in skill_suggestions bis zu 6 Skills, die zu dieser Rolle
-   ueblicherweise gehoeren, aber im Entwurf fehlen -- mit einer kurzen Begruendung.
-   Leite sie aus dem AB, was schon dasteht: Java -> Spring Boot, Maven, JUnit;
-   Kubernetes -> Docker, Helm; SAP FI -> SAP CO, Migrationserfahrung.
-   Erfinde nichts Rollenfremdes und wiederhole nichts, was bereits im Entwurf steht.
-   Sind keine sinnvollen Ergaenzungen erkennbar, gib eine leere Liste zurueck --
-   eine schlechte Empfehlung kostet mehr Vertrauen als eine fehlende.
-8. FERTIG IST FERTIG: weighted_completeness ≥ 85 und keine Pflichtlücken → next_questions = [] (leer).
-9. DOKUMENT & PROFIL RESPEKTIEREN: Alles, was bereits im job_draft steht (aus der hochgeladenen Anzeige extrahiert) und alles in job_draft.company_defaults (aus dem Firmenprofil des Kunden), gilt als beantwortet — frage es NIE erneut ab. Bei vagen Angaben nur gezielt nachschärfen („Die Anzeige nennt SAP — welche Module produktiv?"). Bei Abweichungspotenzial vom Firmenstandard formuliere als Bestätigungsfrage („Ihr Standard ist hybrid mit 2 Bürotagen — gilt das auch hier?"). job_draft.flexibility zeigt je Muss-Kriterium die Verhandelbarkeit (fix/negotiable/flexible) — nutze sie für Tension-Abwägungen.
+2. WIDERSPRUCH MELDEN — steht in known etwas anderes als in der neuen Antwort,
+   melde es unter conflicts. Nie stillschweigend das eine durch das andere
+   ersetzen.
 
-Antworte NUR mit dem JSON-Objekt gemäß Schema.`;
+3. HOECHSTENS EINE NACHFRAGE — nur wenn die Antwort etwas fuer die Suche
+   Entscheidendes offen laesst. Ein Satz, hoechstens 20 Woerter, Sie-Form, mit
+   einem Wort des Kunden darin. Keine Nachfrage zu etwas, das im Entwurf oder
+   in known schon steht. Keine Wiederholung aus asked_followups.
+   Im Zweifel KEINE Nachfrage: eine ueberfluessige Frage kostet mehr Vertrauen
+   als eine fehlende Auskunft. Das ist ausdruecklich erlaubt und der Normalfall.
 
-    const userPrompt = `JOB-ENTWURF:
+VERTRAGSART: ${contract_type}. Bei "freelance" gelten Tagessatz, Laufzeit,
+Verlaengerung und Auslastung statt Gehalt und Karrierepfad.
+
+DE-ANONYMISIERUNG: alles, was die Firma identifizieren koennte — Name,
+einzigartige Produkte, exakte Adresse, uebernommene Werke, "Marktfuehrer fuer X
+in Y" — gehoert auf die red_list und nie in Texte, die Recruiter sehen.
+
+Antworte NUR mit dem JSON-Objekt gemaess Schema.`;
+
+    const userPrompt = `STELLENENTWURF:
 ${JSON.stringify(job_draft, null, 2)}
 
-BISHERIGE ANTWORTEN (${answers.length}):
-${answers.map((a) => `[${a.chapter}] ${a.question}\n→ ${a.answer === '__unknown__' ? '(weiß ich nicht)' : a.answer}`).join('\n\n') || '(noch keine)'}
+SCHON BEKANNT:
+${Object.keys(known).length ? JSON.stringify(known, null, 2) : '(noch nichts)'}
 
-BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(keine)'}`;
+${question ? `GESTELLTE FRAGE (aus dem Katalog):
+"${question.text}"
 
-    // Der Anbieter steht seit dem 02.09.2026 an einer Stelle (_shared/ai.ts),
-    // nicht mehr in jeder Function einzeln. Genau diese Streuung war die
-    // Ursache: hier stand OpenRouter, dessen Schluessel nicht gesetzt war,
-    // waehrend 28 andere Functions den Lovable-Gateway nutzten. Die
-    // Fragengenerierung fiel dadurch still auf den statischen Katalog zurueck.
+Erwartete Antwortzeilen dieser Frage:
+${question.slots.map((s) => `- ${s.key} (${s.form}): ${s.label}`).join('\n')}
+
+ANTWORT DES KUNDEN:
+${answer || '(keine)'}` : 'ERSTER AUFRUF — es wurde noch nichts gefragt. Ernte nur aus dem Stellenentwurf.'}
+
+NOCH OFFENE ZEILEN (hier hinein darf geerntet werden):
+${open_slots.map((s) => `- ${s.key} (${s.form}): ${s.label}${s.chips?.length ? ` [${s.chips.join(' | ')}]` : ''}`).join('\n') || '(keine)'}
+
+BEREITS GESTELLTE NACHFRAGEN (nicht wiederholen): ${asked_followups.join(', ') || '(keine)'}`;
+
     let parsed: Record<string, unknown>;
-    // Ausserhalb des try, damit das verwendete Modell in die Antwort kann.
     let benutztesModell = '';
     try {
       const antwort = await aiChat({
         system: systemPrompt,
         user: userPrompt,
-        temperature: 0.3,
+        // Niedriger als zuvor (0.3): hier wird zugeordnet, nicht formuliert.
+        // Kreativitaet ist an dieser Stelle ein Fehler, kein Merkmal.
+        temperature: 0.1,
         tool: {
-          name: 'next_intake_step',
-          description: 'Nächste Briefing-Fragen + normalisierte Felder',
+          name: 'intake_step',
+          description: 'Geerntete Katalogzeilen, Widersprueche und hoechstens eine Nachfrage',
           parameters: OUTPUT_SCHEMA,
         },
       });
-
       benutztesModell = antwort.model;
       const raw = antwort.toolArguments ?? antwort.content;
       if (!raw) throw new AiError('Die Antwort war leer.');
@@ -259,9 +243,6 @@ BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(kei
       const detail = e instanceof AiError
         ? `${e.message}${e.detail ? ` — ${e.detail}` : ''}`
         : e instanceof Error ? e.message : String(e);
-      // Den Anbieter und seinen Wortlaut protokollieren. Ein blosses
-      // "AI gateway error" liess offen, ob der Schluessel fehlte, das Modell
-      // unbekannt war oder das Kontingent erschoepft.
       console.error('[intake-questions] KI-Aufruf:', detail);
       return new Response(JSON.stringify({ error: 'AI gateway error', detail }), {
         status: 502,
@@ -269,34 +250,52 @@ BEREITS GESTELLTE FRAGE-IDS (nicht wiederholen): ${asked_ids.join(', ') || '(kei
       });
     }
 
-    // Defensive Defaults, damit das Frontend nie an fehlenden Keys scheitert
-    const result = {
-      // Welches Modell geantwortet hat. Ohne diese Angabe laesst sich von
-      // aussen nicht pruefen, welches Modell ein Ergebnis erzeugt hat -- und
-      // ein Vergleich zweier Modelle waere Behauptung statt Messung.
-      model: benutztesModell,
-      next_questions: Array.isArray(parsed.next_questions)
-        ? parsed.next_questions.slice(0, max_questions).map((q: Record<string, unknown>) => ({
-            ...q,
-            // Ohne feste Umwandlung kaeme mal true, mal "true", mal nichts --
-            // die Oberflaeche wuerde dann mal umschalten und mal sofort senden.
-            multi: q.multi === true || q.multi === 'true',
-          }))
-        : [],
-      weighted_completeness: typeof parsed.weighted_completeness === 'number' ? Math.max(0, Math.min(100, parsed.weighted_completeness)) : 0,
-      chapter_progress: Array.isArray(parsed.chapter_progress) ? parsed.chapter_progress : [],
-      typed_fields: parsed.typed_fields ?? {},
-      skill_requirements: Array.isArray(parsed.skill_requirements) ? parsed.skill_requirements : [],
-      skill_suggestions: Array.isArray(parsed.skill_suggestions)
-        ? parsed.skill_suggestions.slice(0, 6) : [],
-      intake_payload_patch: parsed.intake_payload_patch ?? {},
-      reveal_envelope_patch: parsed.reveal_envelope_patch ?? {},
-      tension_flags: Array.isArray(parsed.tension_flags) ? parsed.tension_flags : [],
-    };
+    // Nur Zeilen uebernehmen, die es im Katalog auch gibt. Ohne diese Sperre
+    // legt ein Modell gelegentlich eigene Schluessel an, die spaeter nirgends
+    // ankommen -- und niemand merkt es.
+    const erlaubt = new Set([
+      ...open_slots.map((s) => s.key),
+      ...(question?.slots ?? []).map((s) => s.key),
+    ]);
+    const roh = (parsed.slot_values ?? {}) as Record<string, unknown>;
+    const slot_values: Record<string, unknown> = {};
+    const verworfen: string[] = [];
+    for (const [k, v] of Object.entries(roh)) {
+      if (!erlaubt.has(k)) { verworfen.push(k); continue; }
+      if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) continue;
+      slot_values[k] = v;
+    }
+    if (verworfen.length) {
+      console.warn('[intake-questions] unbekannte Zeilen verworfen:', verworfen.join(', '));
+    }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const fu = parsed.follow_up as Record<string, unknown> | undefined;
+    const follow_up =
+      fu && typeof fu.question === 'string' && fu.question.trim() && !asked_followups.includes(String(fu.id))
+        ? {
+            id: String(fu.id ?? 'followup'),
+            question: String(fu.question).trim(),
+            why: String(fu.why ?? ''),
+            chips: Array.isArray(fu.chips) ? (fu.chips as string[]).slice(0, 4) : [],
+            multi: fu.multi === true,
+            fills_slot: typeof fu.fills_slot === 'string' && erlaubt.has(fu.fills_slot)
+              ? fu.fills_slot : null,
+          }
+        : null;
+
+    return new Response(
+      JSON.stringify({
+        // Welches Modell geantwortet hat. Ohne diese Angabe laesst sich von
+        // aussen nicht pruefen, was ein Ergebnis erzeugt hat -- und ein
+        // Modellwechsel waere Behauptung statt Messung.
+        model: benutztesModell,
+        slot_values,
+        follow_up,
+        conflicts: Array.isArray(parsed.conflicts) ? parsed.conflicts : [],
+        reveal_envelope_patch: parsed.reveal_envelope_patch ?? {},
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   } catch (e) {
     console.error('intake-questions error:', e);
     return new Response(JSON.stringify({ error: 'Internal error' }), {

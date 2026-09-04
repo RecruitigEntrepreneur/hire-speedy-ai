@@ -8,6 +8,8 @@ import { ProfileSections, type FlexibilityMap } from '@/components/dashboard/int
 import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlock';
 import { BenefitsBlock } from './BenefitsBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
+import { CatalogBriefing } from '@/components/dashboard/intake/CatalogBriefing';
+import { EMPTY_CATALOG_STATE, completeness as katalogCompleteness } from '@/lib/briefCatalog';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
 import {
   briefingProgress, openBriefingQuestions, prefillFromBuilt, serializeBriefing, type Answers,
@@ -210,6 +212,13 @@ export function CaptureStep({
   /** Ob im Profil schon Arbeit steckt — dann warnt der Einstieg vor dem Ersetzen. */
   const hasWork = Boolean(
     built && (built.title || built.must_haves.length || built.skills.length || built.description),
+  );
+
+  // Eine Zahl fuer den ganzen Bildschirm: der Katalog rechnet sie, nicht ein
+  // Modell und nicht der alte 36-Fragen-Katalog.
+  const katalogFortschritt = useMemo(
+    () => katalogCompleteness(dyn.catalog?.known ?? {}, type),
+    [dyn.catalog?.known, type],
   );
 
   const moveSkillToNice = (skill: string) => {
@@ -468,9 +477,8 @@ export function CaptureStep({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            {dyn.available
-              ? `${dyn.answers.length} beantwortet${dyn.chapterProgress.filter((c) => c.state === 'open').length ? ` · ${dyn.chapterProgress.filter((c) => c.state === 'open').length} Kapitel offen` : ''}`
-              : `${staticProg.open} von ${staticProg.totalQ} Fragen offen`}
+            {katalogFortschritt.fragenGesamt - katalogFortschritt.fragenOffen} von{' '}
+            {katalogFortschritt.fragenGesamt} Fragen beantwortet
           </span>
           {/* Der Rückweg zur Startauswahl. „Anzeige doch einfügen" stand hier
               vorher allein und als unauffälliger Link — der Wortlaut sagte
@@ -533,19 +541,25 @@ export function CaptureStep({
 
         <div className="space-y-4" ref={briefingRef}>
           <div className="rounded-xl border p-4">
-            <DynamicBriefing
+            {/*
+              Seit dem 04.09.2026 fuehrt der Fragenkatalog das Briefing
+              (src/lib/briefCatalog.ts, Wortlaut aus Markos Leitfaden). Die
+              Vorgaengerfassung liess die Fragen von einem Modell erfinden --
+              gemessen: 97 Fragen ohne Abschluss und danach EIN Muss-Kriterium
+              in der Datenbank. DynamicBriefing bleibt im Repo, bis der neue
+              Weg an echten Aufnahmen bestaetigt ist.
+            */}
+            <CatalogBriefing
               type={type}
               jobDraft={jobDraft}
-              state={dyn}
-              onState={(updater) => onState((s) => ({ ...s, dyn: updater(s.dyn) }))}
-              onMoveSkillToNice={moveSkillToNice}
+              state={dyn.catalog ?? EMPTY_CATALOG_STATE}
+              onState={(updater) =>
+                onState((s) => ({
+                  ...s,
+                  dyn: { ...s.dyn, catalog: updater(s.dyn.catalog ?? EMPTY_CATALOG_STATE) },
+                }))}
               onDone={onNext}
               askAi={askAi as any}
-              fallback={{
-                built: toBriefBuilt(built),
-                value: answers,
-                onChange: (a) => onState((s) => ({ ...s, answers: a })),
-              }}
             />
           </div>
 
