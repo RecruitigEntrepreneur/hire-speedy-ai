@@ -44,6 +44,17 @@ ALTER TABLE public.jobs
   CHECK (contract_limitation IS NULL
          OR contract_limitation IN ('unbefristet', 'befristet_mit_aussicht', 'befristet', 'projekt'));
 
+-- Markos Frage nach dem Vertragstempo hat eine Klammer: "(Wird dieser digital
+-- versendet?)". Ohne eigene Spalte liesse sie sich nur beantworten, indem man
+-- die Versandart in die Tagezahl hineincodiert -- dann leuchten "1 Woche,
+-- digital" und "1 Woche, per Post" als derselbe Wert, und die Auskunft ist weg.
+ALTER TABLE public.jobs
+  ADD COLUMN IF NOT EXISTS contract_sent_digitally boolean;
+
+COMMENT ON COLUMN public.jobs.contract_sent_digitally IS
+  'Ob der Arbeitsvertrag digital versendet wird. Zusammen mit '
+  'contract_creation_days die Antwort auf "wie schnell vom Ja zum Vertrag".';
+
 COMMENT ON COLUMN public.jobs.contract_limitation IS
   'Befristung des Arbeitsvertrags. Getrennt von employment_type (Voll-/Teilzeit) '
   'und contract_type (Festanstellung vs. Contracting).';
@@ -118,6 +129,7 @@ SELECT
   j.works_council,
   j.works_council_meeting_schedule,
   j.contract_creation_days,
+  j.contract_sent_digitally,
   j.contract_limitation,
   j.contract_sensitive_topics,
   j.bonus_structure,

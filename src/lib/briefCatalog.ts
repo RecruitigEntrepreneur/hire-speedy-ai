@@ -277,12 +277,22 @@ const LINKS: BriefQuestion[] = [
     text: 'Wie lange benötigen Sie für die Erstellung des Vertrags? (Wird dieser digital versendet?)',
     why: 'Zwischen Zusage und Vertrag verliert man Kandidaten an schnellere Wettbewerber.',
     slots: [
+      // Zwei Angaben, zwei Zeilen. In einer Zeile bildeten "1 Woche, digital"
+      // und "1 Woche, per Post" beide auf 7 ab -- die Auswahl vergleicht ueber
+      // den Spaltenwert, also leuchteten beide Chips zugleich, und ob digital
+      // oder per Post verschickt wird, war nirgends mehr gespeichert.
       {
         key: 'contract_creation_days', label: 'Vom Ja bis zum Vertrag', form: 'chips',
-        chips: ['2 Tage, digital', '1 Woche, digital', '1 Woche, per Post', 'länger als eine Woche'],
-        chipValues: { '2 Tage, digital': 2, '1 Woche, digital': 7, '1 Woche, per Post': 7, 'länger als eine Woche': 14 },
+        chips: ['2 Tage', '1 Woche', '2 Wochen', 'länger'],
+        chipValues: { '2 Tage': 2, '1 Woche': 7, '2 Wochen': 14, 'länger': 21 },
         column: 'contract_creation_days', store: 'number',
         required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
+      },
+      {
+        key: 'contract_sent_digitally', label: 'Wird dieser digital versendet?', form: 'chips',
+        chips: ['Ja', 'Nein'], chipValues: { Ja: true, Nein: false },
+        column: 'contract_sent_digitally', store: 'bool',
+        required: false, weight: 1, reveal: 'safe', sources: ['inherit'],
       },
     ],
   },

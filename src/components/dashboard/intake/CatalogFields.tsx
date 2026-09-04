@@ -78,7 +78,18 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }:
                     slot={s}
                     wert={known[s.key]?.value}
                     quelle={known[s.key]?.from}
-                    optionen={s.key === 'must_have_criteria' || s.key === 'trainable_skills' ? mustHaves : undefined}
+                    optionen={
+                      s.key === 'must_have_criteria'
+                        ? mustHaves
+                        : s.key === 'trainable_skills'
+                          // Was schon als eines der drei Muss-Kriterien
+                          // markiert ist, kann nicht zugleich nachschulbar
+                          // sein -- sonst widerspricht sich das Profil.
+                          ? mustHaves.filter(
+                              (m) => !(known.must_have_criteria?.value as string[] | undefined)?.includes(m),
+                            )
+                          : undefined
+                    }
                     onSet={(v) => onSet(s.key, v)}
                   />
                 </div>

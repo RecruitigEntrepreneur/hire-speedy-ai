@@ -127,14 +127,6 @@ export function CaptureStep({
     [built, type, freelance, flexibility, companyDefaults],
   );
 
-  // Im KI-Briefing sieht der Kunde die statischen Fragen nie -- sie als offene
-  // Hebel anzubieten ("... beantworten: +9 P") verspricht ihm etwas, das er
-  // nicht anklicken kann, und blieb selbst dann stehen, wenn er genau das
-  // gerade beantwortet hatte. Das Studio macht es an dieser Stelle schon so.
-  const openQuestions = useMemo(
-    () => (built && !dyn.available ? openBriefingQuestions(type, { remote_type: built.remote_type }, answers) : []),
-    [built, type, answers, dyn.available],
-  );
 
   const start = (job: BuiltJob) => {
     // Zurueck aus dem Einfuegen-/Link-Schirm, sonst bleibt die Ansicht darauf
@@ -249,6 +241,26 @@ export function CaptureStep({
   const katalogFortschritt = useMemo(
     () => katalogCompleteness(katalogKnown, type),
     [katalogKnown, type],
+  );
+
+  /**
+   * Die Hebel unter "Vor der Uebergabe" kommen aus dem Katalog.
+   *
+   * Vorher stand hier der alte 36-Fragen-Katalog, und die Bedingung dafuer
+   * hing an `dyn.available` -- das seit der Umstellung niemand mehr setzt.
+   * Ergebnis auf dem Bildschirm: dem Kunden wurden Fragen als Hebel angeboten
+   * ("Warum ist die Stelle offen?" beantworten: +9 P), die es im Briefing gar
+   * nicht mehr gibt und die er nirgends anklicken kann.
+   */
+  const openQuestions = useMemo(
+    () =>
+      katalogFortschritt.offen.slice(0, 2).map((s) => ({
+        id: s.key,
+        text: s.label,
+        chapter: s.q.chapter,
+        weight: s.weight,
+      })),
+    [katalogFortschritt.offen],
   );
 
   const moveSkillToNice = (skill: string) => {

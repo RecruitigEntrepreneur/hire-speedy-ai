@@ -71,10 +71,11 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     let profilePts = 0;
     if (built.title) profilePts += 20;
     if (built.location || built.remote_type === 'remote') profilePts += 15;
+    // Die Verguetung wird NICHT mehr als eigener Hebel genannt: der Katalog
+    // liefert sie ueber openQuestions, und beides zusammen nannte dieselbe
+    // Luecke zweimal untereinander.
     if (isFreelance ? freelance.dayRateMin || freelance.dayRateMax : built.salary_min || built.salary_max) {
       profilePts += 25;
-    } else {
-      levers.push(isFreelance ? 'Tagessatz-Spanne angeben: +6 P' : 'Gehaltsband angeben: +6 P');
     }
     if (built.must_haves.length > 0) profilePts += 20;
     if (revealDescriptor) profilePts += 20;
