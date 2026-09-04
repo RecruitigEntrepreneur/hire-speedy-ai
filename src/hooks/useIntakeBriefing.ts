@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 
 export interface ExtractedIntakeData {
   team_size?: number;
-  team_avg_age?: string;
   core_hours?: string;
   overtime_policy?: string;
   remote_days?: number;

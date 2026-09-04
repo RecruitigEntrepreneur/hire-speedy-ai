@@ -216,7 +216,6 @@ export default function CreateJob() {
     if (data.must_haves?.length) count++;
     if (data.nice_to_haves?.length) count++;
     if (data.team_size) count++;
-    if (data.team_avg_age) count++;
     if (data.reports_to) count++;
     if (data.core_hours) count++;
     if (data.remote_days) count++;
@@ -466,7 +465,6 @@ export default function CreateJob() {
       must_haves: data.requirements,
       nice_to_haves: data.nice_to_have,
       team_size: null,
-      team_avg_age: null,
       reports_to: null,
       department_structure: null,
       core_hours: null,

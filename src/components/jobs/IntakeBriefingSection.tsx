@@ -146,7 +146,6 @@ Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Se
 function formatFieldName(key: string): string {
   const labels: Record<string, string> = {
     team_size: 'Team-Größe',
-    team_avg_age: 'Altersstruktur',
     core_hours: 'Kernarbeitszeit',
     company_culture: 'Kultur',
     career_path: 'Karrierepfad',

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
-  BRIEF_QUESTIONS, completeness, nextQuestion,
+  DIALOG_QUESTIONS, chipWert, completeness, nextQuestion,
   type BriefQuestion, type BriefSlot, type CatalogState, type Known,
 } from '@/lib/briefCatalog';
 import { AlertTriangle, Check, CheckCircle2, Circle, Loader2, Sparkles } from 'lucide-react';
@@ -162,7 +162,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
   useEffect(() => {
     if (geerntet.current) return;
     geerntet.current = true;
-    const offen = BRIEF_QUESTIONS.flatMap((q) => q.slots).filter((s) => !state.known[s.key]);
+    const offen = DIALOG_QUESTIONS.flatMap((q) => q.slots).filter((s) => !state.known[s.key]);
     void ernten(null, '', offen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -173,7 +173,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
         <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-primary" />
         <p className="text-sm font-semibold">Das Briefing ist vollständig.</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Alle {fortschritt.fragenGesamt} Pflichtfragen sind beantwortet.
+          Alle {fortschritt.dialogGesamt} Fragen des Gesprächs sind beantwortet.
         </p>
         <Button className="mt-3" size="sm" onClick={onDone}>Weiter</Button>
       </div>
@@ -213,7 +213,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
 
     // Ernten laeuft im Hintergrund gegen die Zeilen, die DANACH noch offen
     // sind -- sonst wuerde das Modell in gerade beantwortete hineinschreiben.
-    const restOffen = BRIEF_QUESTIONS.flatMap((q) => q.slots).filter((s) => !known[s.key]);
+    const restOffen = DIALOG_QUESTIONS.flatMap((q) => q.slots).filter((s) => !known[s.key]);
     if (antwort) void ernten(frage, antwort, restOffen);
   };
 
@@ -238,10 +238,10 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
       <div className="flex items-center gap-2 text-xs">
         <span className="font-semibold">Briefing</span>
         <span className="text-muted-foreground">
-          {fortschritt.fragenGesamt - fortschritt.fragenOffen} von {fortschritt.fragenGesamt} Fragen
+          {fortschritt.dialogGesamt - fortschritt.dialogOffen} von {fortschritt.dialogGesamt} Fragen
         </span>
         <div className="ml-auto flex gap-0.5">
-          {BRIEF_QUESTIONS.map((q) => (
+          {DIALOG_QUESTIONS.map((q) => (
             <span
               key={q.key}
               title={q.text}
@@ -371,15 +371,17 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
         {(() => {
           // Die gerade gestellte Frage gehoert nicht in die Restliste -- sie
           // stand sonst gleichzeitig oben als Frage und hier als "fehlt noch".
-          const rest = BRIEF_QUESTIONS.filter(
+          const rest = DIALOG_QUESTIONS.filter(
             (q) => !state.askedQuestions.includes(q.key) && q.key !== frage.key,
           );
           return (
             <div className="space-y-1">
               {rest.slice(0, 7).map((q) => (
                 <p key={q.key} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  {/* Die ersten drei tragen das Gespraech -- sie werden
+                      gefuellt gezeigt, damit sichtbar ist, was Gewicht hat. */}
                   <Circle className={cn('mt-1 h-2 w-2 shrink-0',
-                    q.rank === 1 ? 'fill-primary text-primary' : 'text-muted-foreground')} />
+                    q.order <= 30 ? 'fill-primary text-primary' : 'text-muted-foreground')} />
                   <span className="line-clamp-1">{q.text}</span>
                 </p>
               ))}
@@ -423,10 +425,13 @@ function SlotEingabe({
     return (
       <div className="flex flex-wrap gap-1.5">
         {slot.chips.map((c) => {
-          const an = multi ? gewaehlt.includes(c) : wert === c;
+          // Der Chip zeigt seine Beschriftung, schreibt aber den Spaltenwert:
+          // "Ja" -> true, "2 Tage, digital" -> 2. Sonst landet Fliesstext in
+          // einer Zahlenspalte und der Insert scheitert erst beim Uebergeben.
+          const an = multi ? gewaehlt.includes(c) : wert === chipWert(slot, c);
           return (
             <button key={c} type="button"
-              onClick={() => (multi ? onToggle(c) : onSet(an ? undefined : c))}
+              onClick={() => (multi ? onToggle(c) : onSet(an ? undefined : chipWert(slot, c)))}
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                 an ? 'border-primary bg-primary/10 text-foreground'

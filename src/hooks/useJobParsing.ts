@@ -38,7 +38,6 @@ export interface ParsedJobData {
   
   // Team & Struktur
   team_size: number | null;
-  team_avg_age: string | null;
   reports_to: string | null;
   department_structure: string | null;
   

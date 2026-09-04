@@ -7,7 +7,6 @@ const corsHeaders = {
 
 interface ExtractedIntakeData {
   team_size?: number;
-  team_avg_age?: string;
   core_hours?: string;
   overtime_policy?: string;
   remote_days?: number;
@@ -94,7 +93,6 @@ Antworte NUR mit dem JSON-Objekt, keine zusätzlichen Erklärungen.`;
               type: "object",
               properties: {
                 team_size: { type: "integer", description: "Größe des direkten Teams" },
-                team_avg_age: { type: "string", description: "Altersstruktur, z.B. '25-35'" },
                 core_hours: { type: "string", description: "Kernarbeitszeit, z.B. '10-16 Uhr'" },
                 overtime_policy: { type: "string", description: "Überstunden-Regelung" },
                 remote_days: { type: "integer", description: "Anzahl Home Office Tage pro Woche" },
@@ -154,7 +152,7 @@ Antworte NUR mit dem JSON-Objekt, keine zusätzlichen Erklärungen.`;
 
     // Calculate completeness
     const allFields = [
-      'team_size', 'team_avg_age', 'core_hours', 'company_culture', 
+      'team_size', 'core_hours', 'company_culture', 
       'vacancy_reason', 'hiring_urgency', 'must_have_criteria',
       'decision_makers', 'daily_routine', 'career_path'
     ];

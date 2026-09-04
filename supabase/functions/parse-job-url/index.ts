@@ -32,7 +32,6 @@ interface ParsedJobData {
   
   // Team & Struktur
   team_size: number | null;
-  team_avg_age: string | null;
   reports_to: string | null;
   department_structure: string | null;
   
@@ -215,7 +214,6 @@ PFLICHT-FELDER:
 
 TEAM & STRUKTUR (falls erwähnt):
 - team_size: Zahl (z.B. "12-köpfiges Team" → 12)
-- team_avg_age: String (z.B. "junges dynamisches Team" → "25-35")
 - reports_to: String (z.B. "berichtet an CFO", "Teamleitung")
 - department_structure: String (z.B. "Teil des Finance-Teams")
 
@@ -334,7 +332,6 @@ WICHTIGE REGELN:
                   
                   // Team & Struktur
                   team_size: { type: "integer", nullable: true },
-                  team_avg_age: { type: "string", nullable: true },
                   reports_to: { type: "string", nullable: true },
                   department_structure: { type: "string", nullable: true },
                   

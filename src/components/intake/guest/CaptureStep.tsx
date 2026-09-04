@@ -9,7 +9,10 @@ import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlo
 import { BenefitsBlock } from './BenefitsBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
 import { CatalogBriefing } from '@/components/dashboard/intake/CatalogBriefing';
-import { EMPTY_CATALOG_STATE, completeness as katalogCompleteness } from '@/lib/briefCatalog';
+import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
+import {
+  EMPTY_CATALOG_STATE, completeness as katalogCompleteness, knownFromForm,
+} from '@/lib/briefCatalog';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
 import {
   briefingProgress, openBriefingQuestions, prefillFromBuilt, serializeBriefing, type Answers,
@@ -214,11 +217,38 @@ export function CaptureStep({
     built && (built.title || built.must_haves.length || built.skills.length || built.description),
   );
 
+  /**
+   * Was der Katalog weiss -- aus zwei Quellen zusammen.
+   *
+   * Das vorhandene Formular links (Gehalt, Kann-Kriterien) zaehlt mit, ohne
+   * dass es doppelt gerendert wird: knownFromForm spiegelt seinen Zustand in
+   * den Katalog. Antworten des Kunden gewinnen ueber die Spiegelung -- sonst
+   * wuerde eine Formularaenderung eine ausdrueckliche Antwort ueberschreiben.
+   */
+  const katalogKnown = useMemo(
+    () => ({
+      ...knownFromForm({ built, freelance, contract: type }),
+      ...(dyn.catalog?.known ?? {}),
+    }),
+    [built, freelance, type, dyn.catalog?.known],
+  );
+
+  const setKatalog = (key: string, value: unknown) =>
+    onState((s) => {
+      const known = { ...(s.dyn.catalog?.known ?? {}) };
+      if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+        delete known[key];
+      } else {
+        known[key] = { value, from: 'answer' as const };
+      }
+      return { ...s, dyn: { ...s.dyn, catalog: { ...(s.dyn.catalog ?? EMPTY_CATALOG_STATE), known } } };
+    });
+
   // Eine Zahl fuer den ganzen Bildschirm: der Katalog rechnet sie, nicht ein
   // Modell und nicht der alte 36-Fragen-Katalog.
   const katalogFortschritt = useMemo(
-    () => katalogCompleteness(dyn.catalog?.known ?? {}, type),
-    [dyn.catalog?.known, type],
+    () => katalogCompleteness(katalogKnown, type),
+    [katalogKnown, type],
   );
 
   const moveSkillToNice = (skill: string) => {
@@ -477,8 +507,8 @@ export function CaptureStep({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            {katalogFortschritt.fragenGesamt - katalogFortschritt.fragenOffen} von{' '}
-            {katalogFortschritt.fragenGesamt} Fragen beantwortet
+            {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
+            {katalogFortschritt.feldGesamt} Angaben · {katalogFortschritt.pct} %
           </span>
           {/* Der Rückweg zur Startauswahl. „Anzeige doch einfügen" stand hier
               vorher allein und als unauffälliger Link — der Wortlaut sagte
@@ -513,6 +543,17 @@ export function CaptureStep({
             gewaehlt={built.benefits ?? []}
             onChange={(b) => onState((s) => ({ ...s, built: { ...s.built, benefits: b } }))}
           />
+          {/* Arbeitszeit, Betriebsrat, Vertragstempo -- gehoeren zur FIRMA und
+              werden ab der zweiten Stelle desselben Kunden vererbt. Deshalb
+              hier oben beim Firmenblock und nicht im Gespraech rechts: es sind
+              Werte, keine Erfahrung. */}
+          <div className="rounded-xl border bg-card p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Arbeitszeit &amp; Prozess
+            </p>
+            <CatalogFields place="arbeitszeit" known={katalogKnown} onSet={setKatalog} contract={type} />
+          </div>
+
           <div className="rounded-xl border">
           <ProfileSections
             type={type}
@@ -536,6 +577,22 @@ export function CaptureStep({
                 },
               }))}
           />
+            {/* Was ProfileSections noch nicht hat: Teamgroesse,
+                Homeoffice-Tage, Befristung, Monatsgehaelter, Bonus -- und die
+                Markierung der drei Muss-Kriterien auf der Liste, die direkt
+                darueber schon steht. Gehalt und Kann-Kriterien erscheinen hier
+                bewusst NICHT: die Felder gibt es oben schon. */}
+            <div className="space-y-4 border-t p-4">
+              <CatalogFields place="eckdaten" known={katalogKnown} onSet={setKatalog} contract={type} />
+              <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} contract={type} />
+              <CatalogFields
+                place="skills"
+                known={katalogKnown}
+                onSet={setKatalog}
+                contract={type}
+                mustHaves={built.must_haves ?? []}
+              />
+            </div>
           </div>
         </div>
 
@@ -552,7 +609,7 @@ export function CaptureStep({
             <CatalogBriefing
               type={type}
               jobDraft={jobDraft}
-              state={dyn.catalog ?? EMPTY_CATALOG_STATE}
+              state={{ ...(dyn.catalog ?? EMPTY_CATALOG_STATE), known: katalogKnown }}
               onState={(updater) =>
                 onState((s) => ({
                   ...s,
