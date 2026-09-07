@@ -72,7 +72,22 @@ COMMENT ON COLUMN public.jobs.contract_limitation IS
 --
 -- Die Anweisung im Prompt ist im selben Zug entfernt worden; ohne das Loeschen
 -- der Spalte waere sie beim naechsten Schema-Abgleich wieder aufgetaucht.
-ALTER TABLE public.jobs DROP COLUMN IF EXISTS team_avg_age;
+-- Das Loeschen ist gekapselt: haengt in der Live-Datenbank noch eine View
+-- oder Funktion an der Spalte, die es im Repo nicht gibt, scheitert sonst die
+-- GESAMTE Migration -- und salary_months, contract_limitation und die neue
+-- Recruiter-Sicht kaemen mit ihr nicht durch. Ein CASCADE waere die falsche
+-- Antwort darauf: es wuerfe die abhaengige View gleich mit weg, ohne dass es
+-- jemand merkt. Also: melden und weitermachen.
+DO $drop_age$
+BEGIN
+  EXECUTE 'ALTER TABLE public.jobs DROP COLUMN IF EXISTS team_avg_age';
+EXCEPTION WHEN dependent_objects_still_exist OR feature_not_supported THEN
+  RAISE WARNING 'team_avg_age konnte nicht geloescht werden (abhaengiges Objekt). '
+                'Die Spalte wird ab jetzt nicht mehr befuellt -- parse-job-url '
+                'fragt sie nicht mehr ab. Abhaengigkeit suchen und Spalte '
+                'nachtraeglich loeschen.';
+END
+$drop_age$;
 
 -- ---------------------------------------------------------------------------
 -- 3. recruiter_jobs_view: die Katalogfelder erreichen den Headhunter
