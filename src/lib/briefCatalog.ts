@@ -101,6 +101,20 @@ export interface BriefSlot {
   sources: BriefSource[];
   askIf?: { key: string; equals: string };
   only?: 'full-time' | 'freelance';
+  /**
+   * Ohne diese Zeile geht es nicht weiter zu den Kontaktdaten.
+   *
+   * BEWUSST WENIGE. Alle acht untersuchten ATS folgen der Regel "der Ablauf
+   * blockiert nicht, der Ausgang blockiert" -- und die untersuchten
+   * Personalvermittler fragen vor dem ersten Menschen im Schnitt fuenf Felder.
+   * Wer hier zu viel sperrt, baut die Wand wieder auf, die wir gerade
+   * abgeraeumt haben.
+   *
+   * Gesperrt wird nur, was ein Recruiter zwingend braucht, um ueberhaupt
+   * anzufangen -- und was auf der Vereinbarung steht. Alles Weitere bleibt
+   * Empfehlung und laesst sich nachreichen.
+   */
+  blocksSubmit?: boolean;
 }
 
 export interface BriefQuestion {
@@ -137,6 +151,7 @@ const LINKS: BriefQuestion[] = [
         key: 'salary_range', label: 'Gehalt von / bis (€)', form: 'range',
         column: 'salary_min', store: 'range',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'full-time',
+        blocksSubmit: true,
       },
       // Das Gegenstueck fuer Contracting. Es fehlte, obwohl knownFromForm den
       // Wert schon spiegelte -- ein toter Schluessel: der Tagessatz wurde in
@@ -147,6 +162,7 @@ const LINKS: BriefQuestion[] = [
         key: 'day_rate_range', label: 'Tagessatz von / bis (€)', form: 'range',
         column: 'day_rate_min', store: 'range',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'freelance',
+        blocksSubmit: true,
       },
       {
         key: 'salary_months', label: 'Wie viele Monatsgehälter gibt es?', form: 'chips',
@@ -722,4 +738,30 @@ export function knownFromForm(args: {
   setz('nice_to_have_criteria', built.nice_to_haves, 'ad');
 
   return out;
+}
+
+/**
+ * Die Luecken, die den Uebergang zu den Kontaktdaten sperren.
+ *
+ * Vorher sperrte nur der Jobtitel (`disabled={!built.title.trim()}`) -- alles
+ * andere war Empfehlung, und ein Kunde konnte ohne Gehaltsband und ohne
+ * Standort bis zur Beauftragung durchlaufen. Der Recruiter bekam dann eine
+ * Stelle, mit der er niemanden ansprechen kann.
+ *
+ * Umgekehrt gilt die Regel aus der Marktrecherche: der Ablauf blockiert nicht,
+ * der Ausgang blockiert -- und auch dort nur mit dem Noetigsten. Deshalb ist
+ * `blocksSubmit` an genau den Zeilen gesetzt, ohne die eine Ansprache
+ * unmoeglich ist. Der Rest bleibt nachreichbar.
+ */
+export function blockingGaps(known: Known, contract: 'full-time' | 'freelance') {
+  return BRIEF_QUESTIONS.flatMap((q) =>
+    q.slots
+      .filter(
+        (s) =>
+          s.blocksSubmit &&
+          (!s.only || s.only === contract) &&
+          !hatWert(known, s.key),
+      )
+      .map((s) => ({ key: s.key, label: s.label, frage: q.key })),
+  );
 }

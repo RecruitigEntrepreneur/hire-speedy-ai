@@ -13,7 +13,7 @@ import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
 import {
-  EMPTY_CATALOG_STATE, completeness as katalogCompleteness, knownFromForm,
+  EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm,
 } from '@/lib/briefCatalog';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
 import {
@@ -25,7 +25,7 @@ import {
 } from '@/lib/intakeMapping';
 import { isFailure } from '@/hooks/useGuestIntake';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, ArrowRight, FileText, FileUp, Link2, Loader2, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, FileText, FileUp, Link2, Loader2, Sparkles } from 'lucide-react';
 
 /**
  * Die Aufnahme selbst — dieselben Bausteine wie im Dashboard-Studio.
@@ -254,6 +254,46 @@ export function CaptureStep({
     () => katalogCompleteness(katalogKnown, type),
     [katalogKnown, type],
   );
+
+  /**
+   * Was den Uebergang sperrt. Vorher war das allein der Jobtitel -- ein Kunde
+   * konnte ohne Gehaltsband, ohne Standort und ohne Firmenname bis zur
+   * Beauftragung durchlaufen, und der Recruiter bekam eine Stelle, mit der er
+   * niemanden ansprechen kann.
+   *
+   * Die Luecken werden BENANNT, nicht nur gesperrt: ein ausgegrauter Knopf
+   * ohne Begruendung ist die haeufigste Sackgasse in Formularen. Jede Zeile
+   * ist anklickbar und springt zum Feld.
+   */
+  /**
+   * Springt zu dem Feld, das noch fehlt, und setzt den Fokus.
+   *
+   * Ein ausgegrauter Weiter-Knopf ohne Weg zur Ursache ist die haeufigste
+   * Sackgasse in langen Formularen -- auf einer 2.400-px-Seite weiss niemand,
+   * wo "Standort" steht. Die Sperr-Zeilen sind deshalb Links, keine Etiketten.
+   */
+  const zeigeFeld = (key: string) => {
+    const el =
+      document.querySelector<HTMLElement>(`[data-feld="${key}"]`) ??
+      document.querySelector<HTMLElement>(`[name="${key}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Der Fokus erst nach dem Scrollen, sonst springt die Seite doppelt.
+    window.setTimeout(() => el.focus?.(), 350);
+  };
+
+  const sperren = useMemo(() => {
+    const aus: { key: string; label: string }[] = [];
+    if (!built?.title?.trim()) aus.push({ key: 'title', label: 'Jobtitel' });
+    if (!String(company.company_name ?? '').trim()) {
+      aus.push({ key: 'company_name', label: 'Firmenname' });
+    }
+    if (!built?.location?.trim() && built?.remote_type !== 'remote') {
+      aus.push({ key: 'location', label: 'Standort' });
+    }
+    return [...aus, ...blockingGaps(katalogKnown, type)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [built?.title, built?.location, built?.remote_type, company.company_name, katalogKnown, type]);
 
   /**
    * Wie viel in den beiden Firmen-Gruppen noch fehlt.
@@ -752,17 +792,35 @@ export function CaptureStep({
           {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
           {katalogFortschritt.feldGesamt}
         </span>
-        <span className="text-xs text-muted-foreground">
-          Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.
-        </span>
+        {sperren.length === 0 ? (
+          <span className="text-xs text-muted-foreground">
+            Weitere Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.
+          </span>
+        ) : (
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+            Zum Weitermachen fehlt noch:
+            {sperren.map((l, i) => (
+              <button
+                key={l.key}
+                type="button"
+                onClick={() => zeigeFeld(l.key)}
+                className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
+              >
+                {l.label}
+                {i < sperren.length - 1 ? ',' : ''}
+              </button>
+            ))}
+          </span>
+        )}
         <button
           type="button"
           onClick={onResumeLater}
-          className="ml-auto text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          className="ml-auto shrink-0 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           Speichern und später fertigstellen
         </button>
-        <Button onClick={onNext} disabled={!built.title.trim()} className="gap-2">
+        <Button onClick={onNext} disabled={sperren.length > 0} className="shrink-0 gap-2">
           Weiter zu Ihren Kontaktdaten <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

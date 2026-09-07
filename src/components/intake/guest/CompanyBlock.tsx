@@ -298,7 +298,13 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
       <div className="space-y-2 p-4 pt-3">
         {RASTER.map((reihe, n) => (
           <div key={n} className="grid grid-cols-2 gap-x-4">
-            {reihe.map((z) => <div key={z.key}>{zelle(z.key, z.mit)}</div>)}
+            {/* data-feld: Sprungziel fuer die Sperr-Zeilen im Fussbalken.
+                Fehlt der Firmenname, benennt der Balken die Luecke und springt
+                hierher -- ein ausgegrauter Knopf ohne Weg zur Ursache ist auf
+                einer 2.400-px-Seite eine Sackgasse. */}
+            {reihe.map((z) => (
+              <div key={z.key} data-feld={z.key}>{zelle(z.key, z.mit)}</div>
+            ))}
           </div>
         ))}
 

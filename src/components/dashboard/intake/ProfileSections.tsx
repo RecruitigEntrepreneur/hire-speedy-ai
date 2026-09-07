@@ -123,6 +123,7 @@ export function ProfileSections({
             aenderbar war ausgerechnet die kleinere, tiefere. Das Feld bleibt
             editierbar, sieht aber wie ein Feld aus. */}
         <Input
+          data-feld="title"
           value={built.title}
           onChange={(e) => set({ title: e.target.value })}
           className="h-8 text-sm"
@@ -158,6 +159,7 @@ export function ProfileSections({
         {isFreelance ? (
           <div className="grid grid-cols-2 gap-2">
             <Input
+              data-feld="day_rate_range"
               value={freelance.dayRateMin ?? ''}
               onChange={(e) => onFreelanceChange({ ...freelance, dayRateMin: numOrNull(e.target.value) })}
               placeholder="Tagessatz von (€)"
@@ -202,6 +204,7 @@ export function ProfileSections({
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <Input
+              data-feld="salary_range"
               value={built.salary_min ?? ''}
               onChange={(e) => set({ salary_min: numOrNull(e.target.value) })}
               placeholder="Gehalt von (€)"
