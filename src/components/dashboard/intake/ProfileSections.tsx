@@ -117,10 +117,15 @@ export function ProfileSections({
         <Badge variant="outline" className="mb-2 gap-1 text-xs">
           <Sparkles className="h-3 w-3 text-primary" /> KI-Entwurf · alles editierbar
         </Badge>
+        {/* Kein zweiter Titel. Die Ueberschrift steht oben in CaptureStep;
+            hier stand sie 120 px tiefer ein zweites Mal, fett und nur 2 px
+            kleiner -- der Blick konnte nicht entscheiden, welche gilt, und
+            aenderbar war ausgerechnet die kleinere, tiefere. Das Feld bleibt
+            editierbar, sieht aber wie ein Feld aus. */}
         <Input
           value={built.title}
           onChange={(e) => set({ title: e.target.value })}
-          className="h-auto border-0 px-0 text-lg font-bold shadow-none focus-visible:ring-0"
+          className="h-8 text-sm"
           placeholder="Jobtitel"
         />
       </div>
@@ -299,28 +304,23 @@ export function ProfileSections({
         />
       </Section>
 
-      <Section title="Firma & Reveal (Triple-Blind)" icon={Lock} className="bg-muted/30">
-        <p className="mb-1.5 text-[11px] text-muted-foreground">
-          So sehen Recruiter Ihre Firma, bis Sie die Identität freigeben:
-        </p>
-        <Input
-          value={reveal.descriptor}
-          onChange={(e) => onRevealChange({ ...reveal, descriptor: e.target.value })}
-          placeholder={`z. B. „${built.industry || 'Unternehmen'}, Mittelstand, Region ${built.location || 'DACH'}"`}
-          className="mb-2 h-8 text-xs"
-        />
-        <div className="flex items-center gap-2">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <Select value={reveal.trigger} onValueChange={(v) => onRevealChange({ ...reveal, trigger: v as RevealSetup['trigger'] })}>
-            <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {(Object.keys(REVEAL_TRIGGER_LABELS) as RevealSetup['trigger'][]).map((k) => (
-                <SelectItem key={k} value={k}>Firmen-Reveal: {REVEAL_TRIGGER_LABELS[k]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Section>
+      {/*
+        Der Reveal-Ausloeser stand hier als Auswahl fuer den Kunden -- und war
+        FOLGENLOS: `reveal_trigger` wird in die jobs-Zeile geschrieben und ins
+        Formular zurueckgelesen, aber an keiner Stelle ausgewertet. Kein
+        Trigger, keine View, keine Function liest ihn.
+        Was tatsaechlich aufdeckt, ist die Interview-Zusage des Kandidaten mit
+        aktiver, protokollierter Einwilligung -- process-interview-response
+        setzt identity_unlocked, company_revealed und consent_confirmed in
+        einem Zug, und nur wenn consentGiven === true.
+        Das ist eine Plattformregel wie das Honorar, keine Kundenoption. Eine
+        Auswahl anzubieten, die nichts bewirkt, verspricht Kontrolle, die es
+        nicht gibt.
+        Der anonyme Descriptor wird weiterhin automatisch erzeugt und wandert
+        in reveal_envelope. Er gehoert als Bestaetigungszeile in die Aufnahme,
+        nicht als Eingabefeld: wer ihn selbst formuliert, baut versehentlich
+        seine eigene De-Anonymisierung ein ("Marktfuehrer fuer X in Y").
+      */}
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { BenefitsBlock } from './BenefitsBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
 import { CatalogBriefing } from '@/components/dashboard/intake/CatalogBriefing';
 import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
+import { CollapsibleGroup } from './CollapsibleGroup';
+import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
 import {
   EMPTY_CATALOG_STATE, completeness as katalogCompleteness, knownFromForm,
 } from '@/lib/briefCatalog';
@@ -79,6 +81,8 @@ interface Props {
   onCompany: (patch: Partial<CompanyDraft>) => void;
   onEnrich: (domain?: string) => Promise<Anreicherung | { reason: string; message: string }>;
   askAi: (payload: Record<string, unknown>) => Promise<Record<string, any>>;
+  /** Oeffnet den Dialog "Speichern und spaeter fertigstellen" (Link per Mail). */
+  onResumeLater: () => void;
   parseText: (text: string) => Promise<any>;
   parseUrl: (url: string) => Promise<any>;
   parsePdf: (file: File) => Promise<any>;
@@ -90,17 +94,25 @@ interface Props {
 // selbst. 'reselect' ist etwas anderes: der bewusste Rueckweg aus dem Editor
 // zur Startauswahl. Beides in einen Wert zu legen hiesse, den Rueckweg nicht
 // vom Ausgangszustand unterscheiden zu koennen.
-type EntryMode = 'confirm' | 'choose' | 'reselect' | 'paste' | 'url';
+type EntryMode = 'kind' | 'anue' | 'confirm' | 'choose' | 'reselect' | 'paste' | 'url';
 
 export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
-  askAi, parseText, parseUrl, parsePdf, onNext, company, onCompany, onEnrich,
+  askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
 }: Props) {
   const [text, setText] = useState(seedText ?? '');
   const [url, setUrl] = useState('');
   // Kennt der Link die gesuchte Position, beginnen wir mit der Bestätigung.
   // Sonst mit der Wahl des Wegs — nie mit einer leeren Fläche.
-  const [entryMode, setEntryMode] = useState<EntryMode>(seedTitle ? 'confirm' : 'choose');
+  /**
+   * Ohne Profil steht die Vertragsart am Anfang -- vorher gab es sie nirgends,
+   * und der Contracting-Zweig war damit unerreichbar. Mit Seed-Titel bleibt es
+   * bei der Bestaetigungsfrage: dort ist die Rolle bereits vorgegeben, und eine
+   * vorgeschaltete Wahl waere eine Huerde vor dem einfachsten Weg.
+   */
+  const [entryMode, setEntryMode] = useState<EntryMode>(
+    seedTitle ? 'confirm' : state.built ? 'choose' : 'kind',
+  );
   const [building, setBuilding] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -244,6 +256,26 @@ export function CaptureStep({
   );
 
   /**
+   * Wie viel in den beiden Firmen-Gruppen noch fehlt.
+   *
+   * Die Zahl steht in der zugeklappten Zeile -- ohne sie waere eine
+   * geschlossene Gruppe eine Blackbox, und der Kunde muesste jede oeffnen,
+   * um zu sehen, ob er dort noch etwas zu tun hat.
+   */
+  const firmaOffen = useMemo(() => {
+    const pflicht: (keyof typeof company)[] = ['company_name', 'company_legal_name'];
+    return pflicht.filter((k) => !String(company[k] ?? '').trim()).length;
+  }, [company]);
+
+  const rahmenOffen = useMemo(
+    () =>
+      katalogFortschritt.offen.filter(
+        (s) => s.q?.place === 'arbeitszeit',
+      ).length + ((built?.benefits ?? []).length === 0 ? 1 : 0),
+    [katalogFortschritt.offen, built],
+  );
+
+  /**
    * Die Hebel unter "Vor der Uebergabe" kommen aus dem Katalog.
    *
    * Vorher stand hier der alte 36-Fragen-Katalog, und die Bedingung dafuer
@@ -289,6 +321,33 @@ export function CaptureStep({
   // Vorher war hier eine leere Textarea. Sie hat die Vorbelegung des
   // persönlichen Links verschenkt und Arbeit verlangt, bevor irgendetwas
   // Sichtbares passiert war — genau der Punkt, an dem Leute abspringen.
+  if (entryMode === 'kind') {
+    return (
+      <ContractKindStep
+        onChoose={(kind) => {
+          // Die Wahl wandert in den Entwurf: GuestIntake speichert
+          // capture.type als contract_type mit jedem Autosave.
+          onState((s) => ({ ...s, type: kind }));
+          setEntryMode('choose');
+        }}
+        onDecline={() => setEntryMode('anue')}
+        onBack={built ? () => setEntryMode('choose') : undefined}
+      />
+    );
+  }
+
+  if (entryMode === 'anue') {
+    return (
+      <ContractKindDeclined
+        onContracting={() => {
+          onState((s) => ({ ...s, type: 'freelance' }));
+          setEntryMode('choose');
+        }}
+        onBack={() => setEntryMode('kind')}
+      />
+    );
+  }
+
   if (!built || entryMode === 'reselect' || entryMode === 'paste' || entryMode === 'url') {
     // 'reselect' zeigt die Auswahl auch dann, wenn schon ein Profil begonnen
     // wurde -- der Rueckweg aus dem Editor. Ohne diesen Fall klickte der Knopf
@@ -512,12 +571,26 @@ export function CaptureStep({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">{built.title || 'Ihre Position'}</h2>
+          {/* EIN Titel. Vorher stand er zweimal untereinander: hier als h2 und
+              120 px tiefer noch einmal als Eingabefeld in ProfileSections --
+              zwei Groessen, gleiches Gewicht, und aenderbar war die kleinere. */}
+          <h2 className="text-2xl font-bold tracking-tight">{built.title || 'Ihre Position'}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Links steht das Profil, rechts die offenen Fragen. Alles ist änderbar.
+            {[company.company_legal_name || company.company_name, built.location]
+              .filter(Boolean).join(' · ') || 'Alles ist änderbar.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Die gewaehlte Vertragsart, sichtbar und aenderbar. Ohne sie war
+              die Wahl nach dem ersten Bildschirm unerreichbar -- und ein Kunde,
+              der sich vertan hat, haette von vorn anfangen muessen. */}
+          <button
+            type="button"
+            onClick={() => setEntryMode('kind')}
+            className="rounded-full border border-input px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            {type === 'freelance' ? 'Contracting' : 'Festanstellung'} · ändern
+          </button>
           <span className="text-xs text-muted-foreground">
             {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
             {katalogFortschritt.feldGesamt} Angaben · {katalogFortschritt.pct} %
@@ -540,33 +613,12 @@ export function CaptureStep({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {/* Das Verhaeltnis folgt der Last, nicht der Symmetrie: links ~100
+          Bedienelemente, rechts eine Frage. 50/50 verschenkte Formularbreite
+          an eine Spalte, die zu 56 % leer stand. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start">
         <div className="space-y-4">
-          <CompanyBlock
-            werte={company}
-            ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
-            onChange={onCompany}
-            onEnrich={onEnrich}
-          />
-          {/* Benefits gehoeren zur Firma, nicht zur Position -- deshalb hier
-              neben dem Firmenblock und nicht als Frage im Briefing. Fester
-              Katalog: ein Modell wuerde hier Obstkorb und Kicker erfinden. */}
-          <BenefitsBlock
-            gewaehlt={built.benefits ?? []}
-            onChange={(b) => onState((s) => ({ ...s, built: { ...s.built, benefits: b } }))}
-          />
-          {/* Arbeitszeit, Betriebsrat, Vertragstempo -- gehoeren zur FIRMA und
-              werden ab der zweiten Stelle desselben Kunden vererbt. Deshalb
-              hier oben beim Firmenblock und nicht im Gespraech rechts: es sind
-              Werte, keine Erfahrung. */}
-          <div className="rounded-xl border bg-card p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Arbeitszeit &amp; Prozess
-            </p>
-            <CatalogFields place="arbeitszeit" known={katalogKnown} onSet={setKatalog} contract={type} />
-          </div>
-
-          <div className="rounded-xl border">
+          <div>
           <ProfileSections
             type={type}
             built={built}
@@ -606,10 +658,53 @@ export function CaptureStep({
               />
             </div>
           </div>
+
+          {/* --- Ab hier: was zur FIRMA gehoert, nicht zur Position. --------
+              Stand vorher VOR dem Profil und nahm ~1.200 px, bevor der Kunde
+              seine Stelle sah. Es sind Werte, die er einmal bestaetigt und die
+              ab der zweiten Stelle vererbt werden. */}
+          <CollapsibleGroup
+            titel="Ihr Unternehmen"
+            offen={firmaOffen}
+            zusammenfassung={[
+              company.company_legal_name || company.company_name,
+              company.company_industry,
+              company.company_city,
+            ].filter(Boolean).join(' · ')}
+            fussnote="Diese Angaben stehen später auf der Vereinbarung."
+          >
+            <CompanyBlock
+              werte={company}
+              ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
+              onChange={onCompany}
+              onEnrich={onEnrich}
+            />
+          </CollapsibleGroup>
+
+          <CollapsibleGroup
+            titel="Rahmendaten"
+            offen={rahmenOffen}
+            zusammenfassung={
+              (built.benefits ?? []).slice(0, 3).join(' · ') || 'Benefits, Arbeitszeit, Betriebsrat'
+            }
+            fussnote="Gilt für alle Ihre Stellen — einmal ausfüllen, ab der zweiten Position vorausgewählt."
+          >
+            <div className="space-y-5">
+              <BenefitsBlock
+                gewaehlt={built.benefits ?? []}
+                onChange={(b) => onState((s) => ({ ...s, built: { ...s.built, benefits: b } }))}
+              />
+              <CatalogFields place="arbeitszeit" known={katalogKnown} onSet={setKatalog} contract={type} />
+            </div>
+          </CollapsibleGroup>
         </div>
 
-        <div className="space-y-4" ref={briefingRef}>
-          <div className="rounded-xl border p-4">
+        {/* Die Frage bleibt stehen. Sie ist der Motor des Ablaufs -- neunmal
+            gedrueckt -- und war nach dem ersten Wischen weg, waehrend der Kunde
+            ~1.200 px an einer leeren Spalte entlangscrollte. Auf der ganzen
+            Seite war KEIN Element fixiert. */}
+        <div className="space-y-4 lg:sticky lg:top-24" ref={briefingRef}>
+          <div>
             {/*
               Seit dem 04.09.2026 fuehrt der Fragenkatalog das Briefing
               (src/lib/briefCatalog.ts, Wortlaut aus Markos Leitfaden). Die
@@ -643,10 +738,30 @@ export function CaptureStep({
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 border-t pt-4">
-        <span className="text-xs text-muted-foreground">
-          Reicht Ihnen das? Sie können jederzeit weiter — Lücken lassen sich später ergänzen.
+      {/* Bleibt am Bildschirmrand stehen und traegt drei Dinge: die einzige
+          Zahl, den Ausweg und den Weiter-Knopf.
+          Der Ausweg stand vorher klein oben rechts in der Kopfzeile -- beim
+          Durchklicken habe ich ihn zweimal uebersehen. Kein einziger von 19
+          untersuchten Anbietern hat einen gespeicherten Wiedereinstieg
+          ueberhaupt; wir haben ihn und haben ihn versteckt.
+          Der Satz "Reicht Ihnen das?" stand am Ende von ~2.500 px Formular,
+          also fuer die meisten unsichtbar -- er sagt jetzt dasselbe dort, wo
+          der Kunde ohnehin hinschaut. */}
+      <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+        <span className="text-sm font-medium">
+          {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
+          {katalogFortschritt.feldGesamt}
         </span>
+        <span className="text-xs text-muted-foreground">
+          Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.
+        </span>
+        <button
+          type="button"
+          onClick={onResumeLater}
+          className="ml-auto text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          Speichern und später fertigstellen
+        </button>
         <Button onClick={onNext} disabled={!built.title.trim()} className="gap-2">
           Weiter zu Ihren Kontaktdaten <ArrowRight className="h-4 w-4" />
         </Button>

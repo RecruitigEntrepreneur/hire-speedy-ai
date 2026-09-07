@@ -138,6 +138,16 @@ const LINKS: BriefQuestion[] = [
         column: 'salary_min', store: 'range',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'full-time',
       },
+      // Das Gegenstueck fuer Contracting. Es fehlte, obwohl knownFromForm den
+      // Wert schon spiegelte -- ein toter Schluessel: der Tagessatz wurde in
+      // ProfileSections erhoben, zaehlte aber gegen kein Pflichtfeld. Bei einer
+      // Contracting-Stelle fehlte damit die wichtigste Zahl in der
+      // Vollstaendigkeit, und das Briefing galt als fertig ohne sie.
+      {
+        key: 'day_rate_range', label: 'Tagessatz von / bis (€)', form: 'range',
+        column: 'day_rate_min', store: 'range',
+        required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'freelance',
+      },
       {
         key: 'salary_months', label: 'Wie viele Monatsgehälter gibt es?', form: 'chips',
         chips: ['12', '12 + Urlaubsgeld', '13', '13,5', '14'],

@@ -409,6 +409,7 @@ export default function GuestIntake() {
           parseUrl={parseUrl}
           parsePdf={parsePdf}
           onNext={() => setStep('contact')}
+          onResumeLater={() => setResumeOpen(true)}
         />
       )}
 
