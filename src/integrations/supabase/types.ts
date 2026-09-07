@@ -5942,7 +5942,9 @@ export type Database = {
           company_size_band: string | null
           contract_creation_days: number | null
           contract_duration_months: number | null
+          contract_limitation: string | null
           contract_sensitive_topics: string | null
+          contract_sent_digitally: boolean | null
           contract_type: string | null
           core_hours: string | null
           created_at: string
@@ -6012,6 +6014,7 @@ export type Database = {
           reveal_trigger: string | null
           salary_max: number | null
           salary_min: number | null
+          salary_months: number | null
           screening_questions: Json | null
           search_difficulty: string | null
           skills: string[] | null
@@ -6021,7 +6024,6 @@ export type Database = {
           target_companies: string[] | null
           task_breakdown: Json | null
           task_focus: string | null
-          team_avg_age: string | null
           team_size: number | null
           tech_environment: string[] | null
           time_tracking_method: string | null
@@ -6058,7 +6060,9 @@ export type Database = {
           company_size_band?: string | null
           contract_creation_days?: number | null
           contract_duration_months?: number | null
+          contract_limitation?: string | null
           contract_sensitive_topics?: string | null
+          contract_sent_digitally?: boolean | null
           contract_type?: string | null
           core_hours?: string | null
           created_at?: string
@@ -6128,6 +6132,7 @@ export type Database = {
           reveal_trigger?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          salary_months?: number | null
           screening_questions?: Json | null
           search_difficulty?: string | null
           skills?: string[] | null
@@ -6137,7 +6142,6 @@ export type Database = {
           target_companies?: string[] | null
           task_breakdown?: Json | null
           task_focus?: string | null
-          team_avg_age?: string | null
           team_size?: number | null
           tech_environment?: string[] | null
           time_tracking_method?: string | null
@@ -6174,7 +6178,9 @@ export type Database = {
           company_size_band?: string | null
           contract_creation_days?: number | null
           contract_duration_months?: number | null
+          contract_limitation?: string | null
           contract_sensitive_topics?: string | null
+          contract_sent_digitally?: boolean | null
           contract_type?: string | null
           core_hours?: string | null
           created_at?: string
@@ -6244,6 +6250,7 @@ export type Database = {
           reveal_trigger?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          salary_months?: number | null
           screening_questions?: Json | null
           search_difficulty?: string | null
           skills?: string[] | null
@@ -6253,7 +6260,6 @@ export type Database = {
           target_companies?: string[] | null
           task_breakdown?: Json | null
           task_focus?: string | null
-          team_avg_age?: string | null
           team_size?: number | null
           tech_environment?: string[] | null
           time_tracking_method?: string | null
@@ -11301,43 +11307,79 @@ export type Database = {
       recruiter_jobs_view: {
         Row: {
           benefits: string[] | null
+          bonus_structure: string | null
+          career_example: string | null
+          career_path: string | null
           company_culture: string | null
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
+          contract_creation_days: number | null
+          contract_duration_months: number | null
+          contract_limitation: string | null
+          contract_sensitive_topics: string | null
+          contract_sent_digitally: boolean | null
+          core_hours: string | null
           created_at: string | null
+          daily_routine: string | null
+          day_rate_max: number | null
+          day_rate_min: number | null
           deadline: string | null
+          decision_makers: string[] | null
+          department_structure: string | null
           description: string | null
           embedding: string | null
           employment_type: string | null
           experience_level: string | null
+          extension_possible: boolean | null
+          failure_profile: string | null
           fee_percentage: number | null
           formatted_content: Json | null
           funding_stage: string | null
           hiring_urgency: string | null
           id: string | null
           industry: string | null
+          industry_challenges: string | null
+          industry_opportunities: string | null
           job_summary: Json | null
           location: string | null
+          must_have_criteria: string[] | null
           must_haves: string[] | null
+          negative_impact_if_unfilled: string | null
+          nice_to_have_criteria: string[] | null
           nice_to_haves: string[] | null
           onsite_days_required: number | null
           onsite_required: boolean | null
+          overtime_policy: string | null
+          position_advantages: string[] | null
           recruiter_fee_percentage: number | null
           remote_policy: string | null
           remote_type: string | null
+          reports_to: string | null
           required_certifications: string[] | null
           required_languages: Json | null
           requirements: string | null
           salary_max: number | null
           salary_min: number | null
+          salary_months: number | null
           screening_questions: Json | null
           skills: string[] | null
           status: string | null
+          success_profile: string | null
+          task_breakdown: Json | null
+          task_focus: string | null
+          team_size: number | null
           tech_environment: string[] | null
+          time_tracking_method: string | null
           title: string | null
+          trainable_skills: string[] | null
+          unique_selling_points: string[] | null
           updated_at: string | null
           urgency: string | null
+          utilization_days_per_week: number | null
+          vacancy_reason: string | null
+          works_council: boolean | null
+          works_council_meeting_schedule: string | null
         }
         Relationships: []
       }
