@@ -127,6 +127,8 @@ export interface BriefQuestion {
   intro?: string;
   /** MARKOS WORTLAUT. Nicht aendern. */
   text: string;
+  /** Anweisung unter der Frage. `{n}` wird durch die Anzahl ersetzt. */
+  hinweis?: string;
   why: string;
   slots: BriefSlot[];
 }
@@ -187,6 +189,19 @@ const LINKS: BriefQuestion[] = [
     chapter: 'Skills',
     intro: 'Basierend auf dem, was wir gerade besprochen haben in Bezug auf Arbeitsalltag und Herausforderungen:',
     text: 'Welche 3 Kriterien muss der Kandidat erfüllen, damit Sie ihn direkt produktiv einsetzen können und 100 % kennenlernen wollen?',
+    /**
+     * Die Anweisung UNTER der Frage.
+     *
+     * Markos Frage nennt drei -- die Liste darunter zeigt aber alles, was der
+     * Parser aus der Anzeige gelesen hat, oft sieben oder acht. Ohne diesen
+     * Satz stuende eine Frage nach drei Kriterien ueber acht Zeilen, und der
+     * Kunde wuesste nicht, was er mit dem Rest tun soll.
+     * `{n}` wird durch die tatsaechliche Zahl ersetzt.
+     */
+    hinweis:
+      'Wir haben {n} Kriterien aus Ihrer Anzeige gelesen. Stufen Sie jedes ein — '
+      + 'was davon ist unverzichtbar, was verhandelbar, und was kann jemand bei '
+      + 'Ihnen noch lernen?',
     why: 'Macht aus einer Wunschliste eine Suchvorgabe. Alles andere ist verhandelbar.',
     slots: [
       // KEINE zweite Liste. Der Kunde markiert drei der Muss-Chips, die aus
@@ -793,3 +808,14 @@ export function blockingGaps(known: Known, contract: 'full-time' | 'freelance') 
       .map((s) => ({ key: s.key, label: s.label, frage: q.key })),
   );
 }
+
+/**
+ * Eine Katalogfrage nach ihrem Schluessel.
+ *
+ * Damit liest die Oberflaeche den Wortlaut aus dem Katalog, statt ihn
+ * abzutippen. ProfileSections hatte Markos Frage als Literal im JSX stehen --
+ * zwei Wahrheiten fuer denselben Satz, und wer den Katalog aendert, aendert
+ * den Bildschirm nicht mit.
+ */
+export const frageNach = (key: string) =>
+  [...BRIEF_QUESTIONS, ...DASHBOARD_FRAGEN].find((q) => q.key === key);

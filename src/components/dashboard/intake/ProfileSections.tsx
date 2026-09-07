@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/select';
 import { type BuiltJob, type FreelanceTerms, type JobType, type RevealSetup, REVEAL_TRIGGER_LABELS } from './types';
 import { cn } from '@/lib/utils';
+import { frageNach } from '@/lib/briefCatalog';
 import { AlertTriangle, Building2, Coins, Lock, MapPin, Plus, Sparkles, X } from 'lucide-react';
 
 /** Flexibilitätsmatrix: wie hart ist jedes Muss-Kriterium wirklich? */
@@ -125,6 +126,9 @@ export function ProfileSections({
     const alle = [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])];
     return [...new Map(alle.map((s) => [String(s).trim(), String(s).trim()])).values()].filter(Boolean);
   }, [built.must_haves, built.nice_to_haves]);
+
+  /** Markos Wortlaut fuer diesen Block -- aus dem Katalog, nicht abgetippt. */
+  const frageSkills = frageNach('kriterien');
 
   const nach = (w: Flexibility) => kriterien.filter((s) => flexibility[s] === w);
   const unverzichtbar = nach('fix');
@@ -260,13 +264,19 @@ export function ProfileSections({
         diese Wunschliste soll Markos Frage aufbrechen.
       */}
       <Section title="Anforderungen" icon={Sparkles}>
-        <p className="mb-1 text-xs leading-snug">
-          Welche 3 Kriterien muss der Kandidat erfüllen, damit Sie ihn direkt
-          produktiv einsetzen können und 100 % kennenlernen wollen?
-        </p>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Und was davon kann er bei Ihnen noch lernen?
-        </p>
+        {/* Der Wortlaut kommt aus dem Katalog, nicht aus diesem Bauteil.
+            Vorher stand Markos Frage hier als Literal im JSX -- zwei
+            Wahrheiten fuer denselben Satz, und wer den Katalog aendert,
+            aendert den Bildschirm nicht mit. */}
+        {frageSkills?.intro && (
+          <p className="mb-1 text-xs italic text-muted-foreground">{frageSkills.intro}</p>
+        )}
+        <p className="mb-1.5 text-xs font-medium leading-snug">{frageSkills?.text}</p>
+        {frageSkills?.hinweis && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            {frageSkills.hinweis.replace('{n}', String(kriterien.length))}
+          </p>
+        )}
 
         <div className="mb-3 space-y-1.5">
           {kriterien.map((s) => {
