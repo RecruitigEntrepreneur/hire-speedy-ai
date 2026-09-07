@@ -129,6 +129,27 @@ const OUTPUT_SCHEMA = {
         required: ['slot', 'existing', 'neu'],
       },
     },
+    skill_suggestions: {
+      type: 'array',
+      description:
+        'Skills, die zu DIESER Rolle ueblicherweise gehoeren, aber im Entwurf noch '
+        + 'NICHT stehen. Leite sie aus dem ab, was schon dasteht -- Java -> Spring Boot, '
+        + 'Maven, JUnit; Kubernetes -> Docker, Helm; SAP FI -> SAP CO, Migration; HGB -> '
+        + 'IFRS, Konsolidierung. Erfinde nichts Rollenfremdes und wiederhole nichts, was '
+        + 'schon im Entwurf oder in known steht. Hoechstens 6. Sind keine sinnvollen '
+        + 'Ergaenzungen erkennbar, gib eine LEERE Liste zurueck -- eine schlechte '
+        + 'Empfehlung kostet mehr Vertrauen als eine fehlende.',
+      items: {
+        type: 'object',
+        properties: {
+          skill: { type: 'string' },
+          // Ohne Begruendung waere es eine Liste unbegruendeter Woerter, und der
+          // Kunde muesste raten, warum sie dasteht.
+          because: { type: 'string', description: 'Kurz: warum passt das hier? Max. 8 Woerter.' },
+        },
+        required: ['skill', 'because'],
+      },
+    },
     reveal_envelope_patch: {
       type: 'object',
       description:
@@ -190,6 +211,12 @@ DU STELLST KEINE FRAGEN AUS EIGENEM ANTRIEB. Die Fragen stehen in einem festen K
    in known schon steht. Keine Wiederholung aus asked_followups.
    Im Zweifel KEINE Nachfrage: eine ueberfluessige Frage kostet mehr Vertrauen
    als eine fehlende Auskunft. Das ist ausdruecklich erlaubt und der Normalfall.
+
+4. SKILL-VORSCHLAEGE — nenne bis zu sechs Kriterien, die zu dieser Rolle
+   ueblicherweise gehoeren, aber im Entwurf fehlen, jeweils mit einer kurzen
+   Begruendung. Das ist der einzige Punkt, an dem du etwas VORSCHLAEGST statt
+   zu ernten: der Kunde entscheidet per Klick, du behauptest nichts. Im
+   Zweifel eine leere Liste.
 
 VERTRAGSART: ${contract_type}. Bei "freelance" gelten Tagessatz, Laufzeit,
 Verlaengerung und Auslastung statt Gehalt und Karrierepfad.
@@ -292,6 +319,11 @@ BEREITS GESTELLTE NACHFRAGEN (nicht wiederholen): ${asked_followups.join(', ') |
         slot_values,
         follow_up,
         conflicts: Array.isArray(parsed.conflicts) ? parsed.conflicts : [],
+        skill_suggestions: Array.isArray(parsed.skill_suggestions)
+          ? (parsed.skill_suggestions as Record<string, unknown>[])
+              .filter((v) => typeof v?.skill === 'string' && String(v.skill).trim())
+              .slice(0, 6)
+          : [],
         reveal_envelope_patch: parsed.reveal_envelope_patch ?? {},
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

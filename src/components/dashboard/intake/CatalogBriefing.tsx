@@ -140,6 +140,9 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
             aiAvailable: true,
             model: data.model ?? p.model,
             conflicts: [...p.conflicts, ...(Array.isArray(data.conflicts) ? data.conflicts : [])],
+            // ERSETZEN, nicht ergaenzen: was der Kunde uebernommen oder
+            // abgelehnt hat, soll nicht wiederkommen.
+            skillSuggestions: Array.isArray(data.skill_suggestions) ? data.skill_suggestions : [],
             envelopePatch: { ...p.envelopePatch, ...(data.reveal_envelope_patch ?? {}) },
           };
         });

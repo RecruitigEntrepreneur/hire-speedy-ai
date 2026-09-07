@@ -678,6 +678,16 @@ export interface CatalogState {
   askedFollowups: string[];
   conflicts: { slot: string; existing: string; neu: string; note?: string }[];
   envelopePatch: Record<string, unknown>;
+  /**
+   * Skills, die zur Rolle passen, aber noch nicht in der Liste stehen.
+   *
+   * Der einzige Punkt, an dem das Modell noch etwas VORSCHLAEGT statt zu
+   * ernten -- der Kunde entscheidet per Klick. Sie wurden beim Umbau auf den
+   * Katalog versehentlich abgeschaltet: gefuellt hat sie allein
+   * DynamicBriefing, und die neue Function lieferte sie gar nicht mehr. Der
+   * Anzeigeblock stand weiter da und bekam fuer immer eine leere Liste.
+   */
+  skillSuggestions: { skill: string; because: string }[];
   /** Gerechnet, nicht geschaetzt. Wandert per Autosave in intake_drafts. */
   completeness: number;
   aiAvailable: boolean | null;
@@ -690,6 +700,7 @@ export const EMPTY_CATALOG_STATE: CatalogState = {
   askedFollowups: [],
   conflicts: [],
   envelopePatch: {},
+  skillSuggestions: [],
   completeness: 0,
   aiAvailable: null,
 };
