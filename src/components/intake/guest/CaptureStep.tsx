@@ -231,10 +231,10 @@ export function CaptureStep({
    */
   const katalogKnown = useMemo(
     () => ({
-      ...knownFromForm({ built, freelance, contract: type }),
+      ...knownFromForm({ built, freelance, contract: type, flexibility }),
       ...(dyn.catalog?.known ?? {}),
     }),
-    [built, freelance, type, dyn.catalog?.known],
+    [built, freelance, type, flexibility, dyn.catalog?.known],
   );
 
   const setKatalog = (key: string, value: unknown) =>
@@ -689,13 +689,12 @@ export function CaptureStep({
             <div className="space-y-4 border-t p-4">
               <CatalogFields place="eckdaten" known={katalogKnown} onSet={setKatalog} contract={type} />
               <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} contract={type} />
-              <CatalogFields
-                place="skills"
-                known={katalogKnown}
-                onSet={setKatalog}
-                contract={type}
-                mustHaves={built.must_haves ?? []}
-              />
+              {/* place="skills" entfaellt: "Die drei, ohne die es nicht geht"
+                  und "Was kann nachgeschult werden?" standen hier als zweite
+                  und dritte Chip-Reihe derselben Skills -- SAP FI stand damit
+                  dreimal auf einem Bildschirm. Beide Fragen beantwortet jetzt
+                  die Einstufung direkt an der Kriterienliste in
+                  ProfileSections. */}
             </div>
           </div>
 

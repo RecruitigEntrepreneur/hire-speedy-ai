@@ -713,8 +713,10 @@ export function knownFromForm(args: {
   built: Record<string, any> | null;
   freelance?: Record<string, any> | null;
   contract: 'full-time' | 'freelance';
+  /** Der Zustand je Kriterium: fix | negotiable | flexible. */
+  flexibility?: Record<string, string | undefined> | null;
 }): Known {
-  const { built, freelance, contract } = args;
+  const { built, freelance, contract, flexibility } = args;
   const out: Known = {};
   if (!built) return out;
   const setz = (key: string, value: unknown, from: SlotState['from'] = 'answer') => {
@@ -732,10 +734,25 @@ export function knownFromForm(args: {
     setz('salary_range', { min: built.salary_min, max: built.salary_max });
   }
 
-  // Die Muss-Liste aus der Anzeige ist NICHT dasselbe wie "die drei, ohne die
-  // es nicht geht" -- sie ist die Wunschliste, aus der der Kunde die drei
-  // markiert. Deshalb wird must_have_criteria hier bewusst NICHT gesetzt.
-  setz('nice_to_have_criteria', built.nice_to_haves, 'ad');
+  /**
+   * Die eine Kriterienliste, aufgeteilt nach ihrem Zustand.
+   *
+   * Vorher war must_have_criteria hier bewusst NICHT gesetzt, weil die
+   * Muss-Liste aus der Anzeige die Wunschliste ist und nicht "die drei, ohne
+   * die es nicht geht". Seit die Einstufung direkt an der Liste passiert, ist
+   * genau das jetzt beantwortbar: was der Kunde als unverzichtbar markiert,
+   * IST seine Antwort auf Markos Frage -- und was er als lernbar markiert, ist
+   * seine Antwort auf "was kann nachgeschult werden".
+   */
+  if (flexibility) {
+    const alle = [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])]
+      .map((x: unknown) => String(x ?? '').trim())
+      .filter(Boolean);
+    const nach = (w: string) => [...new Set(alle.filter((k) => flexibility[k] === w))];
+    setz('must_have_criteria', nach('fix'));
+    setz('trainable_skills', nach('flexible'));
+    setz('nice_to_have_criteria', nach('negotiable'));
+  }
 
   return out;
 }

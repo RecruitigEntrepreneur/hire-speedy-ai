@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,24 @@ import { AlertTriangle, Building2, Coins, Lock, MapPin, Plus, Sparkles, X } from
 export type Flexibility = 'fix' | 'negotiable' | 'flexible';
 export type FlexibilityMap = Record<string, Flexibility>;
 
-const FLEX_CYCLE: Flexibility[] = ['fix', 'negotiable', 'flexible'];
-const FLEX_LABEL: Record<Flexibility, string> = { fix: 'fix', negotiable: 'verhandelbar', flexible: 'flexibel' };
-const FLEX_CLS: Record<Flexibility, string> = {
-  fix: 'border-primary/40 text-primary',
-  negotiable: 'border-amber-500/50 text-amber-600',
-  flexible: 'border-border text-muted-foreground',
-};
+/**
+ * Die drei Stufen, in Markos Worten.
+ *
+ * Sie ersetzen den alten Klick-Zyklus fix -> verhandelbar -> flexibel, der
+ * eine 108 Zeichen lange Anleitung brauchte ("klicken Sie das Label, um die
+ * Verhandelbarkeit zu setzen"). Drei beschriftete Knoepfe nebeneinander
+ * erklaeren sich selbst.
+ *
+ * Die Abbildung auf die Spalten:
+ *   fix        -> must_have_criteria  (Markos "welche 3 Kriterien")
+ *   negotiable -> nice_to_haves
+ *   flexible   -> trainable_skills    (Markos "was kann nachgeschult werden")
+ */
+const STUFEN: { wert: Flexibility; label: string }[] = [
+  { wert: 'fix', label: 'unverzichtbar' },
+  { wert: 'negotiable', label: 'verhandelbar' },
+  { wert: 'flexible', label: 'lernbar' },
+];
 
 interface Props {
   type: JobType;
@@ -105,11 +116,21 @@ export function ProfileSections({
     .slice(0, 6);
   const isFreelance = type === 'freelance';
 
-  const cycleFlex = (skill: string) => {
-    const current = flexibility[skill] ?? 'fix';
-    const next = FLEX_CYCLE[(FLEX_CYCLE.indexOf(current) + 1) % FLEX_CYCLE.length];
-    onFlexibilityChange({ ...flexibility, [skill]: next });
-  };
+  /**
+   * EINE Liste. Muss- und Kann-Kriterien werden zusammengefuehrt -- welche
+   * Rolle ein Kriterium spielt, sagt jetzt sein Zustand, nicht die Liste, in
+   * der es steht.
+   */
+  const kriterien = useMemo(() => {
+    const alle = [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])];
+    return [...new Map(alle.map((s) => [String(s).trim(), String(s).trim()])).values()].filter(Boolean);
+  }, [built.must_haves, built.nice_to_haves]);
+
+  const nach = (w: Flexibility) => kriterien.filter((s) => flexibility[s] === w);
+  const unverzichtbar = nach('fix');
+  const verhandelbar = nach('negotiable');
+  const lernbar = nach('flexible');
+  const unmarkiert = kriterien.filter((s) => !flexibility[s]);
 
   return (
     <div className="rounded-xl border bg-card">
@@ -222,52 +243,95 @@ export function ProfileSections({
         )}
       </Section>
 
-      <Section title="Skills" icon={Sparkles}>
-        <p className="mb-1.5 text-[11px] text-muted-foreground">
-          Muss-Kriterien — klicken Sie das Label, um die Verhandelbarkeit zu setzen (fix → verhandelbar → flexibel):
+      {/*
+        EINE Liste, ein Zustand je Zeile.
+        BEFUND (05.09.2026): Dieselben Skills standen dreimal auf einem
+        Bildschirm -- als Badge mit Verhandelbarkeits-Pille hier, und 300 px
+        tiefer noch einmal als Chips unter "Die drei, ohne die es nicht geht"
+        und "Was kann nachgeschult werden?". Vier Konzepte, die dasselbe
+        meinen, an drei Stellen.
+        Markos beide Fragen sind EINE Achse: unverzichtbar = eines der drei
+        fuer den Direkteinsatz, verhandelbar = nice to have, lernbar = kann
+        nachgeschult werden. Wer hier klickt, beantwortet beide, ohne dass sie
+        noch einmal gestellt werden muessen.
+        Der Standardzustand ist bewusst UNMARKIERT und leise. Vorher war er
+        'fix' und zugleich die lauteste Marke der Spalte -- sieben Kriterien
+        standen auf "unverzichtbar", ohne dass es jemand gesagt hatte. Genau
+        diese Wunschliste soll Markos Frage aufbrechen.
+      */}
+      <Section title="Anforderungen" icon={Sparkles}>
+        <p className="mb-1 text-xs leading-snug">
+          Welche 3 Kriterien muss der Kandidat erfüllen, damit Sie ihn direkt
+          produktiv einsetzen können und 100 % kennenlernen wollen?
         </p>
-        <div className="mb-2 space-y-1">
-          {built.must_haves.map((s) => {
-            const flex = flexibility[s] ?? 'fix';
+        <p className="mb-3 text-xs text-muted-foreground">
+          Und was davon kann er bei Ihnen noch lernen?
+        </p>
+
+        <div className="mb-3 space-y-1.5">
+          {kriterien.map((s) => {
+            const flex = flexibility[s];
             return (
               <div key={s} className="flex items-center gap-2">
-                <Badge variant="default" className="gap-1 pr-1">
-                  {s}
-                  <button
-                    onClick={() => set({ must_haves: built.must_haves.filter((x) => x !== s) })}
-                    aria-label={`${s} entfernen`}
-                    className="rounded-full p-0.5 hover:bg-background/20"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
+                <span className="min-w-0 flex-1 truncate text-sm">{s}</span>
+                <div className="flex shrink-0 gap-1">
+                  {STUFEN.map(({ wert, label }) => (
+                    <button
+                      key={wert}
+                      type="button"
+                      onClick={() =>
+                        onFlexibilityChange({
+                          ...flexibility,
+                          // Nochmal klicken hebt die Markierung auf -- ohne das
+                          // waere ein Fehlgriff nicht zuruecknehmbar.
+                          [s]: flex === wert ? undefined : wert,
+                        } as FlexibilityMap)
+                      }
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-xs transition-colors',
+                        flex === wert
+                          ? 'border-foreground/40 bg-foreground/10 font-medium text-foreground'
+                          : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <button
-                  onClick={() => cycleFlex(s)}
-                  className={cn('rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors', FLEX_CLS[flex])}
-                  aria-label={`Verhandelbarkeit von ${s}: ${FLEX_LABEL[flex]}`}
+                  type="button"
+                  onClick={() => {
+                    set({
+                      must_haves: built.must_haves.filter((x) => x !== s),
+                      nice_to_haves: (built.nice_to_haves ?? []).filter((x) => x !== s),
+                    });
+                    const rest = { ...flexibility };
+                    delete rest[s];
+                    onFlexibilityChange(rest);
+                  }}
+                  aria-label={`${s} entfernen`}
+                  className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
-                  {FLEX_LABEL[flex]}
+                  <X className="h-3 w-3" />
                 </button>
               </div>
             );
           })}
         </div>
+
         <SkillList
-          label="Weiteres Muss-Kriterium"
+          label="Kriterium hinzufügen"
           items={[]}
-          accent
           onRemove={() => undefined}
           onAdd={(s) => set({ must_haves: [...built.must_haves, s] })}
         />
-        {/* Vorschlaege der KI. Bewusst UNTER den Muss-Kriterien und optisch
-            zurueckhaltend: es sind Angebote, keine Behauptungen. Jeder traegt
-            seine Begruendung bei sich -- eine Liste unbegruendeter Woerter
-            waere Raten, und Raten kostet hier Vertrauen. */}
+
+        {/* Vorschlaege der KI. Bewusst darunter und zurueckhaltend: es sind
+            Angebote, keine Behauptungen. Jeder traegt seine Begruendung bei
+            sich -- eine Liste unbegruendeter Woerter waere Raten. */}
         {vorschlaege.length > 0 && (
           <div className="mb-2 rounded-lg border border-dashed p-2.5">
-            <p className="mb-1.5 text-[11px] text-muted-foreground">
-              Passt das auch? Ein Klick übernimmt es.
-            </p>
+            <p className="mb-1.5 text-xs text-muted-foreground">Passt das auch? Ein Klick übernimmt es.</p>
             <div className="flex flex-wrap gap-1.5">
               {vorschlaege.map((v) => (
                 <button
@@ -275,12 +339,10 @@ export function ProfileSections({
                   type="button"
                   title={v.because}
                   onClick={() => {
-                    set(v.kind === 'nice'
-                      ? { nice_to_haves: [...(built.nice_to_haves ?? []), v.skill] }
-                      : { must_haves: [...(built.must_haves ?? []), v.skill] });
+                    set({ must_haves: [...(built.must_haves ?? []), v.skill] });
                     onDismissSuggestion?.(v.skill);
                   }}
-                  className="rounded-full border border-input bg-secondary/60 px-2.5 py-1 text-xs transition-colors hover:border-primary/50 hover:bg-primary/10"
+                  className="rounded-full border border-input bg-secondary/60 px-2.5 py-1 text-xs transition-colors hover:bg-accent"
                 >
                   + {v.skill}
                   <span className="ml-1.5 text-muted-foreground">{v.because}</span>
@@ -290,21 +352,22 @@ export function ProfileSections({
           </div>
         )}
 
-        {built.must_haves.length >= 8 && (
-          <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-            <p className="text-[11px] text-amber-700 dark:text-amber-400">
-              {built.must_haves.length} Muss-Kriterien — ab 8 schrumpft der erreichbare Markt erheblich.
-              Welche 2 sind ehrlich „verhandelbar"?
-            </p>
-          </div>
+        {/* Zaehlt jetzt nur noch, was der Kunde WIRKLICH als unverzichtbar
+            markiert hat. Vorher zaehlte sie built.must_haves -- also alles,
+            was der Parser aus der Anzeige geworfen hatte. */}
+        {unverzichtbar.length >= 8 && (
+          <p className="mb-2 flex items-start gap-1.5 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {unverzichtbar.length} unverzichtbare Kriterien — ab 8 schrumpft der erreichbare
+            Markt erheblich. Welche zwei sind ehrlich verhandelbar?
+          </p>
         )}
-        <SkillList
-          label="Kann (nice to have)"
-          items={built.nice_to_haves}
-          onRemove={(s) => set({ nice_to_haves: built.nice_to_haves.filter((x) => x !== s) })}
-          onAdd={(s) => set({ nice_to_haves: [...built.nice_to_haves, s] })}
-        />
+
+        <p className="text-xs text-muted-foreground">
+          {unverzichtbar.length} unverzichtbar · {verhandelbar.length} verhandelbar ·{' '}
+          {lernbar.length} lernbar
+          {unmarkiert.length > 0 && ` · ${unmarkiert.length} nicht eingestuft`}
+        </p>
       </Section>
 
       {/*
