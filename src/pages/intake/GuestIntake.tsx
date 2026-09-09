@@ -44,7 +44,7 @@ type StepKey = (typeof STEPS)[number]['key'];
 export default function GuestIntake() {
   const { token, draftToken } = useParams<{ token?: string; draftToken?: string }>();
   const intake = useGuestIntake(token, draftToken);
-  const { state, save, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward,
+  const { state, save, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward,
           askAi, parseText, parseUrl, parsePdf, enrichCompany } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
@@ -322,6 +322,23 @@ export default function GuestIntake() {
             <SignFrame
               url={signUrl}
               onDone={() => setSigned(true)}
+              /* Eine FRISCHE Adresse fuer den Weg im eigenen Fenster. Die alte
+                 ist verbraucht, sobald der Rahmen sie einmal geladen hat --
+                 auch dann, wenn er nichts anzeigen durfte. docusign-send stellt
+                 zum bestehenden Umschlag eine neue Ansicht aus, solange nicht
+                 unterschrieben ist; ein zweiter Vertrag entsteht dabei nicht. */
+              onNeuerLink={async () => {
+                const res = await sendContract({ self: true });
+                return isFailure(res) ? null : res.sign_url;
+              }}
+              /* Die Wahrheit steht beim Server, nicht im Rahmen. */
+              onPruefen={async () => {
+                const res = await checkSignature();
+                if (isFailure(res)) return 'offen';
+                return res.declined ? 'abgelehnt'
+                     : res.customer_signed ? 'unterschrieben'
+                     : 'offen';
+              }}
               onAbbruch={(ev) => {
                 /* Die alte Adresse ist verbraucht. Sie stehen zu lassen hiesse,
                    den Kunden vor einem toten Rahmen sitzen zu lassen -- die

@@ -433,6 +433,35 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     [],
   );
 
+  /**
+   * Den Stand des Umschlags beim SERVER erfragen -- nicht beim Rahmen.
+   *
+   * BEFUND (09.09.2026): Ob unterschrieben wurde, erfuhr diese Seite bisher
+   * ausschliesslich aus dem eingebetteten Rahmen: entweder ueber eine
+   * `postMessage` von DocuSign oder ueber unsere Rueckkehrseite darin. Beides
+   * setzt voraus, dass das Einbetten ueberhaupt gelingt. Unterschreibt der
+   * Kunde in einem EIGENEN Fenster -- der Weg, der ohne CSP auskommt und
+   * deshalb ueberall funktioniert --, ist das kein Kindfenster: es kann uns
+   * nichts melden, und DocuSigns Rueckkehr landet auf der oeffentlichen
+   * Adresse, nicht in diesem Tab. Der Kunde haette unterschrieben und saehe
+   * hier weiter "Vertrag wird geladen".
+   *
+   * `docusign-status` holt denselben Stand aktiv bei DocuSign und schreibt ihn
+   * an -- dieselbe Logik wie der Webhook. Damit haengt der Abschluss an
+   * keinem Rahmen und an keiner Nachricht mehr.
+   */
+  const checkSignature = useCallback(
+    () => withToken<{
+      ok: boolean;
+      envelope_status: string | null;
+      customer_signed: boolean;
+      countersigned: boolean;
+      declined: boolean;
+      summary: string;
+    }>('docusign-status', {}),
+    [],
+  );
+
   const submit = useCallback(
     async (signerName: string) => {
       await flush();
@@ -540,7 +569,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     });
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany };
+  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */
