@@ -691,6 +691,8 @@ const GESPRAECH: BriefQuestion[] = [
     slots: [
       {
         key: 'daily_routine', label: 'Der Arbeitsalltag', form: 'ai',
+        chips: ['Feste Routine am Morgen', 'Wechsel zwischen Projekt und Tagesgeschäft', 'Viel Abstimmung im Team', 'Termine außer Haus', 'Störungen bestimmen den Tag'],
+        chipsFreelance: ['Fester Platz im Projektteam', 'Abstimmung mit dem Fachbereich', 'Eigenständig, wenig Abstimmung', 'Vor Ort an der Anlage'],
         column: 'daily_routine', store: 'text',
         required: true, weight: 3, reveal: 'gated', sources: ['ad'],
       },
@@ -704,6 +706,7 @@ const GESPRAECH: BriefQuestion[] = [
       },
       {
         key: 'task_breakdown', label: 'Wie ist die prozentuale Gewichtung der Aufgaben?', form: 'ai',
+        chips: ['Überwiegend operativ', 'Überwiegend Steuerung', 'Halb Projekt, halb Tagesgeschäft', 'Ein Drittel Abstimmung'],
         column: 'task_breakdown', store: 'json',
         required: false, weight: 2, reveal: 'safe', sources: ['ad', 'derive'],
       },
@@ -802,6 +805,7 @@ const GESPRAECH: BriefQuestion[] = [
           'Klarer Auftrag, keine Politik',
           'Aussicht auf Anschlussprojekte',
         ],
+        chips: ['Inhabergeführt, keine Investoren', 'Eigenes Produkt, eigene Fertigung', 'Marktführer in einer Nische', 'Kurze Wege bis zur Geschäftsführung', 'Sicherer Arbeitsplatz, wenig Fluktuation'],
         column: 'unique_selling_points', store: 'array',
         required: true, weight: 2, reveal: 'gated', sources: ['ad', 'inherit'],
       },
@@ -849,6 +853,7 @@ const GESPRAECH: BriefQuestion[] = [
           'Wir siezen uns',
           'Wir duzen uns',
         ],
+        chips: ['Wir duzen uns', 'Wir siezen uns', 'Kurze Wege, wenig Abstimmung', 'Feste Zuständigkeiten, klare Prozesse', 'Familiär, wenig Fluktuation'],
         column: 'company_culture', store: 'text',
         required: true, weight: 2, reveal: 'gated', sources: ['ad', 'inherit'],
       },
@@ -868,11 +873,13 @@ const GESPRAECH: BriefQuestion[] = [
     slots: [
       {
         key: 'career_path', label: 'Konkrete Schritte', form: 'ai',
+        chips: ['Jährliches Entwicklungsgespräch', 'Gehalt wird dabei festgelegt, nicht auf Nachfrage', 'Weiterbildungsbudget pro Jahr', 'Fachliche Führung möglich', 'Führungslaufbahn möglich'],
         column: 'career_path', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
         key: 'career_example', label: 'Geben Sie mir doch bitte hierzu ein konkretes Beispiel!', form: 'ai',
+        chips: ['Jemand ist intern aufgestiegen', 'Jemand hat die Fachverantwortung übernommen', 'Jemand hat den Bereich gewechselt'],
         column: 'career_example', store: 'text',
         required: false, weight: 2, reveal: 'gated', sources: ['ad', 'inherit', 'derive'],
       },
@@ -914,11 +921,13 @@ const GESPRAECH: BriefQuestion[] = [
     slots: [
       {
         key: 'industry_opportunities', label: 'Was läuft gut', form: 'ai',
+        chips: ['Die Auftragslage ist gut', 'Investitionen ziehen an', 'Förderprogramme helfen', 'Wir gewinnen Marktanteile'],
         column: 'industry_opportunities', store: 'text',
         required: false, weight: 1, reveal: 'gated', sources: ['ad', 'inherit'],
       },
       {
         key: 'industry_challenges', label: 'Herausforderungen', form: 'ai',
+        chips: ['Fachkräfte sind schwer zu finden', 'Lieferzeiten sind lang', 'Der Preisdruck nimmt zu', 'Die Regulatorik wird aufwendiger'],
         column: 'industry_challenges', store: 'text',
         required: false, weight: 1, reveal: 'gated', sources: ['ad', 'inherit'],
       },
@@ -1332,6 +1341,12 @@ export interface CatalogState {
    * Anzeigeblock stand weiter da und bekam fuer immer eine leere Liste.
    */
   skillSuggestions: { skill: string; because: string }[];
+  /**
+   * Antwortvorschlaege je Zeile, aus der KI-Runde. Sie verdraengen die festen
+   * Chips des Katalogs, solange das Modell erreichbar ist -- die festen
+   * bleiben der Rueckfall, damit vor dem Kunden nie ein leerer Kasten steht.
+   */
+  answerSuggestions?: Record<string, string[]>;
   /** Gerechnet, nicht geschaetzt. Wandert per Autosave in intake_drafts. */
   completeness: number;
   aiAvailable: boolean | null;
@@ -1345,6 +1360,7 @@ export const EMPTY_CATALOG_STATE: CatalogState = {
   conflicts: [],
   envelopePatch: {},
   skillSuggestions: [],
+  answerSuggestions: {},
   completeness: 0,
   aiAvailable: null,
 };

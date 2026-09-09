@@ -199,6 +199,15 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
             // ERSETZEN, nicht ergaenzen: was der Kunde uebernommen oder
             // abgelehnt hat, soll nicht wiederkommen.
             skillSuggestions: Array.isArray(data.skill_suggestions) ? data.skill_suggestions : [],
+            // ERGAENZEN, nicht ersetzen: eine spaetere Runde liefert nur zu den
+            // Zeilen etwas, die gerade offen sind. Wer ersetzt, loescht die
+            // Vorschlaege der Zeilen davor.
+            answerSuggestions: {
+              ...(p.answerSuggestions ?? {}),
+              ...(data.answer_suggestions && typeof data.answer_suggestions === 'object'
+                ? data.answer_suggestions as Record<string, string[]>
+                : {}),
+            },
             envelopePatch: { ...p.envelopePatch, ...(data.reveal_envelope_patch ?? {}) },
           };
         });
@@ -365,6 +374,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
               <SlotEingabe
                 contract={type} slot={s} wert={entwurf[s.key]}
                 quelle={state.known[s.key]?.from}
+                vorschlaege={state.answerSuggestions?.[s.key]}
                 onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)} />
             </div>
           ))}
@@ -491,13 +501,21 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
 /* ------------------------------------------------------------------ */
 
 function SlotEingabe({
-  slot, contract, wert, quelle, onSet, onToggle,
+  slot, contract, wert, quelle, vorschlaege, onSet, onToggle,
 }: {
   slot: BriefSlot;
   contract: 'full-time' | 'freelance';
   wert: unknown;
   /** Woher der vorbelegte Wert stammt. 'answer' heisst: der Kunde selbst. */
   quelle?: string;
+  /**
+   * Vorschlaege aus der KI-Runde, passend zu dieser Rolle. Sie verdraengen die
+   * festen Chips des Katalogs -- "Wiedervorlage im CRM am Morgen" ist fuer
+   * eine Recruiter-Stelle brauchbarer als "Viel am Telefon". Fehlen sie (KI
+   * nicht erreichbar, oder das Modell hatte zu dieser Zeile nichts), bleiben
+   * die festen stehen.
+   */
+  vorschlaege?: string[];
   onSet: (v: unknown) => void;
   onToggle: (chip: string) => void;
 }) {
@@ -601,11 +619,23 @@ function SlotEingabe({
   const anhaengen = (c: string) =>
     onSet(text.trim() ? `${text.trim().replace(/[.·\s]+$/, '')} · ${c}` : c);
 
+  /**
+   * Was der Kunde zum Anklicken bekommt.
+   *
+   * Die Vorschlaege aus der KI-Runde gewinnen, weil sie zu DIESER Rolle
+   * passen: "Wiedervorlage im CRM am Morgen" statt "Viel am Telefon". Fehlen
+   * sie -- KI nicht erreichbar, oder das Modell hatte zu dieser Zeile nichts
+   * --, bleiben die festen Chips des Katalogs stehen. Vor dem Kunden steht
+   * damit nie ein leerer Kasten.
+   */
+  const angebote = vorschlaege?.length ? vorschlaege : slotChips(slot, contract);
+  const ausKi = !!vorschlaege?.length;
+
   return (
     <div>
-      {slotChips(slot, contract)?.length ? (
+      {angebote?.length ? (
         <div className="mb-1.5 flex flex-wrap gap-1.5">
-          {slotChips(slot, contract)!.map((c) => (
+          {angebote.map((c) => (
             <button
               key={c}
               type="button"
@@ -615,7 +645,9 @@ function SlotEingabe({
                 'rounded-full border border-dashed px-2.5 py-0.5 text-xs transition-colors',
                 text.includes(c)
                   ? 'border-transparent text-muted-foreground/50'
-                  : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
+                  : ausKi
+                    ? 'border-primary/40 text-muted-foreground hover:bg-primary/10 hover:text-foreground'
+                    : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
             >
               + {c}
@@ -624,7 +656,7 @@ function SlotEingabe({
         </div>
       ) : null}
       <Textarea value={text} rows={slot.form === 'ai' ? 3 : 2}
-                placeholder={slotChips(slot, contract)?.length ? 'Anklicken oder selbst schreiben …' : 'In Ihren Worten …'}
+                placeholder={angebote?.length ? 'Anklicken oder selbst schreiben …' : 'In Ihren Worten …'}
                 className="text-xs"
                 onChange={(e) => onSet(e.target.value)} />
     </div>

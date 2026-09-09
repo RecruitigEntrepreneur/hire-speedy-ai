@@ -150,6 +150,35 @@ const OUTPUT_SCHEMA = {
         required: ['skill', 'because'],
       },
     },
+    /**
+     * Antwortvorschlaege je offener Zeile.
+     *
+     * BEFUND (09.09.2026): Sieben Freitextzeilen hatten gar keine Vorschlaege
+     * -- darunter "Koennen Sie mir ein Bild des Arbeitsalltags malen?", die
+     * schwerste Frage des Gespraechs. Der Kunde sass vor einem leeren Kasten.
+     * Die festen Vorschlaege im Katalog fangen das ab, sind aber fuer jede
+     * Stelle dieselben: ein Recruiter und ein SPS-Programmierer lasen "Viel am
+     * Telefon".
+     *
+     * Ein Vorschlag ist KEIN vorbelegter Wert: er steht als Chip da, und erst
+     * der Klick des Kunden macht ihn zu seiner Aussage. Deshalb darf er
+     * spezifisch sein, wo eine Vorbelegung erfinden wuerde.
+     */
+    answer_suggestions: {
+      type: 'object',
+      description:
+        'Fuer jede Zeile aus open_slots mit form "ai" oder "text": 3 bis 5 kurze '
+        + 'Vorschlaege, die zu DIESER Rolle und DIESEM Unternehmen passen -- aus '
+        + 'job_draft und known abgeleitet, nicht allgemein. Hoechstens 6 Woerter je '
+        + 'Vorschlag, anklickbar formuliert, keine ganzen Saetze. Beispiel fuer eine '
+        + 'Recruiter-Stelle bei daily_routine: "Wiedervorlage im CRM am Morgen", '
+        + '"Sechs bis acht Telefoninterviews", "Zwei Kundentermine pro Woche". '
+        + 'Schluessel ist der slot key. Gibt der Entwurf zu einer Zeile nichts her, '
+        + 'lass sie WEG -- ein allgemeiner Vorschlag ist schlechter als keiner, weil '
+        + 'der Katalog dann seine eigenen zeigt. Erfinde keine Tatsachen ueber das '
+        + 'Unternehmen; formuliere Anlaeufe, keine Behauptungen.',
+      additionalProperties: { type: 'array', items: { type: 'string' } },
+    },
     reveal_envelope_patch: {
       type: 'object',
       description:
@@ -319,6 +348,19 @@ BEREITS GESTELLTE NACHFRAGEN (nicht wiederholen): ${asked_followups.join(', ') |
         slot_values,
         follow_up,
         conflicts: Array.isArray(parsed.conflicts) ? parsed.conflicts : [],
+        answer_suggestions: (() => {
+          const roh = parsed.answer_suggestions;
+          if (!roh || typeof roh !== 'object' || Array.isArray(roh)) return {};
+          const out: Record<string, string[]> = {};
+          for (const [k, v] of Object.entries(roh as Record<string, unknown>)) {
+            const liste = (Array.isArray(v) ? v : [])
+              .map((x) => String(x ?? '').trim())
+              .filter((x) => x && x.length <= 60)
+              .slice(0, 6);
+            if (liste.length) out[k] = liste;
+          }
+          return out;
+        })(),
         skill_suggestions: Array.isArray(parsed.skill_suggestions)
           ? (parsed.skill_suggestions as Record<string, unknown>[])
               .filter((v) => typeof v?.skill === 'string' && String(v.skill).trim())
