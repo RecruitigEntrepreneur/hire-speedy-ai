@@ -15,7 +15,7 @@ import { SignerChoice } from '@/components/intake/guest/SignerChoice';
 import { SummaryStep } from '@/components/intake/guest/SummaryStep';
 import { ForwardDialog, ResumeDialog } from '@/components/intake/guest/IntakeDialogs';
 import { buildIntakePayload, remoteLabel, levelLabel } from '@/lib/intakeMapping';
-import { openBriefingQuestions } from '@/components/dashboard/IntakeBriefing';
+import { completeness as katalogCompleteness, knownFromForm } from '@/lib/briefCatalog';
 import { useGuestIntake, isFailure } from '@/hooks/useGuestIntake';
 import { toast } from 'sonner';
 
@@ -181,10 +181,36 @@ export default function GuestIntake() {
     ];
   }, [capture, draft]);
 
+  /**
+   * Was in der Zusammenfassung als "noch offen" steht.
+   *
+   * BEFUND (09.09.2026, vom Kunden gefunden): Die Aufnahme meldete unten
+   * "26 von 26 Angaben · 100 %", und die Zusammenfassung schrieb daneben
+   * "24 Fragen sind noch offen". Gezaehlt wurde gegen `capture.answers` --
+   * den Speicher des alten 36-Fragen-Katalogs, in dem seit dem Umbau auf den
+   * Briefing-Katalog nur noch fuenf Eintraege liegen, weil niemand mehr
+   * hineinschreibt. Und `chapterProgress` gehoerte zu DynamicBriefing, das
+   * es nicht mehr gibt.
+   *
+   * Zwei Zaehler ueber dieselbe Sache, und der sichtbarere war der falsche:
+   * er steht direkt ueber dem Absenden-Knopf und sagt dem Kunden, seine
+   * Aufnahme sei zu drei Vierteln leer.
+   *
+   * Gezaehlt wird jetzt derselbe Katalog wie unten in der Fussleiste --
+   * einschliesslich dessen, was das Formular links beisteuert.
+   */
   const openQuestionCount = useMemo(() => {
     if (!capture?.built) return 0;
-    if (capture.dyn.available) return capture.dyn.chapterProgress.filter((c) => c.state === 'open').length;
-    return openBriefingQuestions(capture.type, { remote_type: capture.built.remote_type }, capture.answers).length;
+    const known = {
+      ...knownFromForm({
+        built: capture.built,
+        freelance: capture.freelance,
+        contract: capture.type,
+        flexibility: capture.flexibility,
+      }),
+      ...(capture.dyn.catalog?.known ?? {}),
+    };
+    return katalogCompleteness(known, capture.type).feldOffen;
   }, [capture]);
 
   // ---- Zustände der Seite -------------------------------------------------
