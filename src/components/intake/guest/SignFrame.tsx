@@ -49,15 +49,23 @@ export function SignFrame({ url, onDone, onAbbruch }: Props) {
    * Rahmen leer, und der Kunde sitzt vor "Vertrag wird geladen ..." bis die
    * Adresse abgelaufen ist. Sie gilt nur wenige Minuten und nur einmal.
    *
-   * Nach sechs Sekunden ohne Ladeereignis steht deshalb der Weg daneben,
-   * statt ihn klein unter dem Rahmen zu verstecken.
+   * NACHTRAG, gemessen an der Konsole:
+   *   Framing 'https://apps-d.docusign.com/' violates the following Content
+   *   Security Policy directive: "frame-ancestors 'self' https://matchunt.ai
+   *   https://apps-d.docusign.com". The request has been blocked.
+   *
+   * Der blockierte Rahmen feuert trotzdem `onLoad` -- der Browser laedt seine
+   * eigene Fehlerseite. `ready` wurde also true, der Hinweis blieb aus, und
+   * uebrig blieb eine schwarze Flaeche. Auf ein Ladeereignis ist an dieser
+   * Stelle kein Verlass; der Weg nach draussen steht deshalb nach sechs
+   * Sekunden IMMER da, ueber dem Rahmen statt klein darunter. Traegt der
+   * Rahmen, kostet die Zeile eine Zeile.
    */
   const [haengt, setHaengt] = useState(false);
   useEffect(() => {
-    if (ready) return;
     const t = setTimeout(() => setHaengt(true), 6000);
     return () => clearTimeout(t);
-  }, [ready]);
+  }, []);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -114,25 +122,25 @@ export function SignFrame({ url, onDone, onAbbruch }: Props) {
 
   return (
     <div className="space-y-3">
+      {haengt && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2">
+          <TriangleAlert className="h-4 w-4 shrink-0 text-amber-600" />
+          <p className="min-w-0 flex-1 text-xs">
+            <span className="font-medium">Sehen Sie hier keinen Vertrag?</span>{' '}
+            Manche Browser und Firmennetze verbieten das Einbetten. Der Link gilt
+            nur wenige Minuten.
+          </p>
+          <Button asChild size="sm" className="shrink-0">
+            <a href={url} target="_blank" rel="noreferrer">
+              Im neuen Fenster öffnen <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+            </a>
+          </Button>
+        </div>
+      )}
       <div className="relative overflow-hidden rounded-lg border" style={{ height: '78vh', minHeight: 520 }}>
-        {!ready && !haengt && (
+        {!ready && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Vertrag wird geladen …
-          </div>
-        )}
-        {!ready && haengt && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <TriangleAlert className="h-5 w-5 text-amber-600" />
-            <p className="text-sm font-medium">Der Vertrag lässt sich hier nicht anzeigen</p>
-            <p className="max-w-sm text-xs text-muted-foreground">
-              Manche Browser und Firmennetze verbieten das Einbetten. Öffnen Sie ihn
-              in einem neuen Fenster — der Link gilt nur wenige Minuten.
-            </p>
-            <Button asChild size="sm">
-              <a href={url} target="_blank" rel="noreferrer">
-                Vertrag im neuen Fenster öffnen <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-              </a>
-            </Button>
           </div>
         )}
         <iframe
