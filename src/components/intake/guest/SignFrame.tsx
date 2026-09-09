@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Loader2, TriangleAlert } from 'lucide-react';
 
 /**
  * Die Unterschrift auf unserer Seite, nicht auf DocuSigns.
@@ -40,6 +40,24 @@ interface Props {
 export function SignFrame({ url, onDone, onAbbruch }: Props) {
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(false);
+  /**
+   * Der Rahmen meldet sich nicht.
+   *
+   * BEFUND (09.09.2026): DocuSign erlaubt das Einbetten nur fuer die Adressen
+   * in `frameAncestors`. Stimmt die Herkunft nicht -- ein Test auf localhost,
+   * ein Unternehmens-Proxy, strenge Drittanbieter-Einstellungen --, bleibt der
+   * Rahmen leer, und der Kunde sitzt vor "Vertrag wird geladen ..." bis die
+   * Adresse abgelaufen ist. Sie gilt nur wenige Minuten und nur einmal.
+   *
+   * Nach sechs Sekunden ohne Ladeereignis steht deshalb der Weg daneben,
+   * statt ihn klein unter dem Rahmen zu verstecken.
+   */
+  const [haengt, setHaengt] = useState(false);
+  useEffect(() => {
+    if (ready) return;
+    const t = setTimeout(() => setHaengt(true), 6000);
+    return () => clearTimeout(t);
+  }, [ready]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -97,9 +115,24 @@ export function SignFrame({ url, onDone, onAbbruch }: Props) {
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-lg border" style={{ height: '78vh', minHeight: 520 }}>
-        {!ready && (
+        {!ready && !haengt && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Vertrag wird geladen …
+          </div>
+        )}
+        {!ready && haengt && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <TriangleAlert className="h-5 w-5 text-amber-600" />
+            <p className="text-sm font-medium">Der Vertrag lässt sich hier nicht anzeigen</p>
+            <p className="max-w-sm text-xs text-muted-foreground">
+              Manche Browser und Firmennetze verbieten das Einbetten. Öffnen Sie ihn
+              in einem neuen Fenster — der Link gilt nur wenige Minuten.
+            </p>
+            <Button asChild size="sm">
+              <a href={url} target="_blank" rel="noreferrer">
+                Vertrag im neuen Fenster öffnen <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+              </a>
+            </Button>
           </div>
         )}
         <iframe
