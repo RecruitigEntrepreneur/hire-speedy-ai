@@ -136,10 +136,27 @@ function FeldEingabe({
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
   const chips = optionen ?? slotChips(slot, contract);
 
+  /**
+   * Ein markierter Chip, der noch nicht bestaetigt ist, wird durch den Klick
+   * BESTAETIGT -- nicht geleert.
+   *
+   * BEFUND (09.09.2026): Unter dem Chip stand "aus der Anzeige -- bitte
+   * pruefen", und das Empfehlungsfeld forderte woertlich auf, die Frage zu
+   * beantworten. Wer der Aufforderung folgte und den markierten Chip klickte,
+   * loeschte den Wert aus der Anzeige: `remote_days` verschwand aus dem
+   * Entwurf, der Zaehler blieb stehen, der Hinweis verschwand mit. Erst der
+   * ZWEITE Klick setzte ihn wieder -- wer einmal klickte und weiterging, hatte
+   * die Angabe verloren, ohne dass etwas es sagte.
+   *
+   * Abwaehlen bleibt moeglich, sobald der Wert die Antwort des Kunden IST.
+   */
+  const nurVorschlag = !!quelle && quelle !== 'answer';
+
   const chipReihe = (multi: boolean) => (
     <div className="flex flex-wrap gap-1.5">
       {(chips ?? []).map((c) => {
         const an = multi ? gewaehlt.includes(c) : wert === slotChipWert(slot, contract, c);
+        const wert_ = slotChipWert(slot, contract, c);
         return (
           <button
             key={c}
@@ -147,7 +164,7 @@ function FeldEingabe({
             onClick={() =>
               multi
                 ? onSet(an ? gewaehlt.filter((x) => x !== c) : [...gewaehlt, c])
-                : onSet(an ? undefined : slotChipWert(slot, contract, c))
+                : onSet(an && !nurVorschlag ? undefined : wert_)
             }
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',

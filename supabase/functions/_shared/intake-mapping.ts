@@ -38,6 +38,39 @@ const clean = (obj: Json): Json =>
   Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 
 /**
+ * Die Einstufung der Kriterien -- aus `flexibility`, nicht aus dem Katalog.
+ *
+ * BEFUND (09.09.2026, Testaufnahme "Senior Platform Engineer"): Der Kunde
+ * stuft jedes Kriterium als unverzichtbar / verhandelbar / lernbar ein, und
+ * nichts davon erreichte die Stelle. `knownFromForm` leitet die drei Listen
+ * zwar ab, aber nur in einem useMemo fuer Anzeige und Zaehler -- persistiert
+ * wird `draft.flexibility`. `catalogToJobRow` liest `dyn.catalog.known` und
+ * fand dort nichts. Die Spalten standen in der RPC, die Werte kamen nie an.
+ *
+ * Abgeleitet wird deshalb hier, an der Stelle, die in die Spalte schreibt.
+ * `flexibility` bleibt die einzige Quelle -- die Listen zusaetzlich in den
+ * Entwurf zu spiegeln haette zwei Wahrheiten ergeben, die auseinanderlaufen,
+ * sobald der Kunde eine Einstufung aendert.
+ */
+function kriterienAusFlexibility(roh: unknown) {
+  const flex = (roh ?? {}) as Record<string, unknown>;
+  const mit = (stufe: string) =>
+    Object.entries(flex)
+      .filter(([kriterium, wert]) => wert === stufe && String(kriterium ?? '').trim())
+      .map(([kriterium]) => kriterium.trim());
+
+  const leerZuUndefined = (a: string[]) => (a.length ? a : undefined);
+  return {
+    must_have_criteria: leerZuUndefined(mit('fix')),
+    trainable_skills: leerZuUndefined(mit('flexible')),
+    /* 'negotiable' waere nice_to_have_criteria. Die Spalte gibt es in `jobs`
+       und in recruiter_jobs_view, aber accept_intake_draft nennt sie nicht in
+       ihrer INSERT-Liste -- der Wert wuerde still verworfen. Erst wenn eine
+       Migration sie dort ergaenzt, gehoert sie hier hin. */
+  };
+}
+
+/**
  * Baut die Job-Zeile aus einem Entwurf. Ohne client_id, ohne organization_id,
  * ohne status — die setzt accept_intake_draft().
  */
@@ -63,6 +96,7 @@ export function draftToJobRow(draft: Json): Json {
     deshalb unten NICHT mehr, sondern kommen aus dem Katalog.
   */
   const ausKatalog = catalogToJobRow(dyn.catalog?.known, String(draft.contract_type ?? ''));
+  const ausFlex = kriterienAusFlexibility(draft.flexibility);
 
   return clean({
     ...ausKatalog,
@@ -107,6 +141,11 @@ export function draftToJobRow(draft: Json): Json {
     // Diese vier traegt der Katalog, sobald der Kunde sie bestaetigt hat.
     // `built` ist nur noch der Rueckfall fuer Entwuerfe, die vor dem Katalog
     // entstanden sind -- deshalb `??` gegen den Katalogwert.
+    /* Die Einstufung des Kunden. `??` wie bei den vier darunter: haette der
+       Katalog die Listen doch, gewinnt er -- sonst kommen sie aus der
+       Einstufung an der Kriterienliste, wo der Kunde sie vorgenommen hat. */
+    must_have_criteria: ausKatalog.must_have_criteria ?? ausFlex.must_have_criteria,
+    trainable_skills: ausKatalog.trainable_skills ?? ausFlex.trainable_skills,
     vacancy_reason: ausKatalog.vacancy_reason ?? built.vacancyReason ?? undefined,
     reports_to: ausKatalog.reports_to ?? built.reportsTo ?? undefined,
     hiring_urgency: ausKatalog.hiring_urgency ?? built.hiringUrgency ?? undefined,

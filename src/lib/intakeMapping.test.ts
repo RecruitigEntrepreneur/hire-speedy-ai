@@ -405,6 +405,51 @@ describe('draftToJobRow (Server)', () => {
   });
 });
 
+/**
+ * Die Einstufung der Kriterien war der teuerste stille Verlust: der Kunde
+ * klickt 13-mal, und in der Stelle stand davon nichts.
+ */
+describe('draftToJobRow: Einstufung der Kriterien', () => {
+  const mitFlex = (flexibility: Record<string, string>) =>
+    draftToJobRow({
+      contract_type: 'full-time',
+      built: { title: 'T' },
+      flexibility,
+    } as any);
+
+  it('macht aus der Einstufung Muss-Kriterien und Nachschulbares', () => {
+    const row = mitFlex({
+      Kubernetes: 'fix', Terraform: 'fix',
+      Azure: 'negotiable', AWS: 'flexible', Go: 'flexible',
+    });
+    expect(row.must_have_criteria).toEqual(['Kubernetes', 'Terraform']);
+    expect(row.trainable_skills).toEqual(['AWS', 'Go']);
+  });
+
+  it('schreibt keine leeren Listen, wo nichts eingestuft ist', () => {
+    const row = mitFlex({ Azure: 'negotiable' });
+    expect(row.must_have_criteria).toBeUndefined();
+    expect(row.trainable_skills).toBeUndefined();
+  });
+
+  it('kommt ohne flexibility aus', () => {
+    const row = draftToJobRow({ contract_type: 'full-time', built: { title: 'T' } } as any);
+    expect(row.must_have_criteria).toBeUndefined();
+  });
+
+  it('laesst den Katalog gewinnen, wo er die Liste selbst traegt', () => {
+    // Sonst wuerde eine spaetere Katalogantwort von der Einstufung
+    // ueberschrieben -- die Rangfolge ist dieselbe wie bei vacancy_reason.
+    const row = draftToJobRow({
+      contract_type: 'full-time',
+      built: { title: 'T' },
+      flexibility: { Kubernetes: 'fix' },
+      dyn: { catalog: { known: { must_have_criteria: { value: ['SPS'], from: 'answer' } } } },
+    } as any);
+    expect(row.must_have_criteria).toEqual(['SPS']);
+  });
+});
+
 describe('draftSummary', () => {
   it('formatiert Gehalt und Tagessatz unterschiedlich', () => {
     const fest = draftSummary({ contract_type: 'full-time', built: { title: 'X', salary_min: 90000, salary_max: 110000 }, company_name: 'A' });
