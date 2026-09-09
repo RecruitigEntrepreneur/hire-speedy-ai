@@ -24,6 +24,7 @@ import {
   CaptureBadge, CommercialBadge, IdentityBadge, ReviewBadge, SignatureBadge, nextStepFor,
 } from '@/components/admin/IntakeStateBadges';
 import { useIntakeDetail, useIntakeAction, useContractAction, useClarifyAction, useMandateDocument } from '@/hooks/useAdminIntakes';
+import { IntakeAnswers } from '@/components/admin/IntakeAnswers';
 
 /**
  * Eine Aufnahme prüfen, annehmen und durch den Vertragslauf führen.
@@ -150,6 +151,19 @@ export default function AdminIntakeDetail() {
             <div className="text-right">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Nächster Schritt</p>
               <p className="text-sm font-medium">{next.text}</p>
+              {/* BEFUND (09.09.2026, vom Nutzer gemeldet): Hier stand "Stelle
+                  freigeben" -- als Satz, ohne Weg dorthin. Der einzige Link lag
+                  in einem anderen Reiter und fuehrte auf die UNGEFILTERTE
+                  Jobliste, wo die Stelle unter 27 anderen zu suchen war. Eine
+                  Seite, die den naechsten Schritt benennt, muss ihn auch
+                  anbieten. */}
+              {data.job && ['pending_approval', 'pending_client_terms'].includes(data.job.status ?? '') && (
+                <Button asChild size="sm" className="mt-2 gap-1.5">
+                  <Link to={`/admin/jobs?job=${data.job.id}`}>
+                    <ExternalLink className="h-3.5 w-3.5" /> Stelle freigeben
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -201,6 +215,21 @@ export default function AdminIntakeDetail() {
                 ]} />
               </CardContent>
             </Card>
+
+            {/* Alles, was der Kunde gesagt hat -- vor der Entscheidung, nicht
+                danach. Liest aus `dyn.catalog.known`; die Karte
+                "Dialogantworten" weiter unten liest `dyn.answers` und blieb
+                deshalb bei jeder Aufnahme aus dem Katalog leer. */}
+            {(d.dyn as any)?.catalog?.known && (
+              <Card>
+                <CardContent className="p-5">
+                  <IntakeAnswers
+                    known={(d.dyn as any).catalog.known}
+                    contract={d.contract_type === 'freelance' ? 'freelance' : 'full-time'}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {(d.intake_payload as any)?.briefing_text && (
               <Card>

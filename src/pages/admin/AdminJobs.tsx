@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +54,32 @@ export default function AdminJobs() {
   const [activeTab, setActiveTab] = useState('pending');
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
+  /**
+   * Ein Sprung aus der Aufnahme oeffnet die Pruefung direkt.
+   *
+   * BEFUND (09.09.2026): Die Aufnahmeseite nannte "Stelle freigeben" als
+   * naechsten Schritt und verlinkte auf diese Liste -- ungefiltert, 27
+   * Eintraege. Wer freigeben wollte, musste seine eigene Stelle suchen. Mit
+   * `?job=<id>` steht der Pruefdialog offen, sobald die Liste geladen ist.
+   */
+  const [suchParams, setSuchParams] = useSearchParams();
+  const gesuchteJobId = suchParams.get('job');
+  useEffect(() => {
+    if (!gesuchteJobId || jobs.length === 0) return;
+    const treffer = jobs.find((j) => j.id === gesuchteJobId);
+    if (treffer) {
+      setSelectedJob(treffer);
+      setApprovalDialogOpen(true);
+      setActiveTab('pending');
+    } else {
+      toast.error('Diese Stelle steht nicht in der Liste.');
+    }
+    /* Den Parameter wieder entfernen: sonst springt der Dialog nach dem
+       Schliessen bei jedem Neuladen erneut auf. */
+    suchParams.delete('job');
+    setSuchParams(suchParams, { replace: true });
+  }, [gesuchteJobId, jobs]);
 
   useEffect(() => {
     fetchJobs();
