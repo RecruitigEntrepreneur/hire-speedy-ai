@@ -206,6 +206,32 @@ describe('catalogFromParsed', () => {
       .toEqual(['Wettbewerbsverbot', 'Rückzahlungsklausel (Weiterbildung)']);
   });
 
+  it('macht aus einer Nachfolge keinen Ruhestand', () => {
+    /* BEFUND (09.09.2026): "Unsere langjaehrige Leiterin wechselt in ein
+       Konzernumfeld" kam als "Nachfolge / Ruhestand" an. Fuer den Headhunter
+       ist das der Unterschied zwischen einer planbar frei werdenden Stelle
+       und jemandem, der unzufrieden gegangen ist. */
+    const v = (t: string) => catalogFromParsed({ vacancy_reason: t } as any).vacancy_reason?.value;
+    expect(v('Nachfolge der bisherigen Leiterin')).toBe('Nachbesetzung');
+    expect(v('Die Stelleninhaberin wechselt in ein Konzernumfeld')).toBe('Nachbesetzung');
+    // Wo das Alter wirklich im Spiel ist, bleibt der Chip richtig.
+    expect(v('Der Stelleninhaber geht in den Ruhestand')).toBe('Nachfolge / Ruhestand');
+    expect(v('Nachfolge, der Kollege geht in Rente')).toBe('Nachfolge / Ruhestand');
+  });
+
+  it('erkennt die Verschwiegenheitsklausel', () => {
+    // Sie traf bisher keinen Chip und wurde verworfen -- in Finance und
+    // Vertrieb ist sie die haeufigste Klausel ueberhaupt.
+    const k = catalogFromParsed({
+      contract_sensitive_topics: [
+        'Verschwiegenheitsklausel zu Gehalts- und Provisionsdaten',
+        'Rückzahlungsklausel für die Weiterbildung',
+      ],
+    } as any);
+    expect(k.contract_sensitive_topics.value)
+      .toEqual(['Verschwiegenheit / NDA', 'Rückzahlungsklausel (Weiterbildung)']);
+  });
+
   it('kennt die Kundenschutzklausel als das, was sie ist', () => {
     // In der Personalberatung heisst das Wettbewerbsverbot so -- gemessen an
     // einer Anzeige, die genau diesen Begriff verwendete.

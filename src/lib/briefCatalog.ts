@@ -897,11 +897,17 @@ const GESPRAECH: BriefQuestion[] = [
     slots: [
       {
         key: 'contract_sensitive_topics', label: 'Sensible Themen', form: 'multi',
-        chips: ['Nichts davon', 'Wettbewerbsverbot', 'Rückzahlungsklausel (Weiterbildung)', 'Bereitschaftsdienst', 'Reisepflicht'],
+        /* "Verschwiegenheit" kam am 09.09.2026 aus einer Finance-Anzeige
+           zurueck ("Verschwiegenheitsklausel zu Gehalts- und
+           Provisionsdaten") und traf keinen Chip -- also wurde sie verworfen.
+           In Finance, Vertrieb und Geschaeftsfuehrungsnaehe ist sie die
+           haeufigste Klausel ueberhaupt. */
+        chips: ['Nichts davon', 'Wettbewerbsverbot', 'Rückzahlungsklausel (Weiterbildung)',
+                'Verschwiegenheit / NDA', 'Bereitschaftsdienst', 'Reisepflicht'],
         // Eine Rueckzahlungsklausel fuer Weiterbildung gibt es beim
         // Dienstvertrag nicht; dafuer Haftung und Vor-Ort-Pflicht.
         chipsFreelance: ['Nichts davon', 'Wettbewerbsverbot', 'Haftung / Versicherungsnachweis',
-                         'Vor-Ort-Pflicht ohne Ausnahme', 'Reisepflicht'],
+                         'Verschwiegenheit / NDA', 'Vor-Ort-Pflicht ohne Ausnahme', 'Reisepflicht'],
         column: 'contract_sensitive_topics', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['ad'],
       },
@@ -1035,11 +1041,24 @@ export const ALL_SLOTS = [...BRIEF_QUESTIONS, ...DASHBOARD_FRAGEN].flatMap((q) =
  */
 const SCHLAGWORTE: Record<string, [RegExp, string][]> = {
   vacancy_reason: [
-    [/nachfolge|ruhestand|rente|pension/i, 'Nachfolge / Ruhestand'],
+    /* BEFUND (09.09.2026): Die Anzeige sagte "Unsere langjaehrige Leiterin
+       wechselt in ein Konzernumfeld". Angekommen ist "Nachfolge / Ruhestand".
+       Das Wort "Nachfolge" allein heisst im deutschen Personalgebrauch meist
+       schlicht Nachbesetzung -- der Chip behauptet aber einen Ruhestand. Fuer
+       den Headhunter ist das der Unterschied zwischen einer planbar frei
+       werdenden Stelle und jemandem, der unzufrieden gegangen ist. Der Chip
+       greift deshalb nur noch, wenn das Alter wirklich im Spiel ist. */
+    [/ruhestand|rente\b|pension|altersgrenze|geht in den (wohlverdienten )?ruhestand/i,
+     'Nachfolge / Ruhestand'],
+    [/nachfolge/i, 'Nachbesetzung'],
     [/elternzeit|mutterschutz|erziehungsurlaub/i, 'Elternzeit-Vertretung'],
     [/wachstum|neu geschaffen|expansion|aufbau|zusaetzlich/i, 'Wachstum / neu geschaffen'],
     [/abl(oe|ö)sung|ersetzt/i, 'Ablösung'],
-    [/nachbesetz|ersatz|ausgeschieden|verlassen|gek(ue|ü)ndigt|vakan/i, 'Nachbesetzung'],
+    /* "wechselt zu", "verlaesst uns", "scheidet aus" ist der haeufigste
+       deutsche Wortlaut fuer eine Nachbesetzung -- er stand in der
+       Finance-Anzeige vom 09.09.2026 und traf keine einzige Regel. */
+    [/nachbesetz|ersatz|ausgeschieden|scheidet aus|verlassen|verl(ae|ä)sst|wechselt|wechsel in|gek(ue|ü)ndigt|vakan/i,
+     'Nachbesetzung'],
   ],
   core_hours: [
     [/schicht|dienstplan/i, 'Schicht- oder Dienstplan'],
@@ -1109,6 +1128,7 @@ const SCHLAGWORTE: Record<string, [RegExp, string][]> = {
     /* "Kundenschutzklausel" ist in der Personalberatung der uebliche Name
        fuer dasselbe -- gemessen an einer Anzeige, die genau das schrieb. */
     [/wettbewerbsverbot|konkurrenzklausel|karenz|kundenschutz|abwerbeverbot|mandantenschutz/i, 'Wettbewerbsverbot'],
+    [/verschwiegenheit|geheimhaltung|\bnda\b|vertraulichkeit/i, 'Verschwiegenheit / NDA'],
     [/r(ue|ü)ckzahl|bindungsfrist|fortbildungsvertrag/i, 'Rückzahlungsklausel (Weiterbildung)'],
     [/haftung|versicherungsnachweis|berufshaftpflicht/i, 'Haftung / Versicherungsnachweis'],
     [/bereitschaft|rufbereitschaft|on-?call/i, 'Bereitschaftsdienst'],
