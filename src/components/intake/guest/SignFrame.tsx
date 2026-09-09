@@ -177,8 +177,8 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
        Netzaufruf geoeffnet wird, gilt dem Browser als Popup. */
     const fenster = window.open('', '_blank');
     if (!onNeuerLink) {
-      if (fenster) fenster.location.replace(url); else setFrischerLink(url);
-      setWartetExtern(true);
+      if (fenster) { fenster.location.replace(url); setWartetExtern(true); }
+      else setFrischerLink(url);
       return;
     }
     setExternBusy(true);
@@ -192,8 +192,14 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
         + 'Bitte laden Sie die Seite neu — Ihre Angaben sind gespeichert.');
       return;
     }
-    if (fenster) fenster.location.replace(frisch); else setFrischerLink(frisch);
-    setWartetExtern(true);
+    /* "Wir warten" erst sagen, wenn wirklich ein Fenster offen ist.
+       BEFUND (09.09.2026, im eigenen Testlauf gesehen): Der Browser hatte das
+       Fenster blockiert, der Link stand als Knopf da -- und darunter behauptete
+       die Seite trotzdem, der Vertrag sei "im anderen Fenster geoeffnet". Eine
+       kleine Unwahrheit, aber genau die Sorte, die diesen ganzen Ablauf
+       vergiftet hat. */
+    if (fenster) { fenster.location.replace(frisch); setWartetExtern(true); }
+    else setFrischerLink(frisch);
   };
 
   useEffect(() => {
@@ -275,7 +281,8 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
             Ihr Browser hat das Fenster nicht geöffnet. Hier ist der Vertrag:
           </p>
           <Button asChild size="sm" className="shrink-0">
-            <a href={frischerLink} target="_blank" rel="noreferrer">
+            <a href={frischerLink} target="_blank" rel="noreferrer"
+               onClick={() => setWartetExtern(true)}>
               Vertrag öffnen <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
             </a>
           </Button>
