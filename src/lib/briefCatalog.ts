@@ -1097,7 +1097,9 @@ const SCHLAGWORTE: Record<string, [RegExp, string][]> = {
     [/\bteam\b|kollegen|mannschaft/i, 'Das Team'],
   ],
   contract_sensitive_topics: [
-    [/wettbewerbsverbot|konkurrenzklausel|karenz/i, 'Wettbewerbsverbot'],
+    /* "Kundenschutzklausel" ist in der Personalberatung der uebliche Name
+       fuer dasselbe -- gemessen an einer Anzeige, die genau das schrieb. */
+    [/wettbewerbsverbot|konkurrenzklausel|karenz|kundenschutz|abwerbeverbot|mandantenschutz/i, 'Wettbewerbsverbot'],
     [/r(ue|ü)ckzahl|bindungsfrist|fortbildungsvertrag/i, 'Rückzahlungsklausel (Weiterbildung)'],
     [/haftung|versicherungsnachweis|berufshaftpflicht/i, 'Haftung / Versicherungsnachweis'],
     [/bereitschaft|rufbereitschaft|on-?call/i, 'Bereitschaftsdienst'],

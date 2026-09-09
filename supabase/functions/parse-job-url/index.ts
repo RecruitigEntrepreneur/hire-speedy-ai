@@ -654,8 +654,29 @@ required: ["title", "company_name", "description", "requirements", "location",
 
       if (classified.length > 0) {
         const routed = routeRequirements(classified, synonyms);
-        parsedJob.must_haves = routed.mustHaves;
-        parsedJob.nice_to_haves = routed.niceToHaves;
+        /**
+         * Die Einordnung ERSETZT die Liste des Modells nur, wenn sie selbst
+         * etwas hergibt.
+         *
+         * BEFUND (09.09.2026, Anzeige fuer eine Recruiter-Stelle): Die drei
+         * Punkte unter "Ohne diese drei Punkte geht es nicht" waren zweimal
+         * `kind: 'experience'` ("drei Jahre Personalvermittlung",
+         * "nachweisbare Erfahrung im Active Sourcing") und einmal `language`
+         * ("Deutsch C1"). Keiner davon wird zu einem Kriterium -- Erfahrung
+         * wird zu einer Jahreszahl, Sprache zu required_languages. Damit war
+         * routed.mustHaves leer, und die Zuweisung loeschte die Liste, die das
+         * Modell selbst gebaut hatte. Der Kunde sah GAR KEINE Kriterien mehr,
+         * und die Einstufung unverzichtbar/verhandelbar/lernbar hatte nichts
+         * zum Einstufen.
+         *
+         * Eine leere Klassifikation ist kein Ergebnis, sondern ein Ausfall.
+         */
+        parsedJob.must_haves = routed.mustHaves.length
+          ? routed.mustHaves
+          : normalizeSkillList(parsedJob.must_haves, synonyms, 8);
+        parsedJob.nice_to_haves = routed.niceToHaves.length
+          ? routed.niceToHaves
+          : normalizeSkillList(parsedJob.nice_to_haves, synonyms, 12);
         // Frei genannte Skills bleiben erhalten, ergaenzen aber nur.
         parsedJob.skills = normalizeSkillList(
           [...routed.skills, ...(parsedJob.skills ?? [])], synonyms,

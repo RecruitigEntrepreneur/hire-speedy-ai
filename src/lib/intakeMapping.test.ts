@@ -206,6 +206,15 @@ describe('catalogFromParsed', () => {
       .toEqual(['Wettbewerbsverbot', 'Rückzahlungsklausel (Weiterbildung)']);
   });
 
+  it('kennt die Kundenschutzklausel als das, was sie ist', () => {
+    // In der Personalberatung heisst das Wettbewerbsverbot so -- gemessen an
+    // einer Anzeige, die genau diesen Begriff verwendete.
+    const k = catalogFromParsed({
+      contract_sensitive_topics: ['Kundenschutzklausel von zwölf Monaten nach Austritt'],
+    } as any);
+    expect(k.contract_sensitive_topics.value).toEqual(['Wettbewerbsverbot']);
+  });
+
   it('rundet den Bonus auf die Stufe, die dem Kandidaten nichts wegnimmt', () => {
     const b = (p: number) => catalogFromParsed({ bonus_percent: p } as any).bonus_structure?.value;
     expect(b(0)).toBe('Nein');
