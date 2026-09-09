@@ -435,17 +435,41 @@ const LINKS: BriefQuestion[] = [
     why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
     slots: [
       {
-        key: 'team_size', label: 'Teamgröße', form: 'chips',
-        chips: ['Alleinstellung', '2–5', '6–15', 'mehr als 15'],
-        chipValues: { 'Alleinstellung': 1, '2–5': 4, '6–15': 10, 'mehr als 15': 20 },
+        /**
+         * Die Zahl, nicht das Band.
+         *
+         * BEFUND (09.09.2026): Die Chips speicherten Mittelwerte -- "6-15"
+         * legte 10 ab, "mehr als 15" legte 20 ab. Der Recruiter las
+         * "Teamgroesse 10" als Tatsache, und gesagt hatte das niemand.
+         * Anders als bei der Firmengroesse gibt es hier kein
+         * Anonymitaetsargument: ein Team von acht Leuten verraet kein
+         * Unternehmen. Das Band hatte schlicht keinen Grund.
+         */
+        key: 'team_size', label: 'Teamgröße', form: 'number',
+        placeholder: 'Anzahl Personen',
         column: 'team_size', store: 'number',
         required: true, weight: 2, reveal: 'safe', sources: ['ad', 'derive'],
       },
       {
         key: 'remote_days', label: 'Homeoffice-Tage pro Woche', form: 'chips',
         labelFreelance: 'Tage remote pro Woche',
-        chips: ['0', '1', '2', '3', 'frei wählbar'],
-        chipValues: { '0': 0, '1': 1, '2': 2, '3': 3, 'frei wählbar': 5 },
+        /**
+         * Bis 5, und "frei waehlbar" traegt keine Zahl mehr.
+         *
+         * BEFUND (09.09.2026): Die Chips endeten bei 3, eine echte
+         * Vollremote-Stelle hatte also gar keinen. Und "frei waehlbar" legte
+         * die 5 ab -- daraus wurde onsite_days_required = 0, der Recruiter las
+         * "null Tage vor Ort". "Frei waehlbar" heisst aber, dass der KANDIDAT
+         * entscheidet, nicht dass die Stelle remote ist. Zwei verschiedene
+         * Sachverhalte auf einem Speicherwert.
+         *
+         * "frei waehlbar" hat jetzt bewusst KEINEN chipValue: der Chip legt
+         * seinen Text ab, `store: 'number'` verwirft ihn beim Schreiben, und
+         * die Spalte bleibt leer statt falsch. Die Auskunft selbst geht ueber
+         * remote_days_flexible raus (abgeleitet in draftToJobRow).
+         */
+        chips: ['0', '1', '2', '3', '4', '5', 'frei wählbar'],
+        chipValues: { '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5 },
         // Schreibt onsite_days_required (5 minus Homeoffice-Tage). Diese
         // Spalte steht seit jeher in recruiter_jobs_view und war IMMER leer,
         // weil built.remoteDays nirgends eine Eingabe hatte.
@@ -572,9 +596,19 @@ const LINKS: BriefQuestion[] = [
       // den Spaltenwert, also leuchteten beide Chips zugleich, und ob digital
       // oder per Post verschickt wird, war nirgends mehr gespeichert.
       {
-        key: 'contract_creation_days', label: 'Vom Ja bis zum Vertrag', form: 'chips',
-        chips: ['2 Tage', '1 Woche', '2 Wochen', 'länger'],
-        chipValues: { '2 Tage': 2, '1 Woche': 7, '2 Wochen': 14, 'länger': 21 },
+        /**
+         * BEFUND (09.09.2026): "laenger" legte 21 Tage ab. Der Kunde sagte
+         * "laenger als zwei Wochen", gespeichert wurden drei -- es koennen drei
+         * Monate sein. Mit genau dieser Zahl verspricht der Recruiter einem
+         * Kandidaten mit konkurrierendem Angebot einen Zeitplan.
+         *
+         * Statt einer Folgezeile nur fuer "laenger" fragt das Feld jetzt
+         * direkt die Tage. Eine Folgezeile haette einen zweiten Speicherort
+         * fuer dieselbe Zahl gebraucht -- oder eine Ableitung, die den Chip
+         * beim Tippen wieder abwaehlt.
+         */
+        key: 'contract_creation_days', label: 'Vom Ja bis zum Vertrag (Tage)', form: 'number',
+        placeholder: 'z. B. 7',
         column: 'contract_creation_days', store: 'number',
         required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
       },

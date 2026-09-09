@@ -201,6 +201,7 @@ function FeldEingabe({
 
       {slot.form === 'number' && (
         <Input type="number" value={String(wert ?? '')} className="h-8 text-xs"
+               placeholder={slot.placeholder}
                onChange={(e) => onSet(e.target.value === '' ? undefined : Number(e.target.value))} />
       )}
 

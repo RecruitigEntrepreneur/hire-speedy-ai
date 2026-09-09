@@ -166,12 +166,22 @@ describe('catalogFromParsed', () => {
     expect(an('an das Kollegium')).toBeUndefined();
   });
 
-  it('rechnet Rohzahlen auf die Chip-Stufen des Katalogs um', () => {
-    // 8 Personen liegen in der Stufe "6-15", die der Katalog als 10 fuehrt.
-    expect(catalogFromParsed({ team_size: 8 } as any).team_size.value).toBe(10);
+  it('reicht Rohzahlen durch, statt sie auf Stufen zu runden', () => {
+    /* Vorher landeten acht Personen auf 10, weil der Chip "6-15" hiess und
+       10 speicherte. Der Recruiter las eine Zahl, die niemand gesagt hatte.
+       Seit die Zeile ein Zahlenfeld ist, gibt es nichts zu runden. */
+    expect(catalogFromParsed({ team_size: 8 } as any).team_size.value).toBe(8);
+    expect(catalogFromParsed({ team_size: 1 } as any).team_size.value).toBe(1);
+    expect(catalogFromParsed({ team_size: 42 } as any).team_size.value).toBe(42);
+    expect(catalogFromParsed({ team_size: 0 } as any).team_size).toBeUndefined();
+
     // Der Chip fragt "Homeoffice-Tage pro Woche" und traegt genau die Zahl.
     // Vorher stand bei zwei Homeoffice-Tagen der Chip 3 markiert.
     expect(catalogFromParsed({ remote_days: 2 } as any).remote_days.value).toBe(2);
+    // Fuenf Tage haben seit heute einen eigenen Chip -- vorher endete die
+    // Reihe bei 3 und eine Vollremote-Stelle hatte gar keinen.
+    expect(catalogFromParsed({ remote_days: 5 } as any).remote_days.value).toBe(5);
+
     expect(catalogFromParsed({ hiring_deadline_weeks: 2 } as any).hiring_deadline.value)
       .toBe('So schnell wie möglich');
   });
@@ -432,6 +442,29 @@ describe('draftToJobRow (Server)', () => {
  * Die Einstufung der Kriterien war der teuerste stille Verlust: der Kunde
  * klickt 13-mal, und in der Stelle stand davon nichts.
  */
+/* "frei waehlbar" legte fuenf Homeoffice-Tage ab, daraus wurde
+   onsite_days_required = 0, und der Recruiter las eine Vollremote-Stelle. */
+describe('draftToJobRow: frei waehlbare Homeoffice-Tage', () => {
+  const mitRemote = (wert: unknown) =>
+    draftToJobRow({
+      contract_type: 'full-time', built: { title: 'T' },
+      dyn: { catalog: { known: { remote_days: { value: wert, from: 'answer' } } } },
+    } as any);
+
+  it('meldet die freie Wahl und schreibt keine Praesenztage', () => {
+    const row = mitRemote('frei wählbar');
+    expect(row.remote_days_flexible).toBe(true);
+    expect(row.onsite_days_required).toBeUndefined();
+  });
+
+  it('haelt eine feste Zahl davon getrennt', () => {
+    const row = mitRemote(5);
+    expect(row.remote_days_flexible).toBeUndefined();
+    expect(row.onsite_days_required).toBe(0);   // fuenf Tage Homeoffice
+    expect(mitRemote(2).onsite_days_required).toBe(3);
+  });
+});
+
 describe('draftToJobRow: Einstufung der Kriterien', () => {
   const mitFlex = (flexibility: Record<string, string>) =>
     draftToJobRow({

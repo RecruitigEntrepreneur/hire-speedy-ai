@@ -98,6 +98,7 @@ interface Job {
   required_certifications: any;
   onsite_required: boolean | null;
   onsite_days_required: number | null;
+  remote_days_flexible?: boolean | null;
   remote_policy: string | null;
   job_summary: any;
   // Die generierten Supabase-Typen sind aelter als Migration 20260829120000
@@ -496,6 +497,7 @@ export default function JobDetail() {
             dayRateMax: job.day_rate_max,
             onsiteRequired: job.onsite_required,
             onsiteDaysRequired: job.onsite_days_required,
+            remoteDaysFlexible: job.remote_days_flexible,
             remotePolicy: job.remote_policy,
             remoteType: job.remote_type,
             requiredLanguages: job.required_languages,

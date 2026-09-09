@@ -538,6 +538,7 @@ function SlotEingabe({
 
   if (slot.form === 'number') {
     return <Input type="number" value={String(wert ?? '')} className="h-8 text-xs"
+                  placeholder={slot.placeholder}
                   onChange={(e) => onSet(e.target.value)} />;
   }
 

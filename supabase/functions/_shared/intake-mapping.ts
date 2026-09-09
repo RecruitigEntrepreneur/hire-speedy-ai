@@ -73,6 +73,23 @@ function kriterienAusFlexibility(roh: unknown) {
 }
 
 /**
+ * "Homeoffice frei waehlbar" -- die Auskunft, die keine Zahl ist.
+ *
+ * Der Chip "frei waehlbar" traegt bewusst keinen chipValue: er legt seinen
+ * Text ab, und `store: 'number'` verwirft ihn beim Schreiben, damit
+ * onsite_days_required leer bleibt statt falsch. Die Auskunft selbst geht
+ * ueber diese Spalte raus. Ein eigener Slot dafuer waere eine Zeile, die
+ * niemand ausfuellt -- sie steht schon in der Antwort daneben.
+ */
+function remoteFreiWaehlbar(known: unknown): boolean | undefined {
+  const k = (known ?? {}) as Record<string, { value?: unknown } | undefined>;
+  const wert = k.remote_days?.value;
+  return typeof wert === 'string' && wert.toLowerCase().includes('frei')
+    ? true
+    : undefined;
+}
+
+/**
  * Baut die Job-Zeile aus einem Entwurf. Ohne client_id, ohne organization_id,
  * ohne status — die setzt accept_intake_draft().
  */
@@ -151,6 +168,7 @@ export function draftToJobRow(draft: Json): Json {
     /* Ohne Katalogseite: nice_to_have_criteria ist kein Slot -- die Einstufung
        an der Kriterienliste ist die einzige Quelle. */
     nice_to_have_criteria: ausFlex.nice_to_have_criteria,
+    remote_days_flexible: remoteFreiWaehlbar(dyn.catalog?.known),
     vacancy_reason: ausKatalog.vacancy_reason ?? built.vacancyReason ?? undefined,
     reports_to: ausKatalog.reports_to ?? built.reportsTo ?? undefined,
     hiring_urgency: ausKatalog.hiring_urgency ?? built.hiringUrgency ?? undefined,

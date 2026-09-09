@@ -23,6 +23,7 @@ export interface JobFacts {
   dayRateMax?: number | null;
   onsiteRequired?: boolean | null;
   onsiteDaysRequired?: number | null;
+  remoteDaysFlexible?: boolean | null;
   remotePolicy?: string | null;
   remoteType?: string | null;
   requiredLanguages?: unknown;
@@ -73,8 +74,16 @@ function geld(min: number | null | undefined, max: number | null | undefined, su
 }
 
 function vorOrt(f: JobFacts): string | null {
+  /* Der Kunde hat ausdruecklich gesagt, dass der Kandidat entscheidet. Das
+     ist etwas anderes als "kein Praesenztag" und stand vorher nirgends. */
+  if (f.remoteDaysFlexible) return 'frei wählbar';
   if (f.onsiteDaysRequired != null) {
-    return f.onsiteDaysRequired === 0 ? 'frei wählbar' : `${f.onsiteDaysRequired} Tage / Woche`;
+    /* Null Tage vor Ort heisst vollstaendig remote -- NICHT "frei waehlbar".
+       Genau diese Verwechslung stand hier: der Chip "frei waehlbar" legte
+       fuenf Homeoffice-Tage ab, daraus wurde 0, und die Leiste schrieb
+       "frei waehlbar" darueber. Eine Vollremote-Stelle las sich damit wie
+       eine Wahlmoeglichkeit und umgekehrt. */
+    return f.onsiteDaysRequired === 0 ? 'vollständig remote' : `${f.onsiteDaysRequired} Tage / Woche`;
   }
   if (f.onsiteRequired === true) return 'Präsenz erforderlich';
   if (f.remotePolicy) return f.remotePolicy;

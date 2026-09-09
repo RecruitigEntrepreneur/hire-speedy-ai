@@ -270,10 +270,12 @@ export function catalogFromParsed(
      seit Januar -- aber der Katalog hat keinen Slot dafuer. Sie hier zu setzen
      hiesse nur, den Wert eine Ebene spaeter fallen zu lassen. Offen. */
 
-  // Team -- die Chip-Stufen des Katalogs, nicht die Rohzahl.
+  /* Team -- die Rohzahl. Vorher wurde sie auf die Chipstufen gerundet: eine
+     Anzeige mit "Team von 7" landete auf 10, weil der Chip "6-15" hiess. Seit
+     die Zeile ein Zahlenfeld ist, gibt es nichts mehr zu runden. */
   if (d.team_size != null) {
     const n = Number(d.team_size);
-    setz('team_size', n <= 1 ? 1 : n <= 5 ? 4 : n <= 15 ? 10 : 20);
+    if (Number.isFinite(n) && n > 0) setz('team_size', Math.round(n));
   }
   setz('reports_to', d.reports_to);
 
