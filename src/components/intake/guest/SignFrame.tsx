@@ -41,7 +41,21 @@ export function SignFrame({ url, onDone }: Props) {
       const event = typeof e.data === 'string' ? e.data : (e.data?.event ?? e.data?.type);
       if (typeof event !== 'string') return;
 
-      if (/signing_complete|viewing_complete|matchunt:signed/.test(event)) {
+      /**
+       * Nur `signing_complete` ist eine Unterschrift.
+       *
+       * BEFUND (09.09.2026): Hier galten auch `viewing_complete` und
+       * `matchunt:signed` als unterschrieben. `viewing_complete` heisst, dass
+       * jemand das Dokument ANGESEHEN hat -- oeffnen und schliessen reichte,
+       * um "Ihre Unterschrift liegt vor" zu lesen. Und `matchunt:signed`
+       * schickte unsere eigene Rueckkehrseite bei JEDEM Ausgang, auch bei
+       * abgelaufener Sitzung und bei Ablehnung.
+       *
+       * Ein `test()` auf einer Alternativenliste passte ausserdem auf
+       * Teilzeichenketten -- der Name allein war schon die halbe Miete.
+       * Deshalb Gleichheit statt Muster.
+       */
+      if (event === 'signing_complete') {
         setDone(true);
         onDone();
       }
