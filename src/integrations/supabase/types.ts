@@ -5947,6 +5947,7 @@ export type Database = {
           contract_sent_digitally: boolean | null
           contract_type: string | null
           core_hours: string | null
+          core_hours_detail: string | null
           created_at: string
           daily_routine: string | null
           day_rate_max: number | null
@@ -6065,6 +6066,7 @@ export type Database = {
           contract_sent_digitally?: boolean | null
           contract_type?: string | null
           core_hours?: string | null
+          core_hours_detail?: string | null
           created_at?: string
           daily_routine?: string | null
           day_rate_max?: number | null
@@ -6183,6 +6185,7 @@ export type Database = {
           contract_sent_digitally?: boolean | null
           contract_type?: string | null
           core_hours?: string | null
+          core_hours_detail?: string | null
           created_at?: string
           daily_routine?: string | null
           day_rate_max?: number | null
@@ -11320,6 +11323,7 @@ export type Database = {
           contract_sensitive_topics: string | null
           contract_sent_digitally: boolean | null
           core_hours: string | null
+          core_hours_detail: string | null
           created_at: string | null
           daily_routine: string | null
           day_rate_max: number | null
