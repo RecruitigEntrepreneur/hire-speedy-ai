@@ -72,6 +72,15 @@ export type BriefLevel = 'company' | 'position' | 'process';
  */
 export type BriefForm = 'chips' | 'multi' | 'range' | 'number' | 'date' | 'short' | 'text' | 'ai';
 export type RevealClass = 'safe' | 'gated';
+/**
+ * Woher der Wert einer Zeile kommen KANN.
+ *
+ * 'ad' ist seit dem 09.09.2026 kein Wunsch mehr, sondern eine Zusage: das
+ * Parser-Schema fragt jedes dieser Felder ab, und catalogFromParsed ordnet es
+ * zu -- notfalls ueber Schlagworte, damit die Anzeige den Chip nicht woertlich
+ * treffen muss. Vorher trugen 16 von 39 Zeilen 'ad', und zwei davon hatten
+ * ueberhaupt keinen Weg dorthin.
+ */
 export type BriefSource = 'ad' | 'enrich' | 'inherit' | 'derive';
 
 /**
@@ -374,7 +383,7 @@ const LINKS: BriefQuestion[] = [
         chips: ['12', '12 + Urlaubsgeld', '13', '13,5', '14'],
         chipValues: { '12': 12, '12 + Urlaubsgeld': 12.5, '13': 13, '13,5': 13.5, '14': 14 },
         column: 'salary_months', store: 'number',
-        required: true, weight: 2, reveal: 'safe', sources: ['inherit'], only: 'full-time',
+        required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'], only: 'full-time',
       },
       // Ein Bonus ist keine Erzaehlung, sondern eine Zahl und eine
       // Bezugsgroesse. Als Textfeld stand hier ein grosser Schreibkasten
@@ -384,7 +393,7 @@ const LINKS: BriefQuestion[] = [
         key: 'bonus_structure', label: 'Gibt es einen Bonus?', form: 'chips',
         chips: ['Nein', 'bis 10 %', 'bis 20 %', 'mehr als 20 %'],
         column: 'bonus_structure', store: 'text',
-        required: true, weight: 2, reveal: 'safe', sources: ['inherit'], only: 'full-time',
+        required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'], only: 'full-time',
       },
       {
         key: 'bonus_basis', label: 'Wovon hängt er ab?', form: 'multi',
@@ -392,7 +401,7 @@ const LINKS: BriefQuestion[] = [
         // Faellt beim Abbilden mit bonus_structure in eine Textzeile zusammen --
         // eine eigene Spalte waere fuer diese Detailtiefe zu viel.
         column: null, store: 'text',
-        required: false, weight: 1, reveal: 'safe', sources: [], only: 'full-time',
+        required: false, weight: 1, reveal: 'safe', sources: ['ad'], only: 'full-time',
         askIfNot: { key: 'bonus_structure', equals: 'Nein' },
       },
     ],
@@ -415,12 +424,12 @@ const LINKS: BriefQuestion[] = [
       {
         key: 'must_have_criteria', label: 'Die drei, ohne die es nicht geht', form: 'multi',
         column: 'must_have_criteria', store: 'array',
-        required: true, weight: 3, reveal: 'safe', sources: [],
+        required: true, weight: 3, reveal: 'safe', sources: ['ad'],
       },
       {
         key: 'trainable_skills', label: 'Was kann nachgeschult werden?', form: 'multi',
         column: 'trainable_skills', store: 'array',
-        required: true, weight: 3, reveal: 'safe', sources: [],
+        required: true, weight: 3, reveal: 'safe', sources: ['ad'],
       },
     ],
   },
@@ -543,7 +552,7 @@ const LINKS: BriefQuestion[] = [
         only: 'full-time',
         chips: ['ausgeglichen (Freizeit)', 'ausgezahlt', 'mit dem Gehalt abgegolten', 'fallen kaum an'],
         column: 'overtime_policy', store: 'text',
-        required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
+        required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
         key: 'time_tracking_method', label: 'Wie wird die Zeit erfasst in Ihrem Unternehmen?', form: 'chips',
@@ -551,7 +560,7 @@ const LINKS: BriefQuestion[] = [
         labelFreelance: 'Wie wird die Leistung nachgewiesen?',
         chipsFreelance: ['Timesheet digital', 'Timesheet auf Papier', 'Monatsbericht', 'Keine Erfassung'],
         column: 'time_tracking_method', store: 'text',
-        required: false, weight: 1, reveal: 'safe', sources: ['inherit'],
+        required: false, weight: 1, reveal: 'safe', sources: ['ad', 'inherit'],
       },
     ],
   },
@@ -571,13 +580,13 @@ const LINKS: BriefQuestion[] = [
         key: 'works_council', label: 'Betriebsrat', form: 'chips',
         chips: ['Ja', 'Nein'], chipValues: { Ja: true, Nein: false },
         column: 'works_council', store: 'bool',
-        required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
+        required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
         key: 'works_council_meeting_schedule', label: 'Wann tagt er?', form: 'chips',
         chips: ['Wöchentlich', 'Alle zwei Wochen', 'Monatlich', 'Nach Bedarf'],
         column: 'works_council_meeting_schedule', store: 'text',
-        required: false, weight: 1, reveal: 'safe', sources: ['inherit'],
+        required: false, weight: 1, reveal: 'safe', sources: ['ad', 'inherit'],
         askIf: { key: 'works_council', equals: 'Ja' },
       },
     ],
@@ -610,13 +619,13 @@ const LINKS: BriefQuestion[] = [
         key: 'contract_creation_days', label: 'Vom Ja bis zum Vertrag (Tage)', form: 'number',
         placeholder: 'z. B. 7',
         column: 'contract_creation_days', store: 'number',
-        required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
+        required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
         key: 'contract_sent_digitally', label: 'Wird dieser digital versendet?', form: 'chips',
         chips: ['Ja', 'Nein'], chipValues: { Ja: true, Nein: false },
         column: 'contract_sent_digitally', store: 'bool',
-        required: false, weight: 1, reveal: 'safe', sources: ['inherit'],
+        required: false, weight: 1, reveal: 'safe', sources: ['ad', 'inherit'],
       },
     ],
   },
@@ -667,7 +676,7 @@ const GESPRAECH: BriefQuestion[] = [
           'Abschlüsse geraten in Verzug',
         ],
         column: 'negative_impact_if_unfilled', store: 'text',
-        required: true, weight: 2, reveal: 'gated', sources: [],
+        required: true, weight: 2, reveal: 'gated', sources: ['ad'],
       },
     ],
   },
@@ -696,7 +705,7 @@ const GESPRAECH: BriefQuestion[] = [
       {
         key: 'task_breakdown', label: 'Wie ist die prozentuale Gewichtung der Aufgaben?', form: 'ai',
         column: 'task_breakdown', store: 'json',
-        required: false, weight: 2, reveal: 'safe', sources: ['derive'],
+        required: false, weight: 2, reveal: 'safe', sources: ['ad', 'derive'],
       },
     ],
   },
@@ -722,7 +731,7 @@ const GESPRAECH: BriefQuestion[] = [
         key: 'decision_makers', label: 'Außerdem in der finalen Entscheidung', form: 'multi',
         chips: ['Niemand — ich entscheide', 'Geschäftsführung', 'HR', 'Fachbereich', 'Das Team'],
         column: 'decision_makers', store: 'array',
-        required: true, weight: 2, reveal: 'safe', sources: [],
+        required: true, weight: 2, reveal: 'safe', sources: ['ad'],
       },
     ],
   },
@@ -752,7 +761,7 @@ const GESPRAECH: BriefQuestion[] = [
           'Sucht kurze Wege statt Prozess',
         ],
         column: 'success_profile', store: 'text',
-        required: true, weight: 3, reveal: 'safe', sources: ['inherit'],
+        required: true, weight: 3, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
         key: 'failure_profile', label: 'Hatte keinen Erfolg', form: 'ai',
@@ -770,7 +779,7 @@ const GESPRAECH: BriefQuestion[] = [
           'Passte menschlich nicht ins Team',
         ],
         column: 'failure_profile', store: 'text',
-        required: true, weight: 3, reveal: 'safe', sources: ['inherit', 'derive'],
+        required: true, weight: 3, reveal: 'safe', sources: ['ad', 'inherit', 'derive'],
       },
     ],
   },
@@ -812,7 +821,7 @@ const GESPRAECH: BriefQuestion[] = [
           'Moderne Systeme im Einsatz',
         ],
         column: 'position_advantages', store: 'array',
-        required: true, weight: 2, reveal: 'gated', sources: [],
+        required: true, weight: 2, reveal: 'gated', sources: ['ad'],
       },
     ],
   },
@@ -865,7 +874,7 @@ const GESPRAECH: BriefQuestion[] = [
       {
         key: 'career_example', label: 'Geben Sie mir doch bitte hierzu ein konkretes Beispiel!', form: 'ai',
         column: 'career_example', store: 'text',
-        required: false, weight: 2, reveal: 'gated', sources: ['inherit', 'derive'],
+        required: false, weight: 2, reveal: 'gated', sources: ['ad', 'inherit', 'derive'],
       },
     ],
   },
@@ -887,7 +896,7 @@ const GESPRAECH: BriefQuestion[] = [
         chipsFreelance: ['Nichts davon', 'Wettbewerbsverbot', 'Haftung / Versicherungsnachweis',
                          'Vor-Ort-Pflicht ohne Ausnahme', 'Reisepflicht'],
         column: 'contract_sensitive_topics', store: 'text',
-        required: true, weight: 2, reveal: 'safe', sources: [],
+        required: true, weight: 2, reveal: 'safe', sources: ['ad'],
       },
     ],
   },
@@ -906,12 +915,12 @@ const GESPRAECH: BriefQuestion[] = [
       {
         key: 'industry_opportunities', label: 'Was läuft gut', form: 'ai',
         column: 'industry_opportunities', store: 'text',
-        required: false, weight: 1, reveal: 'gated', sources: ['inherit'],
+        required: false, weight: 1, reveal: 'gated', sources: ['ad', 'inherit'],
       },
       {
         key: 'industry_challenges', label: 'Herausforderungen', form: 'ai',
         column: 'industry_challenges', store: 'text',
-        required: false, weight: 1, reveal: 'gated', sources: ['inherit'],
+        required: false, weight: 1, reveal: 'gated', sources: ['ad', 'inherit'],
       },
     ],
   },
@@ -938,12 +947,12 @@ export const DASHBOARD_FRAGEN: BriefQuestion[] = [
       {
         key: 'candidates_in_pipeline', label: 'Aktuell im Prozess', form: 'number',
         column: 'candidates_in_pipeline', store: 'number',
-        required: false, weight: 1, reveal: 'safe', sources: [],
+        required: false, weight: 1, reveal: 'safe', sources: ['ad'],
       },
       {
         key: 'candidates_dropped_reason', label: 'Absprünge in der Angebotsphase', form: 'ai',
         column: 'candidates_dropped_reason', store: 'text',
-        required: false, weight: 3, reveal: 'safe', sources: [],
+        required: false, weight: 3, reveal: 'safe', sources: ['ad'],
       },
     ],
   },
@@ -1055,6 +1064,53 @@ const SCHLAGWORTE: Record<string, [RegExp, string][]> = {
     [/ausgezahlt|verg(ue|ü)tet|bezahlt/i, 'ausgezahlt'],
     [/ausgleich|freizeit|gleitzeitkonto|abgebummelt/i, 'ausgeglichen (Freizeit)'],
   ],
+
+  /* Ab hier die Zeilen, die seit dem 09.09.2026 aus der Anzeige kommen
+     koennen. Die Reihenfolge ist die Trefferreihenfolge: das Spezielle vor
+     dem Allgemeinen. "befristet mit Aussicht auf Uebernahme" enthaelt das
+     Wort "befristet" -- stuende `Befristet` oben, gewaenne es. */
+  contract_limitation: [
+    [/aussicht auf (ue|ü)bernahme|mit (ue|ü)bernahme|entfristung/i, 'Befristet mit Aussicht'],
+    [/projektvertrag|projektbezogen|f(ue|ü)r die dauer des projekts/i, 'Projektvertrag'],
+    [/unbefristet|dauerhaft|feste anstellung/i, 'Unbefristet'],
+    [/befristet|zeitlich begrenzt|sachgrund|auf \d+ (jahre|monate)/i, 'Befristet'],
+  ],
+  time_tracking_method: [
+    [/keine erfassung|gar nicht|vertrauensarbeitszeit ohne/i, 'gar nicht'],
+    [/stempeluhr|terminal|badge|chip/i, 'Stempeluhr'],
+    [/selbst|handschriftlich|auf papier|excel|stundenzettel/i, 'selbst aufgeschrieben'],
+    [/digital|elektronisch|app|zeitwirtschaft|system/i, 'digital'],
+  ],
+  works_council_meeting_schedule: [
+    [/w(oe|ö)chentlich|jede woche/i, 'Wöchentlich'],
+    [/zwei wochen|vierzehnt(ae|ä)gig|alle 14 tage|zweiw(oe|ö)chentlich/i, 'Alle zwei Wochen'],
+    [/monatlich|jeden monat|einmal im monat/i, 'Monatlich'],
+    [/bedarf|anlassbezogen|unregelm(ae|ä)ssig|unregelmäßig/i, 'Nach Bedarf'],
+  ],
+  /* Mehrfachauswahl: jeder Eintrag der Anzeige wird einzeln zugeordnet,
+     siehe chipTreffer. */
+  decision_makers: [
+    [/niemand|allein|nur ich|ich entscheide/i, 'Niemand — ich entscheide'],
+    [/gesch(ae|ä)ftsf(ue|ü)hr|vorstand|inhaber|\bceo\b|gesellschafter/i, 'Geschäftsführung'],
+    [/\bhr\b|personal|human resources|recruiting/i, 'HR'],
+    [/fachbereich|fachabteilung|bereichsleit|abteilungsleit|leitung/i, 'Fachbereich'],
+    [/\bteam\b|kollegen|mannschaft/i, 'Das Team'],
+  ],
+  contract_sensitive_topics: [
+    [/wettbewerbsverbot|konkurrenzklausel|karenz/i, 'Wettbewerbsverbot'],
+    [/r(ue|ü)ckzahl|bindungsfrist|fortbildungsvertrag/i, 'Rückzahlungsklausel (Weiterbildung)'],
+    [/haftung|versicherungsnachweis|berufshaftpflicht/i, 'Haftung / Versicherungsnachweis'],
+    [/bereitschaft|rufbereitschaft|on-?call/i, 'Bereitschaftsdienst'],
+    [/vor-?ort-?pflicht|anwesenheitspflicht|kein homeoffice/i, 'Vor-Ort-Pflicht ohne Ausnahme'],
+    [/reise|dienstreise|au(ss|ß)endienst|montage/i, 'Reisepflicht'],
+    [/nichts davon|keine|unauff(ae|ä)llig/i, 'Nichts davon'],
+  ],
+  bonus_basis: [
+    [/unternehmen|firmen|gesch(ae|ä)ftsergebnis|ebit|gewinn/i, 'Unternehmensergebnis'],
+    [/pers(oe|ö)nlich|individuell|zielvereinbarung/i, 'Persönliche Ziele'],
+    [/team/i, 'Teamziele'],
+    [/umsatz|absatz|vertriebsziel/i, 'Umsatz'],
+  ],
 };
 
 const SLOT_INDEX = new Map(ALL_SLOTS.map((s) => [s.key, s]));
@@ -1077,17 +1133,35 @@ export function chipTreffer(
   const wertVon = (chip: string) => slotChipWert(slot, contract, chip);
   if (chips.map(wertVon).some((w) => w === roh)) return roh;
 
-  const text = String(roh ?? '').trim();
-  if (!text) return undefined;
-  const genau = chips.find((c) => c.toLowerCase() === text.toLowerCase());
-  if (genau) return wertVon(genau);
+  /** Ein einzelner Rohwert -> Chip, oder nichts. */
+  const einer = (v: unknown): unknown => {
+    const text = String(v ?? '').trim();
+    if (!text) return undefined;
+    const genau = chips.find((c) => c.toLowerCase() === text.toLowerCase());
+    if (genau) return wertVon(genau);
+    for (const [muster, chip] of SCHLAGWORTE[slotKey] ?? []) {
+      // Ein Schlagwort zaehlt nur, wenn sein Chip in DIESER Vertragsart
+      // ueberhaupt zur Auswahl steht.
+      if (muster.test(text) && chips.includes(chip)) return wertVon(chip);
+    }
+    return undefined;
+  };
 
-  for (const [muster, chip] of SCHLAGWORTE[slotKey] ?? []) {
-    // Ein Schlagwort zaehlt nur, wenn sein Chip in DIESER Vertragsart
-    // ueberhaupt zur Auswahl steht.
-    if (muster.test(text) && chips.includes(chip)) return wertVon(chip);
+  /**
+   * Mehrfachauswahl: jeder Eintrag wird EINZELN zugeordnet.
+   *
+   * Vorher lief eine Liste durch String(roh) -- aus ["Bereichsleitung",
+   * "Personalabteilung"] wurde der Text "Bereichsleitung,Personalabteilung",
+   * und der erste passende Ausdruck gewann fuer die ganze Liste. Von zwei
+   * genannten Entscheidern kam einer an.
+   */
+  if (slot.form === 'multi') {
+    const liste = Array.isArray(roh) ? roh : [roh];
+    const treffer = [...new Set(liste.map(einer).filter((x) => x !== undefined))];
+    return treffer.length ? treffer : undefined;
   }
-  return undefined;
+
+  return einer(roh);
 }
 
 

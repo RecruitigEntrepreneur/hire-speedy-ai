@@ -246,6 +246,56 @@ function zeitspanne(roh: unknown): string | undefined {
   return text.slice(von, bis).replace(/\s{2,}/g, ' ').trim() || undefined;
 }
 
+/**
+ * Die Einstufung der Kriterien -- aus dem, was die Anzeige selbst sagt.
+ *
+ * BEFUND (09.09.2026): `requirements_classified` nennt der Parser-Prompt
+ * woertlich "DAS WICHTIGSTE FELD", es zerlegt den Anforderungsteil Satz fuer
+ * Satz und traegt je Kriterium `required: true|false` -- und niemand las es.
+ * `skill_requirements` blieb leer. Damit blieben die beiden Zeilen leer, die
+ * dem Headhunter am meisten bringen: was Pflicht ist und was er nachschulen
+ * darf.
+ *
+ * Zugeordnet wird gegen die Kriterienliste, die links steht (Muss- und
+ * Kann-Liste zusammen) -- eine Einstufung fuer ein Kriterium, das gar nicht
+ * angezeigt wird, waere unsichtbar und damit wertlos.
+ *
+ *   required === true  -> 'fix'         (unverzichtbar)
+ *   required === false -> 'negotiable'  (verhandelbar)
+ *
+ * 'flexible' (lernbar) vergibt die Anzeige nicht: kaum eine schreibt, was sie
+ * jemandem beibringt. Diese Stufe bleibt dem Kunden.
+ */
+export function flexibilityFromParsed(
+  d: ParsedJobData,
+  built: { must_haves?: string[]; nice_to_haves?: string[] },
+): Record<string, 'fix' | 'flexible' | 'negotiable'> {
+  const out: Record<string, 'fix' | 'flexible' | 'negotiable'> = {};
+  const kriterien = [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])]
+    .map((x) => String(x ?? '').trim())
+    .filter(Boolean);
+  if (!kriterien.length) return out;
+
+  const passend = (text: string) => {
+    const t = text.toLowerCase().trim();
+    if (!t) return undefined;
+    return kriterien.find((k) => {
+      const kk = k.toLowerCase();
+      return kk === t || kk.includes(t) || t.includes(kk);
+    });
+  };
+
+  for (const e of d.requirements_classified ?? []) {
+    if (typeof e?.required !== 'boolean') continue;
+    const treffer = passend(String(e.skill ?? e.text ?? ''));
+    // Eine ausdrueckliche Pflicht gewinnt gegen ein spaeteres "verhandelbar":
+    // dasselbe Kriterium taucht in Anzeigen mehrfach auf.
+    if (!treffer || out[treffer] === 'fix') continue;
+    out[treffer] = e.required ? 'fix' : 'negotiable';
+  }
+  return out;
+}
+
 export function catalogFromParsed(
   d: ParsedJobData,
   contract: 'full-time' | 'freelance' = 'full-time',
@@ -298,7 +348,53 @@ export function catalogFromParsed(
   // Kultur und Verkauf
   setz('company_culture', d.company_culture);
   setz('career_path', d.career_path);
+  setz('career_example', d.career_example);
   setz('unique_selling_points', d.unique_selling_points);
+  /* Getrennt von den USPs: die Anzeige fuehrt "Was die Position besonders
+     macht" und "Was uns als Arbeitgeber auszeichnet" in zwei Abschnitten,
+     und der Recruiter argumentiert damit unterschiedlich. Vorher landete
+     beides in unique_selling_points. */
+  setz('position_advantages', d.position_advantages);
+
+  // Konditionen
+  setz('salary_months', d.salary_months);
+  /* Der Chip nennt eine Obergrenze ("bis 10 %"), die Anzeige eine Zahl.
+     Aufgerundet auf die naechste Stufe: 8 % ist "bis 10 %", 15 % ist
+     "bis 20 %". Abrunden hiesse, dem Kandidaten weniger zu versprechen,
+     als zugesagt ist. */
+  if (d.bonus_percent != null) {
+    const p = Number(d.bonus_percent);
+    setz('bonus_structure',
+      !Number.isFinite(p) ? undefined
+        : p <= 0 ? 'Nein' : p <= 10 ? 'bis 10 %' : p <= 20 ? 'bis 20 %' : 'mehr als 20 %');
+  }
+  setz('bonus_basis', d.bonus_basis);
+  setz('contract_limitation', d.contract_limitation);
+
+  // Arbeitszeit, Mitbestimmung, Vertragstempo
+  setz('time_tracking_method', d.time_tracking_method);
+  setz('works_council', d.works_council);
+  setz('works_council_meeting_schedule', d.works_council_meeting_schedule);
+  setz('contract_creation_days', d.contract_creation_days);
+  setz('contract_sent_digitally', d.contract_sent_digitally);
+
+  // Rolle, Prozess, Passung
+  setz('negative_impact_if_unfilled', d.negative_impact_if_unfilled);
+  setz('task_breakdown', d.task_breakdown);
+  setz('decision_makers', d.decision_makers);
+  setz('success_profile', d.success_profile);
+  setz('failure_profile', d.failure_profile);
+
+  // Vertrag und Branche
+  setz('contract_sensitive_topics', d.contract_sensitive_topics);
+  setz('industry_opportunities', d.industry_opportunities);
+  /* Beide stehen fast immer im selben Absatz. Vorher kam nur das Positive
+     an -- eine Branchenlage ohne Herausforderung ist keine Auskunft. */
+  setz('industry_challenges', d.industry_challenges);
+
+  // Stand des Verfahrens
+  setz('candidates_in_pipeline', d.candidates_in_pipeline);
+  setz('candidates_dropped_reason', d.candidates_dropped_reason);
 
   // Dringlichkeit
   setz('vacancy_reason', d.vacancy_reason);

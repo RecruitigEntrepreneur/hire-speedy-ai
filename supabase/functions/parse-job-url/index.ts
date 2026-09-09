@@ -58,6 +58,38 @@ interface ParsedJobData {
   // Industrie & Firma
   industry: string | null;
   company_size_estimate: string | null;
+
+  /**
+   * BEFUND (09.09.2026, Messlauf mit einer Anzeige, die zu JEDEM Katalogfeld
+   * etwas sagte): 17 von 39 Feldern kamen an. Von den 22 Luecken fragte das
+   * Schema 20 gar nicht ab -- das Modell hatte alles gelesen, es wurde nur
+   * nicht danach gefragt. Die folgenden Felder schliessen genau diese Luecke.
+   *
+   * Alle nullable und alle in `required`: ein Feld, das mal da ist und mal
+   * nicht, ist schlimmer als eines, das fehlt.
+   */
+  salary_months: number | null;
+  bonus_percent: number | null;
+  bonus_basis: string[] | null;
+  contract_limitation: string | null;
+  time_tracking_method: string | null;
+  works_council: boolean | null;
+  works_council_meeting_schedule: string | null;
+  contract_creation_days: number | null;
+  contract_sent_digitally: boolean | null;
+  negative_impact_if_unfilled: string | null;
+  task_breakdown: Record<string, number> | null;
+  decision_makers: string[] | null;
+  success_profile: string | null;
+  failure_profile: string | null;
+  position_advantages: string[] | null;
+  career_example: string | null;
+  contract_sensitive_topics: string[] | null;
+  industry_opportunities: string | null;
+  industry_challenges: string | null;
+  candidates_in_pipeline: number | null;
+  candidates_dropped_reason: string | null;
+  visa_sponsorship: boolean | null;
 }
 
 /**
@@ -271,6 +303,67 @@ DRINGLICHKEIT:
 
 INDUSTRIE & FIRMA:
 - industry: String (z.B. "Fitness", "Finance", "IT", "Healthcare")
+WAS DIE ANZEIGE SONST NOCH SAGT (falls erwaehnt, sonst null):
+
+Diese Felder standen bis 09.09.2026 nicht im Schema. Gemessen an einer Anzeige,
+die zu jedem davon etwas sagte, kam nichts an -- nicht weil der Text fehlte,
+sondern weil niemand gefragt hat. Lies sie mit derselben Sorgfalt wie den Rest.
+
+WICHTIG fuer alle: Der Wortlaut der Anzeige muss NICHT dem hier genannten
+Beispiel gleichen. Gib zurueck, was dasteht -- die Zuordnung auf feste
+Auswahlwerte passiert danach. Erfinde nichts; steht es nicht da, gib null.
+
+- salary_months: Auf wie viele Monatsgehaelter sich das Fixum verteilt.
+  "13. Gehalt" -> 13, "13,5 Gehaelter" -> 13.5, "12 plus Urlaubsgeld" -> 12.5.
+- bonus_percent: Obergrenze der variablen Verguetung in Prozent. "Bonus bis
+  15 %" -> 15, "Tantieme von bis zu einem Monatsgehalt" -> 8.
+- bonus_basis: Woran der Bonus haengt, als Liste. z.B. ["Unternehmensergebnis",
+  "persoenliche Ziele"].
+- contract_limitation: Befristung des ARBEITSVERTRAGS -- nicht Voll-/Teilzeit.
+  "unbefristet", "zunaechst auf zwei Jahre befristet", "befristet mit Aussicht
+  auf Uebernahme", "Projektvertrag". Woertlich, wie es dasteht.
+- time_tracking_method: Wie Arbeitszeit erfasst wird. "digitale Zeiterfassung",
+  "Stempeluhr", "Vertrauensarbeitszeit ohne Erfassung".
+- works_council: true, wenn ein Betriebsrat, Personalrat oder eine
+  Mitarbeitervertretung erwaehnt wird. false nur bei ausdruecklicher
+  Verneinung. Sonst null.
+- works_council_meeting_schedule: Wie oft er tagt. "monatlich", "alle zwei
+  Wochen", "nach Bedarf".
+- contract_creation_days: Arbeitstage von der Zusage bis zum Vertrag.
+  "Vertrag binnen drei Tagen" -> 3, "innerhalb einer Woche" -> 7.
+- contract_sent_digitally: true bei "digital zur Unterschrift", "per
+  DocuSign", "elektronisch"; false bei "postalisch".
+- negative_impact_if_unfilled: Was passiert, wenn die Stelle laenger offen
+  bleibt. Oft in "Warum wir suchen" oder "Ihre Chance".
+- task_breakdown: Prozentuale Gewichtung der Aufgaben als Objekt, z.B.
+  {"Fuehrung": 60, "Projektarbeit": 30, "Betrieb": 10}. Nur wenn die Anzeige
+  Anteile nennt.
+- decision_makers: Wer ausser der Fuehrungskraft ueber die Einstellung
+  entscheidet, als Liste. "Bereichsleitung und Personalabteilung entscheiden
+  gemeinsam" -> ["Bereichsleitung", "Personalabteilung"].
+- success_profile: Welcher Menschentyp in diesem Unternehmen Erfolg hat.
+  Abschnitte wie "Wer zu uns passt", "Das zeichnet Sie aus" -- ABER nur, wenn
+  es ueber Fachliches hinausgeht (Arbeitsweise, Haltung, Umgang).
+- failure_profile: Woran Vorgaenger oder Bewerber gescheitert sind. Selten,
+  meist als Warnung formuliert ("Wer auf Anweisungen wartet, ist hier falsch").
+- position_advantages: Vorteile DIESER STELLE, die ein Fachmann schaetzt --
+  getrennt von unique_selling_points, die dem UNTERNEHMEN gelten. "Keine
+  Rufbereitschaft", "kein Reisedruck", "volle Verantwortung ab Tag eins".
+  Nennt die Anzeige beides in getrennten Abschnitten, trenne es auch hier.
+- career_example: Ein KONKRETER genannter Aufstieg, mit Person oder Jahr.
+  "Ein Kollege ist 2024 vom Techniker zum Projektleiter geworden."
+- contract_sensitive_topics: Vertragsklauseln, die Kandidaten abschrecken
+  koennen, als Liste. Wettbewerbsverbot, Rueckzahlungsklausel bei
+  Weiterbildung, Bereitschaftsdienst, Reisepflicht, Umzugspflicht.
+- industry_opportunities: Was in der BRANCHE gerade gut laeuft.
+- industry_challenges: Womit die Branche gerade kaempft. Beides steht oft im
+  selben Absatz -- lies beide, nicht nur das Positive.
+- candidates_in_pipeline: Zahl der Kandidaten, die laut Anzeige schon im
+  Verfahren sind.
+- candidates_dropped_reason: Warum Kandidaten abgesprungen sind.
+- visa_sponsorship: true bei "wir unterstuetzen bei der Visabeschaffung",
+  false bei "Arbeitserlaubnis muss vorliegen" oder "kein Visa-Sponsoring".
+
 - company_size_estimate: Mitarbeiterzahl des Unternehmens. Wenn die Anzeige eine
   Zahl oder Spanne nennt, gib sie so wieder ("340", "51-200", "ueber 1000").
   Nur wenn keine Zahl dasteht, ein Wort: "Startup", "Mittelstand", "Konzern".
@@ -400,7 +493,39 @@ WICHTIGE REGELN:
                   
                   // Industrie & Firma
                   industry: { type: "string", nullable: true },
-                  company_size_estimate: { type: "string", nullable: true }
+                  company_size_estimate: { type: "string", nullable: true },
+
+                  // ---- Konditionen -------------------------------------
+                  salary_months: { type: "number", nullable: true },
+                  bonus_percent: { type: "number", nullable: true },
+                  bonus_basis: { type: "array", items: { type: "string" }, nullable: true },
+                  contract_limitation: { type: "string", nullable: true },
+
+                  // ---- Arbeitszeit und Mitbestimmung -------------------
+                  time_tracking_method: { type: "string", nullable: true },
+                  works_council: { type: "boolean", nullable: true },
+                  works_council_meeting_schedule: { type: "string", nullable: true },
+                  contract_creation_days: { type: "integer", nullable: true },
+                  contract_sent_digitally: { type: "boolean", nullable: true },
+
+                  // ---- Rolle und Prozess ------------------------------
+                  negative_impact_if_unfilled: { type: "string", nullable: true },
+                  task_breakdown: { type: "object", nullable: true },
+                  decision_makers: { type: "array", items: { type: "string" }, nullable: true },
+                  success_profile: { type: "string", nullable: true },
+                  failure_profile: { type: "string", nullable: true },
+
+                  // ---- Verkauf, Vertrag, Branche ----------------------
+                  position_advantages: { type: "array", items: { type: "string" }, nullable: true },
+                  career_example: { type: "string", nullable: true },
+                  contract_sensitive_topics: { type: "array", items: { type: "string" }, nullable: true },
+                  industry_opportunities: { type: "string", nullable: true },
+                  industry_challenges: { type: "string", nullable: true },
+
+                  // ---- Stand des Verfahrens ---------------------------
+                  candidates_in_pipeline: { type: "integer", nullable: true },
+                  candidates_dropped_reason: { type: "string", nullable: true },
+                  visa_sponsorship: { type: "boolean", nullable: true }
                 },
                 /*
                   BEFUND (07.09.2026, gemessen am deployten Stand): Bei
@@ -425,7 +550,14 @@ WICHTIGE REGELN:
                            "daily_routine", "task_focus", "team_size", "reports_to",
                            "core_hours", "remote_days", "overtime_policy",
                            "company_culture", "career_path",
-                           "vacancy_reason", "hiring_urgency", "company_size_estimate"]
+                           "vacancy_reason", "hiring_urgency", "company_size_estimate",
+                           "industry",
+                           "salary_months", "bonus_percent", "contract_limitation",
+                           "time_tracking_method", "works_council", "contract_creation_days",
+                           "negative_impact_if_unfilled", "decision_makers",
+                           "success_profile", "failure_profile", "position_advantages",
+                           "contract_sensitive_topics",
+                           "industry_opportunities", "industry_challenges"]
               }
             }
           }

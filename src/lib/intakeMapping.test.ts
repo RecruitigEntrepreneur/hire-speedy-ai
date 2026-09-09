@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BRIEF_QUESTIONS } from './briefCatalog';
 import {
-  EMPTY_BUILT, catalogFromParsed, freelanceFromParsed, fromParsedJobData, fromParsedJobProfile,
+  EMPTY_BUILT, catalogFromParsed, flexibilityFromParsed, freelanceFromParsed,
+  fromParsedJobData, fromParsedJobProfile,
   toBriefBuilt,
   buildAiJobDraft, buildIntakePayload, intakeCompleteness,
 } from './intakeMapping';
@@ -156,6 +157,76 @@ describe('catalogFromParsed', () => {
     const wort = catalogFromParsed({ company_size_estimate: 'Konzern' } as any);
     expect(wort.company_headcount).toBeUndefined();
     expect(wort.company_size_band.value).toBe('mehr als 5.000');
+  });
+
+  /**
+   * Der Kern der Erweiterung vom 09.09.2026: die Anzeige muss den Chip nicht
+   * woertlich treffen. Gemessen wurde vorher, dass 22 von 39 Feldern leer
+   * blieben, obwohl die Anzeige zu jedem etwas sagte.
+   */
+  it('trifft die Befristung, egal wie sie formuliert ist', () => {
+    const b = (t: string) => catalogFromParsed({ contract_limitation: t } as any).contract_limitation?.value;
+    expect(b('unbefristet')).toBe('unbefristet');
+    expect(b('Eine dauerhafte Festanstellung')).toBe('unbefristet');
+    // "mit Aussicht" muss vor dem blossen "befristet" greifen.
+    expect(b('zunächst befristet, mit Aussicht auf Übernahme')).toBe('befristet_mit_aussicht');
+    expect(b('auf 2 Jahre befristet')).toBe('befristet');
+    expect(b('Projektvertrag für die Dauer des Projekts')).toBe('projekt');
+    expect(b('Wir freuen uns auf Sie')).toBeUndefined();
+  });
+
+  it('trifft Zeiterfassung und Betriebsrat aus freier Formulierung', () => {
+    const k = catalogFromParsed({
+      time_tracking_method: 'Erfassung über unser digitales Zeitwirtschaftssystem',
+      works_council: true,
+      works_council_meeting_schedule: 'Das Gremium kommt einmal im Monat zusammen',
+    } as any);
+    expect(k.time_tracking_method.value).toBe('digital');
+    expect(k.works_council.value).toBe(true);
+    expect(k.works_council_meeting_schedule.value).toBe('Monatlich');
+  });
+
+  it('ordnet jeden Entscheider einzeln zu, nicht die Liste als Ganzes', () => {
+    // Vorher lief die Liste durch String(roh): aus zwei Entscheidern wurde ein
+    // Text, und der erste passende Ausdruck gewann fuer beide.
+    const k = catalogFromParsed({
+      decision_makers: ['Bereichsleitung', 'Personalabteilung'],
+    } as any);
+    expect(k.decision_makers.value).toEqual(['Fachbereich', 'HR']);
+  });
+
+  it('erkennt sensible Vertragsthemen im Fliesstext', () => {
+    const k = catalogFromParsed({
+      contract_sensitive_topics: [
+        'nachvertragliches Wettbewerbsverbot von zwölf Monaten',
+        'Rückzahlung der Weiterbildungskosten bei Eigenkündigung',
+      ],
+    } as any);
+    expect(k.contract_sensitive_topics.value)
+      .toEqual(['Wettbewerbsverbot', 'Rückzahlungsklausel (Weiterbildung)']);
+  });
+
+  it('rundet den Bonus auf die Stufe, die dem Kandidaten nichts wegnimmt', () => {
+    const b = (p: number) => catalogFromParsed({ bonus_percent: p } as any).bonus_structure?.value;
+    expect(b(0)).toBe('Nein');
+    expect(b(8)).toBe('bis 10 %');    // nicht "Nein"
+    expect(b(15)).toBe('bis 20 %');   // nicht "bis 10 %"
+    expect(b(30)).toBe('mehr als 20 %');
+  });
+
+  it('nimmt Monatsgehälter und Vertragstempo als Zahl', () => {
+    const k = catalogFromParsed({ salary_months: 13.5, contract_creation_days: 3 } as any);
+    expect(k.salary_months.value).toBe(13.5);
+    expect(k.contract_creation_days.value).toBe(3);
+  });
+
+  it('holt Branchenchancen UND -herausforderungen, nicht nur das Positive', () => {
+    const k = catalogFromParsed({
+      industry_opportunities: 'Auftragsbücher bis 2028 gefüllt',
+      industry_challenges: 'Lieferzeiten über 30 Wochen',
+    } as any);
+    expect(k.industry_opportunities.value).toBe('Auftragsbücher bis 2028 gefüllt');
+    expect(k.industry_challenges.value).toBe('Lieferzeiten über 30 Wochen');
   });
 
   it('ordnet die Berichtslinie zu, ohne ein zweites Modell zu brauchen', () => {
@@ -444,6 +515,43 @@ describe('draftToJobRow (Server)', () => {
  */
 /* "frei waehlbar" legte fuenf Homeoffice-Tage ab, daraus wurde
    onsite_days_required = 0, und der Recruiter las eine Vollremote-Stelle. */
+describe('flexibilityFromParsed', () => {
+  const built = { must_haves: ['SAP ERP', 'Führungserfahrung'], nice_to_haves: ['ITIL'] };
+
+  it('macht aus der Klassifizierung der Anzeige eine Einstufung', () => {
+    const f = flexibilityFromParsed({
+      requirements_classified: [
+        { text: 'Erfahrung im Betrieb von SAP ERP', skill: 'SAP ERP', kind: 'technology', required: true },
+        { text: 'Führungserfahrung mit mindestens fünf Mitarbeitenden', skill: 'Führungserfahrung', kind: 'experience', required: true },
+        { text: 'ITIL von Vorteil', skill: 'ITIL', kind: 'method', required: false },
+      ],
+    } as any, built);
+    expect(f).toEqual({ 'SAP ERP': 'fix', 'Führungserfahrung': 'fix', ITIL: 'negotiable' });
+  });
+
+  it('lässt Kriterien weg, die gar nicht in der Liste stehen', () => {
+    // Eine Einstufung fuer etwas, das nicht angezeigt wird, waere unsichtbar.
+    const f = flexibilityFromParsed({
+      requirements_classified: [{ text: 'Kubernetes', skill: 'Kubernetes', kind: 'technology', required: true }],
+    } as any, built);
+    expect(f).toEqual({});
+  });
+
+  it('lässt eine Pflicht nicht von einem späteren "verhandelbar" überschreiben', () => {
+    const f = flexibilityFromParsed({
+      requirements_classified: [
+        { text: 'SAP ERP', skill: 'SAP ERP', kind: 'technology', required: true },
+        { text: 'SAP ERP Kenntnisse von Vorteil', skill: 'SAP ERP', kind: 'technology', required: false },
+      ],
+    } as any, built);
+    expect(f['SAP ERP']).toBe('fix');
+  });
+
+  it('kommt ohne das Feld aus', () => {
+    expect(flexibilityFromParsed({} as any, built)).toEqual({});
+  });
+});
+
 describe('draftToJobRow: frei waehlbare Homeoffice-Tage', () => {
   const mitRemote = (wert: unknown) =>
     draftToJobRow({

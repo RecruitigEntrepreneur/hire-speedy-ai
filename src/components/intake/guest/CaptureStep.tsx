@@ -22,7 +22,8 @@ import {
 } from '@/components/dashboard/IntakeBriefing';
 import { EMPTY_FREELANCE, type BuiltJob, type FreelanceTerms, type RevealSetup } from '@/components/dashboard/intake/types';
 import {
-  EMPTY_BUILT, buildAiJobDraft, catalogFromParsed, freelanceFromParsed, fromParsedJobData,
+  EMPTY_BUILT, buildAiJobDraft, catalogFromParsed, flexibilityFromParsed,
+  freelanceFromParsed, fromParsedJobData,
   toBriefBuilt, typedFieldsFromParsed,
 } from '@/lib/intakeMapping';
 import { isFailure } from '@/hooks/useGuestIntake';
@@ -209,6 +210,13 @@ export function CaptureStep({
     // nicht in den Katalog, wo er unsichtbar die Freigabe entsperren wuerde.
     const satz = freelanceFromParsed(parsed);
     if (satz) onState((s) => ({ ...s, freelance: { ...s.freelance, ...satz } }));
+
+    /* Die Einstufung, die in der Anzeige steht. Bestehende Einstufungen des
+       Kunden gewinnen -- er hat sie an der Liste selbst vorgenommen. */
+    const stufen = flexibilityFromParsed(parsed, job);
+    if (Object.keys(stufen).length > 0) {
+      onState((s) => ({ ...s, flexibility: { ...stufen, ...s.flexibility } }));
+    }
 
     const ausAnzeige = catalogFromParsed(parsed, type);
     if (Object.keys(ausAnzeige).length > 0) {
