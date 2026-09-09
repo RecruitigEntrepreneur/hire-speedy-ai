@@ -11311,6 +11311,8 @@ export type Database = {
         Row: {
           benefits: string[] | null
           bonus_structure: string | null
+          candidates_dropped_reason: string | null
+          candidates_in_pipeline: number | null
           career_example: string | null
           career_path: string | null
           company_culture: string | null
@@ -11533,6 +11535,10 @@ export type Database = {
         Args: { _submission_id: string }
         Returns: undefined
       }
+      maskiere:
+        | { Args: { _envelope: Json; _text: string }; Returns: string }
+        | { Args: { _envelope: Json; _werte: string[] }; Returns: string[] }
+      maskiere_json: { Args: { _envelope: Json; _wert: Json }; Returns: Json }
       org_intake_approval_required: {
         Args: { _org_id: string }
         Returns: boolean
