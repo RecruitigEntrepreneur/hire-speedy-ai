@@ -424,12 +424,21 @@ describe('draftToJobRow: Einstufung der Kriterien', () => {
     });
     expect(row.must_have_criteria).toEqual(['Kubernetes', 'Terraform']);
     expect(row.trainable_skills).toEqual(['AWS', 'Go']);
+    expect(row.nice_to_have_criteria).toEqual(['Azure']);
+  });
+
+  it('trennt die drei Stufen sauber, ohne Ueberschneidung', () => {
+    const row = mitFlex({ A: 'fix', B: 'negotiable', C: 'flexible' });
+    expect(row.must_have_criteria).toEqual(['A']);
+    expect(row.nice_to_have_criteria).toEqual(['B']);
+    expect(row.trainable_skills).toEqual(['C']);
   });
 
   it('schreibt keine leeren Listen, wo nichts eingestuft ist', () => {
     const row = mitFlex({ Azure: 'negotiable' });
     expect(row.must_have_criteria).toBeUndefined();
     expect(row.trainable_skills).toBeUndefined();
+    expect(row.nice_to_have_criteria).toEqual(['Azure']);
   });
 
   it('kommt ohne flexibility aus', () => {

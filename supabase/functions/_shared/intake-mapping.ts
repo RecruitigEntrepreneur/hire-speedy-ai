@@ -63,10 +63,12 @@ function kriterienAusFlexibility(roh: unknown) {
   return {
     must_have_criteria: leerZuUndefined(mit('fix')),
     trainable_skills: leerZuUndefined(mit('flexible')),
-    /* 'negotiable' waere nice_to_have_criteria. Die Spalte gibt es in `jobs`
-       und in recruiter_jobs_view, aber accept_intake_draft nennt sie nicht in
-       ihrer INSERT-Liste -- der Wert wuerde still verworfen. Erst wenn eine
-       Migration sie dort ergaenzt, gehoert sie hier hin. */
+    /* Die mittlere Stufe. Ohne sie liest sich ein Profil als "Pflicht oder
+       egal" -- der Verhandlungsspielraum ist aber genau das, womit der
+       Headhunter einen Kandidaten ueberhaupt vorstellt, der nicht jedes
+       Kriterium erfuellt. accept_intake_draft nimmt die Spalte seit
+       Migration 20260909110000 an; davor haette sie sie still verworfen. */
+    nice_to_have_criteria: leerZuUndefined(mit('negotiable')),
   };
 }
 
@@ -146,6 +148,9 @@ export function draftToJobRow(draft: Json): Json {
        Einstufung an der Kriterienliste, wo der Kunde sie vorgenommen hat. */
     must_have_criteria: ausKatalog.must_have_criteria ?? ausFlex.must_have_criteria,
     trainable_skills: ausKatalog.trainable_skills ?? ausFlex.trainable_skills,
+    /* Ohne Katalogseite: nice_to_have_criteria ist kein Slot -- die Einstufung
+       an der Kriterienliste ist die einzige Quelle. */
+    nice_to_have_criteria: ausFlex.nice_to_have_criteria,
     vacancy_reason: ausKatalog.vacancy_reason ?? built.vacancyReason ?? undefined,
     reports_to: ausKatalog.reports_to ?? built.reportsTo ?? undefined,
     hiring_urgency: ausKatalog.hiring_urgency ?? built.hiringUrgency ?? undefined,
