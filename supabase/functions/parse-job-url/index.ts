@@ -366,7 +366,7 @@ Auswahlwerte passiert danach. Erfinde nichts; steht es nicht da, gib null.
   oder "bringen wir Ihnen bei" bezeichnet. Abschnitte wie "Nachschulbar bei
   uns", "das lernen Sie bei uns", "bauen wir gemeinsam auf". NICHT das, was
   bloss als "von Vorteil" oder "wuenschenswert" dasteht -- das ist
-  verhandelbar, nicht lernbar. Schreibe dieselbe Bezeichnung wie in `skills`.
+  verhandelbar, nicht lernbar. Schreibe dieselbe Bezeichnung wie in \`skills\`.
 - visa_sponsorship: true bei "wir unterstuetzen bei der Visabeschaffung",
   false bei "Arbeitserlaubnis muss vorliegen" oder "kein Visa-Sponsoring".
 
