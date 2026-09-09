@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
-  DIALOG_QUESTIONS, chipWert, completeness, nextQuestion,
+  DIALOG_QUESTIONS, chipTreffer, completeness, nextQuestion,
+  frageText, slotChipWert, slotChips, slotLabel,
   type BriefQuestion, type BriefSlot, type CatalogState, type Known,
 } from '@/lib/briefCatalog';
 import { AlertTriangle, Check, CheckCircle2, Circle, Loader2, Sparkles } from 'lucide-react';
@@ -64,10 +65,14 @@ const zeige = (v: unknown): string => {
 };
 
 const QUELLE: Record<string, string> = {
-  ad: 'aus der Anzeige',
+  ad: 'aus der Anzeige gelesen — bitte prüfen',
   enrich: 'aus dem Impressum',
   inherit: 'aus Ihrem Firmenprofil',
-  derive: 'aus Ihrer Antwort abgeleitet',
+  // Vorher stand hier "aus Ihrer Antwort abgeleitet" -- auch dann, wenn der
+  // Wert aus der Stellenanzeige stammte und der Kunde nichts geantwortet
+  // hatte. Eine Modellvermutung als Kundenaussage auszuweisen ist der
+  // schwerste Vertrauensfehler, den diese Oberflaeche machen kann.
+  derive: 'aus Ihren Angaben abgeleitet — bitte prüfen',
   answer: '',
 };
 
@@ -81,6 +86,45 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
   const nr = useRef(0);
 
   const naechste = nextQuestion(state.known, type, state.askedQuestions);
+
+  /**
+   * Vorbefuellen aus der Anzeige.
+   *
+   * Was der Parser gelesen hat, steht in `known` mit from='ad' -- es gilt
+   * nicht als beantwortet, soll dem Kunden aber nicht vorenthalten werden.
+   * Er sieht seinen eigenen Anzeigentext im Feld, korrigiert oder bestaetigt
+   * mit einem Klick. Das ist der Unterschied zwischen "wir haben nicht
+   * zugehoert" und "wir haben gelesen, was Sie geschrieben haben".
+   */
+  const vorbefuellt = useRef<string | null>(null);
+  /**
+   * BEFUND (08.09.2026, Contracting-Durchklick): Die Vorbefuellung lief genau
+   * EINMAL je Frage. Die KI-Ernte landet aber spaeter -- ihr Wert stand danach
+   * in `known`, aber nicht im Entwurf der offenen Frage. Auf dem Bildschirm
+   * hiess das: "aus Ihren Angaben abgeleitet - bitte pruefen" ueber einer
+   * Chipreihe, in der nichts markiert war. Der Wert war da, gesehen hat ihn
+   * niemand.
+   *
+   * Deshalb laeuft der Effekt bei jeder Aenderung an `known` erneut. Beim
+   * Fragewechsel setzt er den Entwurf neu, danach ERGAENZT er nur noch, was
+   * der Kunde nicht selbst angefasst hat -- eine Ernte darf eine Eingabe nie
+   * ueberschreiben.
+   */
+  useEffect(() => {
+    if (!naechste) return;
+    const neueFrage = vorbefuellt.current !== naechste.frage.key;
+    vorbefuellt.current = naechste.frage.key;
+    setEntwurf((bisher) => {
+      const start: Record<string, unknown> = neueFrage ? {} : { ...bisher };
+      for (const s of naechste.fragen) {
+        if (!neueFrage && s.key in start) continue;
+        const v = state.known[s.key]?.value;
+        if (v !== undefined && v !== null && String(v).trim() !== '') start[s.key] = v;
+      }
+      return start;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [naechste?.frage.key, state.known]);
   const fortschritt = completeness(state.known, type);
 
   // Die gerechnete Zahl wandert in den Zustand, damit der Autosave sie
@@ -107,12 +151,16 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
           question: frage
             ? {
                 key: frage.key,
-                text: frage.text,
-                slots: frage.slots.map((s) => ({ key: s.key, label: s.label, form: s.form, chips: s.chips })),
+                text: frageText(frage, type),
+                slots: frage.slots.map((s) => ({
+                  key: s.key, label: slotLabel(s, type), form: s.form, chips: slotChips(s, type),
+                })),
               }
             : undefined,
           answer: antwort,
-          open_slots: offen.map((s) => ({ key: s.key, label: s.label, form: s.form, chips: s.chips })),
+          open_slots: offen.map((s) => ({
+            key: s.key, label: slotLabel(s, type), form: s.form, chips: slotChips(s, type),
+          })),
           known: Object.fromEntries(
             Object.entries(state.known).map(([k, v]) => [k, v?.value]),
           ),
@@ -131,8 +179,16 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
           // Geerntetes fuellt nur LEERE Zeilen. Was der Kunde selbst gesagt
           // hat, gewinnt immer -- sonst ueberschreibt eine Ableitung seine
           // ausdrueckliche Angabe.
-          for (const [k, v] of Object.entries(data.slot_values ?? {})) {
-            if (!known[k]) known[k] = { value: v, from: 'derive' };
+          for (const [k, roh] of Object.entries(data.slot_values ?? {})) {
+            if (known[k]) continue;
+            // Dieselbe Regel wie fuer die Anzeige: was keinen Chip trifft,
+            // wird verworfen. Sonst stand ueber einer leeren Chipreihe "aus
+            // Ihren Angaben abgeleitet -- bitte pruefen", und die Zeile galt
+            // trotzdem als gefuellt. Der Filter kennt die Vertragsart, weil
+            // Contracting ein eigenes Vokabular hat.
+            const v = chipTreffer(k, roh, type);
+            if (v === undefined || v === null) continue;
+            known[k] = { value: v, from: 'derive' };
           }
           return {
             ...p,
@@ -207,7 +263,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
       const v = unbekannt ? undefined : entwurf[s.key];
       if (v === undefined || (Array.isArray(v) && v.length === 0)) continue;
       known[s.key] = { value: v, from: 'answer' };
-      worte.push(`${s.label}: ${zeige(v)}`);
+      worte.push(`${slotLabel(s, type)}: ${zeige(v)}`);
     }
     const antwort = worte.join('\n');
     const askedQuestions = [...state.askedQuestions, frage.key];
@@ -247,7 +303,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
           {DIALOG_QUESTIONS.map((q) => (
             <span
               key={q.key}
-              title={q.text}
+              title={frageText(q, type)}
               className={cn(
                 'h-1 w-4 rounded-full',
                 state.askedQuestions.includes(q.key) ? 'bg-primary' : 'bg-muted',
@@ -265,7 +321,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
         {frage.intro && (
           <p className="mb-1 text-xs italic text-muted-foreground">{frage.intro}</p>
         )}
-        <p className="mb-3 text-sm font-medium leading-snug">{frage.text}</p>
+        <p className="mb-3 text-sm font-medium leading-snug">{frageText(frage, type)}</p>
 
         {/* Was schon dasteht — gezeigt statt gefragt. */}
         {bestaetigen.length > 0 && (
@@ -273,7 +329,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
             {bestaetigen.map((s) => (
               <p key={s.key} className="flex items-start gap-1.5 text-xs">
                 <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                <span className="text-muted-foreground">{s.label}:</span>
+                <span className="text-muted-foreground">{slotLabel(s, type)}:</span>
                 <span className="font-medium">{zeige(state.known[s.key]?.value)}</span>
                 {QUELLE[state.known[s.key]?.from ?? ''] && (
                   <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
@@ -289,11 +345,16 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
         <div className="space-y-3">
           {fragen.map((s) => (
             <div key={s.key}>
-              <p className="mb-1.5 text-xs text-muted-foreground">
-                {s.label}
-                {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
+              <p className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs text-muted-foreground">
+                {slotLabel(s, type)}
+                {!s.required && <span className="text-[10px]">(optional)</span>}
+                {QUELLE[state.known[s.key]?.from ?? ''] && (
+                  <span className="text-[10px] italic">
+                    {QUELLE[state.known[s.key]!.from]}
+                  </span>
+                )}
               </p>
-              <SlotEingabe slot={s} wert={entwurf[s.key]} onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)} />
+              <SlotEingabe contract={type} slot={s} wert={entwurf[s.key]} onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)} />
             </div>
           ))}
         </div>
@@ -375,7 +436,13 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
           // Die gerade gestellte Frage gehoert nicht in die Restliste -- sie
           // stand sonst gleichzeitig oben als Frage und hier als "fehlt noch".
           const rest = DIALOG_QUESTIONS.filter(
-            (q) => !state.askedQuestions.includes(q.key) && q.key !== frage.key,
+            (q) =>
+              !state.askedQuestions.includes(q.key) &&
+              q.key !== frage.key &&
+              // Was im Contracting entfaellt, darf auch nicht als "fehlt
+              // noch" dastehen -- sonst kuendigt die Liste eine Frage an, die
+              // nie kommt.
+              (!q.only || q.only === type),
           );
           return (
             <div className="space-y-1">
@@ -385,7 +452,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
                       gefuellt gezeigt, damit sichtbar ist, was Gewicht hat. */}
                   <Circle className={cn('mt-1 h-2 w-2 shrink-0',
                     q.order <= 30 ? 'fill-primary text-primary' : 'text-muted-foreground')} />
-                  <span className="line-clamp-1">{q.text}</span>
+                  <span className="line-clamp-1">{frageText(q, type)}</span>
                 </p>
               ))}
               {rest.length > 7 && (
@@ -408,9 +475,10 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
 /* ------------------------------------------------------------------ */
 
 function SlotEingabe({
-  slot, wert, onSet, onToggle,
+  slot, contract, wert, onSet, onToggle,
 }: {
   slot: BriefSlot;
+  contract: 'full-time' | 'freelance';
   wert: unknown;
   onSet: (v: unknown) => void;
   onToggle: (chip: string) => void;
@@ -420,21 +488,21 @@ function SlotEingabe({
   if (slot.form === 'chips' || slot.form === 'multi') {
     const multi = slot.form === 'multi';
     // Ohne Vorgaben (z. B. die 3 Muss-Kriterien) wird getippt statt geklickt.
-    if (!slot.chips?.length) {
+    if (!slotChips(slot, contract)?.length) {
       return (
         <FreieListe werte={gewaehlt} onChange={onSet} />
       );
     }
     return (
       <div className="flex flex-wrap gap-1.5">
-        {slot.chips.map((c) => {
+        {slotChips(slot, contract)!.map((c) => {
           // Der Chip zeigt seine Beschriftung, schreibt aber den Spaltenwert:
           // "Ja" -> true, "2 Tage, digital" -> 2. Sonst landet Fliesstext in
           // einer Zahlenspalte und der Insert scheitert erst beim Uebergeben.
-          const an = multi ? gewaehlt.includes(c) : wert === chipWert(slot, c);
+          const an = multi ? gewaehlt.includes(c) : wert === slotChipWert(slot, contract, c);
           return (
             <button key={c} type="button"
-              onClick={() => (multi ? onToggle(c) : onSet(an ? undefined : chipWert(slot, c)))}
+              onClick={() => (multi ? onToggle(c) : onSet(an ? undefined : slotChipWert(slot, contract, c)))}
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                 an ? 'border-primary bg-primary/10 text-foreground'
@@ -462,6 +530,12 @@ function SlotEingabe({
     );
   }
 
+  if (slot.form === 'short') {
+    return <Input value={String(wert ?? '')} className="h-8 text-xs"
+                  placeholder={slot.placeholder}
+                  onChange={(e) => onSet(e.target.value)} />;
+  }
+
   if (slot.form === 'number') {
     return <Input type="number" value={String(wert ?? '')} className="h-8 text-xs"
                   onChange={(e) => onSet(e.target.value)} />;
@@ -472,11 +546,54 @@ function SlotEingabe({
                   onChange={(e) => onSet(e.target.value)} />;
   }
 
-  // 'ai' und 'text': freie Antwort. Bei 'ai' erntet das Modell daraus.
+  /**
+   * Freie Antwort -- aber nie ein leerer Kasten, wenn der Katalog Anlaeufe
+   * mitbringt.
+   *
+   * "Welche negativen Auswirkungen koennte es haben, falls sie laenger
+   * offenbleibt?" ist inhaltlich die richtige Frage und als leeres Feld die
+   * schwerste Stelle im Gespraech: der Kunde WEISS die Antwort, kann sie aber
+   * nicht aus dem Stand formulieren. Ein Klick auf einen typischen Fall setzt
+   * den ersten Satz; danach schreibt es sich von selbst weiter.
+   *
+   * Die Chips ERSETZEN den Text nicht -- sie haengen an, und alles bleibt
+   * editierbar. Wer schon getippt hat, verliert nichts.
+   */
+  /* Ein Array landet ueber String() als "a,b,c" im Feld -- ohne Leerzeichen,
+     weil das JavaScripts Vorgabe ist. Auf dem Bildschirm stand dadurch
+     "S/4HANA-Migrationsprojekt,Gestaltungsspielraum im Teilprojekt Finanzen".
+     Dieselbe Trennung wie beim Anhaengen von Chips. */
+  const text = Array.isArray(wert) ? wert.filter(Boolean).join(' · ') : String(wert ?? '');
+  const anhaengen = (c: string) =>
+    onSet(text.trim() ? `${text.trim().replace(/[.·\s]+$/, '')} · ${c}` : c);
+
   return (
-    <Textarea value={String(wert ?? '')} rows={slot.form === 'ai' ? 3 : 2}
-              placeholder="In Ihren Worten …" className="text-xs"
-              onChange={(e) => onSet(e.target.value)} />
+    <div>
+      {slotChips(slot, contract)?.length ? (
+        <div className="mb-1.5 flex flex-wrap gap-1.5">
+          {slotChips(slot, contract)!.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => anhaengen(c)}
+              disabled={text.includes(c)}
+              className={cn(
+                'rounded-full border border-dashed px-2.5 py-0.5 text-xs transition-colors',
+                text.includes(c)
+                  ? 'border-transparent text-muted-foreground/50'
+                  : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
+              )}
+            >
+              + {c}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <Textarea value={text} rows={slot.form === 'ai' ? 3 : 2}
+                placeholder={slotChips(slot, contract)?.length ? 'Anklicken oder selbst schreiben …' : 'In Ihren Worten …'}
+                className="text-xs"
+                onChange={(e) => onSet(e.target.value)} />
+    </div>
   );
 }
 

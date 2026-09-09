@@ -22,6 +22,8 @@ interface ParsedJobData {
   experience_level: string | null;
   salary_min: number | null;
   salary_max: number | null;
+  day_rate_min: number | null;
+  day_rate_max: number | null;
   skills: string[];
   must_haves: string[];
   nice_to_haves: string[];
@@ -40,6 +42,7 @@ interface ParsedJobData {
   remote_days: number | null;
   overtime_policy: string | null;
   daily_routine: string | null;
+  task_focus: string | null;
   
   // Kultur & Benefits
   company_culture: string | null;
@@ -166,15 +169,23 @@ serve(async (req) => {
 
 PFLICHT-FELDER:
 - title: Jobtitel (PFLICHT)
-- company_name: Firmenname (PFLICHT, falls nicht erkennbar: "Unbekannt")
+- company_name: Firmenname. Steht keiner im Text, gib null -- NIEMALS "Unbekannt",
+  "N/A" oder einen anderen Platzhalter. Der Wert landet in einem Pflichtfeld und
+  spaeter auf der Vereinbarung; ein Platzhalter sieht dort aus wie eine Angabe,
+  und niemand korrigiert ein gefuelltes Feld.
 - description: Vollständige Stellenbeschreibung
 - requirements: Anforderungen an den Kandidaten
 - location: Standort/Stadt
 - remote_type: "onsite", "hybrid" oder "remote"
 - employment_type: "full-time", "part-time", "contract" oder "freelance"
 - experience_level: "junior", "mid", "senior" oder "lead"
-- salary_min: Minimum Gehalt (nur Zahl in EUR, jährlich)
-- salary_max: Maximum Gehalt (nur Zahl in EUR, jährlich)
+- salary_min: Minimum Gehalt (nur Zahl in EUR, JAEHRLICH). Nur bei Festanstellung.
+- salary_max: Maximum Gehalt (nur Zahl in EUR, JAEHRLICH). Nur bei Festanstellung.
+- day_rate_min / day_rate_max: Tagessatz in EUR, falls die Anzeige einen nennt
+  ("850 EUR/Tag", "Tagessatz 700-900", "Daily Rate 900"). NIEMALS einen
+  Tagessatz nach salary_min/salary_max schreiben -- eine Contracting-Anzeige
+  mit "850 EUR Tagessatz" wuerde dort als Jahresgehalt von 850 EUR gelesen.
+  Umgekehrt gehoert ein Jahresgehalt nie in day_rate_*.
 - skills: Array von erforderlichen technischen Skills
 - requirements_classified: DAS WICHTIGSTE FELD. Zerlege den Anforderungsteil der
   Anzeige Satz fuer Satz und ordne JEDES Kriterium einer Klasse zu. Ein Satz
@@ -214,14 +225,30 @@ PFLICHT-FELDER:
 
 TEAM & STRUKTUR (falls erwähnt):
 - team_size: Zahl (z.B. "12-köpfiges Team" → 12)
-- reports_to: String (z.B. "berichtet an CFO", "Teamleitung")
+- reports_to: An wen die AUSGESCHRIEBENE POSITION berichtet -- nicht, an wen der
+  Verfasser des Textes berichtet. Schreibt jemand "ich bin Leiter Instandhaltung
+  und berichte an den Werkleiter", dann berichtet der Kandidat an den LEITER
+  INSTANDHALTUNG, nicht an den Werkleiter. Ist die Vorgesetztenrolle nicht
+  eindeutig, gib null.
 - department_structure: String (z.B. "Teil des Finance-Teams")
 
 ARBEITSWEISE (falls erwähnt):
 - core_hours: String (z.B. "Kernarbeitszeit 10-16 Uhr", "flexibel Mo-Fr")
 - remote_days: Zahl (z.B. "2 Tage Home Office" → 2, "mobiles Arbeiten möglich" → 1)
 - overtime_policy: String (z.B. "keine Überstunden", "Gleitzeitkonto")
-- daily_routine: String (z.B. "typischer Arbeitstag...")
+- daily_routine: Wie ein Arbeitstag in dieser Rolle konkret ablaeuft -- woran
+  die Person arbeitet, mit wem sie sich abstimmt, was wiederkehrt. Zwei bis
+  vier Saetze in eigenen Worten, aus dem Aufgabenteil der Anzeige. Steht dort
+  nur eine Aufgabenliste, fasse sie als Ablauf zusammen. Nur null, wenn die
+  Anzeige ueber die Taetigkeit gar nichts sagt.
+- task_focus: WORAUF die Stelle im Kern hinauslaeuft. Genau EINER dieser vier
+  Werte, woertlich:
+    "Operativ / hands-on"        = macht die Arbeit selbst
+    "Steuernd / koordinierend"   = plant, stimmt ab, haelt zusammen
+    "Aufbauend / verändernd"     = baut Neues auf, loest Bestehendes ab
+    "Führend / entwickelnd"      = fuehrt Menschen, entwickelt sie weiter
+  Im Zweifel null. Lieber nichts als ein falscher Schwerpunkt -- der Kunde
+  bekommt die Frage dann im Gespraech.
 
 KULTUR & BENEFITS:
 - company_culture: String (Tonfall der Anzeige, Du/Sie-Kultur, Werte)
@@ -244,7 +271,10 @@ DRINGLICHKEIT:
 
 INDUSTRIE & FIRMA:
 - industry: String (z.B. "Fitness", "Finance", "IT", "Healthcare")
-- company_size_estimate: String (z.B. "Startup", "51-200", "Konzern")
+- company_size_estimate: Mitarbeiterzahl des Unternehmens. Wenn die Anzeige eine
+  Zahl oder Spanne nennt, gib sie so wieder ("340", "51-200", "ueber 1000").
+  Nur wenn keine Zahl dasteht, ein Wort: "Startup", "Mittelstand", "Konzern".
+  Das ist die Groesse der FIRMA, nicht die des Teams -- die steht in team_size.
 
 WICHTIGE REGELN:
 - Extrahiere NUR was explizit im Text steht oder klar ableitbar ist
@@ -297,6 +327,8 @@ WICHTIGE REGELN:
                   },
                   salary_min: { type: "number", nullable: true },
                   salary_max: { type: "number", nullable: true },
+                  day_rate_min: { type: "number", nullable: true },
+                  day_rate_max: { type: "number", nullable: true },
                   skills: { type: "array", items: { type: "string" } },
                   requirements_classified: {
                     type: "array",
@@ -340,6 +372,12 @@ WICHTIGE REGELN:
                   remote_days: { type: "integer", nullable: true },
                   overtime_policy: { type: "string", nullable: true },
                   daily_routine: { type: "string", nullable: true },
+                  task_focus: {
+                    type: "string",
+                    enum: ["Operativ / hands-on", "Steuernd / koordinierend",
+                           "Aufbauend / verändernd", "Führend / entwickelnd"],
+                    nullable: true,
+                  },
                   
                   // Kultur & Benefits
                   company_culture: { type: "string", nullable: true },
@@ -364,8 +402,30 @@ WICHTIGE REGELN:
                   industry: { type: "string", nullable: true },
                   company_size_estimate: { type: "string", nullable: true }
                 },
+                /*
+                  BEFUND (07.09.2026, gemessen am deployten Stand): Bei
+                  DERSELBEN Anzeige mit einem vollstaendigen Abschnitt "IHR
+                  ARBEITSALLTAG" kam `daily_routine` in einem Lauf zurueck und
+                  im naechsten gar nicht -- nicht null, sondern der Schluessel
+                  fehlte. Nullable ohne `required` heisst fuer das Modell: darf
+                  ich weglassen, und ob es weglaesst, ist Zufall. Betroffen war
+                  ausgerechnet das Feld hinter Markos wichtigster Frage
+                  ("Koennen Sie mir ein Bild des Arbeitsalltags malen?");
+                  company_culture und career_path kamen im selben Aufruf durch.
+
+                  Ein Feld, das mal da ist und mal nicht, ist schlimmer als
+                  eines, das fehlt: es sieht im Test funktionierend aus.
+
+                  Alle Briefing-Felder sind nullable. `required` zwingt also
+                  nicht zum Erfinden, sondern nur zum Antworten -- notfalls
+                  mit null.
+                */
                 required: ["title", "company_name", "skills", "must_haves", "nice_to_haves",
-                           "benefits_extracted", "unique_selling_points", "requirements_classified"]
+                           "benefits_extracted", "unique_selling_points", "requirements_classified",
+                           "daily_routine", "task_focus", "team_size", "reports_to",
+                           "core_hours", "remote_days", "overtime_policy",
+                           "company_culture", "career_path",
+                           "vacancy_reason", "hiring_urgency", "company_size_estimate"]
               }
             }
           }

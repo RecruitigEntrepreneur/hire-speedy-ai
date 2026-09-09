@@ -102,6 +102,70 @@ ${job.must_haves?.join(', ') || 'Keine Must-Haves'}
 NICE-TO-HAVES:
 ${job.nice_to_haves?.join(', ') || 'Keine Nice-to-Haves'}
 
+${[
+  '',
+  'WAS DER KUNDE SELBST GESAGT HAT:',
+  '',
+  'Alles unter dieser Ueberschrift stammt aus der Aufnahme -- der Kunde hat es',
+  'beantwortet oder bestaetigt. Es ist KEINE Vermutung. Nutze es bevorzugt vor',
+  'allem, was du aus der Beschreibung ableiten koenntest. Wo hier etwas steht,',
+  'erfinde nichts Eigenes daneben.',
+  '',
+  job.unique_selling_points?.length
+    ? `- Alleinstellungsmerkmale (WOERTLICH vom Kunden, bevorzugt fuer die Selling Points):\n  ${(Array.isArray(job.unique_selling_points) ? job.unique_selling_points : [job.unique_selling_points]).join('\n  ')}`
+    : null,
+  job.position_advantages?.length
+    ? `- Vorteile der Position, die nur ein Fachmann schaetzt:\n  ${(Array.isArray(job.position_advantages) ? job.position_advantages : [job.position_advantages]).join('\n  ')}`
+    : null,
+  job.daily_routine ? `- Arbeitsalltag: ${job.daily_routine}` : null,
+  job.task_focus ? `- Schwerpunkt der Position: ${job.task_focus}` : null,
+  job.vacancy_reason ? `- Warum die Stelle offen ist: ${job.vacancy_reason}` : null,
+  job.negative_impact_if_unfilled ? `- Was passiert, wenn sie offen bleibt: ${job.negative_impact_if_unfilled}` : null,
+  job.team_size != null ? `- Teamgroesse: ${job.team_size}` : null,
+  job.reports_to ? `- Berichtet an: ${job.reports_to}` : null,
+  job.decision_makers?.length ? `- Entscheider: ${job.decision_makers.join(', ')}` : null,
+  job.success_profile ? `- Wer hier Erfolg hat: ${job.success_profile}` : null,
+  job.failure_profile ? `- Wer hier gescheitert ist: ${job.failure_profile}` : null,
+  job.company_culture ? `- Kultur / Zusammenarbeit: ${job.company_culture}` : null,
+  job.career_path ? `- Entwicklungsmoeglichkeiten: ${job.career_path}` : null,
+  job.benefits?.length ? `- Benefits (angeklickt, nicht geraten): ${job.benefits.join(', ')}` : null,
+  /* Kategorie und Uhrzeit zusammen -- "Gleitzeit mit Kernzeit" allein
+     beantwortet die Frage des Kandidaten nicht. */
+  job.core_hours
+    ? `- Arbeitszeit: ${job.core_hours}${job.core_hours_detail ? `, ${job.core_hours_detail}` : ''}`
+    : null,
+  job.overtime_policy ? `- Ueberstunden: ${job.overtime_policy}` : null,
+  job.onsite_days_required != null ? `- Tage vor Ort pro Woche: ${job.onsite_days_required}` : null,
+  job.required_languages?.length
+    ? `- Sprachen: ${job.required_languages.map((l: Record<string, unknown>) => `${l.code} ${l.minLevel ?? ''}`.trim()).join(', ')}`
+    : null,
+  job.experience_min != null ? `- Mindesterfahrung: ${job.experience_min} Jahre` : null,
+  job.contract_creation_days != null ? `- Vom Ja bis zum Vertrag: ${job.contract_creation_days} Tage` : null,
+  job.industry_opportunities ? `- Chancen der Branche: ${job.industry_opportunities}` : null,
+  job.industry_challenges ? `- Herausforderungen der Branche: ${job.industry_challenges}` : null,
+].filter(Boolean).join('\n')}
+
+${job.employment_type === 'freelance' ? [
+  'CONTRACTING -- DIESE STELLE IST KEINE FESTANSTELLUNG:',
+  '',
+  'Schreibe NIEMALS von Gehalt, Jahresgehalt, Karrierepfad, Benefits im Sinne',
+  'von Urlaub oder Altersvorsorge, unbefristeter Anstellung oder langfristiger',
+  'Entwicklung. Die Leitwaehrung ist der Tagessatz, die Leitgroesse die',
+  'Laufzeit. Formuliere die Selling Points fuer einen Freiberufler: Technik,',
+  'Referenz, Entscheidungsspielraum, Aussicht auf Anschluss.',
+  '',
+  job.day_rate_min || job.day_rate_max
+    ? `- Tagessatz: ${job.day_rate_min ? `${job.day_rate_min} EUR` : 'k.A.'} bis ${job.day_rate_max ? `${job.day_rate_max} EUR` : 'k.A.'}`
+    : '- Tagessatz: nicht angegeben -- erfinde KEINEN und schreibe auch keine Floskel wie "wettbewerbsfaehig"',
+  job.contract_duration_months != null ? `- Laufzeit: ${job.contract_duration_months} Monate` : null,
+  job.utilization_days_per_week != null ? `- Auslastung: ${job.utilization_days_per_week} Tage pro Woche` : null,
+  typeof job.extension_possible === 'boolean'
+    ? `- Verlaengerung: ${job.extension_possible ? 'moeglich' : 'nicht vorgesehen'}` : null,
+  job.contract_sensitive_topics?.length
+    ? `- Sensible Vertragsthemen: ${(Array.isArray(job.contract_sensitive_topics) ? job.contract_sensitive_topics : [job.contract_sensitive_topics]).join(', ')}`
+    : null,
+].filter(Boolean).join('\n') : ''}
+
 Erstelle eine ansprechende Formatierung mit:
 1. Eine catchy Headline (max 60 Zeichen) - OHNE Firmennamen!
 2. 3-4 Key Highlights (kurze Bulletpoints, die Recruiter ansprechen)

@@ -66,7 +66,11 @@
  */
 
 export type BriefLevel = 'company' | 'position' | 'process';
-export type BriefForm = 'chips' | 'multi' | 'range' | 'number' | 'date' | 'text' | 'ai';
+/**
+ * `short` ist eine einzeilige Eingabe: eine Uhrzeitspanne ist kein Aufsatz,
+ * und ein zweizeiliges Textfeld daneben laedt zu einem ein.
+ */
+export type BriefForm = 'chips' | 'multi' | 'range' | 'number' | 'date' | 'short' | 'text' | 'ai';
 export type RevealClass = 'safe' | 'gated';
 export type BriefSource = 'ad' | 'enrich' | 'inherit' | 'derive';
 
@@ -78,7 +82,7 @@ export type BriefSource = 'ad' | 'enrich' | 'inherit' | 'derive';
  *   dashboard                  — gar nicht in der Aufnahme (aendert sich waehrend der Suche)
  */
 export type BriefPlace =
-  | 'eckdaten' | 'verguetung' | 'skills' | 'arbeitszeit' | 'dialog' | 'dashboard';
+  | 'firma' | 'eckdaten' | 'verguetung' | 'skills' | 'arbeitszeit' | 'dialog' | 'dashboard';
 
 /** Wie der Wert in die Spalte geschrieben wird. */
 export type BriefStore = 'text' | 'number' | 'array' | 'json' | 'bool' | 'range';
@@ -99,7 +103,17 @@ export interface BriefSlot {
   weight: 1 | 2 | 3;
   reveal: RevealClass;
   sources: BriefSource[];
-  askIf?: { key: string; equals: string };
+  /**
+   * Zeigen, wenn die andere Zeile diesen CHIP-TEXT traegt (nicht den
+   * Speicherwert). Eine Liste heisst "einer davon" -- die Kernzeit-Nachfrage
+   * gilt fuer drei Antworten, und drei fast gleiche Zeilen mit je einer
+   * Bedingung waeren dieselbe Regel dreimal.
+   */
+  askIf?: { key: string; equals: string | string[] };
+  /** Umkehrung: Zeile nur zeigen, wenn die andere NICHT so beantwortet ist. */
+  askIfNot?: { key: string; equals: string | string[] };
+  /** Beispiel im leeren Feld. Nur fuer `short`/`text` sinnvoll. */
+  placeholder?: string;
   only?: 'full-time' | 'freelance';
   /**
    * Ohne diese Zeile geht es nicht weiter zu den Kontaktdaten.
@@ -115,6 +129,20 @@ export interface BriefSlot {
    * Empfehlung und laesst sich nachreichen.
    */
   blocksSubmit?: boolean;
+  /**
+   * Diese Zeile wird LINKS im Formular gerendert, nicht im Katalog.
+   *
+   * Vorher stand dafuer eine fest verdrahtete Zweierliste in CatalogFields
+   * (`salary_range || day_rate_range`). Jede weitere Formularzeile, die in den
+   * Katalog aufgenommen wurde, waere damit doppelt auf dem Bildschirm
+   * gelandet. Der Katalog spiegelt sie ueber knownFromForm und zaehlt sie in
+   * der Vollstaendigkeit mit -- er erhebt sie nur nicht noch einmal.
+   */
+  imFormular?: boolean;
+  /** Contracting-Fassung von Beschriftung und Auswahl. */
+  labelFreelance?: string;
+  chipsFreelance?: string[];
+  chipValuesFreelance?: Record<string, string | number | boolean>;
 }
 
 export interface BriefQuestion {
@@ -127,8 +155,38 @@ export interface BriefQuestion {
   intro?: string;
   /** MARKOS WORTLAUT. Nicht aendern. */
   text: string;
-  /** Anweisung unter der Frage. `{n}` wird durch die Anzahl ersetzt. */
-  hinweis?: string;
+  /**
+   * Kurzfassung fuer ein FORMULAR.
+   *
+   * Markos `text` ist fuer das Telefonat geschrieben und traegt dort seinen
+   * Vorspann ("basierend auf dem, was wir gerade besprochen haben"). Ueber
+   * einer statischen Liste behauptet dieser Satz ein Gespraech, das nicht
+   * stattgefunden hat -- und 62 Woerter ueber zwei Listenzeilen sind eine
+   * Wand. Wo eine Katalogfrage links als Formular steht, rendert die
+   * Oberflaeche `kurz`; `text` und `intro` bleiben unangetastet, weil sie im
+   * Gespraech gelten.
+   */
+  kurz?: string;
+  /**
+   * Contracting-Fassung von `text` bzw. `kurz`.
+   *
+   * BEFUND (08.09.2026, Durchklick): Der Contracting-Zweig unterschied
+   * strukturell (24 statt 26 Angaben, `only` auf Slot-Ebene), aber der
+   * WORTLAUT blieb Festanstellung. Einem Projektleiter, der einen
+   * Freiberufler fuer neun Monate sucht, stand woertlich da: "Wer hat
+   * LANGFRISTIG Erfolg bei Ihnen IM UNTERNEHMEN", "Welche Schritte
+   * unternehmen Sie, um Mitarbeiter zu foerdern, insbesondere
+   * Gehaltsentwicklung und Karrierechancen", "Wie ist der ARBEITSVERTRAG
+   * gestaltet".
+   *
+   * Ein zweiter Katalog waere der Anfang von zwei Wahrheiten. Deshalb
+   * Ueberschreibungen an derselben Zeile: wo nichts steht, gilt Markos
+   * Wortlaut fuer beide Welten.
+   */
+  textFreelance?: string;
+  kurzFreelance?: string;
+  /** Ganze Frage nur fuer diese Vertragsart. */
+  only?: 'full-time' | 'freelance';
   why: string;
   slots: BriefSlot[];
 }
@@ -136,6 +194,93 @@ export interface BriefQuestion {
 /* ==================================================================== *
  * LINKS — WERTE. Markos Wortlaut wird zur Beschriftung.
  * ==================================================================== */
+
+/**
+ * Jedes Groessensignal auf die fuenf Banden des Katalogs.
+ *
+ * BEFUND (07.09.2026): Die Mitarbeiterzahl liegt an DREI Stellen vor, bevor
+ * irgendjemand fragt -- im Impressum (`Anreicherung.headcount`), im Link bzw.
+ * Entwurf (`company_size`) und in der Anzeige (`company_size_estimate`). Alle
+ * drei kamen in unterschiedlicher Form: Zahl, "51-200", "Konzern". Keine
+ * einzige wurde uebernommen; `company_size_band` blieb leer, und der
+ * Headhunter las in seinem Expose "Unternehmensgroesse: Nicht angegeben".
+ *
+ * Eine Spanne wird ueber ihre Mitte eingeordnet: "200-500" ist ein
+ * 350-Personen-Haus, nicht ein 200er. Ein offenes Ende ("1000+", "mehr als
+ * 500") zaehlt eine Person darueber, damit es in die naechsthoehere Bande
+ * faellt statt auf der Grenze zu sitzen.
+ */
+export const GROESSENBANDEN = ['bis 50', '50–250', '250–1.000', '1.000–5.000', 'mehr als 5.000'] as const;
+
+export function sizeBand(signal: number | string | null | undefined): string | null {
+  if (signal === null || signal === undefined) return null;
+  const text = String(signal).trim();
+  if (!text) return null;
+
+  const zahlen = (text.match(/\d[\d.']*/g) ?? [])
+    .map((z) => Number(z.replace(/[.']/g, '')))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  let n: number | null = null;
+  if (zahlen.length >= 2) n = (zahlen[0] + zahlen[1]) / 2;
+  else if (zahlen.length === 1) n = zahlen[0];
+
+  if (n !== null) {
+    if (/\+|mehr als|ueber |über |ab /i.test(text)) n += 1;
+    if (n <= 50) return GROESSENBANDEN[0];
+    if (n <= 250) return GROESSENBANDEN[1];
+    if (n <= 1000) return GROESSENBANDEN[2];
+    if (n <= 5000) return GROESSENBANDEN[3];
+    return GROESSENBANDEN[4];
+  }
+
+  // Freitext ohne Zahl. Nur was eindeutig ist -- lieber nichts vorschlagen als
+  // etwas Falsches, das der Kunde dann wegklicken muss.
+  const t = text.toLowerCase();
+  if (/start-?up|gr(ue|ü)ndung/.test(t)) return GROESSENBANDEN[0];
+  if (/konzern|enterprise|gro(ss|ß)unternehmen/.test(t)) return GROESSENBANDEN[4];
+  /* "Mittelstand" steht hier bewusst NICHT. Gemessen am 07.09.2026: eine
+     Anzeige mit "340 Mitarbeitenden" wurde vom Parser als "Mittelstand"
+     zurueckgegeben, und die Zuordnung auf "50-250" schlug einen falschen
+     Wert vor, den der Kunde bestaetigt haette. Der deutsche Mittelstand
+     reicht von 50 bis ueber 3.000 -- das ist keine Bande. */
+  return null;
+}
+
+/**
+ * Die eine Frage, die im Firmenblock steht.
+ *
+ * Sie war vorher als `NUR_ANREICHERN` deklariert -- ein Export, den nichts
+ * importierte. Der Kommentar behauptete "der Kunde bestaetigt sie im
+ * Firmenblock"; tatsaechlich gab es dort kein Feld dafuer. Die Zahl aus dem
+ * Impressum stand in der Vorschlagsliste, wurde beim Uebernehmen verworfen,
+ * und `company_size_band` blieb leer -- eine Spalte, die in
+ * recruiter_jobs_view steht und die format-job-for-recruiters als
+ * "Unternehmensgroesse: Nicht angegeben" ausgibt.
+ *
+ * Jetzt ist sie eine Frage wie jede andere: vorausgefuellt aus Impressum,
+ * Link oder Anzeige, mit der Herkunft daneben, und der Kunde bestaetigt oder
+ * korrigiert sie mit einem Klick.
+ */
+const FIRMA: BriefQuestion[] = [
+  {
+    key: 'firmengroesse',
+    place: 'firma',
+    level: 'company',
+    order: 5,
+    chapter: 'Unternehmen',
+    text: 'Wie viele Mitarbeiter beschäftigen Sie aktuell?',
+    why: 'Der Kandidat fragt es im ersten Gespräch, und der Recruiter braucht es für die Ansprache.',
+    slots: [
+      {
+        key: 'company_size_band', label: 'Mitarbeitende', form: 'chips',
+        chips: [...GROESSENBANDEN],
+        column: 'company_size_band', store: 'text',
+        required: false, weight: 2, reveal: 'safe', sources: ['ad', 'enrich', 'inherit'],
+      },
+    ],
+  },
+];
 
 const LINKS: BriefQuestion[] = [
   {
@@ -153,7 +298,7 @@ const LINKS: BriefQuestion[] = [
         key: 'salary_range', label: 'Gehalt von / bis (€)', form: 'range',
         column: 'salary_min', store: 'range',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'full-time',
-        blocksSubmit: true,
+        blocksSubmit: true, imFormular: true,
       },
       // Das Gegenstueck fuer Contracting. Es fehlte, obwohl knownFromForm den
       // Wert schon spiegelte -- ein toter Schluessel: der Tagessatz wurde in
@@ -164,7 +309,36 @@ const LINKS: BriefQuestion[] = [
         key: 'day_rate_range', label: 'Tagessatz von / bis (€)', form: 'range',
         column: 'day_rate_min', store: 'range',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'freelance',
-        blocksSubmit: true,
+        blocksSubmit: true, imFormular: true,
+      },
+      /*
+        BEFUND (08.09.2026): Diese drei hatten Spalten in `jobs`, Eingabefelder
+        im Formular -- und keinen Katalogeintrag. Sie zaehlten in keiner
+        Vollstaendigkeit mit und sperrten nichts. Ein Contracting-Briefing galt
+        als fertig, sobald der Tagessatz dastand: ohne Laufzeit, ohne
+        Auslastung. Beides gehoert nach der Marktlage zu den Angaben, an denen
+        ein Freiberufler eine Anfrage annimmt oder ablehnt.
+      */
+      {
+        key: 'contract_duration_months', label: 'Laufzeit (Monate)', form: 'number',
+        column: 'contract_duration_months', store: 'number',
+        required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'freelance',
+        blocksSubmit: true, imFormular: true,
+      },
+      {
+        key: 'utilization_days_per_week', label: 'Auslastung (Tage pro Woche)', form: 'number',
+        column: 'utilization_days_per_week', store: 'number',
+        required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'freelance',
+        blocksSubmit: true, imFormular: true,
+      },
+      {
+        // Nicht sperrend: die Verlaengerung ist das staerkste Argument fuer den
+        // Freiberufler, aber eine Aufnahme ohne sie ist trotzdem vermittelbar.
+        key: 'extension_possible', label: 'Verlängerung möglich', form: 'chips',
+        chips: ['Ja', 'Nein'], chipValues: { Ja: true, Nein: false },
+        column: 'extension_possible', store: 'bool',
+        required: false, weight: 2, reveal: 'safe', sources: ['ad'], only: 'freelance',
+        imFormular: true,
       },
       {
         key: 'salary_months', label: 'Wie viele Monatsgehälter gibt es?', form: 'chips',
@@ -173,11 +347,24 @@ const LINKS: BriefQuestion[] = [
         column: 'salary_months', store: 'number',
         required: true, weight: 2, reveal: 'safe', sources: ['inherit'], only: 'full-time',
       },
+      // Ein Bonus ist keine Erzaehlung, sondern eine Zahl und eine
+      // Bezugsgroesse. Als Textfeld stand hier ein grosser Schreibkasten
+      // mitten im Verguetungsblock -- zwei Klicks liefern dieselbe Auskunft
+      // strukturierter, und der Block bleibt eine Uebersicht.
       {
-        key: 'bonus_structure',
-        label: 'Gibt es einen Bonus, wenn ja was ist der variable Anteil? (wovon ist dieser abhängig)',
-        form: 'text', column: 'bonus_structure', store: 'text',
+        key: 'bonus_structure', label: 'Gibt es einen Bonus?', form: 'chips',
+        chips: ['Nein', 'bis 10 %', 'bis 20 %', 'mehr als 20 %'],
+        column: 'bonus_structure', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['inherit'], only: 'full-time',
+      },
+      {
+        key: 'bonus_basis', label: 'Wovon hängt er ab?', form: 'multi',
+        chips: ['Unternehmensergebnis', 'Persönliche Ziele', 'Teamziele', 'Umsatz'],
+        // Faellt beim Abbilden mit bonus_structure in eine Textzeile zusammen --
+        // eine eigene Spalte waere fuer diese Detailtiefe zu viel.
+        column: null, store: 'text',
+        required: false, weight: 1, reveal: 'safe', sources: [], only: 'full-time',
+        askIfNot: { key: 'bonus_structure', equals: 'Nein' },
       },
     ],
   },
@@ -189,19 +376,9 @@ const LINKS: BriefQuestion[] = [
     chapter: 'Skills',
     intro: 'Basierend auf dem, was wir gerade besprochen haben in Bezug auf Arbeitsalltag und Herausforderungen:',
     text: 'Welche 3 Kriterien muss der Kandidat erfüllen, damit Sie ihn direkt produktiv einsetzen können und 100 % kennenlernen wollen?',
-    /**
-     * Die Anweisung UNTER der Frage.
-     *
-     * Markos Frage nennt drei -- die Liste darunter zeigt aber alles, was der
-     * Parser aus der Anzeige gelesen hat, oft sieben oder acht. Ohne diesen
-     * Satz stuende eine Frage nach drei Kriterien ueber acht Zeilen, und der
-     * Kunde wuesste nicht, was er mit dem Rest tun soll.
-     * `{n}` wird durch die tatsaechliche Zahl ersetzt.
-     */
-    hinweis:
-      'Wir haben {n} Kriterien aus Ihrer Anzeige gelesen. Stufen Sie jedes ein — '
-      + 'was davon ist unverzichtbar, was verhandelbar, und was kann jemand bei '
-      + 'Ihnen noch lernen?',
+    // Im Formular reicht das. Die drei Knoepfe heissen "unverzichtbar",
+    // "verhandelbar" und "lernbar" -- sie erklaeren sich selbst.
+    kurz: 'Wie hart ist jedes dieser Kriterien?',
     why: 'Macht aus einer Wunschliste eine Suchvorgabe. Alles andere ist verhandelbar.',
     slots: [
       // KEINE zweite Liste. Der Kunde markiert drei der Muss-Chips, die aus
@@ -225,6 +402,7 @@ const LINKS: BriefQuestion[] = [
     order: 30,
     chapter: 'Eckdaten',
     text: 'Wie strukturiert sich die Abteilung von der Position?',
+    textFreelance: 'Wie ist das Projektteam aufgestellt, und wer arbeitet noch extern mit?',
     why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
     slots: [
       {
@@ -236,6 +414,7 @@ const LINKS: BriefQuestion[] = [
       },
       {
         key: 'remote_days', label: 'Homeoffice-Tage pro Woche', form: 'chips',
+        labelFreelance: 'Tage remote pro Woche',
         chips: ['0', '1', '2', '3', 'frei wählbar'],
         chipValues: { '0': 0, '1': 1, '2': 2, '3': 3, 'frei wählbar': 5 },
         // Schreibt onsite_days_required (5 minus Homeoffice-Tage). Diese
@@ -245,7 +424,11 @@ const LINKS: BriefQuestion[] = [
         required: true, weight: 3, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
+        // Ein Dienstvertrag hat eine Laufzeit -- sie steht im Konditionsblock
+        // direkt darunter. Die Frage stand im Contracting bis 08.09.2026
+        // unmittelbar ueber "KONDITIONEN (CONTRACTING)".
         key: 'contract_limitation', label: 'Ist der Vertrag unbefristet?', form: 'chips',
+        only: 'full-time',
         chips: ['Unbefristet', 'Befristet mit Aussicht', 'Befristet', 'Projektvertrag'],
         chipValues: {
           'Unbefristet': 'unbefristet', 'Befristet mit Aussicht': 'befristet_mit_aussicht',
@@ -263,16 +446,48 @@ const LINKS: BriefQuestion[] = [
     order: 40,
     chapter: 'Arbeitszeit & Prozess',
     text: 'Wie gestalten sich die Arbeitszeiten (Kernarbeitszeit) im Unternehmen? Wie gehen Sie mit Homeoffice und Überstunden um?',
+    textFreelance: 'Wie frei teilt sich die Person die Zeit ein — und wie weisen Sie die Leistung nach?',
     why: 'Der häufigste Absagegrund im Endspurt — Kandidaten fragen früh danach.',
     slots: [
       {
         key: 'core_hours', label: 'Kernarbeitszeit', form: 'chips',
         chips: ['Gleitzeit ohne Kernzeit', 'Gleitzeit mit Kernzeit', 'Feste Arbeitszeiten', 'Vertrauensarbeitszeit', 'Schichtbetrieb'],
+        labelFreelance: 'Anwesenheit',
+        chipsFreelance: ['Frei einteilbar', 'Feste Termine, sonst frei',
+                         'Kernzeiten einzuhalten', 'Schicht- oder Dienstplan'],
         column: 'core_hours', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['ad', 'inherit'],
       },
       {
+        /**
+         * "Gleitzeit mit Kernzeit" ist keine Auskunft, es ist eine Kategorie.
+         * Der Kandidat fragt nach der Uhrzeit, und der Recruiter stand bisher
+         * ohne da. Gefragt wird nur, wo es eine Uhrzeit ZU nennen gibt:
+         * Vertrauensarbeitszeit und Gleitzeit ohne Kernzeit haben keine, dort
+         * waere die Zeile eine Frage nach etwas, das es nicht gibt.
+         *
+         * Verglichen wird gegen den Chip-TEXT, deshalb stehen die Antworten
+         * beider Vertragsarten in derselben Liste -- bei Contracting heissen
+         * dieselben Faelle anders.
+         */
+        key: 'core_hours_detail', label: 'Von wann bis wann?', form: 'short',
+        placeholder: 'z. B. 09:00–15:00',
+        labelFreelance: 'Welche Zeiten genau?',
+        column: 'core_hours_detail', store: 'text',
+        required: false, weight: 1, reveal: 'safe', sources: ['ad', 'inherit'],
+        askIf: {
+          key: 'core_hours',
+          equals: [
+            'Gleitzeit mit Kernzeit', 'Feste Arbeitszeiten', 'Schichtbetrieb',
+            'Kernzeiten einzuhalten', 'Feste Termine, sonst frei', 'Schicht- oder Dienstplan',
+          ],
+        },
+      },
+      {
+        // Beim Tagessatz gibt es keine Ueberstunden -- Mehraufwand ist eine
+        // Frage des Satzes, nicht der Regelung.
         key: 'overtime_policy', label: 'Überstunden werden …', form: 'chips',
+        only: 'full-time',
         chips: ['ausgeglichen (Freizeit)', 'ausgezahlt', 'mit dem Gehalt abgegolten', 'fallen kaum an'],
         column: 'overtime_policy', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
@@ -280,6 +495,8 @@ const LINKS: BriefQuestion[] = [
       {
         key: 'time_tracking_method', label: 'Wie wird die Zeit erfasst in Ihrem Unternehmen?', form: 'chips',
         chips: ['digital', 'selbst aufgeschrieben', 'Stempeluhr', 'gar nicht'],
+        labelFreelance: 'Wie wird die Leistung nachgewiesen?',
+        chipsFreelance: ['Timesheet digital', 'Timesheet auf Papier', 'Monatsbericht', 'Keine Erfassung'],
         column: 'time_tracking_method', store: 'text',
         required: false, weight: 1, reveal: 'safe', sources: ['inherit'],
       },
@@ -287,6 +504,9 @@ const LINKS: BriefQuestion[] = [
   },
   {
     key: 'gremien',
+    // Ein Freiberufler unterliegt keiner Mitbestimmung -- und ein
+    // Projektleiter weiss ohnehin nicht, wann das Gremium tagt.
+    only: 'full-time',
     place: 'arbeitszeit',
     level: 'company',
     order: 50,
@@ -351,11 +571,17 @@ const GESPRAECH: BriefQuestion[] = [
     order: 10,
     chapter: 'Timing & Vertrag',
     text: 'Warum ist die Stelle vakant? Bis wann muss sie besetzt sein und welche negativen Auswirkungen könnte es haben, falls sie länger offenbleibt?',
+    textFreelance: 'Warum brauchen Sie die Kapazität von außen? Ab wann — und was passiert, wenn niemand da ist?',
     why: 'Bestimmt Story, Dringlichkeit und Risiko — und steht in keiner Anzeige.',
     slots: [
       {
         key: 'vacancy_reason', label: 'Warum vakant', form: 'chips',
         chips: ['Wachstum / neu geschaffen', 'Nachbesetzung', 'Ablösung', 'Elternzeit-Vertretung', 'Nachfolge / Ruhestand'],
+        // Die KI-Nachfrage hat den Fehler selbst gemeldet: sie erkannte
+        // "Neues Projekt" und fand keinen Chip dafuer.
+        labelFreelance: 'Warum von außen',
+        chipsFreelance: ['Neues Projekt', 'Lastspitze', 'Ausfall überbrücken',
+                         'Know-how fehlt intern', 'Bis zur Festbesetzung'],
         column: 'vacancy_reason', store: 'text',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'],
       },
@@ -366,7 +592,17 @@ const GESPRAECH: BriefQuestion[] = [
         required: true, weight: 2, reveal: 'safe', sources: ['ad'],
       },
       {
-        key: 'negative_impact_if_unfilled', label: 'Negative Auswirkungen bei Verzug', form: 'ai',
+        key: 'negative_impact_if_unfilled', label: 'Negative Auswirkungen bei Verzug',
+        chipsFreelance: ['Der Termin beim Kunden wackelt', 'Wir zahlen extern teurer dazu',
+                         'Das Projekt verzögert sich', 'Die Anlage geht später in Betrieb',
+                         'Interne Leute werden abgezogen'], form: 'ai',
+        chips: [
+          'Die Arbeit bleibt am Team hängen',
+          'Wir zahlen extern dazu',
+          'Projekte verzögern sich',
+          'Das Team ist ohne Leitung',
+          'Abschlüsse geraten in Verzug',
+        ],
         column: 'negative_impact_if_unfilled', store: 'text',
         required: true, weight: 2, reveal: 'gated', sources: [],
       },
@@ -413,6 +649,9 @@ const GESPRAECH: BriefQuestion[] = [
       {
         key: 'reports_to', label: 'Berichtet an', form: 'chips',
         chips: ['Geschäftsführung', 'Bereichsleitung', 'Abteilungsleitung', 'Teamleitung'],
+        // Im Projektgeschaeft berichtet niemand an eine Hierarchieebene. Die
+        // KI hatte "Projektleiter Automatisierung" erkannt und fand nichts.
+        chipsFreelance: ['Projektleitung', 'Fachbereichsleitung', 'Bereichsleitung', 'Geschäftsführung'],
         column: 'reports_to', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['ad', 'derive'],
       },
@@ -431,15 +670,42 @@ const GESPRAECH: BriefQuestion[] = [
     order: 40,
     chapter: 'Arbeitsmodell & Kultur',
     text: 'Welche Art Mensch hat langfristig Erfolg bei Ihnen im Unternehmen, oder einfacher gesagt: wer hatte in der Vergangenheit keinen Erfolg?',
+    textFreelance: 'Was macht einen Externen bei Ihnen erfolgreich — und woran ist schon einer gescheitert?',
     why: 'Beschreibt den Menschen, nach dem gesucht wird — und erspart Gespräche, die nicht enden können.',
     slots: [
       {
         key: 'success_profile', label: 'Hat langfristig Erfolg', form: 'ai',
+        labelFreelance: 'Liefert bei uns',
+        chipsFreelance: [
+          'Liefert ab Tag eins ohne Einarbeitung',
+          'Holt die Fachbereiche ab',
+          'Dokumentiert für die Übergabe',
+          'Arbeitet selbstständig ohne Rückfragen',
+        ],
+        chips: [
+          'Packt selbst an',
+          'Kommt aus dem Mittelstand',
+          'Arbeitet gern eigenverantwortlich',
+          'Sucht kurze Wege statt Prozess',
+        ],
         column: 'success_profile', store: 'text',
         required: true, weight: 3, reveal: 'safe', sources: ['inherit'],
       },
       {
         key: 'failure_profile', label: 'Hatte keinen Erfolg', form: 'ai',
+        labelFreelance: 'Hat bei uns nicht funktioniert',
+        chipsFreelance: [
+          'Brauchte zu lange bis zur Produktivität',
+          'Hat beraten statt umgesetzt',
+          'Hinterließ keine Dokumentation',
+          'Kam mit unseren Prozessen nicht zurecht',
+        ],
+        chips: [
+          'Wartet auf Anweisungen',
+          'Kam aus dem Konzern und vermisste Zuarbeit',
+          'Zu wenig Hands-on',
+          'Passte menschlich nicht ins Team',
+        ],
         column: 'failure_profile', store: 'text',
         required: true, weight: 3, reveal: 'safe', sources: ['inherit', 'derive'],
       },
@@ -452,15 +718,36 @@ const GESPRAECH: BriefQuestion[] = [
     order: 50,
     chapter: 'Sell & Story (EVP)',
     text: 'Welche Alleinstellungsmerkmale können Sie als Unternehmen anbieten und welche Vorteile bietet die Position selbst, die möglicherweise nur ein Experte zu schätzen weiß, wie zum Beispiel keine Kaltakquise bei Vertriebspositionen?',
+    textFreelance: 'Was macht dieses Projekt attraktiv — Technik, Referenz, oder die Aussicht auf Anschluss?',
     why: 'Das Argument, mit dem der Recruiter jemanden überzeugt, der gar nicht sucht.',
     slots: [
       {
         key: 'unique_selling_points', label: 'Alleinstellungsmerkmale des Unternehmens', form: 'ai',
+        labelFreelance: 'Was das Projekt attraktiv macht',
+        chipsFreelance: [
+          'Moderne Technik statt Altbestand',
+          'Referenzfähiges Vorhaben',
+          'Klarer Auftrag, keine Politik',
+          'Aussicht auf Anschlussprojekte',
+        ],
         column: 'unique_selling_points', store: 'array',
         required: true, weight: 2, reveal: 'gated', sources: ['ad', 'inherit'],
       },
       {
         key: 'position_advantages', label: 'Vorteile der Position, die nur ein Experte schätzt', form: 'ai',
+        labelFreelance: 'Was nur ein Fachmann zu schätzen weiß',
+        chipsFreelance: [
+          'Entscheidungen ohne Gremienschleife',
+          'Zugriff auf die Systeme ab Tag eins',
+          'Fachlich sauber aufgesetztes Projekt',
+          'Ansprechpartner mit Entscheidungsbefugnis',
+        ],
+        chips: [
+          'Volle Verantwortung statt Zuarbeit',
+          'Direkter Draht zur Geschäftsführung',
+          'Aufbau statt Verwaltung',
+          'Moderne Systeme im Einsatz',
+        ],
         column: 'position_advantages', store: 'array',
         required: true, weight: 2, reveal: 'gated', sources: [],
       },
@@ -473,10 +760,23 @@ const GESPRAECH: BriefQuestion[] = [
     order: 60,
     chapter: 'Arbeitsmodell & Kultur',
     text: 'Wie beschreiben Sie Ihre Unternehmenskultur?',
+    // Ein Externer auf zwoelf Monate wird nicht Teil der Kultur -- er muss
+    // wissen, wie die Zusammenarbeit laeuft. Und die Frage stand bisher als
+    // einzige ganz ohne Startvorschlag da; im Testlauf begann die Antwort
+    // eines Projektleiters mit "Schwer zu sagen."
+    textFreelance: 'Wie arbeitet man bei Ihnen zusammen — worauf sollte sich ein Externer einstellen?',
     why: 'Der Recruiter muss sie glaubhaft schildern, ohne die Firma zu nennen.',
     slots: [
       {
         key: 'company_culture', label: 'Unternehmenskultur', form: 'ai',
+        labelFreelance: 'Zusammenarbeit im Projekt',
+        chipsFreelance: [
+          'Kurze Wege, wenig Abstimmung',
+          'Feste Termine, klare Zuständigkeiten',
+          'Konzernprozesse, viele Beteiligte',
+          'Wir siezen uns',
+          'Wir duzen uns',
+        ],
         column: 'company_culture', store: 'text',
         required: true, weight: 2, reveal: 'gated', sources: ['ad', 'inherit'],
       },
@@ -484,6 +784,9 @@ const GESPRAECH: BriefQuestion[] = [
   },
   {
     key: 'foerderung',
+    // Es gibt keine Laufbahn auf neun Monate. Die Frage stand im Contracting
+    // mit vollem Wortlaut da: "Gehaltsentwicklung und Karrierechancen".
+    only: 'full-time',
     place: 'dialog',
     level: 'company',
     order: 70,
@@ -510,11 +813,16 @@ const GESPRAECH: BriefQuestion[] = [
     order: 80,
     chapter: 'Timing & Vertrag',
     text: 'Wie ist der Arbeitsvertrag gestaltet? Gibt es möglicherweise Themen darin, die sensibel sind oder die Kandidaten abschrecken könnten?',
+    textFreelance: 'Wie ist der Dienstvertrag gestaltet? Gibt es Klauseln, die Freiberufler abschrecken?',
     why: 'Besser der Recruiter weiß es vorher, als der Kandidat springt beim Unterschreiben ab.',
     slots: [
       {
         key: 'contract_sensitive_topics', label: 'Sensible Themen', form: 'multi',
         chips: ['Nichts davon', 'Wettbewerbsverbot', 'Rückzahlungsklausel (Weiterbildung)', 'Bereitschaftsdienst', 'Reisepflicht'],
+        // Eine Rueckzahlungsklausel fuer Weiterbildung gibt es beim
+        // Dienstvertrag nicht; dafuer Haftung und Vor-Ort-Pflicht.
+        chipsFreelance: ['Nichts davon', 'Wettbewerbsverbot', 'Haftung / Versicherungsnachweis',
+                         'Vor-Ort-Pflicht ohne Ausnahme', 'Reisepflicht'],
         column: 'contract_sensitive_topics', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: [],
       },
@@ -578,31 +886,147 @@ export const DASHBOARD_FRAGEN: BriefQuestion[] = [
   },
 ];
 
-export const BRIEF_QUESTIONS: BriefQuestion[] = [...LINKS, ...GESPRAECH];
+export const BRIEF_QUESTIONS: BriefQuestion[] = [...FIRMA, ...LINKS, ...GESPRAECH];
 
 /** Nur das Gespraech rechts. */
 export const DIALOG_QUESTIONS = GESPRAECH;
 
 /** Die Bloecke links, je Ort. */
-export const questionsAt = (place: BriefPlace) =>
-  BRIEF_QUESTIONS.filter((q) => q.place === place).sort((a, b) => a.order - b.order);
+export type Vertrag = 'full-time' | 'freelance';
+
+/* ------------------------------------------------------------------ *
+ * Vertragsart-Aufloesung
+ *
+ * Alle Oberflaechen lesen Fragetext, Beschriftung und Auswahl ueber diese
+ * vier Funktionen -- nie direkt ueber `q.text` oder `s.chips`. Sonst faellt
+ * die Contracting-Fassung an genau der einen Stelle durch, die man vergisst.
+ * ------------------------------------------------------------------ */
+
+export const frageText = (q: BriefQuestion, c: Vertrag) =>
+  (c === 'freelance' && q.textFreelance) || q.text;
+
+export const frageKurz = (q: BriefQuestion, c: Vertrag) =>
+  (c === 'freelance' && (q.kurzFreelance ?? q.textFreelance)) || q.kurz;
+
+export const slotLabel = (s: BriefSlot, c: Vertrag) =>
+  (c === 'freelance' && s.labelFreelance) || s.label;
+
+export const slotChips = (s: BriefSlot, c: Vertrag) =>
+  (c === 'freelance' && s.chipsFreelance) || s.chips;
+
+export const slotChipWert = (s: BriefSlot, c: Vertrag, chip: string) => {
+  const werte = (c === 'freelance' && s.chipValuesFreelance) || s.chipValues;
+  return werte?.[chip] ?? chip;
+};
+
+export const questionsAt = (place: BriefPlace, contract: Vertrag = 'full-time') =>
+  BRIEF_QUESTIONS
+    .filter((q) => q.place === place && (!q.only || q.only === contract))
+    .sort((a, b) => a.order - b.order);
 
 export const ALL_SLOTS = [...BRIEF_QUESTIONS, ...DASHBOARD_FRAGEN].flatMap((q) =>
-  q.slots.map((s) => ({ ...s, question: q.key, place: q.place, level: q.level })),
+  // Eine Zeile erbt die Vertragsart ihrer Frage. Sonst saehe eine Auswertung
+  // ueber ALL_SLOTS die Betriebsratszeilen als fuer beide Welten gueltig an,
+  // obwohl die ganze Frage im Contracting entfaellt.
+  q.slots.map((s) => ({
+    ...s, only: s.only ?? q.only, question: q.key, place: q.place, level: q.level,
+  })),
 );
 
+/* ==================================================================== *
+ * Chip-Treffer
+ * ==================================================================== */
+
 /**
- * Wird nur angereichert, nie gefragt: die Mitarbeiterzahl holen wir aus dem
- * Impressum, der Kunde bestaetigt sie im Firmenblock.
+ * Freitext auf das Chip-Vokabular eines Slots -- oder gar nicht.
+ *
+ * BEFUND (07.09.2026, Durchklick): Der Parser liefert Saetze, die Chips
+ * tragen ein festes Vokabular. Aus "Nachfolge fuer unseren langjaehrigen
+ * Konstruktionsleiter, der in den Ruhestand geht" wurde ein Wert, den kein
+ * Chip traf. Auf dem Bildschirm stand dann "aus der Anzeige gelesen -- bitte
+ * pruefen" ueber fuenf unmarkierten Chips: der Kunde soll etwas pruefen, das
+ * er nicht sieht. Schlimmer noch zaehlte `hatWert` die Zeile als gefuellt.
+ *
+ * Dieselbe Stelle betraf `core_hours` und `overtime_policy`. Deshalb keine
+ * Einzelfallpflaster, sondern eine Regel: ein Wert fuer einen Chip-Slot muss
+ * einen Chip treffen, sonst wird er verworfen. Lieber eine leere Frage als
+ * eine, die faelschlich als beantwortet gilt.
  */
-export const NUR_ANREICHERN: BriefSlot[] = [
-  {
-    key: 'company_size_band', label: 'Wie viele Mitarbeiter beschäftigen Sie aktuell?',
-    form: 'chips', chips: ['bis 50', '50–250', '250–1.000', '1.000–5.000', 'mehr als 5.000'],
-    column: 'company_size_band', store: 'text',
-    required: false, weight: 2, reveal: 'safe', sources: ['ad', 'enrich', 'inherit'],
-  },
-];
+const SCHLAGWORTE: Record<string, [RegExp, string][]> = {
+  vacancy_reason: [
+    [/nachfolge|ruhestand|rente|pension/i, 'Nachfolge / Ruhestand'],
+    [/elternzeit|mutterschutz|erziehungsurlaub/i, 'Elternzeit-Vertretung'],
+    [/wachstum|neu geschaffen|expansion|aufbau|zusaetzlich/i, 'Wachstum / neu geschaffen'],
+    [/abl(oe|ö)sung|ersetzt/i, 'Ablösung'],
+    [/nachbesetz|ersatz|ausgeschieden|verlassen|gek(ue|ü)ndigt|vakan/i, 'Nachbesetzung'],
+  ],
+  core_hours: [
+    [/schicht|dienstplan/i, 'Schicht- oder Dienstplan'],
+    [/frei einteil|ohne feste zeiten|selbst einteil/i, 'Frei einteilbar'],
+    [/schicht/i, 'Schichtbetrieb'],
+    [/vertrauensarbeitszeit/i, 'Vertrauensarbeitszeit'],
+    [/kernarbeitszeit|kernzeit/i, 'Kernzeiten einzuhalten'],
+    [/kernarbeitszeit|kernzeit/i, 'Gleitzeit mit Kernzeit'],
+    /* Gemessen am 07.09.2026: aus "Kernarbeitszeit 9 bis 15 Uhr" macht der
+       Parser "9 bis 15 Uhr" -- das Wort faellt weg, das Zeitfenster bleibt.
+       Ein Zeitfenster IM Feld core_hours IST die Kernzeit; ohne diese Zeile
+       blieb die Reihe leer, obwohl die Anzeige es klar sagte. */
+    [/\d{1,2}(:\d{2})?\s*(bis|-|–|—)\s*\d{1,2}(:\d{2})?\s*uhr/i, 'Gleitzeit mit Kernzeit'],
+    [/gleitzeit|flexibel/i, 'Gleitzeit ohne Kernzeit'],
+    [/feste? arbeitszeit|starr|fix/i, 'Feste Arbeitszeiten'],
+  ],
+  /* Gemessen am 07.09.2026: die Anzeige sagte "berichten direkt an den
+     Technischen Geschaeftsfuehrer", der Parser gab genau das zurueck -- und
+     ohne diese Liste fiel es durch. Markiert wurde die Zeile erst, als die
+     KI-Ableitung nachtraeglich dasselbe herausfand. Der Umweg ueber ein
+     zweites Modell fuer etwas, das woertlich in der Anzeige steht. */
+  reports_to: [
+    [/gesch(ae|ä)ftsf(ue|ü)hr|\bceo\b|\bcto\b|\bcfo\b|\bcoo\b|vorstand|inhaber|gesellschafter/i, 'Geschäftsführung'],
+    [/bereichsleit|\bhead of\b|ressortleit|werkleit|standortleit/i, 'Bereichsleitung'],
+    [/abteilungsleit|hauptabteilung|\bleiter der\b/i, 'Abteilungsleitung'],
+    [/teamleit|gruppenleit|\bteam lead\b/i, 'Teamleitung'],
+  ],
+  overtime_policy: [
+    [/kaum|selten|keine (ue|ü)berstunden/i, 'fallen kaum an'],
+    [/abgegolten|mit dem gehalt|inklusive|pauschal/i, 'mit dem Gehalt abgegolten'],
+    [/ausgezahlt|verg(ue|ü)tet|bezahlt/i, 'ausgezahlt'],
+    [/ausgleich|freizeit|gleitzeitkonto|abgebummelt/i, 'ausgeglichen (Freizeit)'],
+  ],
+};
+
+const SLOT_INDEX = new Map(ALL_SLOTS.map((s) => [s.key, s]));
+
+export function chipTreffer(
+  slotKey: string,
+  roh: unknown,
+  contract: Vertrag = 'full-time',
+): unknown {
+  const slot = SLOT_INDEX.get(slotKey);
+  if (!slot) return roh;
+  // Eine Zeile, die es in dieser Vertragsart nicht gibt, bekommt auch keinen
+  // Wert. Sonst stand `career_path` im Entwurf einer Contracting-Aufnahme,
+  // obwohl die Foerderungsfrage dort entfaellt.
+  if (slot.only && slot.only !== contract) return undefined;
+  const chips = slotChips(slot, contract);
+  // Textfelder nehmen Freitext, wie sie sollen.
+  if ((slot.form !== 'chips' && slot.form !== 'multi') || !chips) return roh;
+
+  const wertVon = (chip: string) => slotChipWert(slot, contract, chip);
+  if (chips.map(wertVon).some((w) => w === roh)) return roh;
+
+  const text = String(roh ?? '').trim();
+  if (!text) return undefined;
+  const genau = chips.find((c) => c.toLowerCase() === text.toLowerCase());
+  if (genau) return wertVon(genau);
+
+  for (const [muster, chip] of SCHLAGWORTE[slotKey] ?? []) {
+    // Ein Schlagwort zaehlt nur, wenn sein Chip in DIESER Vertragsart
+    // ueberhaupt zur Auswahl steht.
+    if (muster.test(text) && chips.includes(chip)) return wertVon(chip);
+  }
+  return undefined;
+}
+
 
 /* ==================================================================== *
  * Ableitungen
@@ -615,19 +1039,80 @@ export interface SlotState {
 }
 export type Known = Record<string, SlotState | undefined>;
 
-export const hatWert = (k: Known, key: string) => {
-  const v = k[key]?.value;
+const belegt = (v: unknown) => {
   if (Array.isArray(v)) return v.length > 0;
   if (v && typeof v === 'object') return Object.values(v).some((x) => String(x ?? '').trim());
   return v !== null && v !== undefined && String(v).trim() !== '';
 };
 
+/** Steht ueberhaupt ein Wert da -- gleich welcher Herkunft? */
+export const hatWert = (k: Known, key: string) => belegt(k[key]?.value);
+
+/**
+ * Gilt die Zeile als BEANTWORTET?
+ *
+ * Nur was der Kunde selbst gesagt hat ('answer') oder aus seinem eigenen
+ * Firmenprofil stammt ('inherit'). Was aus der Anzeige gelesen ('ad') oder aus
+ * einer anderen Antwort abgeleitet wurde ('derive'), ist ein VORSCHLAG -- die
+ * Frage wird trotzdem gestellt, mit dem Wert schon drin.
+ *
+ * Gemessen, warum das noetig ist: die Ernte hat company_culture,
+ * unique_selling_points und position_advantages aus der Stellenanzeige gezogen
+ * und damit ZWEI von Markos Fragen stillgelegt -- der Kunde bekam sie nie zu
+ * sehen. Im Bestaetigungskasten stand als Quelle "aus Ihrer Antwort
+ * abgeleitet", obwohl er nichts geantwortet hatte. Eine Anzeige ist
+ * Marketingtext; sie als Kundenaussage durchzuwinken ist genau der Defekt,
+ * gegen den dieser Katalog gebaut wurde.
+ */
+export const istBeantwortet = (k: Known, key: string) => {
+  const s = k[key];
+  if (!s || !belegt(s.value)) return false;
+  return s.from === 'answer' || s.from === 'inherit';
+};
+
+/**
+ * Der Chip-Text zu einem gespeicherten Wert -- die Umkehrung von `chipWert`.
+ *
+ * BEFUND (08.09.2026): Die Frage "Existiert ein Betriebsrat? (Falls ja, wann
+ * tagt dieser?)" liess sich zur Haelfte nicht beantworten. `works_council`
+ * traegt `chipValues: { Ja: true, Nein: false }` -- ein Klick auf "Ja" legt
+ * also den Boolean `true` ab. Die Folgezeile fragt aber
+ * `askIf: { key: 'works_council', equals: 'Ja' }`, und der Vergleich lief ueber
+ * `String(true) === 'Ja'`. Der ist nie wahr: die Zeile "Wann tagt er?" konnte
+ * unter keinen Umstaenden erscheinen, waehrend die Frage danach auf dem
+ * Bildschirm stand.
+ *
+ * Verglichen wird deshalb gegen den CHIP-TEXT, nicht gegen den Speicherwert.
+ * Im Katalog steht dann `equals: 'Ja'` -- das, was der Kunde sieht. Wer eine
+ * Bedingung schreibt, muss nicht wissen, was dahinter in der Spalte landet.
+ */
+export const chipWert = (slot: BriefSlot, chip: string) => slot.chipValues?.[chip] ?? chip;
+
+const chipText = (slotKey: string, wert: unknown): string => {
+  const slot = SLOT_INDEX.get(slotKey);
+  if (!slot?.chips) return String(wert ?? '');
+  return slot.chips.find((c) => chipWert(slot, c) === wert) ?? String(wert ?? '');
+};
+
+/** Ob eine bedingte Zeile gezeigt werden darf. */
+export function bedingungGilt(known: Known, s: BriefSlot): boolean {
+  const trifft = (bed: { key: string; equals: string | string[] }) => {
+    const ist = chipText(bed.key, known[bed.key]?.value);
+    return Array.isArray(bed.equals) ? bed.equals.includes(ist) : ist === bed.equals;
+  };
+
+  if (s.askIf && !trifft(s.askIf)) return false;
+  // Ohne Antwort auf die Leitzeile bleibt die Folgezeile verborgen:
+  // "Wovon haengt er ab?" ergibt erst Sinn, wenn etwas anderes als "Nein" dasteht.
+  if (s.askIfNot) {
+    if (!hatWert(known, s.askIfNot.key)) return false;
+    if (trifft(s.askIfNot)) return false;
+  }
+  return true;
+}
+
 const sichtbar = (q: BriefQuestion, known: Known, contract: 'full-time' | 'freelance') =>
-  q.slots.filter(
-    (s) =>
-      (!s.only || s.only === contract) &&
-      (!s.askIf || String(known[s.askIf.key]?.value ?? '') === s.askIf.equals),
-  );
+  q.slots.filter((s) => (!s.only || s.only === contract) && bedingungGilt(known, s));
 
 /**
  * Die naechste GESPRAECHSFRAGE — oder null, wenn das Gespraech durch ist.
@@ -639,11 +1124,14 @@ export function nextQuestion(
   gestellt: string[] = [],
 ): { frage: BriefQuestion; fragen: BriefSlot[]; bestaetigen: BriefSlot[] } | null {
   for (const q of DIALOG_QUESTIONS) {
+    if (q.only && q.only !== contract) continue;
     if (gestellt.includes(q.key)) continue;
     const alle = sichtbar(q, known, contract);
-    const offen = alle.filter((s) => !hatWert(known, s.key));
+    const offen = alle.filter((s) => !istBeantwortet(known, s.key));
     if (!offen.some((s) => s.required)) continue;
-    return { frage: q, fragen: offen, bestaetigen: alle.filter((s) => hatWert(known, s.key)) };
+    // `bestaetigen` traegt nur, was wirklich beantwortet ist. Vorbefuelltes
+    // aus der Anzeige steht in `fragen` -- mit Wert, aber als Frage.
+    return { frage: q, fragen: offen, bestaetigen: alle.filter((s) => istBeantwortet(known, s.key)) };
   }
   return null;
 }
@@ -659,12 +1147,14 @@ export function nextQuestion(
  * zusaetzlich die Zahl fuer die Zeile "x von 9" im Gespraech.
  */
 export function completeness(known: Known, contract: 'full-time' | 'freelance') {
-  const pflicht = BRIEF_QUESTIONS.flatMap((q) =>
+  const pflicht = BRIEF_QUESTIONS
+    .filter((q) => !q.only || q.only === contract)
+    .flatMap((q) =>
     sichtbar(q, known, contract).filter((s) => s.required).map((s) => ({ ...s, q })),
   );
   const summe = pflicht.reduce((n, s) => n + s.weight, 0);
-  const erreicht = pflicht.filter((s) => hatWert(known, s.key)).reduce((n, s) => n + s.weight, 0);
-  const offen = pflicht.filter((s) => !hatWert(known, s.key));
+  const erreicht = pflicht.filter((s) => istBeantwortet(known, s.key)).reduce((n, s) => n + s.weight, 0);
+  const offen = pflicht.filter((s) => !istBeantwortet(known, s.key));
   const imGespraech = pflicht.filter((s) => s.q.place === 'dialog');
   return {
     pct: summe === 0 ? 100 : Math.round((erreicht / summe) * 100),
@@ -680,7 +1170,6 @@ export const istFertig = (known: Known, contract: 'full-time' | 'freelance') =>
   completeness(known, contract).offen.length === 0;
 
 /** Chip-Beschriftung -> Wert fuer die Spalte. */
-export const chipWert = (slot: BriefSlot, chip: string) => slot.chipValues?.[chip] ?? chip;
 
 /** Spalten, die es noch nicht gibt. */
 export const FEHLENDE_SPALTEN = ALL_SLOTS.filter((s) => s.column === null).map((s) => s.key);
@@ -756,6 +1245,14 @@ export function knownFromForm(args: {
     if (freelance?.dayRateMin || freelance?.dayRateMax) {
       setz('day_rate_range', { min: freelance.dayRateMin, max: freelance.dayRateMax });
     }
+    setz('contract_duration_months', freelance?.durationMonths);
+    setz('utilization_days_per_week', freelance?.utilizationDaysPerWeek);
+    // Der Haken hat einen Vorgabewert (true) -- er gilt erst als Angabe, wenn
+    // die Konditionen ueberhaupt angefasst wurden. Sonst waere jede leere
+    // Aufnahme sofort "Verlaengerung moeglich".
+    if (freelance?.dayRateMin || freelance?.durationMonths) {
+      setz('extension_possible', freelance?.extensionPossible);
+    }
   } else if (built.salary_min || built.salary_max) {
     setz('salary_range', { min: built.salary_min, max: built.salary_max });
   }
@@ -797,7 +1294,9 @@ export function knownFromForm(args: {
  * unmoeglich ist. Der Rest bleibt nachreichbar.
  */
 export function blockingGaps(known: Known, contract: 'full-time' | 'freelance') {
-  return BRIEF_QUESTIONS.flatMap((q) =>
+  return BRIEF_QUESTIONS
+    .filter((q) => !q.only || q.only === contract)
+    .flatMap((q) =>
     q.slots
       .filter(
         (s) =>

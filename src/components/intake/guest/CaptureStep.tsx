@@ -14,6 +14,7 @@ import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
 import {
   EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm,
+  sizeBand, type SlotState,
 } from '@/lib/briefCatalog';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
 import {
@@ -21,7 +22,8 @@ import {
 } from '@/components/dashboard/IntakeBriefing';
 import { EMPTY_FREELANCE, type BuiltJob, type FreelanceTerms, type RevealSetup } from '@/components/dashboard/intake/types';
 import {
-  EMPTY_BUILT, buildAiJobDraft, fromParsedJobData, toBriefBuilt, typedFieldsFromParsed,
+  EMPTY_BUILT, buildAiJobDraft, catalogFromParsed, freelanceFromParsed, fromParsedJobData,
+  toBriefBuilt, typedFieldsFromParsed,
 } from '@/lib/intakeMapping';
 import { isFailure } from '@/hooks/useGuestIntake';
 import { cn } from '@/lib/utils';
@@ -190,6 +192,37 @@ export function CaptureStep({
     if (Object.keys(typed).length > 0) {
       onState((s) => ({ ...s, dyn: { ...s.dyn, typedFields: { ...typed, ...s.dyn.typedFields } } }));
     }
+
+    /*
+      Was der Parser fuer den Fragenkatalog gelesen hat -- Arbeitsalltag,
+      Abteilung, Teamgroesse, Arbeitszeit, Kultur, Karrierewege. Neun dieser
+      Felder fielen bisher auf den Boden, weil BuiltJob fuer sie kein Feld hat:
+      das Modell las sie, und niemand packte sie aus. Sichtbar war das an der
+      Frage nach dem Arbeitsalltag -- leeres Feld, obwohl die Anzeige eine
+      vollstaendige Aufgabenliste trug.
+
+      Sie kommen mit from='ad' herein. Das gilt NICHT als beantwortet: die
+      Frage wird gestellt, der Wert steht schon drin, daneben "aus der Anzeige
+      gelesen -- bitte pruefen". Bestehende Antworten des Kunden gewinnen.
+    */
+    // Der Tagessatz gehoert ins Contracting-Formular, wo der Kunde ihn sieht --
+    // nicht in den Katalog, wo er unsichtbar die Freigabe entsperren wuerde.
+    const satz = freelanceFromParsed(parsed);
+    if (satz) onState((s) => ({ ...s, freelance: { ...s.freelance, ...satz } }));
+
+    const ausAnzeige = catalogFromParsed(parsed, type);
+    if (Object.keys(ausAnzeige).length > 0) {
+      onState((s) => ({
+        ...s,
+        dyn: {
+          ...s.dyn,
+          catalog: {
+            ...(s.dyn.catalog ?? EMPTY_CATALOG_STATE),
+            known: { ...ausAnzeige, ...(s.dyn.catalog?.known ?? {}) },
+          },
+        },
+      }));
+    }
     start(job);
   };
 
@@ -222,31 +255,57 @@ export function CaptureStep({
   );
 
   /**
-   * Was der Katalog weiss -- aus zwei Quellen zusammen.
+   * Was der Link und der Entwurf schon ueber die Firma wissen.
+   *
+   * Die schwaechste Schicht: die Groesse steht in `link.prefill.company_size`
+   * bzw. im gespeicherten Entwurf, ohne dass jemand danach gefragt haette.
+   * Alles andere -- Anzeige, Impressum, ausdrueckliche Antwort -- gewinnt
+   * darueber.
+   */
+  const vorwissen = useMemo(() => {
+    const band = sizeBand(companyDefaults?.size);
+    return band ? { company_size_band: { value: band, from: 'inherit' as const } } : {};
+  }, [companyDefaults?.size]);
+
+  /**
+   * Was der Katalog weiss -- aus vier Quellen, in aufsteigender Staerke.
    *
    * Das vorhandene Formular links (Gehalt, Kann-Kriterien) zaehlt mit, ohne
    * dass es doppelt gerendert wird: knownFromForm spiegelt seinen Zustand in
    * den Katalog. Antworten des Kunden gewinnen ueber die Spiegelung -- sonst
    * wuerde eine Formularaenderung eine ausdrueckliche Antwort ueberschreiben.
+   * `dyn.catalog.known` traegt sowohl das aus der Anzeige Gelesene als auch
+   * die Antworten; wer dort schreibt, respektiert die Rangfolge selbst.
    */
   const katalogKnown = useMemo(
     () => ({
+      ...vorwissen,
       ...knownFromForm({ built, freelance, contract: type, flexibility }),
       ...(dyn.catalog?.known ?? {}),
     }),
-    [built, freelance, type, flexibility, dyn.catalog?.known],
+    [vorwissen, built, freelance, type, flexibility, dyn.catalog?.known],
   );
 
-  const setKatalog = (key: string, value: unknown) =>
+  /**
+   * Einen Wert in den Katalog schreiben. `from` sagt, wie stark er ist.
+   *
+   * Eine ausdrueckliche Antwort wird von einer Anreicherung nie ueberschrieben
+   * -- sonst wuerde ein spaeter eintreffendes Impressum die Korrektur des
+   * Kunden zuruecksetzen.
+   */
+  const setKatalogVon = (key: string, value: unknown, from: SlotState['from']) =>
     onState((s) => {
       const known = { ...(s.dyn.catalog?.known ?? {}) };
+      if (from !== 'answer' && known[key]?.from === 'answer') return s;
       if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
         delete known[key];
       } else {
-        known[key] = { value, from: 'answer' as const };
+        known[key] = { value, from };
       }
       return { ...s, dyn: { ...s.dyn, catalog: { ...(s.dyn.catalog ?? EMPTY_CATALOG_STATE), known } } };
     });
+
+  const setKatalog = (key: string, value: unknown) => setKatalogVon(key, value, 'answer');
 
   // Eine Zahl fuer den ganzen Bildschirm: der Katalog rechnet sie, nicht ein
   // Modell und nicht der alte 36-Fragen-Katalog.
@@ -670,6 +729,8 @@ export function CaptureStep({
             flexibility={flexibility}
             onFlexibilityChange={(f) => onState((s) => ({ ...s, flexibility: f }))}
             skillSuggestions={dyn.catalog?.skillSuggestions ?? []}
+            catalogKnown={katalogKnown}
+            onCatalogSet={setKatalog}
             onDismissSuggestion={(skill) =>
               onState((s) => ({
                 ...s,
@@ -686,21 +747,6 @@ export function CaptureStep({
                 },
               }))}
           />
-            {/* Was ProfileSections noch nicht hat: Teamgroesse,
-                Homeoffice-Tage, Befristung, Monatsgehaelter, Bonus -- und die
-                Markierung der drei Muss-Kriterien auf der Liste, die direkt
-                darueber schon steht. Gehalt und Kann-Kriterien erscheinen hier
-                bewusst NICHT: die Felder gibt es oben schon. */}
-            <div className="space-y-4 border-t p-4">
-              <CatalogFields place="eckdaten" known={katalogKnown} onSet={setKatalog} contract={type} />
-              <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} contract={type} />
-              {/* place="skills" entfaellt: "Die drei, ohne die es nicht geht"
-                  und "Was kann nachgeschult werden?" standen hier als zweite
-                  und dritte Chip-Reihe derselben Skills -- SAP FI stand damit
-                  dreimal auf einem Bildschirm. Beide Fragen beantwortet jetzt
-                  die Einstufung direkt an der Kriterienliste in
-                  ProfileSections. */}
-            </div>
           </div>
 
           {/* --- Ab hier: was zur FIRMA gehoert, nicht zur Position. --------
@@ -722,19 +768,27 @@ export function CaptureStep({
               ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
               onChange={onCompany}
               onEnrich={onEnrich}
+              onHeadcount={(n) => setKatalogVon('company_size_band', sizeBand(n), 'enrich')}
             />
+            <div className="mt-4 border-t pt-4">
+              <CatalogFields place="firma" known={katalogKnown} onSet={setKatalog} contract={type} />
+            </div>
           </CollapsibleGroup>
 
           <CollapsibleGroup
             titel="Rahmendaten"
             offen={rahmenOffen}
             zusammenfassung={
-              (built.benefits ?? []).slice(0, 3).join(' · ') || 'Benefits, Arbeitszeit, Betriebsrat'
+              (built.benefits ?? []).slice(0, 3).join(' · ') ||
+              (type === 'freelance'
+                ? 'Konditionen, Arbeitszeit, Leistungsnachweis'
+                : 'Benefits, Arbeitszeit, Betriebsrat')
             }
             fussnote="Gilt für alle Ihre Stellen — einmal ausfüllen, ab der zweiten Position vorausgewählt."
           >
             <div className="space-y-5">
               <BenefitsBlock
+                contract={type}
                 gewaehlt={built.benefits ?? []}
                 onChange={(b) => onState((s) => ({ ...s, built: { ...s.built, benefits: b } }))}
               />

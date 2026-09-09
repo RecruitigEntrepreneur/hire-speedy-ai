@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,8 @@ import {
 } from '@/components/ui/select';
 import { type BuiltJob, type FreelanceTerms, type JobType, type RevealSetup, REVEAL_TRIGGER_LABELS } from './types';
 import { cn } from '@/lib/utils';
-import { frageNach } from '@/lib/briefCatalog';
+import { frageNach, type Known as KatalogKnown } from '@/lib/briefCatalog';
+import { CatalogFields } from './CatalogFields';
 import { AlertTriangle, Building2, Coins, Lock, MapPin, Plus, Sparkles, X } from 'lucide-react';
 
 /** Flexibilitätsmatrix: wie hart ist jedes Muss-Kriterium wirklich? */
@@ -45,6 +46,17 @@ interface Props {
   onFlexibilityChange: (f: FlexibilityMap) => void;
   /** Vorschlaege der KI: Skills, die zur Rolle gehoeren, aber fehlen. */
   skillSuggestions?: { skill: string; because: string; kind?: 'must' | 'nice' }[];
+  /**
+   * Die Katalogfelder, die in DIESE Bloecke gehoeren.
+   *
+   * Monatsgehaelter und Bonus standen 300 px unter dem Gehaltsband, in einem
+   * eigenen Kasten -- drei Angaben zur Verguetung an zwei Orten. Dasselbe bei
+   * Teamgroesse, Homeoffice-Tagen und Befristung, die unter den Eckdaten
+   * haetten stehen muessen. Sie kommen jetzt dorthin, wo sie thematisch
+   * hingehoeren.
+   */
+  catalogKnown?: KatalogKnown;
+  onCatalogSet?: (key: string, value: unknown) => void;
   onDismissSuggestion?: (skill: string) => void;
 }
 
@@ -59,13 +71,79 @@ function Section({ title, icon: Icon, children, className }: { title: string; ic
   );
 }
 
-function SkillList({ label, items, onRemove, onAdd, accent }: { label: string; items: string[]; onRemove: (s: string) => void; onAdd: (s: string) => void; accent?: boolean }) {
+/** Ein Vorschlag fuer die Eingabe. Die Quelle steht dran, damit der Kunde
+ *  sieht, warum ihm das angeboten wird. */
+export interface SkillVorschlag {
+  wert: string;
+  quelle: 'ad' | 'ai';
+  grund?: string;
+}
+
+const QUELLE_ETIKETT: Record<SkillVorschlag['quelle'], string> = {
+  ad: 'aus der Anzeige',
+  ai: 'Vorschlag',
+};
+
+/**
+ * Die Eingabe fuer ein weiteres Kriterium -- mit Trefferliste beim Tippen.
+ *
+ * BEFUND (08.09.2026): Das Feld war ein blankes "+ Skill". Was wir ueber die
+ * Rolle schon wussten, stand woanders: die Skills aus der Anzeige waren
+ * bereits eingetragen oder gar nicht sichtbar, die KI-Vorschlaege in einem
+ * Kasten UNTER der Liste. Wer tippte, tippte ins Leere und musste selbst auf
+ * die richtige Bezeichnung kommen.
+ *
+ * Der Kasten darunter bleibt: er ist Entdeckung ("Passt das auch?"), diese
+ * Liste hier ist Vervollstaendigung. Zwei verschiedene Vorgaenge -- der eine
+ * beantwortet "woran habe ich nicht gedacht", der andere "wie heisst das noch
+ * mal bei euch".
+ */
+function SkillList({
+  label, items, onRemove, onAdd, accent, vorschlaege = [],
+}: {
+  label: string;
+  items: string[];
+  onRemove: (s: string) => void;
+  onAdd: (s: string) => void;
+  accent?: boolean;
+  vorschlaege?: SkillVorschlag[];
+}) {
   const [draft, setDraft] = useState('');
-  const add = () => {
-    const v = draft.trim();
+  const [aktiv, setAktiv] = useState(-1);
+  const [offen, setOffen] = useState(false);
+
+  const add = (wert?: string) => {
+    const v = (wert ?? draft).trim();
     if (v && !items.includes(v)) onAdd(v);
     setDraft('');
+    setAktiv(-1);
+    setOffen(false);
   };
+
+  // Erst ab dem ersten Zeichen. Ein Feld, das beim Anklicken aufklappt, macht
+  // Laerm, bevor der Kunde etwas will.
+  const suche = draft.trim().toLowerCase();
+  const treffer = suche
+    ? vorschlaege
+        .filter((v) => v.wert.toLowerCase().includes(suche))
+        .filter((v) => !items.some((i) => i.toLowerCase() === v.wert.toLowerCase()))
+        .slice(0, 6)
+    : [];
+  const zeigen = offen && treffer.length > 0;
+
+  const taste = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') { setOffen(false); setAktiv(-1); return; }
+    if (!zeigen) {
+      if (e.key === 'Enter') add();
+      return;
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setAktiv((i) => (i + 1) % treffer.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setAktiv((i) => (i <= 0 ? treffer.length : i) - 1); }
+    // Enter nimmt den markierten Treffer -- oder, wenn keiner markiert ist,
+    // genau das Getippte. Wer seinen eigenen Begriff meint, bekommt ihn.
+    else if (e.key === 'Enter') { e.preventDefault(); add(aktiv >= 0 ? treffer[aktiv].wert : undefined); }
+  };
+
   return (
     <div className="mb-2">
       <p className="mb-1.5 text-[11px] text-muted-foreground">{label}</p>
@@ -78,18 +156,55 @@ function SkillList({ label, items, onRemove, onAdd, accent }: { label: string; i
             </button>
           </Badge>
         ))}
-        <div className="flex items-center gap-1">
+        <div className="relative flex items-center gap-1">
           <Input
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
+            onChange={(e) => { setDraft(e.target.value); setAktiv(-1); setOffen(true); }}
+            onKeyDown={taste}
+            // Ohne Verzoegerung schliesst der Blur, bevor der Klick ankommt.
+            onBlur={() => window.setTimeout(() => setOffen(false), 120)}
+            onFocus={() => setOffen(true)}
             placeholder="+ Skill"
-            className="h-7 w-28 text-xs"
+            className="h-7 w-36 text-xs"
+            role="combobox"
+            aria-expanded={zeigen}
+            aria-autocomplete="list"
           />
           {draft.trim() && (
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={add} aria-label="Skill hinzufügen">
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => add()} aria-label="Skill hinzufügen">
               <Plus className="h-3.5 w-3.5" />
             </Button>
+          )}
+
+          {zeigen && (
+            <ul
+              role="listbox"
+              className="absolute left-0 top-8 z-20 max-h-56 w-64 overflow-y-auto rounded-lg border bg-popover p-1 shadow-md"
+            >
+              {treffer.map((v, i) => (
+                <li key={v.wert}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={i === aktiv}
+                    // Blur feuert vor Click -- ohne mouseDown-Abfang geht der
+                    // Treffer verloren, den der Kunde gerade anklickt.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setAktiv(i)}
+                    onClick={() => add(v.wert)}
+                    className={cn(
+                      'flex w-full items-baseline gap-2 rounded-md px-2 py-1.5 text-left text-xs',
+                      i === aktiv ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{v.wert}</span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {QUELLE_ETIKETT[v.quelle]}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
@@ -102,7 +217,7 @@ const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number
 /** Linke Studio-Spalte: das KI-gefüllte Profil, in Sektionen editierbar. */
 export function ProfileSections({
   type, built, onChange, freelance, onFreelanceChange, reveal, onRevealChange, flexibility, onFlexibilityChange,
-  skillSuggestions, onDismissSuggestion,
+  skillSuggestions, onDismissSuggestion, catalogKnown, onCatalogSet,
 }: Props) {
   const set = (patch: Partial<BuiltJob>) => onChange({ ...built, ...patch });
 
@@ -115,6 +230,31 @@ export function ProfileSections({
   const vorschlaege = (skillSuggestions ?? [])
     .filter((v) => v?.skill && !vorhanden.has(String(v.skill).toLowerCase().trim()))
     .slice(0, 6);
+
+  /**
+   * Was die Eingabe beim Tippen anbieten kann -- alles rollenspezifisch.
+   *
+   * Zuerst, was der Parser in DIESER Anzeige gefunden hat und noch nicht in
+   * der Liste steht. Danach die Vorschlaege des Modells. Eine allgemeine
+   * Skill-Datenbank steht bewusst nicht dahinter: die einzige verfuegbare
+   * (skill_synonyms, 113 Zeilen) ist reine IT, und der Matcher uebersetzt
+   * ohnehin selbst ueber dieselbe Tabelle -- die Schreibweise zu treffen
+   * aendert am Ergebnis nichts.
+   */
+  const eingabeVorschlaege = useMemo<SkillVorschlag[]>(() => {
+    const gesehen = new Set(vorhanden);
+    const raus: SkillVorschlag[] = [];
+    const nimm = (wert: unknown, quelle: SkillVorschlag['quelle'], grund?: string) => {
+      const w = String(wert ?? '').trim();
+      const k = w.toLowerCase();
+      if (!w || gesehen.has(k)) return;
+      gesehen.add(k);
+      raus.push({ wert: w, quelle, grund });
+    };
+    for (const s of built.skills ?? []) nimm(s, 'ad');
+    for (const v of skillSuggestions ?? []) nimm(v?.skill, 'ai', v?.because);
+    return raus;
+  }, [built.skills, skillSuggestions, built.must_haves, built.nice_to_haves]);
   const isFreelance = type === 'freelance';
 
   /**
@@ -126,6 +266,20 @@ export function ProfileSections({
     const alle = [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])];
     return [...new Map(alle.map((s) => [String(s).trim(), String(s).trim()])).values()].filter(Boolean);
   }, [built.must_haves, built.nice_to_haves]);
+
+  /** Die Katalogfelder eines Ortes, direkt im passenden Block. */
+  const katalog = (place: 'eckdaten' | 'verguetung' | 'skills') =>
+    catalogKnown && onCatalogSet ? (
+      <div className="mt-3 space-y-3 border-t pt-3">
+        <CatalogFields
+          place={place}
+          known={catalogKnown}
+          onSet={onCatalogSet}
+          contract={type}
+          mustHaves={built.must_haves ?? []}
+        />
+      </div>
+    ) : null;
 
   /** Markos Wortlaut fuer diesen Block -- aus dem Katalog, nicht abgetippt. */
   const frageSkills = frageNach('kriterien');
@@ -178,6 +332,7 @@ export function ProfileSections({
           </Select>
           <Input value={built.industry} onChange={(e) => set({ industry: e.target.value })} placeholder="Branche" className="h-8 text-xs" />
         </div>
+        {katalog('eckdaten')}
       </Section>
 
       <Section title={isFreelance ? 'Konditionen (Contracting)' : 'Vergütung'} icon={Coins}>
@@ -199,6 +354,7 @@ export function ProfileSections({
               className="h-8 text-xs"
             />
             <Input
+              data-feld="contract_duration_months"
               value={freelance.durationMonths ?? ''}
               onChange={(e) => onFreelanceChange({ ...freelance, durationMonths: numOrNull(e.target.value) })}
               placeholder="Dauer (Monate)"
@@ -209,7 +365,9 @@ export function ProfileSections({
               value={String(freelance.utilizationDaysPerWeek ?? '')}
               onValueChange={(v) => onFreelanceChange({ ...freelance, utilizationDaysPerWeek: Number(v) })}
             >
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Auslastung" /></SelectTrigger>
+              <SelectTrigger data-feld="utilization_days_per_week" className="h-8 text-xs">
+                <SelectValue placeholder="Auslastung" />
+              </SelectTrigger>
               <SelectContent>
                 {[1, 2, 3, 4, 5].map((d) => (
                   <SelectItem key={d} value={String(d)}>{d} Tage/Woche</SelectItem>
@@ -245,6 +403,7 @@ export function ProfileSections({
             />
           </div>
         )}
+        {katalog('verguetung')}
       </Section>
 
       {/*
@@ -268,15 +427,7 @@ export function ProfileSections({
             Vorher stand Markos Frage hier als Literal im JSX -- zwei
             Wahrheiten fuer denselben Satz, und wer den Katalog aendert,
             aendert den Bildschirm nicht mit. */}
-        {frageSkills?.intro && (
-          <p className="mb-1 text-xs italic text-muted-foreground">{frageSkills.intro}</p>
-        )}
-        <p className="mb-1.5 text-xs font-medium leading-snug">{frageSkills?.text}</p>
-        {frageSkills?.hinweis && (
-          <p className="mb-3 text-xs text-muted-foreground">
-            {frageSkills.hinweis.replace('{n}', String(kriterien.length))}
-          </p>
-        )}
+        <p className="mb-3 text-sm">{frageSkills?.kurz}</p>
 
         <div className="mb-3 space-y-1.5">
           {kriterien.map((s) => {
@@ -331,9 +482,13 @@ export function ProfileSections({
 
         <SkillList
           label="Kriterium hinzufügen"
+          // Leer, nicht die Kriterienliste: die steht schon darueber. `items`
+          // rendert Badges -- gefuellt stuende jedes Kriterium zweimal da.
+          // Doppelte fangt eingabeVorschlaege selbst ab.
           items={[]}
           onRemove={() => undefined}
           onAdd={(s) => set({ must_haves: [...built.must_haves, s] })}
+          vorschlaege={eingabeVorschlaege}
         />
 
         {/* Vorschlaege der KI. Bewusst darunter und zurueckhaltend: es sind
@@ -378,6 +533,11 @@ export function ProfileSections({
           {lernbar.length} lernbar
           {unmarkiert.length > 0 && ` · ${unmarkiert.length} nicht eingestuft`}
         </p>
+        {/* KEIN katalog('skills') hier: die Zeilen must_have_criteria und
+            trainable_skills beantwortet die Einstufung oben (unverzichtbar /
+            verhandelbar / lernbar). Sie zusaetzlich als Chip-Reihen zu
+            rendern brachte Markos lange Telefonfrage samt Vorspann zurueck --
+            genau die Doppelung, die dieser Block aufloesen sollte. */}
       </Section>
 
       {/*

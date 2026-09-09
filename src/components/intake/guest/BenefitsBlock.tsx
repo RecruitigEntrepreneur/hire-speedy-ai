@@ -79,16 +79,71 @@ export const BENEFIT_GRUPPEN: { titel: string; items: string[] }[] = [
   },
 ];
 
-const ALLE = BENEFIT_GRUPPEN.flatMap((g) => g.items);
+/**
+ * Was einen Freiberufler bewegt -- und was ihn nichts angeht.
+ *
+ * BEFUND (08.09.2026, Durchklick als Projektleiter): Im Contracting-Modus
+ * stand die vollstaendige Festanstellungsliste da -- 30 Tage Urlaub,
+ * betriebliche Altersvorsorge, vermoegenswirksame Leistungen,
+ * Mitarbeiterbeteiligung, Umzugsunterstuetzung, Jobrad, Firmenwagen,
+ * Kinderbetreuung, Sabbatical, Teilzeit, Mitarbeiterrabatte. Nichts davon
+ * bekommt ein Freiberufler; jeder Haken waere eine Zusage, die niemand
+ * einloesen kann.
+ *
+ * Die Ersatzliste folgt dem, was die Marktrecherche als
+ * Entscheidungsgruende nennt: Konditionen und Planbarkeit vor Annehmlichkeit.
+ */
+export const CONTRACTING_GRUPPEN: { titel: string; items: string[] }[] = [
+  {
+    titel: 'Konditionen',
+    items: [
+      'Reisekosten werden erstattet',
+      'Übernachtung wird gestellt',
+      'Zahlungsziel 14 Tage',
+      'Monatliche Abrechnung',
+      'Kein Rahmenvertrag nötig',
+    ],
+  },
+  {
+    titel: 'Einteilung',
+    items: [
+      'Remote-Anteil möglich',
+      'Vor-Ort-Tage flexibel',
+      'Keine Kernzeitpflicht',
+      'Eigene Zeiteinteilung',
+    ],
+  },
+  {
+    titel: 'Vor Ort',
+    items: [
+      'Eigener Arbeitsplatz',
+      'Hardware wird gestellt',
+      'Parkplatz oder Ladesäule',
+      'Kantine nutzbar',
+    ],
+  },
+  {
+    titel: 'Nach dem Projekt',
+    items: [
+      'Referenz zugesagt',
+      'Anschlussprojekte in Aussicht',
+      'Zugang zu Schulungen und Zertifizierungen',
+    ],
+  },
+];
+
+const ALLE = [...BENEFIT_GRUPPEN, ...CONTRACTING_GRUPPEN].flatMap((g) => g.items);
 
 interface Props {
   gewaehlt: string[];
   onChange: (benefits: string[]) => void;
+  contract?: 'full-time' | 'freelance';
   /** Aus dem Firmenprofil vererbt: dann steht hier "bestätigen" statt "wählen". */
   vererbt?: boolean;
 }
 
-export function BenefitsBlock({ gewaehlt, onChange, vererbt }: Props) {
+export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-time' }: Props) {
+  const gruppen = contract === 'freelance' ? CONTRACTING_GRUPPEN : BENEFIT_GRUPPEN;
   const [eigen, setEigen] = useState('');
   /**
    * Aufgeklappt, solange nichts gewaehlt ist -- dann muss der Kunde etwas tun.
@@ -140,7 +195,7 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt }: Props) {
 
       {!auf ? null : (
       <div className="space-y-2.5 border-t p-4 pt-3">
-        {BENEFIT_GRUPPEN.map((g) => (
+        {gruppen.map((g) => (
           <div key={g.titel}>
             <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">{g.titel}</p>
             <div className="flex flex-wrap gap-1.5">

@@ -18,6 +18,8 @@
  *     Freelance-Stelle ganz ohne Verguetungsangabe an die Recruiter.
  */
 
+import { catalogToJobRow } from './brief-columns.ts';
+
 type Json = Record<string, any>;
 
 const asArray = (value: unknown): string[] | undefined => {
@@ -51,7 +53,19 @@ export function draftToJobRow(draft: Json): Json {
   const remoteType = String(built.remote_type ?? 'hybrid');
   const remoteDays = asInt(built.remoteDays);
 
+  /*
+    Was der Kunde im Fragenkatalog beantwortet hat. Steht VORNE, damit die
+    ausdruecklichen Felder darunter gewinnen koennen, wo beide dieselbe Spalte
+    treffen -- Gehalt und Tagessatz kommen aus dem sichtbaren Formular, nicht
+    aus der Spiegelung. Umgekehrt gewinnt der Katalog dort, wo er die
+    BESTAETIGTE Antwort traegt und `built` nur den Rohwert des Parsers:
+    onsite_days_required, vacancy_reason, reports_to und hiring_urgency stehen
+    deshalb unten NICHT mehr, sondern kommen aus dem Katalog.
+  */
+  const ausKatalog = catalogToJobRow(dyn.catalog?.known, String(draft.contract_type ?? ''));
+
   return clean({
+    ...ausKatalog,
     title: String(built.title ?? draft.title ?? '').trim() || undefined,
     // Kein Fallback auf "Mein Unternehmen" wie im Dashboard-Studio: hier ist
     // der Firmenname erhoben und geprueft, ein Platzhalter waere ein Fehler.
@@ -90,11 +104,15 @@ export function draftToJobRow(draft: Json): Json {
       typeof typed.onsite_required === 'boolean' ? typed.onsite_required : undefined,
 
     briefing_notes: String(payload.briefing_text ?? '').trim() || undefined,
-    vacancy_reason: built.vacancyReason ?? undefined,
-    reports_to: built.reportsTo ?? undefined,
-    hiring_urgency: built.hiringUrgency ?? undefined,
+    // Diese vier traegt der Katalog, sobald der Kunde sie bestaetigt hat.
+    // `built` ist nur noch der Rueckfall fuer Entwuerfe, die vor dem Katalog
+    // entstanden sind -- deshalb `??` gegen den Katalogwert.
+    vacancy_reason: ausKatalog.vacancy_reason ?? built.vacancyReason ?? undefined,
+    reports_to: ausKatalog.reports_to ?? built.reportsTo ?? undefined,
+    hiring_urgency: ausKatalog.hiring_urgency ?? built.hiringUrgency ?? undefined,
     onsite_days_required:
-      remoteType === 'hybrid' && remoteDays != null ? Math.max(0, 5 - remoteDays) : undefined,
+      ausKatalog.onsite_days_required ??
+      (remoteType === 'hybrid' && remoteDays != null ? Math.max(0, 5 - remoteDays) : undefined),
     intake_completeness: asInt(draft.completeness),
 
     // Typisierte Matching-Felder aus der KI-Normalisierung.

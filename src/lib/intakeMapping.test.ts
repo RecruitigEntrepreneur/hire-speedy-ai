@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { BRIEF_QUESTIONS } from './briefCatalog';
 import {
-  EMPTY_BUILT, fromParsedJobData, fromParsedJobProfile, toBriefBuilt,
+  EMPTY_BUILT, catalogFromParsed, freelanceFromParsed, fromParsedJobData, fromParsedJobProfile,
+  toBriefBuilt,
   buildAiJobDraft, buildIntakePayload, intakeCompleteness,
 } from './intakeMapping';
 // Das serverseitige Gegenstück. Beide Dateien müssen dieselbe Abbildung
@@ -44,6 +46,182 @@ describe('fromParsedJobData', () => {
     expect(built.experience_level).toBe('mid');
     expect(built.skills).toEqual([]);
     expect(built.title).toBe('');
+  });
+});
+
+describe('catalogFromParsed', () => {
+  /* Neun Felder las der Parser und niemand packte sie aus, weil BuiltJob
+     keine Spalte dafuer hat. Sichtbar war das an der Frage nach dem
+     Arbeitsalltag: leeres Feld, obwohl die Anzeige die Aufgaben trug. */
+  it('reicht die Briefing-Felder an den Katalog weiter', () => {
+    const k = catalogFromParsed({
+      ...parsed,
+      daily_routine: 'Betrieb der Cloud-Plattform',
+      core_hours: 'Kernarbeitszeit 9 bis 15 Uhr',
+      company_culture: 'Du-Kultur',
+      career_path: 'Lead Architect',
+      team_size: 8,
+    } as any);
+    expect(k.daily_routine.value).toBe('Betrieb der Cloud-Plattform');
+    expect(k.core_hours.value).toBe('Gleitzeit mit Kernzeit');
+    expect(k.career_path.value).toBe('Lead Architect');
+    // Alles aus der Anzeige gilt als Vorschlag, nicht als Antwort.
+    expect(k.daily_routine.from).toBe('ad');
+  });
+
+  it('verwirft, was kein Chip trifft, statt es unsichtbar zu speichern', () => {
+    // Gemessen am 07.09.2026: ueber fuenf unmarkierten Chips stand "aus der
+    // Anzeige gelesen -- bitte pruefen".
+    const k = catalogFromParsed({
+      vacancy_reason: 'Wir suchen jemanden',      // trifft nichts -> weg
+      core_hours: 'irgendwie halt',               // trifft nichts -> weg
+      company_culture: 'Wir duzen uns',           // Textfeld -> bleibt
+    } as any);
+    expect(k.vacancy_reason).toBeUndefined();
+    expect(k.core_hours).toBeUndefined();
+    expect(k.company_culture.value).toBe('Wir duzen uns');
+  });
+
+  it('trifft die Chips ueber Schlagworte, wo die Anzeige einen Satz schreibt', () => {
+    const k = catalogFromParsed({
+      vacancy_reason: 'Nachfolge für unseren Konstruktionsleiter, der in den Ruhestand geht',
+      core_hours: '9 bis 15 Uhr',   // so gibt der Parser es zurueck, ohne das Wort
+      overtime_policy: 'Gleitzeitkonto mit vollem Überstundenausgleich',
+    } as any);
+    expect(k.vacancy_reason.value).toBe('Nachfolge / Ruhestand');
+    expect(k.core_hours.value).toBe('Gleitzeit mit Kernzeit');
+    expect(k.overtime_policy.value).toBe('ausgeglichen (Freizeit)');
+  });
+
+  /* Der Chip beantwortet die Kategorie, nicht die Frage des Kandidaten.
+     Vor dieser Zeile las die Aufnahme "Kernarbeitszeit 9 bis 15 Uhr" und
+     behielt davon "Gleitzeit mit Kernzeit" -- die Uhrzeit war weg, und der
+     Recruiter konnte sie niemandem nennen. */
+  it('hebt die Uhrzeit aus dem Chiptext in die Folgezeile', () => {
+    const k = catalogFromParsed({ core_hours: 'Kernarbeitszeit 9 bis 15 Uhr' } as any);
+    expect(k.core_hours.value).toBe('Gleitzeit mit Kernzeit');
+    expect(k.core_hours_detail.value).toBe('9 bis 15 Uhr');
+    expect(k.core_hours_detail.from).toBe('ad');
+  });
+
+  it('erfindet keine Uhrzeit, wo die Anzeige keine nennt', () => {
+    // "Gleitzeit mit Kernzeit" ohne Zahl darf die Folgezeile nicht vorbelegen.
+    const ohne = catalogFromParsed({ core_hours: 'Gleitzeit mit Kernzeit' } as any);
+    expect(ohne.core_hours.value).toBe('Gleitzeit mit Kernzeit');
+    expect(ohne.core_hours_detail).toBeUndefined();
+
+    // Und was keinen Chip trifft, belegt auch die Folgezeile nicht.
+    const wirr = catalogFromParsed({ core_hours: 'irgendwie halt' } as any);
+    expect(wirr.core_hours_detail).toBeUndefined();
+  });
+
+  it('haelt die Schichten zusammen, statt sie neu zu setzen', () => {
+    const k = catalogFromParsed({ core_hours: 'Schichtbetrieb 6-14 / 14-22 Uhr' } as any);
+    expect(k.core_hours.value).toBe('Schichtbetrieb');
+    expect(k.core_hours_detail.value).toBe('6-14 / 14-22 Uhr');
+  });
+
+  it('haelt Wochenstunden nicht fuer eine Uhrzeit', () => {
+    // "40 bis 45 Stunden" waere sonst als Kernzeit von 40 bis 45 Uhr gelandet.
+    const k = catalogFromParsed({ core_hours: 'Vertrauensarbeitszeit, 40 bis 45 Stunden' } as any);
+    expect(k.core_hours_detail).toBeUndefined();
+  });
+
+  it('behaelt die ganze Zeitangabe, wenn der Parser die Kategorie weglaesst', () => {
+    // "9 bis 15 Uhr" trifft den Chip ueber ein Schlagwort, nicht woertlich --
+    // dann darf nichts abgeschnitten werden.
+    const k = catalogFromParsed({ core_hours: '9 bis 15 Uhr' } as any);
+    expect(k.core_hours.value).toBe('Gleitzeit mit Kernzeit');
+    expect(k.core_hours_detail.value).toBe('9 bis 15 Uhr');
+  });
+
+  it('ordnet die Berichtslinie zu, ohne ein zweites Modell zu brauchen', () => {
+    const an = (v: string) => catalogFromParsed({ reports_to: v } as any).reports_to?.value;
+    expect(an('Technischen Geschäftsführer')).toBe('Geschäftsführung');
+    expect(an('Head of Engineering')).toBe('Bereichsleitung');
+    expect(an('Teamleiter Konstruktion')).toBe('Teamleitung');
+    expect(an('an das Kollegium')).toBeUndefined();
+  });
+
+  it('rechnet Rohzahlen auf die Chip-Stufen des Katalogs um', () => {
+    // 8 Personen liegen in der Stufe "6-15", die der Katalog als 10 fuehrt.
+    expect(catalogFromParsed({ team_size: 8 } as any).team_size.value).toBe(10);
+    // Der Chip fragt "Homeoffice-Tage pro Woche" und traegt genau die Zahl.
+    // Vorher stand bei zwei Homeoffice-Tagen der Chip 3 markiert.
+    expect(catalogFromParsed({ remote_days: 2 } as any).remote_days.value).toBe(2);
+    expect(catalogFromParsed({ hiring_deadline_weeks: 2 } as any).hiring_deadline.value)
+      .toBe('So schnell wie möglich');
+  });
+
+  it('uebersetzt jedes Groessensignal in eine Chip-Bande', () => {
+    const band = (v: unknown) =>
+      catalogFromParsed({ company_size_estimate: v } as any).company_size_band?.value;
+    expect(band('340')).toBe('250–1.000');
+    expect(band('51-200')).toBe('50–250');   // Spanne ueber die Mitte
+    expect(band('1000+')).toBe('1.000–5.000'); // offenes Ende, nicht auf der Grenze
+    expect(band('Konzern')).toBe('mehr als 5.000');
+    expect(band('irgendwas')).toBeUndefined(); // lieber nichts als falsch
+    // "Mittelstand" reicht von 50 bis ueber 3.000 -- das ist keine Bande.
+    expect(band('Mittelstand')).toBeUndefined();
+  });
+
+  it('nimmt nur einen Schwerpunkt, der einen Chip trifft', () => {
+    const fokus = (v: string) => catalogFromParsed({ task_focus: v } as any).task_focus?.value;
+    expect(fokus('Operativ / hands-on')).toBe('Operativ / hands-on');
+    expect(fokus('operativ')).toBeUndefined();
+  });
+
+  it('laesst Geldfelder im Formular, nicht im Katalog', () => {
+    // Beide sind blocksSubmit und stehen links als Eingabe. Im Katalog wuerden
+    // sie die Formularspiegelung ueberschreiben und die Freigabe entsperren,
+    // ohne dass der Kunde die Zahl je gesehen hat.
+    const k = catalogFromParsed({ salary_min: 90000, day_rate_min: 700 } as any);
+    expect(k.salary_range).toBeUndefined();
+    expect(k.day_rate_range).toBeUndefined();
+  });
+
+  it('reicht den Tagessatz an das Contracting-Formular durch', () => {
+    expect(freelanceFromParsed({ day_rate_min: 700, day_rate_max: 900 } as any))
+      .toEqual({ dayRateMin: 700, dayRateMax: 900 });
+    expect(freelanceFromParsed({ salary_min: 90000 } as any)).toBeNull();
+  });
+
+  it('prüft im Contracting gegen die Contracting-Chips', () => {
+    // Dieselbe Anzeige, zwei Vertragsarten, zwei Vokabulare. Ohne die
+    // Vertragsart pruefte der Filter gegen die Festanstellungs-Chips, und
+    // der Wert fiele im Contracting unsichtbar durch.
+    const fest = catalogFromParsed({ core_hours: 'Kernarbeitszeit 9 bis 15 Uhr' } as any, 'full-time');
+    const frei = catalogFromParsed({ core_hours: 'Kernarbeitszeit 9 bis 15 Uhr' } as any, 'freelance');
+    expect(fest.core_hours.value).toBe('Gleitzeit mit Kernzeit');
+    expect(frei.core_hours.value).toBe('Kernzeiten einzuhalten');
+
+    // Und ein Vakanzgrund, den es nur in der Festanstellung gibt.
+    const ruhe = { vacancy_reason: 'Nachfolge für den Kollegen, der in Ruhestand geht' } as any;
+    expect(catalogFromParsed(ruhe, 'full-time').vacancy_reason.value).toBe('Nachfolge / Ruhestand');
+    expect(catalogFromParsed(ruhe, 'freelance').vacancy_reason).toBeUndefined();
+  });
+
+  it('schreibt nichts fuer Zeilen, die es in dieser Vertragsart nicht gibt', () => {
+    // career_path gehoert zur Foerderungsfrage -- die entfaellt im Contracting.
+    const d = { career_path: 'Perspektivisch Teamleitung' } as any;
+    expect(catalogFromParsed(d, 'full-time').career_path.value).toBe('Perspektivisch Teamleitung');
+    expect(catalogFromParsed(d, 'freelance').career_path).toBeUndefined();
+  });
+
+  it('nimmt jeden Chip an, den der Katalog fuer den Schwerpunkt fuehrt', () => {
+    // Driftschutz: weichen Parser-Enum und Katalog-Chips auseinander, faellt
+    // der Wert stumm auf den Boden.
+    const chips = BRIEF_QUESTIONS.flatMap((q) => q.slots)
+      .find((s) => s.key === 'task_focus')?.chips ?? [];
+    expect(chips.length).toBe(4);
+    for (const c of chips) {
+      expect(catalogFromParsed({ task_focus: c } as any).task_focus?.value).toBe(c);
+    }
+  });
+
+  it('laesst Leeres weg, statt leere Werte einzutragen', () => {
+    const k = catalogFromParsed({ daily_routine: '  ', unique_selling_points: [] } as any);
+    expect(Object.keys(k)).toEqual([]);
   });
 });
 

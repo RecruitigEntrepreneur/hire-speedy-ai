@@ -61,6 +61,13 @@ interface Props {
   ausAnzeige: { company_name?: string | null; industry?: string | null };
   onChange: (patch: Partial<CompanyDraft>) => void;
   onEnrich: (domain?: string) => Promise<Anreicherung | { reason: string; message: string }>;
+  /**
+   * Die Mitarbeiterzahl aus dem Impressum. Sie stand bisher in der
+   * Vorschlagsliste und wurde beim Uebernehmen verworfen -- der Kunde sah
+   * "Mitarbeitende: 340", klickte "Stimmt, uebernehmen", und die Zahl war weg.
+   * Sie gehoert in den Katalog, wo die Frage danach steht.
+   */
+  onHeadcount?: (headcount: number) => void;
 }
 
 type Feld = keyof CompanyDraft;
@@ -110,7 +117,7 @@ function domainVon(...kandidaten: (string | null | undefined)[]): string | null 
 const FREEMAIL = /(gmail|googlemail|outlook|hotmail|live|yahoo|gmx|web\.de|t-online|icloud|aol|proton)/i;
 const RECHTSFORM = /\s+(GmbH(\s*&\s*Co\.?\s*KG)?|AG|SE|KG|OHG|UG(\s*\(haftungsbeschränkt\))?|mbH|e\.\s?K\.|GbR)\s*$/i;
 
-export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
+export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcount }: Props) {
   /**
    * Eingaben leben lokal, nicht am gespeicherten Entwurf.
    *
@@ -209,6 +216,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich }: Props) {
     fuelle('company_vat_id', a.vat_id);
     fuelle('company_industry', a.industry);
     if (Object.keys(patch).length > 0) setzen(patch);
+    if (a.headcount && onHeadcount) onHeadcount(a.headcount);
     setVorschlag(null);
   };
 

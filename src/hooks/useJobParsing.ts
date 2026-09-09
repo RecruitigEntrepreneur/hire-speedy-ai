@@ -14,6 +14,10 @@ export interface ParsedJobData {
   experience_level: string | null;
   salary_min: number | null;
   salary_max: number | null;
+  /** Contracting: der Tagessatz stand vorher nirgends und landete im
+   *  schlimmsten Fall als Jahresgehalt in salary_min. */
+  day_rate_min?: number | null;
+  day_rate_max?: number | null;
   skills: string[];
   must_haves: string[];
   nice_to_haves: string[];
@@ -46,6 +50,8 @@ export interface ParsedJobData {
   remote_days: number | null;
   overtime_policy: string | null;
   daily_routine: string | null;
+  /** Einer der vier Chips aus dem Katalog-Slot task_focus. */
+  task_focus?: string | null;
   
   // Kultur & Benefits
   company_culture: string | null;

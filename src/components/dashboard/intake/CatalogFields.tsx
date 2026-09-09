@@ -2,7 +2,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
-  chipWert, hatWert, questionsAt,
+  bedingungGilt, hatWert, questionsAt,
+  frageKurz, slotChipWert, slotChips, slotLabel,
   type BriefPlace, type BriefSlot, type Known,
 } from '@/lib/briefCatalog';
 import { Check } from 'lucide-react';
@@ -36,7 +37,7 @@ interface Props {
 }
 
 export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }: Props) {
-  const fragen = questionsAt(place).filter((q) =>
+  const fragen = questionsAt(place, contract).filter((q) =>
     q.slots.some((s) => !s.only || s.only === contract),
   );
   if (fragen.length === 0) return null;
@@ -47,9 +48,15 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }:
         const slots = q.slots.filter(
           (s) =>
             (!s.only || s.only === contract) &&
-            // Auswahl aus dem vorhandenen Profil braucht keine eigene Eingabe.
-            !(s.key === 'salary_range' || s.key === 'day_rate_range') &&
-            (!s.askIf || String(known[s.askIf.key]?.value ?? '') === s.askIf.equals),
+            // Was links im Formular steht, wird hier nicht noch einmal erhoben.
+            // Frueher eine fest verdrahtete Zweierliste -- jede weitere
+            // Formularzeile im Katalog waere doppelt gerendert worden.
+            !s.imFormular &&
+            // Eine Stelle fuer die Bedingung, hier wie im Gespraech. Die
+            // Fassung hier verglich zusaetzlich anders als die im Katalog
+            // (`!== undefined` statt `hatWert`) -- zwei Wahrheiten darueber,
+            // wann eine Folgezeile erscheint.
+            bedingungGilt(known, s),
         );
         if (slots.length === 0) return null;
         /**
@@ -65,16 +72,19 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }:
           <div key={q.key}>
             {zeigeFrage && (
               /* Markos Wortlaut — als Beschriftung, nicht als Frage. */
-              <p className="mb-2 text-xs leading-snug text-muted-foreground">{q.text}</p>
+              <p className="mb-2 text-xs leading-snug text-muted-foreground">
+                {frageKurz(q, contract) ?? q.text}
+              </p>
             )}
             <div className="space-y-2.5">
               {slots.map((s) => (
                 <div key={s.key}>
                   <p className="mb-1 text-[11px] text-muted-foreground">
-                    {s.label}
+                    {slotLabel(s, contract)}
                     {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
                   </p>
                   <FeldEingabe
+                    contract={contract}
                     slot={s}
                     wert={known[s.key]?.value}
                     quelle={known[s.key]?.from}
@@ -112,9 +122,10 @@ const QUELLE: Partial<Record<string, string>> = {
 };
 
 function FeldEingabe({
-  slot, wert, quelle, optionen, onSet,
+  slot, contract, wert, quelle, optionen, onSet,
 }: {
   slot: BriefSlot;
+  contract: 'full-time' | 'freelance';
   wert: unknown;
   quelle?: string;
   /** Ersetzt slot.chips, wenn die Auswahl aus dem Profil kommt. */
@@ -123,12 +134,12 @@ function FeldEingabe({
 }) {
   const hinweis = quelle && quelle !== 'answer' ? QUELLE[quelle] : null;
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
-  const chips = optionen ?? slot.chips;
+  const chips = optionen ?? slotChips(slot, contract);
 
   const chipReihe = (multi: boolean) => (
     <div className="flex flex-wrap gap-1.5">
       {(chips ?? []).map((c) => {
-        const an = multi ? gewaehlt.includes(c) : wert === chipWert(slot, c);
+        const an = multi ? gewaehlt.includes(c) : wert === slotChipWert(slot, contract, c);
         return (
           <button
             key={c}
@@ -136,7 +147,7 @@ function FeldEingabe({
             onClick={() =>
               multi
                 ? onSet(an ? gewaehlt.filter((x) => x !== c) : [...gewaehlt, c])
-                : onSet(an ? undefined : chipWert(slot, c))
+                : onSet(an ? undefined : slotChipWert(slot, contract, c))
             }
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
@@ -161,6 +172,15 @@ function FeldEingabe({
   return (
     <div>
       {(slot.form === 'chips' || slot.form === 'multi') && chipReihe(slot.form === 'multi')}
+
+      {slot.form === 'short' && (
+        <Input value={String(wert ?? '')} className="h-8 text-xs"
+               placeholder={slot.placeholder}
+               /* Nicht bei jedem Anschlag trimmen: sonst frisst das Feld das
+                  Leerzeichen, das gerade getippt wird. Das Trimmen passiert
+                  beim Schreiben in die Spalte. */
+               onChange={(e) => onSet(e.target.value || undefined)} />
+      )}
 
       {slot.form === 'number' && (
         <Input type="number" value={String(wert ?? '')} className="h-8 text-xs"
