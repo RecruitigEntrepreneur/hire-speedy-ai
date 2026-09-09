@@ -47,6 +47,7 @@ export interface IntakeDetails {
 
   /* Umfeld und Entscheidung */
   team_size?: number | null;
+  company_headcount?: number | null;
   department_structure?: string | null;
   reports_to?: string | null;
   decision_makers?: string[] | null;
@@ -238,7 +239,8 @@ function gruppenVon(job: IntakeDetails): Record<string, unknown[]> {
     kriterien: [job.must_have_criteria, job.trainable_skills, job.nice_to_have_criteria],
     aufgabe: [job.daily_routine, job.task_focus, gewichtung(job.task_breakdown)],
     passung: [job.success_profile, job.failure_profile],
-    umfeld: [zahl(job.team_size), job.department_structure, job.reports_to,
+    umfeld: [zahl(job.team_size), zahl(job.company_headcount),
+             job.department_structure, job.reports_to,
              job.decision_makers, job.company_culture],
     angebot: freelance
       ? [tagessatzVon(job), job.contract_duration_months,
@@ -305,6 +307,7 @@ export function JobIntakeDetails({
     { wert: job.career_example, name: 'Karrierebeispiel', gilt: !freelance },
     { wert: job.industry_opportunities, name: 'Chancen der Branche' },
     { wert: job.industry_challenges, name: 'Herausforderungen der Branche' },
+    { wert: job.company_headcount, name: 'Genaue Mitarbeiterzahl' },
   ] as { wert: unknown; name: string; gilt?: boolean }[])
     .filter((f) => (f.gilt ?? true) && leer(f.wert))
     .map((f) => f.name);
@@ -361,6 +364,9 @@ export function JobIntakeDetails({
 
         <Gruppe titel="Umfeld und Entscheidung" werte={gruppen.umfeld}>
           <Zeile frage="Teamgröße" wert={teamgroesse} />
+          {/* Erst nach dem Reveal in der View. Vorher traegt die
+              Groessenklasse in der Eckdatenleiste die Auskunft. */}
+          <Zeile frage="Mitarbeitende gesamt" wert={zahl(job.company_headcount)} />
           <Zeile frage="Aufbau der Abteilung" wert={job.department_structure} />
           <Zeile frage={freelance ? 'Fachliche Führung' : 'Berichtet an'} wert={job.reports_to} />
           <Zeile frage="Entscheidet mit" wert={job.decision_makers} />

@@ -98,6 +98,7 @@ export const BRIEF_COLUMNS: BriefColumn[] = [
   { key: 'industry_challenges', column: 'industry_challenges', store: 'text' },
 
   // Firma und Pipeline
+  { key: 'company_headcount', column: 'company_headcount', store: 'number' },
   { key: 'company_size_band', column: 'company_size_band', store: 'text' },
   { key: 'candidates_in_pipeline', column: 'candidates_in_pipeline', store: 'number' },
   { key: 'candidates_dropped_reason', column: 'candidates_dropped_reason', store: 'text' },

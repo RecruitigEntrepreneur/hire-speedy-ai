@@ -112,6 +112,14 @@ export interface BriefSlot {
   askIf?: { key: string; equals: string | string[] };
   /** Umkehrung: Zeile nur zeigen, wenn die andere NICHT so beantwortet ist. */
   askIfNot?: { key: string; equals: string | string[] };
+  /**
+   * Zeile nur zeigen, solange die genannte Zeile LEER ist.
+   *
+   * Fuer den Rueckfall: die Groessenbaender erscheinen nur, wenn keine
+   * Mitarbeiterzahl dasteht. Steht eine da, ist das Band abgeleitet und eine
+   * zweite Auswahl daneben waere die Einladung, sich selbst zu widersprechen.
+   */
+  askIfLeer?: string;
   /** Beispiel im leeren Feld. Nur fuer `short`/`text` sinnvoll. */
   placeholder?: string;
   only?: 'full-time' | 'freelance';
@@ -273,10 +281,31 @@ const FIRMA: BriefQuestion[] = [
     why: 'Der Kandidat fragt es im ersten Gespräch, und der Recruiter braucht es für die Ansprache.',
     slots: [
       {
-        key: 'company_size_band', label: 'Mitarbeitende', form: 'chips',
+        /**
+         * Die Zahl, nicht die Kategorie.
+         *
+         * BEFUND (09.09.2026): Die Anzeige sagte "rund 340 Mitarbeitende",
+         * sizeBand() machte daraus "250-1.000", und die 340 war weg -- eine
+         * Spanne mit Faktor vier. Darunter stand "aus der Anzeige -- bitte
+         * pruefen", der Kunde bestaetigte also eine Spanne, die er nie genannt
+         * hatte, und danach stand sie als seine Angabe da.
+         *
+         * Das Band bleibt trotzdem: es ist das, was der Recruiter VOR dem
+         * Reveal liest. Eine genaue Kopfzahl neben Branche und Region ist
+         * praktisch eine Adresse. Die Zahl steht deshalb reveal-gesperrt.
+         */
+        key: 'company_headcount', label: 'Mitarbeitende', form: 'number',
+        column: 'company_headcount', store: 'number',
+        required: false, weight: 2, reveal: 'gated', sources: ['ad', 'enrich', 'inherit'],
+      },
+      {
+        // Rueckfall, wenn keine Zahl dasteht. Sonst wird das Band aus der
+        // Zahl abgeleitet -- siehe bandAusKopfzahl.
+        key: 'company_size_band', label: 'Größenklasse', form: 'chips',
         chips: [...GROESSENBANDEN],
         column: 'company_size_band', store: 'text',
         required: false, weight: 2, reveal: 'safe', sources: ['ad', 'enrich', 'inherit'],
+        askIfLeer: 'company_headcount',
       },
     ],
   },
@@ -1101,6 +1130,7 @@ export function bedingungGilt(known: Known, s: BriefSlot): boolean {
     return Array.isArray(bed.equals) ? bed.equals.includes(ist) : ist === bed.equals;
   };
 
+  if (s.askIfLeer && hatWert(known, s.askIfLeer)) return false;
   if (s.askIf && !trifft(s.askIf)) return false;
   // Ohne Antwort auf die Leitzeile bleibt die Folgezeile verborgen:
   // "Wovon haengt er ab?" ergibt erst Sinn, wenn etwas anderes als "Nein" dasteht.

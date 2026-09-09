@@ -188,6 +188,27 @@ export function freelanceFromParsed(d: ParsedJobData): Partial<FreelanceTerms> |
 }
 
 /**
+ * Eine Mitarbeiterzahl aus einem Freitext -- oder nichts.
+ *
+ * Genommen wird nur eine EINZELNE Zahl ("rund 340 Mitarbeitende"). Nennt die
+ * Anzeige eine Spanne ("200 bis 400") oder eine offene Grenze ("ueber 500"),
+ * bleibt das Feld leer und das Band traegt die Auskunft: eine gemittelte 300
+ * waere eine Genauigkeit, die niemand behauptet hat.
+ */
+function kopfzahl(roh: unknown): number | undefined {
+  const text = String(roh ?? '').trim();
+  if (!text) return undefined;
+  if (/\+|mehr als|ueber |über |ab |bis|–|—|-/i.test(text)) return undefined;
+
+  const zahlen = (text.match(/\d[\d.']*/g) ?? [])
+    .map((z) => Number(z.replace(/[.']/g, '')))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (zahlen.length !== 1) return undefined;
+
+  return zahlen[0];
+}
+
+/**
  * Die Uhrzeitspanne aus einem Freitext -- oder nichts.
  *
  * Der Chip beantwortet die Kategorie ("Gleitzeit mit Kernzeit"), der Kandidat
@@ -305,6 +326,9 @@ export function catalogFromParsed(
   // Der Parser gibt Freitext ("Startup", "51-200", "Konzern"), der Katalog
   // will eine von fuenf Banden. sizeBand ist die eine Uebersetzung -- dieselbe
   // gilt fuer das Impressum und fuer die Vorbelegung aus dem Link.
+  /* Die Kopfzahl selbst, nicht nur ihr Band. "rund 340 Mitarbeitende" trug
+     bisher nur zu "250-1.000" bei; die Zahl war danach nicht mehr da. */
+  setz('company_headcount', kopfzahl(d.company_size_estimate));
   setz('company_size_band', sizeBand(d.company_size_estimate));
   return out;
 }

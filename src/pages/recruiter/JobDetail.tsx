@@ -111,6 +111,7 @@ interface Job {
   daily_routine?: string | null;
   decision_makers?: string[] | null;
   team_size?: number | null;
+  company_headcount?: number | null;
   // Der Rest des Fragenkatalogs. Alle stehen seit 20260905090000 in
   // recruiter_jobs_view; `select('*')` liefert sie mit, die generierten
   // Typen kennen sie nicht. Gerendert von JobIntakeDetails.

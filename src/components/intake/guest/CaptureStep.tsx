@@ -302,6 +302,21 @@ export function CaptureStep({
       } else {
         known[key] = { value, from };
       }
+      /**
+       * Die Groessenklasse folgt der Kopfzahl, statt daneben gefragt zu
+       * werden. Der Kunde nennt eine Zahl -- 340 --, und das Band, das der
+       * Recruiter vor dem Reveal liest, ergibt sich daraus. Vorher stand die
+       * Spanne als eigene Frage da und der Kunde bestaetigte "250-1.000",
+       * ohne das je gesagt zu haben.
+       *
+       * Nur wenn die Zahl selbst gesetzt wird: eine ausdrueckliche Wahl des
+       * Bandes (Rueckfall ohne Zahl) darf sie nicht ueberschreiben.
+       */
+      if (key === 'company_headcount') {
+        const band = sizeBand(value as number | null);
+        if (band) known.company_size_band = { value: band, from };
+        else delete known.company_size_band;
+      }
       return { ...s, dyn: { ...s.dyn, catalog: { ...(s.dyn.catalog ?? EMPTY_CATALOG_STATE), known } } };
     });
 

@@ -135,6 +135,29 @@ describe('catalogFromParsed', () => {
     expect(k.core_hours_detail.value).toBe('9 bis 15 Uhr');
   });
 
+  /* "rund 340 Mitarbeitende" wurde zu "250-1.000", und die 340 war weg --
+     eine Spanne mit Faktor vier, die der Kunde dann auch noch bestaetigte. */
+  it('behaelt die Mitarbeiterzahl neben ihrer Klasse', () => {
+    const k = catalogFromParsed({ company_size_estimate: 'rund 340 Mitarbeitende' } as any);
+    expect(k.company_headcount.value).toBe(340);
+    expect(k.company_size_band.value).toBe('250\u20131.000');
+  });
+
+  it('erfindet keine Zahl, wo die Anzeige eine Spanne nennt', () => {
+    // Aus "200 bis 400" eine gemittelte 300 zu machen waere eine Genauigkeit,
+    // die niemand behauptet hat. Das Band traegt dann die Auskunft allein.
+    const spanne = catalogFromParsed({ company_size_estimate: '200 bis 400 Mitarbeitende' } as any);
+    expect(spanne.company_headcount).toBeUndefined();
+    expect(spanne.company_size_band.value).toBe('250\u20131.000');
+
+    const offen = catalogFromParsed({ company_size_estimate: 'ueber 5.000' } as any);
+    expect(offen.company_headcount).toBeUndefined();
+
+    const wort = catalogFromParsed({ company_size_estimate: 'Konzern' } as any);
+    expect(wort.company_headcount).toBeUndefined();
+    expect(wort.company_size_band.value).toBe('mehr als 5.000');
+  });
+
   it('ordnet die Berichtslinie zu, ohne ein zweites Modell zu brauchen', () => {
     const an = (v: string) => catalogFromParsed({ reports_to: v } as any).reports_to?.value;
     expect(an('Technischen Geschäftsführer')).toBe('Geschäftsführung');

@@ -2,7 +2,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
-  bedingungGilt, hatWert, questionsAt,
+  bedingungGilt, hatWert, questionsAt, sizeBand,
   frageKurz, slotChipWert, slotChips, slotLabel,
   type BriefPlace, type BriefSlot, type Known,
 } from '@/lib/briefCatalog';
@@ -211,6 +211,17 @@ function FeldEingabe({
 
       {hinweis && hatWert({ [slot.key]: { value: wert, from: 'ad' } }, slot.key) && (
         <p className="mt-1 text-[10px] text-muted-foreground">{hinweis} — bitte prüfen</p>
+      )}
+
+      {/* Eine einzige benannte Ausnahme, kein Baukasten: die Kopfzahl zeigt,
+          was der Recruiter vor dem Reveal daraus liest. Ohne diese Zeile
+          gaebe der Kunde eine Zahl ein und wuesste nicht, dass davon nur
+          eine Groessenklasse nach draussen geht. */}
+      {slot.key === 'company_headcount' && sizeBand(wert as number) && (
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Größenklasse {sizeBand(wert as number)} — mehr sieht der Recruiter
+          vor der Freigabe nicht.
+        </p>
       )}
     </div>
   );
