@@ -136,7 +136,11 @@ const OUTPUT_SCHEMA = {
         + 'NICHT stehen. Leite sie aus dem ab, was schon dasteht -- Java -> Spring Boot, '
         + 'Maven, JUnit; Kubernetes -> Docker, Helm; SAP FI -> SAP CO, Migration; HGB -> '
         + 'IFRS, Konsolidierung. Erfinde nichts Rollenfremdes und wiederhole nichts, was '
-        + 'schon im Entwurf oder in known steht. Hoechstens 6. Sind keine sinnvollen '
+        + 'schon im Entwurf oder in known steht -- auch nicht ANDERS FORMULIERT: '
+        + '"Arbeitnehmerueberlassungsgesetz (AUEG)" neben "Personalvermittlung nach '
+        + 'AUEG" ist eine Wiederholung, "Expertenwissen Maschinenbau" neben '
+        + '"Maschinenbau" auch. Ausgeschrieben statt abgekuerzt, Oberbegriff statt '
+        + 'Beispiel, Synonym -- alles Wiederholung. Hoechstens 6. Sind keine sinnvollen '
         + 'Ergaenzungen erkennbar, gib eine LEERE Liste zurueck -- eine schlechte '
         + 'Empfehlung kostet mehr Vertrauen als eine fehlende.',
       items: {
@@ -192,7 +196,17 @@ const OUTPUT_SCHEMA = {
       },
     },
   },
-  required: ['slot_values'],
+  /**
+   * Was das Modell beantworten MUSS -- notfalls leer.
+   *
+   * BEFUND (09.09.2026, zum dritten Mal dasselbe Muster): `skill_suggestions`
+   * und `answer_suggestions` standen nicht hier. In der ersten Ernte nach dem
+   * Parsen kamen sie nicht zurueck, im naechsten Aufruf mit denselben Daten
+   * schon -- nullable ohne `required` heisst fuer das Modell: darf ich
+   * weglassen. Vorher traf es daily_routine im Parser, dann das Gehaltsband.
+   * Eine leere Liste ist eine Antwort; ein fehlender Schluessel ist Zufall.
+   */
+  required: ['slot_values', 'answer_suggestions', 'skill_suggestions', 'conflicts'],
 };
 
 serve(async (req) => {

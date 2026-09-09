@@ -227,8 +227,37 @@ export function ProfileSections({
     [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])]
       .map((x) => String(x).toLowerCase().trim()),
   );
+
+  /**
+   * Ein Vorschlag, der schon dasteht, ist keiner.
+   *
+   * BEFUND (09.09.2026): Neben "Maschinenbau" schlug das Modell
+   * "Expertenwissen Maschinenbau" vor, neben "Personalvermittlung nach AUEG"
+   * das ausgeschriebene "Arbeitnehmerueberlassungsgesetz (AUEG)". Geprueft
+   * wurde nur gegen die Kriterienliste -- die SKILLS standen nicht im
+   * Vergleich, obwohl der Kunde sie direkt daneben sieht.
+   *
+   * Verglichen wird deshalb gegen beides und mit Enthaltensein statt
+   * Gleichheit: "Maschinenbau" steckt in "Expertenwissen Maschinenbau". Erst
+   * ab fuenf Zeichen, sonst schluckt ein kurzer Eintrag wie "SAP" jeden
+   * Vorschlag, der ihn zufaellig enthaelt. Was das Modell trotzdem
+   * durchlaesst -- dasselbe mit anderen Worten -- faengt nur der Prompt.
+   */
+  const schonDa = [
+    ...(built.must_haves ?? []), ...(built.nice_to_haves ?? []), ...(built.skills ?? []),
+  ].map((x) => String(x ?? '').toLowerCase().trim()).filter(Boolean);
+
+  const istDoppelt = (roh: string) => {
+    const n = String(roh ?? '').toLowerCase().trim();
+    if (!n) return true;
+    return schonDa.some((v) =>
+      v === n
+      || (v.length >= 5 && n.includes(v))
+      || (n.length >= 5 && v.includes(n)));
+  };
+
   const vorschlaege = (skillSuggestions ?? [])
-    .filter((v) => v?.skill && !vorhanden.has(String(v.skill).toLowerCase().trim()))
+    .filter((v) => v?.skill && !istDoppelt(v.skill))
     .slice(0, 6);
 
   /**
@@ -252,7 +281,9 @@ export function ProfileSections({
       raus.push({ wert: w, quelle, grund });
     };
     for (const s of built.skills ?? []) nimm(s, 'ad');
-    for (const v of skillSuggestions ?? []) nimm(v?.skill, 'ai', v?.because);
+    for (const v of skillSuggestions ?? []) {
+      if (!istDoppelt(v?.skill ?? '')) nimm(v?.skill, 'ai', v?.because);
+    }
     return raus;
   }, [built.skills, skillSuggestions, built.must_haves, built.nice_to_haves]);
   const isFreelance = type === 'freelance';
