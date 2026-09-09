@@ -25,9 +25,19 @@ import { CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 interface Props {
   url: string;
   onDone: () => void;
+  /**
+   * Der Lauf endete OHNE Unterschrift -- abgelaufen, abgebrochen, abgelehnt.
+   *
+   * BEFUND (09.09.2026): Danach blieb die alte Adresse im Zustand stehen. Der
+   * Rahmen zeigte eine tote Seite, und die Frage "wer unterschreibt" kam nicht
+   * zurueck, weil sie nur ohne Adresse erscheint. Der Kunde war
+   * eingeschlossen: kein Vertrag, kein Weg zu einem neuen Link, ausser die
+   * Seite von Hand neu zu laden.
+   */
+  onAbbruch?: (event: string) => void;
 }
 
-export function SignFrame({ url, onDone }: Props) {
+export function SignFrame({ url, onDone, onAbbruch }: Props) {
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -58,6 +68,14 @@ export function SignFrame({ url, onDone }: Props) {
       if (event === 'signing_complete') {
         setDone(true);
         onDone();
+        return;
+      }
+
+      /* Alles andere, was von UNSERER Rueckkehrseite kommt, ist ein Ende ohne
+         Unterschrift. DocuSigns eigene Nachrichten melden auch Zwischen-
+         zustaende, deshalb nur die eigene Herkunft. */
+      if (e.origin === window.location.origin && e.data?.type === 'matchunt:sign-return') {
+        onAbbruch?.(event);
       }
     };
     window.addEventListener('message', onMessage);

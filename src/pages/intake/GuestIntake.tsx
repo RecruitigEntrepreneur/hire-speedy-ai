@@ -319,7 +319,24 @@ export default function GuestIntake() {
                 Sie unterschreiben zuerst, danach zeichnet Matchunt gegen.
               </p>
             </div>
-            <SignFrame url={signUrl} onDone={() => setSigned(true)} />
+            <SignFrame
+              url={signUrl}
+              onDone={() => setSigned(true)}
+              onAbbruch={(ev) => {
+                /* Die alte Adresse ist verbraucht. Sie stehen zu lassen hiesse,
+                   den Kunden vor einem toten Rahmen sitzen zu lassen -- die
+                   Frage "wer unterschreibt" erscheint nur, solange keine
+                   Adresse gesetzt ist. */
+                setSignUrl(null);
+                setSignError(
+                  ev === 'decline'
+                    ? 'Sie haben die Unterschrift abgelehnt. Der Vertrag ist nicht zustande '
+                      + 'gekommen. Sie können den Lauf hier erneut starten.'
+                    : 'Der Signaturlink ist abgelaufen — er gilt nur wenige Minuten. '
+                      + 'Ihre Angaben sind gespeichert; unten starten Sie einen neuen Versuch.',
+                );
+              }}
+            />
           </div>
         </div>
       );
