@@ -254,7 +254,15 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
     if (v && typeof v === 'object') return Object.values(v).some((x) => String(x ?? '').trim());
     return String(v ?? '').trim().length > 0;
   };
-  const kannWeiter = fragen.filter((s) => s.required).every(gefuellt);
+  /**
+   * Was noch fehlt -- benannt, nicht nur gesperrt.
+   *
+   * Ein ausgegrauter Knopf ohne Grund ist auf dieser Seite eine Sackgasse:
+   * der Kunde sieht markierte Chips und einen toten Knopf und weiss nicht,
+   * welche der drei Zeilen gemeint ist.
+   */
+  const fehlendePflicht = fragen.filter((s) => s.required && !gefuellt(s));
+  const kannWeiter = fehlendePflicht.length === 0;
 
   const absenden = (unbekannt = false) => {
     const known: Known = { ...state.known };
@@ -354,7 +362,10 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
                   </span>
                 )}
               </p>
-              <SlotEingabe contract={type} slot={s} wert={entwurf[s.key]} onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)} />
+              <SlotEingabe
+                contract={type} slot={s} wert={entwurf[s.key]}
+                quelle={state.known[s.key]?.from}
+                onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)} />
             </div>
           ))}
         </div>
@@ -364,8 +375,13 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
                   onClick={() => absenden(true)}>
             Weiß ich nicht
           </Button>
-          <Button size="sm" className="ml-auto h-7 px-3 text-xs" disabled={!kannWeiter}
-                  onClick={() => absenden()}>
+          {!kannWeiter && (
+            <span className="ml-auto text-[11px] text-amber-600">
+              Es fehlt: {fehlendePflicht.map((s) => slotLabel(s, type)).join(', ')}
+            </span>
+          )}
+          <Button size="sm" className={cn('h-7 px-3 text-xs', kannWeiter && 'ml-auto')}
+                  disabled={!kannWeiter} onClick={() => absenden()}>
             Weiter
           </Button>
         </div>
@@ -475,15 +491,29 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
 /* ------------------------------------------------------------------ */
 
 function SlotEingabe({
-  slot, contract, wert, onSet, onToggle,
+  slot, contract, wert, quelle, onSet, onToggle,
 }: {
   slot: BriefSlot;
   contract: 'full-time' | 'freelance';
   wert: unknown;
+  /** Woher der vorbelegte Wert stammt. 'answer' heisst: der Kunde selbst. */
+  quelle?: string;
   onSet: (v: unknown) => void;
   onToggle: (chip: string) => void;
 }) {
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
+  /**
+   * Ein markierter Chip, der nur ein Vorschlag ist, wird durch den Klick
+   * BESTAETIGT -- nicht geleert.
+   *
+   * BEFUND (09.09.2026, im Durchlauf erlebt): Ueber der Zeile stand "aus der
+   * Anzeige gelesen", der Chip war markiert. Ein Klick darauf loeschte den
+   * Wert -- und weil `reports_to` Pflicht ist, wurde damit der Weiter-Knopf
+   * tot. Ohne Meldung, ohne sichtbare Ursache: die Zeile sah beantwortet aus,
+   * der Knopf reagierte nicht mehr. Dieselbe Regel gilt links in
+   * CatalogFields; sie fehlte hier.
+   */
+  const nurVorschlag = !!quelle && quelle !== 'answer';
 
   if (slot.form === 'chips' || slot.form === 'multi') {
     const multi = slot.form === 'multi';
@@ -502,7 +532,10 @@ function SlotEingabe({
           const an = multi ? gewaehlt.includes(c) : wert === slotChipWert(slot, contract, c);
           return (
             <button key={c} type="button"
-              onClick={() => (multi ? onToggle(c) : onSet(an ? undefined : slotChipWert(slot, contract, c)))}
+              onClick={() =>
+                (multi
+                  ? onToggle(c)
+                  : onSet(an && !nurVorschlag ? undefined : slotChipWert(slot, contract, c)))}
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                 an ? 'border-primary bg-primary/10 text-foreground'
