@@ -96,6 +96,22 @@ const KEEP_TOGETHER = new Set([
   'sap fi/co', 'fi/co', 'b2b/b2c', 'ci/cd-pipelines',
 ]);
 
+/**
+ * Ein Wortfragment ist kein Kriterium.
+ *
+ * BEFUND (09.09.2026, vom Kunden auf dem Bildschirm gefunden): In der
+ * Muss-Liste stand "-beratung". Der Riegel in splitCompoundSkill verhindert
+ * inzwischen, dass "Personalvermittlung oder -beratung" auseinandergerissen
+ * wird -- aber wenn das MODELL den Rest schon als eigenen Eintrag liefert,
+ * kommt der Splitter nie ins Spiel. Deshalb der Riegel hier, an der Stelle,
+ * wo Kriterien entstehen: was mit einem Bindestrich anfaengt oder aufhoert,
+ * ist die Haelfte eines Wortes und geht niemanden etwas an.
+ */
+export function istWortfragment(raw: string): boolean {
+  const t = String(raw ?? '').trim();
+  return !t || /^[-‑–—]|[-‑–—]$/.test(t);
+}
+
 export function splitCompoundSkill(raw: string): string[] {
   const value = raw.trim();
   if (!value) return [];
@@ -162,6 +178,7 @@ export function normalizeSkillList(values: unknown, map: SynonymMap, limit = 25)
     const raw = String(value ?? '').trim();
     if (!raw || raw.length > 60) continue;   // Saetze sind keine Skills
     for (const part of splitCompoundSkill(raw)) {
+      if (istWortfragment(part)) continue;
       const key = canonicalKey(part, map);
       if (!key) continue;
       if (!display.has(key)) {
@@ -225,6 +242,7 @@ export function routeRequirements(
     if (kind === 'technology' || kind === 'method' || kind === 'domain') {
       const base = String(item.skill ?? text).trim();
       for (const part of splitCompoundSkill(base)) {
+        if (istWortfragment(part)) continue;
         const key = canonicalKey(part, map);
         if (!key || key.length > 60 || seenSkill.has(key)) continue;
         seenSkill.add(key);

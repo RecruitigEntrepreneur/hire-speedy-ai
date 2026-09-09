@@ -3,7 +3,7 @@ import { ALL_SLOTS } from './briefCatalog';
 import {
   BRIEF_COLUMNS, OHNE_SPALTE, catalogToJobRow,
 } from '../../supabase/functions/_shared/brief-columns';
-import { splitCompoundSkill } from '../../supabase/functions/_shared/skills';
+import { splitCompoundSkill, normalizeSkillList, istWortfragment } from '../../supabase/functions/_shared/skills';
 
 /**
  * Der Katalog steht in src/, die Abbildung in supabase/functions/_shared/ --
@@ -122,5 +122,18 @@ describe('splitCompoundSkill', () => {
   it('trennt weiterhin, wo zwei eigenständige Begriffe stehen', () => {
     expect(splitCompoundSkill('Java und Kotlin')).toEqual(['Java', 'Kotlin']);
     expect(splitCompoundSkill('Azure oder AWS')).toEqual(['Azure', 'AWS']);
+  });
+
+  /* Der Splitter allein reicht nicht: liefert das MODELL "-beratung" schon
+     als eigenen Eintrag, kommt er nie ins Spiel. Der Kunde hatte genau das
+     in seiner Muss-Liste stehen. */
+  it('lässt kein Wortfragment in eine Liste', () => {
+    expect(istWortfragment('-beratung')).toBe(true);
+    expect(istWortfragment('Fach-')).toBe(true);
+    expect(istWortfragment('Personalberatung')).toBe(false);
+
+    const leer = new Map();
+    expect(normalizeSkillList(['-beratung', 'Kubernetes', 'Fach-'], leer as never))
+      .toEqual(['Kubernetes']);
   });
 });
