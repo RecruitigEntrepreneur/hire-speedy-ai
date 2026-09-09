@@ -544,20 +544,36 @@ WICHTIGE REGELN:
                   Alle Briefing-Felder sind nullable. `required` zwingt also
                   nicht zum Erfinden, sondern nur zum Antworten -- notfalls
                   mit null.
+
+                  NACHTRAG (09.09.2026): Dieselbe Anzeige zweimal geparst, das
+                  zweite Mal mit erweitertem Prompt -- und `salary_min` kam
+                  nicht mehr zurueck, obwohl "78.000 bis 96.000 Euro" woertlich
+                  dasteht. Es stand nicht in dieser Liste. Ausgerechnet
+                  salary_range sperrt den Uebergang zu den Kontaktdaten; der
+                  Kunde haette es von Hand nachtragen muessen, ohne zu wissen,
+                  warum.
+                  Je laenger der Prompt, desto oefter faellt etwas weg. Deshalb
+                  steht ab hier JEDE Eigenschaft des Schemas in `required` --
+                  die Liste wird nicht mehr gepflegt, sondern ist vollstaendig.
                 */
-                required: ["title", "company_name", "skills", "must_haves", "nice_to_haves",
-                           "benefits_extracted", "unique_selling_points", "requirements_classified",
-                           "daily_routine", "task_focus", "team_size", "reports_to",
-                           "core_hours", "remote_days", "overtime_policy",
-                           "company_culture", "career_path",
-                           "vacancy_reason", "hiring_urgency", "company_size_estimate",
-                           "industry",
-                           "salary_months", "bonus_percent", "contract_limitation",
-                           "time_tracking_method", "works_council", "contract_creation_days",
-                           "negative_impact_if_unfilled", "decision_makers",
-                           "success_profile", "failure_profile", "position_advantages",
-                           "contract_sensitive_topics",
-                           "industry_opportunities", "industry_challenges"]
+required: ["title", "company_name", "description", "requirements", "location", 
+                           "remote_type", "employment_type", "experience_level", "salary_min", 
+                           "salary_max", "day_rate_min", "day_rate_max", "skills", 
+                           "requirements_classified", "must_haves", "nice_to_haves", 
+                           "team_size", "reports_to", "department_structure", "core_hours", 
+                           "remote_days", "overtime_policy", "daily_routine", "task_focus", 
+                           "company_culture", "benefits_extracted", "unique_selling_points", 
+                           "career_path", "hiring_urgency", "vacancy_reason", 
+                           "hiring_deadline_weeks", "industry", "company_size_estimate", 
+                           "salary_months", "bonus_percent", "bonus_basis", 
+                           "contract_limitation", "time_tracking_method", "works_council", 
+                           "works_council_meeting_schedule", "contract_creation_days", 
+                           "contract_sent_digitally", "negative_impact_if_unfilled", 
+                           "task_breakdown", "decision_makers", "success_profile", 
+                           "failure_profile", "position_advantages", "career_example", 
+                           "contract_sensitive_topics", "industry_opportunities", 
+                           "industry_challenges", "candidates_in_pipeline", 
+                           "candidates_dropped_reason", "visa_sponsorship"]
               }
             }
           }
