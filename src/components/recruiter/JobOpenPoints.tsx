@@ -18,11 +18,21 @@ import { HelpCircle } from 'lucide-react';
 export interface OffenerPunkt {
   frage: string;
   vorhanden: boolean;
+  /**
+   * Erhoben, aber fuer diesen Recruiter noch gesperrt.
+   *
+   * Manche Angaben stehen in `recruiter_jobs_view` hinter dem Reveal-Gate --
+   * der Arbeitsalltag zum Beispiel. Vor dem Reveal liest die Seite dort NULL.
+   * Ohne diese Unterscheidung stuende "nicht erhoben" ueber etwas, das der
+   * Kunde beantwortet hat: eine Falschaussage in die andere Richtung.
+   */
+  gesperrt?: boolean;
 }
 
 export function JobOpenPoints({ punkte }: { punkte: OffenerPunkt[] }) {
-  const offen = punkte.filter((p) => !p.vorhanden);
-  if (offen.length === 0) return null;
+  const offen = punkte.filter((p) => !p.vorhanden && !p.gesperrt);
+  const spaeter = punkte.filter((p) => !p.vorhanden && p.gesperrt);
+  if (offen.length === 0 && spaeter.length === 0) return null;
 
   return (
     <Card className="border-border/30 shadow-sm">
@@ -42,6 +52,22 @@ export function JobOpenPoints({ punkte }: { punkte: OffenerPunkt[] }) {
             </li>
           ))}
         </ul>
+
+        {spaeter.length > 0 && (
+          <div className="mt-4 border-t pt-3">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Erhoben, aber erst nach dem Reveal sichtbar:
+            </p>
+            <ul className="space-y-1.5">
+              {spaeter.map((p) => (
+                <li key={p.frage} className="flex gap-2 text-sm text-muted-foreground">
+                  <span className="text-muted-foreground/50">·</span>
+                  {p.frage}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -21,6 +21,10 @@ import { AnonymousExposeDialog } from '@/components/recruiter/AnonymousExposeDia
 import { PartnerFactsCard } from '@/components/recruiter/PartnerFactsCard';
 import { JobCandidateProcessCards, JobSubmission } from '@/components/recruiter/JobCandidateProcessCards';
 import {
+  JobIntakeDetails, hatAufnahme, zeilenDerAufnahme, abschnitteDerAufnahme,
+} from '@/components/recruiter/JobIntakeDetails';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
   MapPin,
   Clock,
   ArrowLeft,
@@ -31,6 +35,7 @@ import {
   Loader2,
   Star,
   Sparkles,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   Dialog,
@@ -100,6 +105,47 @@ interface Job {
   // `select('*')` sie mit, deshalb optional statt Cast.
   day_rate_min?: number | null;
   day_rate_max?: number | null;
+  // Dieselbe Lage fuer die Katalogspalten: sie stehen in der View, aber die
+  // generierten Typen kennen sie noch nicht.
+  vacancy_reason?: string | null;
+  daily_routine?: string | null;
+  decision_makers?: string[] | null;
+  team_size?: number | null;
+  // Der Rest des Fragenkatalogs. Alle stehen seit 20260905090000 in
+  // recruiter_jobs_view; `select('*')` liefert sie mit, die generierten
+  // Typen kennen sie nicht. Gerendert von JobIntakeDetails.
+  negative_impact_if_unfilled?: string | null;
+  must_have_criteria?: string[] | null;
+  trainable_skills?: string[] | null;
+  nice_to_have_criteria?: string[] | null;
+  task_focus?: string | null;
+  task_breakdown?: unknown;
+  success_profile?: string | null;
+  failure_profile?: string | null;
+  department_structure?: string | null;
+  reports_to?: string | null;
+  company_culture?: string | null;
+  salary_months?: number | null;
+  bonus_structure?: string | null;
+  contract_limitation?: string | null;
+  contract_duration_months?: number | null;
+  utilization_days_per_week?: number | null;
+  extension_possible?: boolean | null;
+  career_path?: string | null;
+  career_example?: string | null;
+  unique_selling_points?: string[] | null;
+  position_advantages?: string[] | null;
+  core_hours?: string | null;
+  core_hours_detail?: string | null;
+  overtime_policy?: string | null;
+  time_tracking_method?: string | null;
+  works_council?: boolean | null;
+  works_council_meeting_schedule?: string | null;
+  contract_creation_days?: number | null;
+  contract_sent_digitally?: boolean | null;
+  contract_sensitive_topics?: string | null;
+  industry_opportunities?: string | null;
+  industry_challenges?: string | null;
 }
 
 // Triple-Blind Reveal Status für diesen Job
@@ -145,6 +191,11 @@ export default function JobDetail() {
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
   const [showExposeDialog, setShowExposeDialog] = useState(false);
+  /* Welcher Reiter offen ist. `null` heisst: der Recruiter hat noch nicht
+     gewaehlt, dann entscheidet die Datenlage (siehe `ansicht` unten).
+     Ein useEffect waere hier falsch: er wuerde die Wahl des Recruiters
+     beim naechsten Nachladen des Jobs wieder ueberschreiben. */
+  const [reiter, setReiter] = useState<string | null>(null);
   const [accessStatus, setAccessStatus] = useState<RecruiterAccessStatus>({
     hasSubmission: false,
     companyRevealed: false,
@@ -317,6 +368,14 @@ export default function JobDetail() {
   const potentialEarning = calculatePotentialEarning();
   const formattedContent = job.formatted_content;
 
+  /* Der Startreiter folgt der Datenlage: liegt eine Aufnahme vor, ist sie das
+     Erste, was der Recruiter sieht -- sie ist die einzige bestaetigte Quelle
+     auf dieser Seite. Auf Altbestand ohne Aufnahme waere ein leerer Reiter
+     als Startseite eine Zumutung, dort oeffnet der Ueberblick. */
+  const aufnahmeVorhanden = hatAufnahme(job);
+  const reiterZeilen = zeilenDerAufnahme(job);
+  const ansicht = reiter ?? (abschnitteDerAufnahme(job) > 1 ? 'aufnahme' : 'ueberblick');
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -446,9 +505,55 @@ export default function JobDetail() {
           }}
         />
 
+        {/* Die Stelle traegt zwei verschiedene Dokumente: was der Kunde im
+            Briefing gesagt hat, und was ein Modell aus der Anzeige geschrieben
+            hat. Untereinander gehaengt las sich das Zweite wie das Erste --
+            und die Aufnahme stand bei 80 % der Seitenhoehe. Als Reiter werden
+            daraus zwei gleichrangige Ansichten, zwischen denen der Recruiter
+            waehlt. Die Seitenleiste bleibt stehen: Honorar, offene Punkte und
+            Screening sind Entscheidungshilfen, kein Lesestoff. */}
+        <Tabs value={ansicht} onValueChange={setReiter} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="aufnahme" className="gap-1.5">
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              Aus der Aufnahme
+              {reiterZeilen > 0 && (
+                <span className="ml-0.5 text-xs tabular-nums opacity-60">{reiterZeilen}</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="ueberblick" className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              Überblick
+            </TabsTrigger>
+          </TabsList>
+
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content - 60% */}
           <div className="lg:col-span-2 space-y-6">
+
+            <TabsContent value="aufnahme" className="mt-0 space-y-6">
+              {aufnahmeVorhanden ? (
+                <JobIntakeDetails job={job} isRevealed={accessStatus.companyRevealed} />
+              ) : (
+                /* Kein Platzhaltertext, sondern der Grund: diese Stellen sind
+                   angelegt worden, bevor die Antworten des Fragenkatalogs in
+                   die Stelle geschrieben wurden. Sonst haelt der Recruiter
+                   eine alte Stelle fuer eine schlecht gebriefte. */
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <ClipboardCheck className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
+                    <p className="text-sm font-medium">Zu dieser Stelle liegt keine Aufnahme vor</p>
+                    <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
+                      Sie wurde angelegt, bevor die Antworten aus dem Briefing-Gespräch
+                      in die Stelle geschrieben wurden. Was der Überblick zeigt, stammt
+                      aus der Stellenanzeige.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ueberblick" className="mt-0 space-y-6">
             {/* Was ab hier folgt, hat ein Modell aus der Anzeige geschrieben --
                 nicht der Kunde gesagt. Ohne diese Zeile liest der Recruiter
                 Erfundenes und Belegtes in derselben Schrift. */}
@@ -526,6 +631,8 @@ export default function JobDetail() {
               techEnvironment={job.tech_environment}
             />
 
+            </TabsContent>
+
           </div>
 
           {/* Sidebar - 40% */}
@@ -557,10 +664,26 @@ export default function JobDetail() {
 
             <JobOpenPoints
               punkte={[
-                { frage: 'Warum ist die Stelle offen?', vorhanden: false },
-                { frage: 'Woran arbeitet die Person in den ersten 90 Tagen?', vorhanden: false },
-                { frage: 'Wie viele Gespräche bis zur Zusage, wer entscheidet?', vorhanden: false },
-                { frage: 'Wie groß ist das Team?', vorhanden: false },
+                /* Diese vier standen fest auf `false`, weil es zu ihnen keine
+                   Spalte gab -- der Fragenkatalog erhob sie, aber
+                   draftToJobRow schrieb sie nicht. Seit die Katalogantworten
+                   in jobs ankommen, gibt es die Werte. Ein hartes `false`
+                   wuerde jetzt das Gegenteil behaupten: "nicht erhoben" ueber
+                   etwas, das der Kunde beantwortet hat. */
+                { frage: 'Warum ist die Stelle offen?',
+                  vorhanden: !!job.vacancy_reason },
+                /* daily_routine steht in der View hinter dem Reveal-Gate --
+                   vor dem Reveal liest die Seite NULL, obwohl der Wert da ist. */
+                { frage: 'Woran arbeitet die Person in den ersten 90 Tagen?',
+                  vorhanden: !!job.daily_routine,
+                  gesperrt: !job.daily_routine && !accessStatus.companyRevealed },
+                { frage: 'Wie viele Gespräche bis zur Zusage, wer entscheidet?',
+                  vorhanden: !!job.decision_makers?.length },
+                /* `> 0`, nicht `!= null`: auf Altbestand steht dort -1 fuer
+                   "nicht ermittelt". Als "erhoben" gemeldet, sucht der
+                   Recruiter die Zahl auf der Seite und findet keine. */
+                { frage: 'Wie groß ist das Team?',
+                  vorhanden: (job.team_size ?? 0) > 0 },
                 { frage: 'Gehaltsband', vorhanden: job.salary_min != null || job.salary_max != null },
                 { frage: 'Sprachanforderung', vorhanden: !!job.required_languages?.length },
                 { frage: 'Benefits', vorhanden: !!job.benefits?.length },
@@ -598,6 +721,7 @@ export default function JobDetail() {
             )}
           </div>
         </div>
+        </Tabs>
       </div>
 
       {/* Anonymous Expose Dialog */}
