@@ -182,6 +182,24 @@ export function CaptureStep({
       return;
     }
     const job = fromParsedJobData(parsed);
+    /**
+     * Was die Anzeige als nachschulbar bezeichnet, gehoert in die
+     * Kriterienliste -- sonst kann es niemand als "lernbar" einstufen.
+     *
+     * BEFUND (09.09.2026): Die Anzeige hatte einen Abschnitt "Nachschulbar bei
+     * uns" mit Bullhorn, Boolean Search und Branchenkenntnis. Der Parser gab
+     * sie zurueck, aber keines davon stand in der Muss- oder Kann-Liste --
+     * also gab es nichts, woran die Einstufung haengen konnte, und die Zeile
+     * "Was kann nachgeschult werden?" blieb leer. Ein Lernversprechen IST ein
+     * Kriterium der Rolle, nur ein weiches.
+     */
+    const lernbar = (parsed.trainable_skills ?? [])
+      .map((x) => String(x ?? '').trim())
+      .filter(Boolean)
+      .filter((x) => ![...job.must_haves, ...job.nice_to_haves]
+        .some((k) => String(k).toLowerCase() === x.toLowerCase()));
+    if (lernbar.length) job.nice_to_haves = [...job.nice_to_haves, ...lernbar];
+
     if (!job.company_name && companyDefaults?.company_name) job.company_name = companyDefaults.company_name;
     if (!job.location && companyDefaults?.location) job.location = companyDefaults.location;
     if (!job.industry && companyDefaults?.industry) job.industry = companyDefaults.industry;

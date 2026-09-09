@@ -3,6 +3,7 @@ import { ALL_SLOTS } from './briefCatalog';
 import {
   BRIEF_COLUMNS, OHNE_SPALTE, catalogToJobRow,
 } from '../../supabase/functions/_shared/brief-columns';
+import { splitCompoundSkill } from '../../supabase/functions/_shared/skills';
 
 /**
  * Der Katalog steht in src/, die Abbildung in supabase/functions/_shared/ --
@@ -100,5 +101,26 @@ describe('catalogToJobRow', () => {
       daily_routine: '   ', must_have_criteria: [], company_culture: null,
     }), 'full-time')).toEqual({});
     expect(catalogToJobRow(null, 'full-time')).toEqual({});
+  });
+});
+
+/**
+ * Deutsche Auslassungen in Anforderungslisten.
+ *
+ * BEFUND (09.09.2026): "Mindestens drei Jahre in der Personalvermittlung oder
+ * Personalberatung" wurde zu zwei Kriterien -- eines davon hiess "-beratung"
+ * und stand so in der Muss-Liste, die der Kunde einstufen sollte.
+ */
+describe('splitCompoundSkill', () => {
+  it('trennt nicht an einer Auslassung', () => {
+    expect(splitCompoundSkill('Personalvermittlung oder -beratung'))
+      .toEqual(['Personalvermittlung oder -beratung']);
+    expect(splitCompoundSkill('Fach- und Führungskräfte'))
+      .toEqual(['Fach- und Führungskräfte']);
+  });
+
+  it('trennt weiterhin, wo zwei eigenständige Begriffe stehen', () => {
+    expect(splitCompoundSkill('Java und Kotlin')).toEqual(['Java', 'Kotlin']);
+    expect(splitCompoundSkill('Azure oder AWS')).toEqual(['Azure', 'AWS']);
   });
 });

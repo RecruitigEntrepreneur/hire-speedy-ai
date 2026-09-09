@@ -106,6 +106,17 @@ export function splitCompoundSkill(raw: string): string[] {
     .map((p) => p.trim())
     .filter((p) => p.length > 1);
 
+  /**
+   * Deutsche Auslassung. Sie kommt in beiden Richtungen vor:
+   *   "Personalvermittlung oder -beratung"  -> Endung hinten ausgelassen
+   *   "Fach- und Fuehrungskraefte"          -> Endung vorne ausgelassen
+   * Getrennt bleibt "-beratung" bzw. "Fach-" uebrig -- gemessen am
+   * 09.09.2026, wo genau das als Muss-Kriterium in der Liste des Kunden
+   * stand, die er einstufen sollte. Ein Bindestrich am Rand eines Teils
+   * heisst: die Teile gehoeren zusammen.
+   */
+  if (parts.some((p) => /^[-‑–—]|[-‑–—]$/.test(p))) return [value];
+
   // Nur trennen, wenn dabei mehrere brauchbare Teile herauskommen und keiner
   // davon ein Satzfragment ist.
   if (parts.length < 2) return [value];
