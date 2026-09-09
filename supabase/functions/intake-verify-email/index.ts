@@ -74,8 +74,33 @@ serve(async (req) => {
 
       const limit = await checkLimits(supabase, LIMITS.verifySend(draft.id, email, ip));
       if (!limit.allowed) {
+        /**
+         * Sagen, was los ist und bis wann.
+         *
+         * Vorher stand hier "bitte pruefen Sie Ihren Posteingang und den
+         * Spam-Ordner" -- ein Hinweis auf eine Mail, die nicht unterwegs ist.
+         * Der Kunde suchte in seinem Postfach, fand nichts, klickte weiter,
+         * und brach ab. Und zwar an der letzten Stelle vor der Beauftragung.
+         */
+        const uhr = limit.retryAt?.toLocaleTimeString('de-DE', {
+          timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit',
+        });
+
+        // Die Sperre gehoert ins Protokoll: sonst sieht die Nachfass-Liste
+        // spaeter einen Kunden, der "nicht fertig geworden" ist, und niemand
+        // weiss, dass ihn das System ausgesperrt hat.
+        await logEvent(supabase, {
+          type: 'email_verification_blocked', linkId: draft.link_id, draftId: draft.id, ipHash,
+          meta: { blocked_by: limit.blockedBy, retry_at: limit.retryAt?.toISOString() },
+        });
+
         return fail('rate_limited',
-          'Es wurden bereits mehrere Codes an diese Adresse gesendet. Bitte prüfen Sie Ihren Posteingang und den Spam-Ordner.');
+          uhr
+            ? `Ein neuer Code ist ab ${uhr} Uhr möglich. Haben Sie schon einen Code erhalten? `
+              + 'Er ist 15 Minuten gültig und lässt sich oben eintragen. '
+              + 'Ihre Angaben sind gespeichert — Sie können jederzeit zurückkommen.'
+            : 'Gerade wurden mehrere Codes angefordert. Bitte versuchen Sie es in einigen Minuten erneut. '
+              + 'Ihre Angaben sind gespeichert.');
       }
 
       const code = generateNumericCode(6);

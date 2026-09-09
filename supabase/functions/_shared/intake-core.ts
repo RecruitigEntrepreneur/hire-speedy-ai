@@ -178,7 +178,12 @@ export async function touchDraft(
 
 export type IntakeEvent =
   | 'link_opened' | 'intake_started' | 'first_value' | 'contact_provided'
-  | 'email_verification_sent' | 'email_verified' | 'intake_completed'
+  | 'email_verification_sent'
+  // Der Kunde wollte einen Code und bekam keinen, weil die eigene Bremse
+  // gegriffen hat. Ohne diesen Typ sieht die Nachfass-Liste spaeter einen
+  // Kunden, der "nicht fertig geworden" ist -- und niemand weiss, warum.
+  | 'email_verification_blocked'
+  | 'email_verified' | 'intake_completed'
   // Firmenpruefung
   | 'company_check_started' | 'company_verified' | 'company_needs_review' | 'company_failed'
   // Paketwahl. 'terms_discussion_requested' entsteht nicht mehr neu -- es gibt

@@ -26,6 +26,16 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
   const email = draft.contact_email ?? '';
   const alreadyVerified = draft.states.identity === 'email_verified';
 
+  /**
+   * BEFUND (09.09.2026): `sent` war reiner lokaler Zustand, und das
+   * Eingabefeld haing daran. Wer den Tab neu lud, das Geraet wechselte oder
+   * dessen Versand an der Sperre scheiterte, sah nur noch "Code senden" --
+   * mit einem gueltigen Code im Postfach und ohne Feld, um ihn einzutippen.
+   * Genau an der letzten Stelle vor der Beauftragung.
+   *
+   * Das Feld steht jetzt immer. Es kostet nichts: wer keinen Code hat, tippt
+   * dort nichts ein, und ein falscher Code sagt das auch.
+   */
   const [sent, setSent] = useState(false);
   const [masked, setMasked] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -93,55 +103,62 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
 
       <Card>
         <CardContent className="space-y-4 p-6">
-          {!sent ? (
-            <Button onClick={send} disabled={busy || !email} className="w-full gap-2">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-              Code senden
-            </Button>
-          ) : (
+          {!sent && (
             <>
-              <div className="flex justify-center">
-                <InputOTP
-                  maxLength={6}
-                  value={code}
-                  onChange={(v) => {
-                    setCode(v);
-                    setError(null);
-                    if (v.length === 6) void confirm(v);
-                  }}
-                  disabled={busy}
-                >
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} />)}
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-
-              {busy && (
-                <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Wird geprüft
-                </p>
-              )}
-
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={onEditEmail}
-                  className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                >
-                  Adresse ändern
-                </button>
-                <button
-                  type="button"
-                  onClick={send}
-                  disabled={cooldown > 0 || busy}
-                  className="text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60"
-                >
-                  {cooldown > 0 ? `Erneut senden in ${cooldown} s` : 'Code erneut senden'}
-                </button>
-              </div>
+              <Button onClick={send} disabled={busy || !email} className="w-full gap-2">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                Code senden
+              </Button>
+              {/* Ohne diesen Satz steht unten ein Feld ohne Anlass. Mit ihm
+                  weiss der Kunde, dass ein aelterer Code hier hingehoert. */}
+              <p className="text-center text-xs text-muted-foreground">
+                Schon einen Code erhalten? Hier eintragen.
+              </p>
             </>
           )}
+
+          <div className="flex justify-center">
+            <InputOTP
+              maxLength={6}
+              value={code}
+              onChange={(v) => {
+                setCode(v);
+                setError(null);
+                if (v.length === 6) void confirm(v);
+              }}
+              disabled={busy}
+            >
+              <InputOTPGroup>
+                {[0, 1, 2, 3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} />)}
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+
+          {busy && (
+            <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Wird geprüft
+            </p>
+          )}
+
+          <div className="flex items-center justify-between text-xs">
+            <button
+              type="button"
+              onClick={onEditEmail}
+              className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Adresse ändern
+            </button>
+            {sent && (
+              <button
+                type="button"
+                onClick={send}
+                disabled={cooldown > 0 || busy}
+                className="text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60"
+              >
+                {cooldown > 0 ? `Erneut senden in ${cooldown} s` : 'Code erneut senden'}
+              </button>
+            )}
+          </div>
 
           {error && (
             <Alert variant="destructive">

@@ -1,0 +1,51 @@
+-- ============================================================================
+-- Die Sperre gehoert in den Trichter
+-- ============================================================================
+-- BEFUND (09.09.2026, an einer echten Aufnahme erlebt): Wer an der
+-- E-Mail-Bestaetigung gegen das Rate-Limit laeuft, hinterlaesst keine Spur.
+-- `intake-verify-email` protokolliert nur den erfolgreichen Versand und die
+-- erfolgreiche Bestaetigung.
+--
+-- Der Kunde landet dadurch zwar in der Nachfass-Liste (unfertiger Entwurf mit
+-- Kontaktdaten), aber niemand sieht, WARUM er dort liegt. Wer anruft,
+-- verkauft -- statt sich zu entschuldigen und die Sache in zwei Minuten zu
+-- loesen. Und im Trichter sieht es aus wie Desinteresse, obwohl es die
+-- eigene Bremse war.
+--
+-- Das ist die letzte Stelle vor der Beauftragung. Genau dort will man wissen,
+-- ob jemand aufgehoert hat oder ausgesperrt wurde.
+-- ============================================================================
+
+BEGIN;
+
+ALTER TABLE public.intake_link_events DROP CONSTRAINT IF EXISTS intake_link_events_event_type_check;
+ALTER TABLE public.intake_link_events
+  ADD CONSTRAINT intake_link_events_event_type_check CHECK (event_type IN (
+    'link_opened', 'intake_started', 'first_value', 'contact_provided',
+    'email_verification_sent', 'email_verification_blocked',
+    'email_verified', 'intake_completed',
+    -- Firmenpruefung
+    'company_check_started', 'company_verified', 'company_needs_review', 'company_failed',
+    -- Paketwahl. Die alten Namen bleiben, damit bestehende Trichterdaten
+    -- weiter zaehlen; 'terms_discussion_requested' entsteht nicht mehr neu.
+    'terms_presented', 'terms_confirmed', 'terms_discussion_requested',
+    'forwarded', 'resume_requested', 'submitted',
+    -- Pruefung und Rueckfragen
+    'accepted', 'changes_requested', 'rejected',
+    'clarification_requested', 'clarification_answered',
+    -- Unterschrift, zweistufig
+    'contract_released', 'contract_sent', 'contract_signed', 'contract_countersigned',
+    'contract_declined',
+    'published', 'abandoned', 'purged'
+  ));
+
+COMMENT ON COLUMN public.intake_link_events.event_type IS
+  'Schritte im Trichter. contract_signed = der Kunde hat unterschrieben, '
+  'contract_countersigned = Matchunt hat gegengezeichnet und der Vertrag ist '
+  'wirksam. Die beiden getrennt zu fuehren ist der Punkt: dazwischen liegt '
+  'unsere eigene Bearbeitungszeit, und die will man sehen. '
+  'email_verification_blocked = der Kunde wollte einen Code und bekam keinen, '
+  'weil die eigene Bremse gegriffen hat; meta traegt die gerissene Regel und '
+  'den Zeitpunkt, ab dem es wieder geht.';
+
+COMMIT;
