@@ -14,6 +14,7 @@ import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
 import {
   EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm,
+  ungepruefte, slotLabel, slotChipWert, slotChips,
   sizeBand, type SlotState,
 } from '@/lib/briefCatalog';
 import { QualityCheck } from '@/components/dashboard/intake/QualityCheck';
@@ -350,6 +351,27 @@ export function CaptureStep({
 
   // Eine Zahl fuer den ganzen Bildschirm: der Katalog rechnet sie, nicht ein
   // Modell und nicht der alte 36-Fragen-Katalog.
+  /**
+   * Was aus der Anzeige dasteht und niemand bestaetigt hat.
+   *
+   * BEFUND (09.09.2026, vom Kunden gefunden): Nach einer vollstaendig
+   * beantworteten Aufnahme stand "17 von 26 · 69 %", und der Bildschirm war
+   * voll. Achtzehn Werte kamen aus der Anzeige. Die Unterscheidung zwischen
+   * gelesen und gesagt ist richtig -- sie war nur unsichtbar, und es gab
+   * keine Handlung, die sie aufloest.
+   */
+  const offeneVorschlaege = useMemo(
+    () => ungepruefte(katalogKnown, type),
+    [katalogKnown, type],
+  );
+  const [vorschlaegeAuf, setVorschlaegeAuf] = useState(false);
+
+  /** Einen gelesenen Wert zur Aussage des Kunden machen. */
+  const bestaetige = (key: string) => {
+    const v = katalogKnown[key]?.value;
+    if (v !== undefined && v !== null) setKatalogVon(key, v, 'answer');
+  };
+
   const katalogFortschritt = useMemo(
     () => katalogCompleteness(katalogKnown, type),
     [katalogKnown, type],
@@ -886,12 +908,74 @@ export function CaptureStep({
           Der Satz "Reicht Ihnen das?" stand am Ende von ~2.500 px Formular,
           also fuer die meisten unsichtbar -- er sagt jetzt dasselbe dort, wo
           der Kunde ohnehin hinschaut. */}
+      {/* Was aus der Anzeige gelesen wurde, mit Wert -- der Kunde soll sehen,
+          was er bestaetigt, nicht blind durchwinken. Steht ueber der
+          Fussleiste, damit der Weg vom Zaehler zur Handlung kurz ist. */}
+      {vorschlaegeAuf && offeneVorschlaege.length > 0 && (
+        <div className="sticky bottom-14 z-20 -mx-4 border-t bg-card/98 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+          <div className="mb-2 flex items-center gap-2">
+            <p className="text-xs font-medium">
+              Das haben wir aus Ihrer Anzeige gelesen
+            </p>
+            <button
+              type="button"
+              onClick={() => { offeneVorschlaege.forEach((sl) => bestaetige(sl.key)); setVorschlaegeAuf(false); }}
+              className="ml-auto rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Alles stimmt
+            </button>
+          </div>
+          <div className="max-h-56 space-y-0 overflow-y-auto">
+            {offeneVorschlaege.map((sl) => {
+              const roh = katalogKnown[sl.key]?.value;
+              const chips = slotChips(sl, type);
+              // Der Chip-TEXT, nicht der Speicherwert: "Ja" statt "true".
+              const text = Array.isArray(roh)
+                ? roh.map(String).join(' · ')
+                : chips?.find((c) => slotChipWert(sl, type, c) === roh)
+                  ?? (typeof roh === 'boolean' ? (roh ? 'Ja' : 'Nein') : String(roh ?? ''));
+              return (
+                <div key={sl.key}
+                     className="grid grid-cols-[10rem_minmax(0,1fr)_auto] items-center gap-x-3 border-t py-1.5 first:border-t-0">
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    {slotLabel(sl, type)}
+                  </span>
+                  <span className="truncate text-xs">{text}</span>
+                  <button
+                    type="button"
+                    onClick={() => bestaetige(sl.key)}
+                    className="shrink-0 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    stimmt
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Was nicht stimmt, ändern Sie oben im Formular — dann verschwindet es hier.
+          </p>
+        </div>
+      )}
+
       <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
         <span className="text-sm font-medium">
           {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
           {katalogFortschritt.feldGesamt}
         </span>
-        {sperren.length === 0 ? (
+        {sperren.length === 0 && offeneVorschlaege.length > 0 ? (
+          /* Der Zaehler allein war eine Sackgasse: voller Bildschirm, 69 %,
+             keine Handlung. Hier steht, woran es liegt -- und der Weg dahin
+             ist ein Klick. */
+          <button
+            type="button"
+            onClick={() => setVorschlaegeAuf((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-amber-600 underline underline-offset-2"
+          >
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            {offeneVorschlaege.length} Angaben stammen aus Ihrer Anzeige — stimmen sie?
+          </button>
+        ) : sperren.length === 0 ? (
           <span className="text-xs text-muted-foreground">
             Weitere Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.
           </span>

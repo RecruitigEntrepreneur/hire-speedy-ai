@@ -1338,6 +1338,27 @@ export function completeness(known: Known, contract: 'full-time' | 'freelance') 
 export const istFertig = (known: Known, contract: 'full-time' | 'freelance') =>
   completeness(known, contract).offen.length === 0;
 
+/**
+ * Was dasteht, aber niemand bestaetigt hat.
+ *
+ * BEFUND (09.09.2026, vom Kunden gefunden): Nach einer vollstaendig
+ * beantworteten Aufnahme stand "17 von 26 Angaben · 69 %" -- und auf dem
+ * Bildschirm war alles gefuellt. Achtzehn Werte kamen aus der Anzeige und
+ * zaehlen nicht, weil eine Anzeige Marketingtext ist und keine Aussage des
+ * Kunden. Die Unterscheidung ist richtig; sie war nur unsichtbar. Der Kunde
+ * sah einen vollen Schirm, einen Zaehler bei 69 % und keine Handlung, die das
+ * aufloest.
+ *
+ * Diese Funktion benennt genau die Zeilen, um die es geht -- dieselbe Auswahl,
+ * die auch der Zaehler zaehlt, sonst stimmen die Zahlen nicht ueberein.
+ */
+export function ungepruefte(known: Known, contract: 'full-time' | 'freelance') {
+  return BRIEF_QUESTIONS
+    .filter((q) => !q.only || q.only === contract)
+    .flatMap((q) => sichtbar(q, known, contract).filter((s) => s.required))
+    .filter((s) => hatWert(known, s.key) && !istBeantwortet(known, s.key));
+}
+
 /** Chip-Beschriftung -> Wert fuer die Spalte. */
 
 /** Spalten, die es noch nicht gibt. */
