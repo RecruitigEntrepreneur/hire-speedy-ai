@@ -80,7 +80,7 @@ export interface ParsedJobData {
   contract_creation_days: number | null;
   contract_sent_digitally: boolean | null;
   negative_impact_if_unfilled: string | null;
-  task_breakdown: Record<string, number> | null;
+  task_breakdown: { bereich: string; anteil: number }[] | null;
   decision_makers: string[] | null;
   success_profile: string | null;
   failure_profile: string | null;
@@ -92,6 +92,8 @@ export interface ParsedJobData {
   candidates_in_pipeline: number | null;
   candidates_dropped_reason: string | null;
   visa_sponsorship: boolean | null;
+  /** Was die Anzeige ausdruecklich als nachschulbar bezeichnet. */
+  trainable_skills: string[] | null;
 }
 
 export function useJobParsing() {

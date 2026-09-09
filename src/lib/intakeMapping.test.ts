@@ -220,6 +220,25 @@ describe('catalogFromParsed', () => {
     expect(k.contract_creation_days.value).toBe(3);
   });
 
+  it('macht aus der Aufgabenliste ein Objekt für die Spalte', () => {
+    // Der Parser liefert eine Liste, damit er die Form ueberhaupt fuellen
+    // kann; die Karte des Recruiters liest {Bereich: Anteil}.
+    const k = catalogFromParsed({
+      task_breakdown: [
+        { bereich: 'Führung', anteil: 60 },
+        { bereich: 'Projektarbeit', anteil: 30 },
+        { bereich: 'Betrieb', anteil: 10 },
+      ],
+    } as any);
+    expect(k.task_breakdown.value).toEqual({ 'Führung': 60, Projektarbeit: 30, Betrieb: 10 });
+  });
+
+  it('schreibt keine leere Gewichtung', () => {
+    expect(catalogFromParsed({ task_breakdown: [] } as any).task_breakdown).toBeUndefined();
+    expect(catalogFromParsed({ task_breakdown: [{ bereich: '', anteil: 5 }] } as any).task_breakdown)
+      .toBeUndefined();
+  });
+
   it('holt Branchenchancen UND -herausforderungen, nicht nur das Positive', () => {
     const k = catalogFromParsed({
       industry_opportunities: 'Auftragsbücher bis 2028 gefüllt',
@@ -543,6 +562,30 @@ describe('flexibilityFromParsed', () => {
         { text: 'SAP ERP', skill: 'SAP ERP', kind: 'technology', required: true },
         { text: 'SAP ERP Kenntnisse von Vorteil', skill: 'SAP ERP', kind: 'technology', required: false },
       ],
+    } as any, built);
+    expect(f['SAP ERP']).toBe('fix');
+  });
+
+  it('macht aus dem Lernversprechen der Anzeige "lernbar"', () => {
+    /* Gemessen am 09.09.2026: eine Anzeige mit dem Abschnitt "Nachschulbar
+       bei uns" stufte alle drei Punkte als verhandelbar ein -- "nicht
+       erforderlich" und "bringen wir dir bei" sind fuer das Modell dasselbe,
+       fuer den Headhunter nicht. */
+    const f = flexibilityFromParsed({
+      requirements_classified: [
+        { text: 'ITIL von Vorteil', skill: 'ITIL', kind: 'method', required: false },
+      ],
+      trainable_skills: ['ITIL'],
+    } as any, built);
+    expect(f.ITIL).toBe('flexible');
+  });
+
+  it('lässt eine Pflicht auch vom Lernversprechen nicht überschreiben', () => {
+    const f = flexibilityFromParsed({
+      requirements_classified: [
+        { text: 'SAP ERP', skill: 'SAP ERP', kind: 'technology', required: true },
+      ],
+      trainable_skills: ['SAP ERP'],
     } as any, built);
     expect(f['SAP ERP']).toBe('fix');
   });

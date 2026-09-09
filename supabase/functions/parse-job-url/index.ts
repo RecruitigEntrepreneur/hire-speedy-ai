@@ -78,7 +78,7 @@ interface ParsedJobData {
   contract_creation_days: number | null;
   contract_sent_digitally: boolean | null;
   negative_impact_if_unfilled: string | null;
-  task_breakdown: Record<string, number> | null;
+  task_breakdown: { bereich: string; anteil: number }[] | null;
   decision_makers: string[] | null;
   success_profile: string | null;
   failure_profile: string | null;
@@ -90,6 +90,7 @@ interface ParsedJobData {
   candidates_in_pipeline: number | null;
   candidates_dropped_reason: string | null;
   visa_sponsorship: boolean | null;
+  trainable_skills: string[] | null;
 }
 
 /**
@@ -361,6 +362,11 @@ Auswahlwerte passiert danach. Erfinde nichts; steht es nicht da, gib null.
 - candidates_in_pipeline: Zahl der Kandidaten, die laut Anzeige schon im
   Verfahren sind.
 - candidates_dropped_reason: Warum Kandidaten abgesprungen sind.
+- trainable_skills: Was die Anzeige AUSDRUECKLICH als nachschulbar, erlernbar
+  oder "bringen wir Ihnen bei" bezeichnet. Abschnitte wie "Nachschulbar bei
+  uns", "das lernen Sie bei uns", "bauen wir gemeinsam auf". NICHT das, was
+  bloss als "von Vorteil" oder "wuenschenswert" dasteht -- das ist
+  verhandelbar, nicht lernbar. Schreibe dieselbe Bezeichnung wie in `skills`.
 - visa_sponsorship: true bei "wir unterstuetzen bei der Visabeschaffung",
   false bei "Arbeitserlaubnis muss vorliegen" oder "kein Visa-Sponsoring".
 
@@ -510,7 +516,21 @@ WICHTIGE REGELN:
 
                   // ---- Rolle und Prozess ------------------------------
                   negative_impact_if_unfilled: { type: "string", nullable: true },
-                  task_breakdown: { type: "object", nullable: true },
+                  /* Ein `type: "object"` ohne Eigenschaften gibt dem Modell
+                     nichts zum Fuellen -- gemessen am 09.09.2026 kam bei
+                     "60 / 30 / 10 Prozent" ein leeres {} zurueck. Eine Liste
+                     mit benannten Feldern kann es beantworten. */
+                  task_breakdown: {
+                    type: "array", nullable: true,
+                    items: {
+                      type: "object",
+                      properties: {
+                        bereich: { type: "string" },
+                        anteil: { type: "integer" },
+                      },
+                      required: ["bereich", "anteil"],
+                    },
+                  },
                   decision_makers: { type: "array", items: { type: "string" }, nullable: true },
                   success_profile: { type: "string", nullable: true },
                   failure_profile: { type: "string", nullable: true },
@@ -525,7 +545,8 @@ WICHTIGE REGELN:
                   // ---- Stand des Verfahrens ---------------------------
                   candidates_in_pipeline: { type: "integer", nullable: true },
                   candidates_dropped_reason: { type: "string", nullable: true },
-                  visa_sponsorship: { type: "boolean", nullable: true }
+                  visa_sponsorship: { type: "boolean", nullable: true },
+                  trainable_skills: { type: "array", items: { type: "string" }, nullable: true }
                 },
                 /*
                   BEFUND (07.09.2026, gemessen am deployten Stand): Bei
@@ -573,7 +594,7 @@ required: ["title", "company_name", "description", "requirements", "location",
                            "failure_profile", "position_advantages", "career_example", 
                            "contract_sensitive_topics", "industry_opportunities", 
                            "industry_challenges", "candidates_in_pipeline", 
-                           "candidates_dropped_reason", "visa_sponsorship"]
+                           "candidates_dropped_reason", "visa_sponsorship", "trainable_skills"]
               }
             }
           }

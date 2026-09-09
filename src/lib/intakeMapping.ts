@@ -263,8 +263,12 @@ function zeitspanne(roh: unknown): string | undefined {
  *   required === true  -> 'fix'         (unverzichtbar)
  *   required === false -> 'negotiable'  (verhandelbar)
  *
- * 'flexible' (lernbar) vergibt die Anzeige nicht: kaum eine schreibt, was sie
- * jemandem beibringt. Diese Stufe bleibt dem Kunden.
+ * 'flexible' (lernbar) kommt aus einer eigenen Quelle: `trainable_skills`
+ * traegt, was die Anzeige AUSDRUECKLICH als nachschulbar bezeichnet. Ein
+ * "von Vorteil" ist verhandelbar, kein Lernversprechen -- gemessen am
+ * 09.09.2026, als eine Anzeige mit dem Abschnitt "Nachschulbar bei uns" alle
+ * drei Punkte als verhandelbar einstufte. Diese Quelle gewinnt gegen
+ * `required === false`, denn sie ist die genauere Aussage.
  */
 export function flexibilityFromParsed(
   d: ParsedJobData,
@@ -292,6 +296,13 @@ export function flexibilityFromParsed(
     // dasselbe Kriterium taucht in Anzeigen mehrfach auf.
     if (!treffer || out[treffer] === 'fix') continue;
     out[treffer] = e.required ? 'fix' : 'negotiable';
+  }
+
+  // Das ausdrueckliche Lernversprechen zuletzt -- es ist die genauere Aussage
+  // als ein blosses "nicht erforderlich".
+  for (const roh of d.trainable_skills ?? []) {
+    const treffer = passend(String(roh ?? ''));
+    if (treffer && out[treffer] !== 'fix') out[treffer] = 'flexible';
   }
   return out;
 }
@@ -380,7 +391,19 @@ export function catalogFromParsed(
 
   // Rolle, Prozess, Passung
   setz('negative_impact_if_unfilled', d.negative_impact_if_unfilled);
-  setz('task_breakdown', d.task_breakdown);
+  /* Der Parser liefert eine Liste, die Spalte will ein Objekt: die Karte des
+     Recruiters liest {Bereich: Anteil}. Eine Liste war noetig, damit das
+     Modell die Form ueberhaupt fuellen kann -- ein `type: "object"` ohne
+     Eigenschaften ergab ein leeres {}. */
+  if (Array.isArray(d.task_breakdown) && d.task_breakdown.length) {
+    const teile: Record<string, number> = {};
+    for (const e of d.task_breakdown) {
+      const name = String(e?.bereich ?? '').trim();
+      const anteil = Number(e?.anteil);
+      if (name && Number.isFinite(anteil)) teile[name] = anteil;
+    }
+    setz('task_breakdown', Object.keys(teile).length ? teile : undefined);
+  }
   setz('decision_makers', d.decision_makers);
   setz('success_profile', d.success_profile);
   setz('failure_profile', d.failure_profile);
