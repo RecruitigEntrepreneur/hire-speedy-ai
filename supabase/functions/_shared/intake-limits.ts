@@ -100,25 +100,42 @@ export const LIMITS = {
   ],
   /** Verifizierungsmail: 3 Sendungen je Entwurf und Stunde, 10 je IP. */
   /**
-   * Das Fenster folgt der Lebensdauer des Codes, nicht der Uhr.
+   * "Code senden" heisst: es kommt ein Code. Kein Deckel auf dem Entwurf.
    *
-   * BEFUND (09.09.2026): 3 Codes pro STUNDE bei 15 Minuten Gueltigkeit. Zwei
-   * Anlaeufe innerhalb einer Viertelstunde -- die erste Mail im Spam, ein
-   * Tippfehler in der Adresse -- und der Kunde sass bis zur vollen Stunde mit
-   * einem abgelaufenen Code da. Das ist kein Missbrauchsschutz, das ist eine
-   * Falle fuer den ehrlichen Kunden an der letzten Stelle vor der
-   * Beauftragung. Zwei je 15 Minuten heisst: wer einen abgelaufenen Code hat,
-   * bekommt immer einen neuen. Die Deckel pro Adresse und pro IP bleiben.
+   * BEFUND (09.09.2026, an einer echten Aufnahme erlebt): 3 Codes pro STUNDE
+   * je ENTWURF, bei 15 Minuten Gueltigkeit. Zwei Anlaeufe innerhalb einer
+   * Viertelstunde -- die erste Mail im Spam, ein Tippfehler in der Adresse --
+   * und der Kunde sass bis zur vollen Stunde mit einem abgelaufenen Code da.
+   *
+   * Der Deckel sass an der falschen Stelle. Wer die Aufnahme missbrauchen
+   * will, oeffnet einfach einen zweiten Entwurf -- die Regel hat also nie
+   * einen Angreifer gebremst, nur den Kunden an der letzten Stelle vor der
+   * Beauftragung. Sie ist weg.
+   *
+   * Was bleibt, sitzt dort, wo der Missbrauch stattfindet: der Link ist
+   * oeffentlich, jeder kann eine fremde Adresse eintippen. Ohne Deckel liesse
+   * sich damit ein Fremder mit Matchunt-Mails zuschuetten -- der meldet sie
+   * als Spam, und danach landen die Codes ECHTER Kunden im Spam-Ordner. Der
+   * Ruf der Absenderdomain ist der Grund, warum die Mails ueberhaupt
+   * ankommen. Also: pro Adresse und pro IP, mit Fenstern, die zur
+   * Codelaufzeit passen statt zur Uhr.
    */
-  verifySend: (draftId: string, email: string, ip: string | null): LimitRule[] => [
-    { scope: 'mail',  key: draftId, limit: 2, windowSeconds: 15 * 60 },
-    { scope: 'email', key: email,   limit: 5  },
-    { scope: 'ip',    key: ip,      limit: 10 },
+  verifySend: (_draftId: string, email: string, ip: string | null): LimitRule[] => [
+    { scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
+    { scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
   ],
-  /** Code-Eingabe: der harte Zaehler sitzt auf der Zeile, das hier bremst Streuung. */
+  /**
+   * Code-Eingabe: der harte Zaehler sitzt auf der Code-Zeile (max_attempts = 5),
+   * das hier bremst nur die Streuung ueber viele Codes hinweg.
+   *
+   * Grosszuegiger als vorher (20/40 pro Stunde): ein Kunde, der sich zweimal
+   * vertippt und dann zwei neue Codes anfordert, kam der alten Grenze naeher
+   * als jeder Angreifer -- der raet 1.000.000 Kombinationen nicht in 20
+   * Versuchen, und nach fuenf ist die Zeile ohnehin tot.
+   */
   verifyConfirm: (draftId: string, ip: string | null): LimitRule[] => [
-    { scope: 'draft', key: draftId, limit: 20 },
-    { scope: 'ip',    key: ip,      limit: 40 },
+    { scope: 'draft', key: draftId, limit: 50  },
+    { scope: 'ip',    key: ip,      limit: 100 },
   ],
   /**
    * Weiterleiten und Fortsetzen: eng, das sind Mail-versendende Aktionen.

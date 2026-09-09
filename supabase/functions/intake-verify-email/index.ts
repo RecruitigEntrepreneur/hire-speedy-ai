@@ -172,7 +172,16 @@ serve(async (req) => {
     if (code.length !== 6) return fail('invalid_request', 'Bitte geben Sie den sechsstelligen Code ein.');
 
     const limit = await checkLimits(supabase, LIMITS.verifyConfirm(draft.id, ip));
-    if (!limit.allowed) return fail('rate_limited', 'Zu viele Versuche. Bitte später erneut probieren.');
+    if (!limit.allowed) {
+      // Auch hier: eine Sperre ohne Ende ist keine Auskunft.
+      const uhr = limit.retryAt?.toLocaleTimeString('de-DE', {
+        timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit',
+      });
+      return fail('rate_limited',
+        uhr
+          ? `Zu viele Eingaben. Ab ${uhr} Uhr geht es weiter — Ihre Angaben sind gespeichert.`
+          : 'Zu viele Eingaben. Bitte in einigen Minuten erneut probieren — Ihre Angaben sind gespeichert.');
+    }
 
     const { data: row } = await supabase
       .from('intake_email_verifications')
