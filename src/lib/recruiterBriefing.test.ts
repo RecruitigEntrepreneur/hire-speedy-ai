@@ -83,3 +83,40 @@ describe('Honest fee projection', () => {
     expect(recruiterFeeRange(NaN, 70000, 85000)).toBeNull();
   });
 });
+
+describe('Der Kandidatenstand steht vorn, nicht hinter dem Aufklappen', () => {
+  /**
+   * BEFUND (10.09.2026): "2 Kandidaten bereits beim Kunden" und der
+   * Absprunggrund standen eingeklappt im letzten Abschnitt. Fuer einen
+   * Headhunter ist beides ein Abbruchkriterium, kein Detail.
+   */
+  const job = {
+    employment_type: 'full-time',
+    decision_makers: ['Geschäftsführung'],
+    contract_creation_days: 2,
+    contract_sent_digitally: true,
+    hiring_urgency: 'hot',
+    candidates_in_pipeline: 2,
+    candidates_dropped_reason: 'Eine Kandidatin ist wegen eines Gegenangebots abgesprungen.',
+  } as unknown as BriefingJob;
+
+  it('setzt Pipeline und Absprunggrund an den Anfang des Prozessabschnitts', () => {
+    const prozess = buildBriefingSections(job).find(s => s.id === 'prozess')!;
+    expect(prozess.rows.slice(0, 2).map(r => r.id))
+      .toEqual(['candidates_in_pipeline', 'candidates_dropped_reason']);
+  });
+
+  it('laesst den Interviewablauf davor, wenn er vorliegt', () => {
+    const mitAblauf = { ...job,
+      recruiter_briefing_answers: { interview_process: { value: '2 Runden' } } } as unknown as BriefingJob;
+    const prozess = buildBriefingSections(mitAblauf).find(s => s.id === 'prozess')!;
+    expect(prozess.rows.slice(0, 3).map(r => r.id))
+      .toEqual(['interview_process', 'candidates_in_pipeline', 'candidates_dropped_reason']);
+  });
+
+  it('bleibt still, wenn nichts davon vorliegt', () => {
+    const ohne = { employment_type: 'full-time', decision_makers: ['Geschäftsführung'] } as unknown as BriefingJob;
+    const prozess = buildBriefingSections(ohne).find(s => s.id === 'prozess')!;
+    expect(prozess.rows.map(r => r.id)).toEqual(['decision_makers']);
+  });
+});

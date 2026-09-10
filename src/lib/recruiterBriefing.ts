@@ -172,6 +172,25 @@ export function buildBriefingSections(job: BriefingJob): BriefingSection[] {
     ['angebot', 'remote_policy', 'Regelung zum Arbeitsort', briefingText(job.remote_policy)],
   ];
   for (const [section, id, label, value] of extra) if (value) sections.find(item => item.id === section)!.rows.push({ id, label, value, source: 'listing' });
+  /**
+   * Der Kandidatenstand gehoert nach vorn, nicht hinter "Weitere N Angaben".
+   *
+   * BEFUND (10.09.2026, an der echten Stelle gesehen): "2 Kandidaten bereits
+   * beim Kunden" und "die letzte Kandidatin ist wegen eines Gegenangebots
+   * abgesprungen" standen eingeklappt im letzten Abschnitt der Seite.
+   *
+   * Fuer einen Headhunter ist beides kein Zusatz, sondern ein
+   * Abbruchkriterium: laufen schon zwei Profile, arbeitet er auf Platz drei.
+   * Und ein Gegenangebot muss er vorbereiten, BEVOR er anruft -- danach ist
+   * die Information wertlos. Die Reihenfolge innerhalb des Abschnitts
+   * entscheidet hier darueber, ob er es ueberhaupt liest.
+   */
+  const prozess = sections.find(section => section.id === 'prozess')!;
+  const zuerst = ['candidates_in_pipeline', 'candidates_dropped_reason'];
+  // Alles Uebrige behaelt seine Reihenfolge -- sort ist stabil.
+  const rang = (id: string) => (zuerst.indexOf(id) + 1 || zuerst.length + 1) - 1;
+  prozess.rows.sort((a, b) => rang(a.id) - rang(b.id));
+
   for (const [section, id, label] of [['aufgabe', 'deliverable_90d', 'Erwartetes Ergebnis nach 90 Tagen'], ['prozess', 'interview_process', 'Interviewablauf']] as const) {
     const value = narrativeAnswer(job, id);
     if (value) sections.find(item => item.id === section)!.rows.unshift({ id, label, value, source: 'intake' });
