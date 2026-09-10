@@ -1,103 +1,18 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, Percent, Euro } from "lucide-react";
+import { ChevronDown, Euro } from 'lucide-react';
+import { recruiterFeeRange } from '@/lib/recruiterFee';
 
-interface FeeCalculatorCardProps {
-  feePercentage: number | null;
-  salaryMin: number | null;
-  salaryMax: number | null;
-}
+interface Props { feePercentage: number | null; salaryMin: number | null; salaryMax: number | null }
+const money = (value: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 
-export function FeeCalculatorCard({ 
-  feePercentage, 
-  salaryMin, 
-  salaryMax 
-}: FeeCalculatorCardProps) {
-  const fee = feePercentage || 15;
-  
-  const calculateEarning = (salary: number) => {
-    return Math.round(salary * (fee / 100));
-  };
-
-  const minEarning = salaryMin ? calculateEarning(salaryMin) : null;
-  const maxEarning = salaryMax ? calculateEarning(salaryMax) : null;
-  
-  // Use average for display
-  const avgEarning = minEarning && maxEarning 
-    ? Math.round((minEarning + maxEarning) / 2)
-    : maxEarning || minEarning;
-
-  return (
-    <Card className="border-emerald-500/30 bg-emerald-500/5">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base text-emerald-700 dark:text-emerald-400">
-          <Euro className="h-5 w-5" />
-          Dein Verdienst
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Main Earning Display */}
-        {avgEarning ? (
-          <div className="text-center py-2">
-            <span className="text-3xl font-bold text-foreground">
-              €{avgEarning.toLocaleString('de-DE')}
-            </span>
-            <p className="text-sm text-muted-foreground mt-1">
-              Dein Verdienst bei erfolgreicher Vermittlung
-            </p>
-          </div>
-        ) : (
-          <p className="text-center text-sm text-muted-foreground italic py-4">
-            Gehalt nicht angegeben
-          </p>
-        )}
-
-        {/* Details */}
-        {avgEarning && (
-          <div className="pt-3 border-t border-emerald-200 dark:border-emerald-800 space-y-2">
-            {/* Salary Range */}
-            {(salaryMin || salaryMax) && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <TrendingUp className="h-4 w-4" />
-                  Gehaltsspanne
-                </span>
-                <span className="font-medium">
-                  {formatSalaryRange(salaryMin, salaryMax)}
-                </span>
-              </div>
-            )}
-            
-            {/* Fee Percentage as secondary info */}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Percent className="h-4 w-4" />
-                Fee
-              </span>
-              <span className="font-medium">{fee}%</span>
-            </div>
-
-            {/* Earning Range if different */}
-            {minEarning && maxEarning && minEarning !== maxEarning && (
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Range: €{minEarning.toLocaleString('de-DE')} - €{maxEarning.toLocaleString('de-DE')}
-              </p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function formatSalaryRange(min: number | null, max: number | null): string {
-  if (min && max) {
-    return `€${(min / 1000).toFixed(0)}k - €${(max / 1000).toFixed(0)}k`;
-  }
-  if (max) {
-    return `bis €${(max / 1000).toFixed(0)}k`;
-  }
-  if (min) {
-    return `ab €${(min / 1000).toFixed(0)}k`;
-  }
-  return "k.A.";
+export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax }: Props) {
+  const range = recruiterFeeRange(feePercentage, salaryMin, salaryMax);
+  const label = range == null ? null : range.min != null && range.max != null
+    ? range.min === range.max ? money(range.min) : `${money(range.min)} – ${money(range.max)}`
+    : range.min != null ? `ab ${money(range.min)}` : `bis ${money(range.max!)}`;
+  return <section className="rounded-xl border border-border bg-card p-5" aria-label="Provisionsbeispiel">
+    <h3 className="flex items-center gap-2 text-sm font-medium"><Euro className="h-4 w-4 text-muted-foreground" />Deine mögliche Provision</h3>
+    <p className="mt-4 text-xl font-semibold tracking-tight tabular-nums">{label || 'Noch nicht berechenbar'}</p>
+    <p className="mt-2 text-xs leading-6 text-muted-foreground">{range ? `Rechenbeispiel: ${range.fee.toLocaleString('de-DE')} % des angegebenen Jahresgehalts.` : 'Ein gültiger Provisionssatz und ein Gehaltswert werden benötigt.'}</p>
+    <details className="group mt-4 border-t border-border pt-3"><summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium">Berechnung & Konditionen<ChevronDown className="h-3.5 w-3.5 group-open:rotate-180" /></summary><div className="mt-3 space-y-2 text-xs leading-6 text-muted-foreground"><p>Die Spanne ist eine Beispielrechnung, keine zugesagte Auszahlung. Maßgeblich sind das vereinbarte Gehalt und die Konditionen des Mandats.</p><p>Die genaue Bemessungsgrundlage, Fälligkeit und Garantiebedingungen werden dieser Ansicht nicht mitgeliefert. Vor einer verbindlichen Zusage klären.</p></div></details>
+  </section>;
 }

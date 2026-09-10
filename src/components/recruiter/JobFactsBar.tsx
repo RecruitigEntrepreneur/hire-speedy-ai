@@ -41,7 +41,7 @@ const LEVEL: Record<string, string> = {
   principal: 'Principal',
 };
 
-const k = (n: number) => `${Math.round(n / 1000)}k`;
+const k = (n: number) => `${(n / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })}k`;
 
 /**
  * Sprachen und Zertifikate liegen als jsonb vor und haben historisch zwei
@@ -101,7 +101,11 @@ function frist(iso: string | null | undefined): string | null {
 export function JobFactsBar({ facts }: { facts: JobFacts }) {
   const eintraege: { icon: typeof Euro; label: string; wert: string }[] = [];
 
-  const tagessatz = geld(facts.dayRateMin, facts.dayRateMax, ' / Tag');
+  const rate = (value: number) => value.toLocaleString('de-DE');
+  const tagessatz = facts.dayRateMin != null && facts.dayRateMax != null
+    ? `${rate(facts.dayRateMin)} – ${rate(facts.dayRateMax)} € / Tag`
+    : facts.dayRateMin != null ? `ab ${rate(facts.dayRateMin)} € / Tag`
+    : facts.dayRateMax != null ? `bis ${rate(facts.dayRateMax)} € / Tag` : null;
   const gehalt = geld(facts.salaryMin, facts.salaryMax);
   if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz', wert: tagessatz });
   else if (gehalt) eintraege.push({ icon: Euro, label: 'Gehalt', wert: gehalt });

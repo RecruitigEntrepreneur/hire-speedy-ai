@@ -33,6 +33,7 @@ import { FileUpload } from '@/components/files/FileUpload';
 import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
+import { CandidateSubmissionReview } from './CandidateSubmissionReview';
 
 interface CandidateSubmitFormProps {
   jobId: string;
@@ -74,6 +75,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
   const [cvTextForParsing, setCvTextForParsing] = useState('');
   const [showCvParser, setShowCvParser] = useState(false);
   const [selectedCandidateReadiness, setSelectedCandidateReadiness] = useState<{
+    candidateId: string;
     isReady: boolean;
     score: number;
     missingFields: string[];
@@ -96,6 +98,11 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
   const [recruiterNotes, setRecruiterNotes] = useState('');
   const [gdprConsent, setGdprConsent] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+
+  useEffect(() => {
+    setReviewing(false);
+  }, [selectedCandidate, createNew, formData, recruiterNotes, gdprConsent]);
 
   const handleCvUpload = (url: string) => {
     setFormData({ ...formData, cv_url: url });
@@ -316,6 +323,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
   const handleCandidateSelect = async (candidateId: string) => {
     setSelectedCandidate(candidateId);
+    setSelectedCandidateReadiness(null);
     setCreateNew(false);
 
     const candidate = existingCandidates.find(c => c.id === candidateId);
@@ -337,7 +345,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         cv_ai_bullets: Array.isArray(candidate.cv_ai_bullets) ? candidate.cv_ai_bullets : null,
         change_motivation: interviewNotes?.change_motivation || null,
       });
-      setSelectedCandidateReadiness(readiness);
+      setSelectedCandidateReadiness({ ...readiness, candidateId });
     }
   };
 
@@ -356,6 +364,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (loading || checking || !gdprConsent || !recruiterNotes.trim() || (!selectedCandidate && !createNew) || (selectedCandidate && selectedCandidateReadiness?.candidateId !== selectedCandidate)) return;
 
     if (duplicateWarning) {
       toast({
@@ -373,6 +382,11 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         description: `Fehlende Felder: ${selectedCandidateReadiness.missingFields.join(', ')}`,
         variant: 'destructive'
       });
+      return;
+    }
+
+    if (!reviewing) {
+      setReviewing(true);
       return;
     }
 
@@ -472,6 +486,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div hidden={reviewing} className="space-y-6">
       {/* Candidate Selection */}
       <div className="space-y-4">
         <Label>Kandidat auswählen</Label>
@@ -756,7 +771,8 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
       {/* Skills Match */}
       {mustHaves.length > 0 && (skillsMatch.matched.length > 0 || skillsMatch.missing.length > 0) && (
         <div className="space-y-2">
-          <Label>Skills-Match</Label>
+          <Label>Stichworthinweise zu den Pflichtkriterien</Label>
+          <p className="text-xs leading-6 text-muted-foreground">Treffer dienen zur Orientierung. Prüfe Erfahrung und Verantwortungsumfang im Gespräch; fehlende Stichworte sind kein Ausschlussgrund.</p>
           <div className="flex flex-wrap gap-2">
             {skillsMatch.matched.map((skill) => (
               <Badge key={skill} className="bg-emerald/10 text-emerald border-emerald/20">
@@ -811,7 +827,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
           loading || checking ||
           (!selectedCandidate && !createNew) ||
           !gdprConsent ||
-          (!!selectedCandidate && !!selectedCandidateReadiness && !selectedCandidateReadiness.isReady)
+          (!!selectedCandidate && (selectedCandidateReadiness?.candidateId !== selectedCandidate || !selectedCandidateReadiness?.isReady))
         }
       >
         {loading || calculatingScore ? (
@@ -827,10 +843,24 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         ) : (
           <>
             <Sparkles className="h-4 w-4 mr-2" />
-            Kandidat einreichen
+            Angaben prüfen
           </>
         )}
       </Button>
+      </div>
+      {reviewing && <CandidateSubmissionReview
+        data={{
+          name: createNew ? formData.full_name : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.full_name || '',
+          email: createNew ? formData.email : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.email || '',
+          expectedSalary: createNew ? (formData.expected_salary ? Number(formData.expected_salary) : null) : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.expected_salary ?? null,
+          availability: createNew ? formData.availability_date : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.availability_date ?? null,
+          notes: recruiterNotes,
+          criteria: mustHaves,
+          createsCandidate: createNew,
+        }}
+        busy={loading || calculatingScore}
+        onBack={() => setReviewing(false)}
+      />}
     </form>
   );
 }

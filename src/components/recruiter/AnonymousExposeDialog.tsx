@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,17 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const request = useRef(0);
+
+  useEffect(() => {
+    request.current += 1;
+    setExpose(null);
+    setCopied(false);
+    setLoading(false);
+  }, [jobId, open]);
 
   const generateExpose = async () => {
+    const currentRequest = ++request.current;
     setLoading(true);
     setExpose(null);
     try {
@@ -33,29 +42,29 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
         body: { jobId },
       });
       if (error) throw error;
-      setExpose(data?.expose || 'Kein Exposé generiert.');
+      if (request.current === currentRequest) setExpose(data?.expose || 'Kein Exposé generiert.');
     } catch (err) {
       console.error('Error generating expose:', err);
-      toast({ title: 'Fehler', description: 'Exposé konnte nicht generiert werden.', variant: 'destructive' });
+      if (request.current === currentRequest) toast({ title: 'Fehler', description: 'Exposé konnte nicht generiert werden.', variant: 'destructive' });
     } finally {
-      setLoading(false);
+      if (request.current === currentRequest) setLoading(false);
     }
   };
 
   const handleCopy = async () => {
     if (!expose) return;
-    await navigator.clipboard.writeText(expose);
-    setCopied(true);
-    toast({ title: 'Kopiert!', description: 'Exposé wurde in die Zwischenablage kopiert.' });
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(expose);
+      setCopied(true);
+      toast({ title: 'Kopiert!', description: 'Exposé wurde in die Zwischenablage kopiert.' });
+    } catch {
+      toast({ title: 'Kopieren nicht möglich', description: 'Bitte markiere den Text und kopiere ihn manuell.', variant: 'destructive' });
+    }
   };
 
   // Auto-generate when dialog opens
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
-    if (isOpen && !expose && !loading) {
-      generateExpose();
-    }
     if (!isOpen) {
       setExpose(null);
       setCopied(false);
@@ -68,7 +77,7 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
         <DialogHeader>
           <DialogTitle>Anonymes Exposé</DialogTitle>
           <DialogDescription>
-            KI-generiertes, anonymisiertes Stellenexposé – ohne Firmennamen, ideal für die Kandidatenansprache.
+            Erstelle einen Entwurf für die Kandidatenansprache. Prüfe die Aussagen und die Anonymisierung vor der Weitergabe.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -83,7 +92,7 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
                 {expose}
               </div>
             </ScrollArea>
-          ) : null}
+          ) : <div className="space-y-4 py-6 text-center"><p className="text-sm leading-6 text-muted-foreground">Das Exposé wird erst auf deinen Klick erstellt. Anschließend kannst du den vollständigen Text prüfen und kopieren.</p><Button onClick={generateExpose}>Exposé generieren</Button></div>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
