@@ -27,6 +27,7 @@ import DataPrivacy from "./pages/dashboard/DataPrivacy";
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import JobDetail from "./pages/recruiter/JobDetail";
+import JobPosting from "./pages/recruiter/JobPosting";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import RecruiterSubmissions from "./pages/recruiter/RecruiterSubmissions";
 import RecruiterEarnings from "./pages/recruiter/RecruiterEarnings";
@@ -282,6 +283,13 @@ function AppRoutes() {
       <Route path="/recruiter/jobs/:id" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <JobDetail />
+        </ProtectedRoute>
+      } />
+      {/* Die Fassung fuer den Kandidaten -- eigene Adresse, damit sie sich
+          zeigen, drucken und merken laesst. */}
+      <Route path="/recruiter/jobs/:id/anzeige" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <JobPosting />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/candidates" element={
