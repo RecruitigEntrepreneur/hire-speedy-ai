@@ -2,7 +2,11 @@ BEGIN;
 
 -- Append-only view extension: preserves the current column order, published
 -- job filter, recruiter role check, masking and per-recruiter reveal rule.
--- remote_days_flexible was accidentally omitted by the preceding view rebuild.
+-- remote_days_flexible and company_headcount were both omitted by the preceding
+-- view rebuild (20260909150000); both are still written by accept_intake.
+-- company_headcount stays reveal-gated, as it was in 20260909130000: the
+-- ungated company_size_band is what a recruiter is meant to see before the
+-- reveal -- an exact headcount narrows a company down far more than a band.
 CREATE OR REPLACE VIEW public.recruiter_jobs_view AS
 SELECT
   j.id, j.title, j.status, j.industry, j.location,
@@ -71,7 +75,8 @@ SELECT
       'deliverable_90d', j.intake_payload #> '{briefing_answers,deliverable_90d}',
       'interview_process', j.intake_payload #> '{briefing_answers,interview_process}'
     )), j.reveal_envelope
-  ) ELSE NULL END AS recruiter_briefing_answers
+  ) ELSE NULL END AS recruiter_briefing_answers,
+  CASE WHEN rev.revealed THEN j.company_headcount ELSE NULL END AS company_headcount
 FROM jobs j
 LEFT JOIN LATERAL (
   SELECT true AS revealed

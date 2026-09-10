@@ -195,6 +195,23 @@ export function draftToJobRow(draft: Json): Json {
       ...payload,
       source: 'guest_intake',
       captured_at: payload.captured_at ?? new Date().toISOString(),
+      /**
+       * Die Briefing-Antworten, aus denen die Recruiter-Ansicht zwei Felder
+       * projiziert (`recruiter_briefing_answers`: deliverable_90d,
+       * interview_process).
+       *
+       * BEFUND (10.09.2026): Der Dashboard-Pfad schrieb sie seit jeher
+       * (src/lib/intakeMapping.ts, `briefing_answers: answers`), dieser hier
+       * nicht. Es sind zwei Kopien derselben Abbildung, weil Deno nicht aus
+       * src/ importieren kann -- und dieser Pfad ist der lebende: jede
+       * Aufnahme ueber /start/:token laeuft hier durch. Die neue Spalte waere
+       * also bei genau den Stellen leer geblieben, fuer die sie gebaut wurde.
+       * Der Kunde beantwortet die Frage, und niemand sieht die Antwort.
+       *
+       * Die Allowlist sitzt in der Ansicht, nicht hier: `jobs.intake_payload`
+       * ist ohnehin nicht Teil von recruiter_jobs_view.
+       */
+      briefing_answers: draft.answers ?? payload.briefing_answers ?? null,
       contract_type: draft.contract_type,
       contracting: isFreelance ? freelance : null,
       flexibility: draft.flexibility ?? null,
