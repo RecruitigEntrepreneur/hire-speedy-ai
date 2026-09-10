@@ -1,6 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Euro, Languages, CalendarClock, Building2, Award, Wallet } from 'lucide-react';
-import { recruiterFeeRange } from '@/lib/recruiterFee';
+import { MapPin, Euro, Languages, CalendarClock, Building2, Award } from 'lucide-react';
 
 /**
  * Die Eckdaten in EINER Zeile.
@@ -32,8 +31,6 @@ export interface JobFacts {
   experienceLevel?: string | null;
   companySizeBand?: string | null;
   deadline?: string | null;
-  /** Fuer die Provision -- die Zahl, an der ein Headhunter zuerst entscheidet. */
-  feePercentage?: number | null;
   /** Damit "70 - 85k EUR" nicht offen laesst, was darin enthalten ist. */
   salaryMonths?: number | null;
 }
@@ -112,32 +109,6 @@ export function JobFactsBar({ facts }: { facts: JobFacts }) {
     : facts.dayRateMin != null ? `ab ${rate(facts.dayRateMin)} € / Tag`
     : facts.dayRateMax != null ? `bis ${rate(facts.dayRateMax)} € / Tag` : null;
   const gehalt = geld(facts.salaryMin, facts.salaryMax);
-
-  /**
-   * Die Provision steht VORNE, nicht in der Seitenspalte.
-   *
-   * Ein Headhunter waehlt aus dutzenden offenen Stellen. Woran er in dreissig
-   * Sekunden entscheidet, ist sein Honorar und die Konkurrenzlage -- alles
-   * andere liest er erst, wenn er sich entschieden hat. Bisher stand die Zahl
-   * rechts unter vier Knoepfen, und nur als Spanne.
-   *
-   * Der Punktwert ist die Mitte des Bandes: eine einzelne Zahl, die man
-   * vergleichen kann, mit der Spanne daneben als Ehrlichkeit dazu.
-   */
-  const spanne = recruiterFeeRange(facts.feePercentage ?? null, facts.salaryMin, facts.salaryMax);
-  if (spanne) {
-    const mitte = spanne.min != null && spanne.max != null
-      ? Math.round((spanne.min + spanne.max) / 2)
-      : (spanne.min ?? spanne.max)!;
-    const band = spanne.min != null && spanne.max != null && spanne.min !== spanne.max
-      ? `  ${k(spanne.min)} – ${k(spanne.max)}`
-      : '';
-    eintraege.push({
-      icon: Wallet,
-      label: 'Dein Honorar',
-      wert: `${mitte.toLocaleString('de-DE')} €${band}`,
-    });
-  }
 
   if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz', wert: tagessatz });
   /* "Gehalt" liess offen, was darin steckt -- der Katalog fragt woertlich nach

@@ -98,7 +98,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
         {job.location && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{job.location}</span>}
         {job.employment_type && <span>{EMPLOYMENT[job.employment_type] || job.employment_type}</span>}
       </div>
-      <JobFactsBar facts={{ salaryMin: job.salary_min ?? null, salaryMax: job.salary_max ?? null, dayRateMin: job.employment_type === 'freelance' ? job.day_rate_min : null, dayRateMax: job.employment_type === 'freelance' ? job.day_rate_max : null, onsiteRequired: job.onsite_required, onsiteDaysRequired: job.onsite_days_required, remoteDaysFlexible: job.remote_days_flexible, remotePolicy: job.remote_policy, remoteType: job.remote_type, requiredLanguages: job.required_languages, experienceLevel: job.experience_level, deadline: job.deadline, feePercentage: job.employment_type === 'freelance' ? null : job.recruiter_fee_percentage ?? null, salaryMonths: job.salary_months ?? null }} />
+      <JobFactsBar facts={{ salaryMin: job.salary_min ?? null, salaryMax: job.salary_max ?? null, dayRateMin: job.employment_type === 'freelance' ? job.day_rate_min : null, dayRateMax: job.employment_type === 'freelance' ? job.day_rate_max : null, onsiteRequired: job.onsite_required, onsiteDaysRequired: job.onsite_days_required, remoteDaysFlexible: job.remote_days_flexible, remotePolicy: job.remote_policy, remoteType: job.remote_type, requiredLanguages: job.required_languages, experienceLevel: job.experience_level, deadline: job.deadline, salaryMonths: job.salary_months ?? null }} />
     </header>
 
     <Tabs value={tab} onValueChange={setTab} className="space-y-0">
@@ -164,6 +164,10 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
 
 
         <aside aria-label="Aktionen zum Mandat" className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24">
+          {/* Der Verdienst zuerst. Ein Headhunter waehlt aus dutzenden
+              Stellen; woran er in dreissig Sekunden entscheidet, ist diese
+              Zahl. Vorher stand sie unter vier Knoepfen. */}
+          {job.employment_type === 'freelance' ? <div className="rounded-xl border border-border p-5"><h3 className="font-medium">Projektkonditionen</h3><p className="mt-3 text-lg font-semibold">{job.day_rate_min != null || job.day_rate_max != null ? [job.day_rate_min, job.day_rate_max].filter(value => value != null).map(value => EURO.format(value!)).join(' – ') + ' / Tag' : 'Tagessatz nicht verfügbar'}</p><p className="mt-3 text-xs leading-6 text-muted-foreground">Eine Gesamtprovision lässt sich aus dem Tagessatz allein nicht berechnen. Vergütungsbasis und Abrechnungsbedingungen im Mandat prüfen.</p></div> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}
           <div className="rounded-xl border border-border bg-card p-5">
             <p className="mb-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">Dein nächster Schritt</p>
             <h2 className="text-lg font-semibold">Die passende Person vorstellen</h2>
@@ -171,7 +175,6 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
             <Button className="h-auto min-h-11 w-full whitespace-normal py-3" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>
             <div className="mt-4 space-y-1 border-t border-border pt-3"><Button variant="ghost" className="w-full justify-start" asChild><Link to={`/recruiter/jobs/${job.id}/anzeige`}><FileText />Stellenanzeige ansehen</Link></Button><Button variant="ghost" className="w-full justify-start" onClick={onExpose}><FileText />Anonymes Exposé</Button><Button variant="ghost" className="w-full justify-start" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden</Button></div>
           </div>
-          {job.employment_type === 'freelance' ? <div className="rounded-xl border border-border p-5"><h3 className="font-medium">Projektkonditionen</h3><p className="mt-3 text-lg font-semibold">{job.day_rate_min != null || job.day_rate_max != null ? [job.day_rate_min, job.day_rate_max].filter(value => value != null).map(value => EURO.format(value!)).join(' – ') + ' / Tag' : 'Tagessatz nicht verfügbar'}</p><p className="mt-3 text-xs leading-6 text-muted-foreground">Eine Gesamtprovision lässt sich aus dem Tagessatz allein nicht berechnen. Vergütungsbasis und Abrechnungsbedingungen im Mandat prüfen.</p></div> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}
           <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? 'Unternehmensdaten sind für dich freigegeben.' : 'Unternehmensidentität geschützt. So funktioniert die Freigabe.'}</span></button>
         </aside>
       </div>
