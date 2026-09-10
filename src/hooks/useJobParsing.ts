@@ -69,31 +69,38 @@ export interface ParsedJobData {
   company_size_estimate: string | null;
   /* Seit 09.09.2026 im Parser-Schema. Vorher fragte niemand danach, und in
      einer Messung mit einer Anzeige, die zu jedem Katalogfeld etwas sagte,
-     kamen 22 von 39 Feldern nicht an. */
-  salary_months: number | null;
-  bonus_percent: number | null;
-  bonus_basis: string[] | null;
-  contract_limitation: string | null;
-  time_tracking_method: string | null;
-  works_council: boolean | null;
-  works_council_meeting_schedule: string | null;
-  contract_creation_days: number | null;
-  contract_sent_digitally: boolean | null;
-  negative_impact_if_unfilled: string | null;
-  task_breakdown: { bereich: string; anteil: number }[] | null;
-  decision_makers: string[] | null;
-  success_profile: string | null;
-  failure_profile: string | null;
-  position_advantages: string[] | null;
-  career_example: string | null;
-  contract_sensitive_topics: string[] | null;
-  industry_opportunities: string | null;
-  industry_challenges: string | null;
-  candidates_in_pipeline: number | null;
-  candidates_dropped_reason: string | null;
-  visa_sponsorship: boolean | null;
+     kamen 22 von 39 Feldern nicht an.
+
+     OPTIONAL, obwohl parse-job-url sie ausnahmslos liefert: Dieselbe Form
+     entsteht auch aus dem PDF- und Text-Import (applyParsedJobProfile in
+     CreateJob.tsx), und dort gibt es diese Angaben schlicht nicht. Sie
+     pflichtig zu fuehren hiess, dem Aufrufer 23 Nullen abzuverlangen, die
+     nichts bedeuten. Alle Leser rechnen ohnehin mit Abwesenheit
+     (`?? []`, `Array.isArray`). */
+  salary_months?: number | null;
+  bonus_percent?: number | null;
+  bonus_basis?: string[] | null;
+  contract_limitation?: string | null;
+  time_tracking_method?: string | null;
+  works_council?: boolean | null;
+  works_council_meeting_schedule?: string | null;
+  contract_creation_days?: number | null;
+  contract_sent_digitally?: boolean | null;
+  negative_impact_if_unfilled?: string | null;
+  task_breakdown?: { bereich: string; anteil: number }[] | null;
+  decision_makers?: string[] | null;
+  success_profile?: string | null;
+  failure_profile?: string | null;
+  position_advantages?: string[] | null;
+  career_example?: string | null;
+  contract_sensitive_topics?: string[] | null;
+  industry_opportunities?: string | null;
+  industry_challenges?: string | null;
+  candidates_in_pipeline?: number | null;
+  candidates_dropped_reason?: string | null;
+  visa_sponsorship?: boolean | null;
   /** Was die Anzeige ausdruecklich als nachschulbar bezeichnet. */
-  trainable_skills: string[] | null;
+  trainable_skills?: string[] | null;
 }
 
 export function useJobParsing() {
