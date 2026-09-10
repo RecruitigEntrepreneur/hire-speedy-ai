@@ -70,35 +70,13 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
   const [tab, setTab] = useState('briefing');
   const [showGuide, setShowGuide] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
   const sections = buildBriefingSections(job);
   const criteria = getRecruiterCriteria(job);
   const answers = sections.flatMap(section => section.rows);
   const intakeCount = answers.filter(row => row.source === 'intake').length;
   const hasCriteria = criteria.required.length + criteria.trainable.length + criteria.negotiable.length > 0;
-  const [questionDraft, setQuestionDraft] = useState(() => [
-    `Rückfragen zur Position: ${job.title}`,
-    '',
-    ...getRecruiterCriteria(job).required.map(value => `• ${value}: Welche konkrete Erfahrung und Verantwortung wird erwartet?`),
-    ...(!narrativeAnswer(job, 'deliverable_90d') ? ['• Welche Ergebnisse werden in den ersten 90 Tagen erwartet?'] : []),
-    ...(!narrativeAnswer(job, 'interview_process') ? ['• Welche Gesprächsstufen und Feedbackfristen sind vereinbart?'] : []),
-    ...(job.salary_months || job.bonus_structure ? ['• Was umfasst das angegebene Gehaltsband: Fixgehalt, zusätzliche Monatsgehälter und Bonus?'] : []),
-    '',
-    'Vor dem Versenden mit den bereits vorliegenden Antworten abgleichen.',
-  ].join('\n'));
 
-  const copyQuestions = async () => {
-    try {
-      await navigator.clipboard.writeText(questionDraft);
-      setCopied(true);
-      setCopyError(false);
-    } catch {
-      setCopyError(true);
-    }
-  };
 
-  const goToSources = () => setTab('quellen');
   const screening = Array.isArray(job.screening_questions)
     ? job.screening_questions.filter((item): item is string => typeof item === 'string')
     : job.screening_questions && typeof job.screening_questions === 'object'
@@ -111,7 +89,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
     <header className="space-y-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Dein Mandatsbriefing</span>
-        {intakeCount > 0 && <button className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs hover:bg-accent" onClick={goToSources}><ClipboardList className="h-3.5 w-3.5" />{intakeCount} Angaben aus Aufnahmefeldern<ArrowUpRight className="h-3 w-3" /></button>}
+        {intakeCount > 0 && <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs" title="Aus Aufnahmefeldern. Dort koennen auch aus einer Anzeige uebernommene Werte stehen."><ClipboardList className="h-3.5 w-3.5" />{intakeCount} Angaben aus Aufnahmefeldern</span>}
       </div>
       <h1 className="max-w-4xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl xl:text-4xl">{job.title}</h1>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-muted-foreground">
@@ -120,14 +98,13 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
         {job.location && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{job.location}</span>}
         {job.employment_type && <span>{EMPLOYMENT[job.employment_type] || job.employment_type}</span>}
       </div>
-      <JobFactsBar facts={{ salaryMin: job.salary_min ?? null, salaryMax: job.salary_max ?? null, dayRateMin: job.employment_type === 'freelance' ? job.day_rate_min : null, dayRateMax: job.employment_type === 'freelance' ? job.day_rate_max : null, onsiteRequired: job.onsite_required, onsiteDaysRequired: job.onsite_days_required, remoteDaysFlexible: job.remote_days_flexible, remotePolicy: job.remote_policy, remoteType: job.remote_type, requiredLanguages: job.required_languages, experienceLevel: job.experience_level, deadline: job.deadline }} />
+      <JobFactsBar facts={{ salaryMin: job.salary_min ?? null, salaryMax: job.salary_max ?? null, dayRateMin: job.employment_type === 'freelance' ? job.day_rate_min : null, dayRateMax: job.employment_type === 'freelance' ? job.day_rate_max : null, onsiteRequired: job.onsite_required, onsiteDaysRequired: job.onsite_days_required, remoteDaysFlexible: job.remote_days_flexible, remotePolicy: job.remote_policy, remoteType: job.remote_type, requiredLanguages: job.required_languages, experienceLevel: job.experience_level, deadline: job.deadline, feePercentage: job.employment_type === 'freelance' ? null : job.recruiter_fee_percentage ?? null, salaryMonths: job.salary_months ?? null }} />
     </header>
 
     <Tabs value={tab} onValueChange={setTab} className="space-y-0">
       <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-none border-b bg-transparent p-0 pb-3">
         <TabsTrigger value="briefing" className="gap-2 rounded-md px-4 py-2.5 data-[state=active]:bg-secondary"><ClipboardList className="h-4 w-4" />Briefing</TabsTrigger>
         <TabsTrigger value="kandidaten" className="gap-2 rounded-md px-4 py-2.5 data-[state=active]:bg-secondary"><Users className="h-4 w-4" />Meine Kandidaten <span className="rounded bg-muted px-1.5 text-xs tabular-nums">{submissionCount}</span></TabsTrigger>
-        <TabsTrigger value="quellen" className="gap-2 rounded-md px-4 py-2.5 data-[state=active]:bg-secondary"><FileText className="h-4 w-4" />Quellen & Rückfragen</TabsTrigger>
       </TabsList>
 
       <div className="grid items-start gap-8 pt-6 min-[1180px]:grid-cols-[minmax(0,1fr)_270px]">
@@ -170,22 +147,21 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
                 </div>}
               </section>;
             })}
+          
+            {/* Bis die eigene Anzeigenseite steht, haben Originalanzeige und
+                KI-Aufbereitung hier ihren Platz -- eingeklappt, damit sie das
+                Briefing nicht verduennen. Sie ersatzlos zu streichen hiesse,
+                Inhalt zu verlieren. */}
+            <details className="group rounded-xl border border-border p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium">Stellenbeschreibung & ursprüngliche Anforderungen<ChevronDown className="h-4 w-4 group-open:rotate-180" /></summary><div className="mt-5 space-y-5 whitespace-pre-wrap text-sm leading-7">{job.description ? <p>{job.description}</p> : <p className="text-muted-foreground">Die Originalbeschreibung ist nicht verfügbar oder noch nicht freigegeben.</p>}{job.requirements && <div><h4 className="mb-2 font-medium">Anforderungen aus den Stellendaten</h4><p>{job.requirements}</p></div>}{job.tech_environment?.length > 0 && <p>Technisches Umfeld: {job.tech_environment.join(' · ')}</p>}</div></details>
+            {job.formatted_content && <details className="group rounded-xl border border-border p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium">KI-Aufbereitung der Anzeige<ChevronDown className="h-4 w-4 group-open:rotate-180" /></summary><p className="mt-4 text-xs leading-6 text-muted-foreground">Diese Texte wurden aus der Anzeige generiert. Sie ersetzen weder die strukturierten Anforderungen noch eine Bestätigung durch den Kunden. Interne Provisionen gehören nicht in die Kandidatenansprache.</p><div className="mt-5 space-y-5 text-sm leading-7">{Object.entries(job.formatted_content).filter(([key, value]) => ['role_summary', 'ideal_candidate', 'anonymous_company_pitch', 'selling_points', 'highlights', 'urgency_note'].includes(key) && value).map(([key, value]) => <div key={key}><h4 className="mb-2 font-medium">{{ role_summary: 'Die Rolle', ideal_candidate: 'Profilentwurf', anonymous_company_pitch: 'Unternehmensentwurf', selling_points: 'Argumente aus der Anzeige', highlights: 'Highlights', urgency_note: 'Einschätzung zur Dringlichkeit' }[key]}</h4>{Array.isArray(value) ? <ul className="list-disc space-y-1 pl-5">{value.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>{value}</p>}</div>)}</div></details>}
           </TabsContent>
 
           <TabsContent value="kandidaten" className="m-0 space-y-6">
             <div><h2 className="text-xl font-semibold">Deine Kandidaten für dieses Mandat</h2><p className="mt-2 text-sm text-muted-foreground">Einreichungen, aktueller Stand und die nächsten Schritte.</p></div>
             {submissionCount > 0 ? candidates : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center"><Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h3 className="font-medium">Deine erste Vorstellung beginnt hier</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Wähle ein vorhandenes Profil oder lege einen Kandidaten an. Vor dem Einreichen prüfst du die Angaben.</p><Button className="mt-6" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button></div>}
           </TabsContent>
-
-          <TabsContent value="quellen" className="m-0 space-y-8">
-            <section className="space-y-4"><h2 className="text-xl font-semibold">Quellen & Rückfragen</h2><p className="text-sm leading-7 text-muted-foreground">Das Briefing bündelt die verfügbaren Angaben nach Thema. Die Bezeichnung „Aufnahmefeld“ beschreibt den Speicherort: Auch aus einer Anzeige übernommene Werte können dort stehen. Eine Bestätigung und ein Änderungsdatum je Antwort werden dieser Ansicht derzeit nicht mitgeliefert.</p>
-              <div className="grid gap-4 sm:grid-cols-2"><div className="rounded-xl border border-border p-5"><ClipboardList className="mb-3 h-5 w-5 text-muted-foreground" /><h3 className="font-medium">Strukturierte Aufnahme</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{intakeCount} verfügbare Angaben, thematisch im Briefing zugeordnet. Vollständige Formulierungen bleiben aufklappbar.</p></div><div className="rounded-xl border border-border p-5"><LockKeyhole className="mb-3 h-5 w-5 text-muted-foreground" /><h3 className="font-medium">Freigabe & fehlende Angaben</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Nicht verfügbare Werte können fehlen oder zugriffsbeschränkt sein. Daraus folgt keine Aussage darüber, ob der Kunde sie beantwortet hat.</p></div></div>
-            </section>
-            <section className="space-y-4"><h3 className="text-lg font-medium">Rückfragen vorbereiten</h3><p className="text-sm leading-6 text-muted-foreground">Der Entwurf ergänzt die für diesen Zugang verfügbaren Antworten. 90-Tage-Ziele und Interviewablauf erscheinen im Briefing, sobald sie vorliegen und freigegeben sind. Bitte gleiche offene Fragen vor dem Versenden mit den vorhandenen Unterlagen ab. Änderungen bleiben nur während dieser Seitenansicht erhalten.</p><label htmlFor="briefing-questions" className="sr-only">Entwurf der Rückfragen</label><Textarea id="briefing-questions" rows={12} value={questionDraft} onChange={e => { setQuestionDraft(e.target.value); setCopied(false); }} className="text-sm leading-7" /><Button variant="outline" onClick={copyQuestions}>{copied ? <Check /> : <Copy />}{copied ? 'Entwurf kopiert' : 'Rückfragen kopieren'}</Button><p className="text-sm text-muted-foreground" role="status">{copyError ? 'Kopieren nicht möglich. Bitte den Text im Feld markieren und kopieren.' : copied ? 'Der Entwurf wurde kopiert. Es wurde keine Nachricht versendet.' : ''}</p></section>
-            <details className="group rounded-xl border border-border p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium">Stellenbeschreibung & ursprüngliche Anforderungen<ChevronDown className="h-4 w-4 group-open:rotate-180" /></summary><div className="mt-5 space-y-5 whitespace-pre-wrap text-sm leading-7">{job.description ? <p>{job.description}</p> : <p className="text-muted-foreground">Die Originalbeschreibung ist nicht verfügbar oder noch nicht freigegeben.</p>}{job.requirements && <div><h4 className="mb-2 font-medium">Anforderungen aus den Stellendaten</h4><p>{job.requirements}</p></div>}{job.tech_environment?.length > 0 && <p>Technisches Umfeld: {job.tech_environment.join(' · ')}</p>}</div></details>
-            {job.formatted_content && <details className="group rounded-xl border border-border p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium">KI-Aufbereitung der Anzeige<ChevronDown className="h-4 w-4 group-open:rotate-180" /></summary><p className="mt-4 text-xs leading-6 text-muted-foreground">Diese Texte wurden aus der Anzeige generiert. Sie ersetzen weder die strukturierten Anforderungen noch eine Bestätigung durch den Kunden. Interne Provisionen gehören nicht in die Kandidatenansprache.</p><div className="mt-5 space-y-5 text-sm leading-7">{Object.entries(job.formatted_content).filter(([key, value]) => ['role_summary', 'ideal_candidate', 'anonymous_company_pitch', 'selling_points', 'highlights', 'urgency_note'].includes(key) && value).map(([key, value]) => <div key={key}><h4 className="mb-2 font-medium">{{ role_summary: 'Die Rolle', ideal_candidate: 'Profilentwurf', anonymous_company_pitch: 'Unternehmensentwurf', selling_points: 'Argumente aus der Anzeige', highlights: 'Highlights', urgency_note: 'Einschätzung zur Dringlichkeit' }[key]}</h4>{Array.isArray(value) ? <ul className="list-disc space-y-1 pl-5">{value.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>{value}</p>}</div>)}</div></details>}
-          </TabsContent>
         </div>
+
 
         <aside aria-label="Aktionen zum Mandat" className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24">
           <div className="rounded-xl border border-border bg-card p-5">
@@ -193,7 +169,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
             <h2 className="text-lg font-semibold">Die passende Person vorstellen</h2>
             <p className="mb-5 mt-2 text-sm leading-6 text-muted-foreground">Profil wählen, Passung begründen und Angaben vor dem Einreichen prüfen.</p>
             <Button className="h-auto min-h-11 w-full whitespace-normal py-3" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>
-            <div className="mt-4 space-y-1 border-t border-border pt-3"><Button variant="ghost" className="w-full justify-start" onClick={onExpose}><FileText />Anonymes Exposé</Button><Button variant="ghost" className="w-full justify-start" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden</Button><Button variant="ghost" className="w-full justify-start" onClick={goToSources}><MessageSquareText />Rückfragen vorbereiten</Button></div>
+            <div className="mt-4 space-y-1 border-t border-border pt-3"><Button variant="ghost" className="w-full justify-start" onClick={onExpose}><FileText />Anonymes Exposé</Button><Button variant="ghost" className="w-full justify-start" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden</Button></div>
           </div>
           {job.employment_type === 'freelance' ? <div className="rounded-xl border border-border p-5"><h3 className="font-medium">Projektkonditionen</h3><p className="mt-3 text-lg font-semibold">{job.day_rate_min != null || job.day_rate_max != null ? [job.day_rate_min, job.day_rate_max].filter(value => value != null).map(value => EURO.format(value!)).join(' – ') + ' / Tag' : 'Tagessatz nicht verfügbar'}</p><p className="mt-3 text-xs leading-6 text-muted-foreground">Eine Gesamtprovision lässt sich aus dem Tagessatz allein nicht berechnen. Vergütungsbasis und Abrechnungsbedingungen im Mandat prüfen.</p></div> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}
           <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? 'Unternehmensdaten sind für dich freigegeben.' : 'Unternehmensidentität geschützt. So funktioniert die Freigabe.'}</span></button>
