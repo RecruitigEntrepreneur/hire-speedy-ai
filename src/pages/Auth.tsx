@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -140,6 +140,12 @@ export default function Auth() {
       icon: <UserCheck className="h-5 w-5" />,
     },
   ];
+
+  // Website CTAs and old registration links share the invitation signup form.
+  // Existing-account sign-in keeps its legacy password compatibility.
+  if (!user && mode === 'signup' && selectedRole === 'recruiter') {
+    return <Navigate to="/recruiter/onboarding" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4">
