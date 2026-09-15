@@ -3,8 +3,12 @@
 ## Latest follow-up: approved preview design (frontend only)
 
 Publish the current `main` frontend. This follow-up ports the approved local
-preview's green/cream visual design to the real shared onboarding and the existing
-Admin → Recruiters → Einladungen & Verträge component.
+preview's layout to the real shared onboarding and the existing
+Admin → Recruiters → Einladungen & Verträge component. Colors now use the central
+Matchunt light/dark palette from `src/index.css`, rather than the preview palette.
+The shared MatchuntWordmark/MatchuntLogo SVGs replace the prototype brand mark.
+The onboarding header uses the same persisted theme switch as DashboardLayout;
+inputs, cards, documents, messages and admin invitation controls follow that mode.
 
 - `/recruiter/onboarding` and `/recruiter/invitation` retain the same real account,
   invitation/resume and DocuSign actions. Profile entry now has three validated
@@ -25,7 +29,10 @@ configuration follow-ups from the earlier deployment reports.
 Validation: local browser checks using production components with an isolated
 mock API passed profile progression, missing-field blocking/revealing, whitespace
 entry, review/submit, admin link creation and email interaction, search, signup/
-login and invitation entry, plus mobile overflow checks. No real test account,
+login and invitation entry, plus mobile overflow checks in both themes and theme persistence/input retention.
+The contract UI was also checked with fully mocked API responses through document
+listing, signature handoff, recruiter-signed, manual-review and completed states.
+No real test account,
 email recipient or signature was changed. This is not a live DocuSign E2E test.
 
 The following sections describe historical backend releases, already reported as

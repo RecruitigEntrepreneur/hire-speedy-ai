@@ -12,6 +12,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       className="h-9 w-9 text-muted-foreground hover:text-foreground"
       title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+      aria-label={theme === 'dark' ? 'Zum Hellmodus wechseln' : 'Zum Dunkelmodus wechseln'}
     >
       {theme === 'dark' ? (
         <Sun className="h-4 w-4" />
