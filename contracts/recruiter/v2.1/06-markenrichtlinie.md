@@ -1,0 +1,10 @@
+## Anlage 6 – Markenrichtlinie und Partnerstatus
+
+1. **Status.** Mit Wirksamwerden dieses Vertrags verleiht Matchunt dem Recruiter den Status „Matchunt Partner“, bei Trust-Level Gold „Matchunt Gold Partner“, nach Abschluss der Matchunt Akademie „Matchunt Certified Recruiter“, Gesellschaften „Matchunt Partneragentur“. Der Status bezeichnet die Vertragsbeziehung als selbstständiger Recruiter; er begründet weder eine Vertretungs- noch eine Gesellschafterstellung.
+2. **Erlaubte Verwendung.** Der Recruiter darf den Status mit den von Matchunt bereitgestellten Bezeichnungen, Badges und Textbausteinen in Berufsnetzwerken, auf seiner Website, in E-Mail-Signaturen und Unterlagen führen – auf LinkedIn als Zertifikat mit Prüf-URL und Partner-Nummer, als Zusatz zur Headline und als freiberufliche Station; die eigene Firma bleibt die Hauptstation.
+3. **Untersagt.** Bezeichnungen, die eine Anstellung, Vertretung oder Beteiligung nahelegen („bei Matchunt“, „Mitarbeiter“, „Vertriebspartner“, „offizieller Vertreter“, „Matchunt & Partner“), „exklusiv“, eigene Seiten, Profile, Handles oder Domains mit „Matchunt“, Anzeigen auf die Marke, veränderte oder kombinierte Logos, Nennung von Kunden oder Positionen.
+4. **Nutzungserlaubnis.** Name, Logo und Badges bleiben Eigentum von Matchunt; die Erlaubnis ist einfach, unentgeltlich, nicht übertragbar und jederzeit widerruflich.
+5. **Gültigkeit.** Der Status gilt zwölf Monate und verlängert sich, solange der Vertrag besteht und die Nachweise nach Anlage 1 aktuell sind. Er endet mit dem Vertrag, mit einer Sperre nach § 18 oder mit Widerruf. Die Prüfseite von Matchunt zeigt den aktuellen Stand.
+6. **Entfernung.** Nach Ende des Status entfernt der Recruiter alle Bezeichnungen und Badges binnen zehn Werktagen.
+7. **Verzeichnis und Nennung.** Mit Zustimmung im Datenblatt nimmt Matchunt den Recruiter in das öffentliche Partnerverzeichnis auf und darf ihn in eigenen Beiträgen als Partner nennen; die Zustimmung ist jederzeit widerruflich.
+8. **Änderungen.** Nach § 18 Absatz 1 des Vertrags.

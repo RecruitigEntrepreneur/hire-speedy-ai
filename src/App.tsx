@@ -119,6 +119,7 @@ const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 // im ganzen Projekt keinen Passwort-Weg — ein serverseitig angelegtes Konto
 // hätte keinen Weg hinein gehabt.
 const SetPassword = lazy(() => import("./pages/SetPassword"));
+const RecruiterInvitation = lazy(() => import("./pages/onboarding/RecruiterInvitation"));
 const AdminIntakes = lazy(() => import("./pages/admin/AdminIntakes"));
 const AdminIntakeDetail = lazy(() => import("./pages/admin/AdminIntakeDetail"));
 const AdminIntakeLinks = lazy(() => import("./pages/admin/AdminIntakeLinks"));
@@ -491,6 +492,7 @@ function AppRoutes() {
       } />
       
       {/* Onboarding */}
+      <Route path="/recruiter/invitation" element={<Suspense fallback={<RouteFallback />}><RecruiterInvitation /></Suspense>} />
       <Route path="/onboarding" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientOnboarding />

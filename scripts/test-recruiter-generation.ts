@@ -1,0 +1,10 @@
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { generateRecruiterContract, combineRecruiterContract } from '../supabase/functions/_shared/recruiter-pdf';
+import { generationProfile } from '../src/lib/recruiterGenerationFixture';
+const start=performance.now();
+const docs=await generateRecruiterContract('TEST-AUTO-001',generationProfile,'mila@example.test','agency');
+mkdirSync('tmp/recruiter-generation',{recursive:true});
+for(const d of docs)writeFileSync('tmp/recruiter-generation/'+d.name,d.bytes);
+const combined=await combineRecruiterContract(docs);
+writeFileSync('output/pdf/matchunt-automatisch-erstellter-testvertrag.pdf',combined);
+console.log(JSON.stringify({documents:docs.map(d=>({role:d.role,pages:d.pages,bytes:d.bytes.length})),elapsedMs:Math.round(performance.now()-start),bytes:combined.length}));

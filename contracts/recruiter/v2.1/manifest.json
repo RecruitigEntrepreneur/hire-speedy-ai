@@ -1,0 +1,16 @@
+{
+  "version": "2.1",
+  "date": "2026-09-15",
+  "status": "prepared_for_approval",
+  "source": "Claude recruiter v2 + Rechtsprüfung v1",
+  "source_sha256": "60649779c8771d24782ea9d7d205499a9d917e527c5c9a0b74aea839fcd9540f",
+  "required_roles": [
+    "framework",
+    "data",
+    "pricing",
+    "rules",
+    "privacy",
+    "terms",
+    "brand"
+  ]
+}

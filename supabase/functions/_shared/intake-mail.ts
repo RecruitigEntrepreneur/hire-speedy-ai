@@ -96,6 +96,7 @@ export async function sendIntakeMail(
     template: string;
     replyTo?: string;
     meta?: Record<string, unknown>;
+    idempotencyKey?: string;
   },
 ): Promise<SendResult> {
   const apiKey = Deno.env.get('RESEND_API_KEY');
@@ -135,7 +136,8 @@ export async function sendIntakeMail(
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json',
+        ...(args.idempotencyKey ? { 'Idempotency-Key': args.idempotencyKey } : {}), },
       body: JSON.stringify({
         from: from(),
         to: [args.to],

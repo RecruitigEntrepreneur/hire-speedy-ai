@@ -339,3 +339,14 @@ verify_jwt = false
 # Damit ist der HMAC-Schluessel eine Bequemlichkeit, keine Voraussetzung.
 [functions.docusign-status]
 verify_jwt = false
+
+# Recruiter invitations: account + confirmed email checked in each handler.
+[functions.recruiter-onboarding]
+verify_jwt = false
+
+[functions.recruiter-onboarding-admin]
+verify_jwt = false
+
+# Separate Connect listener; HMAC verification plus authoritative API lookup.
+[functions.recruiter-docusign-webhook]
+verify_jwt = false

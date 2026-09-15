@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import RecruiterInvitations from '@/components/admin/RecruiterInvitations';
 
 interface Recruiter {
   id: string;
@@ -298,6 +299,8 @@ export default function AdminRecruiters() {
               </CardContent>
             </Card>
           </div>
+
+          <RecruiterInvitations />
 
           {/* Search */}
           <div className="relative max-w-md">
