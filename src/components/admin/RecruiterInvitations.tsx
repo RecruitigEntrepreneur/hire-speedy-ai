@@ -2,7 +2,8 @@ import { CONTRACT_FIELD_LABELS, cleanContractDetails } from '../../../supabase/f
 import { useEffect, useState } from 'react';
 import { ArrowRight, Building2, UserRound, Plus, Mail, Copy, RefreshCw, UsersRound, ShieldCheck } from 'lucide-react';
 import '@/components/onboarding/onboarding.css';
-import { onboardingApi, profileLabels, documentLabels, stateLabels, type StoredOnboarding, type StoredContract } from '@/lib/recruiterOnboardingApi';
+import { ProfileReview } from '@/components/onboarding/RecruiterProfileForm';
+import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type StoredContract } from '@/lib/recruiterOnboardingApi';
 import { requiredReviewChecks, REVIEW_CHECK_LABELS } from '../../../supabase/functions/_shared/recruiter-contract-policy';
 
 const date = (s?: string | null) => s ? new Date(s).toLocaleString('de-DE') : '—';
@@ -85,7 +86,7 @@ export default function RecruiterInvitations({ api = onboardingApi }: { api?: ty
           {visible.length === 0 && <div className="mh-empty"><UsersRound size={27}/><h3>{loaded ? search ? 'Keine passenden Vorgänge' : 'Platz für gute Partner.' : 'Vorgänge werden geladen …'}</h3><p>{loaded ? 'Neue Einladungen und Registrierungen erscheinen hier.' : 'Der aktuelle Stand wird aus eurem Adminbereich geladen.'}</p></div>}
         </section>
       {c && <section className="mh-panel mh-stack"><div><p className="mh-kicker">AUSGEWÄHLTER VORGANG</p><h3>{c.profile.name || c.email}</h3><span className="mh-status">{c.revoked_at ? 'Widerrufen' : stateLabels[c.state]}</span></div><p className="text-sm">{c.entry_source === 'website' ? 'Direkte Website-Registrierung' : `Einladungslink gültig bis ${date(c.expires_at)}`} · Gestartet am {date(c.claimed_at)}</p>
-        <dl className="mh-review">{Object.entries(profileLabels).map(([key,label]) => <div key={key}><dt className="text-muted-foreground">{label}</dt><dd className="break-words">{typeof c.profile[key as keyof typeof c.profile] === 'boolean' ? c.profile.authorityDeclared ? 'Ja' : 'Offen' : String(c.profile[key as keyof typeof c.profile] || '—')}</dd></div>)}</dl>
+        <ProfileReview profile={c.profile}/>
         <details><summary className="cursor-pointer text-sm font-medium">Bestätigte Angaben im Vertragsdatenblatt</summary><dl className="mh-review">{Object.entries(CONTRACT_FIELD_LABELS).map(([key,label])=><div key={key}><dt className="text-muted-foreground">{label}</dt><dd className="whitespace-pre-wrap">{String(cleanContractDetails(c.profile.contractDetails)[key as keyof ReturnType<typeof cleanContractDetails>] || 'Nicht angegeben')}</dd></div>)}</dl></details>
         {c.state === 'review' && <><div className="grid gap-2">{requiredReviewChecks(c.kind).map(key => [key, REVIEW_CHECK_LABELS[key as keyof typeof REVIEW_CHECK_LABELS]]).map(([k,label]) => <label className="mh-check" key={k}><input type="checkbox" checked={!!checks[k]} onChange={e => setChecks({ ...checks, [k]: e.target.checked })}/>{label}</label>)}</div><button className="mh-button" disabled={busy || requiredReviewChecks(c.kind).some(key => !checks[key])} onClick={() => void action('approve', { checks })}>Prüfung abschließen</button></>}
         {['review','approved'].includes(c.state) && !packet && <div className="space-y-2"><label className="block text-sm">Rückfrage an den Headhunter<textarea className="mh-full rounded-md border border-input bg-card text-foreground p-3" value={feedback} onChange={e => setFeedback(e.target.value)}/></label><button className="mh-button" disabled={busy || feedback.trim().length < 10} onClick={() => void action('changes', { feedback })}>Zur Ergänzung öffnen</button></div>}
