@@ -8932,6 +8932,104 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_contract_envelopes: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          case_id: string
+          certificate_path: string | null
+          certificate_sha256: string | null
+          closure_reason: string | null
+          counter_email: string
+          counter_name: string
+          counter_user_id: string
+          countersigned_at: string | null
+          create_started_at: string | null
+          created_at: string
+          documents: Json
+          envelope_id: string | null
+          id: string
+          last_synced_at: string | null
+          package_version: string
+          recruiter_client_user_id: string | null
+          recruiter_signed_at: string | null
+          revision: number
+          signed_document_path: string | null
+          signed_document_sha256: string | null
+          snapshot: Json
+          source_reference: string
+          state: string
+          transaction_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          case_id: string
+          certificate_path?: string | null
+          certificate_sha256?: string | null
+          closure_reason?: string | null
+          counter_email: string
+          counter_name: string
+          counter_user_id: string
+          countersigned_at?: string | null
+          create_started_at?: string | null
+          created_at?: string
+          documents: Json
+          envelope_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          package_version: string
+          recruiter_client_user_id?: string | null
+          recruiter_signed_at?: string | null
+          revision?: number
+          signed_document_path?: string | null
+          signed_document_sha256?: string | null
+          snapshot: Json
+          source_reference: string
+          state?: string
+          transaction_id?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          case_id?: string
+          certificate_path?: string | null
+          certificate_sha256?: string | null
+          closure_reason?: string | null
+          counter_email?: string
+          counter_name?: string
+          counter_user_id?: string
+          countersigned_at?: string | null
+          create_started_at?: string | null
+          created_at?: string
+          documents?: Json
+          envelope_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          package_version?: string
+          recruiter_client_user_id?: string | null
+          recruiter_signed_at?: string | null
+          revision?: number
+          signed_document_path?: string | null
+          signed_document_sha256?: string | null
+          snapshot?: Json
+          source_reference?: string
+          state?: string
+          transaction_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_contract_envelopes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_onboarding_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiter_documents: {
         Row: {
           accepted_at: string | null
@@ -9154,6 +9252,120 @@ export type Database = {
           recruiter_id?: string
           submissions?: number | null
           total_revenue?: number | null
+        }
+        Relationships: []
+      }
+      recruiter_onboarding_audit: {
+        Row: {
+          case_id: string
+          envelope_record_id: string | null
+          event: string
+          id: number
+          occurred_at: string
+          revision: number
+        }
+        Insert: {
+          case_id: string
+          envelope_record_id?: string | null
+          event: string
+          id?: never
+          occurred_at?: string
+          revision: number
+        }
+        Update: {
+          case_id?: string
+          envelope_record_id?: string | null
+          event?: string
+          id?: never
+          occurred_at?: string
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_onboarding_audit_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_onboarding_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_onboarding_audit_envelope_record_id_fkey"
+            columns: ["envelope_record_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_contract_envelopes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruiter_onboarding_cases: {
+        Row: {
+          checks: Json
+          claimed_at: string | null
+          claimed_by: string | null
+          contract_template_hash: string | null
+          created_at: string
+          created_by: string
+          email: string
+          expires_at: string
+          feedback: string
+          id: string
+          internal_note: string
+          kind: string
+          last_mail_at: string | null
+          profile: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revision: number
+          revoked_at: string | null
+          state: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          checks?: Json
+          claimed_at?: string | null
+          claimed_by?: string | null
+          contract_template_hash?: string | null
+          created_at?: string
+          created_by: string
+          email: string
+          expires_at: string
+          feedback?: string
+          id?: string
+          internal_note?: string
+          kind: string
+          last_mail_at?: string | null
+          profile?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision?: number
+          revoked_at?: string | null
+          state?: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          checks?: Json
+          claimed_at?: string | null
+          claimed_by?: string | null
+          contract_template_hash?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string
+          expires_at?: string
+          feedback?: string
+          id?: string
+          internal_note?: string
+          kind?: string
+          last_mail_at?: string | null
+          profile?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision?: number
+          revoked_at?: string | null
+          state?: string
+          token_hash?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -11542,6 +11754,10 @@ export type Database = {
       org_intake_approval_required: {
         Args: { _org_id: string }
         Returns: boolean
+      }
+      recruiter_counter_deadline: {
+        Args: { signed_at: string }
+        Returns: string
       }
       scrub_identity_tokens: {
         Args: { p_repl: string; p_text: string; p_tokens: string[] }
