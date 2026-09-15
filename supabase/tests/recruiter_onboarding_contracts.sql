@@ -10,6 +10,7 @@ create schema storage;
 create table auth.users(id uuid primary key);
 create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
 \ir ../migrations/20260915170000_recruiter_onboarding_contracts.sql
+\ir ../migrations/20260915190000_recruiter_website_entry.sql
 
 do $$ begin
   if public.recruiter_counter_deadline('2026-09-15T10:00:00Z') <> '2026-10-15T22:00:00Z'::timestamptz
@@ -33,6 +34,15 @@ $$;
 insert into auth.users values ('00000000-0000-0000-0000-000000000001'),('00000000-0000-0000-0000-000000000002');
 insert into public.recruiter_onboarding_cases(id,kind,email,token_hash,expires_at,created_by,profile)
 values ('10000000-0000-0000-0000-000000000001','agency','alex@example.test','hash',now()+interval '7 days','00000000-0000-0000-0000-000000000001','{"name":"Alex","company":"Test Agency"}');
+
+-- Website cases have an owner but no fictitious inviting admin.
+insert into public.recruiter_onboarding_cases(kind,email,token_hash,expires_at,entry_source,claimed_by,claimed_at,state)
+values ('individual','website@example.test','website-hash',now(),'website','00000000-0000-0000-0000-000000000001',now(),'draft');
+select public.expect_rejection('insert into public.recruiter_onboarding_cases(kind,email,token_hash,expires_at,entry_source,claimed_by,claimed_at,state) values (''individual'',''website@example.test'',''duplicate'',now(),''website'',''00000000-0000-0000-0000-000000000001'',now(),''draft'')');
+select public.expect_rejection('update public.recruiter_onboarding_cases set entry_source=''invitation'',revision=1 where entry_source=''website''');
+select public.expect_rejection('update public.recruiter_onboarding_cases set state=''approved'',revision=1 where entry_source=''website''');
+delete from public.recruiter_onboarding_audit where case_id in(select id from public.recruiter_onboarding_cases where entry_source='website');
+delete from public.recruiter_onboarding_cases where entry_source='website';
 
 -- No direct reads, approvals or signature writes for a browser identity.
 set local role authenticated;

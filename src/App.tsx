@@ -83,7 +83,7 @@ import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 
 // Onboarding
 import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
-import RecruiterOnboarding from "./pages/onboarding/RecruiterOnboarding";
+import RecruiterAccessGate from "./components/verification/RecruiterAccessGate";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
@@ -166,7 +166,7 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to={dashboardPath} replace />;
   }
 
-  return <>{children}</>;
+  return role === 'recruiter' ? <RecruiterAccessGate>{children}</RecruiterAccessGate> : <>{children}</>;
 }
 
 function AppRoutes() {
@@ -498,11 +498,7 @@ function AppRoutes() {
           <ClientOnboarding />
         </ProtectedRoute>
       } />
-      <Route path="/recruiter/onboarding" element={
-        <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterOnboarding />
-        </ProtectedRoute>
-      } />
+      <Route path="/recruiter/onboarding" element={<Suspense fallback={<RouteFallback />}><RecruiterInvitation /></Suspense>} />
       
 
       {/* Public Routes */}

@@ -5,7 +5,7 @@ import { type ContractDocument, type RecruiterProfile, signingEvidence } from '.
 import { accessToken, docusignConfig, type DocuSignConfig } from './docusign.ts';
 
 export interface OnboardingCase {
-  id: string; revision: number; created_by: string; contract_template_hash: string | null; kind: string; email: string; token_hash: string;
+  id: string; revision: number; created_by: string | null; contract_template_hash: string | null; kind: string; email: string; token_hash: string;
   expires_at: string; revoked_at: string | null; claimed_by: string | null;
   profile: RecruiterProfile; state: string; feedback: string;
   checks: Record<string, boolean>; reviewed_at: string | null;

@@ -1,3 +1,5 @@
+import { recruiterAccess } from '../_shared/recruiter-access.ts';
+import { beginRecruiterCase, resumeRecruiterCase } from '../_shared/recruiter-entry.ts';
 import { ensureRecruiterPackage } from '../_shared/recruiter-package.ts';
 import { sendRecruiterEnvelope } from '../_shared/recruiter-envelope-send.ts';
 import { contractDataIssues } from '../_shared/recruiter-contract-data.ts';
@@ -8,7 +10,7 @@ import { preflight, json } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { hashToken } from '../_shared/tokens.ts';
 import { cleanProfile, normalizeEmail, canOpenRecruiterSignature } from '../_shared/recruiter-contract-policy.ts';
-import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
+import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, caseById, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
 
 serve(async req => {
   const pre = preflight(req); if (pre) return pre;
@@ -16,12 +18,23 @@ serve(async req => {
     must(req.method === 'POST', 'Bitte POST verwenden.');
     const user = await verifiedUser(req);
     const body = await req.json();
-    must(typeof body.token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(body.token), 'Ungültiger Einladungslink.');
     const db = serviceClient();
-    const { data, error } = await db.from('recruiter_onboarding_cases').select('*').eq('token_hash', await hashToken(body.token)).maybeSingle();
-    dbError(error);
-    must(data && data.email === normalizeEmail(user.email!), 'Diese Einladung ist für ein anderes bestätigtes E-Mail-Konto bestimmt oder nicht mehr gültig.', 'not_allowed');
-    let c = data as OnboardingCase;
+    if (body.action === 'access') return json(await recruiterAccess(db,user));
+    if (body.action === 'resume' || body.action === 'begin') {
+      const found = body.action === 'begin' ? await beginRecruiterCase(db,user,body.kind) : await resumeRecruiterCase(db,user);
+      return json({ onboarding: found ? await publicCase(db,found) : null });
+    }
+    let c: OnboardingCase;
+    if (body.token !== undefined) {
+      must(typeof body.token === 'string' && /^[A-Za-z0-9_-]{43}$/.test(body.token), 'Ungültiger Einladungslink.');
+      const { data, error } = await db.from('recruiter_onboarding_cases').select('*').eq('token_hash', await hashToken(body.token)).maybeSingle();
+      dbError(error);
+      must(data && data.email === normalizeEmail(user.email!), 'Diese Einladung ist für ein anderes bestätigtes E-Mail-Konto bestimmt oder nicht mehr gültig.', 'not_allowed');
+      c = data as OnboardingCase;
+    } else {
+      c = await caseById(db, body.case_id);
+      must(c.claimed_by === user.id && c.email === normalizeEmail(user.email!), 'Keine Berechtigung für diesen Onboarding-Vorgang.', 'not_allowed');
+    }
     must(!c.revoked_at, 'Diese Einladung wurde widerrufen.', 'revoked');
     must(c.claimed_by === user.id || !c.claimed_by && Date.parse(c.expires_at) > Date.now(), 'Die Einladung ist abgelaufen oder bereits zugeordnet.', 'expired');
     if (!c.claimed_by) c = await patchCase(db, c, { claimed_by: user.id, claimed_at: new Date().toISOString(), state: 'draft' });
@@ -38,7 +51,7 @@ serve(async req => {
       let contract=await ensureRecruiterPackage(db,c);
       if(['prepared','creating','sent'].includes(contract.state)) contract=await sendRecruiterEnvelope(db,contract,cfg);
       if(canOpenRecruiterSignature({userId:user.id,userEmail:user.email!,claimedBy:c.claimed_by,clientUserId:contract.recruiter_client_user_id,signerEmail:contract.snapshot.signerEmail,state:contract.state,signedAt:contract.recruiter_signed_at})) {
-        const url=await recipientView(cfg,{envelopeId:contract.envelope_id!,name:contract.snapshot.signer,email:contract.snapshot.signerEmail,clientUserId:user.id,returnUrl:`${getPublicAppUrl()}/recruiter/invitation`});
+        const url=await recipientView(cfg,{envelopeId:contract.envelope_id!,name:contract.snapshot.signer,email:contract.snapshot.signerEmail,clientUserId:user.id,returnUrl:`${getPublicAppUrl()}/recruiter/onboarding`});
         return json({url});
       }
       return json({remote:contract.recruiter_client_user_id !== user.id,contract_id:contract.id});
@@ -47,7 +60,7 @@ serve(async req => {
       must(contract.case_id === c.id, 'Keine Berechtigung.', 'not_allowed');
       if (body.action === 'signature') {
         must(['review','approved'].includes(c.state) && contract.envelope_id && canOpenRecruiterSignature({ userId: user.id, userEmail: user.email!, claimedBy: c.claimed_by, clientUserId: contract.recruiter_client_user_id, signerEmail: contract.snapshot.signerEmail, state: contract.state, signedAt: contract.recruiter_signed_at }), 'Der Signaturzugang gehört ausschließlich der benannten unterzeichnenden Person und muss noch offen sein.', 'not_allowed');
-        const url = await recipientView(signatureConfig(), { envelopeId: contract.envelope_id, name: contract.snapshot.signer, email: contract.snapshot.signerEmail, clientUserId: user.id, returnUrl: `${getPublicAppUrl()}/recruiter/invitation` });
+        const url = await recipientView(signatureConfig(), { envelopeId: contract.envelope_id, name: contract.snapshot.signer, email: contract.snapshot.signerEmail, clientUserId: user.id, returnUrl: `${getPublicAppUrl()}/recruiter/onboarding` });
         return json({ url });
       } else if (body.action === 'sync') {
         if (!contract.last_synced_at || Date.now() - Date.parse(contract.last_synced_at) >= 15 * 60000) await syncEnvelope(db, contract, signatureConfig());

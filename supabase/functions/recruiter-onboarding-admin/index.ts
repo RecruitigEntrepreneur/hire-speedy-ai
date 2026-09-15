@@ -24,7 +24,7 @@ serve(async req => {
     const body = await req.json();
     if (body.action === 'list') {
       const { data: cases, error } = await db.from('recruiter_onboarding_cases')
-        .select('id,revision,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,checks,reviewed_at,created_at')
+        .select('id,revision,entry_source,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,checks,reviewed_at,created_at')
         .order('created_at', { ascending: false }).limit(100);
       dbError(error);
       const ids = (cases ?? []).map(c => c.id);

@@ -14,7 +14,7 @@ export interface StoredContract {
   signed_document_path: string | null; certificate_path: string | null; source_reference?: string;
 }
 export interface StoredOnboarding {
-  id: string; revision: number; kind: string; email: string; profile: RecruiterProfile; state: string;
+  id: string; revision: number; entry_source?: 'invitation' | 'website'; kind: string; email: string; profile: RecruiterProfile; state: string;
   feedback: string; revoked_at?: string; expires_at?: string; claimed_at?: string; contracts: StoredContract[];
 }
 export async function onboardingApi<T>(admin: boolean, body: Record<string, unknown>): Promise<T> {

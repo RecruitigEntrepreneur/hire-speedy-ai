@@ -1,5 +1,41 @@
 # Recruiter onboarding — release handoff, 2026-09-15
 
+## Follow-up: unified website and invitation entry
+
+This follow-up replaces the old `/recruiter/onboarding` UI with the same page used
+by `/recruiter/invitation#<token>`. Both offer account creation and existing-account
+login. Recruiter signup email confirmation returns to `/recruiter/onboarding`.
+Confirmed accounts resume claimed cases without depending on the invitation token
+or browser session. An explicit start uses a valid matching-email invitation first;
+otherwise it creates one website case (individual or agency) per account. Website
+cases do not invent an inviting admin or an admin approval. Existing test records
+are neither reset nor completed.
+
+DEPLOY THIS FOLLOW-UP IN ORDER:
+1. Apply only `20260915190000_recruiter_website_entry.sql` on the existing schema.
+   Do not rerun either copy of the original table-creation migration.
+2. Redeploy `recruiter-onboarding` and `recruiter-onboarding-admin` with shared files.
+   `recruiter-docusign-webhook` and DocuSign credentials require no change here.
+3. Add `https://matchunt.ai/recruiter/onboarding` to auth redirect allowlist,
+   preserving `/recruiter/invitation` and existing redirects.
+4. Publish frontend AFTER the functions and migration are ready.
+
+`access` is a read-only Edge action for the app navigation guard. Existing verified
+recruiters retain access. For accounts with a new onboarding case, dashboard access
+requires case approval, a completed DocuSign envelope AND the separate existing
+admin activation (`user_roles.verified=true`). Suspended accounts remain blocked.
+This controls app navigation; existing backend data authorization remains in place.
+The new page never writes legacy verification/signature flags.
+
+Validation: 13 mocked Deno workflow tests, Deno checks, app TypeScript, targeted
+ESLint, production build and disposable PostgreSQL migration/guard fixture passed.
+Local browser verified signup/login UI at the shared direct-entry route. No real
+account was created and no signature was performed. Full live signup/email/signing
+checks require this follow-up deployment; DocuSign remains Demo with HMAC pending.
+
+The historical initial deployment notes below describe the preceding release.
+
+
 ## Scope and current status
 
 Prepared on main commit `8a5edcc4cae9385ebf7b9f564b834b873d1bbf08` for the existing
