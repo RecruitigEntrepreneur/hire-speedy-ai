@@ -8935,7 +8935,7 @@ export type Database = {
       recruiter_contract_envelopes: {
         Row: {
           approved_at: string
-          approved_by: string
+          approved_by: string | null
           case_id: string
           certificate_path: string | null
           certificate_sha256: string | null
@@ -8964,7 +8964,7 @@ export type Database = {
         }
         Insert: {
           approved_at?: string
-          approved_by: string
+          approved_by?: string | null
           case_id: string
           certificate_path?: string | null
           certificate_sha256?: string | null
@@ -8993,7 +8993,7 @@ export type Database = {
         }
         Update: {
           approved_at?: string
-          approved_by?: string
+          approved_by?: string | null
           case_id?: string
           certificate_path?: string | null
           certificate_sha256?: string | null
@@ -9304,8 +9304,9 @@ export type Database = {
           claimed_by: string | null
           contract_template_hash: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           email: string
+          entry_source: string
           expires_at: string
           feedback: string
           id: string
@@ -9327,8 +9328,9 @@ export type Database = {
           claimed_by?: string | null
           contract_template_hash?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           email: string
+          entry_source?: string
           expires_at: string
           feedback?: string
           id?: string
@@ -9350,8 +9352,9 @@ export type Database = {
           claimed_by?: string | null
           contract_template_hash?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           email?: string
+          entry_source?: string
           expires_at?: string
           feedback?: string
           id?: string
