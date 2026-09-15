@@ -1,5 +1,37 @@
 # Recruiter onboarding — release handoff, 2026-09-15
 
+## Latest follow-up: approved preview design (frontend only)
+
+Publish the current `main` frontend. This follow-up ports the approved local
+preview's green/cream visual design to the real shared onboarding and the existing
+Admin → Recruiters → Einladungen & Verträge component.
+
+- `/recruiter/onboarding` and `/recruiter/invitation` retain the same real account,
+  invitation/resume and DocuSign actions. Profile entry now has three validated
+  sections and a final review; all contract fields and optional consents remain.
+- Admin invitation management opens directly and displays actual case cards,
+  search and counts over the loaded (up to 100) records. Known country, specialty
+  and region can be prefilled through the existing API. Copying links and viewing
+  the invitation email content are explicit controls; sending remains explicit.
+- DocuSign status, Matchunt review/countersignature and separate activation remain
+  backend controlled. No contract templates, database schema, Edge Functions,
+  secrets or auth configuration are changed by this visual follow-up.
+
+Deployment: frontend publish only. Do not rerun the historical migration/deploy
+instructions below for this UI update. Do not deploy local `__preview` or `src/dev`
+QA fixtures. DocuSign Demo/HMAC and the auth redirect allowlist remain separate
+configuration follow-ups from the earlier deployment reports.
+
+Validation: local browser checks using production components with an isolated
+mock API passed profile progression, missing-field blocking/revealing, whitespace
+entry, review/submit, admin link creation and email interaction, search, signup/
+login and invitation entry, plus mobile overflow checks. No real test account,
+email recipient or signature was changed. This is not a live DocuSign E2E test.
+
+The following sections describe historical backend releases, already reported as
+deployed; they are retained for reference.
+
+
 ## Follow-up: unified website and invitation entry
 
 This follow-up replaces the old `/recruiter/onboarding` UI with the same page used

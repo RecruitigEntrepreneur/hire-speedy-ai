@@ -1,11 +1,10 @@
-import ContractDetailsFields from '@/components/onboarding/ContractDetailsFields';
+import RecruiterProfileForm from '@/components/onboarding/RecruiterProfileForm';
+import OnboardingFrame from '@/components/onboarding/OnboardingFrame';
+import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { onboardingApi, profileLabels, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile } from '@/lib/recruiterOnboardingApi';
+import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile } from '@/lib/recruiterOnboardingApi';
 import { cleanProfile } from '../../../supabase/functions/_shared/recruiter-contract-policy';
 
 // The link identifies the initial invitation. Later visits resume through the
@@ -66,48 +65,56 @@ export default function RecruiterInvitation() {
     const result = await onboardingApi<{ url: string }>(false, { action: 'document', ...identity, contract_id: packet?.id, document: role });
     window.location.assign(result.url);
   });
-  return <main className="min-h-screen bg-muted/30 px-4 py-8 sm:py-14"><div className="mx-auto max-w-3xl space-y-6">
-    <a href="/" className="text-xl font-semibold tracking-tight">Matchunt<span className="text-primary">.ai</span></a>
-    <header><p className="text-sm text-muted-foreground">Ihr persönlicher Einstieg</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Willkommen im Recruiter-Netzwerk.</h1><p className="mt-3 text-muted-foreground">Prüfen Sie Ihre Angaben. Wir begleiten Sie durch die Prüfung und den Vertragsabschluss.</p></header>
-    <ol className="grid grid-cols-3 gap-2 text-sm"><li className="rounded-md border p-3">1 · Zugang bestätigen</li><li className="rounded-md border p-3">2 · Angaben prüfen</li><li className="rounded-md border p-3">3 · Vertrag & nächste Schritte</li></ol>
-    {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm">{error}</p>}
-    {message && <p role="status" className="rounded-md border bg-background p-4 text-sm">{message}</p>}
-    {!authReady ? <p role="status">Zugang wird geprüft …</p> : !user ? <Card><CardHeader><CardTitle>{signup ? 'Konto einrichten' : 'Zugang bestätigen'}</CardTitle><p className="text-sm text-muted-foreground">{token ? 'Verwenden Sie die E-Mail-Adresse Ihrer Einladung. Nach der Kontobestätigung übernehmen wir Ihre vorbereiteten Angaben.' : 'Erstellen Sie Ihr Recruiter-Konto oder melden Sie sich an. Anschließend ergänzen Sie Ihre Angaben und starten den Vertragsprozess.'}</p></CardHeader><CardContent>
-      <form className="space-y-4" onSubmit={e => { e.preventDefault(); void run(async () => {
+  const stage = !user || !c ? 0 : c.state === 'draft' ? 1 : packet?.recruiter_signed_at || packet?.state === 'completed' ? 3 : 2;
+  const titles = ['Gute Recruiter verdienen gute Partner.', 'Deine Expertise. Unser gemeinsamer Start.', 'Dein Vertrag. Persönlich vorbereitet.', 'Dein nächster Schritt ist in guten Händen.'];
+  const descriptions = [token ? 'Willkommen bei Matchunt. Richte deinen Zugang ein – die vorbereiteten Angaben aus deiner Einladung warten anschließend auf dich.' : 'Werde Teil unseres Recruiter-Netzwerks. Starte mit deinem Konto, ergänze deine Angaben und schließe deinen Vertrag digital ab.', 'Prüfe die vorbereiteten Angaben und ergänze, was noch fehlt. Du kannst deinen Entwurf speichern und später weitermachen.', 'Aus deinen bestätigten Angaben entsteht dein vollständiges Vertragspaket. Du prüfst es in Ruhe und unterschreibst digital mit DocuSign.', 'Deine Unterschrift ist eingegangen. Matchunt prüft deine Angaben, zeichnet gegen und bestätigt deine Freischaltung separat.'];
+  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? 'Der Vertrag ist von beiden Seiten unterzeichnet. Hier findest du deine Unterlagen. Über die Freischaltung informiert dich das Matchunt-Team separat.' : descriptions[stage]} email={user?.email}
+    accountAction={user && <button className="mh-link" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>Konto wechseln</button>}>
+    {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
+    {message && <p role="status" className="mh-alert">{message}</p>}
+    {!authReady ? <section className="mh-panel" role="status">Dein Zugang wird geprüft …</section> : !user ? <section className="mh-panel">
+      <div className="mh-panel-head"><UserRound size={23}/><div><h2>{signup ? 'Dein persönlicher Zugang.' : 'Schön, dass du wieder da bist.'}</h2><p>{token ? 'Verwende die E-Mail-Adresse deiner Einladung.' : 'Mit deinem Konto kannst du jederzeit an dieser Stelle weitermachen.'}</p></div></div>
+      <form className="mh-stack mh-auth" onSubmit={e => { e.preventDefault(); void run(async () => {
         if (signup) {
           const result = await supabase.auth.signUp({ email, password, options: { data: { full_name: name, role: 'recruiter' }, emailRedirectTo: `${location.origin}/recruiter/onboarding` } });
           if (result.error) throw result.error;
-          setMessage('Bitte bestätigen Sie Ihre E-Mail-Adresse. Danach setzen Sie Ihr Onboarding mit diesem Konto fort; vorhandene Einladungsdaten werden übernommen.');
+          setMessage('Bitte bestätige deine E-Mail-Adresse. Danach setzt du dein Onboarding mit diesem Konto fort; vorhandene Einladungsdaten werden übernommen.');
         } else {
           const result = await supabase.auth.signInWithPassword({ email, password }); if (result.error) throw result.error;
         }
         setPassword('');
       }); }}>
-        {signup && <label className="block space-y-1 text-sm">Vollständiger Name<Input autoComplete="name" required value={name} onChange={e => setName(e.target.value)}/></label>}
-        <label className="block space-y-1 text-sm">E-Mail<Input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label><label className="block space-y-1 text-sm">Passwort<Input autoComplete={signup ? 'new-password' : 'current-password'} type="password" minLength={signup ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)}/></label>
-        <Button className="w-full" type="submit" disabled={busy}>{signup ? 'Konto erstellen' : 'Anmelden'}</Button><Button className="w-full" variant="ghost" type="button" onClick={() => setSignup(!signup)}>{signup ? 'Ich habe bereits ein Konto' : 'Ich benötige ein neues Konto'}</Button>
+        {signup && <label className="mh-field">Vollständiger Name<input autoComplete="name" required value={name} onChange={e => setName(e.target.value)}/></label>}
+        <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>
+        <label className="mh-field">Passwort<input autoComplete={signup ? 'new-password' : 'current-password'} type="password" minLength={signup ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)}/>{signup && <small>Mindestens 12 Zeichen.</small>}</label>
+        <button className="mh-button mh-primary mh-full" type="submit" disabled={busy}>{busy ? 'Einen Moment …' : signup ? 'Konto erstellen & starten' : 'Anmelden & fortsetzen'}<ArrowRight size={16}/></button>
+        <button className="mh-link" type="button" disabled={busy} onClick={() => { setSignup(!signup); setError(''); }}>{signup ? 'Du hast bereits ein Konto? Jetzt anmelden' : 'Du bist neu hier? Konto erstellen'}</button>
       </form>
-    </CardContent></Card> : <>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>Angemeldet als {user.email}</span><Button variant="ghost" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>Konto wechseln</Button></div>
-      {!c ? <Card><CardHeader><CardTitle>Ihr Konto ist der erste Schritt</CardTitle><p className="text-sm text-muted-foreground">Als Nächstes ergänzen Sie Ihre Geschäftsdaten. Ein bereits begonnener Vorgang oder eine gültige Einladung für Ihre bestätigte E-Mail-Adresse wird übernommen.</p></CardHeader><CardContent className="space-y-4"><label className="block text-sm">Ich starte als<select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={kind} onChange={e=>setKind(e.target.value)}><option value="individual">Einzelrecruiter</option><option value="agency">Agentur</option></select></label><Button disabled={busy} onClick={()=>void run(async()=>{
-          if(token){await load();return;}
-          const result=await onboardingApi<{onboarding:StoredOnboarding}>(false,{action:'begin',kind});setCase(result.onboarding);setProfile(result.onboarding.profile);
-        })}>{busy ? 'Onboarding wird geladen …' : token ? 'Einladung erneut laden' : 'Onboarding starten / fortsetzen'}</Button></CardContent></Card> : <Card><CardHeader><CardTitle>{stateLabels[c.state]}</CardTitle><p className="text-sm text-muted-foreground">{c.email}</p></CardHeader><CardContent className="space-y-5">
-        {c.feedback && <div className="rounded-md bg-amber-50 p-4 text-sm text-amber-950"><strong>Eine Ergänzung ist erforderlich</strong><p className="mt-2 whitespace-pre-wrap">{c.feedback}</p></div>}
-        {c.state === 'draft' ? <form className="space-y-4" onSubmit={e => { e.preventDefault(); void run(async () => { await load('submit', { revision: c.revision, profile }); setMessage('Ihre Angaben sind bestätigt. Sie können jetzt Ihren Vertrag erstellen und unterschreiben.'); }); }}>
-          <div className="grid gap-4 sm:grid-cols-2">{Object.entries(profileLabels).filter(([key]) => !['taxStatus','authorityDeclared'].includes(key)).map(([key,label]) => <label key={key} className="block space-y-1 text-sm">{label}<Input type={key === 'signerEmail' ? 'email' : 'text'} required={!['specialty','region'].includes(key)} value={String(profile[key as keyof RecruiterProfile])} onChange={e => setProfile({ ...profile, [key]: e.target.value })}/></label>)}</div>
-          <label className="block space-y-1 text-sm">Steuerstatus<select required className="flex h-10 w-full rounded-md border bg-background px-3" value={profile.taxStatus} onChange={e => setProfile({ ...profile, taxStatus: e.target.value })}><option value="">Bitte wählen</option><option value="regular">Regulär umsatzsteuerpflichtig</option><option value="small_business">Kleinunternehmerregelung</option><option value="foreign">Ausländischer Steuerstatus · Prüfung erforderlich</option></select></label>
-          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="checkbox" required checked={profile.authorityDeclared} onChange={e => setProfile({ ...profile, authorityDeclared: e.target.checked })}/>Die benannte Person ist zur Unterzeichnung für den angegebenen Vertragspartner berechtigt. Matchunt prüft die erforderlichen Nachweise.</label>
-          <ContractDetailsFields value={profile.contractDetails} kind={c.kind} onChange={contractDetails => setProfile({...profile,contractDetails})}/><p className="text-sm text-muted-foreground">Wenn Sie selbst unterschreiben, öffnen Sie DocuSign hier direkt. Eine andere unterzeichnende Person erhält ihren persönlichen Zugang per E-Mail.</p><div className="flex flex-wrap gap-2"><Button disabled={busy} type="submit">Angaben bestätigen und weiter</Button><Button disabled={busy} type="button" variant="outline" onClick={() => void run(async () => { await load('save', { revision: c.revision, profile }); setMessage('Entwurf gespeichert. Sie können später weiterarbeiten.'); })}>Entwurf speichern</Button></div>
-        </form> : <><p>{packet?.recruiter_signed_at ? 'Ihre Unterschrift ist eingegangen. Matchunt prüft Ihre Angaben und zeichnet anschließend ausdrücklich gegen.' : 'Ihre Angaben sind bestätigt. Daraus erstellen wir Ihren persönlichen Vertrag mit allen Anlagen.'}</p>{(!packet || ['prepared','creating'].includes(packet.state)) && <Button disabled={busy} onClick={() => void startSignature()}>{busy ? 'Vertrag wird vorbereitet …' : 'Vertrag erstellen und mit DocuSign unterschreiben'}</Button>}<Button variant="outline" disabled={busy} onClick={() => void run(() => load())}>Stand aktualisieren</Button></>}
-
-        {packet && <section className="space-y-3 border-t pt-5"><h2 className="text-lg font-semibold">Ihr Vertragspaket · {packet.package_version}</h2><p className="text-sm">{stateLabels[packet.state]}</p><details><summary className="cursor-pointer text-sm font-medium">Alle Vertragsunterlagen ansehen</summary><div className="mt-3 grid gap-2 sm:grid-cols-2">{packet.documents.map(d => <Button key={d.role} variant="outline" disabled={busy} onClick={() => void document(d.role)}>{documentLabels[d.role]}</Button>)}</div></details>
-          {packet.state === 'sent' && <>{packet.recruiter_signed_at ? <p className="text-sm">Ihre Unterschrift ist bestätigt. Matchunt zeichnet als Nächstes gegen.</p> : packet.recruiter_client_user_id === user.id ? <><p className="text-sm">Einmal digital unterschreiben: Rahmenvertrag und sechs Anlagen. Sie können das vollständige Paket in DocuSign prüfen, bevor Sie unterschreiben.</p><Button disabled={busy} onClick={() => void run(async () => { const { url } = await onboardingApi<{ url: string }>(false, { action: 'signature', ...identity, contract_id: packet.id }); window.location.assign(url); })}>Mit DocuSign unterschreiben</Button></> : <p className="text-sm">Die benannte unterzeichnende Person erhält ihren eigenen Zugang direkt von DocuSign. Danach folgt die Gegenzeichnung durch Matchunt.</p>}<Button variant="outline" disabled={busy} onClick={() => void run(() => load('sync', { contract_id: packet.id }))}>Signaturstatus aktualisieren</Button></>}
-          {packet.state === 'completed' && <><p className="text-sm">Beide Unterschriften sind bestätigt. Ihr Vertragspaket und das Abschlusszertifikat stehen zum Download bereit. Über die Freischaltung Ihres Zugangs informiert Sie das Matchunt-Team separat.</p><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>window.location.assign('/recruiter')}>Zum Dashboard</Button><Button disabled={busy} onClick={() => void document('signed')}>Unterzeichneten Vertrag öffnen</Button><Button variant="outline" disabled={busy} onClick={() => void document('certificate')}>Abschlusszertifikat öffnen</Button></div></>}
-          {packet.state === 'manual_review' && <p className="text-sm">Die Unterschriftsfrist muss durch das Matchunt-Team geklärt werden.</p>}
-        </section>}
-      </CardContent></Card>}
+    </section> : !c ? <section className="mh-panel mh-stack">
+      <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>Dein Konto ist der erste Schritt.</h2><p>Ein begonnener Vorgang oder eine gültige Einladung für deine bestätigte E-Mail-Adresse wird übernommen.</p></div></div>
+      {!token && <><h3>Wie möchtest du mit uns zusammenarbeiten?</h3><div className="mh-choices">{[['individual', 'Einzelrecruiter', 'Ich starte als selbstständiger Recruiting-Partner.'], ['agency', 'Recruiting-Agentur', 'Ich vertrete eine Agentur.']].map(([value, label, detail]) => <button key={value} className="mh-choice" type="button" disabled={busy} aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'agency' ? <Building2 size={21}/> : <UserRound size={21}/>}<span><strong>{label}</strong><small>{detail}</small></span></button>)}</div></>}
+      <div className="mh-note"><ShieldCheck size={21}/><p>Als Nächstes bestätigst du deine Geschäftsdaten. Deine Vertragsunterschrift folgt erst nach deiner Prüfung in DocuSign.</p></div>
+      <div className="mh-actions"><button className="mh-button mh-primary" disabled={busy} onClick={() => void run(async () => {
+        if (token) { await load(); return; }
+        const result = await onboardingApi<{onboarding: StoredOnboarding}>(false, { action: 'begin', kind }); setCase(result.onboarding); setProfile(result.onboarding.profile);
+      })}>{busy ? 'Onboarding wird geladen …' : token ? 'Einladung erneut laden' : 'Onboarding starten / fortsetzen'}<ArrowRight size={16}/></button></div>
+    </section> : <>
+      {c.feedback && <div className="mh-alert"><strong>Eine Ergänzung ist erforderlich</strong><p className="whitespace-pre-wrap">{c.feedback}</p></div>}
+      {c.state === 'draft' ? <RecruiterProfileForm profile={profile} kind={c.kind} busy={busy} onChange={setProfile}
+        onSave={() => run(async () => { await load('save', { revision: c.revision, profile }); setMessage('Entwurf gespeichert. Du kannst später weiterarbeiten.'); })}
+        onSubmit={() => run(async () => { await load('submit', { revision: c.revision, profile }); setMessage('Deine Angaben sind bestätigt. Du kannst jetzt deinen Vertrag erstellen und unterschreiben.'); })}/>
+      : <section className="mh-panel mh-stack">
+        <div className="mh-panel-head">{stage === 3 ? <CheckCircle2 size={24}/> : <FileText size={24}/>}<div><h2>{packet?.state === 'completed' ? 'Dein Vertrag ist unterzeichnet.' : packet?.recruiter_signed_at ? 'Danke für dein Vertrauen.' : 'Bereit für deine Unterschrift.'}</h2><p>{stateLabels[packet?.state || c.state]}</p></div></div>
+        <div className="mh-note"><ShieldCheck size={21}/><p>{packet?.state === 'completed' ? 'Beide Unterschriften sind bestätigt. Dein Vertragspaket und das Abschlusszertifikat stehen bereit. Das Matchunt-Team informiert dich separat über die Freischaltung.' : packet?.recruiter_signed_at ? 'Deine Unterschrift ist bestätigt. Matchunt prüft deine Angaben und zeichnet anschließend ausdrücklich gegen.' : 'Ein persönlicher Rahmenvertrag, sechs Anlagen und eine digitale Unterschrift. Du kannst das gesamte Paket vor der Unterschrift in DocuSign prüfen.'}</p></div>
+        {(!packet || ['prepared', 'creating'].includes(packet.state)) && <button className="mh-button mh-primary" disabled={busy} onClick={() => void startSignature()}>{busy ? 'Vertrag wird vorbereitet …' : 'Vertrag erstellen & mit DocuSign unterschreiben'}<ArrowUpRight size={17}/></button>}
+        {packet && <>
+          <details><summary>Dein Vertragspaket · {packet.package_version}</summary>{packet.documents.map(d => <button className="mh-doc" key={d.role} disabled={busy} onClick={() => void document(d.role)}><FileText size={19}/><span>{documentLabels[d.role] || d.role}<small>Persönliches Vertragsdokument</small></span><ArrowUpRight size={16}/></button>)}</details>
+          {packet.state === 'sent' && <>{!packet.recruiter_signed_at && (packet.recruiter_client_user_id === user.id ? <button className="mh-button mh-primary" disabled={busy} onClick={() => void run(async () => { const { url } = await onboardingApi<{url: string}>(false, { action: 'signature', ...identity, contract_id: packet.id }); window.location.assign(url); })}>Mit DocuSign unterschreiben<ArrowUpRight size={17}/></button> : <p>Die benannte unterzeichnende Person erhält ihren persönlichen Zugang direkt von DocuSign per E-Mail. Danach folgt die Gegenzeichnung durch Matchunt.</p>)}<button className="mh-button" disabled={busy} onClick={() => void run(() => load('sync', { contract_id: packet.id }))}><RefreshCw size={15}/>Signaturstatus aktualisieren</button></>}
+          {packet.state === 'completed' && <div className="mh-stack"><button className="mh-button mh-primary" disabled={busy} onClick={() => void document('signed')}>Unterzeichneten Vertrag öffnen<ArrowUpRight size={16}/></button><button className="mh-button" disabled={busy} onClick={() => void document('certificate')}>Abschlusszertifikat öffnen</button><a href="/recruiter" className="mh-link">Zum Dashboard – nach Freischaltung<ArrowRight size={14}/></a></div>}
+          {packet.state === 'manual_review' && <p className="mh-alert">Die Unterschriftsfrist muss durch das Matchunt-Team geklärt werden.</p>}
+        </>}
+        <button className="mh-link" disabled={busy} onClick={() => void run(() => load())}><RefreshCw size={14}/>Stand aktualisieren</button>
+      </section>}
     </>}
-    <footer className="flex gap-4 text-sm text-muted-foreground"><a href="/impressum">Impressum</a><a href="/datenschutz">Datenschutz</a></footer>
-  </div></main>;
+  </OnboardingFrame>;
 }
