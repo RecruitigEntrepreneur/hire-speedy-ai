@@ -24,16 +24,24 @@ serve(async req => {
     const body = await req.json();
     if (body.action === 'list') {
       const { data: cases, error } = await db.from('recruiter_onboarding_cases')
-        .select('id,revision,entry_source,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,checks,reviewed_at,created_at')
+        .select('id,revision,entry_source,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,claimed_by,checks,reviewed_at,created_at')
         .order('created_at', { ascending: false }).limit(100);
       dbError(error);
       const ids = (cases ?? []).map(c => c.id);
       const { data: contracts, error: ce } = await db.from('recruiter_contract_envelopes').select('*').in('case_id', ids);
       dbError(ce);
+      // Freischaltung lebt in user_roles; hier nur als Kennzeichen je Vorgang.
+      const owners = [...new Set((cases ?? []).map(c => c.claimed_by).filter((id): id is string => typeof id === 'string'))];
+      const activated = new Set<string>();
+      if (owners.length) {
+        const { data: roles, error: re } = await db.from('user_roles').select('user_id,verified').eq('role', 'recruiter').in('user_id', owners);
+        dbError(re);
+        for (const r of roles ?? []) if (r.verified === true) activated.add(r.user_id);
+      }
       let ready = false; let setupMessage = '';
       try { signatureConfig(); await recruiterCountersigner(db); ready = true; }
       catch (e) { setupMessage = e instanceof Error ? e.message : 'DocuSign-Einrichtung prüfen.'; }
-      return json({ cases, contracts, docusign_enabled: ready, docusign_setup_message: setupMessage });
+      return json({ cases: (cases ?? []).map(({ claimed_by, ...row }) => ({ ...row, activated: typeof claimed_by === 'string' && activated.has(claimed_by) })), contracts, docusign_enabled: ready, docusign_setup_message: setupMessage });
     }
     if (body.action === 'create') {
       const email = normalizeEmail(String(body.email ?? ''));
@@ -71,6 +79,28 @@ serve(async req => {
       must(result.sent, 'Die Einladung wurde angelegt, die E-Mail konnte aber nicht versendet werden.', 'upstream_error');
       await patchCase(db, c, { last_mail_at: new Date().toISOString() });
       return json({ accepted_by_mail_provider: true });
+    }
+    if (body.action === 'activate') {
+      // Freischaltung: erst nach Prüfung, Freigabe und beidseitiger Unterschrift.
+      // Setzt die Recruiter-Rolle auf verifiziert und schickt die Zugangsmail.
+      // Mehrfach auslösbar, falls die Mail nicht ankam.
+      must(c.state === 'approved' && !c.revoked_at && c.claimed_by, 'Der Vorgang ist noch nicht geprüft und freigegeben.', 'conflict');
+      const { data: done, error: de } = await db.from('recruiter_contract_envelopes').select('id').eq('case_id', c.id).eq('state', 'completed').limit(1).maybeSingle();
+      dbError(de); must(done, 'Der Vertrag ist noch nicht von beiden Seiten unterzeichnet.', 'conflict');
+      const { data: role, error: re } = await db.from('user_roles').update({ verified: true, status: 'active' }).eq('user_id', c.claimed_by).eq('role', 'recruiter').select('user_id').maybeSingle();
+      dbError(re); must(role, 'Für dieses Konto gibt es keine Recruiter-Rolle.', 'conflict');
+      const firstName = String(c.profile.name ?? '').trim().split(/\s+/)[0] ?? '';
+      const result = await sendIntakeMail(db, {
+        to: c.email, subject: 'Du bist freigeschaltet – willkommen bei Matchunt',
+        template: 'recruiter_onboarding_activation', replyTo: admin.email,
+        html: layout({ preheader: 'Dein Zugang ist frei. Richte jetzt dein Passwort ein.', heading: 'Willkommen im Netzwerk',
+          body: `<p>Hallo${firstName ? ' ' + esc(firstName) : ''},</p><p>dein Vertrag ist von beiden Seiten unterzeichnet und dein Zugang ist freigeschaltet.</p><p>Richte jetzt dein Passwort ein. Danach kannst du direkt loslegen: Positionen ansehen und Kandidaten vorschlagen.</p><p>Bei Fragen antworte einfach auf diese Nachricht.</p><p>Viele Grüße<br>dein Matchunt-Team</p>`,
+          cta: { label: 'Zugang einrichten', url: `${getPublicAppUrl()}/recruiter/onboarding` },
+          footnote: `Auf der Seite bestätigst du deine E-Mail-Adresse mit einem Code und legst dann dein Passwort fest. <a href="${esc(getPublicAppUrl())}/impressum">Impressum</a> · <a href="${esc(getPublicAppUrl())}/datenschutz">Datenschutz</a>`,
+        }), meta: { case_id: c.id },
+      });
+      must(result.sent, 'Freigeschaltet, aber die Zugangsmail konnte nicht versendet werden. Bitte erneut auslösen.', 'upstream_error');
+      return json({ ok: true });
     }
     if (['revoke','changes','approve'].includes(body.action)) {
       must(c.revision === body.revision, 'Bitte den aktuellen Vorgang neu laden.', 'conflict');

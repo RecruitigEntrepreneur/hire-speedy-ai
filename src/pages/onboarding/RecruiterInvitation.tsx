@@ -1,14 +1,15 @@
 import RecruiterProfileForm from '@/components/onboarding/RecruiterProfileForm';
 import OnboardingFrame from '@/components/onboarding/OnboardingFrame';
-import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw, MailCheck, KeyRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile } from '@/lib/recruiterOnboardingApi';
+import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile, type InvitationPeek, type CodeSession } from '@/lib/recruiterOnboardingApi';
 import { cleanProfile } from '../../../supabase/functions/_shared/recruiter-contract-policy';
 
-// The link identifies the initial invitation. Later visits resume through the
-// confirmed account, including email confirmation on another device.
+// Der Link identifiziert die Einladung. Angemeldet wird per Code an die
+// Einladungsadresse, ohne Konto und Passwort. Spätere Besuche laufen über die
+// bestätigte Sitzung, auch auf einem anderen Gerät.
 function invitationToken() {
   return location.pathname.endsWith('/invitation') ? location.hash.slice(1) : '';
 }
@@ -16,22 +17,33 @@ export default function RecruiterInvitation() {
   const [token] = useState(invitationToken);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [signup, setSignup] = useState(true);
+  const [peek, setPeek] = useState<InvitationPeek | null>(null);
+  const [phase, setPhase] = useState<'start' | 'code'>('start');
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [sentTo, setSentTo] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [repeat, setRepeat] = useState('');
   const [kind, setKind] = useState('individual');
   const [c, setCase] = useState<StoredOnboarding | null>(null);
   const [profile, setProfile] = useState<RecruiterProfile>(() => cleanProfile({}));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState(() => new URLSearchParams(location.search).has('event') ? 'Willkommen zurück. Wir warten auf die bestätigte Rückmeldung von DocuSign. Ihre Rückkehr allein bestätigt noch keine Unterschrift.' : '');
+  const [message, setMessage] = useState(() => new URLSearchParams(location.search).has('event') ? 'Willkommen zurück. Wir warten auf die bestätigte Rückmeldung von DocuSign. Deine Rückkehr allein bestätigt noch keine Unterschrift.' : '');
   useEffect(() => {
     let active = true;
     void supabase.auth.getSession().then(({ data }) => { if (active) { setUser(data.session?.user ?? null); setAuthReady(true); } });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => { setUser(session?.user ?? null); setAuthReady(true); });
     return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
+  // Vorschau der Einladung ohne Sitzung: Vorname, maskierte Adresse, Status.
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    void onboardingApi<InvitationPeek>(false, { action: 'peek', token }).then(result => { if (active) setPeek(result); })
+      .catch(e => { if (active) setError(e instanceof Error ? e.message : 'Einladung konnte nicht geladen werden.'); });
+    return () => { active = false; };
+  }, [token]);
   useEffect(() => {
     setCase(null); setError('');
     if (!user?.id) return;
@@ -44,6 +56,8 @@ export default function RecruiterInvitation() {
   }, [user?.id, token]);
   const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); setMessage(''); try { await work(); } catch (e) { setError(e instanceof Error ? e.message : 'Anfrage fehlgeschlagen.'); } finally { setBusy(false); } };
   const identity = token ? { token } : { case_id: c?.id };
+  // Wohin der Code geht: bei Einladungen entscheidet der Server, sonst die eingetippte Adresse.
+  const codeIdentity = token ? { token } : { email };
   const load = async (action = 'load', extra: Record<string, unknown> = {}) => {
     const result = await onboardingApi<StoredOnboarding>(false, { action, ...identity, ...extra }); setCase(result); setProfile(result.profile);
   };
@@ -56,6 +70,22 @@ export default function RecruiterInvitation() {
     const stop = window.setTimeout(() => window.clearInterval(timer), 120000);
     return () => { window.clearInterval(timer); window.clearTimeout(stop); };
   }, [user?.id, token, c?.id, packet?.state]);
+  const requestCode = () => run(async () => {
+    const result = await onboardingApi<{ sent: boolean; masked_email: string }>(false, { action: 'code', ...codeIdentity });
+    setSentTo(result.masked_email); setPhase('code'); setCode('');
+    setMessage(`Dein Code ist unterwegs an ${result.masked_email}. Schau auch im Spam-Ordner nach.`);
+  });
+  const confirmCode = () => run(async () => {
+    const session = await onboardingApi<CodeSession>(false, { action: 'verify', ...codeIdentity, code });
+    const { error } = await supabase.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+    if (error) throw error;
+    setCode(''); setPhase('start');
+  });
+  const savePassword = () => run(async () => {
+    if (password !== repeat) throw new Error('Die beiden Eingaben stimmen nicht überein.');
+    const { error } = await supabase.auth.updateUser({ password }); if (error) throw error;
+    window.location.assign('/recruiter');
+  });
   const startSignature = () => run(async () => {
     const result=await onboardingApi<{url?:string;remote?:boolean}>(false,{action:'start',...identity});
     if(result.url) { window.location.assign(result.url); return; }
@@ -66,32 +96,32 @@ export default function RecruiterInvitation() {
     window.location.assign(result.url);
   });
   const stage = !user || !c ? 0 : c.state === 'draft' ? 1 : packet?.recruiter_signed_at || packet?.state === 'completed' ? 3 : 2;
-  const titles = ['Gute Recruiter verdienen gute Partner.', 'Deine Expertise. Unser gemeinsamer Start.', 'Dein Vertrag. Persönlich vorbereitet.', 'Dein nächster Schritt ist in guten Händen.'];
-  const descriptions = [token ? 'Willkommen bei Matchunt. Richte deinen Zugang ein – die vorbereiteten Angaben aus deiner Einladung warten anschließend auf dich.' : 'Werde Teil unseres Recruiter-Netzwerks. Starte mit deinem Konto, ergänze deine Angaben und schließe deinen Vertrag digital ab.', 'Prüfe die vorbereiteten Angaben und ergänze, was noch fehlt. Du kannst deinen Entwurf speichern und später weitermachen.', 'Aus deinen bestätigten Angaben entsteht dein vollständiges Vertragspaket. Du prüfst es in Ruhe und unterschreibst digital mit DocuSign.', 'Deine Unterschrift ist eingegangen. Matchunt prüft deine Angaben, zeichnet gegen und bestätigt deine Freischaltung separat.'];
-  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? 'Der Vertrag ist von beiden Seiten unterzeichnet. Hier findest du deine Unterlagen. Über die Freischaltung informiert dich das Matchunt-Team separat.' : descriptions[stage]} email={user?.email}
+  const linkBlocked = !!token && (!peek || peek.status === 'expired' || peek.status === 'revoked');
+  const titles = [peek?.name ? `Hallo ${peek.name}, schön, dass du dabei bist.` : token ? 'Schön, dass du dabei bist.' : 'Gute Recruiter verdienen gute Partner.', 'Deine Expertise. Unser gemeinsamer Start.', 'Dein Vertrag. Persönlich vorbereitet.', 'Dein nächster Schritt ist in guten Händen.'];
+  const descriptions = [token ? 'Bestätige kurz deine E-Mail-Adresse. Danach warten deine vorbereiteten Angaben auf dich.' : 'Werde Teil unseres Recruiter-Netzwerks. Bestätige deine E-Mail-Adresse, ergänze deine Angaben und schließe deinen Vertrag digital ab.', 'Prüfe die vorbereiteten Angaben und ergänze, was noch fehlt. Du kannst deinen Entwurf speichern und später weitermachen.', 'Aus deinen bestätigten Angaben entsteht dein vollständiges Vertragspaket. Du prüfst es in Ruhe und unterschreibst digital mit DocuSign.', 'Deine Unterschrift ist eingegangen. Matchunt prüft deine Angaben, zeichnet gegen und schaltet dich frei. Darüber bekommst du eine Mail.'];
+  const completedDescription = c?.activated ? 'Du bist freigeschaltet. Leg dein Passwort fest und starte im Dashboard.' : 'Der Vertrag ist von beiden Seiten unterzeichnet. Hier findest du deine Unterlagen. Sobald wir freigeschaltet haben, bekommst du eine Mail mit deinem Zugang.';
+  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? completedDescription : descriptions[stage]} email={user?.email}
     accountAction={user && <button className="mh-link" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>Konto wechseln</button>}>
     {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
     {message && <p role="status" className="mh-alert">{message}</p>}
     {!authReady ? <section className="mh-panel" role="status">Dein Zugang wird geprüft …</section> : !user ? <section className="mh-panel">
-      <div className="mh-panel-head"><UserRound size={23}/><div><h2>{signup ? 'Dein persönlicher Zugang.' : 'Schön, dass du wieder da bist.'}</h2><p>{token ? 'Verwende die E-Mail-Adresse deiner Einladung.' : 'Mit deinem Konto kannst du jederzeit an dieser Stelle weitermachen.'}</p></div></div>
-      <form className="mh-stack mh-auth" onSubmit={e => { e.preventDefault(); void run(async () => {
-        if (signup) {
-          const result = await supabase.auth.signUp({ email, password, options: { data: { full_name: name, role: 'recruiter' }, emailRedirectTo: `${location.origin}/recruiter/onboarding` } });
-          if (result.error) throw result.error;
-          setMessage('Bitte bestätige deine E-Mail-Adresse. Danach setzt du dein Onboarding mit diesem Konto fort; vorhandene Einladungsdaten werden übernommen.');
-        } else {
-          const result = await supabase.auth.signInWithPassword({ email, password }); if (result.error) throw result.error;
-        }
-        setPassword('');
-      }); }}>
-        {signup && <label className="mh-field">Vollständiger Name<input autoComplete="name" required value={name} onChange={e => setName(e.target.value)}/></label>}
-        <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>
-        <label className="mh-field">Passwort<input autoComplete={signup ? 'new-password' : 'current-password'} type="password" minLength={signup ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)}/>{signup && <small>Mindestens 12 Zeichen.</small>}</label>
-        <button className="mh-button mh-primary mh-full" type="submit" disabled={busy}>{busy ? 'Einen Moment …' : signup ? 'Konto erstellen & starten' : 'Anmelden & fortsetzen'}<ArrowRight size={16}/></button>
-        <button className="mh-link" type="button" disabled={busy} onClick={() => { setSignup(!signup); setError(''); }}>{signup ? 'Du hast bereits ein Konto? Jetzt anmelden' : 'Du bist neu hier? Konto erstellen'}</button>
+      <div className="mh-panel-head"><MailCheck size={23}/><div>
+        <h2>{phase === 'code' ? 'Code eingeben.' : token ? (peek?.name ? `Hallo ${peek.name}.` : 'Deine Einladung.') : 'Deine E-Mail-Adresse.'}</h2>
+        <p>{phase === 'code' ? `Wir haben einen Code an ${sentTo} geschickt. Er ist kurz gültig.` : token ? (peek ? `Dein Code geht an ${peek.masked_email}. Kein Passwort nötig.` : 'Deine Einladung wird geladen …') : 'Wir schicken dir einen Code. Kein Passwort nötig.'}</p>
+      </div></div>
+      <form className="mh-stack mh-auth" onSubmit={e => { e.preventDefault(); void (phase === 'code' ? confirmCode() : requestCode()); }}>
+        {token && peek?.status === 'expired' && <p role="alert" className="mh-alert mh-error">Dein Einladungslink ist abgelaufen. Melde dich kurz bei uns, wir schicken dir einen neuen.</p>}
+        {token && peek?.status === 'revoked' && <p role="alert" className="mh-alert mh-error">Diese Einladung ist nicht mehr gültig. Melde dich kurz bei uns.</p>}
+        {token && peek?.status === 'claimed' && phase === 'start' && <div className="mh-note"><ShieldCheck size={19}/><p>Du hast schon begonnen. Mit dem Code machst du genau dort weiter.</p></div>}
+        {phase === 'start' && !token && <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>}
+        {phase === 'code' && <label className="mh-field">Dein Code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required value={code} onChange={e => setCode(e.target.value)}/><small>Sechs Ziffern aus der E-Mail.</small></label>}
+        <button className="mh-button mh-primary mh-full" type="submit" disabled={busy || linkBlocked}>{busy ? 'Einen Moment …' : phase === 'code' ? 'Bestätigen & weiter' : 'Code senden'}<ArrowRight size={16}/></button>
+        {phase === 'code' && <button className="mh-link" type="button" disabled={busy} onClick={() => void requestCode()}>Neuen Code senden</button>}
+        {phase === 'code' && !token && <button className="mh-link" type="button" disabled={busy} onClick={() => { setPhase('start'); setCode(''); }}>Andere Adresse verwenden</button>}
+        <a className="mh-link" href="/auth">Lieber mit Passwort anmelden</a>
       </form>
     </section> : !c ? <section className="mh-panel mh-stack">
-      <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>Dein Konto ist der erste Schritt.</h2><p>Ein begonnener Vorgang oder eine gültige Einladung für deine bestätigte E-Mail-Adresse wird übernommen.</p></div></div>
+      <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>Deine E-Mail-Adresse ist bestätigt.</h2><p>Ein begonnener Vorgang oder eine gültige Einladung für diese Adresse wird übernommen.</p></div></div>
       {!token && <><h3>Wie möchtest du mit uns zusammenarbeiten?</h3><div className="mh-choices">{[['individual', 'Einzelrecruiter', 'Ich starte als selbstständiger Recruiting-Partner.'], ['agency', 'Recruiting-Agentur', 'Ich vertrete eine Agentur.']].map(([value, label, detail]) => <button key={value} className="mh-choice" type="button" disabled={busy} aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'agency' ? <Building2 size={21}/> : <UserRound size={21}/>}<span><strong>{label}</strong><small>{detail}</small></span></button>)}</div></>}
       <div className="mh-note"><ShieldCheck size={21}/><p>Als Nächstes bestätigst du deine Geschäftsdaten. Deine Vertragsunterschrift folgt erst nach deiner Prüfung in DocuSign.</p></div>
       <div className="mh-actions"><button className="mh-button mh-primary" disabled={busy} onClick={() => void run(async () => {
@@ -104,13 +134,25 @@ export default function RecruiterInvitation() {
         onSave={() => run(async () => { await load('save', { revision: c.revision, profile }); setMessage('Entwurf gespeichert. Du kannst später weiterarbeiten.'); })}
         onSubmit={() => run(async () => { await load('submit', { revision: c.revision, profile }); setMessage('Deine Angaben sind bestätigt. Du kannst jetzt deinen Vertrag erstellen und unterschreiben.'); })}/>
       : <section className="mh-panel mh-stack">
-        <div className="mh-panel-head">{stage === 3 ? <CheckCircle2 size={24}/> : <FileText size={24}/>}<div><h2>{packet?.state === 'completed' ? 'Dein Vertrag ist unterzeichnet.' : packet?.recruiter_signed_at ? 'Danke für dein Vertrauen.' : 'Bereit für deine Unterschrift.'}</h2><p>{stateLabels[packet?.state || c.state]}</p></div></div>
-        <div className="mh-note"><ShieldCheck size={21}/><p>{packet?.state === 'completed' ? 'Beide Unterschriften sind bestätigt. Dein Vertragspaket und das Abschlusszertifikat stehen bereit. Das Matchunt-Team informiert dich separat über die Freischaltung.' : packet?.recruiter_signed_at ? 'Deine Unterschrift ist bestätigt. Matchunt prüft deine Angaben und zeichnet anschließend ausdrücklich gegen.' : 'Ein persönlicher Rahmenvertrag, sechs Anlagen und eine digitale Unterschrift. Du kannst das gesamte Paket vor der Unterschrift in DocuSign prüfen.'}</p></div>
+        <div className="mh-panel-head">{stage === 3 ? <CheckCircle2 size={24}/> : <FileText size={24}/>}<div><h2>{packet?.state === 'completed' ? (c.activated ? 'Du bist freigeschaltet.' : 'Dein Vertrag ist unterzeichnet.') : packet?.recruiter_signed_at ? 'Danke für dein Vertrauen.' : 'Bereit für deine Unterschrift.'}</h2><p>{c.activated && packet?.state === 'completed' ? 'Freigeschaltet' : stateLabels[packet?.state || c.state]}</p></div></div>
+        <div className="mh-note"><ShieldCheck size={21}/><p>{packet?.state === 'completed' ? (c.activated ? 'Beide Unterschriften sind bestätigt und dein Zugang ist frei. Dein Vertragspaket und das Abschlusszertifikat findest du hier jederzeit.' : 'Beide Unterschriften sind bestätigt. Dein Vertragspaket und das Abschlusszertifikat stehen bereit. Sobald wir freigeschaltet haben, bekommst du eine Mail.') : packet?.recruiter_signed_at ? 'Deine Unterschrift ist bestätigt. Matchunt prüft deine Angaben und zeichnet anschließend ausdrücklich gegen.' : 'Ein persönlicher Rahmenvertrag, sechs Anlagen und eine digitale Unterschrift. Du kannst das gesamte Paket vor der Unterschrift in DocuSign prüfen.'}</p></div>
         {(!packet || ['prepared', 'creating'].includes(packet.state)) && <button className="mh-button mh-primary" disabled={busy} onClick={() => void startSignature()}>{busy ? 'Vertrag wird vorbereitet …' : 'Vertrag erstellen & mit DocuSign unterschreiben'}<ArrowUpRight size={17}/></button>}
         {packet && <>
           <details><summary>Dein Vertragspaket · {packet.package_version}</summary>{packet.documents.map(d => <button className="mh-doc" key={d.role} disabled={busy} onClick={() => void document(d.role)}><FileText size={19}/><span>{documentLabels[d.role] || d.role}<small>Persönliches Vertragsdokument</small></span><ArrowUpRight size={16}/></button>)}</details>
           {packet.state === 'sent' && <>{!packet.recruiter_signed_at && (packet.recruiter_client_user_id === user.id ? <button className="mh-button mh-primary" disabled={busy} onClick={() => void run(async () => { const { url } = await onboardingApi<{url: string}>(false, { action: 'signature', ...identity, contract_id: packet.id }); window.location.assign(url); })}>Mit DocuSign unterschreiben<ArrowUpRight size={17}/></button> : <p>Die benannte unterzeichnende Person erhält ihren persönlichen Zugang direkt von DocuSign per E-Mail. Danach folgt die Gegenzeichnung durch Matchunt.</p>)}<button className="mh-button" disabled={busy} onClick={() => void run(() => load('sync', { contract_id: packet.id }))}><RefreshCw size={15}/>Signaturstatus aktualisieren</button></>}
-          {packet.state === 'completed' && <div className="mh-stack"><button className="mh-button mh-primary" disabled={busy} onClick={() => void document('signed')}>Unterzeichneten Vertrag öffnen<ArrowUpRight size={16}/></button><button className="mh-button" disabled={busy} onClick={() => void document('certificate')}>Abschlusszertifikat öffnen</button><a href="/recruiter" className="mh-link">Zum Dashboard – nach Freischaltung<ArrowRight size={14}/></a></div>}
+          {packet.state === 'completed' && <div className="mh-stack">
+            <button className="mh-button mh-primary" disabled={busy} onClick={() => void document('signed')}>Unterzeichneten Vertrag öffnen<ArrowUpRight size={16}/></button>
+            <button className="mh-button" disabled={busy} onClick={() => void document('certificate')}>Abschlusszertifikat öffnen</button>
+            {c.activated ? <>
+              <div className="mh-note"><KeyRound size={20}/><p>Leg jetzt dein Passwort fest, damit du dich künftig direkt anmelden kannst.</p></div>
+              <form className="mh-stack mh-auth" onSubmit={e => { e.preventDefault(); void savePassword(); }}>
+                <label className="mh-field">Passwort<input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)}/><small>Mindestens 8 Zeichen.</small></label>
+                <label className="mh-field">Passwort wiederholen<input type="password" autoComplete="new-password" minLength={8} required value={repeat} onChange={e => setRepeat(e.target.value)}/></label>
+                <button className="mh-button mh-primary" type="submit" disabled={busy}>Passwort speichern & zum Dashboard<ArrowRight size={16}/></button>
+                <a href="/recruiter" className="mh-link">Ich habe schon ein Passwort. Zum Dashboard<ArrowRight size={14}/></a>
+              </form>
+            </> : <p className="mh-muted">Sobald wir freigeschaltet haben, bekommst du eine Mail mit deinem Zugang.</p>}
+          </div>}
           {packet.state === 'manual_review' && <p className="mh-alert">Die Unterschriftsfrist muss durch das Matchunt-Team geklärt werden.</p>}
         </>}
         <button className="mh-link" disabled={busy} onClick={() => void run(() => load())}><RefreshCw size={14}/>Stand aktualisieren</button>

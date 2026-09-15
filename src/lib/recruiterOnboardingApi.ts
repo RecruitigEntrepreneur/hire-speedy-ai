@@ -16,7 +16,14 @@ export interface StoredContract {
 export interface StoredOnboarding {
   id: string; revision: number; entry_source?: 'invitation' | 'website'; kind: string; email: string; profile: RecruiterProfile; state: string;
   feedback: string; revoked_at?: string; expires_at?: string; claimed_at?: string; contracts: StoredContract[];
+  /** Recruiter-Rolle freigeschaltet (eigener Admin-Schritt nach der Gegenzeichnung). */
+  activated?: boolean;
 }
+export type InvitationStatus = 'open' | 'claimed' | 'expired' | 'revoked';
+/** Vorschau der Einladung ohne Sitzung: nur Vorname, maskierte Adresse, Status. */
+export interface InvitationPeek { name: string; masked_email: string; expires_at: string; status: InvitationStatus }
+/** Sitzung nach geprüftem Code; wird mit supabase.auth.setSession übernommen. */
+export interface CodeSession { access_token: string; refresh_token: string; expires_in: number | null }
 export async function onboardingApi<T>(admin: boolean, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(admin ? 'recruiter-onboarding-admin' : 'recruiter-onboarding', { body });
   if (error) {

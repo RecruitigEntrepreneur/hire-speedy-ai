@@ -108,8 +108,15 @@ export async function publicCase(db: SupabaseClient, c: OnboardingCase) {
     .select('id,state,package_version,documents,recruiter_client_user_id,recruiter_signed_at,countersigned_at,last_synced_at,signed_document_path,certificate_path')
     .eq('case_id', c.id).order('created_at', { ascending: false });
   dbError(error);
+  // Freischaltung ist ein eigener Admin-Schritt (user_roles.verified). Die Seite
+  // zeigt danach das Einrichten des Passworts statt der Wartemeldung.
+  let activated = false;
+  if (c.claimed_by) {
+    const { data: role, error: roleError } = await db.from('user_roles').select('verified').eq('user_id', c.claimed_by).eq('role', 'recruiter').maybeSingle();
+    dbError(roleError); activated = role?.verified === true;
+  }
   // Explicit allowlist: never return token hash, internal notes or checks/evidence
   // about other contacts through the recruiter endpoint.
   return { id: c.id, revision: c.revision, kind: c.kind, email: c.email, profile: c.profile,
-    state: c.state, feedback: c.feedback, contracts: data ?? [] };
+    state: c.state, feedback: c.feedback, contracts: data ?? [], activated };
 }

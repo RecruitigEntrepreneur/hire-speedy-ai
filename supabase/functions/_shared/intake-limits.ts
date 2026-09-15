@@ -154,4 +154,13 @@ export const LIMITS = {
     { scope: 'email', key: email, limit: 3  },
     { scope: 'ip',    key: ip,    limit: 10 },
   ],
+  /**
+   * Anmeldecode im Headhunter-Onboarding: gleiche Logik wie verifySend. Der
+   * Deckel sitzt auf Adresse und IP, mit Fenstern, die zur Codelaufzeit passen.
+   * Bei Einladungen geht der Code ohnehin nur an die Einladungsadresse.
+   */
+  recruiterCode: (email: string, ip: string | null): LimitRule[] => [
+    { scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
+    { scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
+  ],
 } as const;

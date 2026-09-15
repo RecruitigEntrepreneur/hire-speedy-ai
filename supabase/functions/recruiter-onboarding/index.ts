@@ -6,9 +6,10 @@ import { contractDataIssues } from '../_shared/recruiter-contract-data.ts';
 import { recipientView } from '../_shared/docusign.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { preflight, json } from '../_shared/http.ts';
+import { preflight, json, clientIp } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { hashToken } from '../_shared/tokens.ts';
+import { peekCase, sendCode, verifyCode } from '../_shared/recruiter-code.ts';
 import { cleanProfile, normalizeEmail, canOpenRecruiterSignature } from '../_shared/recruiter-contract-policy.ts';
 import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, caseById, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
 
@@ -16,9 +17,14 @@ serve(async req => {
   const pre = preflight(req); if (pre) return pre;
   try {
     must(req.method === 'POST', 'Bitte POST verwenden.');
-    const user = await verifiedUser(req);
     const body = await req.json();
     const db = serviceClient();
+    // Ohne Sitzung: Einladung ansehen, Code anfordern, Code prüfen. Alles
+    // Weitere verlangt die bestätigte E-Mail-Adresse.
+    if (body.action === 'peek') return json(await peekCase(db, body.token));
+    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, ip: clientIp(req) }));
+    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, code: body.code }));
+    const user = await verifiedUser(req);
     if (body.action === 'access') return json(await recruiterAccess(db,user));
     if (body.action === 'resume' || body.action === 'begin') {
       const found = body.action === 'begin' ? await beginRecruiterCase(db,user,body.kind) : await resumeRecruiterCase(db,user);
