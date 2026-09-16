@@ -171,4 +171,9 @@ export const LIMITS = {
     { scope: 'email', key: email, limit: 30  },
     { scope: 'ip',    key: ip,    limit: 100 },
   ],
+  /** Impressum lesen: Firecrawl und KI kosten Geld; ein Vorgang braucht das ein-, zweimal. */
+  recruiterEnrich: (caseId: string, ip: string | null): LimitRule[] => [
+    { scope: 'draft', key: caseId, limit: 6  },
+    { scope: 'ip',    key: ip,     limit: 20 },
+  ],
 } as const;

@@ -1,4 +1,5 @@
 import { cleanContractDetails, type ContractDetails } from './recruiter-contract-data.ts';
+import { cleanExpertise, expertiseSummary, type RecruiterExpertise } from './recruiter-expertise.ts';
 import { recruiterCounterDeadline } from './recruiter-deadline.ts';
 // Shared, pure policy: tested with Vitest and used by the Edge Functions.
 export const DOCUMENT_ROLES = ['framework','data','pricing','rules','privacy','terms','brand'] as const;
@@ -17,6 +18,8 @@ export interface RecruiterProfile {
   name: string; company: string; legalForm: string; address: string; country: string;
   taxStatus: string; signer: string; signerEmail: string; signerRole: string;
   authorityDeclared: boolean; specialty: string; region: string; contractDetails?: ContractDetails;
+  /** Klick-Profil aus dem Onboarding; specialty und region sind daraus abgeleitet. */
+  expertise?: RecruiterExpertise;
 }
 export const normalizeEmail = (v: string) => v.trim().toLowerCase();
 export const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length <= 254;
@@ -29,6 +32,11 @@ export function cleanProfile(input: unknown): RecruiterProfile {
   out.signerEmail = normalizeEmail(out.signerEmail);
   out.authorityDeclared = src.authorityDeclared === true;
   out.contractDetails = cleanContractDetails(src.contractDetails);
+  out.expertise = cleanExpertise(src.expertise);
+  // Die Chips sind die Wahrheit; der Freitext aus der Einladung bleibt nur, solange keine Chips da sind.
+  const summary = expertiseSummary(out.expertise);
+  if (summary.specialty) out.specialty = summary.specialty;
+  if (summary.region) out.region = summary.region;
   return out;
 }
 export function profileIssues(p: RecruiterProfile): string[] {

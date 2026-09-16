@@ -958,3 +958,134 @@
     width: 28px;
   }
 }
+
+/* Schritt 2 als Karten: Chips zum Antippen, Faktenzeilen aus dem Impressum,
+   Fragen mit Vorgabe, erledigte Karten als Zeile mit "aendern". */
+.mh-ui .mh-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mh-ui .mh-chip {
+  border: 1px solid var(--mh-line);
+  background: hsl(var(--card));
+  color: var(--mh-text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.mh-ui .mh-chip:hover {
+  border-color: var(--mh-text);
+}
+.mh-ui .mh-chip[aria-pressed=true] {
+  background: var(--mh-text);
+  color: var(--mh-canvas);
+  border-color: var(--mh-text);
+}
+.mh-ui .mh-field > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mh-ui .mh-sub {
+  padding-left: 14px;
+  border-left: 2px solid var(--mh-line);
+}
+.mh-ui .mh-facts {
+  margin: 0;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--mh-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.mh-ui .mh-facts > div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--mh-line);
+  align-items: baseline;
+}
+.mh-ui .mh-facts > div:first-child {
+  border-top: 0;
+}
+.mh-ui .mh-facts dt {
+  font-size: 12px;
+  color: var(--mh-muted);
+}
+.mh-ui .mh-facts dd {
+  margin: 0;
+  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mh-ui .mh-summary dd {
+  justify-content: space-between;
+}
+.mh-ui .mh-summary dd .mh-link {
+  padding: 2px 4px;
+}
+.mh-ui .mh-tag {
+  font-size: 11px;
+  border: 1px solid var(--mh-line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--mh-muted);
+}
+.mh-ui .mh-question {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--mh-line);
+}
+.mh-ui .mh-question:first-child {
+  border-top: 0;
+}
+.mh-ui .mh-question p {
+  font-size: 14px;
+}
+.mh-ui .mh-question-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mh-ui .mh-done-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.mh-ui .mh-done-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--mh-muted);
+  padding: 8px 12px;
+  border: 1px solid var(--mh-line);
+  border-radius: 8px;
+}
+.mh-ui .mh-done-list li span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mh-ui .mh-done-list li svg {
+  color: hsl(142 70% 45%);
+}
+@media (max-width: 560px) {
+  .mh-ui .mh-facts > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

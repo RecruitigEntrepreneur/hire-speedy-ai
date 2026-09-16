@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { RecruiterProfile, ContractDocument } from '../../supabase/functions/_shared/recruiter-contract-policy';
 export type { RecruiterProfile };
-export const profileLabels: Record<Exclude<keyof RecruiterProfile, 'contractDetails'>, string> = {
+export const profileLabels: Record<Exclude<keyof RecruiterProfile, 'contractDetails' | 'expertise'>, string> = {
   name: 'Kontaktname', company: 'Vertragspartner / Firma', legalForm: 'Rechtsform', address: 'Vollständige Geschäftsanschrift', country: 'Sitzland',
   taxStatus: 'Steuerstatus', signer: 'Name der unterzeichnenden Person', signerEmail: 'E-Mail der unterzeichnenden Person', signerRole: 'Funktion / Vertretung',
   authorityDeclared: 'Vertretungsberechtigung angegeben', specialty: 'Recruiting-Schwerpunkt', region: 'Zielregion',

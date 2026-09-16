@@ -70,6 +70,12 @@ Object.defineProperty(supabase, 'functions', { configurable: true, value: {
       case 'submit':
         onboarding = { ...onboarding, revision: onboarding.revision + 1, profile: cleanProfile(body.profile), state: body.action === 'submit' ? 'review' : 'draft' };
         return { data: onboarding, error: null };
+      case 'enrich': {
+        await wait(900);
+        if (!body.website && !withToken) return fail('Bitte gib die Website deines Unternehmens an.');
+        const source = body.website ? String(body.website).replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0] : 'bluewater-bridge.de';
+        return { data: { suggestion: { company: 'Bluewater Bridge GmbH', legalForm: 'GmbH', address: 'Musterstraße 1, 20095 Hamburg', country: 'Deutschland', taxStatus: 'regular', vatId: 'DE123456789', registration: 'HRB 12345', ceo: 'Marko Benko', source } }, error: null };
+      }
       case 'start':
         return fail('Vorschau: DocuSign wird hier nicht aufgerufen.');
       case 'document':

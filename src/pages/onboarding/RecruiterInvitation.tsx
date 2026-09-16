@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile, type InvitationPeek, type CodeSession } from '@/lib/recruiterOnboardingApi';
 import { cleanProfile } from '../../../supabase/functions/_shared/recruiter-contract-policy';
+import type { CompanySuggestion } from '../../../supabase/functions/_shared/recruiter-company';
 
 // Der Link identifiziert die Einladung. Angemeldet wird per Code an die
 // Einladungsadresse, ohne Konto und Passwort. Spätere Besuche laufen über die
@@ -156,8 +157,17 @@ export default function RecruiterInvitation() {
       })}>{busy ? 'Onboarding wird geladen …' : token ? 'Einladung erneut laden' : 'Onboarding starten / fortsetzen'}<ArrowRight size={16}/></button></div>
     </section> : <>
       {c.feedback && <div className="mh-alert"><strong>Eine Ergänzung ist erforderlich</strong><p className="whitespace-pre-wrap">{c.feedback}</p></div>}
-      {c.state === 'draft' ? <RecruiterProfileForm profile={profile} kind={c.kind} busy={busy} onChange={setProfile}
-        onSave={() => run(async () => { await load('save', { revision: c.revision, profile }); setMessage('Entwurf gespeichert. Du kannst später weiterarbeiten.'); })}
+      {c.state === 'draft' ? <RecruiterProfileForm profile={profile} kind={c.kind} busy={busy} email={user.email ?? ''} onChange={setProfile}
+        onEnrich={async website => (await onboardingApi<{ suggestion: CompanySuggestion }>(false, { action: 'enrich', ...identity, website })).suggestion}
+        onSave={async (silent, snapshot) => {
+          if (silent) {
+            // Zwischenstand beim Weiterklicken: nur den Vorgang aktualisieren, die Eingabe nicht zurücksetzen.
+            try { const result = await onboardingApi<StoredOnboarding>(false, { action: 'save', ...identity, revision: c.revision, profile: snapshot ?? profile }); setCase(result); }
+            catch { /* Der nächste Schritt speichert erneut; Fehler zeigt das ausdrückliche Speichern. */ }
+            return;
+          }
+          await run(async () => { await load('save', { revision: c.revision, profile }); setMessage('Entwurf gespeichert. Du kannst später weiterarbeiten.'); });
+        }}
         onSubmit={() => run(async () => { await load('submit', { revision: c.revision, profile }); setMessage('Deine Angaben sind bestätigt. Du kannst jetzt deinen Vertrag erstellen und unterschreiben.'); })}/>
       : <section className="mh-panel mh-stack">
         <div className="mh-panel-head">{stage === 3 ? <CheckCircle2 size={24}/> : <FileText size={24}/>}<div><h2>{packet?.state === 'completed' ? (c.activated ? 'Du bist freigeschaltet.' : 'Dein Vertrag ist unterzeichnet.') : packet?.recruiter_signed_at ? 'Danke für dein Vertrauen.' : 'Bereit für deine Unterschrift.'}</h2><p>{c.activated && packet?.state === 'completed' ? 'Freigeschaltet' : stateLabels[packet?.state || c.state]}</p></div></div>

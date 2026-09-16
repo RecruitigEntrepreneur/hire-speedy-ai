@@ -10,6 +10,8 @@ import { preflight, json, clientIp } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { hashToken } from '../_shared/tokens.ts';
 import { peekCase, sendCode, verifyCode } from '../_shared/recruiter-code.ts';
+import { enrichCase } from '../_shared/recruiter-enrich.ts';
+import { cleanExpertise, expertiseIssues } from '../_shared/recruiter-expertise.ts';
 import { cleanProfile, normalizeEmail, canOpenRecruiterSignature } from '../_shared/recruiter-contract-policy.ts';
 import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, caseById, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
 
@@ -49,8 +51,11 @@ serve(async req => {
       must(c.revision === body.revision, 'Der Vorgang wurde inzwischen geändert. Bitte neu laden.', 'conflict');
       must(c.state === 'draft', 'Die Angaben sind bereits zur Prüfung eingereicht.', 'conflict');
       const profile = cleanProfile(body.profile);
-      if (body.action === 'submit') { const issues=contractDataIssues(profile,c.kind); must(!issues.length,issues.join(' ')); }
+      if (body.action === 'submit') { const issues=[...contractDataIssues(profile,c.kind), ...expertiseIssues(profile.expertise ?? cleanExpertise({}))]; must(!issues.length,issues.join(' ')); }
       c = await patchCase(db, c, { profile, state: body.action === 'submit' ? 'review' : 'draft' });
+    } else if (body.action === 'enrich') {
+      // Impressum lesen und als Vorschlag zurückgeben; gespeichert wird erst mit „Stimmt so“.
+      return json(await enrichCase(db, c, body, clientIp(req)));
     } else if (body.action === 'start') {
       // Explicit user action only. Loading a page never sends a contract.
       const cfg=signatureConfig();
