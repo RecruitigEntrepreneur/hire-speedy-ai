@@ -114,7 +114,7 @@ export default function RecruiterInvitation() {
         {token && peek?.status === 'revoked' && <p role="alert" className="mh-alert mh-error">Dieser Einladungslink wurde zurückgezogen. Sag uns kurz Bescheid, dann bekommst du einen neuen.</p>}
         {token && peek?.status === 'claimed' && phase === 'start' && <div className="mh-note"><ShieldCheck size={19}/><p>Du hast schon begonnen. Mit dem Code machst du genau dort weiter.</p></div>}
         {phase === 'start' && !token && <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>}
-        {phase === 'code' && <label className="mh-field">Dein Code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required value={code} onChange={e => setCode(e.target.value)}/><small>Sechs Ziffern aus der E-Mail.</small></label>}
+        {phase === 'code' && <label className="mh-field">Dein Code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={14} required value={code} onChange={e => setCode(e.target.value)}/><small>Die Ziffern aus der E-Mail.</small></label>}
         <button className="mh-button mh-primary mh-full" type="submit" disabled={busy || linkBlocked}>{busy ? 'Einen Moment …' : phase === 'code' ? 'Bestätigen & weiter' : 'Code senden'}<ArrowRight size={16}/></button>
         {phase === 'code' && <button className="mh-link" type="button" disabled={busy} onClick={() => void requestCode()}>Neuen Code senden</button>}
         {phase === 'code' && !token && <button className="mh-link" type="button" disabled={busy} onClick={() => { setPhase('start'); setCode(''); }}>Andere Adresse verwenden</button>}

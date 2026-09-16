@@ -28,7 +28,9 @@ import { must, dbError, type OnboardingCase } from './recruiter-onboarding-servi
 
 export type CaseStatus = 'open' | 'claimed' | 'expired' | 'revoked';
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-export const CODE_PATTERN = /^\d{6}$/;
+// Die Länge bestimmt die Auth-Einstellung des Projekts (Supabase erlaubt 6 bis 10).
+// Nicht fest verdrahten: das Projekt lief mit 8 Ziffern, als hier noch 6 stand.
+export const CODE_PATTERN = /^\d{6,10}$/;
 
 export interface CodeDeps {
   limits: (db: SupabaseClient, rules: LimitRule[]) => Promise<LimitResult>;
@@ -124,7 +126,7 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
 export async function verifyCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; code?: unknown }, deps: CodeDeps = liveDeps()) {
   const target = await resolveTarget(db, body);
   const code = String(body.code ?? '').replace(/\s+/g, '');
-  must(CODE_PATTERN.test(code), 'Bitte gib den sechsstelligen Code aus der E-Mail ein.');
+  must(CODE_PATTERN.test(code), 'Bitte gib den Code aus der E-Mail ein, nur die Ziffern.');
   const url = deps.env('SUPABASE_URL');
   const key = deps.env('SUPABASE_ANON_KEY');
   must(url && key, 'Die Anmeldung ist noch nicht eingerichtet.', 'not_deployed');

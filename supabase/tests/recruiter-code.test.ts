@@ -108,6 +108,12 @@ Deno.test('verify checks the code against Supabase with the invitation address a
   assert(sent.type === 'magiclink' && sent.email === 'marko@example.test' && sent.token === '482913');
   assert((call.init?.headers as Record<string, string>).apikey === 'anon');
   assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: '12' }, f.deps)) === 'invalid_request');
+  // Die Codelänge folgt der Auth-Einstellung des Projekts: 8 oder 10 Ziffern sind gültig, 5 oder 11 nicht.
+  assert((await verifyCode(f.db, { token: TOKEN, code: '1234 5678' }, f.deps)).access_token === 'at');
+  assert(JSON.parse(String(f.calls.fetches[1].init?.body)).token === '12345678');
+  assert((await verifyCode(f.db, { token: TOKEN, code: '1234567890' }, f.deps)).access_token === 'at');
+  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: '12345' }, f.deps)) === 'invalid_request');
+  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: '12345678901' }, f.deps)) === 'invalid_request');
   const wrong = await fixture({ cases: [await invite()], verify: { status: 403, body: { msg: 'Token has expired or is invalid' } } });
   assert(await reasonOf(() => verifyCode(wrong.db, { token: TOKEN, code: '111111' }, wrong.deps)) === 'invalid_request');
   const tooMany = await fixture({ cases: [await invite()], verify: { status: 429 } });
