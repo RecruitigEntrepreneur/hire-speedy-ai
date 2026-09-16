@@ -145,7 +145,7 @@ export default function RecruiterInvitation() {
             <button type="button" className="mh-link" disabled={busy || cooldown > 0} onClick={() => void requestCode()}>{cooldown > 0 ? `Erneut senden in ${cooldown} s` : 'Code erneut senden'}</button>
           </div>
           {codeError && <p role="alert" className="mh-alert mh-error">{codeError}</p>}
-          <p className="mh-muted mh-verify-hint">Der Code ist kurz gültig. Schau auch im Spam-Ordner nach.</p>
+          <p className="mh-muted mh-verify-hint">Der Code ist eine Stunde gültig. Schau auch im Spam-Ordner nach.</p>
         </>}
       </div>
     </section> : !c ? <section className="mh-panel mh-stack">

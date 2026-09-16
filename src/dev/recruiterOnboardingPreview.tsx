@@ -10,7 +10,7 @@ import '@/index.css';
 // Separate Vite-Entwicklungsseite. Sie meldet niemanden an und lädt keine
 // echten Daten: Onboarding-API und Auth werden hier nachgestellt.
 //   /__preview/recruiter-onboarding.html?scenario=invite|website|expired|claimed|completed|activated
-// Der Code lautet immer 12345678 (acht Ziffern, wie im Supabase-Projekt eingestellt).
+// Der Code lautet immer 123456.
 if (!import.meta.env.DEV) throw new Error('This preview is only available in development.');
 
 const scenario = new URLSearchParams(location.search).get('scenario') ?? 'invite';
@@ -55,9 +55,9 @@ Object.defineProperty(supabase, 'functions', { configurable: true, value: {
         return { data: { name: 'Marko', masked_email: 'ma********@freenet.de', expires_at: '2026-09-22T00:00:00Z', status: scenario === 'expired' ? 'expired' : scenario === 'claimed' ? 'claimed' : 'open' }, error: null };
       case 'code':
         if (!body.token && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(body.email))) return fail('Bitte gib eine gültige E-Mail-Adresse an.');
-        return { data: { sent: true, masked_email: body.token ? 'ma********@freenet.de' : String(body.email).replace(/^(..)[^@]*/, '$1***'), code_length: 8 }, error: null };
+        return { data: { sent: true, masked_email: body.token ? 'ma********@freenet.de' : String(body.email).replace(/^(..)[^@]*/, '$1***'), code_length: 6 }, error: null };
       case 'verify':
-        if (String(body.code).replace(/\s+/g, '') !== '12345678') return fail('Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
+        if (String(body.code).replace(/\s+/g, '') !== '123456') return fail('Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
         return { data: { access_token: 'preview-access', refresh_token: 'preview-refresh', expires_in: 3600 }, error: null };
       case 'load':
         return { data: onboarding, error: null };

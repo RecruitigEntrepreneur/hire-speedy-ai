@@ -163,4 +163,12 @@ export const LIMITS = {
     { scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
     { scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
   ],
+  /**
+   * Code-Eingabe im Headhunter-Onboarding: der harte Zaehler sitzt am Code
+   * selbst (fuenf Versuche); das hier bremst nur die Streuung ueber viele Codes.
+   */
+  recruiterVerify: (email: string, ip: string | null): LimitRule[] => [
+    { scope: 'email', key: email, limit: 30  },
+    { scope: 'ip',    key: ip,    limit: 100 },
+  ],
 } as const;

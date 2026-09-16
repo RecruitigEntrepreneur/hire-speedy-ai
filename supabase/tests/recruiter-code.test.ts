@@ -1,5 +1,5 @@
-import { peekCase, sendCode, verifyCode, caseStatus, type CodeDeps } from '../functions/_shared/recruiter-code.ts';
-import { hashToken } from '../functions/_shared/tokens.ts';
+import { peekCase, sendCode, verifyCode, caseStatus, CODE_MAX_ATTEMPTS, type CodeDeps } from '../functions/_shared/recruiter-code.ts';
+import { hashToken, hashCode } from '../functions/_shared/tokens.ts';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { LimitResult } from '../functions/_shared/intake-limits.ts';
 
@@ -8,12 +8,20 @@ const reasonOf = async (work: () => Promise<unknown>): Promise<string> => {
   try { await work(); } catch (e) { return String((e as { reason?: string })?.reason ?? 'thrown'); }
   return 'none';
 };
+const messageOf = async (work: () => Promise<unknown>): Promise<string> => {
+  try { await work(); } catch (e) { return String((e as Error).message); }
+  return '';
+};
 const TOKEN = 'A'.repeat(43);
 const OTHER = 'B'.repeat(43);
 
-async function fixture(opts: { cases?: Record<string, unknown>[]; userExists?: boolean; allowed?: boolean; mailSent?: boolean; verify?: { status: number; body?: unknown } } = {}) {
+interface FakeUser { id: string; email: string; app_metadata: Record<string, unknown>; user_metadata: Record<string, unknown> }
+
+async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string[]; allowed?: boolean; mailSent?: boolean; verify?: { status: number; body?: unknown } } = {}) {
   const cases = opts.cases ?? [];
-  const calls = { createUser: [] as Record<string, unknown>[], generateLink: [] as Record<string, unknown>[], mails: [] as Record<string, unknown>[], fetches: [] as { url: string; init?: RequestInit }[] };
+  const users: Record<string, FakeUser> = {};
+  for (const email of opts.users ?? []) users[email] = { id: `id-${email}`, email, app_metadata: { provider: 'email' }, user_metadata: {} };
+  const calls = { createUser: [] as Record<string, unknown>[], links: 0, updates: [] as { id: string; attrs: Record<string, unknown> }[], mails: [] as Record<string, unknown>[], fetches: [] as { url: string; init?: RequestInit }[] };
   const db = {
     from: (table: string) => {
       const filters: [string, unknown][] = [];
@@ -25,10 +33,26 @@ async function fixture(opts: { cases?: Record<string, unknown>[]; userExists?: b
       return q;
     },
     auth: { admin: {
-      createUser: (args: Record<string, unknown>) => { calls.createUser.push(args); return Promise.resolve(opts.userExists
-        ? { data: { user: null }, error: { code: 'email_exists', message: 'A user with this email address has already been registered', status: 422 } }
-        : { data: { user: { id: 'new' } }, error: null }); },
-      generateLink: (args: Record<string, unknown>) => { calls.generateLink.push(args); return Promise.resolve({ data: { properties: { email_otp: '482913', action_link: 'https://example.test/link' }, user: { id: 'u' } }, error: null }); },
+      createUser: (args: { email: string; user_metadata: Record<string, unknown> }) => {
+        calls.createUser.push(args);
+        if (users[args.email]) return Promise.resolve({ data: { user: null }, error: { code: 'email_exists', message: 'A user with this email address has already been registered', status: 422 } });
+        users[args.email] = { id: `id-${args.email}`, email: args.email, app_metadata: { provider: 'email' }, user_metadata: args.user_metadata };
+        return Promise.resolve({ data: { user: structuredClone(users[args.email]) }, error: null });
+      },
+      generateLink: (args: { email: string }) => {
+        calls.links += 1;
+        const user = users[args.email];
+        if (!user) return Promise.resolve({ data: { properties: null, user: null }, error: { message: 'User not found', status: 404 } });
+        return Promise.resolve({ data: { properties: { hashed_token: `hashed-${calls.links}`, email_otp: '00000000', action_link: 'https://example.test/link' }, user: structuredClone(user) }, error: null });
+      },
+      // Wie GoTrue: Schlüssel werden zusammengeführt, null löscht.
+      updateUserById: (id: string, attrs: { app_metadata?: Record<string, unknown> }) => {
+        calls.updates.push({ id, attrs });
+        const user = Object.values(users).find(u => u.id === id);
+        if (!user) return Promise.resolve({ data: { user: null }, error: { message: 'User not found', status: 404 } });
+        for (const [k, v] of Object.entries(attrs.app_metadata ?? {})) { if (v === null) delete user.app_metadata[k]; else user.app_metadata[k] = v; }
+        return Promise.resolve({ data: { user: structuredClone(user) }, error: null });
+      },
     } },
   } as unknown as SupabaseClient;
   const deps: CodeDeps = {
@@ -41,7 +65,9 @@ async function fixture(opts: { cases?: Record<string, unknown>[]; userExists?: b
     },
     env: key => ({ SUPABASE_URL: 'https://proj.supabase.co', SUPABASE_ANON_KEY: 'anon' } as Record<string, string>)[key],
   };
-  return { db, calls, deps };
+  const lastCode = () => String((calls.mails.at(-1) as { subject: string }).subject.split(' ')[0]);
+  const storedCode = (email: string) => users[email]?.app_metadata.recruiter_code as { hash: string; expires_at: string; attempts: number } | undefined;
+  return { db, calls, deps, users, lastCode, storedCode };
 }
 const invite = async (extra: Record<string, unknown> = {}) => ({
   id: 'case-1', token_hash: await hashToken(TOKEN), email: 'marko@example.test', profile: { name: 'Marko Benko' },
@@ -61,20 +87,29 @@ Deno.test('peek shows first name, masked address and status, never the address i
   assert(await reasonOf(() => peekCase(f.db, 42)) === 'invalid_request');
 });
 
-Deno.test('code with invitation creates a recruiter account and mails the Supabase code to the invitation address only', async () => {
+Deno.test('code with invitation creates a recruiter account, stores only a hash and mails six digits to the invitation address', async () => {
   const f = await fixture({ cases: [await invite()] });
   const r = await sendCode(f.db, { token: TOKEN, ip: '1.1.1.1' }, f.deps);
   assert(r.sent && r.masked_email === 'ma***@example.test' && r.code_length === 6);
   const created = f.calls.createUser[0] as { email: string; email_confirm: boolean; user_metadata: { role: string; full_name: string } };
   assert(created.email === 'marko@example.test' && created.email_confirm === false && created.user_metadata.role === 'recruiter' && created.user_metadata.full_name === 'Marko');
-  assert(f.calls.generateLink[0].type === 'magiclink' && f.calls.generateLink[0].email === 'marko@example.test');
   const mail = f.calls.mails[0] as { to: string; subject: string; html: string; template: string };
-  assert(mail.to === 'marko@example.test' && mail.subject.startsWith('482913') && mail.html.includes('482913') && mail.template === 'recruiter_onboarding_code');
+  const code = f.lastCode();
+  assert(/^\d{6}$/.test(code) && mail.to === 'marko@example.test' && mail.html.includes(code) && mail.html.includes('eine Stunde') && mail.template === 'recruiter_onboarding_code');
+  const stored = f.storedCode('marko@example.test');
+  assert(stored && stored.hash === await hashCode('marko@example.test', code) && stored.attempts === 0, 'hash stored in app_metadata');
+  assert(stored && !JSON.stringify(stored).includes(code), 'code itself is never stored');
+  const minutes = (Date.parse(stored!.expires_at) - Date.now()) / 60000;
+  assert(minutes > 59 && minutes <= 60, `valid for an hour, got ${minutes}`);
+  assert(f.calls.links === 0, 'no lookup link needed for a freshly created account');
 });
 
-Deno.test('code reuses an existing account; expired, revoked and rate-limited requests send nothing; a claimed case may continue', async () => {
-  const f = await fixture({ cases: [await invite()], userExists: true });
-  assert((await sendCode(f.db, { token: TOKEN, ip: null }, f.deps)).sent && f.calls.mails.length === 1);
+Deno.test('code reuses an existing account and replaces the previous code; expired, revoked and rate-limited requests send nothing; a claimed case may continue', async () => {
+  const f = await fixture({ cases: [await invite()], users: ['marko@example.test'] });
+  assert((await sendCode(f.db, { token: TOKEN, ip: null }, f.deps)).sent && f.calls.mails.length === 1 && f.calls.links === 1);
+  const first = f.storedCode('marko@example.test')!.hash;
+  await sendCode(f.db, { token: TOKEN, ip: null }, f.deps);
+  assert(f.storedCode('marko@example.test')!.hash !== first && f.users['marko@example.test'].app_metadata.provider === 'email', 'new code replaces the old one, other metadata stays');
   const blocked: [Awaited<ReturnType<typeof fixture>>, string][] = [
     [await fixture({ cases: [await invite({ expires_at: '2000-01-01' })] }), 'expired'],
     [await fixture({ cases: [await invite({ revoked_at: '2026-01-01' })] }), 'revoked'],
@@ -85,7 +120,7 @@ Deno.test('code reuses an existing account; expired, revoked and rate-limited re
     assert(await reasonOf(() => sendCode(fx.db, { token: TOKEN, ip: null }, fx.deps)) === reason, `expected ${reason}`);
     assert(fx.calls.mails.length === 0 && fx.calls.createUser.length === 0, `no side effects for ${reason}`);
   }
-  const claimed = await fixture({ cases: [await invite({ claimed_by: 'u', expires_at: '2000-01-01' })], userExists: true });
+  const claimed = await fixture({ cases: [await invite({ claimed_by: 'u', expires_at: '2000-01-01' })], users: ['marko@example.test'] });
   assert((await sendCode(claimed.db, { token: TOKEN, ip: null }, claimed.deps)).sent);
 });
 
@@ -98,31 +133,57 @@ Deno.test('code without invitation needs a plausible address; a failed mail is r
   assert(await reasonOf(() => sendCode(failing.db, { email: 'neu@example.test', ip: null }, failing.deps)) === 'upstream_error');
 });
 
-Deno.test('verify checks the code against Supabase with the invitation address and returns the session', async () => {
+Deno.test('verify checks our code, clears it and turns the one-time token into a session', async () => {
   const f = await fixture({ cases: [await invite()] });
-  const s = await verifyCode(f.db, { token: TOKEN, code: '482 913' }, f.deps);
+  await sendCode(f.db, { token: TOKEN, ip: null }, f.deps);
+  const code = f.lastCode();
+  const s = await verifyCode(f.db, { token: TOKEN, code: `${code.slice(0, 3)} ${code.slice(3)}`, ip: null }, f.deps);
   assert(s.access_token === 'at' && s.refresh_token === 'rt' && s.expires_in === 3600);
   const call = f.calls.fetches[0];
   const sent = JSON.parse(String(call.init?.body));
   assert(call.url === 'https://proj.supabase.co/auth/v1/verify' && call.init?.method === 'POST');
-  assert(sent.type === 'magiclink' && sent.email === 'marko@example.test' && sent.token === '482913');
+  assert(sent.type === 'magiclink' && sent.token_hash === 'hashed-1' && sent.email === undefined && sent.token === undefined, JSON.stringify(sent));
   assert((call.init?.headers as Record<string, string>).apikey === 'anon');
-  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: '12' }, f.deps)) === 'invalid_request');
-  // Die Codelänge folgt der Auth-Einstellung des Projekts: 8 oder 10 Ziffern sind gültig, 5 oder 11 nicht.
-  assert((await verifyCode(f.db, { token: TOKEN, code: '1234 5678' }, f.deps)).access_token === 'at');
-  assert(JSON.parse(String(f.calls.fetches[1].init?.body)).token === '12345678');
-  assert((await verifyCode(f.db, { token: TOKEN, code: '1234567890' }, f.deps)).access_token === 'at');
-  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: '12345' }, f.deps)) === 'invalid_request');
-  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: '12345678901' }, f.deps)) === 'invalid_request');
-  const wrong = await fixture({ cases: [await invite()], verify: { status: 403, body: { msg: 'Token has expired or is invalid' } } });
-  assert(await reasonOf(() => verifyCode(wrong.db, { token: TOKEN, code: '111111' }, wrong.deps)) === 'invalid_request');
-  const tooMany = await fixture({ cases: [await invite()], verify: { status: 429 } });
-  assert(await reasonOf(() => verifyCode(tooMany.db, { token: TOKEN, code: '111111' }, tooMany.deps)) === 'rate_limited');
-  const byEmail = await fixture();
-  assert((await verifyCode(byEmail.db, { email: 'Neu@Example.test', code: '111111' }, byEmail.deps)).access_token === 'at');
-  assert(JSON.parse(String(byEmail.calls.fetches[0].init?.body)).email === 'neu@example.test');
-  const noEnv = await fixture({ cases: [await invite()] });
+  assert(f.storedCode('marko@example.test') === undefined, 'code removed after use');
+  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code, ip: null }, f.deps)) === 'invalid_request', 'a used code does not work twice');
+  assert(f.calls.fetches.length === 1, 'no session without a valid code');
+});
+
+Deno.test('verify counts attempts, kills the code after five, rejects expired codes and bad input', async () => {
+  const f = await fixture({ cases: [await invite()] });
+  await sendCode(f.db, { token: TOKEN, ip: null }, f.deps);
+  const code = f.lastCode();
+  const wrong = code === '000000' ? '000001' : '000000';
+  for (let i = 1; i < CODE_MAX_ATTEMPTS; i++) {
+    assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code: wrong, ip: null }, f.deps)) === 'invalid_request');
+    assert(f.storedCode('marko@example.test')?.attempts === i, `attempt ${i} counted`);
+  }
+  assert((await messageOf(() => verifyCode(f.db, { token: TOKEN, code: wrong, ip: null }, f.deps))).startsWith('Zu oft'));
+  assert(f.storedCode('marko@example.test') === undefined, 'code removed after the fifth failure');
+  assert(await reasonOf(() => verifyCode(f.db, { token: TOKEN, code, ip: null }, f.deps)) === 'invalid_request', 'even the right code is dead now');
+  assert(f.calls.fetches.length === 0);
+  const expired = await fixture({ cases: [await invite()] });
+  await sendCode(expired.db, { token: TOKEN, ip: null }, expired.deps);
+  expired.users['marko@example.test'].app_metadata.recruiter_code = { ...expired.storedCode('marko@example.test')!, expires_at: '2000-01-01T00:00:00Z' };
+  assert(await reasonOf(() => verifyCode(expired.db, { token: TOKEN, code: expired.lastCode(), ip: null }, expired.deps)) === 'invalid_request');
+  assert(expired.storedCode('marko@example.test') === undefined, 'expired code removed');
+  const g = await fixture({ cases: [await invite()], users: ['marko@example.test'] });
+  assert(await reasonOf(() => verifyCode(g.db, { token: TOKEN, code: '12', ip: null }, g.deps)) === 'invalid_request');
+  assert(await reasonOf(() => verifyCode(g.db, { token: TOKEN, code: '12345678', ip: null }, g.deps)) === 'invalid_request');
+  assert(g.calls.links === 0, 'malformed input never reaches Supabase');
+  assert(await reasonOf(() => verifyCode(g.db, { token: TOKEN, code: '123456', ip: null }, g.deps)) === 'invalid_request', 'no code stored');
+  const limited = await fixture({ cases: [await invite()], users: ['marko@example.test'], allowed: false });
+  assert(await reasonOf(() => verifyCode(limited.db, { token: TOKEN, code: '123456', ip: null }, limited.deps)) === 'rate_limited');
+  const noEnv = await fixture({ cases: [await invite()], users: ['marko@example.test'] });
   noEnv.deps.env = () => undefined;
-  assert(await reasonOf(() => verifyCode(noEnv.db, { token: TOKEN, code: '111111' }, noEnv.deps)) === 'not_deployed');
-  assert(noEnv.calls.fetches.length === 0);
+  assert(await reasonOf(() => verifyCode(noEnv.db, { token: TOKEN, code: '123456', ip: null }, noEnv.deps)) === 'not_deployed');
+});
+
+Deno.test('verify by address works for the website entry and reports a failed session issue', async () => {
+  const f = await fixture();
+  await sendCode(f.db, { email: 'Neu@Example.test', ip: null }, f.deps);
+  assert((await verifyCode(f.db, { email: 'neu@example.test', code: f.lastCode(), ip: null }, f.deps)).access_token === 'at');
+  const broken = await fixture({ verify: { status: 500, body: { msg: 'boom' } } });
+  await sendCode(broken.db, { email: 'neu@example.test', ip: null }, broken.deps);
+  assert(await reasonOf(() => verifyCode(broken.db, { email: 'neu@example.test', code: broken.lastCode(), ip: null }, broken.deps)) === 'upstream_error');
 });
