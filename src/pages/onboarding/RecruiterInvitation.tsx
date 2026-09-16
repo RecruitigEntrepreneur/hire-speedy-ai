@@ -25,8 +25,10 @@ export default function RecruiterInvitation() {
   const [code, setCode] = useState('');
   const [codeLength, setCodeLength] = useState(6);
   const [codeError, setCodeError] = useState('');
-  const [cooldown, setCooldown] = useState(0);
   const [sentTo, setSentTo] = useState('');
+  // Für welches Konto der Vorgang schon geladen wurde. Bis dahin zeigt die Seite
+  // einen Ladezustand statt für einen Wimpernschlag „Onboarding starten“.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
   const [kind, setKind] = useState('individual');
@@ -51,12 +53,13 @@ export default function RecruiterInvitation() {
   }, [token]);
   useEffect(() => {
     setCase(null); setError('');
-    if (!user?.id) return;
+    const userId = user?.id;
+    if (!userId) return;
     let active = true;
     setBusy(true);
     void (token ? onboardingApi<StoredOnboarding>(false, { action: 'load', token }) : onboardingApi<{onboarding: StoredOnboarding | null}>(false, { action: 'resume' }).then(result => result.onboarding)).then(result => {
       if (active) { setCase(result); if (result) setProfile(result.profile); }
-    }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Einladung konnte nicht geladen werden.'); }).finally(() => { if (active) setBusy(false); });
+    }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Einladung konnte nicht geladen werden.'); }).finally(() => { if (active) { setBusy(false); setLoadedFor(userId); } });
     return () => { active = false; };
   }, [user?.id, token]);
   const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); setMessage(''); try { await work(); } catch (e) { setError(e instanceof Error ? e.message : 'Anfrage fehlgeschlagen.'); } finally { setBusy(false); } };
@@ -77,15 +80,10 @@ export default function RecruiterInvitation() {
   }, [user?.id, token, c?.id, packet?.state]);
   // Schritt 1 meldet Fehler direkt unter den Kästchen, nicht oben auf der Seite.
   const verifyStep = async (work: () => Promise<void>) => { setBusy(true); setCodeError(''); try { await work(); } catch (e) { setCodeError(e instanceof Error ? e.message : 'Anfrage fehlgeschlagen.'); } finally { setBusy(false); } };
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = window.setTimeout(() => setCooldown(value => value - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [cooldown]);
   const requestCode = () => verifyStep(async () => {
     const result = await onboardingApi<{ sent: boolean; masked_email: string; code_length?: number }>(false, { action: 'code', ...codeIdentity });
     setSentTo(result.masked_email); setCodeLength(Math.min(10, Math.max(6, result.code_length ?? 6)));
-    setPhase('code'); setCode(''); setCooldown(60);
+    setPhase('code'); setCode('');
   });
   // Prüft von selbst, sobald die letzte Ziffer steht. Ein falscher Code leert die Kästchen.
   const confirmCode = (value: string) => verifyStep(async () => {
@@ -142,13 +140,13 @@ export default function RecruiterInvitation() {
           {busy && <p className="mh-muted mh-verify-busy"><Loader2 size={14} className="animate-spin"/>Wird geprüft</p>}
           <div className="mh-verify-row">
             {token ? <span/> : <button type="button" className="mh-link" disabled={busy} onClick={() => { setPhase('start'); setCode(''); setCodeError(''); }}>Adresse ändern</button>}
-            <button type="button" className="mh-link" disabled={busy || cooldown > 0} onClick={() => void requestCode()}>{cooldown > 0 ? `Erneut senden in ${cooldown} s` : 'Code erneut senden'}</button>
+            <button type="button" className="mh-link" disabled={busy} onClick={() => void requestCode()}>Code erneut senden</button>
           </div>
           {codeError && <p role="alert" className="mh-alert mh-error">{codeError}</p>}
           <p className="mh-muted mh-verify-hint">Der Code ist eine Stunde gültig. Schau auch im Spam-Ordner nach.</p>
         </>}
       </div>
-    </section> : !c ? <section className="mh-panel mh-stack">
+    </section> : loadedFor !== user.id ? <section className="mh-panel" role="status">Deine Angaben werden geladen …</section> : !c ? <section className="mh-panel mh-stack">
       <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>Deine E-Mail-Adresse ist bestätigt.</h2><p>Ein begonnener Vorgang oder eine gültige Einladung für diese Adresse wird übernommen.</p></div></div>
       {!token && <><h3>Wie möchtest du mit uns zusammenarbeiten?</h3><div className="mh-choices">{[['individual', 'Einzelrecruiter', 'Ich starte als selbstständiger Recruiting-Partner.'], ['agency', 'Recruiting-Agentur', 'Ich vertrete eine Agentur.']].map(([value, label, detail]) => <button key={value} className="mh-choice" type="button" disabled={busy} aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'agency' ? <Building2 size={21}/> : <UserRound size={21}/>}<span><strong>{label}</strong><small>{detail}</small></span></button>)}</div></>}
       <div className="mh-note"><ShieldCheck size={21}/><p>Als Nächstes bestätigst du deine Geschäftsdaten. Deine Vertragsunterschrift folgt erst nach deiner Prüfung in DocuSign.</p></div>
