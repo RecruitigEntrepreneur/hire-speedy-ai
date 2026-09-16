@@ -120,7 +120,8 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
     meta: { case_id: target.caseId },
   });
   must(result.sent, 'Der Code konnte nicht versendet werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
-  return { sent: true, masked_email: maskEmail(target.email) };
+  // Die Länge sagt dem Formular, wie viele Kästchen es zeigt.
+  return { sent: true, masked_email: maskEmail(target.email), code_length: otp.length };
 }
 
 export async function verifyCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; code?: unknown }, deps: CodeDeps = liveDeps()) {

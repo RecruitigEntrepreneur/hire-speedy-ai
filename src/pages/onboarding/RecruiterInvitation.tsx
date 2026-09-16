@@ -1,7 +1,9 @@
 import RecruiterProfileForm from '@/components/onboarding/RecruiterProfileForm';
 import OnboardingFrame from '@/components/onboarding/OnboardingFrame';
-import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw, MailCheck, KeyRound } from 'lucide-react';
+import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw, Mail, Loader2, KeyRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { REGEXP_ONLY_DIGITS } from 'input-otp';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile, type InvitationPeek, type CodeSession } from '@/lib/recruiterOnboardingApi';
@@ -21,6 +23,9 @@ export default function RecruiterInvitation() {
   const [phase, setPhase] = useState<'start' | 'code'>('start');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [codeLength, setCodeLength] = useState(6);
+  const [codeError, setCodeError] = useState('');
+  const [cooldown, setCooldown] = useState(0);
   const [sentTo, setSentTo] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -70,15 +75,25 @@ export default function RecruiterInvitation() {
     const stop = window.setTimeout(() => window.clearInterval(timer), 120000);
     return () => { window.clearInterval(timer); window.clearTimeout(stop); };
   }, [user?.id, token, c?.id, packet?.state]);
-  const requestCode = () => run(async () => {
-    const result = await onboardingApi<{ sent: boolean; masked_email: string }>(false, { action: 'code', ...codeIdentity });
-    setSentTo(result.masked_email); setPhase('code'); setCode('');
-    setMessage(`Dein Code ist unterwegs an ${result.masked_email}. Schau auch im Spam-Ordner nach.`);
+  // Schritt 1 meldet Fehler direkt unter den Kästchen, nicht oben auf der Seite.
+  const verifyStep = async (work: () => Promise<void>) => { setBusy(true); setCodeError(''); try { await work(); } catch (e) { setCodeError(e instanceof Error ? e.message : 'Anfrage fehlgeschlagen.'); } finally { setBusy(false); } };
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setTimeout(() => setCooldown(value => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
+  const requestCode = () => verifyStep(async () => {
+    const result = await onboardingApi<{ sent: boolean; masked_email: string; code_length?: number }>(false, { action: 'code', ...codeIdentity });
+    setSentTo(result.masked_email); setCodeLength(Math.min(10, Math.max(6, result.code_length ?? 6)));
+    setPhase('code'); setCode(''); setCooldown(60);
   });
-  const confirmCode = () => run(async () => {
-    const session = await onboardingApi<CodeSession>(false, { action: 'verify', ...codeIdentity, code });
-    const { error } = await supabase.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
-    if (error) throw error;
+  // Prüft von selbst, sobald die letzte Ziffer steht. Ein falscher Code leert die Kästchen.
+  const confirmCode = (value: string) => verifyStep(async () => {
+    try {
+      const session = await onboardingApi<CodeSession>(false, { action: 'verify', ...codeIdentity, code: value });
+      const { error } = await supabase.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+      if (error) throw error;
+    } catch (e) { setCode(''); throw e; }
     setCode(''); setPhase('start');
   });
   const savePassword = () => run(async () => {
@@ -105,20 +120,34 @@ export default function RecruiterInvitation() {
     {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
     {message && <p role="status" className="mh-alert">{message}</p>}
     {!authReady ? <section className="mh-panel" role="status">Dein Zugang wird geprüft …</section> : !user ? <section className="mh-panel">
-      <div className="mh-panel-head"><MailCheck size={23}/><div>
-        <h2>{phase === 'code' ? 'Code eingeben.' : token ? (peek?.name ? `Hallo ${peek.name}.` : 'Deine Einladung.') : 'Deine E-Mail-Adresse.'}</h2>
-        <p>{phase === 'code' ? `Wir haben einen Code an ${sentTo} geschickt. Er ist kurz gültig.` : token ? (peek ? `Dein Code geht an ${peek.masked_email}. Kein Passwort nötig.` : 'Deine Einladung wird geladen …') : 'Wir schicken dir einen Code. Kein Passwort nötig.'}</p>
-      </div></div>
-      <form className="mh-stack mh-auth" onSubmit={e => { e.preventDefault(); void (phase === 'code' ? confirmCode() : requestCode()); }}>
+      <div className="mh-verify">
+        <div className="mh-verify-icon"><Mail size={20}/></div>
+        <div>
+          <h2>{phase === 'code' ? 'Code eingeben' : token ? (peek?.name ? `Hallo ${peek.name}` : 'Deine Einladung') : 'E-Mail-Adresse bestätigen'}</h2>
+          <p className="mh-muted">{phase === 'code' ? <>Wir haben einen Code an <strong>{sentTo}</strong> geschickt.</> : token ? (peek ? <>Wir senden einen Code an <strong>{peek.masked_email}</strong>. Kein Passwort nötig.</> : 'Deine Einladung wird geladen …') : 'Wir senden dir einen Code. Kein Passwort nötig.'}</p>
+        </div>
         {token && peek?.status === 'expired' && <p role="alert" className="mh-alert mh-error">Dein Einladungslink ist abgelaufen. Sag uns kurz Bescheid, wir schicken dir einen neuen.</p>}
         {token && peek?.status === 'revoked' && <p role="alert" className="mh-alert mh-error">Dieser Einladungslink wurde zurückgezogen. Sag uns kurz Bescheid, dann bekommst du einen neuen.</p>}
-        {token && peek?.status === 'claimed' && phase === 'start' && <div className="mh-note"><ShieldCheck size={19}/><p>Du hast schon begonnen. Mit dem Code machst du genau dort weiter.</p></div>}
-        {phase === 'start' && !token && <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>}
-        {phase === 'code' && <label className="mh-field">Dein Code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={14} required value={code} onChange={e => setCode(e.target.value)}/><small>Die Ziffern aus der E-Mail.</small></label>}
-        <button className="mh-button mh-primary mh-full" type="submit" disabled={busy || linkBlocked}>{busy ? 'Einen Moment …' : phase === 'code' ? 'Bestätigen & weiter' : 'Code senden'}<ArrowRight size={16}/></button>
-        {phase === 'code' && <button className="mh-link" type="button" disabled={busy} onClick={() => void requestCode()}>Neuen Code senden</button>}
-        {phase === 'code' && !token && <button className="mh-link" type="button" disabled={busy} onClick={() => { setPhase('start'); setCode(''); }}>Andere Adresse verwenden</button>}
-      </form>
+        {phase === 'start' ? <form className="mh-stack" onSubmit={e => { e.preventDefault(); void requestCode(); }}>
+          {!token && <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>}
+          <button className="mh-button mh-primary mh-full" type="submit" disabled={busy || linkBlocked}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Mail size={16}/>}{busy ? 'Einen Moment …' : 'Code senden'}</button>
+          {codeError && <p role="alert" className="mh-alert mh-error">{codeError}</p>}
+          {token && peek?.status === 'claimed' && <p className="mh-muted mh-verify-hint">Du hast schon begonnen. Mit dem Code machst du genau dort weiter.</p>}
+        </form> : <>
+          <div className="mh-otp" data-length={codeLength}>
+            <InputOTP maxLength={codeLength} value={code} pattern={REGEXP_ONLY_DIGITS} inputMode="numeric" autoComplete="one-time-code" disabled={busy} onChange={value => { setCode(value); setCodeError(''); if (value.length === codeLength) void confirmCode(value); }}>
+              <InputOTPGroup>{Array.from({ length: codeLength }, (_, i) => <InputOTPSlot key={i} index={i} className="mh-otp-slot"/>)}</InputOTPGroup>
+            </InputOTP>
+          </div>
+          {busy && <p className="mh-muted mh-verify-busy"><Loader2 size={14} className="animate-spin"/>Wird geprüft</p>}
+          <div className="mh-verify-row">
+            {token ? <span/> : <button type="button" className="mh-link" disabled={busy} onClick={() => { setPhase('start'); setCode(''); setCodeError(''); }}>Adresse ändern</button>}
+            <button type="button" className="mh-link" disabled={busy || cooldown > 0} onClick={() => void requestCode()}>{cooldown > 0 ? `Erneut senden in ${cooldown} s` : 'Code erneut senden'}</button>
+          </div>
+          {codeError && <p role="alert" className="mh-alert mh-error">{codeError}</p>}
+          <p className="mh-muted mh-verify-hint">Der Code ist kurz gültig. Schau auch im Spam-Ordner nach.</p>
+        </>}
+      </div>
     </section> : !c ? <section className="mh-panel mh-stack">
       <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>Deine E-Mail-Adresse ist bestätigt.</h2><p>Ein begonnener Vorgang oder eine gültige Einladung für diese Adresse wird übernommen.</p></div></div>
       {!token && <><h3>Wie möchtest du mit uns zusammenarbeiten?</h3><div className="mh-choices">{[['individual', 'Einzelrecruiter', 'Ich starte als selbstständiger Recruiting-Partner.'], ['agency', 'Recruiting-Agentur', 'Ich vertrete eine Agentur.']].map(([value, label, detail]) => <button key={value} className="mh-choice" type="button" disabled={busy} aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'agency' ? <Building2 size={21}/> : <UserRound size={21}/>}<span><strong>{label}</strong><small>{detail}</small></span></button>)}</div></>}

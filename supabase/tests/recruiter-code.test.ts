@@ -64,7 +64,7 @@ Deno.test('peek shows first name, masked address and status, never the address i
 Deno.test('code with invitation creates a recruiter account and mails the Supabase code to the invitation address only', async () => {
   const f = await fixture({ cases: [await invite()] });
   const r = await sendCode(f.db, { token: TOKEN, ip: '1.1.1.1' }, f.deps);
-  assert(r.sent && r.masked_email === 'ma***@example.test');
+  assert(r.sent && r.masked_email === 'ma***@example.test' && r.code_length === 6);
   const created = f.calls.createUser[0] as { email: string; email_confirm: boolean; user_metadata: { role: string; full_name: string } };
   assert(created.email === 'marko@example.test' && created.email_confirm === false && created.user_metadata.role === 'recruiter' && created.user_metadata.full_name === 'Marko');
   assert(f.calls.generateLink[0].type === 'magiclink' && f.calls.generateLink[0].email === 'marko@example.test');

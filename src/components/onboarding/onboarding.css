@@ -859,3 +859,102 @@
 .mh-ui .mh-error {
   border-left: 3px solid hsl(var(--destructive));
 }
+
+/* Schritt 1: E-Mail per Code bestaetigen. Aufbau wie in der Kunden-Jobaufnahme:
+   Symbol, Ueberschrift, maskierte Adresse, Ziffernkaestchen, Zeile fuer
+   Adresse aendern / erneut senden. Die Kaestchen kommen aus input-otp; die
+   Breite haengt an der Codelaenge, die der Server mitliefert. */
+.mh-ui .mh-verify {
+  max-width: 420px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  text-align: center;
+}
+.mh-ui .mh-verify h2 {
+  font-size: 20px;
+}
+.mh-ui .mh-verify > div > p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mh-ui .mh-verify strong {
+  color: var(--mh-text);
+  font-weight: 600;
+}
+.mh-ui .mh-verify form {
+  width: 100%;
+}
+.mh-ui .mh-verify .mh-field {
+  text-align: left;
+}
+.mh-ui .mh-verify .mh-alert {
+  width: 100%;
+  text-align: left;
+}
+.mh-ui .mh-verify-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: hsl(var(--muted));
+  color: var(--mh-muted);
+}
+.mh-ui .mh-otp {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+.mh-ui .mh-otp-slot {
+  width: 40px;
+  height: 48px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.mh-ui .mh-otp[data-length="9"] .mh-otp-slot,
+.mh-ui .mh-otp[data-length="10"] .mh-otp-slot {
+  width: 32px;
+}
+.mh-ui .mh-verify-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.mh-ui .mh-verify-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mh-ui .mh-verify-row .mh-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mh-ui .mh-verify-row .mh-link:disabled {
+  text-decoration: none;
+  cursor: default;
+}
+.mh-ui .mh-verify-hint {
+  font-size: 12px;
+}
+.mh-ui .animate-caret-blink {
+  animation: mh-caret-blink 1s steps(1) infinite;
+}
+@keyframes mh-caret-blink {
+  50% { opacity: 0; }
+}
+@media (max-width: 420px) {
+  .mh-ui .mh-otp-slot {
+    width: 34px;
+    height: 44px;
+    font-size: 16px;
+  }
+  .mh-ui .mh-otp[data-length="9"] .mh-otp-slot,
+  .mh-ui .mh-otp[data-length="10"] .mh-otp-slot {
+    width: 28px;
+  }
+}
