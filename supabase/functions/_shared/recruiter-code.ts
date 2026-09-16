@@ -70,8 +70,8 @@ async function resolveTarget(db: SupabaseClient, body: { token?: unknown; email?
   if (body.token !== undefined) {
     const c = await caseByToken(db, body.token);
     const status = caseStatus(c);
-    must(status !== 'revoked', 'Diese Einladung ist nicht mehr gültig. Melde dich kurz bei uns.', 'revoked');
-    must(status !== 'expired', 'Dein Einladungslink ist abgelaufen. Melde dich kurz bei uns, wir schicken dir einen neuen.', 'expired');
+    must(status !== 'revoked', 'Dieser Einladungslink wurde zurückgezogen. Sag uns kurz Bescheid, dann bekommst du einen neuen.', 'revoked');
+    must(status !== 'expired', 'Dein Einladungslink ist abgelaufen. Sag uns kurz Bescheid, wir schicken dir einen neuen.', 'expired');
     return { email: c.email, name: firstName(c.profile?.name), caseId: c.id };
   }
   const email = normalizeEmail(String(body.email ?? ''));
@@ -110,7 +110,7 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
       preheader: `Dein Code: ${otp}`,
       heading: 'Dein Code für Matchunt',
       body: `<p style="margin:0 0 16px 0;">Hallo${target.name ? ' ' + esc(target.name) : ''},</p>
-        <p style="margin:0 0 20px 0;">mit diesem Code bestätigst du deine E-Mail-Adresse und bist angemeldet, ganz ohne Passwort:</p>
+        <p style="margin:0 0 20px 0;">mit diesem Code bestätigst du deine E-Mail-Adresse, ganz ohne Passwort:</p>
         <div style="font-size:34px;font-weight:700;letter-spacing:10px;padding:18px 0;color:#111827;">${esc(otp)}</div>
         <p style="margin:12px 0 0 0;">Der Code ist kurz gültig. Wenn er abgelaufen ist, fordere auf der Seite einfach einen neuen an.</p>`,
       footnote: 'Wenn du gerade nichts bei Matchunt gestartet hast, ignoriere diese Nachricht. Gib den Code nicht weiter.',

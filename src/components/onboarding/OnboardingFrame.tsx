@@ -7,7 +7,7 @@ import './onboarding.css';
 
 export default function OnboardingFrame({ stage, title, description, email, accountAction, children }: { stage: number; title: string; description: string; email?: string; accountAction?: ReactNode; children: ReactNode }) {
   return <div className="mh-ui mh-onboarding">
-    <header className="mh-header"><div className="mh-actions"><a href="/" className="mh-brand" aria-label="Matchunt.ai – Startseite"><MatchuntWordmark size="md"/></a><span className="mh-header-tag">DEIN START ALS RECRUITING-PARTNER</span></div><div className="mh-header-account">{email ? <span title={email}>{email}</span> : <span><LockKeyhole size={12} className="inline mr-1"/>Persönlicher Zugang</span>}{accountAction}<ThemeToggle/></div></header>
+    <header className="mh-header"><div className="mh-actions"><a href="/" className="mh-brand" aria-label="Matchunt.ai – Startseite"><MatchuntWordmark size="md"/></a><span className="mh-header-tag">DEIN START ALS RECRUITING-PARTNER</span></div><div className="mh-header-account">{email ? <span title={email}>{email}</span> : <span><LockKeyhole size={12} className="inline mr-1"/>Persönliche Einladung</span>}{accountAction}<ThemeToggle/></div></header>
     <main className="mh-main">
       <ol className="mh-steps" aria-label="Dein Onboarding">{['E-Mail bestätigen', 'Deine Angaben', 'Dein Vertrag', 'Prüfung & Freigabe'].map((label, i) => <li key={label} aria-current={stage === i ? 'step' : undefined} className={i < stage ? 'mh-done' : ''}><span>{i < stage ? <Check size={14}/> : i + 1}</span><span>{label}</span></li>)}</ol>
       <header className="mh-hero"><p className="mh-kicker">GUTE ZUSAMMENARBEIT BEGINNT HIER</p><h1>{title}</h1><p className="mh-lead">{description}</p></header>

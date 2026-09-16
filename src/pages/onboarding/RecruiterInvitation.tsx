@@ -101,7 +101,7 @@ export default function RecruiterInvitation() {
   const descriptions = [token ? 'Bestätige kurz deine E-Mail-Adresse. Danach warten deine vorbereiteten Angaben auf dich.' : 'Werde Teil unseres Recruiter-Netzwerks. Bestätige deine E-Mail-Adresse, ergänze deine Angaben und schließe deinen Vertrag digital ab.', 'Prüfe die vorbereiteten Angaben und ergänze, was noch fehlt. Du kannst deinen Entwurf speichern und später weitermachen.', 'Aus deinen bestätigten Angaben entsteht dein vollständiges Vertragspaket. Du prüfst es in Ruhe und unterschreibst digital mit DocuSign.', 'Deine Unterschrift ist eingegangen. Matchunt prüft deine Angaben, zeichnet gegen und schaltet dich frei. Darüber bekommst du eine Mail.'];
   const completedDescription = c?.activated ? 'Du bist freigeschaltet. Leg dein Passwort fest und starte im Dashboard.' : 'Der Vertrag ist von beiden Seiten unterzeichnet. Hier findest du deine Unterlagen. Sobald wir freigeschaltet haben, bekommst du eine Mail mit deinem Zugang.';
   return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? completedDescription : descriptions[stage]} email={user?.email}
-    accountAction={user && <button className="mh-link" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>Konto wechseln</button>}>
+    accountAction={user && <button className="mh-link" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>Nicht du? Neu starten</button>}>
     {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
     {message && <p role="status" className="mh-alert">{message}</p>}
     {!authReady ? <section className="mh-panel" role="status">Dein Zugang wird geprüft …</section> : !user ? <section className="mh-panel">
@@ -110,15 +110,14 @@ export default function RecruiterInvitation() {
         <p>{phase === 'code' ? `Wir haben einen Code an ${sentTo} geschickt. Er ist kurz gültig.` : token ? (peek ? `Dein Code geht an ${peek.masked_email}. Kein Passwort nötig.` : 'Deine Einladung wird geladen …') : 'Wir schicken dir einen Code. Kein Passwort nötig.'}</p>
       </div></div>
       <form className="mh-stack mh-auth" onSubmit={e => { e.preventDefault(); void (phase === 'code' ? confirmCode() : requestCode()); }}>
-        {token && peek?.status === 'expired' && <p role="alert" className="mh-alert mh-error">Dein Einladungslink ist abgelaufen. Melde dich kurz bei uns, wir schicken dir einen neuen.</p>}
-        {token && peek?.status === 'revoked' && <p role="alert" className="mh-alert mh-error">Diese Einladung ist nicht mehr gültig. Melde dich kurz bei uns.</p>}
+        {token && peek?.status === 'expired' && <p role="alert" className="mh-alert mh-error">Dein Einladungslink ist abgelaufen. Sag uns kurz Bescheid, wir schicken dir einen neuen.</p>}
+        {token && peek?.status === 'revoked' && <p role="alert" className="mh-alert mh-error">Dieser Einladungslink wurde zurückgezogen. Sag uns kurz Bescheid, dann bekommst du einen neuen.</p>}
         {token && peek?.status === 'claimed' && phase === 'start' && <div className="mh-note"><ShieldCheck size={19}/><p>Du hast schon begonnen. Mit dem Code machst du genau dort weiter.</p></div>}
         {phase === 'start' && !token && <label className="mh-field">E-Mail-Adresse<input autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>}
         {phase === 'code' && <label className="mh-field">Dein Code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required value={code} onChange={e => setCode(e.target.value)}/><small>Sechs Ziffern aus der E-Mail.</small></label>}
         <button className="mh-button mh-primary mh-full" type="submit" disabled={busy || linkBlocked}>{busy ? 'Einen Moment …' : phase === 'code' ? 'Bestätigen & weiter' : 'Code senden'}<ArrowRight size={16}/></button>
         {phase === 'code' && <button className="mh-link" type="button" disabled={busy} onClick={() => void requestCode()}>Neuen Code senden</button>}
         {phase === 'code' && !token && <button className="mh-link" type="button" disabled={busy} onClick={() => { setPhase('start'); setCode(''); }}>Andere Adresse verwenden</button>}
-        <a className="mh-link" href="/auth">Lieber mit Passwort anmelden</a>
       </form>
     </section> : !c ? <section className="mh-panel mh-stack">
       <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>Deine E-Mail-Adresse ist bestätigt.</h2><p>Ein begonnener Vorgang oder eine gültige Einladung für diese Adresse wird übernommen.</p></div></div>
