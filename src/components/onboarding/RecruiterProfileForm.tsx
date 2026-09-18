@@ -72,19 +72,22 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
     requestAnimationFrame(() => heading.current?.focus());
     if (next > step) void onSave(true, snapshot ?? profile);
   };
-  const fromImpressum = /laut Impressum/.test(d.businessEvidence + d.taxNumber);
 
   // Karte 1: Firma. Erst automatisch aus der geschäftlichen Adresse, sonst Website, sonst selbst.
   const [companyMode, setCompanyMode] = useState<'auto' | 'website' | 'result' | 'manual'>(profile.company && profile.address ? 'result' : 'auto');
   const [website, setWebsite] = useState('');
   const [enriching, setEnriching] = useState(false);
   const [enrichError, setEnrichError] = useState('');
+  // Herkunft der Firmendaten. Nach dem Neuladen eines Entwurfs verrät sie der Vermerk „laut Impressum“.
+  const [impressumSource, setImpressumSource] = useState('');
+  const fromImpressum = !!impressumSource || /laut Impressum/.test(d.businessEvidence + d.taxNumber);
   const [manual, setManual] = useState({ vat: '', register: '', ceo: '' });
   const readImpressum = async (site?: string) => {
     setEnriching(true); setEnrichError('');
     try {
       const suggestion = await onEnrich(site);
       update(applySuggestion(latest.current, suggestion));
+      setImpressumSource(suggestion.source);
       setCompanyMode('result');
     } catch (e) {
       const message = e instanceof Error ? e.message : '';
@@ -105,7 +108,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
     if (!profile.address) missing.push('Anschrift fehlt.');
     if (!profile.country) missing.push('Sitzland fehlt.');
     if (!['regular', 'small_business', 'foreign'].includes(profile.taxStatus)) missing.push('Steuerstatus fehlt.');
-    if (missing.length) { setIssues(missing); if (companyMode === 'result') openManual(); return; }
+    if (missing.length) { if (companyMode === 'result') openManual(); setIssues(missing); return; }
     let next = profile;
     if (companyMode === 'manual') {
       const register = manual.register.trim();
@@ -181,7 +184,10 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
 
   const stepTitle = ['Wer bist du?', 'Was besetzt du?', 'Du unterschreibst selbst?', 'Vier kurze Fragen.', 'So steht es in deinem Vertrag.'][step];
   const stepLead = [
-    companyMode === 'result' ? (fromImpressum ? 'Das haben wir in deinem Impressum gefunden. Prüfe kurz.' : 'Diese Angaben liegen schon vor. Prüfe kurz.') : 'Nenn uns deine Website. Wir lesen dein Impressum und füllen die Vertragsdaten für dich aus.',
+    companyMode === 'result' ? (fromImpressum ? 'Das haben wir in deinem Impressum gefunden. Prüfe kurz.' : 'Diese Angaben liegen schon vor. Prüfe kurz.')
+      : companyMode === 'manual' ? 'Trag deine Firmendaten ein. Matchunt prüft sie vor der Gegenzeichnung.'
+      : companyMode === 'auto' ? 'Einen Moment, wir lesen dein Impressum und füllen die Vertragsdaten für dich aus.'
+      : 'Nenn uns deine Website. Wir lesen dein Impressum und füllen die Vertragsdaten für dich aus.',
     'Tipp an, was passt. Mehrfach ist gut.',
     'Wir haben dich vorbelegt.',
     'Wir haben schon vorbelegt. Stimmt etwas nicht, tipp auf „Anders“.',

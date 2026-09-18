@@ -9,7 +9,7 @@ import type { RecruiterProfile } from './recruiter-contract-policy.ts';
 
 export interface EnrichmentData {
   name?: string; legal_name?: string; street?: string; postal_code?: string; city?: string; country?: string;
-  registration_number?: string; vat_id?: string; ceo_name?: string;
+  registration_number?: string; register_court?: string; vat_id?: string; ceo_name?: string;
 }
 export interface CompanySuggestion {
   company: string; legalForm: string; address: string; country: string;
@@ -35,7 +35,7 @@ export function legalFormOf(name: string): string {
   return '';
 }
 
-export function countryOf(data: EnrichmentData): string {
+export function countryOf(data: EnrichmentData, source = ''): string {
   const c = String(data.country ?? '').trim().toLowerCase();
   if (['de', 'deu', 'germany', 'deutschland'].includes(c)) return 'Deutschland';
   if (['at', 'aut', 'austria', 'österreich', 'oesterreich'].includes(c)) return 'Österreich';
@@ -45,7 +45,12 @@ export function countryOf(data: EnrichmentData): string {
   if (vat.startsWith('ATU')) return 'Österreich';
   if (vat.startsWith('CHE')) return 'Schweiz';
   if (c) return String(data.country).trim().slice(0, 60);
-  if (/^\d{5}$/.test(String(data.postal_code ?? '').trim())) return 'Deutschland';
+  if (/^FN\s/.test(String(data.registration_number ?? '').trim())) return 'Österreich';
+  const zip = String(data.postal_code ?? '').trim();
+  if (/^\d{5}$/.test(zip)) return 'Deutschland';
+  // Vierstellig schreiben Österreich und die Schweiz; die Domain entscheidet.
+  if (/^\d{4}$/.test(zip) && /\.at$/i.test(source)) return 'Österreich';
+  if (/^\d{4}$/.test(zip) && /\.ch$/i.test(source)) return 'Schweiz';
   return '';
 }
 
@@ -55,9 +60,12 @@ export function suggestionFrom(data: EnrichmentData, source: string): CompanySug
   const street = s(data.street); const zip = s(data.postal_code, 12); const city = s(data.city, 80);
   const address = [street, [zip, city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const vatId = s(data.vat_id, 20).toUpperCase().replace(/\s+/g, '');
+  // Das Gericht gehört zur Nummer („HRB 288632, Amtsgericht München“), allein sagt es nichts.
+  const number = s(data.registration_number, 40);
+  const registration = number ? [number, s(data.register_court, 80)].filter(Boolean).join(', ') : '';
   return {
-    company, legalForm: legalFormOf(company), address, country: countryOf(data),
-    taxStatus: vatId ? 'regular' : '', vatId, registration: s(data.registration_number, 80), ceo: s(data.ceo_name, 120), source,
+    company, legalForm: legalFormOf(company), address, country: countryOf(data, source),
+    taxStatus: vatId ? 'regular' : '', vatId, registration, ceo: s(data.ceo_name, 120), source,
   };
 }
 
@@ -71,7 +79,7 @@ export function applySuggestion(profile: RecruiterProfile, sug: CompanySuggestio
     taxStatus: sug.taxStatus || profile.taxStatus,
     contractDetails: {
       ...d,
-      businessEvidence: sug.registration ? `Handelsregister ${sug.registration} (laut Impressum ${sug.source})` : d.businessEvidence,
+      businessEvidence: sug.registration ? `${/^FN\s/.test(sug.registration) ? 'Firmenbuch' : 'Handelsregister'} ${sug.registration} (laut Impressum ${sug.source})` : d.businessEvidence,
       taxNumber: sug.vatId ? `USt-IdNr. ${sug.vatId} (laut Impressum ${sug.source})` : d.taxNumber,
       responsiblePerson: sug.ceo || d.responsiblePerson || profile.name,
     },

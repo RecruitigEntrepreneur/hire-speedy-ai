@@ -51,6 +51,15 @@ export async function enrichCase(db: SupabaseClient, c: OnboardingCase, body: { 
   }
   const payload = res.ok ? await res.json().catch(() => null) : null;
   const data = payload?.success ? payload.data as EnrichmentData : null;
-  must(data && (data.legal_name || data.name), 'Auf der Website haben wir kein Impressum gefunden. Trag die Angaben bitte selbst ein.', 'not_found');
-  return { suggestion: suggestionFrom(data, domain) };
+  // Nur Angaben aus dem Impressum zählen. Den Namen rät die Function notfalls aus der
+  // Domain; allein ist er kein Fund. So stand am 16.09.2026 „Bluewater-bridge“ ohne
+  // Anschrift auf der Karte, obwohl Firecrawl die Seite gar nicht gelesen hatte.
+  if (!data || !(data.legal_name || (data.street && data.postal_code))) {
+    const warnings: { step?: string; status?: number; detail?: string }[] = Array.isArray(payload?.warnings) ? payload.warnings : [];
+    const unread = warnings.filter(w => w?.step === 'impressum');
+    if (warnings.length) console.error('[recruiter-enrich] Impressum nicht gelesen', warnings.map(w => `${w?.step}:${w?.status ?? w?.detail ?? ''}`).join(' '));
+    must(!unread.length, 'Wir konnten deine Website gerade nicht lesen. Trag die Angaben bitte selbst ein.', 'upstream_error');
+    must(false, 'Auf der Website haben wir kein Impressum gefunden. Trag die Angaben bitte selbst ein.', 'not_found');
+  }
+  return { suggestion: suggestionFrom(data!, domain) };
 }

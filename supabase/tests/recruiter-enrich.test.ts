@@ -41,6 +41,8 @@ Deno.test('legal form and country are derived, never asked', () => {
   assert(countryOf({ country: 'Germany' }) === 'Deutschland' && countryOf({ country: 'AT' }) === 'Österreich' && countryOf({ vat_id: 'CHE-123.456.789' }) === 'Schweiz');
   assert(countryOf({ vat_id: 'DE123' }) === 'Deutschland' && countryOf({ postal_code: '20095' }) === 'Deutschland' && countryOf({ postal_code: '1010' }) === '');
   assert(countryOf({ country: 'France' }) === 'France');
+  assert(countryOf({ postal_code: '1010' }, 'firma.at') === 'Österreich' && countryOf({ postal_code: '8001' }, 'firma.ch') === 'Schweiz' && countryOf({ postal_code: '1010' }, 'firma.de') === '');
+  assert(countryOf({ registration_number: 'FN 123456a' }) === 'Österreich', 'Firmenbuch heißt Österreich');
   assert(personMatches('Marko Benko', 'Geschäftsführer: Marko Benko') && personMatches('Dr. Anna-Lena Müller', 'Anna Lena Müller') && !personMatches('Marko Benko', 'Peter Schmidt') && !personMatches('', 'Marko Benko'));
 });
 
@@ -55,6 +57,12 @@ Deno.test('suggestion maps the impressum into the profile, tax status follows th
   assert(none.legalForm === '' && none.taxStatus === '' && none.address === '');
   const kept = applySuggestion(cleanProfile({ name: 'X', company: 'Bleibt GmbH', taxStatus: 'small_business' }), none);
   assert(kept.company === 'Solo Recruiting' && kept.taxStatus === 'small_business' && kept.contractDetails!.responsiblePerson === 'X', 'empty suggestions do not overwrite');
+  const court = suggestionFrom({ legal_name: 'Bluewater & Bridge GmbH', registration_number: 'HRB 288632', register_court: 'Amtsgericht München' }, 'bluewater-bridge.de');
+  assert(court.registration === 'HRB 288632, Amtsgericht München', court.registration);
+  assert(applySuggestion(cleanProfile({ name: 'X' }), court).contractDetails!.businessEvidence === 'Handelsregister HRB 288632, Amtsgericht München (laut Impressum bluewater-bridge.de)');
+  assert(suggestionFrom({ legal_name: 'X GmbH', register_court: 'Amtsgericht München' }, 'x.de').registration === '', 'a court without a number is no registration');
+  const austria = applySuggestion(cleanProfile({ name: 'X' }), suggestionFrom({ legal_name: 'Wien Talent GmbH', registration_number: 'FN 123456a', register_court: 'Handelsgericht Wien', postal_code: '1010' }, 'wien-talent.at'));
+  assert(austria.contractDetails!.businessEvidence.startsWith('Firmenbuch FN 123456a, Handelsgericht Wien') && austria.country === 'Österreich', austria.contractDetails!.businessEvidence);
 });
 
 Deno.test('enrich uses the business mail domain, needs a website for freemail, and reports upstream trouble', async () => {
@@ -72,5 +80,11 @@ Deno.test('enrich uses the business mail domain, needs a website for freemail, a
   assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ allowed: false }).d)) === 'rate_limited');
   assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ status: 500, body: { success: false } }).d)) === 'not_found');
   assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ body: { success: true, data: {} } }).d)) === 'not_found');
+  // Ein aus der Domain geratener Name ist kein Impressum (so kam „Bluewater-bridge“ ohne Anschrift auf die Karte).
+  assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ body: { success: true, data: { name: 'Firma' } } }).d)) === 'not_found', 'name only');
+  assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ body: { success: true, data: { name: 'Firma' }, warnings: [{ step: 'impressum', status: 400 }] } }).d)) === 'upstream_error', 'unread impressum');
+  assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ body: { success: true, data: { name: 'Firma' }, warnings: [{ step: 'startseite', status: 400 }] } }).d)) === 'not_found', 'a failed homepage is no excuse');
+  const address = await enrichCase(db, draft('x@firma.de'), {}, null, deps({ body: { success: true, data: { name: 'Firma', street: 'Hauptstraße 5', postal_code: '50667', city: 'Köln' } } }).d);
+  assert(address.suggestion.address === 'Hauptstraße 5, 50667 Köln' && address.suggestion.country === 'Deutschland', 'street and postal code are enough');
   assert(await reasonOf(() => enrichCase(db, draft('x@firma.de'), {}, null, deps({ throws: true }).d)) === 'upstream_error');
 });
