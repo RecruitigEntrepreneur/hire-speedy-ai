@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { recordEmailEvent } from "../_shared/email-event-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,15 @@ serve(async (req) => {
         JSON.stringify({ error: "Invalid webhook payload" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Transaktionale Mails (Recruiter-Einladungen, Anmeldecodes, Freischaltungen) liegen in
+    // email_events, nicht in outreach_emails. Ihre Ereignisse dort mitschreiben; ein Fehler
+    // hier darf die Outreach-Verarbeitung nicht aufhalten.
+    try {
+      await recordEmailEvent(supabase, body);
+    } catch (e) {
+      console.error("email_events nicht aktualisiert:", e);
     }
 
     // Find email by resend_id
