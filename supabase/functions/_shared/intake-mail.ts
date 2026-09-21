@@ -38,6 +38,8 @@ export function layout(opts: {
   heading: string;
   body: string;
   cta?: { label: string; url: string };
+  /** Text unter dem Knopf, in Fließtextgröße (etwa Gültigkeit und Gruß). */
+  after?: string;
   footnote?: string;
 }): string {
   return `<!doctype html>
@@ -58,6 +60,13 @@ export function layout(opts: {
         ? `<tr><td style="padding:24px 32px 4px 32px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
       <a href="${esc(opts.cta.url)}" style="display:inline-block;background:${BRAND};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">${esc(opts.cta.label)}</a>
       <div style="margin-top:12px;font-size:12px;color:${MUTED};word-break:break-all;">${esc(opts.cta.url)}</div>
+    </td></tr>`
+        : ''
+    }
+    ${
+      opts.after
+        ? `<tr><td style="padding:16px 32px 0 32px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+      <div style="font-size:15px;line-height:1.6;color:#374151;">${opts.after}</div>
     </td></tr>`
         : ''
     }

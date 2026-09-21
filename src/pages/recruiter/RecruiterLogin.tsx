@@ -9,7 +9,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { onboardingApi, type CodeSession } from '@/lib/recruiterOnboardingApi';
-import { PASSWORD_SET_KEY, safeRecruiterPath } from '@/lib/recruiterLogin';
+import { PASSWORD_SET_KEY, safeRecruiterPath, type LoginLinkPeek } from '@/lib/recruiterLogin';
 import '@/components/onboarding/onboarding.css';
 
 type Phase = 'email' | 'code' | 'password' | 'done';
@@ -22,6 +22,8 @@ const passwordError = (e: AuthError) => e.code === 'weak_password'
  * Anmeldung für freigeschaltete Headhunter: E-Mail, Code aus der Mail, beim
  * ersten Mal ein Passwort (überspringbar), dann zur gewünschten Seite. Der
  * Server verschickt Codes nur an bestehende Headhunter und legt nie ein Konto an.
+ * Mit dem persönlichen Link aus der Willkommensmail (#Schlüssel) kennt die Seite
+ * Namen und Adresse schon; der Code bleibt trotzdem nötig.
  */
 export default function RecruiterLogin() {
   const [params] = useSearchParams();
@@ -38,6 +40,24 @@ export default function RecruiterLogin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [link, setLink] = useState(() => window.location.hash.slice(1));
+  const [peek, setPeek] = useState<LoginLinkPeek | null>(null);
+
+  useEffect(() => {
+    if (!link) return;
+    let active = true;
+    void onboardingApi<LoginLinkPeek>(false, { action: 'peek', link })
+      .then(result => { if (active) setPeek(result); })
+      .catch(() => { if (active) setPeek({ status: 'invalid' }); });
+    return () => { active = false; };
+  }, [link]);
+  const known = !!link && peek?.status === 'open' ? peek : null;
+  // Mit gültigem Link geht der Code an die Adresse des Kontos, sonst an die eingetippte.
+  const identity = known ? { link } : { email: email.trim() };
+  const forgetLink = () => {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    setLink(''); setPeek(null); setError(''); setNotice('');
+  };
 
   // Weiter erst mit geladener Rolle, sonst öffnet der Headhunter-Bereich kurz ohne Zugangsprüfung.
   // Kommt die Rolle nicht, geht es nach kurzer Zeit trotzdem weiter; dort wird ohnehin geprüft.
@@ -53,7 +73,7 @@ export default function RecruiterLogin() {
     try { await work(); } catch (e) { setError(e instanceof Error ? e.message : 'Anfrage fehlgeschlagen.'); } finally { setBusy(false); }
   };
   const requestCode = (again = false) => run(async () => {
-    const result = await onboardingApi<{ masked_email: string; code_length?: number }>(false, { action: 'code', email: email.trim(), login: true });
+    const result = await onboardingApi<{ masked_email: string; code_length?: number }>(false, { action: 'code', ...identity, login: true });
     setSentTo(result.masked_email); setCodeLength(Math.min(10, Math.max(6, result.code_length ?? 6)));
     setCode(''); setPhase('code');
     if (again) setNotice('Ein neuer Code ist unterwegs.');
@@ -62,7 +82,7 @@ export default function RecruiterLogin() {
   const confirmCode = (value: string) => run(async () => {
     let passwordSet = false;
     try {
-      const session = await onboardingApi<CodeSession>(false, { action: 'verify', email: email.trim(), code: value, login: true });
+      const session = await onboardingApi<CodeSession>(false, { action: 'verify', ...identity, code: value, login: true });
       const { data, error } = await supabase.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
       if (error) throw error;
       passwordSet = !!data.user?.user_metadata?.[PASSWORD_SET_KEY];
@@ -85,9 +105,17 @@ export default function RecruiterLogin() {
   // Schon angemeldet, etwa über den Link in der Willkommensmail: direkt weiter.
   if (phase === 'email' && user && (role === 'recruiter' || role === 'admin')) return <Navigate to={next} replace />;
 
+  const checkingLink = !!link && !peek;
+  const emailLead = checkingLink ? 'Einen Moment …'
+    : known ? <>Wir schicken dir einen Code an <strong>{known.masked_email}</strong>.</>
+    : link && peek?.status === 'expired' ? 'Dieser Link ist abgelaufen. Gib deine Adresse ein, wir schicken dir einen Code.'
+    : link ? 'Dieser Link funktioniert nicht mehr. Gib deine Adresse ein, wir schicken dir einen Code.'
+    : 'Willkommen zurück bei Matchunt.';
   const head: Record<Phase, [ReactNode, string, ReactNode]> = {
-    email: [<Mail key="i" size={20}/>, 'Anmelden', 'Willkommen zurück bei Matchunt.'],
-    code: [<Mail key="i" size={20}/>, 'Code eingeben', <>Falls zu <strong>{sentTo}</strong> ein Headhunter-Konto gehört, ist der Code unterwegs. Er ist eine Stunde gültig.</>],
+    email: [<Mail key="i" size={20}/>, known ? (known.name ? `Hallo ${known.name}` : 'Hallo') : 'Anmelden', emailLead],
+    code: [<Mail key="i" size={20}/>, 'Code eingeben', known
+      ? <>Wir haben dir einen Code an <strong>{sentTo}</strong> geschickt. Er ist eine Stunde gültig.</>
+      : <>Falls zu <strong>{sentTo}</strong> ein Headhunter-Konto gehört, ist der Code unterwegs. Er ist eine Stunde gültig.</>],
     password: [<KeyRound key="i" size={20}/>, 'Passwort festlegen', 'Damit kannst du dich künftig auch mit Passwort anmelden.'],
     done: [<Loader2 key="i" size={20} className="animate-spin"/>, 'Du bist angemeldet', 'Dein Dashboard wird geladen …'],
   };
@@ -104,10 +132,12 @@ export default function RecruiterLogin() {
           <div className="mh-verify-icon">{icon}</div>
           <div><h1>{title}</h1><p className="mh-muted">{lead}</p></div>
 
-          {phase === 'email' && <form className="mh-stack" onSubmit={e => { e.preventDefault(); void requestCode(); }}>
-            <label className="mh-field">E-Mail-Adresse<input autoFocus autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>
-            <button className="mh-button mh-primary mh-full" type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Mail size={16}/>}{busy ? 'Einen Moment …' : 'Code senden'}</button>
-            <p className="mh-muted mh-verify-hint">Wir schicken dir einen sechsstelligen Code.</p>
+          {phase === 'email' && !checkingLink && <form className="mh-stack" onSubmit={e => { e.preventDefault(); void requestCode(); }}>
+            {!known && <label className="mh-field">E-Mail-Adresse<input autoFocus autoComplete="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>}
+            <button autoFocus={!!known} className="mh-button mh-primary mh-full" type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Mail size={16}/>}{busy ? 'Einen Moment …' : 'Code senden'}</button>
+            {known
+              ? <button type="button" className="mh-link mh-login-later" disabled={busy} onClick={forgetLink}>Nicht du? Andere Adresse</button>
+              : <p className="mh-muted mh-verify-hint">Wir schicken dir einen sechsstelligen Code.</p>}
           </form>}
 
           {phase === 'code' && <>
@@ -118,7 +148,7 @@ export default function RecruiterLogin() {
             </div>
             {busy && <p className="mh-muted mh-verify-busy"><Loader2 size={14} className="animate-spin"/>Wird geprüft</p>}
             <div className="mh-verify-row">
-              <button type="button" className="mh-link" disabled={busy} onClick={() => { setPhase('email'); setCode(''); setError(''); setNotice(''); }}>Adresse ändern</button>
+              {known ? <span/> : <button type="button" className="mh-link" disabled={busy} onClick={() => { setPhase('email'); setCode(''); setError(''); setNotice(''); }}>Adresse ändern</button>}
               <button type="button" className="mh-link" disabled={busy} onClick={() => void requestCode(true)}>Neuer Code</button>
             </div>
             <p className="mh-muted mh-verify-hint">Nichts angekommen? Schau auch im Spam-Ordner nach.</p>

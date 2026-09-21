@@ -1,4 +1,5 @@
-import { peekCase, sendCode, verifyCode, caseStatus, CODE_MAX_ATTEMPTS, type CodeDeps } from '../functions/_shared/recruiter-code.ts';
+import { peekCase, peekLoginLink, sendCode, verifyCode, caseStatus, CODE_MAX_ATTEMPTS, type CodeDeps } from '../functions/_shared/recruiter-code.ts';
+import { issueLoginLink, LOGIN_LINK_KEY } from '../functions/_shared/recruiter-login-link.ts';
 import { hashToken, hashCode } from '../functions/_shared/tokens.ts';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { LimitResult } from '../functions/_shared/intake-limits.ts';
@@ -17,13 +18,14 @@ const OTHER = 'B'.repeat(43);
 
 interface FakeUser { id: string; email: string; app_metadata: Record<string, unknown>; user_metadata: Record<string, unknown> }
 
-async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string[]; recruiters?: string[]; allowed?: boolean; mailSent?: boolean; verify?: { status: number; body?: unknown } } = {}) {
+async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string[]; recruiters?: string[]; ids?: Record<string, string>; allowed?: boolean; mailSent?: boolean; verify?: { status: number; body?: unknown } } = {}) {
+  const idOf = (email: string) => opts.ids?.[email] ?? `id-${email}`;
   const cases = opts.cases ?? [];
   const users: Record<string, FakeUser> = {};
-  for (const email of [...(opts.users ?? []), ...(opts.recruiters ?? [])]) users[email] = { id: `id-${email}`, email, app_metadata: { provider: 'email' }, user_metadata: {} };
+  for (const email of [...(opts.users ?? []), ...(opts.recruiters ?? [])]) users[email] = { id: idOf(email), email, app_metadata: { provider: 'email' }, user_metadata: {} };
   // Bestehende Headhunter-Konten, wie die Anmeldeseite sie nachschlägt: Profil und Rolle.
-  const profiles = (opts.recruiters ?? []).map(email => ({ user_id: `id-${email}`, email, full_name: 'Danny Beispiel' }));
-  const roles = (opts.recruiters ?? []).map(email => ({ user_id: `id-${email}`, role: 'recruiter' }));
+  const profiles = (opts.recruiters ?? []).map(email => ({ user_id: idOf(email), email, full_name: 'Danny Beispiel' }));
+  const roles = (opts.recruiters ?? []).map(email => ({ user_id: idOf(email), role: 'recruiter' }));
   const calls = { createUser: [] as Record<string, unknown>[], links: 0, updates: [] as { id: string; attrs: Record<string, unknown> }[], mails: [] as Record<string, unknown>[], fetches: [] as { url: string; init?: RequestInit }[] };
   const db = {
     from: (table: string) => {
@@ -48,6 +50,10 @@ async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string
         const user = users[args.email];
         if (!user) return Promise.resolve({ data: { properties: null, user: null }, error: { message: 'User not found', status: 404 } });
         return Promise.resolve({ data: { properties: { hashed_token: `hashed-${calls.links}`, email_otp: '00000000', action_link: 'https://example.test/link' }, user: structuredClone(user) }, error: null });
+      },
+      getUserById: (id: string) => {
+        const user = Object.values(users).find(u => u.id === id);
+        return Promise.resolve(user ? { data: { user: structuredClone(user) }, error: null } : { data: { user: null }, error: { message: 'User not found', status: 404 } });
       },
       // Wie GoTrue: Schlüssel werden zusammengeführt, null löscht.
       updateUserById: (id: string, attrs: { app_metadata?: Record<string, unknown> }) => {
@@ -212,4 +218,54 @@ Deno.test('login verify turns a valid code into a session and rejects unknown ad
   const g = await fixture();
   assert(await messageOf(() => verifyCode(g.db, { email: 'fremd@example.test', code: '123456', ip: null, login: true }, g.deps)) === 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
   assert(g.calls.links === 0 && g.calls.createUser.length === 0, 'nothing created or looked up for an unknown address');
+});
+
+// Konto-IDs wie in Supabase (UUID), damit der Link dem echten Format entspricht.
+const DANNY = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const CUSTOMER = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+const linkFixture = () => fixture({ recruiters: ['danny@example.test'], users: ['kunde@example.test'], ids: { 'danny@example.test': DANNY, 'kunde@example.test': CUSTOMER } });
+
+Deno.test('a login link greets by first name and sends the code to the account address, without typing it', async () => {
+  const f = await linkFixture();
+  const link = await issueLoginLink(f.db, DANNY);
+  assert(link.startsWith(`${DANNY}.`) && link.length === 36 + 1 + 43, link);
+  const stored = f.users['danny@example.test'].app_metadata[LOGIN_LINK_KEY] as { hash: string; expires_at: string }[];
+  assert(stored.length === 1 && !JSON.stringify(stored).includes(link.split('.')[1]), 'only the hash is stored');
+  const days = (Date.parse(stored[0].expires_at) - Date.now()) / 86_400_000;
+  assert(days > 29.9 && days <= 30, `valid for 30 days, got ${days}`);
+  const p = await peekLoginLink(f.db, link);
+  assert(JSON.stringify(p) === JSON.stringify({ status: 'open', name: 'Danny', masked_email: 'da***@example.test' }), JSON.stringify(p));
+  const sent = await sendCode(f.db, { link, ip: null }, f.deps);
+  const mail = f.calls.mails[0] as { to: string; html: string };
+  assert(sent.sent && sent.masked_email === 'da***@example.test' && mail.to === 'danny@example.test' && mail.html.includes('Dein Anmeldecode'), 'code goes to the account, as a login code');
+  assert(f.calls.createUser.length === 0, 'a link never creates an account');
+  const s = await verifyCode(f.db, { link, code: f.lastCode(), ip: null }, f.deps);
+  assert(s.access_token === 'at', 'the code from the mail signs in');
+  assert((await peekLoginLink(f.db, link)).status === 'open', 'the link stays usable after a sign-in');
+});
+
+Deno.test('expired, tampered or foreign links reveal nothing and send nothing', async () => {
+  const f = await linkFixture();
+  const link = await issueLoginLink(f.db, DANNY);
+  const tampered = `${DANNY}.${'C'.repeat(43)}`;
+  for (const bad of [tampered, 'kaputt', 42, `${DANNY}.${link.split('.')[1]}x`]) {
+    assert(JSON.stringify(await peekLoginLink(f.db, bad)) === '{"status":"invalid"}', `invalid: ${bad}`);
+  }
+  assert(await reasonOf(() => sendCode(f.db, { link: tampered, ip: null }, f.deps)) === 'not_found' && f.calls.mails.length === 0);
+  const customer = await issueLoginLink(f.db, CUSTOMER);
+  assert((await peekLoginLink(f.db, customer)).status === 'invalid', 'no recruiter role, no greeting');
+  const stored = f.users['danny@example.test'].app_metadata[LOGIN_LINK_KEY] as { expires_at: string }[];
+  stored[0].expires_at = '2000-01-01T00:00:00Z';
+  assert(JSON.stringify(await peekLoginLink(f.db, link)) === '{"status":"expired"}');
+  assert(await reasonOf(() => sendCode(f.db, { link, ip: null }, f.deps)) === 'expired' && f.calls.mails.length === 0);
+  assert(await reasonOf(() => verifyCode(f.db, { link, code: '123456', ip: null }, f.deps)) === 'expired' && f.calls.links === 0);
+});
+
+Deno.test('a new welcome mail keeps the last three links valid', async () => {
+  const f = await linkFixture();
+  const links: string[] = [];
+  for (let i = 0; i < 4; i++) links.push(await issueLoginLink(f.db, DANNY));
+  const states = await Promise.all(links.map(l => peekLoginLink(f.db, l).then(p => p.status)));
+  assert(JSON.stringify(states) === JSON.stringify(['invalid', 'open', 'open', 'open']), JSON.stringify(states));
+  assert(f.users['danny@example.test'].app_metadata.provider === 'email', 'other metadata stays');
 });

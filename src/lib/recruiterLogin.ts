@@ -14,3 +14,6 @@ export function safeRecruiterPath(value: string | null | undefined): string {
 }
 
 export const loginPathFor = (path: string) => `/recruiter/login?next=${encodeURIComponent(path)}`;
+
+/** Antwort auf den persönlichen Link aus der Willkommensmail (/recruiter/login#<Schlüssel>). */
+export type LoginLinkPeek = { status: 'open'; name: string; masked_email: string } | { status: 'expired' | 'invalid' };

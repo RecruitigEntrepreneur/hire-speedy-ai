@@ -9,7 +9,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { preflight, json, clientIp } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { hashToken } from '../_shared/tokens.ts';
-import { peekCase, sendCode, verifyCode } from '../_shared/recruiter-code.ts';
+import { peekCase, peekLoginLink, sendCode, verifyCode } from '../_shared/recruiter-code.ts';
 import { enrichCase } from '../_shared/recruiter-enrich.ts';
 import { cleanExpertise, expertiseIssues } from '../_shared/recruiter-expertise.ts';
 import { cleanProfile, normalizeEmail, canOpenRecruiterSignature } from '../_shared/recruiter-contract-policy.ts';
@@ -21,11 +21,11 @@ serve(async req => {
     must(req.method === 'POST', 'Bitte POST verwenden.');
     const body = await req.json();
     const db = serviceClient();
-    // Ohne Sitzung: Einladung ansehen, Code anfordern, Code prüfen. Alles
-    // Weitere verlangt die bestätigte E-Mail-Adresse.
-    if (body.action === 'peek') return json(await peekCase(db, body.token));
-    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, ip: clientIp(req), login: body.login === true }));
-    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, code: body.code, ip: clientIp(req), login: body.login === true }));
+    // Ohne Sitzung: Einladung oder persönlichen Anmeldelink ansehen, Code
+    // anfordern, Code prüfen. Alles Weitere verlangt die bestätigte E-Mail-Adresse.
+    if (body.action === 'peek') return json(body.link !== undefined ? await peekLoginLink(db, body.link) : await peekCase(db, body.token));
+    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, link: body.link, ip: clientIp(req), login: body.login === true }));
+    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, link: body.link, code: body.code, ip: clientIp(req), login: body.login === true }));
     const user = await verifiedUser(req);
     if (body.action === 'access') return json(await recruiterAccess(db,user));
     if (body.action === 'resume' || body.action === 'begin') {

@@ -5,6 +5,7 @@ import { sendIntakeMail, layout, esc } from './intake-mail.ts';
 import { isPlausibleEmail, maskEmail } from './domain.ts';
 import { normalizeEmail } from './recruiter-contract-policy.ts';
 import { must, dbError, type OnboardingCase } from './recruiter-onboarding-service.ts';
+import { checkLoginLink } from './recruiter-login-link.ts';
 
 /**
  * Anmeldung per Code statt Konto.
@@ -22,6 +23,8 @@ import { must, dbError, type OnboardingCase } from './recruiter-onboarding-servi
  * Mit `login` (Anmeldeseite /recruiter/login, 21.09.2026) legen code und verify
  * kein Konto an: Der Code geht nur an bestehende Headhunter-Konten, und die
  * Antwort ist für unbekannte Adressen dieselbe, damit niemand Konten ausforscht.
+ * Statt der Adresse kann der persönliche `link` aus der Willkommensmail kommen
+ * (recruiter-login-link.ts); dann ist der Code an die Adresse des Kontos gebunden.
  *
  * Der Code ist unserer, wie in der Kunden-Jobaufnahme: sechs Ziffern, eine
  * Stunde gültig, fünf Versuche. Gespeichert wird nur der gepfefferte Hash in
@@ -77,9 +80,33 @@ export async function peekCase(db: SupabaseClient, token: unknown) {
 }
 
 interface Target { email: string; name: string; caseId: string | null }
+interface Identity { token?: unknown; email?: unknown; link?: unknown }
+// Anmeldeseite: per Adresse mit `login`, oder immer über den persönlichen Link.
+const loginMode = (body: Identity & { login?: boolean }) => body.token === undefined && (body.login === true || body.link !== undefined);
+
+/** Persönlicher Link → Headhunter-Konto. Nur mit Recruiter-Rolle, sonst wie ein fremder Link. */
+async function linkRecruiter(db: SupabaseClient, link: unknown): Promise<{ status: 'open'; email: string; name: string } | { status: 'expired' | 'invalid' }> {
+  const state = await checkLoginLink(db, link);
+  if (state.status !== 'open') return state;
+  const email = normalizeEmail(state.user.email ?? '');
+  const found = await findRecruiter(db, email);
+  return found ? { status: 'open', email, name: found.name || firstName(state.user.user_metadata?.full_name) } : { status: 'invalid' };
+}
+
+/** Anmeldeseite mit Link: Vorname und maskierte Adresse, nie die Adresse selbst. */
+export async function peekLoginLink(db: SupabaseClient, link: unknown) {
+  const found = await linkRecruiter(db, link);
+  return found.status === 'open' ? { status: 'open' as const, name: found.name, masked_email: maskEmail(found.email) } : { status: found.status };
+}
 // Wohin der Code geht. Ein begonnener Vorgang darf weitermachen, auch wenn der
 // Link inzwischen abgelaufen ist; das entspricht der Regel in `load`.
-async function resolveTarget(db: SupabaseClient, body: { token?: unknown; email?: unknown }): Promise<Target> {
+async function resolveTarget(db: SupabaseClient, body: Identity): Promise<Target> {
+  if (body.token === undefined && body.link !== undefined) {
+    const found = await linkRecruiter(db, body.link);
+    must(found.status !== 'expired', 'Dieser Link ist abgelaufen. Gib deine E-Mail-Adresse ein, wir schicken dir einen Code.', 'expired');
+    must(found.status === 'open', 'Dieser Link funktioniert nicht mehr. Gib deine E-Mail-Adresse ein, wir schicken dir einen Code.', 'not_found');
+    return { email: found.email, name: found.name, caseId: null };
+  }
   if (body.token !== undefined) {
     const c = await caseByToken(db, body.token);
     const status = caseStatus(c);
@@ -95,10 +122,6 @@ async function resolveTarget(db: SupabaseClient, body: { token?: unknown; email?
 const alreadyRegistered = (error: { code?: string; message?: string }) =>
   error.code === 'email_exists' || /already|exists|registered/i.test(error.message ?? '');
 
-// Konto anlegen oder nachschlagen. Der Trigger handle_new_user legt Profil und
-// Recruiter-Rolle an; ein vorhandenes Konto bleibt unverändert. Zum Nachschlagen
-// dient generateLink, das Konto samt Metadaten liefert; das dabei erzeugte
-// Link-Token bleibt ungenutzt.
 /** Bestehendes Headhunter-Konto zu einer Adresse, ohne etwas anzulegen (Profil und Rolle). */
 async function findRecruiter(db: SupabaseClient, email: string): Promise<{ id: string; name: string } | null> {
   const { data: profile, error } = await db.from('profiles').select('user_id,full_name').eq('email', email).limit(1).maybeSingle();
@@ -109,6 +132,10 @@ async function findRecruiter(db: SupabaseClient, email: string): Promise<{ id: s
   return role ? { id: profile.user_id as string, name: firstName(profile.full_name) } : null;
 }
 
+// Konto anlegen oder nachschlagen. Der Trigger handle_new_user legt Profil und
+// Recruiter-Rolle an; ein vorhandenes Konto bleibt unverändert. Zum Nachschlagen
+// dient generateLink, das Konto samt Metadaten liefert; das dabei erzeugte
+// Link-Token bleibt ungenutzt.
 async function ensureUser(db: SupabaseClient, email: string, name: string): Promise<User> {
   const created = await db.auth.admin.createUser({ email, email_confirm: false, user_metadata: { full_name: name, role: 'recruiter' } });
   if (created.data?.user) return created.data.user;
@@ -122,8 +149,8 @@ async function ensureUser(db: SupabaseClient, email: string, name: string): Prom
   return link.data.user;
 }
 
-export async function sendCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
-  const login = body.login === true && body.token === undefined;
+export async function sendCode(db: SupabaseClient, body: Identity & { ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
+  const login = loginMode(body);
   const target = await resolveTarget(db, body);
   const limit = await deps.limits(db, LIMITS.recruiterCode(target.email, body.ip));
   if (!limit.allowed) {
@@ -167,7 +194,7 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
   return { sent: true, masked_email: maskEmail(target.email), code_length: CODE_LENGTH };
 }
 
-export async function verifyCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; code?: unknown; ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
+export async function verifyCode(db: SupabaseClient, body: Identity & { code?: unknown; ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
   const target = await resolveTarget(db, body);
   const code = String(body.code ?? '').replace(/\s+/g, '');
   must(CODE_PATTERN.test(code), 'Bitte gib den sechsstelligen Code aus der E-Mail ein.');
@@ -177,7 +204,7 @@ export async function verifyCode(db: SupabaseClient, body: { token?: unknown; em
   const limit = await deps.limits(db, LIMITS.recruiterVerify(target.email, body.ip));
   must(limit.allowed, 'Zu viele Versuche. Warte einen Moment und fordere dann einen neuen Code an.', 'rate_limited');
   // Anmeldeseite: Ohne bestehendes Headhunter-Konto gibt es nichts zu prüfen und nichts anzulegen.
-  if (body.login === true && body.token === undefined) must(await findRecruiter(db, target.email), 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
+  if (loginMode(body)) must(await findRecruiter(db, target.email), 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
   // Konto samt gespeichertem Code holen; das Einmal-Token wird gleich zur Sitzung.
   const link = await db.auth.admin.generateLink({ type: 'magiclink', email: target.email });
   const user = link.data?.user;

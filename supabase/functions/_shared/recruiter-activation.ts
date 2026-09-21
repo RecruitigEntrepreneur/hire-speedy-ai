@@ -2,6 +2,7 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getPublicAppUrl } from './app-url.ts';
 import { esc, layout, sendIntakeMail } from './intake-mail.ts';
 import type { OnboardingCase, RecruiterEnvelope } from './recruiter-onboarding-service.ts';
+import { issueLoginLink, LOGIN_LINK_DAYS } from './recruiter-login-link.ts';
 
 /**
  * Freischaltung eines Headhunters: Recruiter-Rolle verifiziert, Profil mit Name
@@ -22,18 +23,24 @@ export function profilePatch(current: { full_name?: string | null; company_name?
   return patch;
 }
 
-export function welcomeMail(c: Pick<OnboardingCase, 'profile'>, appUrl: string) {
+/**
+ * Mit persönlichem Link erkennt die Anmeldeseite den Headhunter und schickt den
+ * Code auf Knopfdruck (Entscheidung 21.09.2026). Ohne Link, falls er sich nicht
+ * erzeugen ließ, gibt er dort seine Adresse ein.
+ */
+export function welcomeMail(c: Pick<OnboardingCase, 'profile'>, appUrl: string, link: string | null = null) {
   const firstName = String(c.profile.name ?? '').trim().split(/\s+/)[0] ?? '';
   const html = layout({
     preheader: 'Dein Zugang ist frei. In zwei Minuten bist du drin.',
     heading: 'Willkommen im Netzwerk',
     body: `<p>Hallo${firstName ? ' ' + esc(firstName) : ''},</p><p>wir haben deinen Vertrag gegengezeichnet. Er ist jetzt komplett, und dein Zugang ist freigeschaltet.</p>`
       + '<p><strong>So kommst du rein:</strong></p><ol style="margin:0 0 16px 0;padding-left:20px;">'
-      + '<li>Tippe auf „Jetzt anmelden“.</li><li>Bestätige deine E-Mail-Adresse mit dem Code, den wir dir schicken.</li>'
-      + '<li>Leg dein Passwort fest. Dann bist du in deinem Dashboard, und ein kurzer Rundgang zeigt dir das Wichtigste.</li></ol>'
-      + `<p>Deinen unterschriebenen Vertrag findest du jederzeit hier: <a href="${esc(appUrl)}/recruiter/onboarding">Vertrag ansehen</a>.</p>`
+      + (link ? '<li>Tippe auf „Jetzt anmelden“.</li>' : '<li>Tippe auf „Jetzt anmelden“ und gib deine E-Mail-Adresse ein.</li>')
+      + '<li>Bestätige mit dem Code, den wir dir dann schicken.</li>'
+      + '<li>Leg dein Passwort fest. Dann bist du in deinem Dashboard, und ein kurzer Rundgang zeigt dir das Wichtigste.</li></ol>',
+    cta: { label: 'Jetzt anmelden', url: `${appUrl}/recruiter/login${link ? `#${link}` : ''}` },
+    after: (link ? `<p>Der Link ist persönlich und ${LOGIN_LINK_DAYS} Tage gültig.</p>` : '')
       + '<p>Bei Fragen antworte einfach auf diese Mail.</p><p>Viele Grüße<br>dein Matchunt-Team</p>',
-    cta: { label: 'Jetzt anmelden', url: `${appUrl}/recruiter/login` },
     footnote: `<a href="${esc(appUrl)}/impressum">Impressum</a> · <a href="${esc(appUrl)}/datenschutz">Datenschutz</a>`,
   });
   return { subject: 'Dein Vertrag ist komplett – willkommen bei Matchunt', html };
@@ -60,15 +67,23 @@ export async function grantRecruiterAccess(db: SupabaseClient, c: ActivationCase
   return true;
 }
 
-export function sendWelcomeMail(db: SupabaseClient, c: ActivationCase, opts: { replyTo?: string; idempotencyKey?: string } = {},
-  deps = { mail: sendIntakeMail, appUrl: getPublicAppUrl }) {
-  const { subject, html } = welcomeMail(c, deps.appUrl());
+export interface WelcomeDeps { mail: typeof sendIntakeMail; appUrl: () => string; issueLink?: typeof issueLoginLink }
+const liveWelcomeDeps: WelcomeDeps = { mail: sendIntakeMail, appUrl: getPublicAppUrl, issueLink: issueLoginLink };
+
+export async function sendWelcomeMail(db: SupabaseClient, c: ActivationCase, opts: { replyTo?: string; idempotencyKey?: string } = {},
+  deps: WelcomeDeps = liveWelcomeDeps) {
+  // Ohne Link geht die Mail trotzdem raus, dann mit der allgemeinen Anmeldeseite.
+  const link = c.claimed_by ? await (deps.issueLink ?? issueLoginLink)(db, c.claimed_by).catch(e => {
+    console.error('[recruiter-activation] Anmeldelink nicht erzeugt', e instanceof Error ? e.message : e);
+    return null;
+  }) : null;
+  const { subject, html } = welcomeMail(c, deps.appUrl(), link);
   return deps.mail(db, { to: c.email, subject, html, template: 'recruiter_onboarding_activation', replyTo: opts.replyTo,
     idempotencyKey: opts.idempotencyKey, meta: { case_id: c.id } });
 }
 
 /** Nach der Gegenzeichnung: freischalten und begrüßen, einmal je Vorgang. Wirft nie. */
-export async function autoActivateRecruiter(db: SupabaseClient, e: RecruiterEnvelope, deps = { mail: sendIntakeMail, appUrl: getPublicAppUrl }) {
+export async function autoActivateRecruiter(db: SupabaseClient, e: RecruiterEnvelope, deps: WelcomeDeps = liveWelcomeDeps) {
   if (e.state !== 'completed') return;
   try {
     const { data: c, error } = await db.from('recruiter_onboarding_cases').select('*').eq('id', e.case_id).maybeSingle();

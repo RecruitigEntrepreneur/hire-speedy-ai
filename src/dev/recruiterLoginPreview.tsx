@@ -8,11 +8,15 @@ import '@/index.css';
 
 // Separate Vite-Entwicklungsseite für /recruiter/login. Sie meldet niemanden an
 // und ruft keinen Server auf: Code-API, Auth und Rollenabfrage sind nachgestellt.
-//   /__preview/recruiter-login.html?scenario=first|returning|signed-in
+//   /__preview/recruiter-login.html?scenario=first|returning|signed-in|link|link-expired|link-invalid
 // Der Code lautet immer 123456. Das Passwort „passwort“ gilt als zu einfach.
+// Die link-Szenarien öffnen die Seite wie aus der Willkommensmail (#Schlüssel).
 if (!import.meta.env.DEV) throw new Error('This preview is only available in development.');
 
 const scenario = new URLSearchParams(location.search).get('scenario') ?? 'first';
+const LINK = `0f8fad5b-d9cb-469f-a165-70867728950e.${'k'.repeat(43)}`;
+if (scenario.startsWith('link')) history.replaceState(null, '', `${location.pathname}${location.search}#${LINK}`);
+const linkStatus = scenario === 'link' ? 'open' : scenario === 'link-expired' ? 'expired' : 'invalid';
 let user = {
   id: 'user-1', email: 'dk@kmb-partners.com', app_metadata: {}, aud: 'authenticated', created_at: '2026-09-15T09:00:00Z',
   user_metadata: { full_name: 'Danny Kostic', ...(scenario === 'returning' ? { password_set_at: '2026-09-20T10:00:00Z' } : {}) },
@@ -30,9 +34,15 @@ Object.defineProperty(supabase, 'functions', { configurable: true, value: {
   invoke: async (_name: string, opts?: { body?: Record<string, unknown> }) => {
     const body = opts?.body ?? {};
     await wait(350);
+    if (body.action === 'peek' && body.link !== undefined) {
+      if (body.link !== LINK) return { data: { status: 'invalid' }, error: null };
+      return { data: linkStatus === 'open' ? { status: 'open', name: 'Danny', masked_email: 'dk****@kmb-partners.com' } : { status: linkStatus }, error: null };
+    }
     if (body.login !== true) return fail('Vorschau: nur der Anmelde-Modus ist nachgestellt.');
+    if (body.link !== undefined && (body.link !== LINK || linkStatus !== 'open')) return fail('Dieser Link funktioniert nicht mehr. Gib deine E-Mail-Adresse ein, wir schicken dir einen Code.');
     switch (body.action) {
       case 'code':
+        if (body.link !== undefined) return { data: { sent: true, masked_email: 'dk****@kmb-partners.com', code_length: 6 }, error: null };
         if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(body.email))) return fail('Bitte gib eine gültige E-Mail-Adresse an.');
         return { data: { sent: true, masked_email: String(body.email).replace(/^(..)[^@]*/, '$1****'), code_length: 6 }, error: null };
       case 'verify':

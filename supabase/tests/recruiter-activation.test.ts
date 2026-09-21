@@ -19,8 +19,10 @@ function fixture(options:{caseRow?:Record<string,unknown>|null;role?:Record<stri
   const q={select:()=>q,eq:()=>q,update:(p:Record<string,unknown>)=>{patch=p;writes.push({table,patch:p});return q;},
    maybeSingle:async()=>result(),then:(resolve:(v:unknown)=>unknown)=>Promise.resolve(result()).then(resolve)};
   return q;}} as unknown as SupabaseClient;
- const deps={mail:(async(_db:SupabaseClient,args:MailArgs)=>{mails.push(args);return {sent:true};}) as typeof sendIntakeMail,appUrl:()=>'https://matchunt.ai'};
- return {db,deps,mails,writes};
+ const issued:string[]=[];
+ const deps={mail:(async(_db:SupabaseClient,args:MailArgs)=>{mails.push(args);return {sent:true};}) as typeof sendIntakeMail,appUrl:()=>'https://matchunt.ai',
+  issueLink:async(_db:SupabaseClient,userId:string)=>{issued.push(userId);return `${userId}.${'L'.repeat(43)}`;}};
+ return {db,deps,mails,writes,issued};
 }
 Deno.test('only empty fields are filled; a first name from the code login becomes the full name',()=>{
  assert(JSON.stringify(profilePatch({full_name:'Danny',company_name:''},{name:'Danny Beispiel',company:'Beispiel GmbH'}))===JSON.stringify({full_name:'Danny Beispiel',company_name:'Beispiel GmbH'}));
@@ -28,14 +30,21 @@ Deno.test('only empty fields are filled; a first name from the code login become
  assert(JSON.stringify(profilePatch({full_name:'D. Beispiel',company_name:'Eigene Firma'},{name:'Danny Beispiel',company:'Beispiel GmbH'}))==='{}','self-maintained values stay');
  assert(JSON.stringify(profilePatch({full_name:'Dan',company_name:'x'},{name:'Danny Beispiel'}))==='{}','a different first name stays');
 });
-Deno.test('the welcome mail greets by first name, explains the way in and escapes',()=>{
- const {subject,html}=welcomeMail({profile:{name:'Danny <b>Beispiel</b>'}} as never,'https://matchunt.ai');
+Deno.test('the welcome mail greets by first name, leads through the personal link and escapes',()=>{
+ const link=`user-1.${'L'.repeat(43)}`;
+ const {subject,html}=welcomeMail({profile:{name:'Danny <b>Beispiel</b>'}} as never,'https://matchunt.ai',link);
  assert(subject==='Dein Vertrag ist komplett – willkommen bei Matchunt');
- assert(html.includes('Hallo Danny,')&&html.includes('gegengezeichnet')&&html.includes('Leg dein Passwort fest')&&html.includes('Rundgang')&&html.includes('Jetzt anmelden')&&html.includes('https://matchunt.ai/recruiter/login')&&html.includes('Vertrag ansehen'));
+ assert(html.includes('Hallo Danny,')&&html.includes('gegengezeichnet')&&html.includes('Bestätige mit dem Code, den wir dir dann schicken')&&html.includes('Leg dein Passwort fest')&&html.includes('Rundgang'));
+ assert(html.includes(`https://matchunt.ai/recruiter/login#${link}`)&&html.includes('Der Link ist persönlich und 30 Tage gültig.'),'personal link');
+ assert(html.indexOf('Jetzt anmelden')<html.indexOf('Der Link ist persönlich')&&html.indexOf('Der Link ist persönlich')<html.indexOf('Bei Fragen antworte'),'order as in the sketch: button, validity, questions');
+ assert(!html.includes('Vertrag ansehen')&&!html.includes('/recruiter/onboarding'),'no contract link any more');
  assert(!html.includes('<b>Beispiel</b>'));
+ const plain=welcomeMail({profile:{name:'Danny'}} as never,'https://matchunt.ai').html;
+ assert(plain.includes('https://matchunt.ai/recruiter/login"')&&plain.includes('gib deine E-Mail-Adresse ein')&&!plain.includes('30 Tage'),'without a link the address is typed');
 });
 Deno.test('countersigning activates, completes the profile and welcomes once',async()=>{
  const f=fixture();await autoActivateRecruiter(f.db,envelope(),f.deps);
+ assert(JSON.stringify(f.issued)==='["user-1"]'&&String(f.mails[0]?.html).includes(`/recruiter/login#user-1.${'L'.repeat(43)}`),'personal link for the activated account');
  const role=f.writes.find(w=>w.table==='user_roles');assert(role?.patch.verified===true&&role.patch.status==='active','role verified');
  const profile=f.writes.find(w=>w.table==='profiles');assert(profile?.patch.full_name==='Danny Beispiel'&&profile.patch.company_name==='Beispiel Personal GmbH','profile filled');
  assert(f.mails.length===1);const m=f.mails[0];
@@ -48,6 +57,10 @@ Deno.test('no activation before completion, without approval, for revoked or unc
   [{},{caseRow:{...approvedCase,claimed_by:null}}],[{},{caseRow:null}],[{},{role:{verified:true}}],[{},{role:null}],
  ];
  for(const [over,options] of cases){const f=fixture(options);await autoActivateRecruiter(f.db,envelope(over),f.deps);assert(f.mails.length===0&&!f.writes.length,JSON.stringify([over,options]));}
+});
+Deno.test('if the link cannot be created, the welcome mail still goes out with the plain login page',async()=>{
+ const f=fixture();await autoActivateRecruiter(f.db,envelope(),{...f.deps,issueLink:async()=>{throw Error('auth down');}});
+ assert(f.mails.length===1&&String(f.mails[0].html).includes('https://matchunt.ai/recruiter/login"')&&String(f.mails[0].html).includes('gib deine E-Mail-Adresse ein'));
 });
 Deno.test('a vanished role sends no mail, and errors never break the DocuSign sync',async()=>{
  const f=fixture({granted:false});await autoActivateRecruiter(f.db,envelope(),f.deps);assert(f.mails.length===0);
