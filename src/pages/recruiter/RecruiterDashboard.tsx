@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/tooltip';
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
-import { RecruiterVerificationBanner } from '@/components/verification/RecruiterVerificationBanner';
+import { RecruiterStartChecklist } from '@/components/recruiter/RecruiterStartChecklist';
 import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
@@ -575,7 +575,7 @@ export default function RecruiterDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-5 max-w-5xl">
-        <RecruiterVerificationBanner />
+        <RecruiterStartChecklist />
 
         {/* ═══ HEADER ═══ */}
         <Card className="border-border/30 shadow-sm" data-tour="dashboard.header">

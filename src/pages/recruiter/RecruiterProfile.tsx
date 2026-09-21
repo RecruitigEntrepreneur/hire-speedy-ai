@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { cn } from '@/lib/utils';
+import { onboardingApi, type StoredOnboarding } from '@/lib/recruiterOnboardingApi';
+import { contractSuggestion } from '@/lib/recruiterStart';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,7 +26,8 @@ import {
   Target,
   Award,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,6 +70,19 @@ export default function RecruiterProfile() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fromContract, setFromContract] = useState(false);
+  const [focus, setFocus] = useState('');
+  const location = useLocation();
+
+  // Vom Startkasten im Dashboard: zum Abschnitt springen und ihn kurz hervorheben.
+  useEffect(() => {
+    const id = location.hash.slice(1);
+    if (loading || !['firmendaten', 'bankverbindung'].includes(id)) return;
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setFocus(id);
+    const timer = window.setTimeout(() => setFocus(''), 2500);
+    return () => window.clearTimeout(timer);
+  }, [loading, location.hash]);
 
   useEffect(() => {
     if (user) {
@@ -83,6 +101,17 @@ export default function RecruiterProfile() {
 
       if (profileData) {
         setProfile(profileData);
+        // Leere Firmendaten aus dem unterschriebenen Vertrag vorschlagen; gespeichert wird erst mit „Speichern“.
+        if (!profileData.company_name?.trim() || !profileData.company_address?.trim() || !profileData.tax_id?.trim()) {
+          try {
+            const { onboarding } = await onboardingApi<{ onboarding: StoredOnboarding | null }>(false, { action: 'resume' });
+            const suggestion = onboarding?.profile ? contractSuggestion(profileData, onboarding.profile) : null;
+            if (suggestion) {
+              setProfile(prev => prev ? { ...prev, ...suggestion } : prev);
+              setFromContract(true);
+            }
+          } catch { /* Ohne Vorschlag bleibt das Formular, wie es ist. */ }
+        }
       }
 
       // Fetch documents
@@ -265,7 +294,7 @@ export default function RecruiterProfile() {
             </Card>
 
             {/* Company Data */}
-            <Card>
+            <Card id="firmendaten" className={cn('scroll-mt-24 transition-shadow', focus === 'firmendaten' && 'ring-2 ring-primary')}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
@@ -273,6 +302,7 @@ export default function RecruiterProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {fromContract && <p className="flex items-center gap-2 text-sm text-success"><Info className="h-4 w-4 shrink-0" />Aus deinem Vertrag übernommen. Bitte prüfen und speichern.</p>}
                 <div className="space-y-2">
                   <Label htmlFor="company_name">Firmenname</Label>
                   <Input
@@ -302,7 +332,7 @@ export default function RecruiterProfile() {
             </Card>
 
             {/* Bank Details */}
-            <Card>
+            <Card id="bankverbindung" className={cn('scroll-mt-24 transition-shadow', focus === 'bankverbindung' && 'ring-2 ring-primary')}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
