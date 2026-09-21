@@ -71,7 +71,7 @@ export function CaseWorkflow({ c, packet, docusignEnabled, busy, onAction }: {
             onClick={() => confirmThen('Vertragsvorgang wirklich zurücknehmen? Der DocuSign-Umschlag wird ungültig.', 'void', { reason })}>Vertragsvorgang zurücknehmen</Button>
         </div>
       </details>
-      <p className="text-xs text-muted-foreground">Der Vertragsabschluss wird über DocuSign bestätigt. Die Freischaltung ist ein eigener Schritt.</p>
+      <p className="text-xs text-muted-foreground">Der Vertragsabschluss wird über DocuSign bestätigt. Danach schaltet das System den Headhunter automatisch frei und schickt ihm die Zugangsmail.</p>
     </section>}
 
     {['review', 'approved'].includes(c.state) && !packet && <>

@@ -13,6 +13,7 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { recipientView, type DocuSignConfig } from '../_shared/docusign.ts';
 import { caseMails, invitationMails } from '../_shared/email-event-log.ts';
 import { refreshDueContracts } from '../_shared/recruiter-contract-refresh.ts';
+import { grantRecruiterAccess, sendWelcomeMail } from '../_shared/recruiter-activation.ts';
 import { cleanProfile, normalizeEmail, validEmail, profileIssues, packageIssues, requiredReviewChecks, type ContractDocument } from '../_shared/recruiter-contract-policy.ts';
 import { must, dbError, caseById, patchCase, envelopeById, patchEnvelope, signatureConfig, providerRequest, sha256, syncEnvelope, workflowFailure, type RecruiterEnvelope, type OnboardingCase } from '../_shared/recruiter-onboarding-service.ts';
 
@@ -132,24 +133,14 @@ serve(async req => {
       return json({ id: sent.id, url, expires_at: sent.expires_at });
     }
     if (body.action === 'activate') {
-      // Freischaltung: erst nach Prüfung, Freigabe und beidseitiger Unterschrift.
-      // Setzt die Recruiter-Rolle auf verifiziert und schickt die Zugangsmail.
-      // Mehrfach auslösbar, falls die Mail nicht ankam.
+      // Freischaltung von Hand: Normalfall ist seit 21.09.2026 die automatische nach der
+      // Gegenzeichnung (autoActivateRecruiter). Hier nur, falls die scheiterte, oder um
+      // die Zugangsmail erneut zu senden. Erst nach Prüfung, Freigabe und beidseitiger Unterschrift.
       must(c.state === 'approved' && !c.revoked_at && c.claimed_by, 'Der Vorgang ist noch nicht geprüft und freigegeben.', 'conflict');
       const { data: done, error: de } = await db.from('recruiter_contract_envelopes').select('id').eq('case_id', c.id).eq('state', 'completed').limit(1).maybeSingle();
       dbError(de); must(done, 'Der Vertrag ist noch nicht von beiden Seiten unterzeichnet.', 'conflict');
-      const { data: role, error: re } = await db.from('user_roles').update({ verified: true, status: 'active' }).eq('user_id', c.claimed_by).eq('role', 'recruiter').select('user_id').maybeSingle();
-      dbError(re); must(role, 'Für dieses Konto gibt es keine Recruiter-Rolle.', 'conflict');
-      const firstName = String(c.profile.name ?? '').trim().split(/\s+/)[0] ?? '';
-      const result = await sendIntakeMail(db, {
-        to: c.email, subject: 'Du bist freigeschaltet – willkommen bei Matchunt',
-        template: 'recruiter_onboarding_activation', replyTo: admin.email,
-        html: layout({ preheader: 'Dein Zugang ist frei. Richte jetzt dein Passwort ein.', heading: 'Willkommen im Netzwerk',
-          body: `<p>Hallo${firstName ? ' ' + esc(firstName) : ''},</p><p>dein Vertrag ist von beiden Seiten unterzeichnet und dein Zugang ist freigeschaltet.</p><p>Richte jetzt dein Passwort ein. Danach kannst du direkt loslegen: Positionen ansehen und Kandidaten vorschlagen.</p><p>Bei Fragen antworte einfach auf diese Nachricht.</p><p>Viele Grüße<br>dein Matchunt-Team</p>`,
-          cta: { label: 'Zugang einrichten', url: `${getPublicAppUrl()}/recruiter/onboarding` },
-          footnote: `Auf der Seite bestätigst du deine E-Mail-Adresse mit einem Code und legst dann dein Passwort fest. <a href="${esc(getPublicAppUrl())}/impressum">Impressum</a> · <a href="${esc(getPublicAppUrl())}/datenschutz">Datenschutz</a>`,
-        }), meta: { case_id: c.id },
-      });
+      must(await grantRecruiterAccess(db, c), 'Für dieses Konto gibt es keine Recruiter-Rolle.', 'conflict');
+      const result = await sendWelcomeMail(db, c, { replyTo: admin.email });
       must(result.sent, 'Freigeschaltet, aber die Zugangsmail konnte nicht versendet werden. Bitte erneut auslösen.', 'upstream_error');
       return json({ ok: true });
     }

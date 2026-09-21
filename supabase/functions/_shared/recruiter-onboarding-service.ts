@@ -4,6 +4,7 @@ import { fail, type FailureReason, isMissingRelation } from './http.ts';
 import { type ContractDocument, type RecruiterProfile, signingEvidence } from './recruiter-contract-policy.ts';
 import { accessToken, docusignConfig, type DocuSignConfig } from './docusign.ts';
 import { noticeRecruiterSigned } from './recruiter-signed-notice.ts';
+import { autoActivateRecruiter } from './recruiter-activation.ts';
 
 export interface OnboardingCase {
   id: string; revision: number; created_by: string | null; contract_template_hash: string | null; kind: string; email: string; token_hash: string;
@@ -105,6 +106,8 @@ export async function syncEnvelope(db: SupabaseClient, e: RecruiterEnvelope, cfg
   const updated = await patchEnvelope(db, e, patch);
   // Headhunter hat unterschrieben: Matchunt per Mail zum Gegenzeichnen auffordern (einmal je Vertrag, wirft nie).
   await noticeRecruiterSigned(db, updated, cfg);
+  // Beide Unterschriften bestätigt: Headhunter freischalten und begrüßen (wirft nie; sonst bleibt der Admin-Knopf).
+  await autoActivateRecruiter(db, updated);
   return updated;
 }
 export async function publicCase(db: SupabaseClient, c: OnboardingCase) {
