@@ -10,8 +10,9 @@ import { requireAdmin } from '../_shared/admin-auth.ts';
 import { generateToken, hashToken } from '../_shared/tokens.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
-import { recipientView } from '../_shared/docusign.ts';
+import { recipientView, type DocuSignConfig } from '../_shared/docusign.ts';
 import { caseMails, invitationMails } from '../_shared/email-event-log.ts';
+import { refreshDueContracts } from '../_shared/recruiter-contract-refresh.ts';
 import { cleanProfile, normalizeEmail, validEmail, profileIssues, packageIssues, requiredReviewChecks, type ContractDocument } from '../_shared/recruiter-contract-policy.ts';
 import { must, dbError, caseById, patchCase, envelopeById, patchEnvelope, signatureConfig, providerRequest, sha256, syncEnvelope, workflowFailure, type RecruiterEnvelope, type OnboardingCase } from '../_shared/recruiter-onboarding-service.ts';
 
@@ -62,10 +63,12 @@ serve(async req => {
       }
       // Einladungsmail je Vorgang für die Liste. Fehlt email_events, bleibt die Liste trotzdem nutzbar.
       const mails = await invitationMails(db, ids).catch(e => { console.error('[recruiter-admin] Mailstatus nicht geladen', e?.message ?? e); return null; });
-      let ready = false; let setupMessage = '';
-      try { signatureConfig(); await recruiterCountersigner(db); ready = true; }
+      let ready = false; let setupMessage = ''; let cfg: DocuSignConfig | null = null;
+      try { cfg = signatureConfig(); await recruiterCountersigner(db); ready = true; }
       catch (e) { setupMessage = e instanceof Error ? e.message : 'DocuSign-Einrichtung prüfen.'; }
-      return json({ cases: (cases ?? []).map(({ claimed_by, ...row }) => ({ ...row, activated: typeof claimed_by === 'string' && activated.has(claimed_by), ...(mails ? { mail: mails[row.id] ?? null } : {}) })), contracts, docusign_enabled: ready, docusign_setup_message: setupMessage });
+      // Offene Unterschriften selbst bei DocuSign abfragen; dabei geht auch die Mail zum Gegenzeichnen raus.
+      const fresh = cfg ? await refreshDueContracts(db, (contracts ?? []) as RecruiterEnvelope[], cfg) : contracts;
+      return json({ cases: (cases ?? []).map(({ claimed_by, ...row }) => ({ ...row, activated: typeof claimed_by === 'string' && activated.has(claimed_by), ...(mails ? { mail: mails[row.id] ?? null } : {}) })), contracts: fresh, docusign_enabled: ready, docusign_setup_message: setupMessage });
     }
     if (body.action === 'create') {
       const email = normalizeEmail(String(body.email ?? ''));

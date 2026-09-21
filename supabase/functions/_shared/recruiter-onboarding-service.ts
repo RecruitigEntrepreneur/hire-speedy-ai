@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fail, type FailureReason, isMissingRelation } from './http.ts';
 import { type ContractDocument, type RecruiterProfile, signingEvidence } from './recruiter-contract-policy.ts';
 import { accessToken, docusignConfig, type DocuSignConfig } from './docusign.ts';
+import { noticeRecruiterSigned } from './recruiter-signed-notice.ts';
 
 export interface OnboardingCase {
   id: string; revision: number; created_by: string | null; contract_template_hash: string | null; kind: string; email: string; token_hash: string;
@@ -101,7 +102,10 @@ export async function syncEnvelope(db: SupabaseClient, e: RecruiterEnvelope, cfg
     }
     patch.state = 'completed';
   } else if (status.status !== 'created') patch.state = 'sent';
-  return await patchEnvelope(db, e, patch);
+  const updated = await patchEnvelope(db, e, patch);
+  // Headhunter hat unterschrieben: Matchunt per Mail zum Gegenzeichnen auffordern (einmal je Vertrag, wirft nie).
+  await noticeRecruiterSigned(db, updated, cfg);
+  return updated;
 }
 export async function publicCase(db: SupabaseClient, c: OnboardingCase) {
   const { data, error } = await db.from('recruiter_contract_envelopes')
