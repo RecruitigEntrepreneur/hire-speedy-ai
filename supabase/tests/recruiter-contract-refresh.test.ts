@@ -1,5 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { contractsDueForSync, refreshDueContracts, LIST_SYNC_LIMIT } from '../functions/_shared/recruiter-contract-refresh.ts';
+import { contractsDueForSync, refreshDueContracts, syncDue, LIST_SYNC_LIMIT } from '../functions/_shared/recruiter-contract-refresh.ts';
 import type { RecruiterEnvelope } from '../functions/_shared/recruiter-onboarding-service.ts';
 import type { DocuSignConfig } from '../functions/_shared/docusign.ts';
 const assert=(v:unknown,m='Assertion failed')=>{if(!v)throw Error(m);};
@@ -27,4 +27,15 @@ Deno.test('nothing due means no DocuSign call',async()=>{
  let called=false;const contracts=[row('a',{last_synced_at:ago(1)})];
  const result=await refreshDueContracts({} as SupabaseClient,contracts,{} as DocuSignConfig,{now:()=>NOW,sync:async(_db,e)=>{called=true;return e;}});
  assert(!called&&result===contracts);
+});
+Deno.test('after the own countersignature one check comes right away, otherwise every 15 minutes',()=>{
+ const signed=row('x',{recruiter_signed_at:ago(120),counter_user_id:'admin',last_synced_at:ago(2)} as Partial<RecruiterEnvelope>);
+ assert(!syncDue(signed,NOW),'regular: 2 minutes are too early');
+ assert(syncDue(signed,NOW,{event:'signing_complete',userId:'admin'}),'back from signing: now');
+ assert(!syncDue(signed,NOW,{event:'cancel',userId:'admin'}),'cancelled: no shortcut');
+ assert(!syncDue(signed,NOW,{event:'signing_complete',userId:'someone-else'}),'only the countersigner');
+ assert(!syncDue({...signed,recruiter_signed_at:null},NOW,{event:'signing_complete',userId:'admin'}),'headhunter has not signed');
+ assert(!syncDue({...signed,last_synced_at:new Date(NOW-10_000).toISOString()},NOW,{event:'signing_complete',userId:'admin'}),'at most every 20 seconds');
+ assert(syncDue({...signed,last_synced_at:null},NOW),'never checked');
+ assert(syncDue({...signed,last_synced_at:ago(15)},NOW),'15 minutes passed');
 });

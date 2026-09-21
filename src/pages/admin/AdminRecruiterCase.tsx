@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CaseReview } from '@/components/admin/network/CaseReview';
@@ -24,9 +24,28 @@ const DONE: Record<string, string> = {
 
 interface Loaded { c: StoredOnboarding; contract: StoredContract | null; docusign: boolean }
 
+/** Was DocuSign beim Zurückleiten aus der Gegenzeichnung meldet (event=…), außer signing_complete. */
+const RETURN_TEXT: Record<string, string> = {
+  cancel: 'Gegenzeichnung abgebrochen. Du kannst sie jederzeit neu starten.',
+  decline: 'Du hast die Gegenzeichnung in DocuSign abgelehnt.',
+  session_timeout: 'Die DocuSign-Sitzung ist abgelaufen. Starte die Gegenzeichnung neu.',
+  ttl_expired: 'Der DocuSign-Link war abgelaufen. Starte die Gegenzeichnung neu.',
+  exception: 'DocuSign hat einen Fehler gemeldet. Versuche es noch einmal.',
+};
+const firstName = (c: StoredOnboarding) => (c.profile.name || '').trim().split(/\s+/)[0] || 'Der Headhunter';
+/** Ergebnis nach der Rückkehr aus der eigenen Gegenzeichnung, in Worten. */
+const afterCounter = ({ c, contract }: Loaded) => contract?.state === 'completed'
+  ? c.activated ? `Gegengezeichnet. ${firstName(c)} ist freigeschaltet, die Willkommensmail ist unterwegs.`
+    : 'Gegengezeichnet. Die automatische Freischaltung hat nicht geklappt: Bitte „Freischalten und Zugang senden“ klicken.'
+  : contract?.countersigned_at ? 'Deine Unterschrift ist bestätigt. DocuSign stellt den Vertrag noch fertig. Lade die Seite in einer Minute neu.'
+    : 'DocuSign hat die Gegenzeichnung noch nicht bestätigt. Lade die Seite in ein paar Minuten neu.';
+
 export default function AdminRecruiterCase() {
   const { caseId } = useParams();
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const returnHandled = useRef(false);
   const [data, setData] = useState<Loaded | null>(null);
   const [history, setHistory] = useState<AuditEntry[]>([]);
   const [mails, setMails] = useState<MailStat[]>([]);
@@ -48,12 +67,40 @@ export default function AdminRecruiterCase() {
     ]);
     setHistory(h.status === 'fulfilled' ? h.value.history ?? [] : []);
     setMails(m.status === 'fulfilled' ? m.value.mails ?? [] : []);
+    return { c, contract, docusign: list.docusign_enabled } as Loaded;
   }, [caseId]);
 
   useEffect(() => {
     setLoading(true); setError('');
     load().catch(e => setError(e instanceof Error ? e.message : 'Der Vorgang konnte nicht geladen werden.')).finally(() => setLoading(false));
   }, [load]);
+
+  // Zurück aus der eigenen Gegenzeichnung (?contract_return=…&event=…): sofort bei DocuSign nachfragen,
+  // statt bis zu 15 Minuten zu warten. Ist der Vertrag noch nicht fertig, nach 25 Sekunden ein zweites Mal.
+  useEffect(() => {
+    if (!data || returnHandled.current) return;
+    const params = new URLSearchParams(location.search);
+    const contractId = params.get('contract_return');
+    if (!contractId) return;
+    returnHandled.current = true;
+    const event = params.get('event');
+    navigate(location.pathname, { replace: true });
+    if (event !== 'signing_complete') { setMessage(RETURN_TEXT[event ?? ''] ?? 'Zurück aus DocuSign.'); return; }
+    void (async () => {
+      setBusy(true); setError(''); setMessage('Deine Unterschrift ist angekommen. Wir holen die Bestätigung von DocuSign …');
+      try {
+        for (const wait of [0, 25000]) {
+          if (wait) await new Promise(resolve => setTimeout(resolve, wait));
+          const result = await onboardingApi<{ contract?: StoredContract }>(true, { action: 'sync', case_id: data.c.id, contract_id: contractId, returned: true, event });
+          if (result.contract?.state === 'completed') break;
+        }
+        setMessage(afterCounter(await load()));
+      } catch (e) {
+        setMessage('');
+        setError(e instanceof Error ? e.message : 'Die Bestätigung von DocuSign konnte nicht abgefragt werden. Lade die Seite in ein paar Minuten neu.');
+      } finally { setBusy(false); }
+    })();
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const act = async (action: string, extra: Record<string, unknown> = {}) => {
     if (!data) return;

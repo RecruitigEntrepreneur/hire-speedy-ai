@@ -12,7 +12,7 @@ import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { recipientView, type DocuSignConfig } from '../_shared/docusign.ts';
 import { caseMails, invitationMails } from '../_shared/email-event-log.ts';
-import { refreshDueContracts } from '../_shared/recruiter-contract-refresh.ts';
+import { refreshDueContracts, syncDue } from '../_shared/recruiter-contract-refresh.ts';
 import { grantRecruiterAccess, sendWelcomeMail } from '../_shared/recruiter-activation.ts';
 import { cleanProfile, normalizeEmail, validEmail, profileIssues, packageIssues, requiredReviewChecks, type ContractDocument } from '../_shared/recruiter-contract-policy.ts';
 import { must, dbError, caseById, patchCase, envelopeById, patchEnvelope, signatureConfig, providerRequest, sha256, syncEnvelope, workflowFailure, type RecruiterEnvelope, type OnboardingCase } from '../_shared/recruiter-onboarding-service.ts';
@@ -224,14 +224,17 @@ serve(async req => {
       return json({ contract: await sendRecruiterEnvelope(db, e, cfg) });
     }
     if (body.action === 'sync') {
-      if (e.last_synced_at && Date.now() - Date.parse(e.last_synced_at) < 15 * 60000) return json({ contract: e });
+      // Regulär höchstens alle 15 Minuten; nach der eigenen Gegenzeichnung (returned) sofort.
+      const returned = body.returned === true ? { event: body.event, userId: admin.userId! } : undefined;
+      if (!syncDue(e, Date.now(), returned)) return json({ contract: e });
       return json({ contract: await syncEnvelope(db, e, cfg) });
     }
     if (body.action === 'counter') {
       must(e.counter_user_id === admin.userId && c.state === 'approved' && !c.revoked_at, 'Nur der festgelegte Matchunt-Unterzeichner darf gegenzeichnen.', 'not_allowed');
       must(e.state === 'sent' && e.recruiter_signed_at && !e.countersigned_at, 'Die Recruiter-Unterschrift ist noch nicht bestätigt.', 'conflict');
       must(Date.now() < Date.parse(recruiterCounterDeadline(e.recruiter_signed_at)), 'Die Gegenzeichnungsfrist ist abgelaufen. Der Vorgang muss neu vereinbart werden.', 'expired');
-      const url = await recipientView(cfg, { envelopeId: e.envelope_id!, name: e.counter_name, email: e.counter_email, clientUserId: e.counter_user_id, returnUrl: `${getPublicAppUrl()}/admin/recruiters?contract_return=${e.id}` });
+      // Zurück direkt auf die Vorgangsseite; DocuSign hängt event=… an, die Seite fragt dann sofort nach.
+      const url = await recipientView(cfg, { envelopeId: e.envelope_id!, name: e.counter_name, email: e.counter_email, clientUserId: e.counter_user_id, returnUrl: `${getPublicAppUrl()}/admin/recruiters/${c.id}?contract_return=${e.id}` });
       return json({ url });
     }
     must(false, 'Unbekannte Aktion.');

@@ -83,7 +83,7 @@ export default function NetworkCockpit() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const contract = contracts.find(row => row.id === params.get('contract_return'));
-    if (contract) { navigate(`/admin/recruiters/${contract.case_id}`, { replace: true }); return; }
+    if (contract) { navigate(`/admin/recruiters/${contract.case_id}${location.search}`, { replace: true }); return; }
     const owner = partners.find(p => p.caseRow?.id === params.get('akte'));
     if (owner) { setSelected(owner.key); setDrawerTab('overview'); }
   }, [contracts]); // eslint-disable-line react-hooks/exhaustive-deps

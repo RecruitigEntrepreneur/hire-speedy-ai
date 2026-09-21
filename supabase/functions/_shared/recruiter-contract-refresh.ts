@@ -12,6 +12,22 @@ import { syncEnvelope, type RecruiterEnvelope } from './recruiter-onboarding-ser
 export const SYNC_INTERVAL_MS = 15 * 60_000;
 /** Mehr Abfragen je Listenaufruf würden das Laden spürbar bremsen. */
 export const LIST_SYNC_LIMIT = 5;
+/** Rückkehr aus der eigenen Gegenzeichnung: Mindestabstand statt 15 Minuten. */
+export const RETURN_INTERVAL_MS = 20_000;
+
+/**
+ * Darf der Vertrag jetzt bei DocuSign abgefragt werden? Regulär alle 15 Minuten.
+ * Kommt der hinterlegte Gegenzeichner mit event=signing_complete aus DocuSign zurück,
+ * gilt ein einzelner Abruf nach seiner Unterschrift nicht als Dauerabfrage: dann
+ * reichen 20 Sekunden Abstand, damit Freischaltung und Willkommensmail sofort folgen.
+ */
+export function syncDue(e: Pick<RecruiterEnvelope, 'state' | 'recruiter_signed_at' | 'counter_user_id' | 'last_synced_at'>, now: number,
+  returned?: { event?: unknown; userId: string }): boolean {
+  const since = e.last_synced_at ? now - (Date.parse(e.last_synced_at) || 0) : Infinity;
+  const afterCounter = !!returned && returned.event === 'signing_complete' && e.counter_user_id === returned.userId
+    && e.state === 'sent' && !!e.recruiter_signed_at;
+  return since >= (afterCounter ? RETURN_INTERVAL_MS : SYNC_INTERVAL_MS);
+}
 
 type Row = Pick<RecruiterEnvelope, 'state' | 'envelope_id' | 'countersigned_at' | 'last_synced_at'>;
 
