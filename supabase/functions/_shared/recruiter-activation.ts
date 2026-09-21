@@ -29,11 +29,11 @@ export function welcomeMail(c: Pick<OnboardingCase, 'profile'>, appUrl: string) 
     heading: 'Willkommen im Netzwerk',
     body: `<p>Hallo${firstName ? ' ' + esc(firstName) : ''},</p><p>wir haben deinen Vertrag gegengezeichnet. Er ist jetzt komplett, und dein Zugang ist freigeschaltet.</p>`
       + '<p><strong>So kommst du rein:</strong></p><ol style="margin:0 0 16px 0;padding-left:20px;">'
-      + '<li>Tippe auf „Zugang einrichten“.</li><li>Melde dich mit deiner E-Mail-Adresse und dem Code an, den wir dir schicken.</li>'
-      + '<li>Leg dein Passwort fest. Danach bist du im Dashboard, und ein kurzer Rundgang führt dich durch das Wichtigste.</li></ol>'
-      + '<p>Deinen unterschriebenen Vertrag und das Abschlusszertifikat findest du auf derselben Seite.</p>'
+      + '<li>Tippe auf „Jetzt anmelden“.</li><li>Bestätige deine E-Mail-Adresse mit dem Code, den wir dir schicken.</li>'
+      + '<li>Leg dein Passwort fest. Dann bist du in deinem Dashboard, und ein kurzer Rundgang zeigt dir das Wichtigste.</li></ol>'
+      + `<p>Deinen unterschriebenen Vertrag findest du jederzeit hier: <a href="${esc(appUrl)}/recruiter/onboarding">Vertrag ansehen</a>.</p>`
       + '<p>Bei Fragen antworte einfach auf diese Mail.</p><p>Viele Grüße<br>dein Matchunt-Team</p>',
-    cta: { label: 'Zugang einrichten', url: `${appUrl}/recruiter/onboarding` },
+    cta: { label: 'Jetzt anmelden', url: `${appUrl}/recruiter/login` },
     footnote: `<a href="${esc(appUrl)}/impressum">Impressum</a> · <a href="${esc(appUrl)}/datenschutz">Datenschutz</a>`,
   });
   return { subject: 'Dein Vertrag ist komplett – willkommen bei Matchunt', html };

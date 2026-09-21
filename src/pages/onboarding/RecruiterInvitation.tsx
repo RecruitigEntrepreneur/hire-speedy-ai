@@ -7,6 +7,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile, type InvitationPeek, type CodeSession } from '@/lib/recruiterOnboardingApi';
+import { PASSWORD_SET_KEY } from '@/lib/recruiterLogin';
 import { cleanProfile } from '../../../supabase/functions/_shared/recruiter-contract-policy';
 import type { CompanySuggestion } from '../../../supabase/functions/_shared/recruiter-company';
 
@@ -97,7 +98,8 @@ export default function RecruiterInvitation() {
   });
   const savePassword = () => run(async () => {
     if (password !== repeat) throw new Error('Die beiden Eingaben stimmen nicht überein.');
-    const { error } = await supabase.auth.updateUser({ password }); if (error) throw error;
+    // Merker für /recruiter/login: Wer hier schon ein Passwort festgelegt hat, wird dort nicht erneut gefragt.
+    const { error } = await supabase.auth.updateUser({ password, data: { [PASSWORD_SET_KEY]: new Date().toISOString() } }); if (error) throw error;
     window.location.assign('/recruiter');
   });
   const startSignature = () => run(async () => {

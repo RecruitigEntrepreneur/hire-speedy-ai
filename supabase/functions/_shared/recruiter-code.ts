@@ -19,6 +19,10 @@ import { must, dbError, type OnboardingCase } from './recruiter-onboarding-servi
  *           die Einladungsadresse; sie verlässt den Server nie.
  *   verify  Code prüfen und die Sitzung zurückgeben.
  *
+ * Mit `login` (Anmeldeseite /recruiter/login, 21.09.2026) legen code und verify
+ * kein Konto an: Der Code geht nur an bestehende Headhunter-Konten, und die
+ * Antwort ist für unbekannte Adressen dieselbe, damit niemand Konten ausforscht.
+ *
  * Der Code ist unserer, wie in der Kunden-Jobaufnahme: sechs Ziffern, eine
  * Stunde gültig, fünf Versuche. Gespeichert wird nur der gepfefferte Hash in
  * den Admin-Metadaten des Auth-Kontos (app_metadata). Die kann nur der Server
@@ -95,6 +99,16 @@ const alreadyRegistered = (error: { code?: string; message?: string }) =>
 // Recruiter-Rolle an; ein vorhandenes Konto bleibt unverändert. Zum Nachschlagen
 // dient generateLink, das Konto samt Metadaten liefert; das dabei erzeugte
 // Link-Token bleibt ungenutzt.
+/** Bestehendes Headhunter-Konto zu einer Adresse, ohne etwas anzulegen (Profil und Rolle). */
+async function findRecruiter(db: SupabaseClient, email: string): Promise<{ id: string; name: string } | null> {
+  const { data: profile, error } = await db.from('profiles').select('user_id,full_name').eq('email', email).limit(1).maybeSingle();
+  dbError(error);
+  if (!profile) return null;
+  const { data: role, error: roleError } = await db.from('user_roles').select('user_id').eq('user_id', profile.user_id).eq('role', 'recruiter').limit(1).maybeSingle();
+  dbError(roleError);
+  return role ? { id: profile.user_id as string, name: firstName(profile.full_name) } : null;
+}
+
 async function ensureUser(db: SupabaseClient, email: string, name: string): Promise<User> {
   const created = await db.auth.admin.createUser({ email, email_confirm: false, user_metadata: { full_name: name, role: 'recruiter' } });
   if (created.data?.user) return created.data.user;
@@ -108,7 +122,8 @@ async function ensureUser(db: SupabaseClient, email: string, name: string): Prom
   return link.data.user;
 }
 
-export async function sendCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; ip: string | null }, deps: CodeDeps = liveDeps()) {
+export async function sendCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
+  const login = body.login === true && body.token === undefined;
   const target = await resolveTarget(db, body);
   const limit = await deps.limits(db, LIMITS.recruiterCode(target.email, body.ip));
   if (!limit.allowed) {
@@ -117,11 +132,20 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
       ? `Gerade wurden mehrere Codes angefordert. Ein neuer Code ist ab ${uhr} Uhr möglich. Ein schon erhaltener Code lässt sich weiterhin eintragen.`
       : 'Gerade wurden mehrere Codes angefordert. Bitte versuche es in einigen Minuten erneut.', 'rate_limited');
   }
-  const user = await ensureUser(db, target.email, target.name);
+  let userId: string;
+  let name = target.name;
+  if (login) {
+    const found = await findRecruiter(db, target.email);
+    // Neutral antworten: Die Seite verrät nicht, ob es zu der Adresse ein Konto gibt.
+    if (!found) return { sent: true, masked_email: maskEmail(target.email), code_length: CODE_LENGTH };
+    userId = found.id; name = found.name;
+  } else {
+    userId = (await ensureUser(db, target.email, target.name)).id;
+  }
   const code = generateNumericCode(CODE_LENGTH);
   const stored: StoredCode = { hash: await hashCode(target.email, code), expires_at: new Date(Date.now() + CODE_TTL_MINUTES * 60000).toISOString(), attempts: 0 };
   // Ein neuer Code ersetzt den alten: es ist immer nur einer gültig.
-  const saved = await db.auth.admin.updateUserById(user.id, { app_metadata: { [CODE_KEY]: stored } });
+  const saved = await db.auth.admin.updateUserById(userId, { app_metadata: { [CODE_KEY]: stored } });
   if (saved.error) console.error('[recruiter-code] Code nicht gespeichert', saved.error.status ?? '');
   must(!saved.error, 'Der Code konnte nicht erzeugt werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
   const result = await deps.mail(db, {
@@ -130,9 +154,9 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
     template: 'recruiter_onboarding_code',
     html: layout({
       preheader: `Dein Code: ${code}`,
-      heading: 'Dein Code für Matchunt',
-      body: `<p style="margin:0 0 16px 0;">Hallo${target.name ? ' ' + esc(target.name) : ''},</p>
-        <p style="margin:0 0 20px 0;">mit diesem Code bestätigst du deine E-Mail-Adresse, ganz ohne Passwort:</p>
+      heading: login ? 'Dein Anmeldecode' : 'Dein Code für Matchunt',
+      body: `<p style="margin:0 0 16px 0;">Hallo${name ? ' ' + esc(name) : ''},</p>
+        <p style="margin:0 0 20px 0;">${login ? 'mit diesem Code meldest du dich bei Matchunt an' : 'mit diesem Code bestätigst du deine E-Mail-Adresse'}, ganz ohne Passwort:</p>
         <div style="font-size:34px;font-weight:700;letter-spacing:10px;padding:18px 0;color:#111827;">${esc(code)}</div>
         <p style="margin:12px 0 0 0;">Der Code ist eine Stunde gültig. Danach fordere auf der Seite einfach einen neuen an.</p>`,
       footnote: 'Wenn du gerade nichts bei Matchunt gestartet hast, ignoriere diese Nachricht. Gib den Code nicht weiter.',
@@ -143,7 +167,7 @@ export async function sendCode(db: SupabaseClient, body: { token?: unknown; emai
   return { sent: true, masked_email: maskEmail(target.email), code_length: CODE_LENGTH };
 }
 
-export async function verifyCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; code?: unknown; ip: string | null }, deps: CodeDeps = liveDeps()) {
+export async function verifyCode(db: SupabaseClient, body: { token?: unknown; email?: unknown; code?: unknown; ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
   const target = await resolveTarget(db, body);
   const code = String(body.code ?? '').replace(/\s+/g, '');
   must(CODE_PATTERN.test(code), 'Bitte gib den sechsstelligen Code aus der E-Mail ein.');
@@ -152,6 +176,8 @@ export async function verifyCode(db: SupabaseClient, body: { token?: unknown; em
   must(url && key, 'Die Anmeldung ist noch nicht eingerichtet.', 'not_deployed');
   const limit = await deps.limits(db, LIMITS.recruiterVerify(target.email, body.ip));
   must(limit.allowed, 'Zu viele Versuche. Warte einen Moment und fordere dann einen neuen Code an.', 'rate_limited');
+  // Anmeldeseite: Ohne bestehendes Headhunter-Konto gibt es nichts zu prüfen und nichts anzulegen.
+  if (body.login === true && body.token === undefined) must(await findRecruiter(db, target.email), 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
   // Konto samt gespeichertem Code holen; das Einmal-Token wird gleich zur Sitzung.
   const link = await db.auth.admin.generateLink({ type: 'magiclink', email: target.email });
   const user = link.data?.user;

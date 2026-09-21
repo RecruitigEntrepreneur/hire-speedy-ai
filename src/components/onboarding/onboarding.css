@@ -1089,3 +1089,23 @@
     gap: 4px;
   }
 }
+
+/* Anmeldung für Headhunter (/recruiter/login): eine schmale Karte ohne Schritte und Seitenleiste. */
+.mh-onboarding .mh-main.mh-login {
+  max-width: 540px;
+  padding-top: 56px;
+}
+.mh-ui .mh-login .mh-verify h1 {
+  font-size: 24px;
+  letter-spacing: -.65px;
+}
+.mh-ui .mh-login .mh-login-later {
+  justify-content: center;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (max-width: 780px) {
+  .mh-onboarding .mh-main.mh-login {
+    padding-top: 32px;
+  }
+}

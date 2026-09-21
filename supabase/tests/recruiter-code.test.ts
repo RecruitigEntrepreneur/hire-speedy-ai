@@ -17,10 +17,13 @@ const OTHER = 'B'.repeat(43);
 
 interface FakeUser { id: string; email: string; app_metadata: Record<string, unknown>; user_metadata: Record<string, unknown> }
 
-async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string[]; allowed?: boolean; mailSent?: boolean; verify?: { status: number; body?: unknown } } = {}) {
+async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string[]; recruiters?: string[]; allowed?: boolean; mailSent?: boolean; verify?: { status: number; body?: unknown } } = {}) {
   const cases = opts.cases ?? [];
   const users: Record<string, FakeUser> = {};
-  for (const email of opts.users ?? []) users[email] = { id: `id-${email}`, email, app_metadata: { provider: 'email' }, user_metadata: {} };
+  for (const email of [...(opts.users ?? []), ...(opts.recruiters ?? [])]) users[email] = { id: `id-${email}`, email, app_metadata: { provider: 'email' }, user_metadata: {} };
+  // Bestehende Headhunter-Konten, wie die Anmeldeseite sie nachschlägt: Profil und Rolle.
+  const profiles = (opts.recruiters ?? []).map(email => ({ user_id: `id-${email}`, email, full_name: 'Danny Beispiel' }));
+  const roles = (opts.recruiters ?? []).map(email => ({ user_id: `id-${email}`, role: 'recruiter' }));
   const calls = { createUser: [] as Record<string, unknown>[], links: 0, updates: [] as { id: string; attrs: Record<string, unknown> }[], mails: [] as Record<string, unknown>[], fetches: [] as { url: string; init?: RequestInit }[] };
   const db = {
     from: (table: string) => {
@@ -28,7 +31,8 @@ async function fixture(opts: { cases?: Record<string, unknown>[]; users?: string
       const q = {
         select: () => q,
         eq: (k: string, v: unknown) => { filters.push([k, v]); return q; },
-        maybeSingle: () => Promise.resolve({ data: (table === 'recruiter_onboarding_cases' ? cases : []).find(r => filters.every(([k, v]) => r[k] === v)) ?? null, error: null }),
+        limit: () => q,
+        maybeSingle: () => Promise.resolve({ data: ((table === 'recruiter_onboarding_cases' ? cases : table === 'profiles' ? profiles : table === 'user_roles' ? roles : []) as Record<string, unknown>[]).find(r => filters.every(([k, v]) => r[k] === v)) ?? null, error: null }),
       };
       return q;
     },
@@ -186,4 +190,26 @@ Deno.test('verify by address works for the website entry and reports a failed se
   const broken = await fixture({ verify: { status: 500, body: { msg: 'boom' } } });
   await sendCode(broken.db, { email: 'neu@example.test', ip: null }, broken.deps);
   assert(await reasonOf(() => verifyCode(broken.db, { email: 'neu@example.test', code: broken.lastCode(), ip: null }, broken.deps)) === 'upstream_error');
+});
+
+Deno.test('login sends a code only to existing recruiters, never creates an account and answers the same for unknown addresses', async () => {
+  const f = await fixture({ recruiters: ['danny@example.test'] });
+  const known = await sendCode(f.db, { email: 'Danny@Example.test', ip: null, login: true }, f.deps);
+  const mail = f.calls.mails[0] as { to: string; html: string };
+  assert(known.sent && mail.to === 'danny@example.test' && mail.html.includes('Dein Anmeldecode') && mail.html.includes('meldest du dich bei Matchunt an') && mail.html.includes('Hallo Danny'), 'login mail');
+  assert(f.calls.createUser.length === 0 && f.calls.links === 0, 'login neither creates nor looks up through auth');
+  assert(f.storedCode('danny@example.test')?.attempts === 0, 'code stored for the existing account');
+  const unknown = await sendCode(f.db, { email: 'fremd@example.test', ip: null, login: true }, f.deps);
+  assert(unknown.sent && unknown.masked_email === 'fr***@example.test' && unknown.code_length === 6, 'same answer for unknown addresses');
+  assert(f.calls.mails.length === 1 && f.calls.createUser.length === 0 && f.calls.updates.length === 1, 'no mail, no account, no code for an unknown address');
+});
+
+Deno.test('login verify turns a valid code into a session and rejects unknown addresses without touching auth', async () => {
+  const f = await fixture({ recruiters: ['danny@example.test'] });
+  await sendCode(f.db, { email: 'danny@example.test', ip: null, login: true }, f.deps);
+  const s = await verifyCode(f.db, { email: 'danny@example.test', code: f.lastCode(), ip: null, login: true }, f.deps);
+  assert(s.access_token === 'at' && s.refresh_token === 'rt', 'session for the recruiter');
+  const g = await fixture();
+  assert(await messageOf(() => verifyCode(g.db, { email: 'fremd@example.test', code: '123456', ip: null, login: true }, g.deps)) === 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
+  assert(g.calls.links === 0 && g.calls.createUser.length === 0, 'nothing created or looked up for an unknown address');
 });

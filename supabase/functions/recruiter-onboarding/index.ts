@@ -24,8 +24,8 @@ serve(async req => {
     // Ohne Sitzung: Einladung ansehen, Code anfordern, Code prüfen. Alles
     // Weitere verlangt die bestätigte E-Mail-Adresse.
     if (body.action === 'peek') return json(await peekCase(db, body.token));
-    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, ip: clientIp(req) }));
-    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, code: body.code, ip: clientIp(req) }));
+    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, ip: clientIp(req), login: body.login === true }));
+    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, code: body.code, ip: clientIp(req), login: body.login === true }));
     const user = await verifiedUser(req);
     if (body.action === 'access') return json(await recruiterAccess(db,user));
     if (body.action === 'resume' || body.action === 'begin') {

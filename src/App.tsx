@@ -3,8 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { loginPathFor } from "@/lib/recruiterLogin";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -122,6 +123,7 @@ const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 // hätte keinen Weg hinein gehabt.
 const SetPassword = lazy(() => import("./pages/SetPassword"));
 const RecruiterInvitation = lazy(() => import("./pages/onboarding/RecruiterInvitation"));
+const RecruiterLogin = lazy(() => import("./pages/recruiter/RecruiterLogin"));
 const AdminIntakes = lazy(() => import("./pages/admin/AdminIntakes"));
 const AdminIntakeDetail = lazy(() => import("./pages/admin/AdminIntakeDetail"));
 const AdminIntakeLinks = lazy(() => import("./pages/admin/AdminIntakeLinks"));
@@ -145,6 +147,7 @@ function RouteFallback() {
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { user, role, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -155,7 +158,9 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    // Headhunter melden sich per Code an und landen danach auf der gewünschten Seite.
+    const recruiterArea = location.pathname === '/recruiter' || location.pathname.startsWith('/recruiter/');
+    return <Navigate to={recruiterArea ? loginPathFor(location.pathname + location.search) : "/auth"} replace />;
   }
 
   // Admins haben Zugriff auf alle Bereiche
@@ -499,6 +504,7 @@ function AppRoutes() {
       } />
       
       {/* Onboarding */}
+      <Route path="/recruiter/login" element={<Suspense fallback={<RouteFallback />}><RecruiterLogin /></Suspense>} />
       <Route path="/recruiter/invitation" element={<Suspense fallback={<RouteFallback />}><RecruiterInvitation /></Suspense>} />
       <Route path="/onboarding" element={
         <ProtectedRoute allowedRoles={['client']}>

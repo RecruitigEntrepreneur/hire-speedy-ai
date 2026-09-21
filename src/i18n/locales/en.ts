@@ -205,6 +205,8 @@ const en: typeof de = {
     "password": "Password",
     "createAccount": "Create account",
     "signinButton": "Sign in",
+    "recruiterCode": "Headhunter?",
+    "recruiterCodeLink": "Sign in with a code",
     "secure": "Your data is secure and encrypted",
     "role": {
       "client": "Company",

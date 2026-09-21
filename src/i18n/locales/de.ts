@@ -204,6 +204,8 @@ const de = {
     "password": "Passwort",
     "createAccount": "Konto erstellen",
     "signinButton": "Anmelden",
+    "recruiterCode": "Headhunter?",
+    "recruiterCodeLink": "Mit Code anmelden",
     "secure": "Ihre Daten sind sicher und verschlüsselt",
     "role": {
       "client": "Unternehmen",

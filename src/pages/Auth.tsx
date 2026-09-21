@@ -272,6 +272,14 @@ export default function Auth() {
                     t('auth.signinButton')
                   )}
                 </Button>
+                {mode === 'signin' && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    {t('auth.recruiterCode')}{' '}
+                    <Link to="/recruiter/login" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                      {t('auth.recruiterCodeLink')}
+                    </Link>
+                  </p>
+                )}
               </form>
             </Tabs>
 
