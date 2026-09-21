@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, RefreshCw, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,8 @@ import { PartnerDrawer, type DrawerTab } from './PartnerDrawer';
 /**
  * Recruiterverwaltung als Cockpit: oben, was jetzt dran ist, darunter jede
  * Person genau einmal mit Phase, letztem Signal und nächstem Schritt. Ein Klick
- * öffnet die Akte. Konditionen stehen einmal für alle am Fuß.
+ * öffnet im Onboarding die Vorgangsseite, sonst die Akte. Konditionen stehen
+ * einmal für alle am Fuß.
  */
 const PREF_KEY = 'matchunt.admin.network.hideTests';
 const readPref = () => { try { return localStorage.getItem(PREF_KEY) === '1'; } catch { return false; } };
@@ -36,6 +38,7 @@ function Dots({ step }: { step: number }) {
 const performance = (p: Partner) => p.account ? `${p.account.submissions} Einr. · ${p.account.interviewed} Int. · ${p.account.placements} Plac.` : '';
 
 export default function NetworkCockpit() {
+  const navigate = useNavigate();
   const [cases, setCases] = useState<StoredOnboarding[]>([]);
   const [contracts, setContracts] = useState<StoredContract[]>([]);
   const [accounts, setAccounts] = useState<RecruiterAccount[]>([]);
@@ -75,15 +78,21 @@ export default function NetworkCockpit() {
   const selectedPartner = partners.find(p => p.key === selected) ?? null;
   const legacyFees = accounts.filter(a => a.customFee != null);
 
-  // Rückkehr aus DocuSign (?contract_return=<id>): die Akte des Vorgangs öffnen.
+  // Rückkehr aus DocuSign (?contract_return=<Vertrag>) führt auf die Vorgangsseite,
+  // ?akte=<Vorgang> (Link von dort) öffnet die Akte mit E-Mails, Leistung und Notizen.
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get('contract_return');
-    const contract = id ? contracts.find(row => row.id === id) : null;
-    const owner = contract ? partners.find(p => p.caseRow?.id === contract.case_id) : null;
-    if (owner) { setSelected(owner.key); setDrawerTab('contract'); }
+    const params = new URLSearchParams(location.search);
+    const contract = contracts.find(row => row.id === params.get('contract_return'));
+    if (contract) { navigate(`/admin/recruiters/${contract.case_id}`, { replace: true }); return; }
+    const owner = partners.find(p => p.caseRow?.id === params.get('akte'));
+    if (owner) { setSelected(owner.key); setDrawerTab('overview'); }
   }, [contracts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openPartner = (p: Partner, tab: DrawerTab = 'overview') => { setSelected(p.key); setDrawerTab(tab); };
+  // Vorgänge im Onboarding öffnen die Vorgangsseite; aktive Partner und Konten ohne Vorgang die Akte.
+  const openPartner = (p: Partner, tab: DrawerTab = 'overview') => {
+    if (p.caseRow && p.group === 'onboarding') { navigate(`/admin/recruiters/${p.caseRow.id}`); return; }
+    setSelected(p.key); setDrawerTab(tab);
+  };
   const act = (p: Partner) => {
     if (p.next.kind === 'start_contract') { setInvite({ open: true, prefill: { name: p.name, email: p.email, company: p.company } }); return; }
     openPartner(p, URGENT.includes(p.next.kind) ? 'contract' : 'overview');
@@ -142,7 +151,7 @@ export default function NetworkCockpit() {
         : <ul className="divide-y">{visible.map(p => {
           const actionable = ACTIONABLE.includes(p.next.kind);
           return <li key={p.key}>
-            <div role="button" tabIndex={0} aria-label={`${p.name}, ${PHASE_LABELS[p.phase]}: Akte öffnen`} onClick={() => openPartner(p)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPartner(p); } }}
+            <div role="button" tabIndex={0} aria-label={`${p.name}, ${PHASE_LABELS[p.phase]}: ${p.caseRow && p.group === 'onboarding' ? 'Vorgang' : 'Akte'} öffnen`} onClick={() => openPartner(p)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPartner(p); } }}
               className="grid cursor-pointer grid-cols-1 gap-2 px-4 py-3 outline-none transition hover:bg-muted/40 focus-visible:bg-muted/60 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(150px,auto)] md:items-center md:gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2"><span className="truncate font-medium">{p.name}</span>{p.isTest && <Badge variant="outline" className="shrink-0">Test</Badge>}</div>

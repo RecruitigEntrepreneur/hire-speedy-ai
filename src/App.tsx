@@ -57,6 +57,7 @@ import ProvideReference from "./pages/reference/ProvideReference";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminRecruiters from "./pages/admin/AdminRecruiters";
+import AdminRecruiterCase from "./pages/admin/AdminRecruiterCase";
 import AdminJobs from "./pages/admin/AdminJobs";
 import AdminCandidates from "./pages/admin/AdminCandidates";
 import AdminInterviews from "./pages/admin/AdminInterviews";
@@ -374,6 +375,11 @@ function AppRoutes() {
       <Route path="/admin/recruiters" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminRecruiters />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/recruiters/:caseId" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminRecruiterCase />
         </ProtectedRoute>
       } />
       <Route path="/admin/jobs" element={

@@ -13,6 +13,8 @@ export interface StoredContract {
   id: string; case_id: string; state: string; package_version: string; documents: ContractDocument[];
   recruiter_client_user_id: string | null; recruiter_signed_at: string | null; countersigned_at: string | null;
   signed_document_path: string | null; certificate_path: string | null; source_reference?: string;
+  /** Nur in der Admin-Liste: wer gegenzeichnen darf und wann zuletzt bei DocuSign nachgefragt wurde. */
+  counter_user_id?: string; counter_name?: string; counter_email?: string; last_synced_at?: string | null;
 }
 export interface StoredOnboarding {
   id: string; revision: number; entry_source?: 'invitation' | 'website'; kind: string; email: string; profile: RecruiterProfile; state: string;
