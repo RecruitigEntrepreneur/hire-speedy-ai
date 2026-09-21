@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PerformanceIntel } from '@/components/influence/PerformanceIntel';
 import { TodayInterviewsRail } from '@/components/influence/TodayInterviewsRail';
@@ -282,11 +282,25 @@ export default function RecruiterInfluence() {
         {/* Main Grid: Tasks (2/3) + Sidebar (1/3) */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Tasks */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4" data-tour="tasks.list">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
+            ) : items.length === 0 && completedItems.length === 0 ? (
+              // Noch nie eine Aufgabe gehabt: „gut gemacht“ wäre für Neue irreführend.
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <CheckSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="font-medium">Noch keine Aufgaben</p>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                    Aufgaben entstehen, sobald Bewegung in deine Vorstellungen kommt, etwa wenn ein Kunde deinen Kandidaten kennenlernen will.
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-4" asChild>
+                    <Link to="/recruiter/jobs">Offene Jobs ansehen</Link>
+                  </Button>
+                </CardContent>
+              </Card>
             ) : items.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">

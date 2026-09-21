@@ -29,6 +29,7 @@ import {
   Copy,
   MessageSquare,
   Plug,
+  Compass,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
@@ -54,6 +55,7 @@ import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
+import { useRecruiterGuide } from '@/components/recruiter/guide/RecruiterGuide';
 import {
   Dialog,
   DialogContent,
@@ -183,6 +185,9 @@ export default function RecruiterDashboard() {
     pipelineWorstCase: 0,
   });
   const [loading, setLoading] = useState(true);
+  // Begleiteter Rundgang: startet beim ersten Besuch von selbst, oben im Kopf jederzeit neu.
+  const guide = useRecruiterGuide();
+  useEffect(() => { if (!loading) guide.offer(); }, [loading, guide]);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
@@ -471,6 +476,9 @@ export default function RecruiterDashboard() {
     return Math.max(...pipelineStages.map(s => s.count), 1);
   }, [pipelineStages]);
 
+  // Neu dabei: noch keine Kandidaten und keine laufende Vorstellung. „Alles erledigt“ wäre dann irreführend.
+  const isNewcomer = stats.myCandidates === 0 && stats.activeSubmissions === 0;
+
   const greetingSubtext = useMemo(() => {
     const nextInterview = upcomingInterviews[0];
     const nextDate = nextInterview ? new Date(nextInterview.date) : null;
@@ -510,9 +518,10 @@ export default function RecruiterDashboard() {
       }
       return `${totalPendingAlerts} Aufgaben warten – pack sie an!`;
     }
+    if (isNewcomer) return 'Schön, dass du da bist. Such dir eine passende Position und stell deinen ersten Kandidaten vor.';
     // All clear
     return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
-  }, [urgentCount, upcomingInterviews, totalPendingAlerts, topTasks]);
+  }, [urgentCount, upcomingInterviews, totalPendingAlerts, topTasks, isNewcomer]);
 
   const inboundEmail = useMemo(() => {
     if (!user?.id) return '';
@@ -569,7 +578,7 @@ export default function RecruiterDashboard() {
         <RecruiterVerificationBanner />
 
         {/* ═══ HEADER ═══ */}
-        <Card className="border-border/30 shadow-sm">
+        <Card className="border-border/30 shadow-sm" data-tour="dashboard.header">
           <CardContent className="p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -582,6 +591,10 @@ export default function RecruiterDashboard() {
               </div>
 
               <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={guide.start}>
+                  <Compass className="mr-1.5 h-3.5 w-3.5" />
+                  Rundgang
+                </Button>
                 <Button
                   variant="default"
                   size="sm"
@@ -651,7 +664,16 @@ export default function RecruiterDashboard() {
                 </Tooltip>
               </div>
 
-              {totalPendingAlerts === 0 ? (
+              {totalPendingAlerts === 0 && isNewcomer ? (
+                <div className="text-center py-8">
+                  <Briefcase className="mx-auto h-9 w-9 text-muted-foreground/40 mb-2" />
+                  <p className="font-medium text-sm">Noch keine Aufgaben</p>
+                  <p className="text-xs text-muted-foreground">Sie entstehen, sobald du Kandidaten vorstellst.</p>
+                  <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs" asChild>
+                    <Link to="/recruiter/jobs">Offene Jobs ansehen</Link>
+                  </Button>
+                </div>
+              ) : totalPendingAlerts === 0 ? (
                 <div className="text-center py-8">
                   <CheckCircle className="mx-auto h-9 w-9 text-emerald-500/40 mb-2" />
                   <p className="font-medium text-sm">Alles erledigt</p>
@@ -853,7 +875,7 @@ export default function RecruiterDashboard() {
           </Card>
 
           {/* ─── CELL 3: Top Jobs (bottom-left) ─── */}
-          <Card className="border-border/30 shadow-sm">
+          <Card className="border-border/30 shadow-sm" data-tour="dashboard.topJobs">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold">Top Jobs</h2>

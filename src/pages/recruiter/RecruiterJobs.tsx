@@ -631,7 +631,7 @@ export default function RecruiterJobs() {
         </div>
 
         {/* ── Filters + Tabs ── */}
-        <div className="shrink-0 space-y-2 pb-3 border-b border-border/30">
+        <div className="shrink-0 space-y-2 pb-3 border-b border-border/30" data-tour="jobs.filters">
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[180px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -735,7 +735,7 @@ export default function RecruiterJobs() {
                 </CardContent>
               </Card>
             ) : (
-              filteredJobs.map(job => {
+              filteredJobs.map((job, index) => {
                 const stats = submissionStats[job.id];
                 const earning = calculateEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
                 return (
@@ -746,6 +746,7 @@ export default function RecruiterJobs() {
                     isRevealed={isJobRevealed(job.id)}
                     revealedCompanyName={getRevealedCompanyName(job.id)}
                     isSelected={selectedJobId === job.id}
+                    tourId={index === 0 ? 'jobs.firstCard' : undefined}
                     isActive={isActivated(job.id)}
                     recruiterCount={stats?.recruiterCount || 0}
                     submittedCount={stats?.submissionCount || 0}
@@ -765,7 +766,7 @@ export default function RecruiterJobs() {
 
           {/* Panel — scrolls independently, 50% width */}
           {isPanelOpen && selectedJob && (
-            <div className="hidden lg:block w-1/2 overflow-hidden">
+            <div className="hidden lg:block w-1/2 overflow-hidden" data-tour="jobs.preview">
               <Card className="border-border/30 shadow-sm h-full">
                 <CardContent className="p-0 h-full">
                   <JobPreviewPanel

@@ -69,7 +69,10 @@ export default function JobDetail() {
   const companyRevealed = job.company_revealed === true || submissions.some(submission => submission.company_revealed);
   const fullAccess = submissions.some(submission => submission.full_access_granted);
   return <DashboardLayout fluid>
-    <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={() => setShowSubmit(true)} onExpose={() => setShowExpose(true)} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={() => setShowSubmit(true)} />} />
+    {/* Bereich für den Rundgang (Kopf, Reiter, Aktionen); „contents“ lässt das Layout unberührt. */}
+    <div data-tour-scope="job" className="contents">
+      <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={() => setShowSubmit(true)} onExpose={() => setShowExpose(true)} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={() => setShowSubmit(true)} />} />
+    </div>
     <Dialog open={showSubmit} onOpenChange={setShowSubmit}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>Vorstellung vorbereiten</DialogTitle><DialogDescription>{job.title} · Kandidat wählen, Angaben prüfen und anschließend einreichen.</DialogDescription></DialogHeader>

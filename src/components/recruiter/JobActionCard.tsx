@@ -48,6 +48,8 @@ interface JobActionCardProps {
   revealedCompanyName?: string;
   profile?: CompanyProfile;
   isSelected: boolean;
+  /** Anker für den Rundgang (data-tour); nur an einer Karte gesetzt. */
+  tourId?: string;
   isActive: boolean;
   recruiterCount: number;
   submittedCount: number;
@@ -70,6 +72,7 @@ export function JobActionCard({
   revealedCompanyName,
   profile,
   isSelected,
+  tourId,
   isActive,
   recruiterCount,
   submittedCount,
@@ -87,6 +90,8 @@ export function JobActionCard({
     <div
       role="button"
       tabIndex={0}
+      data-tour={tourId}
+      data-job-id={tourId ? job.id : undefined}
       onClick={onSelect}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(); }}
       className={cn(
@@ -206,6 +211,7 @@ export function JobActionCard({
         <Button
           variant="ghost"
           size="sm"
+          data-tour={tourId ? `${tourId}.activate` : undefined}
           className={cn(
             'h-6 text-[11px] px-2 shrink-0',
             isActive

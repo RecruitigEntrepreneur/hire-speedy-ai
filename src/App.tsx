@@ -84,6 +84,7 @@ import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 // Onboarding
 import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
 import RecruiterAccessGate from "./components/verification/RecruiterAccessGate";
+import { AppRecruiterGuide } from "./components/recruiter/guide/RecruiterGuide";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
@@ -552,8 +553,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
-          <CookieConsentBanner />
+          {/* Begleiteter Rundgang für Headhunter; muss über den Routen sitzen, damit er Seitenwechsel übersteht. */}
+          <AppRecruiterGuide>
+            <AppRoutes />
+            <CookieConsentBanner />
+          </AppRecruiterGuide>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

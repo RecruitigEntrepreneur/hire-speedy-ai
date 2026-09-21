@@ -31,7 +31,7 @@ Deno.test('only empty fields are filled; a first name from the code login become
 Deno.test('the welcome mail greets by first name, explains the way in and escapes',()=>{
  const {subject,html}=welcomeMail({profile:{name:'Danny <b>Beispiel</b>'}} as never,'https://matchunt.ai');
  assert(subject==='Dein Vertrag ist komplett – willkommen bei Matchunt');
- assert(html.includes('Hallo Danny,')&&html.includes('gegengezeichnet')&&html.includes('Passwort')&&html.includes('https://matchunt.ai/recruiter/onboarding'));
+ assert(html.includes('Hallo Danny,')&&html.includes('gegengezeichnet')&&html.includes('Passwort')&&html.includes('Rundgang')&&html.includes('https://matchunt.ai/recruiter/onboarding'));
  assert(!html.includes('<b>Beispiel</b>'));
 });
 Deno.test('countersigning activates, completes the profile and welcomes once',async()=>{

@@ -286,7 +286,7 @@ export default function RecruiterInterviews() {
         </div>
 
         {/* Stat-Reihe */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="interviews.stats">
           {stats.map((s) => (
             <Card key={s.label} className="border-border/40">
               <CardContent className="p-3.5">

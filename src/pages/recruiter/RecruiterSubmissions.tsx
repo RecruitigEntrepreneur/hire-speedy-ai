@@ -435,7 +435,9 @@ export default function RecruiterSubmissions() {
           </div>
 
           {/* Submissions Funnel Overview */}
-          <SubmissionsFunnelGrid breakdown={funnelBreakdown} />
+          <div data-tour="pipeline.overview">
+            <SubmissionsFunnelGrid breakdown={funnelBreakdown} />
+          </div>
 
           {/* Filters */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -477,8 +479,26 @@ export default function RecruiterSubmissions() {
             )}
           </div>
 
+          {/* Noch nie etwas vorgestellt: statt „9 leere Phasen ausgeblendet“ ein Einstieg. */}
+          {viewMode === 'kanban' && submissions.length === 0 && (
+            <Card>
+              <CardContent className="py-14 text-center">
+                <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                <h3 className="mt-4 text-lg font-semibold">Noch keine Vorstellungen</h3>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                  Sobald du einen Kandidaten für eine Position vorstellst, erscheint er hier und wandert durch die Phasen bis zur Vermittlung.
+                </p>
+                <Link to="/recruiter/jobs">
+                  <Button className="mt-5">
+                    Offene Jobs ansehen <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Kanban View */}
-          {viewMode === 'kanban' && (
+          {viewMode === 'kanban' && submissions.length > 0 && (
             <>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               {visibleColumns.leer > 0 && <span>{visibleColumns.leer} leere Phasen ausgeblendet</span>}

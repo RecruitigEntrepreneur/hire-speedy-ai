@@ -204,6 +204,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                   <Link
                     key={item.href}
                     to={item.href}
+                    data-tour={`nav:${item.href}`}
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                       isActive

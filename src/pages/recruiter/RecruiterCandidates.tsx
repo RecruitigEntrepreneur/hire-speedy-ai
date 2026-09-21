@@ -263,7 +263,7 @@ export default function RecruiterCandidates() {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button>
+                <Button data-tour="candidates.add">
                   <Plus className="h-4 w-4 mr-2" />
                   Kandidat hinzufügen
                   <ChevronDown className="h-4 w-4 ml-2" />
@@ -312,7 +312,10 @@ export default function RecruiterCandidates() {
               <Card className="col-span-full">
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <User className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Keine Kandidaten gefunden</p>
+                  {stats.total === 0 && !filters.search ? <>
+                    <p className="font-medium">Noch keine Kandidaten</p>
+                    <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">Leg deinen ersten an: von Hand, per Lebenslauf oder aus HubSpot. Beim Vorstellen wählst du ihn dann direkt aus dieser Liste.</p>
+                  </> : <p className="text-muted-foreground">Keine Kandidaten gefunden</p>}
                   {!filters.search && (
                     <Button className="mt-4" onClick={() => handleOpenDialog()}>
                       <Plus className="h-4 w-4 mr-2" />
