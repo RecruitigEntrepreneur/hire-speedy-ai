@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790095781945,
+      "tag": "0000_recruiter_profile_stage2",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790095826756,
+      "tag": "0001_recruiter_partner_status",
+      "breakpoints": true
+    }
+  ]
+}
