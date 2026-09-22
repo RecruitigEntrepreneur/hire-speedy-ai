@@ -3,6 +3,7 @@ import { getPublicAppUrl } from './app-url.ts';
 import { esc, layout, sendIntakeMail } from './intake-mail.ts';
 import type { OnboardingCase, RecruiterEnvelope } from './recruiter-onboarding-service.ts';
 import { issueLoginLink, LOGIN_LINK_DAYS } from './recruiter-login-link.ts';
+import { grantPartnerStatus } from './recruiter-partner-service.ts';
 
 /**
  * Freischaltung eines Headhunters: Recruiter-Rolle verifiziert, Profil mit Name
@@ -91,9 +92,13 @@ export async function autoActivateRecruiter(db: SupabaseClient, e: RecruiterEnve
     if (!c || c.state !== 'approved' || c.revoked_at || !c.claimed_by) return;
     const { data: role, error: roleError } = await db.from('user_roles').select('verified').eq('user_id', c.claimed_by).eq('role', 'recruiter').maybeSingle();
     if (roleError) throw roleError;
+    if (!role) return;
+    const wasActive = role.verified === true;
+    if (!wasActive && !await grantRecruiterAccess(db, c as OnboardingCase)) return;
+    // Partnerstatus ab Vertrag 2.1, auch für ein Konto, das schon frei war und jetzt 2.1 unterschreibt.
+    await grantPartnerStatus(db, { userId: c.claimed_by, version: e.package_version, since: e.countersigned_at });
     // Schon frei, etwa ein bestehendes Konto mit neuem Vertrag oder ein schnellerer Admin-Klick: keine zweite Begrüßung.
-    if (!role || role.verified === true) return;
-    if (!await grantRecruiterAccess(db, c as OnboardingCase)) return;
+    if (wasActive) return;
     await sendWelcomeMail(db, c as OnboardingCase, { replyTo: e.counter_email, idempotencyKey: `recruiter-activation/${c.id}` }, deps);
   } catch (err) {
     console.error('[recruiter-activation] Automatische Freischaltung fehlgeschlagen', err instanceof Error ? err.message : err);

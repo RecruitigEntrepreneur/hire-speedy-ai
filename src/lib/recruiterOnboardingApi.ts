@@ -21,6 +21,8 @@ export interface StoredOnboarding {
   feedback: string; revoked_at?: string; expires_at?: string; claimed_at?: string; contracts: StoredContract[];
   /** Nur in der Admin-Liste. */
   created_at?: string; reviewed_at?: string | null; internal_note?: string; checks?: Record<string, unknown>;
+  /** Nur in der Admin-Liste: Konto, das den Vorgang übernommen hat. */
+  claimed_by?: string | null;
   /** Recruiter-Rolle freigeschaltet (eigener Admin-Schritt nach der Gegenzeichnung). */
   activated?: boolean;
   /** Nur in der Admin-Liste: jüngste Einladungsmail, null wenn keine verschickt wurde. Fehlt das Feld, kennt der Server es noch nicht. */

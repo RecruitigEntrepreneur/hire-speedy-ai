@@ -3,11 +3,13 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { RecruiterStripeOnboarding } from "@/components/payment/RecruiterStripeOnboarding";
 import { EscrowStatusBadge } from "@/components/payment/EscrowStatusBadge";
 import { PayoutRequestCard } from "@/components/payment/PayoutRequestCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { maskIban } from "../../../supabase/functions/_shared/recruiter-billing";
 import { Loader2, Wallet, TrendingUp, Clock, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -157,7 +159,7 @@ export default function RecruiterPayouts() {
         <div>
           <h1 className="text-2xl font-bold">Auszahlungen</h1>
           <p className="text-muted-foreground">
-            Verwalte deine Auszahlungen und Stripe-Verbindung
+            Deine Provisionen und Auszahlungen
           </p>
         </div>
 
@@ -205,8 +207,8 @@ export default function RecruiterPayouts() {
           </Card>
         </div>
 
-        {/* Stripe Onboarding */}
-        <RecruiterStripeOnboarding />
+        {/* Auszahlungskonto aus dem Profil (Entscheidung 22.09.2026: IBAN im Profil statt Stripe) */}
+        <PayoutAccountCard />
 
         {/* Placements Table */}
         <Card>
@@ -292,5 +294,32 @@ export default function RecruiterPayouts() {
         </Card>
       </div>
     </DashboardLayout>
+  );
+}
+
+/** Das Konto, auf das Matchunt die Provision überweist. Gepflegt wird es im Profil. */
+function PayoutAccountCard() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [iban, setIban] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void supabase.from("profiles").select("bank_iban").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { if (active) setIban(data?.bank_iban?.trim() || null); });
+    return () => { active = false; };
+  }, [user]);
+  if (iban === undefined) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Auszahlungskonto</CardTitle>
+        <CardDescription>Auf dieses Konto überweisen wir deine Provision.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center justify-between gap-3">
+        {iban ? <span className="font-mono text-sm">{maskIban(iban)}</span> : <span className="text-sm text-muted-foreground">Noch kein Konto hinterlegt.</span>}
+        <Button variant="outline" size="sm" onClick={() => navigate("/recruiter/profile/abrechnung#bankverbindung")}>{iban ? "Im Profil ändern" : "Im Profil hinterlegen"}</Button>
+      </CardContent>
+    </Card>
   );
 }

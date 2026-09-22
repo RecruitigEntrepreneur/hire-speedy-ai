@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Matchunt · Website-Abzeichen Vorschau</title>
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#fff;color:#111}section{display:flex;flex-wrap:wrap;gap:24px;align-items:center;padding:28px 32px}.dark{background:#111}h2{font-size:13px;font-weight:500;color:#71717a;margin:0 0 -12px 32px;padding-top:20px}</style>
+<script>
+  // Vorschau: partner-check ist noch nicht deployt, deshalb antwortet hier ein nachgestellter Server.
+  const answers = { 'MP-7K3Q-92XW': { state: 'active', tier: 'partner' }, 'MP-GGGG-2222': { state: 'active', tier: 'gold' }, 'MP-ENDE-2222': { state: 'ended' }, 'MP-PPPP-2222': { state: 'paused' } };
+  const realFetch = window.fetch;
+  window.fetch = (url, opts) => {
+    const n = new URL(url).searchParams.get('n');
+    return new Promise(r => setTimeout(() => r(new Response(JSON.stringify(answers[n] ?? { state: 'invalid' }), { status: 200, headers: { 'Content-Type': 'application/json' } })), 500));
+  };
+</script>
+<script src="/badge.js" async></script></head>
+<body>
+<h2>Hell, groß · Gold · nicht mehr aktiv · derzeit nicht aktiv</h2>
+<section><matchunt-badge partner="MP-7K3Q-92XW"></matchunt-badge><matchunt-badge partner="MP-GGGG-2222"></matchunt-badge><matchunt-badge partner="MP-ENDE-2222"></matchunt-badge><matchunt-badge partner="MP-PPPP-2222"></matchunt-badge></section>
+<h2>Klein · ungültige Nummer</h2>
+<section><matchunt-badge partner="MP-7K3Q-92XW" size="s"></matchunt-badge><matchunt-badge partner="kaputt"></matchunt-badge></section>
+<h2 style="color:#a1a1aa">Dunkel auf dunkler Website</h2>
+<section class="dark"><matchunt-badge partner="MP-7K3Q-92XW" theme="dark"></matchunt-badge><matchunt-badge partner="MP-7K3Q-92XW" theme="dark" size="s"></matchunt-badge><matchunt-badge partner="MP-GGGG-2222"></matchunt-badge></section>
+</body></html>

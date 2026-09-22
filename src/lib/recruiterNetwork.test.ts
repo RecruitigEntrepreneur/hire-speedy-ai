@@ -76,7 +76,7 @@ describe('Jetzt dran, Sortierung und Filter', () => {
     accounts: [account({ verified: true, name: 'Tim Roth', lastSubmissionAt: ago(2) }), account({ email: 'recruiter@demo.de', name: 'Max Mustermann' })],
   });
   it('zählt die Kacheln', () => {
-    expect(countTiles(partners)).toEqual({ decide: 2, activate: 1, followUp: 2, expiring: 1 });
+    expect(countTiles(partners)).toEqual({ decide: 2, activate: 1, evidence: 0, followUp: 2, expiring: 1 });
   });
   it('sortiert Entscheidungen nach oben, Archiv nach unten', () => {
     expect(partners.slice(0, 3).map(p => p.phase)).toEqual(['countersign', 'review', 'activate']);

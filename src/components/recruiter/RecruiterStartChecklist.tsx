@@ -38,7 +38,7 @@ export function RecruiterStartChecklist() {
   const next = steps.find(s => !s.done);
   const act = (id: StartStepId) => {
     if (id === 'tour') guide.start();
-    else navigate(`/recruiter/profile#${id === 'bank' ? 'bankverbindung' : 'firmendaten'}`);
+    else navigate(`/recruiter/profile/abrechnung#${id === 'bank' ? 'bankverbindung' : 'firmendaten'}`);
   };
 
   if (!next) {

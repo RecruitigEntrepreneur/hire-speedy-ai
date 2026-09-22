@@ -24,7 +24,7 @@ export type Phase = 'invited' | 'expired' | 'draft' | 'review' | 'awaiting_signa
   | 'active' | 'legacy_active' | 'no_contract' | 'suspended' | 'revoked';
 export type Group = 'onboarding' | 'active' | 'no_contract' | 'suspended' | 'archive';
 export type StepKind = 'review' | 'countersign' | 'activate' | 'remind' | 'resend' | 'start_contract' | 'wait' | 'none';
-export type Tile = 'decide' | 'activate' | 'followUp' | 'expiring';
+export type Tile = 'decide' | 'activate' | 'evidence' | 'followUp' | 'expiring';
 
 export const PHASE_LABELS: Record<Phase, string> = {
   invited: 'Eingeladen', expired: 'Link abgelaufen', draft: 'Angaben in Arbeit', review: 'Zur Prüfung',
@@ -43,6 +43,7 @@ export const GROUP_LABELS: Record<Group, string> = {
 export const TILE_LABELS: Record<Tile, { title: string; hint: string }> = {
   decide: { title: 'Prüfen und gegenzeichnen', hint: 'Angaben liegen vor' },
   activate: { title: 'Freischalten', hint: 'Vertrag komplett' },
+  evidence: { title: 'Nachweise prüfen', hint: 'neu hochgeladen' },
   followUp: { title: 'Nachfassen', hint: 'ohne Reaktion' },
   expiring: { title: 'Link läuft bald ab', hint: 'in den nächsten 2 Tagen' },
 };
@@ -57,7 +58,7 @@ export interface Partner {
   phase: Phase; step: number; group: Group;
   signal: { text: string; at: string | null };
   next: { kind: StepKind; label: string };
-  needs: { review: boolean; countersign: boolean; activation: boolean; followUp: boolean; expiring: boolean };
+  needs: { review: boolean; countersign: boolean; activation: boolean; evidence: boolean; followUp: boolean; expiring: boolean };
 }
 
 export const normalizeEmail = (v: string | null | undefined) => String(v ?? '').trim().toLowerCase();
@@ -162,12 +163,14 @@ function nextStep(phase: Phase, needs: Partner['needs'], c: StoredOnboarding | n
 function urgency(p: Partner): number {
   if (p.needs.countersign || p.needs.review) return 0;
   if (p.needs.activation) return 1;
-  if (p.needs.expiring) return 2;
-  if (p.needs.followUp) return 3;
-  return ({ onboarding: 4, active: 5, no_contract: 6, suspended: 7, archive: 8 } as Record<Group, number>)[p.group];
+  if (p.needs.evidence) return 2;
+  if (p.needs.expiring) return 3;
+  if (p.needs.followUp) return 4;
+  return ({ onboarding: 5, active: 6, no_contract: 7, suspended: 8, archive: 9 } as Record<Group, number>)[p.group];
 }
 
-export function buildPartners(input: { cases: StoredOnboarding[]; contracts: StoredContract[]; accounts: RecruiterAccount[]; now?: number }): Partner[] {
+/** `pendingEvidence`: offene Nachweise je Konto-ID (Profil › Nachweise, zur Prüfung durch Matchunt). */
+export function buildPartners(input: { cases: StoredOnboarding[]; contracts: StoredContract[]; accounts: RecruiterAccount[]; pendingEvidence?: Record<string, number>; now?: number }): Partner[] {
   const now = input.now ?? Date.now();
   const people = new Map<string, { cases: StoredOnboarding[]; account: RecruiterAccount | null }>();
   const slot = (email: string) => {
@@ -193,6 +196,7 @@ export function buildPartners(input: { cases: StoredOnboarding[]; contracts: Sto
       review: !!caseRow && !caseRow.revoked_at && caseRow.state === 'review',
       countersign: !!caseRow && caseRow.state === 'approved' && contract?.state === 'sent' && !!contract.recruiter_signed_at && !contract.countersigned_at,
       activation: !!caseRow && caseRow.state === 'approved' && contract?.state === 'completed' && !caseRow.activated,
+      evidence: (input.pendingEvidence?.[account?.userId ?? caseRow?.claimed_by ?? ''] ?? 0) > 0,
       followUp: openInvite && (phase === 'expired' || now - time(caseRow!.created_at) > FOLLOW_UP_DAYS * DAY),
       expiring: openInvite && phase === 'invited' && expiresIn > 0 && expiresIn <= 2 * DAY,
     };
@@ -215,6 +219,7 @@ export function countTiles(partners: Partner[]): Record<Tile, number> {
   return {
     decide: partners.filter(p => p.needs.review || p.needs.countersign).length,
     activate: partners.filter(p => p.needs.activation).length,
+    evidence: partners.filter(p => p.needs.evidence).length,
     followUp: partners.filter(p => p.needs.followUp).length,
     expiring: partners.filter(p => p.needs.expiring).length,
   };
@@ -223,6 +228,7 @@ export function countTiles(partners: Partner[]): Record<Tile, number> {
 export const matchesTile = (p: Partner, tile: Tile) =>
   tile === 'decide' ? p.needs.review || p.needs.countersign
   : tile === 'activate' ? p.needs.activation
+  : tile === 'evidence' ? p.needs.evidence
   : tile === 'followUp' ? p.needs.followUp
   : p.needs.expiring;
 

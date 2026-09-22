@@ -124,6 +124,7 @@ const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 const SetPassword = lazy(() => import("./pages/SetPassword"));
 const RecruiterInvitation = lazy(() => import("./pages/onboarding/RecruiterInvitation"));
 const RecruiterLogin = lazy(() => import("./pages/recruiter/RecruiterLogin"));
+const PartnerCheck = lazy(() => import("./pages/public/PartnerCheck"));
 const AdminIntakes = lazy(() => import("./pages/admin/AdminIntakes"));
 const AdminIntakeDetail = lazy(() => import("./pages/admin/AdminIntakeDetail"));
 const AdminIntakeLinks = lazy(() => import("./pages/admin/AdminIntakeLinks"));
@@ -335,6 +336,11 @@ function AppRoutes() {
           <RecruiterProfile />
         </ProtectedRoute>
       } />
+      <Route path="/recruiter/profile/:section" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterProfile />
+        </ProtectedRoute>
+      } />
       <Route path="/recruiter/payouts" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterPayouts />
@@ -532,6 +538,8 @@ function AppRoutes() {
           /aufnahme/:draftToken — Fortsetzen bzw. weitergeleiteter Zugang
           Der Token steht im Pfad und nie in der Query: dort landet er in
           Referrer-Headern und Server-Logs. */}
+      {/* Öffentliche Prüfseite des Partnerstatus: ohne Login, nicht für Suchmaschinen. */}
+      <Route path="/partner/:number" element={<Suspense fallback={<RouteFallback />}><PartnerCheck /></Suspense>} />
       <Route path="/passwort" element={<Suspense fallback={<RouteFallback />}><SetPassword /></Suspense>} />
       <Route path="/start/:token" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       {/* Vor der allgemeinen Entwurfsroute, sonst faengt :draftToken das Wort

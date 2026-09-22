@@ -9,6 +9,8 @@ import { buildTimeline, PHASE_LABELS, relativeTime, STEP_LABELS, type Partner } 
 import type { MailStat } from '../../../../supabase/functions/_shared/email-stats';
 import { cleanContractDetails } from '../../../../supabase/functions/_shared/recruiter-contract-data';
 import { CaseWorkflow } from './CaseWorkflow';
+import { EvidencePanel } from './EvidencePanel';
+import { PartnerStatusAdmin } from './PartnerStatusAdmin';
 import { MailPanel, type MailState } from './MailPanel';
 import { shortDate } from './mailFormat';
 import { saveNotes, setSuspended, setVerified } from './accounts';
@@ -18,7 +20,7 @@ import type { InvitePrefill } from './InviteSheet';
  * Akte einer Person: nächster Schritt, Verlauf, E-Mails, Vertrag, Leistung und
  * Notizen. Öffnet sich rechts, die Liste bleibt im Blick.
  */
-export type DrawerTab = 'overview' | 'mails' | 'contract' | 'performance' | 'notes';
+export type DrawerTab = 'overview' | 'mails' | 'contract' | 'evidence' | 'performance' | 'notes';
 const NOT_DEPLOYED = /Unbekannte Aktion|Ungültiger Vertragsvorgang/;
 const errorText = (e: unknown, fallback: string) => {
   const text = e instanceof Error ? e.message : '';
@@ -144,6 +146,7 @@ export function PartnerDrawer({ partner, open, tab, docusignEnabled, onTabChange
             <TabsTrigger value="overview">Überblick</TabsTrigger>
             <TabsTrigger value="mails" disabled={!c}>E-Mails</TabsTrigger>
             <TabsTrigger value="contract" disabled={!c}>Vertrag</TabsTrigger>
+            <TabsTrigger value="evidence" disabled={!(a?.userId ?? c?.claimed_by)}>Nachweise{p.needs.evidence ? ' •' : ''}</TabsTrigger>
             <TabsTrigger value="performance">Leistung</TabsTrigger>
             <TabsTrigger value="notes">Notizen</TabsTrigger>
           </TabsList>
@@ -176,6 +179,7 @@ export function PartnerDrawer({ partner, open, tab, docusignEnabled, onTabChange
                 {a && a.submissions ? <><p>{a.submissions} Einreichungen</p><p>{a.interviewed} im Interview</p><p>{a.placements} Placements</p></> : <p className="text-muted-foreground">noch keine Einreichungen</p>}
               </div>
             </section>
+            <PartnerStatusAdmin userId={a?.userId ?? c?.claimed_by ?? null} active={open && tab === 'overview'} onChanged={onChanged}/>
           </TabsContent>
 
           <TabsContent value="mails" className="pt-2">
@@ -185,6 +189,10 @@ export function PartnerDrawer({ partner, open, tab, docusignEnabled, onTabChange
           <TabsContent value="contract" className="pt-2">
             {c ? <CaseWorkflow key={c.id} c={c} packet={p.contract} docusignEnabled={docusignEnabled} busy={busy} onAction={(action, extra) => void caseAction(action, extra)}/>
               : <p className="text-sm text-muted-foreground">Kein Onboarding-Vorgang.</p>}
+          </TabsContent>
+
+          <TabsContent value="evidence" className="pt-2">
+            <EvidencePanel userId={a?.userId ?? c?.claimed_by ?? null} active={open && tab === 'evidence'} onChanged={onChanged}/>
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-3 pt-2">

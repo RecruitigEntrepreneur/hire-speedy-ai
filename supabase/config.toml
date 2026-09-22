@@ -350,3 +350,11 @@ verify_jwt = false
 # Separate Connect listener; HMAC verification plus authoritative API lookup.
 [functions.recruiter-docusign-webhook]
 verify_jwt = false
+
+# Daily cron: reminder 30 days before a recruiter's evidence expires. Checks the service key itself.
+[functions.recruiter-evidence-reminder]
+verify_jwt = false
+
+# Public partner check page and website badge: no login, returns only what the check page may show.
+[functions.partner-check]
+verify_jwt = false

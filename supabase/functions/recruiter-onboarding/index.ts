@@ -11,6 +11,10 @@ import { serviceClient } from '../_shared/intake-core.ts';
 import { hashToken } from '../_shared/tokens.ts';
 import { peekCase, peekLoginLink, sendCode, verifyCode } from '../_shared/recruiter-code.ts';
 import { enrichCase } from '../_shared/recruiter-enrich.ts';
+import { saveBilling } from '../_shared/recruiter-billing-service.ts';
+import { declareIncome, submitEvidence } from '../_shared/recruiter-evidence-service.ts';
+import { partnerSettings, partnerSignatureTest } from '../_shared/recruiter-partner-service.ts';
+import { partnerCertificate, partnerQr } from '../_shared/recruiter-partner-pdf.ts';
 import { cleanExpertise, expertiseIssues } from '../_shared/recruiter-expertise.ts';
 import { cleanProfile, normalizeEmail, canOpenRecruiterSignature } from '../_shared/recruiter-contract-policy.ts';
 import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, caseById, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
@@ -28,6 +32,16 @@ serve(async req => {
     if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, link: body.link, code: body.code, ip: clientIp(req), login: body.login === true }));
     const user = await verifiedUser(req);
     if (body.action === 'access') return json(await recruiterAccess(db,user));
+    // Profilseite: Abrechnungsdaten speichern, Matchunt bekommt die Änderung per Mail.
+    if (body.action === 'billing') return json(await saveBilling(db, user, body.billing));
+    // Profil › Nachweise: Datei zur Prüfung anmelden, Erklärung zu den Einkünften abgeben.
+    if (body.action === 'evidence-submit') return json(await submitEvidence(db, user, body));
+    if (body.action === 'income-declare') return json(await declareIncome(db, user, body));
+    // Profil › Partnerstatus: Einwilligungen, „Ist eingerichtet“, Urkunde, QR-Code, Testmail der Signatur.
+    if (body.action === 'partner-settings') return json(await partnerSettings(db, user, body));
+    if (body.action === 'partner-certificate') return json(await partnerCertificate(db, user));
+    if (body.action === 'partner-qr') return json(await partnerQr(db, user));
+    if (body.action === 'partner-signature-test') return json(await partnerSignatureTest(db, user, body));
     if (body.action === 'resume' || body.action === 'begin') {
       const found = body.action === 'begin' ? await beginRecruiterCase(db,user,body.kind) : await resumeRecruiterCase(db,user);
       return json({ onboarding: found ? await publicCase(db,found) : null });

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 import { onboardingApi, type StoredContract, type StoredOnboarding } from '@/lib/recruiterOnboardingApi';
 import {
   buildPartners, countGroups, countTiles, filterPartners, GROUP_LABELS, PHASE_LABELS, relativeTime, TILE_LABELS,
@@ -25,7 +26,7 @@ import { PartnerDrawer, type DrawerTab } from './PartnerDrawer';
 const PREF_KEY = 'matchunt.admin.network.hideTests';
 const readPref = () => { try { return localStorage.getItem(PREF_KEY) === '1'; } catch { return false; } };
 const writePref = (v: boolean) => { try { localStorage.setItem(PREF_KEY, v ? '1' : '0'); } catch { /* egal */ } };
-const TILES: Tile[] = ['decide', 'activate', 'followUp', 'expiring'];
+const TILES: Tile[] = ['decide', 'activate', 'evidence', 'followUp', 'expiring'];
 const GROUPS: (Group | 'all')[] = ['all', 'onboarding', 'active', 'no_contract', 'suspended', 'archive'];
 const ACTIONABLE = ['review', 'countersign', 'activate', 'remind', 'resend', 'start_contract'];
 const URGENT = ['review', 'countersign', 'activate'];
@@ -42,6 +43,7 @@ export default function NetworkCockpit() {
   const [cases, setCases] = useState<StoredOnboarding[]>([]);
   const [contracts, setContracts] = useState<StoredContract[]>([]);
   const [accounts, setAccounts] = useState<RecruiterAccount[]>([]);
+  const [pendingEvidence, setPendingEvidence] = useState<Record<string, number>>({});
   const [docusign, setDocusign] = useState({ enabled: false, message: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,6 +65,11 @@ export default function NetworkCockpit() {
         loadRecruiterAccounts(),
       ]);
       setCases(list.cases); setContracts(list.contracts); setAccounts(accs);
+      // Offene Nachweise je Konto; fehlt die Tabelle noch (Migration), bleibt die Kachel leer.
+      const { data: pending } = await supabase.from('recruiter_evidence' as never).select('recruiter_id').eq('status', 'pending');
+      const counts: Record<string, number> = {};
+      for (const row of (pending ?? []) as unknown as { recruiter_id: string }[]) counts[row.recruiter_id] = (counts[row.recruiter_id] ?? 0) + 1;
+      setPendingEvidence(counts);
       setDocusign({ enabled: list.docusign_enabled, message: list.docusign_setup_message ?? '' });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Daten konnten nicht geladen werden.');
@@ -70,7 +77,7 @@ export default function NetworkCockpit() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const partners = useMemo(() => buildPartners({ cases, contracts, accounts }), [cases, contracts, accounts]);
+  const partners = useMemo(() => buildPartners({ cases, contracts, accounts, pendingEvidence }), [cases, contracts, accounts, pendingEvidence]);
   const base = useMemo(() => hideTests ? partners.filter(p => !p.isTest) : partners, [partners, hideTests]);
   const tiles = countTiles(base);
   const groups = countGroups(base);
@@ -119,7 +126,7 @@ export default function NetworkCockpit() {
 
     <section aria-label="Jetzt dran" className="space-y-2">
       <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Jetzt dran</p>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {TILES.map(key => <button key={key} type="button" aria-pressed={tile === key} onClick={() => setTile(tile === key ? null : key)}
           className={`rounded-xl border p-4 text-left transition hover:bg-muted/50 ${tile === key ? 'border-primary ring-1 ring-primary' : ''} ${tiles[key] ? '' : 'opacity-60'}`}>
           <span className="block text-3xl font-bold tabular-nums">{loading ? '–' : tiles[key]}</span>
@@ -151,7 +158,7 @@ export default function NetworkCockpit() {
         : <ul className="divide-y">{visible.map(p => {
           const actionable = ACTIONABLE.includes(p.next.kind);
           return <li key={p.key}>
-            <div role="button" tabIndex={0} aria-label={`${p.name}, ${PHASE_LABELS[p.phase]}: ${p.caseRow && p.group === 'onboarding' ? 'Vorgang' : 'Akte'} öffnen`} onClick={() => openPartner(p)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPartner(p); } }}
+            <div role="button" tabIndex={0} aria-label={`${p.name}, ${PHASE_LABELS[p.phase]}: ${p.caseRow && p.group === 'onboarding' ? 'Vorgang' : 'Akte'} öffnen`} onClick={() => openPartner(p, tile === 'evidence' ? 'evidence' : 'overview')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPartner(p, tile === 'evidence' ? 'evidence' : 'overview'); } }}
               className="grid cursor-pointer grid-cols-1 gap-2 px-4 py-3 outline-none transition hover:bg-muted/40 focus-visible:bg-muted/60 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(150px,auto)] md:items-center md:gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2"><span className="truncate font-medium">{p.name}</span>{p.isTest && <Badge variant="outline" className="shrink-0">Test</Badge>}</div>

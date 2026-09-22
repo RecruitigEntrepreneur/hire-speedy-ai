@@ -15,6 +15,8 @@ import { caseMails, invitationMails } from '../_shared/email-event-log.ts';
 import { refreshDueContracts, syncDue } from '../_shared/recruiter-contract-refresh.ts';
 import { grantRecruiterAccess, sendWelcomeMail } from '../_shared/recruiter-activation.ts';
 import { cleanProfile, normalizeEmail, validEmail, profileIssues, packageIssues, requiredReviewChecks, type ContractDocument } from '../_shared/recruiter-contract-policy.ts';
+import { reviewEvidence } from '../_shared/recruiter-evidence-service.ts';
+import { grantPartnerStatus, setPartnerActive } from '../_shared/recruiter-partner-service.ts';
 import { must, dbError, caseById, patchCase, envelopeById, patchEnvelope, signatureConfig, providerRequest, sha256, syncEnvelope, workflowFailure, type RecruiterEnvelope, type OnboardingCase } from '../_shared/recruiter-onboarding-service.ts';
 
 /**
@@ -46,6 +48,10 @@ serve(async req => {
     const admin = await requireAdmin(req, db);
     must(admin.ok, admin.message ?? 'Keine Berechtigung.', 'not_allowed');
     const body = await req.json();
+    // Nachweis aus dem Profil eines Headhunters prüfen; hängt an keinem Vorgang.
+    if (body.action === 'evidence-review') return json(await reviewEvidence(db, admin, body));
+    // Partnerstatus beenden oder wiederherstellen (Akte › Übersicht).
+    if (body.action === 'partner-status') return json(await setPartnerActive(db, body));
     if (body.action === 'list') {
       const { data: cases, error } = await db.from('recruiter_onboarding_cases')
         .select('id,revision,entry_source,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,claimed_by,checks,reviewed_at,created_at')
@@ -137,9 +143,11 @@ serve(async req => {
       // Gegenzeichnung (autoActivateRecruiter). Hier nur, falls die scheiterte, oder um
       // die Zugangsmail erneut zu senden. Erst nach Prüfung, Freigabe und beidseitiger Unterschrift.
       must(c.state === 'approved' && !c.revoked_at && c.claimed_by, 'Der Vorgang ist noch nicht geprüft und freigegeben.', 'conflict');
-      const { data: done, error: de } = await db.from('recruiter_contract_envelopes').select('id').eq('case_id', c.id).eq('state', 'completed').limit(1).maybeSingle();
+      const { data: done, error: de } = await db.from('recruiter_contract_envelopes').select('id,package_version,countersigned_at').eq('case_id', c.id).eq('state', 'completed')
+        .order('countersigned_at', { ascending: true }).limit(1).maybeSingle();
       dbError(de); must(done, 'Der Vertrag ist noch nicht von beiden Seiten unterzeichnet.', 'conflict');
       must(await grantRecruiterAccess(db, c), 'Für dieses Konto gibt es keine Recruiter-Rolle.', 'conflict');
+      await grantPartnerStatus(db, { userId: c.claimed_by!, version: done.package_version, since: done.countersigned_at });
       const result = await sendWelcomeMail(db, c, { replyTo: admin.email });
       must(result.sent, 'Freigeschaltet, aber die Zugangsmail konnte nicht versendet werden. Bitte erneut auslösen.', 'upstream_error');
       return json({ ok: true });
