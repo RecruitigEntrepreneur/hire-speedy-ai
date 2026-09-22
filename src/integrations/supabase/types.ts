@@ -9432,6 +9432,54 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_partner_status: {
+        Row: {
+          channels: Json
+          contract_version: string
+          directory_consent_at: string | null
+          end_reason: string | null
+          ended_at: string | null
+          granted_at: string
+          partner_number: string
+          show_expertise_at: string | null
+          tier: string
+          updated_at: string
+          user_id: string
+          website_domain: string | null
+          website_seen_at: string | null
+        }
+        Insert: {
+          channels?: Json
+          contract_version: string
+          directory_consent_at?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          granted_at?: string
+          partner_number?: string
+          show_expertise_at?: string | null
+          tier?: string
+          updated_at?: string
+          user_id: string
+          website_domain?: string | null
+          website_seen_at?: string | null
+        }
+        Update: {
+          channels?: Json
+          contract_version?: string
+          directory_consent_at?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          granted_at?: string
+          partner_number?: string
+          show_expertise_at?: string | null
+          tier?: string
+          updated_at?: string
+          user_id?: string
+          website_domain?: string | null
+          website_seen_at?: string | null
+        }
+        Relationships: []
+      }
       recruiter_payout_tranches: {
         Row: {
           amount_cents: number
@@ -11822,6 +11870,7 @@ export type Database = {
         Args: { signed_at: string }
         Returns: string
       }
+      recruiter_partner_number: { Args: never; Returns: string }
       scrub_identity_tokens: {
         Args: { p_repl: string; p_text: string; p_tokens: string[] }
         Returns: string
