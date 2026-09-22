@@ -8868,7 +8868,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_path: string | null
           avatar_url: string | null
+          bank_account_holder: string | null
           bank_bic: string | null
           bank_iban: string | null
           company_address: string | null
@@ -8879,9 +8881,11 @@ export type Database = {
           full_name: string | null
           id: string
           internal_notes: string | null
+          linkedin_url: string | null
           phone: string | null
           placements_count: number | null
           professional_tone: string | null
+          recruiter_expertise: Json | null
           role_title: string | null
           tax_id: string | null
           updated_at: string
@@ -8889,7 +8893,9 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          avatar_path?: string | null
           avatar_url?: string | null
+          bank_account_holder?: string | null
           bank_bic?: string | null
           bank_iban?: string | null
           company_address?: string | null
@@ -8900,9 +8906,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           internal_notes?: string | null
+          linkedin_url?: string | null
           phone?: string | null
           placements_count?: number | null
           professional_tone?: string | null
+          recruiter_expertise?: Json | null
           role_title?: string | null
           tax_id?: string | null
           updated_at?: string
@@ -8910,7 +8918,9 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          avatar_path?: string | null
           avatar_url?: string | null
+          bank_account_holder?: string | null
           bank_bic?: string | null
           bank_iban?: string | null
           company_address?: string | null
@@ -8921,9 +8931,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           internal_notes?: string | null
+          linkedin_url?: string | null
           phone?: string | null
           placements_count?: number | null
           professional_tone?: string | null
+          recruiter_expertise?: Json | null
           role_title?: string | null
           tax_id?: string | null
           updated_at?: string
@@ -9060,6 +9072,54 @@ export type Database = {
           is_accepted?: boolean | null
           recruiter_id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_evidence: {
+        Row: {
+          declaration: string | null
+          file_name: string | null
+          file_path: string | null
+          id: string
+          kind: string
+          reason: string | null
+          recruiter_id: string
+          reminded_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          uploaded_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          declaration?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          kind: string
+          reason?: string | null
+          recruiter_id: string
+          reminded_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          uploaded_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          declaration?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          kind?: string
+          reason?: string | null
+          recruiter_id?: string
+          reminded_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          uploaded_at?: string
+          valid_until?: string | null
         }
         Relationships: []
       }
