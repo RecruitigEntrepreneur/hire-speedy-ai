@@ -64,24 +64,111 @@ export const EMPTY_BUILT: BuiltJob = {
  * Ein Platzhalter ist keine Antwort. Er wird hier zu leer -- dann greift die
  * Pflichtpruefung, und der Kunde wird gefragt.
  */
-const PLATZHALTER = /^(unbekannt|unknown|n\/?a|keine angabe|nicht angegeben|-{1,3})$/i;
+// "null"/"undefined": das Modell schreibt fehlende Werte gelegentlich als Text.
+// Im Feld "Branche" stand dann woertlich "null" (im Durchklicken 23.09.2026).
+const PLATZHALTER = /^(unbekannt|unknown|n\/?a|keine angabe|nicht angegeben|null|undefined|none|-{1,3})$/i;
 const echt = (v: string | null | undefined) => {
   const t = String(v ?? '').trim();
   return t && !PLATZHALTER.test(t) ? t : '';
 };
 
+/**
+ * Ausbildung und Berufserfahrung als Anforderungen.
+ *
+ * Der Parser ordnet sie in `requirements_classified` ein (kind education /
+ * experience), in `must_haves` stehen aber nur Skills. "Meister oder
+ * Techniker", "Studium Maschinenbau" und "5 Jahre Fuehrungserfahrung" fielen
+ * damit aus der Kriterienliste (Durchklicken 24.09.2026).
+ *
+ * Mehrere Abschluesse in einer Anzeige sind fast immer Alternativen
+ * ("bzw.", "oder") -- sie werden zu EINEM Kriterium, sonst waeren zwei
+ * Abschluesse gleichzeitig unverzichtbar.
+ */
+export function qualifikationenAusParsed(d: ParsedJobData): { must: string[]; nice: string[] } {
+  const rc = (d.requirements_classified ?? []).filter(Boolean);
+  const kurz = (t: string) => (t.length > 120 ? `${t.slice(0, 117).trimEnd()} …` : t);
+  const must: string[] = [];
+  const nice: string[] = [];
+  const edu = rc.filter((e) => e.kind === 'education' && echt(e.text));
+  if (edu.length) {
+    /* "Ausbildung zum Steuerfachangestellten oder Bilanzbuchhalter" zerlegt der
+       Parser in zwei Eintraege mit demselben Anfang. Beim Zusammenfuegen wird
+       der gemeinsame Anfang nur einmal geschrieben -- vorher stand da
+       "Ausbildung zum Steuerfachangestellten oder abgeschlossene Ausbildung zum …". */
+    const texte = edu.map((e) => echt(e.text));
+    const erstes = texte[0].split(/\s+/);
+    const ohneAnfang = (t: string) => {
+      const w = t.split(/\s+/);
+      let i = 0;
+      while (i < w.length - 1 && i < erstes.length && w[i].toLowerCase() === erstes[i].toLowerCase()) i++;
+      const rest = i >= 2 ? w.slice(i).join(' ') : t;
+      // "oder Bilanzbuchhalter" -- das Bindewort setzt das Zusammenfuegen selbst.
+      return rest.replace(/^(oder|bzw\.?|beziehungsweise|und)\s+/i, '');
+    };
+    const text = kurz([texte[0], ...texte.slice(1).map(ohneAnfang)].join(' oder '));
+    (edu.some((e) => e.required !== false) ? must : nice).push(text);
+  }
+  /* Erfahrung. "davon 3 Jahre mit Personalverantwortung" zerlegt der Parser
+     als eigenen Eintrag -- allein steht es ohne Bezug da. Solche Teile haengen
+     an der vorigen Erfahrung (Durchklicken 24.09.2026, Head of Sales). */
+  const erfahrung: { text: string; required: boolean }[] = [];
+  for (const e of rc.filter((x) => x.kind === 'experience' && echt(x.text))) {
+    const t = echt(e.text);
+    const vorige = erfahrung[erfahrung.length - 1];
+    if (vorige && /^(davon|hiervon|darunter|inklusive|inkl\.|einschlie(ss|ß)lich)\b/i.test(t)) {
+      vorige.text = `${vorige.text}, ${t}`;
+      continue;
+    }
+    erfahrung.push({ text: t, required: e.required !== false });
+  }
+  for (const e of erfahrung) (e.required ? must : nice).push(kurz(e.text));
+
+  /* Sprachen und Zertifikate. Der Parser leitet sie in required_languages /
+     required_certifications um -- fuer den Matcher richtig, aber dort sieht
+     sie niemand: "verhandlungssicheres Englisch" stand in keiner Liste. */
+  for (const e of rc.filter((x) => (x.kind === 'language' || x.kind === 'certification') && echt(x.text))) {
+    (e.required === false ? nice : must).push(kurz(echt(e.text)));
+  }
+  return { must, nice };
+}
+
+/**
+ * Leitungsrollen sind "Lead" -- fest, nicht nach Tagesform des Modells.
+ * Derselbe Text ergab einmal "Senior", einmal "Lead" (24.09.2026).
+ * Projekt- und Bauleitung fuehren Vorhaben, nicht Menschen: sie bleiben beim
+ * Wert des Modells.
+ */
+export function stufeAusTitel(titel: string | null | undefined): 'lead' | null {
+  const t = String(titel ?? '').toLowerCase();
+  if (!t || /(projekt|bau)leit/.test(t)) return null;
+  return /leiter|leitung|head of|director|direktor|vice president|\bvp\b|chief|geschäftsführ|geschaeftsfuehr|team lead/.test(t)
+    ? 'lead'
+    : null;
+}
+
+const ohneDoppel = (liste: string[]) => {
+  const gesehen = new Set<string>();
+  return liste.filter((x) => {
+    const k = String(x ?? '').trim().toLowerCase();
+    if (!k || gesehen.has(k)) return false;
+    gesehen.add(k);
+    return true;
+  });
+};
+
 export function fromParsedJobData(d: ParsedJobData): BuiltJob {
+  const quali = qualifikationenAusParsed(d);
   return {
     title: echt(d.title),
     company_name: echt(d.company_name),
     location: echt(d.location),
     remote_type: d.remote_type || 'hybrid',
-    experience_level: d.experience_level || 'mid',
+    experience_level: stufeAusTitel(d.title) ?? (d.experience_level || 'mid'),
     salary_min: d.salary_min,
     salary_max: d.salary_max,
     skills: d.skills || [],
-    must_haves: d.must_haves || [],
-    nice_to_haves: d.nice_to_haves || [],
+    must_haves: ohneDoppel([...(d.must_haves || []), ...quali.must]),
+    nice_to_haves: ohneDoppel([...(d.nice_to_haves || []), ...quali.nice]),
     industry: echt(d.industry),
     description: d.description || '',
     requirements: d.requirements || '',
@@ -307,19 +394,48 @@ export function flexibilityFromParsed(
   return out;
 }
 
+/**
+ * Kultur aus dem Wortlaut der Anzeige -- nur was wirklich dasteht.
+ *
+ * Der Parser liefert `company_culture` mal, mal nicht, und hat im Test eine
+ * "Sie-Kultur" behauptet, von der in der Anzeige nichts stand. Diese Regel
+ * erfindet nichts: sie greift nur auf ausdrueckliche Woerter.
+ */
+export function kulturAusText(roh: string | null | undefined): string | undefined {
+  const t = String(roh ?? '').toLowerCase();
+  if (!t) return undefined;
+  const treffer: string[] = [];
+  if (/\bduzen\b|du-kultur|per du\b|wir duzen/.test(t)) treffer.push('Wir duzen uns');
+  else if (/\bsiezen\b|sie-kultur/.test(t)) treffer.push('Wir siezen uns');
+  if (/familiär|familiaer|familiengeführt|familiengefuehrt|familienunternehmen/.test(t)) treffer.push('Familiär, wenig Fluktuation');
+  if (/flache hierarchie|kurze (entscheidungs)?wege|kurzen dienstweg/.test(t)) treffer.push('Kurze Wege, wenig Abstimmung');
+  return treffer.length ? treffer.join(', ') : undefined;
+}
+
 export function catalogFromParsed(
   d: ParsedJobData,
   contract: 'full-time' | 'freelance' = 'full-time',
+  /** Der eingefuegte Anzeigentext, fuer Angaben, die der Parser auslaesst. */
+  rohText?: string | null,
 ): Record<string, { value: unknown; from: 'ad' }> {
   const out: Record<string, { value: unknown; from: 'ad' }> = {};
+  // Der ganze Wortlaut, gegen den Angaben des Modells geprueft werden.
+  const wortlaut = [rohText, d.description, d.requirements].filter(Boolean).join(' ');
   const setz = (key: string, roh: unknown) => {
     if (roh === null || roh === undefined) return;
+    /* "Nicht erwaehnt" ist kein "Nein". Der Parser fuellt Ja/Nein-Felder mit
+       false, wenn die Anzeige nichts sagt -- im Test stand "Vertrag digital
+       versendet: Nein" und "Bonus: Nein", obwohl die Anzeige dazu schwieg
+       (Durchklicken 24.09.2026). Ein ausdrueckliches Nein ist in Anzeigen so
+       selten, dass wir es lieber fragen als raten. */
+    if (roh === false) return;
     // Chip-Slots nehmen nur, was einen Chip trifft -- und zwar einen Chip
     // DIESER Vertragsart. Sonst stuende ueber einer unmarkierten Reihe
     // "bitte pruefen", und die Zeile zaehlte trotzdem als gefuellt.
     const value = chipTreffer(key, roh, contract);
     if (value === null || value === undefined) return;
-    if (typeof value === 'string' && !value.trim()) return;
+    // Dieselbe Platzhalter-Regel wie im Formular: "null" als Text ist kein Wert.
+    if (typeof value === 'string' && (!value.trim() || PLATZHALTER.test(value.trim()))) return;
     if (Array.isArray(value) && value.length === 0) return;
     out[key] = { value, from: 'ad' };
   };
@@ -339,6 +455,18 @@ export function catalogFromParsed(
     if (Number.isFinite(n) && n > 0) setz('team_size', Math.round(n));
   }
   setz('reports_to', d.reports_to);
+  /* Der Chip nennt die Ebene, die Anzeige die Rolle ("Werkleiter" ->
+     Bereichsleitung). Der Wortlaut bleibt als Hinweis daneben stehen;
+     `__wortlaut` ist keine Katalogzeile und wird nirgends gespeichert. */
+  {
+    const roh = echt(d.reports_to as string | null);
+    const chip = out.reports_to?.value;
+    // Auch wenn KEIN Chip passt ("Leitung Operations"): dann erst recht, sonst
+    // leitet die KI eine Ebene ab und meldet den Unterschied als Widerspruch.
+    if (roh && (typeof chip !== 'string' || chip.toLowerCase() !== roh.toLowerCase())) {
+      out.reports_to__wortlaut = { value: roh, from: 'ad' };
+    }
+  }
 
   // Arbeitsweise
   setz('core_hours', d.core_hours);
@@ -357,7 +485,7 @@ export function catalogFromParsed(
   if (d.remote_days != null) setz('remote_days', Math.max(0, Number(d.remote_days)));
 
   // Kultur und Verkauf
-  setz('company_culture', d.company_culture);
+  setz('company_culture', echt(d.company_culture) || kulturAusText([rohText, d.description, d.requirements].filter(Boolean).join(' ')));
   setz('career_path', d.career_path);
   setz('career_example', d.career_example);
   setz('unique_selling_points', d.unique_selling_points);
@@ -368,19 +496,34 @@ export function catalogFromParsed(
   setz('position_advantages', d.position_advantages);
 
   // Konditionen
-  setz('salary_months', d.salary_months);
+  /* 12 ist der Standard des Modells, keine Angabe der Anzeige -- nur mit Beleg
+     im Text. 13, 13,5 oder 14 nennt eine Anzeige dagegen nie zufaellig. */
+  if (!(Number(d.salary_months) === 12 && !/(\b12\b|zw(ö|oe)lf)\s*(monats)?geh(ä|ae)lt/i.test(wortlaut))) {
+    setz('salary_months', d.salary_months);
+  }
   /* Der Chip nennt eine Obergrenze ("bis 10 %"), die Anzeige eine Zahl.
      Aufgerundet auf die naechste Stufe: 8 % ist "bis 10 %", 15 % ist
      "bis 20 %". Abrunden hiesse, dem Kandidaten weniger zu versprechen,
      als zugesagt ist. */
-  if (d.bonus_percent != null) {
+  // 0 % heisst beim Parser "nichts gefunden" -- siehe oben, kein geratenes Nein.
+  if (d.bonus_percent != null && Number(d.bonus_percent) > 0) {
     const p = Number(d.bonus_percent);
     setz('bonus_structure',
       !Number.isFinite(p) ? undefined
         : p <= 0 ? 'Nein' : p <= 10 ? 'bis 10 %' : p <= 20 ? 'bis 20 %' : 'mehr als 20 %');
   }
   setz('bonus_basis', d.bonus_basis);
-  setz('contract_limitation', d.contract_limitation);
+  if (!out.bonus_basis && /zielerreich|zielvereinbar/i.test(wortlaut)) {
+    // "bei Zielerreichung" -- als Vorschlag markiert, der Kunde bestaetigt.
+    setz('bonus_basis', ['Persönliche Ziele']);
+  }
+  /* Befristung nur mit Beleg: der Parser setzte "unbefristet" als Standard,
+     obwohl die Anzeige dazu schwieg (Durchklicken 24.09.2026, Buchhalter). */
+  // Nur pruefbar, wenn der Originaltext da ist (eingefuegte Anzeige); bei Link
+  // und PDF bleibt es beim Wert des Parsers.
+  if (!String(rohText ?? '').trim() || /befrist|projektvertrag|zeitvertrag|dauerhaft|auf dauer/i.test(wortlaut)) {
+    setz('contract_limitation', d.contract_limitation);
+  }
 
   // Arbeitszeit, Mitbestimmung, Vertragstempo
   setz('time_tracking_method', d.time_tracking_method);
@@ -420,8 +563,24 @@ export function catalogFromParsed(
   setz('candidates_dropped_reason', d.candidates_dropped_reason);
 
   // Dringlichkeit
-  setz('vacancy_reason', d.vacancy_reason);
-  if (d.hiring_deadline_weeks != null) {
+  /* Der Wortlaut schlaegt die Deutung des Modells: "weil die bisherige
+     Kollegin in Rente geht" ergab "Nachbesetzung" statt "Nachfolge / Ruhestand". */
+  setz('vacancy_reason',
+    /\b(rente|renteneintritt|ruhestand|pension(ierung)?)\b/i.test(wortlaut) ? 'Nachfolge / Ruhestand'
+      : /elternzeit|mutterschutz/i.test(wortlaut) ? 'Elternzeit-Vertretung'
+      : /neu geschaffen|neue(n)? position|wachstum|expan/i.test(wortlaut) ? 'Wachstum / neu geschaffen'
+      : d.vacancy_reason);
+  /* Eine Monatsspanne im Wortlaut schlaegt die Wochenzahl des Modells: aus
+     "Start in 1 bis 3 Monaten" machte es 4 Wochen, und daraus wurde
+     "So schnell wie moeglich" (Durchklicken 24.09.2026). */
+  const spanne = /\b1\s*(bis|-|–)\s*3\s*monat/i.test(wortlaut)
+    ? 'In 1–3 Monaten'
+    : /\b3\s*(bis|-|–)\s*6\s*monat/i.test(wortlaut)
+      ? 'In 3–6 Monaten'
+      : null;
+  if (spanne) {
+    setz('hiring_deadline', spanne);
+  } else if (d.hiring_deadline_weeks != null) {
     const w = Number(d.hiring_deadline_weeks);
     setz('hiring_deadline', w <= 4 ? 'So schnell wie möglich' : w <= 12 ? 'In 1–3 Monaten' : 'In 3–6 Monaten');
   } else if (d.hiring_urgency === 'hot' || d.hiring_urgency === 'urgent') {

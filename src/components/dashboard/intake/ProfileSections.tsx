@@ -57,6 +57,7 @@ interface Props {
    */
   catalogKnown?: KatalogKnown;
   onCatalogSet?: (key: string, value: unknown) => void;
+  onCatalogConfirm?: (key: string) => void;
   onDismissSuggestion?: (skill: string) => void;
 }
 
@@ -217,7 +218,7 @@ const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number
 /** Linke Studio-Spalte: das KI-gefüllte Profil, in Sektionen editierbar. */
 export function ProfileSections({
   type, built, onChange, freelance, onFreelanceChange, reveal, onRevealChange, flexibility, onFlexibilityChange,
-  skillSuggestions, onDismissSuggestion, catalogKnown, onCatalogSet,
+  skillSuggestions, onDismissSuggestion, catalogKnown, onCatalogSet, onCatalogConfirm,
 }: Props) {
   const set = (patch: Partial<BuiltJob>) => onChange({ ...built, ...patch });
 
@@ -306,6 +307,7 @@ export function ProfileSections({
           place={place}
           known={catalogKnown}
           onSet={onCatalogSet}
+          onConfirm={onCatalogConfirm}
           contract={type}
           mustHaves={built.must_haves ?? []}
         />
@@ -343,7 +345,7 @@ export function ProfileSections({
 
       <Section title="Eckdaten" icon={MapPin}>
         <div className="grid grid-cols-2 gap-2">
-          <Input value={built.location} onChange={(e) => set({ location: e.target.value })} placeholder="Standort" className="h-8 text-xs" />
+          <Input data-feld="location" value={built.location} onChange={(e) => set({ location: e.target.value })} placeholder="Standort" className="h-8 text-xs" />
           <Select value={built.remote_type || 'hybrid'} onValueChange={(v) => set({ remote_type: v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -453,6 +455,7 @@ export function ProfileSections({
         standen auf "unverzichtbar", ohne dass es jemand gesagt hatte. Genau
         diese Wunschliste soll Markos Frage aufbrechen.
       */}
+      <div data-feld="kriterien" tabIndex={-1} />
       <Section title="Anforderungen" icon={Sparkles}>
         {/* Der Wortlaut kommt aus dem Katalog, nicht aus diesem Bauteil.
             Vorher stand Markos Frage hier als Literal im JSX -- zwei

@@ -2,7 +2,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
-import { NeueStelleBar } from '@/components/dashboard/NeueStelleBar';
+import { PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
 import { AktiveJobsTile } from '@/components/dashboard/bento/AktiveJobsTile';
 import { BrauchtEntscheidungTile } from '@/components/dashboard/bento/BrauchtEntscheidungTile';
@@ -59,8 +59,8 @@ export default function ClientDashboard() {
           <p className="text-sm text-muted-foreground">Ihr Command Center für alle Kandidaten-Aktivitäten.</p>
         </div>
 
-        {/* Neue Stelle – Typ zuerst, dann Upload-Art */}
-        <NeueStelleBar />
+        {/* Neue Position – fuehrt in dieselbe Aufnahme wie der Link /start */}
+        <PositionEntry hasJobs={isLoading || (data?.liveJobs?.length ?? 0) > 0} />
 
         {/* 2x2 Bento – vier gleich große Boxen */}
         <TooltipProvider>

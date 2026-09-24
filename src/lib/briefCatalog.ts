@@ -1138,7 +1138,7 @@ const SCHLAGWORTE: Record<string, [RegExp, string][]> = {
   ],
   bonus_basis: [
     [/unternehmen|firmen|gesch(ae|ä)ftsergebnis|ebit|gewinn/i, 'Unternehmensergebnis'],
-    [/pers(oe|ö)nlich|individuell|zielvereinbarung/i, 'Persönliche Ziele'],
+    [/pers(oe|ö)nlich|individuell|zielvereinbarung|zielerreichung/i, 'Persönliche Ziele'],
     [/team/i, 'Teamziele'],
     [/umsatz|absatz|vertriebsziel/i, 'Umsatz'],
   ],

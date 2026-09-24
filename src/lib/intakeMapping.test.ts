@@ -243,7 +243,8 @@ describe('catalogFromParsed', () => {
 
   it('rundet den Bonus auf die Stufe, die dem Kandidaten nichts wegnimmt', () => {
     const b = (p: number) => catalogFromParsed({ bonus_percent: p } as any).bonus_structure?.value;
-    expect(b(0)).toBe('Nein');
+    // 0 % liefert der Parser, wenn die Anzeige schweigt -- kein geratenes "Nein" (24.09.2026).
+    expect(b(0)).toBeUndefined();
     expect(b(8)).toBe('bis 10 %');    // nicht "Nein"
     expect(b(15)).toBe('bis 20 %');   // nicht "bis 10 %"
     expect(b(30)).toBe('mehr als 20 %');
@@ -711,5 +712,162 @@ describe('draftSummary', () => {
 
   it('gibt null zurück, wenn nichts angegeben ist — statt "0 €"', () => {
     expect(draftSummary({ contract_type: 'full-time', built: {}, company_name: 'A' }).compensation).toBeNull();
+  });
+});
+
+// ---- Durchklicken 24.09.2026: "wieso wird so wenig gezogen?" ---------------
+import { qualifikationenAusParsed, kulturAusText, catalogFromParsed as katalogAusAnzeige } from './intakeMapping';
+import { draftToJobRow as zeileAusEntwurf } from '../../supabase/functions/_shared/intake-mapping';
+
+describe('Ausbildung und Erfahrung als Anforderungen', () => {
+  const parsed = {
+    title: 'Leiter Instandhaltung',
+    must_haves: ['SAP PM'],
+    requirements_classified: [
+      { text: 'Meister oder Techniker Elektrotechnik', required: true, kind: 'education' },
+      { text: 'Studium Maschinenbau', required: true, kind: 'education' },
+      { text: 'mindestens 5 Jahre Führungserfahrung', required: true, kind: 'experience', min_years: 5 },
+      { text: 'SAP PM', required: true, kind: 'technology', skill: 'SAP PM' },
+    ],
+  } as any;
+
+  it('fasst Abschluesse zu EINER Alternative zusammen und nimmt Erfahrung auf', () => {
+    const q = qualifikationenAusParsed(parsed);
+    expect(q.must).toEqual([
+      'Meister oder Techniker Elektrotechnik oder Studium Maschinenbau',
+      'mindestens 5 Jahre Führungserfahrung',
+    ]);
+  });
+
+  it('stehen in der Kriterienliste, aber nicht in den Skill-Spalten des Matchers', () => {
+    const job = fromParsedJobData(parsed);
+    expect(job.must_haves).toContain('mindestens 5 Jahre Führungserfahrung');
+    const q = qualifikationenAusParsed(parsed);
+    const row = zeileAusEntwurf({
+      contract_type: 'full-time',
+      built: job,
+      dyn: { typedFields: { qualification_criteria: [...q.must, ...q.nice] } },
+    } as any) as any;
+    expect(row.must_haves).toEqual(['SAP PM']);
+  });
+});
+
+describe('Nicht erwaehnt ist kein Nein', () => {
+  it('uebernimmt kein false aus der Anzeige', () => {
+    const k = catalogFromParsed({ contract_sent_digitally: false, works_council: false } as any);
+    expect(k.contract_sent_digitally).toBeUndefined();
+    expect(k.works_council).toBeUndefined();
+  });
+});
+
+describe('Kultur nur aus dem Wortlaut', () => {
+  it('erkennt ausdrueckliche Woerter', () => {
+    expect(kulturAusText('Bei uns wird geduzt? Nein: wir duzen uns und haben flache Hierarchien.'))
+      .toBe('Wir duzen uns, Kurze Wege, wenig Abstimmung');
+  });
+  it('erfindet nichts', () => {
+    expect(kulturAusText('Mittelständischer Hersteller mit 650 Mitarbeitenden')).toBeUndefined();
+  });
+  it('nimmt "null" vom Parser nicht als Kultur', () => {
+    const k = katalogAusAnzeige({ company_culture: 'null' } as any, 'full-time', 'Familienunternehmen seit 1950');
+    expect(k.company_culture?.value).toBe('Familiär, wenig Fluktuation');
+  });
+});
+
+// ---- Plan 24.09.2026, Paket 1 ------------------------------------------------
+import { stufeAusTitel } from './intakeMapping';
+
+describe('Paket 1: nichts raten, alles zeigen', () => {
+  it('12 Monatsgehaelter nur mit Beleg im Text', () => {
+    expect(katalogAusAnzeige({ salary_months: 12 } as any, 'full-time', 'Head of Sales, 110k fix').salary_months).toBeUndefined();
+    expect(katalogAusAnzeige({ salary_months: 12 } as any, 'full-time', 'Wir zahlen 12 Monatsgehälter').salary_months?.value).toBe(12);
+    expect(katalogAusAnzeige({ salary_months: 13 } as any, 'full-time', '').salary_months?.value).toBe(13);
+  });
+
+  it('Sprachen und Zertifikate werden sichtbare Anforderungen', () => {
+    const q = qualifikationenAusParsed({
+      requirements_classified: [
+        { text: 'verhandlungssicheres Englisch', kind: 'language', required: true },
+        { text: 'Führerschein Klasse B', kind: 'certification', required: false },
+      ],
+    } as any);
+    expect(q.must).toContain('verhandlungssicheres Englisch');
+    expect(q.nice).toContain('Führerschein Klasse B');
+  });
+
+  it('"davon ..." haengt an der vorigen Erfahrung', () => {
+    const q = qualifikationenAusParsed({
+      requirements_classified: [
+        { text: 'mindestens 7 Jahre B2B-SaaS-Vertrieb', kind: 'experience', required: true },
+        { text: 'davon 3 Jahre mit Personalverantwortung', kind: 'experience', required: true },
+      ],
+    } as any);
+    expect(q.must).toEqual(['mindestens 7 Jahre B2B-SaaS-Vertrieb, davon 3 Jahre mit Personalverantwortung']);
+  });
+
+  it('Leitungsrollen sind Lead, Projektleitung nicht', () => {
+    expect(stufeAusTitel('Head of Sales DACH (m/w/d)')).toBe('lead');
+    expect(stufeAusTitel('Leiter Instandhaltung')).toBe('lead');
+    expect(stufeAusTitel('Projektleiter Automatisierung')).toBeNull();
+    expect(stufeAusTitel('Senior Controller')).toBeNull();
+    expect(fromParsedJobData({ title: 'Leiter Instandhaltung', experience_level: 'senior' } as any).experience_level).toBe('lead');
+  });
+
+  it('Bonus-Bezug aus "bei Zielerreichung", als Vorschlag', () => {
+    const k = katalogAusAnzeige({ bonus_percent: 30 } as any, 'full-time', '30 Prozent variabler Bonus bei Zielerreichung');
+    expect(k.bonus_basis?.value).toEqual(['Persönliche Ziele']);
+    expect(k.bonus_basis?.from).toBe('ad');
+  });
+
+  it('Wortlaut der Berichtslinie bleibt neben dem Chip', () => {
+    const k = katalogAusAnzeige({ reports_to: 'Werkleiter' } as any, 'full-time');
+    expect(k.reports_to?.value).toBe('Bereichsleitung');
+    expect(k.reports_to__wortlaut?.value).toBe('Werkleiter');
+  });
+});
+
+describe('Starttermin aus dem Wortlaut', () => {
+  it('"in 1 bis 3 Monaten" schlaegt eine kleine Wochenzahl', () => {
+    const k = katalogAusAnzeige({ hiring_deadline_weeks: 4, hiring_urgency: 'urgent' } as any, 'full-time', 'Start: in 1 bis 3 Monaten');
+    expect(k.hiring_deadline?.value).toBe('In 1–3 Monaten');
+  });
+});
+
+describe('Wortlaut der Berichtslinie ohne passenden Chip', () => {
+  it('bleibt erhalten, auch wenn keine Ebene erkannt wird', () => {
+    const k = katalogAusAnzeige({ reports_to: 'Leitung Operations' } as any, 'full-time');
+    expect(k.reports_to__wortlaut?.value).toBe('Leitung Operations');
+  });
+});
+
+describe('Nur mit Beleg im Wortlaut (Buchhalter, 24.09.2026)', () => {
+  it('keine erfundene Befristung', () => {
+    expect(katalogAusAnzeige({ contract_limitation: 'unbefristet' } as any, 'full-time', 'Senior Buchhalter in Nürnberg').contract_limitation).toBeUndefined();
+    expect(katalogAusAnzeige({ contract_limitation: 'unbefristet' } as any, 'full-time', 'unbefristete Festanstellung').contract_limitation?.value).toBeDefined();
+  });
+  it('Rente im Text ergibt Nachfolge / Ruhestand', () => {
+    const k = katalogAusAnzeige({ vacancy_reason: 'Nachbesetzung' } as any, 'full-time', 'weil die bisherige Kollegin in Rente geht');
+    expect(k.vacancy_reason?.value).toBe('Nachfolge / Ruhestand');
+  });
+  it('Ausbildungs-Alternativen ohne doppelten Anfang', () => {
+    const q = qualifikationenAusParsed({
+      requirements_classified: [
+        { text: 'abgeschlossene Ausbildung zum Steuerfachangestellten', kind: 'education', required: true },
+        { text: 'abgeschlossene Ausbildung zum Bilanzbuchhalter IHK', kind: 'education', required: true },
+      ],
+    } as any);
+    expect(q.must[0]).toBe('abgeschlossene Ausbildung zum Steuerfachangestellten oder Bilanzbuchhalter IHK');
+  });
+});
+
+describe('Ausbildung: kein doppeltes "oder"', () => {
+  it('wenn der zweite Eintrag den ersten schon enthaelt', () => {
+    const q = qualifikationenAusParsed({
+      requirements_classified: [
+        { text: 'abgeschlossene Ausbildung zum Steuerfachangestellten', kind: 'education', required: true },
+        { text: 'abgeschlossene Ausbildung zum Steuerfachangestellten oder Bilanzbuchhalter IHK', kind: 'education', required: true },
+      ],
+    } as any);
+    expect(q.must[0]).toBe('abgeschlossene Ausbildung zum Steuerfachangestellten oder Bilanzbuchhalter IHK');
   });
 });

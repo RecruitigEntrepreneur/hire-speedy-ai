@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ProfileCompletenessCard } from '@/components/client/ProfileCompletenessCard';
+import { firmendatenAus, joinAddress } from '@/lib/firmendaten';
 import {
   Select,
   SelectContent,
@@ -40,6 +41,12 @@ interface CompanyProfile {
   address: string | null;
   tax_id: string | null;
   billing_email: string | null;
+  // Firmendaten fuer die Vereinbarung (Migration 20260924120000)
+  legal_name?: string | null;
+  street?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  registration_number?: string | null;
   // Partner Facts
   headcount: number | null;
   annual_revenue: string | null;
@@ -69,6 +76,8 @@ export default function ClientSettings() {
   const partnerFactsRef = useRef<HTMLDivElement>(null);
   
   const [loading, setLoading] = useState(true);
+  const [verifiziertAm, setVerifiziertAm] = useState<string | null>(null);
+  const [impressumLaedt, setImpressumLaedt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<CompanyProfile>({
     company_name: '',
@@ -102,8 +111,25 @@ export default function ClientSettings() {
 
       if (error && error.code !== 'PGRST116') throw error;
       
+      const { data: verif } = await supabase
+        .from('client_verifications')
+        .select('kyc_status, kyc_verified_at, company_registration_number, vat_id')
+        .eq('client_id', user!.id)
+        .maybeSingle();
+      const f = firmendatenAus(data as any, verif as any);
+      setVerifiziertAm(f.verified_at);
       if (data) {
-        setProfile(data);
+        // Die Felder kommen aus den neuen Spalten -- oder, solange es die live
+        // noch nicht gibt, aus Adresszeile und Verifizierung.
+        setProfile({
+          ...(data as any),
+          legal_name: f.legal_name,
+          street: f.street,
+          postal_code: f.postal_code,
+          city: f.city,
+          registration_number: f.registration_number,
+          tax_id: f.vat_id || null,
+        });
       }
     } catch (error) {
       console.error('Error fetching company profile:', error);
@@ -121,8 +147,30 @@ export default function ClientSettings() {
     setSaving(true);
 
     try {
+      const adresse = joinAddress({
+        street: profile.street ?? '', postal_code: profile.postal_code ?? '', city: profile.city ?? '',
+      }) || profile.address;
+      const neueFelder = {
+        legal_name: profile.legal_name || null,
+        street: profile.street || null,
+        postal_code: profile.postal_code || null,
+        city: profile.city || null,
+        registration_number: profile.registration_number || null,
+      };
+      // HRB und USt-ID auch in der Verifizierung -- die gibt es live schon.
+      await supabase
+        .from('client_verifications')
+        .update({ company_registration_number: profile.registration_number || null, vat_id: profile.tax_id || null } as any)
+        .eq('client_id', user.id);
+
       if (profile.id) {
-        // Update existing
+        // Update existing. Fehlen die neuen Spalten live noch (Migration nicht
+        // eingespielt), wird ohne sie gespeichert.
+        const erst = await supabase.from('company_profiles').update({ ...neueFelder, address: adresse } as any).eq('id', profile.id);
+        if (erst.error && !/column/i.test(erst.error.message ?? '')) throw erst.error;
+        if (erst.error) {
+          toast({ title: 'Firmierung und Handelsregister werden gespeichert, sobald das Datenbank-Update eingespielt ist.' });
+        }
         const { error } = await supabase
           .from('company_profiles')
           .update({
@@ -131,7 +179,7 @@ export default function ClientSettings() {
             industry: profile.industry,
             website: profile.website,
             description: profile.description,
-            address: profile.address,
+            address: adresse,
             tax_id: profile.tax_id,
             billing_email: profile.billing_email,
             headcount: profile.headcount,
@@ -154,7 +202,7 @@ export default function ClientSettings() {
             industry: profile.industry,
             website: profile.website,
             description: profile.description,
-            address: profile.address,
+            address: adresse,
             tax_id: profile.tax_id,
             billing_email: profile.billing_email,
             headcount: profile.headcount,
@@ -308,27 +356,88 @@ export default function ClientSettings() {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adresse</Label>
-                  <Textarea
-                    id="address"
-                    value={profile.address || ''}
-                    onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                    placeholder="Musterstraße 1&#10;12345 Berlin"
-                    rows={2}
-                  />
+              {/* Firmendaten: stehen auf der Vereinbarung und werden in der
+                  Positionsaufnahme nur noch angezeigt, nicht mehr abgefragt. */}
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-semibold">Firmendaten</h3>
+                  <span className="text-xs text-muted-foreground">— stehen auf Ihrem Rahmenvertrag</span>
+                  {verifiziertAm && (
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+                      ✓ von Matchunt verifiziert am {new Date(verifiziertAm).toLocaleDateString('de-DE')}
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto h-7 text-xs"
+                    disabled={impressumLaedt || !profile.website}
+                    onClick={async () => {
+                      setImpressumLaedt(true);
+                      const { data, error } = await supabase.functions.invoke('enrich-company-from-domain', {
+                        body: { domain: profile.website },
+                      });
+                      setImpressumLaedt(false);
+                      const a = (data as any)?.data;
+                      if (error || !a) {
+                        toast({ title: 'Impressum konnte nicht gelesen werden', variant: 'destructive' });
+                        return;
+                      }
+                      // Hier ueberschreibt der Vorschlag bewusst -- der Kunde
+                      // sieht die Werte und speichert erst selbst.
+                      setProfile((p) => ({
+                        ...p,
+                        legal_name: a.legal_name || p.legal_name,
+                        street: a.street || p.street,
+                        postal_code: a.postal_code || p.postal_code,
+                        city: a.city || p.city,
+                        registration_number: a.registration_number || p.registration_number,
+                        tax_id: a.vat_id || p.tax_id,
+                      }));
+                      toast({ title: 'Aus dem Impressum übernommen — bitte prüfen und speichern.' });
+                    }}
+                  >
+                    {impressumLaedt ? 'Wird gelesen …' : 'Aus Impressum übernehmen'}
+                  </Button>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="tax_id">USt-IdNr.</Label>
-                  <Input
-                    id="tax_id"
-                    value={profile.tax_id || ''}
-                    onChange={(e) => setProfile({ ...profile, tax_id: e.target.value })}
-                    placeholder="DE123456789"
-                  />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="legal_name">Vollständige Firmierung</Label>
+                    <Input id="legal_name" value={profile.legal_name || ''} placeholder="Muster & Partner GmbH"
+                           onChange={(e) => setProfile({ ...profile, legal_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="street">Straße und Hausnummer</Label>
+                    <Input id="street" value={profile.street || ''} placeholder="Musterstraße 1"
+                           onChange={(e) => setProfile({ ...profile, street: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-[7rem_1fr] gap-4 md:col-span-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="postal_code">PLZ</Label>
+                      <Input id="postal_code" value={profile.postal_code || ''} placeholder="80331"
+                             onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Ort</Label>
+                      <Input id="city" value={profile.city || ''} placeholder="München"
+                             onChange={(e) => setProfile({ ...profile, city: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registration_number">Handelsregister</Label>
+                    <Input id="registration_number" value={profile.registration_number || ''} placeholder="HRB 123456"
+                           onChange={(e) => setProfile({ ...profile, registration_number: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tax_id">USt-IdNr.</Label>
+                    <Input id="tax_id" value={profile.tax_id || ''} placeholder="DE123456789"
+                           onChange={(e) => setProfile({ ...profile, tax_id: e.target.value })} />
+                  </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Ändern Sie diese Angaben nur, wenn sich Firmierung oder Anschrift geändert haben — sie stehen auf Ihrem Rahmenvertrag.
+                </p>
               </div>
             </CardContent>
           </Card>

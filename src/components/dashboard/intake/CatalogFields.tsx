@@ -34,9 +34,11 @@ interface Props {
    * die es nicht geht -- eine zweite Liste zum Abtippen waere Unsinn.
    */
   mustHaves?: string[];
+  /** "stimmt" an einem Wert aus der Anzeige -- bestaetigt ihn, wo er steht. */
+  onConfirm?: (key: string) => void;
 }
 
-export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }: Props) {
+export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm }: Props) {
   const fragen = questionsAt(place, contract).filter((q) =>
     q.slots.some((s) => !s.only || s.only === contract),
   );
@@ -78,7 +80,7 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }:
             )}
             <div className="space-y-2.5">
               {slots.map((s) => (
-                <div key={s.key}>
+                <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 rounded-md outline-none">
                   <p className="mb-1 text-[11px] text-muted-foreground">
                     {slotLabel(s, contract)}
                     {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
@@ -101,6 +103,7 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [] }:
                           : undefined
                     }
                     onSet={(v) => onSet(s.key, v)}
+                    onConfirm={onConfirm ? () => onConfirm(s.key) : undefined}
                   />
                 </div>
               ))}
@@ -122,7 +125,7 @@ const QUELLE: Partial<Record<string, string>> = {
 };
 
 function FeldEingabe({
-  slot, contract, wert, quelle, optionen, onSet,
+  slot, contract, wert, quelle, optionen, onSet, onConfirm,
 }: {
   slot: BriefSlot;
   contract: 'full-time' | 'freelance';
@@ -131,6 +134,7 @@ function FeldEingabe({
   /** Ersetzt slot.chips, wenn die Auswahl aus dem Profil kommt. */
   optionen?: string[];
   onSet: (v: unknown) => void;
+  onConfirm?: () => void;
 }) {
   const hinweis = quelle && quelle !== 'answer' ? QUELLE[quelle] : null;
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
@@ -211,7 +215,21 @@ function FeldEingabe({
       )}
 
       {hinweis && hatWert({ [slot.key]: { value: wert, from: 'ad' } }, slot.key) && (
-        <p className="mt-1 text-[10px] text-muted-foreground">{hinweis} — bitte prüfen</p>
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[10px] text-amber-600">
+          {hinweis}
+          {onConfirm && quelle === 'ad' ? (
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="rounded border border-amber-500/40 px-1.5 py-px font-medium hover:bg-amber-500/10"
+            >
+              ✓ stimmt
+            </button>
+          ) : (
+            <span className="text-muted-foreground">— bitte prüfen</span>
+          )}
+          <span className="text-muted-foreground">sonst einfach ändern</span>
+        </p>
       )}
 
       {/* Eine einzige benannte Ausnahme, kein Baukasten: die Kopfzahl zeigt,

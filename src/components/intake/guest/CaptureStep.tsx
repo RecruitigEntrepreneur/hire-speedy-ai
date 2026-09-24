@@ -13,7 +13,7 @@ import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
 import {
-  EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm,
+  BRIEF_QUESTIONS, EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm, nextQuestion,
   ungepruefte, slotLabel, slotChipWert, slotChips,
   sizeBand, type SlotState,
 } from '@/lib/briefCatalog';
@@ -24,10 +24,11 @@ import {
 import { EMPTY_FREELANCE, type BuiltJob, type FreelanceTerms, type RevealSetup } from '@/components/dashboard/intake/types';
 import {
   EMPTY_BUILT, buildAiJobDraft, catalogFromParsed, flexibilityFromParsed,
-  freelanceFromParsed, fromParsedJobData,
+  freelanceFromParsed, fromParsedJobData, qualifikationenAusParsed,
   toBriefBuilt, typedFieldsFromParsed,
 } from '@/lib/intakeMapping';
 import { isFailure } from '@/hooks/useGuestIntake';
+import { docxToText, isDocx } from '@/lib/docxText';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ArrowLeft, ArrowRight, FileText, FileUp, Link2, Loader2, Sparkles } from 'lucide-react';
 
@@ -91,6 +92,31 @@ interface Props {
   parseUrl: (url: string) => Promise<any>;
   parsePdf: (file: File) => Promise<any>;
   onNext: () => void;
+  /** Beschriftung des Weiter-Knopfs. Der Gast geht zu seinen Kontaktdaten,
+   *  der angemeldete Kunde direkt zum Einreichen oder zum Paket. */
+  nextLabel?: string;
+  /** Unterzeile der Startauswahl. Der Gast liest "Ohne Registrierung". */
+  entrySub?: string;
+  /** Zusaetzliche Wege unter den drei Karten (Dashboard: Personio, Mail). */
+  entryExtras?: React.ReactNode;
+  /** Text, der schon vor dem Oeffnen eingegeben wurde (Dashboard-Einstieg):
+   *  nach der Wahl der Vertragsart wird daraus sofort das Profil gebaut. */
+  autoBuildText?: string | null;
+  /** Datei, die schon auf dem Dashboard abgelegt wurde (PDF oder Word). */
+  autoBuildFile?: File | null;
+  /**
+   * Weiter nur mit ausgearbeitetem Profil: alle Briefing-Fragen durchlaufen
+   * (beantwortet oder bewusst "Weiss ich nicht") und mindestens drei
+   * eingestufte Anforderungen, davon eine unverzichtbar.
+   * Im Dashboard an; fuer den Link /start noch offen (Entscheidung Marko).
+   */
+  fertigesProfil?: boolean;
+  /**
+   * Firmendaten aus dem Konto eines angemeldeten Kunden. Gesetzt, zeigt die
+   * Aufnahme sie als feste Zeile statt als Block zum Pruefen und Ergaenzen --
+   * ein verifizierter Kunde traegt seine Firma nicht je Position neu ein.
+   */
+  firmaFest?: { zeile: string; verifiziertAm: string | null } | null;
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
@@ -103,8 +129,11 @@ type EntryMode = 'kind' | 'anue' | 'confirm' | 'choose' | 'reselect' | 'paste' |
 export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
+  nextLabel = 'Weiter zu Ihren Kontaktdaten', entrySub, entryExtras, autoBuildText, autoBuildFile,
+  fertigesProfil = false, firmaFest = null,
 }: Props) {
-  const [text, setText] = useState(seedText ?? '');
+  const [text, setText] = useState(seedText ?? autoBuildText ?? '');
+  const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState('');
   // Kennt der Link die gesuchte Position, beginnen wir mit der Bestätigung.
   // Sonst mit der Wahl des Wegs — nie mit einer leeren Fläche.
@@ -162,13 +191,13 @@ export function CaptureStep({
     }));
   };
 
-  const buildFrom = async (mode: 'text' | 'url' | 'pdf', file?: File) => {
+  const buildFrom = async (mode: 'text' | 'url' | 'pdf', file?: File, textOverride?: string) => {
     setBuilding(true);
     setAiNote(null);
     const res =
       mode === 'url' ? await parseUrl(url.trim())
       : mode === 'pdf' ? await parsePdf(file!)
-      : await parseText(text.trim());
+      : await parseText((textOverride ?? text).trim());
     setBuilding(false);
 
     if (isFailure(res)) {
@@ -208,7 +237,13 @@ export function CaptureStep({
     // Sprachen, Zertifikate und Erfahrungsjahre hat der Parser bereits
     // eingeordnet — sie gehören in die typisierten Felder, nicht in die
     // Muss-Liste. Das Briefing verfeinert sie später, überschreibt sie aber nicht.
-    const typed = typedFieldsFromParsed(parsed);
+    const typed: Record<string, unknown> = typedFieldsFromParsed(parsed);
+    /* Ausbildung und Erfahrung stehen jetzt in der Kriterienliste. Gemerkt,
+       damit draftToJobRow sie NICHT in must_haves schreibt: der Matcher liest
+       dort Skillnamen (calculate-match-v3-1), "5 Jahre Fuehrung" waere fuer
+       jeden Kandidaten unerfuellbar. */
+    const quali = qualifikationenAusParsed(parsed);
+    if (quali.must.length || quali.nice.length) typed.qualification_criteria = [...quali.must, ...quali.nice];
     if (Object.keys(typed).length > 0) {
       onState((s) => ({ ...s, dyn: { ...s.dyn, typedFields: { ...typed, ...s.dyn.typedFields } } }));
     }
@@ -237,7 +272,7 @@ export function CaptureStep({
       onState((s) => ({ ...s, flexibility: { ...stufen, ...s.flexibility } }));
     }
 
-    const ausAnzeige = catalogFromParsed(parsed, type);
+    const ausAnzeige = catalogFromParsed(parsed, type, mode === 'text' ? (textOverride ?? text) : null);
     if (Object.keys(ausAnzeige).length > 0) {
       onState((s) => ({
         ...s,
@@ -265,15 +300,68 @@ export function CaptureStep({
     });
   };
 
-  const pickPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  /**
+   * PDF oder Word. Word wird im Browser zu Text und geht denselben Weg wie
+   * eingefuegter Text -- der Parser sieht keinen Unterschied.
+   */
+  const takeFile = async (file: File) => {
     if (file.size > 8 * 1024 * 1024) {
       setAiNote('Die Datei ist größer als 8 MB. Bitte fügen Sie den Text der Anzeige ein.');
       return;
     }
-    void buildFrom('pdf', file);
+    if (isDocx(file)) {
+      setBuilding(true);
+      setAiNote(null);
+      try {
+        const inhalt = await docxToText(file);
+        if (inhalt.length < 10) {
+          setBuilding(false);
+          setAiNote('In der Word-Datei steht kaum Text. Bitte fügen Sie die Anzeige ein.');
+          return;
+        }
+        setText(inhalt);
+        await buildFrom('text', undefined, inhalt);
+      } catch (err) {
+        setBuilding(false);
+        setAiNote(err instanceof Error ? err.message : 'Die Word-Datei konnte nicht gelesen werden.');
+      }
+      return;
+    }
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+      void buildFrom('pdf', file);
+      return;
+    }
+    setAiNote('Bitte eine PDF- oder Word-Datei (.docx) wählen — oder den Text einfügen.');
+  };
+
+  const pickPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void takeFile(file);
+  };
+
+  /** Datei in die Startauswahl ziehen. */
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setDragging(true); },
+    onDragLeave: () => setDragging(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      const file = e.dataTransfer.files?.[0];
+      if (file && !building) void takeFile(file);
+    },
+  };
+
+  /** Weiter nur, wenn nichts sperrt -- auch aus dem fertigen Briefing heraus.
+   *  Vorher rief dessen Knopf onNext direkt und umging Titel, Firma, Standort
+   *  und Gehaltsband. */
+  const weiter = () => {
+    if (sperren.length > 0) {
+      zeigeFeld(sperren[0].key);
+      toast.error(`Zum Weitermachen fehlt noch: ${sperren.map((s) => s.label).join(', ')}`);
+      return;
+    }
+    onNext();
   };
 
   /** Ob im Profil schon Arbeit steckt — dann warnt der Einstieg vor dem Ersetzen. */
@@ -364,7 +452,28 @@ export function CaptureStep({
     () => ungepruefte(katalogKnown, type),
     [katalogKnown, type],
   );
-  const [vorschlaegeAuf, setVorschlaegeAuf] = useState(false);
+  /**
+   * ALLE Angaben aus der Anzeige, die noch nicht bestaetigt sind -- auch die
+   * optionalen. `ungepruefte` kennt nur Pflichtzeilen (es rechnet den
+   * Fortschritt); "Alle bestaetigen" liess deshalb "Mitarbeitende" und
+   * "digital versendet" markiert stehen (Durchklicken 24.09.2026).
+   */
+  const ausAnzeigeOffen = useMemo(
+    () => Object.entries(katalogKnown)
+      .filter(([, v]) => {
+        const e = v as { value?: unknown; from?: string } | undefined;
+        return e?.from === 'ad' && e.value !== undefined && e.value !== null && e.value !== '';
+      })
+      // `__wortlaut` ist ein Hinweis, keine Angabe zum Pruefen.
+      .filter(([key]) => !key.includes('__'))
+      // Firmenangaben aus der Anzeige zaehlen nicht, wenn die Firma aus dem
+      // Konto feststeht -- sie werden dann gar nicht angezeigt.
+      .filter(([key]) => !firmaFest || BRIEF_QUESTIONS.find((q) => q.slots.some((sl) => sl.key === key))?.place !== 'firma')
+      .map(([key]) => key),
+    [katalogKnown, firmaFest],
+  );
+  /** Klappt "Ihr Unternehmen" bzw. "Rahmendaten" auf, wenn "Zur naechsten" dorthin springt. */
+  const [gruppeSignal, setGruppeSignal] = useState({ firma: 0, arbeitszeit: 0 });
 
   /** Einen gelesenen Wert zur Aussage des Kunden machen. */
   const bestaetige = (key: string) => {
@@ -376,6 +485,53 @@ export function CaptureStep({
     () => katalogCompleteness(katalogKnown, type),
     [katalogKnown, type],
   );
+
+  /**
+   * Zur naechsten Angabe aus der Anzeige, die noch nicht bestaetigt ist.
+   * Formularfelder zuerst -- die Briefing-Angaben bestaetigt der Kunde ohnehin,
+   * wenn ihre Frage drankommt.
+   */
+  const zurNaechsten = () => {
+    const ort = (key: string) => BRIEF_QUESTIONS.find((q) => q.slots.some((sl) => sl.key === key))?.place;
+    const formular = ausAnzeigeOffen.filter((k) => ort(k) !== 'dialog');
+    // Gruppen oeffnen, in denen noch etwas zu pruefen ist -- erst danach gibt
+    // es die Felder im DOM.
+    const inFirma = formular.some((k) => ort(k) === 'firma');
+    const inRahmen = formular.some((k) => ort(k) === 'arbeitszeit');
+    if (inFirma || inRahmen) {
+      setGruppeSignal((g) => ({ firma: g.firma + (inFirma ? 1 : 0), arbeitszeit: g.arbeitszeit + (inRahmen ? 1 : 0) }));
+    }
+    window.setTimeout(() => {
+      /* Nur Felder, die wirklich angezeigt werden. Vorher war das Ziel oft die
+         "Groessenklasse", die neben einer Mitarbeiterzahl gar nicht erscheint
+         -- der Knopf schien nichts zu tun (Durchklicken 24.09.2026). */
+      const ziel = formular.find((k) => document.querySelector(`[data-feld="${k}"]`));
+      const key = ziel ?? 'briefing';
+      zeigeFeld(key);
+      const el = document.querySelector<HTMLElement>(`[data-feld="${key}"]`);
+      if (el) {
+        el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+        window.setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background'), 1600);
+      }
+    }, 150);
+  };
+
+  /**
+   * Was schon drinsteht -- einschliesslich dessen, was aus der Anzeige kommt.
+   *
+   * Vorher zaehlte nur Bestaetigtes: nach einer ausfuehrlichen Anzeige stand
+   * oben "2 von 26 Angaben · 10 %", obwohl rund 15 Angaben erkannt waren
+   * (Durchklicken 24.09.2026, "wieso wird nur so wenig gezogen?"). Die
+   * Angaben aus der Anzeige zaehlen jetzt mit und sind als "zu pruefen"
+   * ausgewiesen.
+   */
+  // Fuer die Rechnung zaehlen nur Pflichtzeilen (wie feldGesamt); angezeigt
+  // wird, was insgesamt noch zu pruefen ist.
+  const zuPruefen = ausAnzeigeOffen.length;
+  const erfasst = katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen + offeneVorschlaege.length;
+  const erfasstPct = katalogFortschritt.feldGesamt
+    ? Math.round((erfasst / katalogFortschritt.feldGesamt) * 100)
+    : 100;
 
   /**
    * Was den Uebergang sperrt. Vorher war das allein der Jobtitel -- ein Kunde
@@ -413,9 +569,37 @@ export function CaptureStep({
     if (!built?.location?.trim() && built?.remote_type !== 'remote') {
       aus.push({ key: 'location', label: 'Standort' });
     }
-    return [...aus, ...blockingGaps(katalogKnown, type)];
+    const luecken: { key: string; label: string; kurz?: string }[] = [...aus, ...blockingGaps(katalogKnown, type)];
+    if (fertigesProfil && built) {
+      const kriterien = [...new Set([...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])]
+        .map((k) => String(k).trim()).filter(Boolean))];
+      const eingestuft = kriterien.filter((k) => flexibility[k]);
+      const unverzichtbar = kriterien.filter((k) => flexibility[k] === 'fix');
+      if (kriterien.length < 3 || eingestuft.length < kriterien.length || unverzichtbar.length === 0) {
+        luecken.push({
+          key: 'kriterien',
+          kurz: 'Anforderungen',
+          label: kriterien.length < 3
+            ? `mindestens 3 Anforderungen (${kriterien.length} da)`
+            : eingestuft.length < kriterien.length
+              ? `Anforderungen einstufen (${kriterien.length - eingestuft.length} offen)`
+              : 'eine Anforderung als unverzichtbar',
+        });
+      }
+      if (nextQuestion(katalogKnown, type, dyn.catalog?.askedQuestions ?? [])) {
+        // Dieselbe Zaehlung wie die Briefing-Karte ("x von 8 Fragen").
+        const f = katalogCompleteness(katalogKnown, type);
+        luecken.push({
+          key: 'briefing',
+          kurz: `Briefing ${f.dialogGesamt - f.dialogOffen}/${f.dialogGesamt}`,
+          label: `Briefing (${f.dialogGesamt - f.dialogOffen} von ${f.dialogGesamt} Fragen)`,
+        });
+      }
+    }
+    return luecken;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [built?.title, built?.location, built?.remote_type, company.company_name, katalogKnown, type]);
+  }, [built?.title, built?.location, built?.remote_type, built?.must_haves, built?.nice_to_haves, company.company_name,
+      katalogKnown, type, fertigesProfil, flexibility, dyn.catalog?.askedQuestions]);
 
   /**
    * Wie viel in den beiden Firmen-Gruppen noch fehlt.
@@ -491,6 +675,13 @@ export function CaptureStep({
           // capture.type als contract_type mit jedem Autosave.
           onState((s) => ({ ...s, type: kind }));
           setEntryMode('choose');
+          // Vom Dashboard mitgebrachter Text: gleich daraus bauen, statt ihn
+          // ein zweites Mal einfuegen zu lassen.
+          if (!built && autoBuildFile) {
+            void takeFile(autoBuildFile);
+          } else if (!built && (autoBuildText ?? '').trim().length >= 10) {
+            void buildFrom('text', undefined, autoBuildText!.trim());
+          }
         }}
         onDecline={() => setEntryMode('anue')}
         onBack={built ? () => setEntryMode('choose') : undefined}
@@ -661,21 +852,28 @@ export function CaptureStep({
               <AlertDescription className="text-xs">{aiNote}</AlertDescription>
             </Alert>
           )}
-          <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={pickPdf} />
+          <input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={pickPdf} />
         </div>
       );
     }
 
     // ---- Drei Wege (öffentlicher Link, oder „andere Position") -------------
     return (
-      <div className="mx-auto max-w-2xl space-y-5">
+      <div
+        className={cn('mx-auto max-w-2xl space-y-5 rounded-xl', dragging && 'ring-2 ring-primary/50 ring-offset-4')}
+        {...dropProps}
+      >
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Ihre offene Position aufnehmen</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Meist in drei bis fünf Minuten. Ohne Registrierung — Ihre Angaben werden dabei
-            fortlaufend gespeichert.
+            {entrySub ?? 'Meist in drei bis fünf Minuten. Ohne Registrierung — Ihre Angaben werden dabei fortlaufend gespeichert.'}
           </p>
         </div>
+        {building && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Ihre Anzeige wird gelesen …
+          </div>
+        )}
 
         {hasWork && (
           <Alert>
@@ -697,12 +895,13 @@ export function CaptureStep({
             <EntryCard icon={Link2} title="Link zur Anzeige" hint="Wir lesen sie aus." onClick={() => setEntryMode('url')} />
             <EntryCard
               icon={building ? Loader2 : FileUp}
-              title="PDF hochladen"
-              hint={building ? 'Wird gelesen …' : 'Bis 8 MB.'}
+              title="PDF oder Word"
+              hint={building ? 'Wird gelesen …' : 'Hochladen oder hierher ziehen · bis 8 MB.'}
               spinning={building}
               onClick={() => !building && fileRef.current?.click()}
             />
           </div>
+          {entryExtras}
         </div>
 
         <button
@@ -723,7 +922,7 @@ export function CaptureStep({
             </AlertDescription>
           </Alert>
         )}
-        <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={pickPdf} />
+        <input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={pickPdf} />
       </div>
     );
   }
@@ -754,8 +953,8 @@ export function CaptureStep({
             {type === 'freelance' ? 'Contracting' : 'Festanstellung'} · ändern
           </button>
           <span className="text-xs text-muted-foreground">
-            {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
-            {katalogFortschritt.feldGesamt} Angaben · {katalogFortschritt.pct} %
+            {erfasst} von {katalogFortschritt.feldGesamt} Angaben · {erfasstPct} %
+            {zuPruefen > 0 && <> · {zuPruefen} zu prüfen</>}
           </span>
           {/* Der Rückweg zur Startauswahl. „Anzeige doch einfügen" stand hier
               vorher allein und als unauffälliger Link — der Wortlaut sagte
@@ -774,6 +973,34 @@ export function CaptureStep({
           </Button>
         </div>
       </div>
+
+      {/* Was aus der Anzeige kam: EINE Zeile. Geprueft und geaendert wird am
+          Feld selbst ("aus der Anzeige · stimmt"), nicht in einer zweiten Liste
+          -- die liess sich nicht bearbeiten und nahm den halben Bildschirm
+          (Durchklicken 24.09.2026). */}
+      {zuPruefen > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+          <FileText className="h-4 w-4 shrink-0 text-amber-600" />
+          <span>
+            Aus Ihrer Anzeige übernommen · <span className="font-medium">{zuPruefen} noch zu prüfen</span>
+          </span>
+          <span className="hidden text-xs text-muted-foreground md:inline">
+            markiert mit „aus der Anzeige“, direkt am Feld änderbar
+          </span>
+          <div className="ml-auto flex gap-2">
+            <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={zurNaechsten}>
+              Nächste Angabe zeigen ↓
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => ausAnzeigeOffen.forEach((k) => bestaetige(k))}
+            >
+              Alle bestätigen
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Das Verhaeltnis folgt der Last, nicht der Symmetrie: links ~100
           Bedienelemente, rechts eine Frage. 50/50 verschenkte Formularbreite
@@ -794,6 +1021,7 @@ export function CaptureStep({
             skillSuggestions={dyn.catalog?.skillSuggestions ?? []}
             catalogKnown={katalogKnown}
             onCatalogSet={setKatalog}
+            onCatalogConfirm={bestaetige}
             onDismissSuggestion={(skill) =>
               onState((s) => ({
                 ...s,
@@ -816,9 +1044,22 @@ export function CaptureStep({
               Stand vorher VOR dem Profil und nahm ~1.200 px, bevor der Kunde
               seine Stelle sah. Es sind Werte, die er einmal bestaetigt und die
               ab der zweiten Stelle vererbt werden. */}
+          {firmaFest ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border bg-card px-4 py-2.5 text-xs">
+              <span className="shrink-0 font-semibold uppercase tracking-wider text-muted-foreground">Ihr Unternehmen</span>
+              {firmaFest.verifiziertAm && (
+                <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-600">✓ verifiziert</span>
+              )}
+              <span className="min-w-0 flex-1 text-muted-foreground">{firmaFest.zeile}</span>
+              <a href="/dashboard/settings" className="shrink-0 text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                In den Einstellungen ändern
+              </a>
+            </div>
+          ) : (
           <CollapsibleGroup
             titel="Ihr Unternehmen"
             offen={firmaOffen}
+            oeffnenSignal={gruppeSignal.firma}
             zusammenfassung={[
               company.company_legal_name || company.company_name,
               company.company_industry,
@@ -834,13 +1075,15 @@ export function CaptureStep({
               onHeadcount={(n) => setKatalogVon('company_size_band', sizeBand(n), 'enrich')}
             />
             <div className="mt-4 border-t pt-4">
-              <CatalogFields place="firma" known={katalogKnown} onSet={setKatalog} contract={type} />
+              <CatalogFields place="firma" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} />
             </div>
           </CollapsibleGroup>
+          )}
 
           <CollapsibleGroup
             titel="Rahmendaten"
             offen={rahmenOffen}
+            oeffnenSignal={gruppeSignal.arbeitszeit}
             zusammenfassung={
               (built.benefits ?? []).slice(0, 3).join(' · ') ||
               (type === 'freelance'
@@ -855,7 +1098,7 @@ export function CaptureStep({
                 gewaehlt={built.benefits ?? []}
                 onChange={(b) => onState((s) => ({ ...s, built: { ...s.built, benefits: b } }))}
               />
-              <CatalogFields place="arbeitszeit" known={katalogKnown} onSet={setKatalog} contract={type} />
+              <CatalogFields place="arbeitszeit" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} />
             </div>
           </CollapsibleGroup>
         </div>
@@ -864,7 +1107,7 @@ export function CaptureStep({
             gedrueckt -- und war nach dem ersten Wischen weg, waehrend der Kunde
             ~1.200 px an einer leeren Spalte entlangscrollte. Auf der ganzen
             Seite war KEIN Element fixiert. */}
-        <div className="space-y-4 lg:sticky lg:top-24" ref={briefingRef}>
+        <div className="space-y-4 lg:sticky lg:top-24" ref={briefingRef} data-feld="briefing" tabIndex={-1}>
           <div>
             {/*
               Seit dem 04.09.2026 fuehrt der Fragenkatalog das Briefing
@@ -883,8 +1126,9 @@ export function CaptureStep({
                   ...s,
                   dyn: { ...s.dyn, catalog: updater(s.dyn.catalog ?? EMPTY_CATALOG_STATE) },
                 }))}
-              onDone={onNext}
+              onDone={weiter}
               askAi={askAi as any}
+              pflichtBriefing={fertigesProfil}
             />
           </div>
 
@@ -911,100 +1155,69 @@ export function CaptureStep({
       {/* Was aus der Anzeige gelesen wurde, mit Wert -- der Kunde soll sehen,
           was er bestaetigt, nicht blind durchwinken. Steht ueber der
           Fussleiste, damit der Weg vom Zaehler zur Handlung kurz ist. */}
-      {vorschlaegeAuf && offeneVorschlaege.length > 0 && (
-        <div className="sticky bottom-14 z-20 -mx-4 border-t bg-card/98 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
-          <div className="mb-2 flex items-center gap-2">
-            <p className="text-xs font-medium">
-              Das haben wir aus Ihrer Anzeige gelesen
-            </p>
+
+      {/* Eine Zeile, auch im schmalen Fenster: unter xl stehen Kurzformen
+          ("13/26", "fehlt:", "Später", "Weiter"). Vorher brach die Leiste auf
+          drei Zeilen um und verdeckte das Formular (Durchklicken 24.09.2026).
+          xl, nicht lg: das Fenster ist schmaler als der Bildschirm. */}
+      <div className="sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+        <span className="shrink-0 text-sm font-medium">
+          {erfasst}<span className="hidden xl:inline"> von </span><span className="xl:hidden">/</span>{katalogFortschritt.feldGesamt}
+          {zuPruefen > 0 && <span className="hidden font-normal text-muted-foreground xl:inline"> · {zuPruefen} zu prüfen</span>}
+        </span>
+        <div className="min-w-0 flex-1 truncate">
+          {sperren.length === 0 && zuPruefen > 0 ? (
+            /* Der Zaehler allein war eine Sackgasse: voller Bildschirm, 69 %,
+               keine Handlung. Hier steht, woran es liegt -- und der Weg dahin
+               ist ein Klick. */
             <button
               type="button"
-              onClick={() => { offeneVorschlaege.forEach((sl) => bestaetige(sl.key)); setVorschlaegeAuf(false); }}
-              className="ml-auto rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              onClick={zurNaechsten}
+              className="inline-flex max-w-full items-center gap-1.5 truncate text-xs text-amber-600 underline underline-offset-2"
             >
-              Alles stimmt
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden xl:inline">{zuPruefen} Angaben aus der Anzeige noch prüfen</span>
+              <span className="xl:hidden">{zuPruefen} aus der Anzeige prüfen</span>
             </button>
-          </div>
-          <div className="max-h-56 space-y-0 overflow-y-auto">
-            {offeneVorschlaege.map((sl) => {
-              const roh = katalogKnown[sl.key]?.value;
-              const chips = slotChips(sl, type);
-              // Der Chip-TEXT, nicht der Speicherwert: "Ja" statt "true".
-              const text = Array.isArray(roh)
-                ? roh.map(String).join(' · ')
-                : chips?.find((c) => slotChipWert(sl, type, c) === roh)
-                  ?? (typeof roh === 'boolean' ? (roh ? 'Ja' : 'Nein') : String(roh ?? ''));
-              return (
-                <div key={sl.key}
-                     className="grid grid-cols-[10rem_minmax(0,1fr)_auto] items-center gap-x-3 border-t py-1.5 first:border-t-0">
-                  <span className="truncate text-[11px] text-muted-foreground">
-                    {slotLabel(sl, type)}
-                  </span>
-                  <span className="truncate text-xs">{text}</span>
-                  <button
-                    type="button"
-                    onClick={() => bestaetige(sl.key)}
-                    className="shrink-0 rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    stimmt
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            Was nicht stimmt, ändern Sie oben im Formular — dann verschwindet es hier.
-          </p>
+          ) : sperren.length === 0 ? (
+            <span className="text-xs text-muted-foreground">
+              {fertigesProfil
+                ? 'Das Profil ist ausgearbeitet — weitere Angaben lassen sich später ergänzen.'
+                : 'Weitere Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.'}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 -translate-y-px text-warning" />
+              <span className="hidden xl:inline">Zum Weitermachen fehlt noch: </span>
+              <span className="xl:hidden">fehlt: </span>
+              {sperren.map((l, i) => (
+                <button
+                  key={l.key}
+                  type="button"
+                  onClick={() => zeigeFeld(l.key)}
+                  className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
+                >
+                  <span className="hidden xl:inline">{l.label}</span>
+                  <span className="xl:hidden">{l.kurz ?? l.label}</span>
+                  {i < sperren.length - 1 ? ', ' : ''}
+                </button>
+              ))}
+            </span>
+          )}
         </div>
-      )}
-
-      <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
-        <span className="text-sm font-medium">
-          {katalogFortschritt.feldGesamt - katalogFortschritt.feldOffen} von{' '}
-          {katalogFortschritt.feldGesamt}
-        </span>
-        {sperren.length === 0 && offeneVorschlaege.length > 0 ? (
-          /* Der Zaehler allein war eine Sackgasse: voller Bildschirm, 69 %,
-             keine Handlung. Hier steht, woran es liegt -- und der Weg dahin
-             ist ein Klick. */
-          <button
-            type="button"
-            onClick={() => setVorschlaegeAuf((v) => !v)}
-            className="flex items-center gap-1.5 text-xs text-amber-600 underline underline-offset-2"
-          >
-            <Sparkles className="h-3.5 w-3.5 shrink-0" />
-            {offeneVorschlaege.length} Angaben stammen aus Ihrer Anzeige — stimmen sie?
-          </button>
-        ) : sperren.length === 0 ? (
-          <span className="text-xs text-muted-foreground">
-            Weitere Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.
-          </span>
-        ) : (
-          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
-            Zum Weitermachen fehlt noch:
-            {sperren.map((l, i) => (
-              <button
-                key={l.key}
-                type="button"
-                onClick={() => zeigeFeld(l.key)}
-                className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
-              >
-                {l.label}
-                {i < sperren.length - 1 ? ',' : ''}
-              </button>
-            ))}
-          </span>
-        )}
         <button
           type="button"
           onClick={onResumeLater}
-          className="ml-auto shrink-0 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          title="Speichern und später fertigstellen"
+          className="shrink-0 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
-          Speichern und später fertigstellen
+          <span className="hidden xl:inline">Speichern und später fertigstellen</span>
+          <span className="xl:hidden">Später</span>
         </button>
-        <Button onClick={onNext} disabled={sperren.length > 0} className="shrink-0 gap-2">
-          Weiter zu Ihren Kontaktdaten <ArrowRight className="h-4 w-4" />
+        <Button onClick={weiter} disabled={sperren.length > 0} className="shrink-0 gap-2">
+          <span className="hidden xl:inline">{nextLabel}</span>
+          <span className="xl:hidden">Weiter</span>
+          <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

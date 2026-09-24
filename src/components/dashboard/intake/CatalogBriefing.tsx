@@ -32,6 +32,9 @@ import { AlertTriangle, Check, CheckCircle2, Circle, Loader2, Sparkles } from 'l
  * Restliste, waehrend der Kunde schon die naechste Frage liest.
  */
 
+/** Hoechstens so viele KI-Nachfragen je Briefing (Entscheidung 24.09.2026). */
+const MAX_NACHFRAGEN = 5;
+
 interface FollowUp {
   id: string;
   question: string;
@@ -48,6 +51,8 @@ interface Props {
   onState: (updater: (prev: CatalogState) => CatalogState) => void;
   onDone: () => void;
   askAi?: (payload: Record<string, unknown>) => Promise<Record<string, any>>;
+  /** Einreichen erst nach allen Fragen -- dann darf hier nicht "jederzeit" stehen. */
+  pflichtBriefing?: boolean;
 }
 
 /** Anzeige eines bereits bekannten Werts in der Bestaetigungszeile. */
@@ -76,7 +81,7 @@ const QUELLE: Record<string, string> = {
   answer: '',
 };
 
-export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi }: Props) {
+export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi, pflichtBriefing = false }: Props) {
   /** Entwurf der Antworten auf die gerade sichtbaren Zeilen. */
   const [entwurf, setEntwurf] = useState<Record<string, unknown>>({});
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
@@ -141,7 +146,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
    * Ein ueberholter Aufruf darf nichts mehr schreiben.
    */
   const ernten = useCallback(
-    async (frage: BriefQuestion | null, antwort: string, offen: BriefSlot[]) => {
+    async (frage: BriefQuestion | null, antwort: string, offen: BriefSlot[], jetztSichtbar: string[] = []) => {
       const meine = ++nr.current;
       setLaeuft(true);
       try {
@@ -195,7 +200,17 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
             known,
             aiAvailable: true,
             model: data.model ?? p.model,
-            conflicts: [...p.conflicts, ...(Array.isArray(data.conflicts) ? data.conflicts : [])],
+            // Kein Widerspruch, wenn nur Chip (Ebene) und Wortlaut der Anzeige
+            // (Rolle) auseinanderliegen -- "Werkleiter" vs. "Bereichsleitung".
+            conflicts: [
+              ...p.conflicts,
+              ...(Array.isArray(data.conflicts) ? data.conflicts : []).filter((c: any) => {
+                const w = p.known[`${c?.slot}__wortlaut`]?.value;
+                if (typeof w !== 'string') return true;
+                const lw = w.toLowerCase();
+                return ![c?.existing, c?.neu].some((x) => String(x ?? '').toLowerCase().includes(lw));
+              }),
+            ],
             // ERSETZEN, nicht ergaenzen: was der Kunde uebernommen oder
             // abgelehnt hat, soll nicht wiederkommen.
             skillSuggestions: Array.isArray(data.skill_suggestions) ? data.skill_suggestions : [],
@@ -211,7 +226,20 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
             envelopePatch: { ...p.envelopePatch, ...(data.reveal_envelope_patch ?? {}) },
           };
         });
-        if (data.follow_up) setFollowUp(data.follow_up as FollowUp);
+        /* Nachfrage nur nach einer Antwort des Kunden -- beim Einlesen hat er
+           noch nichts gesagt, worauf man nachfragen koennte. Und nie zu einer
+           Zeile, die der Katalog selbst noch fragt: sonst stand "Warum ist die
+           Stelle vakant?" als Nachfrage direkt unter derselben Katalogfrage
+           (Durchklicken 24.09.2026). */
+        // Gelockert (24.09.2026): in 8 Fragen kam keine einzige Nachfrage.
+        // Gesperrt ist nur noch die Zeile der Frage, die JETZT dasteht, und
+        // eine Zeile, die der Kunde schon beantwortet hat. Hoechstens fuenf
+        // Nachfragen im ganzen Briefing, gezeigte und uebersprungene zaehlen.
+        const fu = data.follow_up as FollowUp | null | undefined;
+        const zurAktuellenFrage = !!fu?.fills_slot && jetztSichtbar.includes(fu.fills_slot);
+        const schonBeantwortet = !!fu?.fills_slot && state.known[fu.fills_slot]?.from === 'answer';
+        const genug = state.askedFollowups.length >= MAX_NACHFRAGEN;
+        if (frage && fu && !zurAktuellenFrage && !schonBeantwortet && !genug) setFollowUp(fu);
       } catch (e) {
         if (meine !== nr.current) return;
         // Kein Abbruch: der Katalog traegt das Briefing auch ohne KI. Frueher
@@ -230,10 +258,67 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
   useEffect(() => {
     if (geerntet.current) return;
     geerntet.current = true;
-    const offen = DIALOG_QUESTIONS.flatMap((q) => q.slots).filter((s) => !state.known[s.key]);
+    // "Offen" heisst hier: vom Kunden noch nicht beantwortet. Auch aus der
+    // Anzeige vorbefuellte Zeilen bekommen so Vorschlaege passend zur Rolle --
+    // vorher standen dort die festen Katalog-Chips ("Eigene Fertigung" bei
+    // einem SaaS-Anbieter). Geerntet wird weiter nur in LEERE Zeilen.
+    const offen = DIALOG_QUESTIONS.flatMap((q) => q.slots).filter((s) => state.known[s.key]?.from !== 'answer');
     void ernten(null, '', offen);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Vorschlaege fuer GENAU die Frage, die gerade dasteht.
+   *
+   * Die erste Ernte bekommt alle offenen Zeilen auf einmal -- und das Modell
+   * liefert dann nur fuer einige Vorschlaege (im Test 4 von 12). Seit die
+   * festen Katalog-Chips bei Freitextzeilen weggefallen sind, stand dort sonst
+   * ein leeres Feld. Deshalb je Frage ein kleiner Nachruf, nur fuer ihre
+   * Freitextzeilen, ohne Nachfrage und ohne Ernte: er schreibt ausschliesslich
+   * answerSuggestions und laeuft neben der Ernte, statt sie abzubrechen.
+   */
+  const vorschlagGeholt = useRef<Set<string>>(new Set());
+  const [vorschlagLaeuft, setVorschlagLaeuft] = useState<string | null>(null);
+  const aktuelleFrage = naechste?.frage.key ?? null;
+  useEffect(() => {
+    if (!naechste || state.aiAvailable === false) return;
+    const { frage: f, fragen: zeilen } = naechste;
+    if (vorschlagGeholt.current.has(f.key)) return;
+    const fehlen = zeilen.filter(
+      (sl) => (sl.form === 'ai' || sl.form === 'text') && !(state.answerSuggestions?.[sl.key]?.length),
+    );
+    if (!fehlen.length) return;
+    vorschlagGeholt.current.add(f.key);
+    setVorschlagLaeuft(f.key);
+    const request = {
+      contract_type: type,
+      job_draft: jobDraft,
+      question: {
+        key: f.key,
+        text: frageText(f, type),
+        slots: f.slots.map((sl) => ({ key: sl.key, label: slotLabel(sl, type), form: sl.form, chips: slotChips(sl, type) })),
+      },
+      answer: '',
+      open_slots: fehlen.map((sl) => ({ key: sl.key, label: slotLabel(sl, type), form: sl.form, chips: slotChips(sl, type) })),
+      known: Object.fromEntries(Object.entries(state.known).map(([k, v]) => [k, v?.value])),
+      asked_followups: state.askedFollowups,
+    };
+    (askAi
+      ? askAi(request)
+      : supabase.functions.invoke('intake-questions', { body: request })
+          .then((r) => { if (r.error) throw r.error; return r.data as Record<string, any>; }))
+      .then((data) => {
+        const neu = data?.answer_suggestions;
+        if (!neu || typeof neu !== 'object') return;
+        onState((p) => ({
+          ...p,
+          answerSuggestions: { ...(p.answerSuggestions ?? {}), ...(neu as Record<string, string[]>) },
+        }));
+      })
+      .catch((e) => console.warn('[CatalogBriefing] Vorschlaege fuer die Frage nicht geladen:', e))
+      .finally(() => setVorschlagLaeuft((k) => (k === f.key ? null : k)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aktuelleFrage, state.aiAvailable]);
 
   if (!naechste) {
     return (
@@ -289,8 +374,9 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
 
     // Ernten laeuft im Hintergrund gegen die Zeilen, die DANACH noch offen
     // sind -- sonst wuerde das Modell in gerade beantwortete hineinschreiben.
-    const restOffen = DIALOG_QUESTIONS.flatMap((q) => q.slots).filter((s) => !known[s.key]);
-    if (antwort) void ernten(frage, antwort, restOffen);
+    const restOffen = DIALOG_QUESTIONS.flatMap((q) => q.slots).filter((s) => known[s.key]?.from !== 'answer');
+    const naechsteFrage = nextQuestion(known, type, askedQuestions);
+    if (antwort) void ernten(frage, antwort, restOffen, naechsteFrage?.frage.slots.map((sl) => sl.key) ?? []);
   };
 
   const followUpAbsenden = () => {
@@ -371,11 +457,19 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
                   </span>
                 )}
               </p>
+              {/* Der Chip nennt die Ebene, die Anzeige die Rolle ("Werkleiter"). */}
+              {typeof state.known[`${s.key}__wortlaut`]?.value === 'string' && (
+                <p className="-mt-1 mb-1.5 text-[10px] text-amber-600">
+                  laut Anzeige: „{String(state.known[`${s.key}__wortlaut`]!.value)}“
+                </p>
+              )}
               <SlotEingabe
                 contract={type} slot={s} wert={entwurf[s.key]}
                 quelle={state.known[s.key]?.from}
                 vorschlaege={state.answerSuggestions?.[s.key]}
-                onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)} />
+                onSet={(v) => setz(s.key, v)} onToggle={(c) => um(s.key, c)}
+                kiAus={state.aiAvailable === false}
+                laedt={vorschlagLaeuft === frage.key} />
             </div>
           ))}
         </div>
@@ -431,7 +525,11 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
                    placeholder="Ergänzen …" className="h-7 text-xs"
                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); followUpAbsenden(); } }} />
             <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
-                    onClick={() => { setFollowUp(null); setFuAuswahl([]); setFuText(''); }}>
+                    onClick={() => {
+                      const id = followUp.id;
+                      onState((p) => ({ ...p, askedFollowups: [...p.askedFollowups, id] }));
+                      setFollowUp(null); setFuAuswahl([]); setFuText('');
+                    }}>
               Überspringen
             </Button>
             <Button size="sm" className="h-7 px-3 text-xs" onClick={followUpAbsenden}>OK</Button>
@@ -468,7 +566,12 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
               // Was im Contracting entfaellt, darf auch nicht als "fehlt
               // noch" dastehen -- sonst kuendigt die Liste eine Frage an, die
               // nie kommt.
-              (!q.only || q.only === type),
+              (!q.only || q.only === type) &&
+              // Nur Fragen, die auch kommen: mit einer Pflichtzeile, die der
+              // Kunde noch nicht beantwortet hat. Die Branchenfrage (keine
+              // Pflichtzeile) und Fragen, die "Alle bestaetigen" schon komplett
+              // erledigt hat, standen sonst weiter als "fehlt" da.
+              q.slots.some((sl) => sl.required && state.known[sl.key]?.from !== 'answer'),
           );
           return (
             <div className="space-y-1">
@@ -491,7 +594,9 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
           );
         })()}
         <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
-          Sie können jederzeit übergeben — Lücken lassen sich später ergänzen.
+          {pflichtBriefing
+            ? 'Jede Frage einmal beantworten — „Weiß ich nicht“ zählt auch.'
+            : 'Sie können jederzeit übergeben — Lücken lassen sich später ergänzen.'}
         </p>
       </div>
     </div>
@@ -501,13 +606,17 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi 
 /* ------------------------------------------------------------------ */
 
 function SlotEingabe({
-  slot, contract, wert, quelle, vorschlaege, onSet, onToggle,
+  slot, contract, wert, quelle, vorschlaege, onSet, onToggle, kiAus = false, laedt = false,
 }: {
   slot: BriefSlot;
   contract: 'full-time' | 'freelance';
   wert: unknown;
   /** Woher der vorbelegte Wert stammt. 'answer' heisst: der Kunde selbst. */
   quelle?: string;
+  /** KI nicht erreichbar -- dann die festen Katalog-Chips als Rueckfall. */
+  kiAus?: boolean;
+  /** Vorschlaege fuer diese Frage werden gerade geholt. */
+  laedt?: boolean;
   /**
    * Vorschlaege aus der KI-Runde, passend zu dieser Rolle. Sie verdraengen die
    * festen Chips des Katalogs -- "Wiedervorlage im CRM am Morgen" ist fuer
@@ -628,11 +737,21 @@ function SlotEingabe({
    * --, bleiben die festen Chips des Katalogs stehen. Vor dem Kunden steht
    * damit nie ein leerer Kasten.
    */
-  const angebote = vorschlaege?.length ? vorschlaege : slotChips(slot, contract);
+  // Freitextzeilen ('ai'): feste Katalog-Chips nur noch, wenn die KI nicht
+  // erreichbar ist -- sonst passten sie oft nicht zur Rolle (24.09.2026).
+  // Auswahlzeilen behalten ihre Chips: das sind Antworten, keine Vorschlaege.
+  const angebote = vorschlaege?.length
+    ? vorschlaege
+    : slot.form === 'ai' && !kiAus ? [] : slotChips(slot, contract);
   const ausKi = !!vorschlaege?.length;
 
   return (
     <div>
+      {!angebote?.length && laedt && (
+        <p className="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" /> Vorschläge passend zur Rolle …
+        </p>
+      )}
       {angebote?.length ? (
         <div className="mb-1.5 flex flex-wrap gap-1.5">
           {angebote.map((c) => (

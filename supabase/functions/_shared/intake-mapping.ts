@@ -93,6 +93,14 @@ function remoteFreiWaehlbar(known: unknown): boolean | undefined {
  * Baut die Job-Zeile aus einem Entwurf. Ohne client_id, ohne organization_id,
  * ohne status — die setzt accept_intake_draft().
  */
+function ohneQualifikation(liste: string[] | undefined, quali: unknown): string[] | undefined {
+  if (!liste) return liste;
+  const raus = new Set((Array.isArray(quali) ? quali : []).map((x) => String(x ?? '').trim().toLowerCase()));
+  if (!raus.size) return liste;
+  const rest = liste.filter((x) => !raus.has(String(x ?? '').trim().toLowerCase()));
+  return rest.length ? rest : undefined;
+}
+
 export function draftToJobRow(draft: Json): Json {
   const built = (draft.built ?? {}) as Json;
   const dyn = (draft.dyn ?? {}) as Json;
@@ -143,8 +151,10 @@ export function draftToJobRow(draft: Json): Json {
       : undefined,
 
     skills: asArray(built.skills),
-    must_haves: asArray(built.must_haves),
-    nice_to_haves: asArray(built.nice_to_haves),
+    // Ausbildung/Erfahrung stehen in der Kriterienliste (must_have_criteria),
+    // aber nicht in den Skill-Spalten, die der Matcher als Skillnamen liest.
+    must_haves: ohneQualifikation(asArray(built.must_haves), typed.qualification_criteria),
+    nice_to_haves: ohneQualifikation(asArray(built.nice_to_haves), typed.qualification_criteria),
 
     // Diese fuenf standen bisher in recruiter_jobs_view und wurden von keinem
     // Aufnahmepfad je gefuellt. Der Recruiter sah dafuer KI-erfundene

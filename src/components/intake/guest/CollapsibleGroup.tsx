@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown } from 'lucide-react';
 
@@ -31,6 +31,8 @@ interface Props {
   fussnote?: string;
   /** Zugeklappt starten, sobald nichts mehr offen ist. */
   standardOffen?: boolean;
+  /** Jede Erhoehung klappt die Gruppe auf (Sprung zu einem Feld darin). */
+  oeffnenSignal?: number;
   children: ReactNode;
 }
 
@@ -40,9 +42,11 @@ export function CollapsibleGroup({
   offen = 0,
   fussnote,
   standardOffen,
+  oeffnenSignal,
   children,
 }: Props) {
   const [auf, setAuf] = useState(standardOffen ?? offen > 0);
+  useEffect(() => { if (oeffnenSignal) setAuf(true); }, [oeffnenSignal]);
   const fertig = offen === 0;
 
   return (

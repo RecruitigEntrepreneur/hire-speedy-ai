@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,7 +58,6 @@ import {
 import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, notifyCreatorOfDecision } from '@/lib/intakeApproval';
-import { JobIntakeStudio } from '@/components/dashboard/JobIntakeStudio';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { cn } from '@/lib/utils';
 
@@ -115,6 +114,9 @@ interface Job {
 
 export default function ClientJobDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  // Dieselbe Aufnahme wie auf dem Dashboard; Schliessen fuehrt hierher zurueck.
+  const openIntake = () => navigate(`/dashboard/aufnahme/${id}`, { state: { from: `/dashboard/jobs/${id}` } });
   const { user } = useAuth();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -142,7 +144,6 @@ export default function ClientJobDetail() {
 
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [studioOpen, setStudioOpen] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [decidingIntake, setDecidingIntake] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -486,18 +487,12 @@ export default function ClientJobDetail() {
                 )
               ) : (
                 <>
-                  <Button variant="hero" size="sm" className="gap-1.5" onClick={() => setStudioOpen(true)}>
-                    <Sparkles className="h-4 w-4" /> Weiter im Studio
+                  {/* Eingereicht wird nur noch ueber die Aufnahme -- dort prueft sie, ob
+                      das Profil ausgearbeitet ist. Vorher kam "Senior Hunter" mit
+                      Briefing-Reife 0 durch (24.09.2026). */}
+                  <Button variant="hero" size="sm" className="gap-1.5" onClick={openIntake}>
+                    <Sparkles className="h-4 w-4" /> Aufnahme fortsetzen und einreichen
                   </Button>
-                  <Button size="sm" variant="outline" className="gap-1.5" onClick={submitForReview} disabled={!canSubmit || submittingReview}>
-                    {submittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                    Zur Prüfung einreichen
-                  </Button>
-                  {!canSubmit && (
-                    <span className="text-xs text-muted-foreground">
-                      {missing.length > 0 ? `es fehlen ${missing.join(' & ')}` : 'Briefing-Reife unter 30 %'}
-                    </span>
-                  )}
                 </>
               )}
             </div>
@@ -524,8 +519,8 @@ export default function ClientJobDetail() {
                 </p>
               )}
               {phase !== 'review' && phase !== 'client_approval' && (
-                <Button variant="ghost" size="sm" className="mt-1 h-7 gap-1 px-2 text-xs text-primary" onClick={() => setStudioOpen(true)}>
-                  Im Studio vervollständigen <ArrowRight className="h-3 w-3" />
+                <Button variant="ghost" size="sm" className="mt-1 h-7 gap-1 px-2 text-xs text-primary" onClick={openIntake}>
+                  In der Aufnahme vervollständigen <ArrowRight className="h-3 w-3" />
                 </Button>
               )}
             </div>
@@ -553,15 +548,6 @@ export default function ClientJobDetail() {
             </div>
           </div>
 
-          <JobIntakeStudio
-            open={studioOpen}
-            type={isFreelanceJob ? 'freelance' : 'full-time'}
-            initialDraft={{ id: job.id, row: raw }}
-            onOpenChange={(o) => {
-              setStudioOpen(o);
-              if (!o) fetchJobData();
-            }}
-          />
 
           {/* Interne Rückgabe mit Kommentar (Team-Freigabe) */}
           <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>

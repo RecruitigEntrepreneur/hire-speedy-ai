@@ -226,6 +226,10 @@ PFLICHT-FELDER:
     technology  = Sprache, Framework, Werkzeug, Plattform (C#, Kubernetes, SAP)
     method      = Vorgehen, Praxis (CI/CD, Scrum, Infrastructure as Code)
     domain      = Fachgebiet (Serienentwicklung, Verpackungsmaschinen, FI/CO)
+                  NICHT domain: Erfahrung mit einer Unternehmensart oder Branche
+                  ("Erfahrung im Mittelstand", "in der Logistikbranche") -- das
+                  ist experience, mit dem vollen Wortlaut als text. Ein
+                  Stichwort wie "Mittelstand" allein sagt einem Recruiter nichts.
     language    = natuerliche Sprache -> language_code + language_level (A1-C2)
     certification = Zertifikat, Zulassung, Fuehrerschein
     education   = Studium, Ausbildung, Abschluss
@@ -239,6 +243,12 @@ PFLICHT-FELDER:
   "Sehr gute Deutsch- und Englischkenntnisse" ergibt ZWEI Eintraege mit
   kind=language. "Ganzheitliches Denkvermoegen" ist kind=soft und bekommt
   KEINEN skill.
+  Werkzeuge und Systeme, die NUR bei den Aufgaben stehen ("Forecasting in
+  HubSpot", "Planung in SAP PM"), gib ebenfalls aus: kind=technology,
+  required=false. Wer das Werkzeug kennt, ist im Vorteil -- Pflicht ist es nicht.
+  Teilangaben wie "davon 3 Jahre mit Personalverantwortung" gehoeren in
+  DENSELBEN Eintrag wie die Erfahrung, auf die sie sich beziehen:
+  "mindestens 7 Jahre B2B-Vertrieb, davon 3 Jahre mit Personalverantwortung".
 - must_haves: KURZE, PRUEFBARE Muss-Kriterien. Jeder Eintrag hoechstens 5 Woerter
   und einzeln pruefbar -- ein Recruiter muss "hat der Kandidat das: ja/nein"
   beantworten koennen. Ein Satz aus der Anzeige wird in seine Kriterien zerlegt:
@@ -303,7 +313,10 @@ DRINGLICHKEIT:
 - hiring_deadline_weeks: Zahl (falls Frist genannt)
 
 INDUSTRIE & FIRMA:
-- industry: String (z.B. "Fitness", "Finance", "IT", "Healthcare")
+- industry: So genau, wie die Anzeige es sagt -- kein Oberbegriff, wenn der Text
+  genauer ist. "Software fuer Lagerlogistik (SaaS)" statt "Software",
+  "Verpackungsmaschinen" statt "Maschinenbau", "Private Krankenversicherung"
+  statt "Finance". Nur wenn die Anzeige selbst allgemein bleibt, ein Oberbegriff.
 WAS DIE ANZEIGE SONST NOCH SAGT (falls erwaehnt, sonst null):
 
 Diese Felder standen bis 09.09.2026 nicht im Schema. Gemessen an einer Anzeige,
@@ -313,13 +326,22 @@ sondern weil niemand gefragt hat. Lies sie mit derselben Sorgfalt wie den Rest.
 WICHTIG fuer alle: Der Wortlaut der Anzeige muss NICHT dem hier genannten
 Beispiel gleichen. Gib zurueck, was dasteht -- die Zuordnung auf feste
 Auswahlwerte passiert danach. Erfinde nichts; steht es nicht da, gib null.
+Das gilt ausdruecklich fuer Ja/Nein-Felder und Standardwerte: schweigt die
+Anzeige, ist die Antwort null -- nicht false, nicht 0, nicht 12. "Nicht erwaehnt"
+ist kein "Nein" (Befund 24.09.2026: "Vertrag digital versendet: Nein",
+"Bonus: Nein" und "12 Monatsgehaelter" standen da, obwohl die Anzeige dazu
+nichts sagte).
 
 - salary_months: Auf wie viele Monatsgehaelter sich das Fixum verteilt.
   "13. Gehalt" -> 13, "13,5 Gehaelter" -> 13.5, "12 plus Urlaubsgeld" -> 12.5.
+  Nennt die Anzeige keine Zahl, gib null -- NICHT 12 als Standard. Eine 12
+  ohne Beleg steht beim Kunden sonst als "aus der Anzeige" da.
 - bonus_percent: Obergrenze der variablen Verguetung in Prozent. "Bonus bis
   15 %" -> 15, "Tantieme von bis zu einem Monatsgehalt" -> 8.
 - bonus_basis: Woran der Bonus haengt, als Liste. z.B. ["Unternehmensergebnis",
-  "persoenliche Ziele"].
+  "persoenliche Ziele"]. "30 % variabel bei Zielerreichung" -> ["Zielerreichung"].
+  Steht nichts ueber einen Bonus, sind bonus_percent UND bonus_basis null --
+  nicht 0 und nicht [].
 - contract_limitation: Befristung des ARBEITSVERTRAGS -- nicht Voll-/Teilzeit.
   "unbefristet", "zunaechst auf zwei Jahre befristet", "befristet mit Aussicht
   auf Uebernahme", "Projektvertrag". Woertlich, wie es dasteht.

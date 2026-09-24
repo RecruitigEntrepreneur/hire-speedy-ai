@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BriefingNotesDialog } from '@/components/jobs/BriefingNotesDialog';
 import { JobBoostDialog } from '@/components/jobs/JobBoostDialog';
-import { JobIntakeStudio, type StudioDraft } from '@/components/dashboard/JobIntakeStudio';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -75,7 +74,6 @@ export default function JobsList() {
   const [chipFilter, setChipFilter] = useState<'returned' | 'stale' | 'waiting' | null>(null);
   const [boostDialog, setBoostDialog] = useState({ open: false, jobId: '', jobTitle: '' });
   const [briefingDialog, setBriefingDialog] = useState({ open: false, jobId: '', jobTitle: '', notes: '' });
-  const [studio, setStudio] = useState<{ open: boolean; draft: StudioDraft | null }>({ open: false, draft: null });
 
   useEffect(() => {
     if (user) fetchJobs();
@@ -144,7 +142,9 @@ export default function JobsList() {
 
   // ---- Aktionen ------------------------------------------------------------
 
-  const openInStudio = (j: JobRow) => setStudio({ open: true, draft: { id: j.id, row: j.raw } });
+  // Eine Aufnahme fuer alles: dieselbe wie auf dem Dashboard und unter /start.
+  const navigate = useNavigate();
+  const openInStudio = (j: JobRow) => navigate(`/dashboard/aufnahme/${j.id}`, { state: { from: '/dashboard/jobs' } });
 
   const handleDuplicate = async (j: JobRow) => {
     // Alle Inhaltsfelder mitkopieren (vorher gingen description/skills/briefing verloren)
@@ -271,7 +271,7 @@ export default function JobsList() {
               {counts.active} aktiv · {counts.review} in Freigabe · {counts.drafts} Entwürfe
             </p>
           </div>
-          <Button variant="hero" size="sm" onClick={() => setStudio({ open: true, draft: null })}>
+          <Button variant="hero" size="sm" onClick={() => navigate('/dashboard/aufnahme', { state: { from: '/dashboard/jobs' } })}>
             <Plus className="mr-2 h-4 w-4" />
             Neue Stelle
           </Button>
@@ -359,11 +359,11 @@ export default function JobsList() {
                   {searchQuery || chipFilter ? 'Keine passenden Stellen' : tab === 'drafts' ? 'Keine Entwürfe' : tab === 'review' ? 'Nichts in der Freigabe' : tab === 'archive' ? 'Kein Archiv' : 'Noch keine aktive Stelle'}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery || chipFilter ? 'Filter anpassen oder zurücksetzen.' : 'Im Studio ist eine neue Stelle in Minuten angelegt.'}
+                  {searchQuery || chipFilter ? 'Filter anpassen oder zurücksetzen.' : 'Eine neue Position ist in wenigen Minuten aufgenommen.'}
                 </p>
               </div>
               {!searchQuery && !chipFilter && tab === 'active' && (
-                <Button variant="hero" size="sm" onClick={() => setStudio({ open: true, draft: null })}>
+                <Button variant="hero" size="sm" onClick={() => navigate('/dashboard/aufnahme', { state: { from: '/dashboard/jobs' } })}>
                   Neue Stelle
                 </Button>
               )}
@@ -450,7 +450,7 @@ export default function JobsList() {
                   )}
                   {lifecycle === 'drafts' && !returned && (
                     <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1 border-primary/40 text-xs text-primary" onClick={() => openInStudio(j)}>
-                      <Sparkles className="h-3.5 w-3.5" /> Weiter im Studio
+                      <Sparkles className="h-3.5 w-3.5" /> Aufnahme fortsetzen
                     </Button>
                   )}
                   {returned && (
@@ -525,15 +525,7 @@ export default function JobsList() {
           initialNotes={briefingDialog.notes}
           onSaved={fetchJobs}
         />
-        <JobIntakeStudio
-          open={studio.open}
-          type={(studio.draft?.row?.employment_type === 'freelance' ? 'freelance' : 'full-time') as 'full-time' | 'freelance'}
-          initialDraft={studio.draft}
-          onOpenChange={(o) => {
-            setStudio((s) => ({ ...s, open: o, draft: o ? s.draft : null }));
-            if (!o) fetchJobs();
-          }}
-        />
+
       </div>
     </DashboardLayout>
   );

@@ -21,6 +21,7 @@ import ClientBewerberPage from "./pages/dashboard/ClientBewerberPage";
 import ClientPlacements from "./pages/dashboard/ClientPlacements";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
+import ClientIntake from "./pages/dashboard/ClientIntake";
 import ClientBilling from "./pages/dashboard/ClientBilling";
 import DataPrivacy from "./pages/dashboard/DataPrivacy";
 
@@ -197,11 +198,8 @@ function AppRoutes() {
       {/* Alt-Route "Command Center": Bookmarks/alte Mails landen in der Bewerber-Inbox,
           vorgefiltert auf den Job. Die Seite selbst war ein Triple-Blind-Leck. */}
       <Route path="/dashboard/command/:jobId" element={<CommandRedirect />} />
-      <Route path="/dashboard/jobs/new" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <CreateJob />
-        </ProtectedRoute>
-      } />
+      {/* Die alte Anlege-Seite fuehrt in DIESELBE Aufnahme wie Dashboard und /start. */}
+      <Route path="/dashboard/jobs/new" element={<Navigate to="/dashboard/aufnahme" replace />} />
       <Route path="/dashboard/jobs/:id" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientJobDetail />
@@ -235,6 +233,16 @@ function AppRoutes() {
       <Route path="/dashboard/messages" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientMessages />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/aufnahme" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientIntake />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/aufnahme/:jobId" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientIntake />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/settings" element={

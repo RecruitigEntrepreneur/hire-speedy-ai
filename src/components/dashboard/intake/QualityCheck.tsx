@@ -39,7 +39,9 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
   const { warnings, levers } = useMemo(() => {
     const isFreelance = type === 'freelance';
     const warnings: string[] = [];
-    const levers: string[] = [];
+    // Hebel ohne Punkte: "+6 P" war eine interne Gewichtung, die kein Kunde
+    // versteht (Durchklicken 24.09.2026). `feld` = Sprungziel, falls sichtbar.
+    const levers: { text: string; feld?: string }[] = [];
 
     // ---- Konsistenz & Vollständigkeit -------------------------------------
     const onsiteAnswer = answerText(answers.onsite_days);
@@ -58,7 +60,7 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     // Der Hebel bleibt: viele Muss-Kriterien zu entschaerfen ist ein guter
     // Rat, auch ohne Zahl dahinter -- er behauptet nichts ueber den Markt.
     if (built.must_haves.length >= 8) {
-      levers.push('1–2 Muss-Kriterien auf „verhandelbar" setzen: +5 P');
+      levers.push({ text: '1–2 Muss-Kriterien auf „verhandelbar" setzen — vergrößert den Kandidatenkreis', feld: 'kriterien' });
     }
     if (AGG_PATTERN.test(answerText(answers.exclusion_criteria))) {
       warnings.push('Ausschlusskriterien enthalten möglicherweise unzulässige (AGG-) Merkmale — bitte nur berufsbezogen formulieren.');
@@ -79,10 +81,10 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     }
     if (built.must_haves.length > 0) profilePts += 20;
     if (revealDescriptor) profilePts += 20;
-    else levers.push('Anonymen Firmen-Descriptor setzen: +4 P');
+    else levers.push({ text: 'Anonyme Firmenbeschreibung ergänzen' });
 
     for (const q of openQuestions.slice(0, 2)) {
-      levers.push(`„${q.text.length > 60 ? q.text.slice(0, 57) + '…' : q.text}" beantworten: +${q.weight * 3} P`);
+      levers.push({ text: q.text.length > 60 ? q.text.slice(0, 57) + '…' : q.text, feld: q.id });
     }
 
     return { warnings, levers: levers.slice(0, 3) };
@@ -105,13 +107,29 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {w}
         </p>
       ))}
-      {levers.map((l) => (
-        <p key={l} className="mb-1 flex items-start gap-1.5 text-xs text-muted-foreground">
-          <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" /> {l}
-        </p>
-      ))}
+      {levers.length > 0 && <p className="mb-1 text-xs">Hilft den Headhuntern noch:</p>}
+      {levers.map((l) => {
+        const ziel = () => {
+          const el = l.feld ? document.querySelector<HTMLElement>(`[data-feld="${l.feld}"]`) : null;
+          if (!el) return;
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          window.setTimeout(() => el.focus?.(), 350);
+        };
+        return (
+          <p key={l.text} className="mb-1 flex items-start gap-1.5 text-xs text-muted-foreground">
+            <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
+            {l.feld ? (
+              <button type="button" onClick={ziel} className="text-left underline underline-offset-2 hover:text-foreground">
+                {l.text}
+              </button>
+            ) : (
+              l.text
+            )}
+          </p>
+        );
+      })}
       <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
-        Nur Beratung — übergeben ist jederzeit möglich.
+        Nur Beratung — ändert nichts daran, ob Sie einreichen können.
       </p>
     </div>
   );
