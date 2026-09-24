@@ -15,6 +15,13 @@
       "when": 1790095826756,
       "tag": "0001_recruiter_partner_status",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790252720949,
+      "tag": "0002_company_profile_legal_data",
+      "breakpoints": true
     }
   ]
 }
