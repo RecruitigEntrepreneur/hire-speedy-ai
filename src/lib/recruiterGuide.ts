@@ -6,7 +6,9 @@
  * Beispiel im Rundgang. Ziele sind CSS-Selektoren, meist [data-tour="…"].
  */
 
-export type GuideExample = 'job' | 'submit' | 'candidate' | 'pipeline' | 'optin' | 'task' | 'interview';
+export type GuideExample = 'job' | 'submit' | 'candidate' | 'pipeline' | 'optin' | 'task' | 'interview'
+  // Kunden-Rundgang (lib/clientGuide.ts)
+  | 'clientSubmit' | 'clientStatus' | 'clientCandidate';
 
 export interface GuideStep {
   id: string;
@@ -35,6 +37,20 @@ export interface GuideStep {
   minWidth?: number;
   /** Fehlt das Ziel, springt „Weiter“ zu diesem Schritt. */
   skipWhenMissing?: string;
+  /**
+   * Das Ziel entsteht erst durch den Nutzer (etwa das Profil nach dem Einlesen
+   * der Anzeige). Bis es da ist, keine Karte, nur ein Hinweis mit diesem Text.
+   */
+  wait?: string;
+  /** Fehlt das Ziel, geht es ohne Karte direkt weiter (etwa ein Bildschirm, der übersprungen wurde). */
+  autoSkip?: boolean;
+  /**
+   * Der Rundgang führt NICHT selbst auf die Seite dieses Schritts, sondern wartet,
+   * bis der Nutzer dort ankommt (etwa nach dem Einreichen). Solange: Hinweis mit diesem Text.
+   */
+  hold?: string;
+  /** Solange der Nutzer hier ist, bietet der Hinweis kein „Weiter“ an (etwa mitten in der Aufnahme). */
+  holdWhile?: string;
 }
 
 export const GUIDE_CHAPTERS = ['Übersicht', 'Offene Jobs', 'Briefing', 'Meine Kandidaten', 'Pipeline', 'Aufgaben & Interviews'] as const;
@@ -114,6 +130,12 @@ export const GUIDE_STEPS: GuideStep[] = [
 export const visibleSteps = (width: number) => GUIDE_STEPS.filter(step => !step.minWidth || width >= step.minWidth);
 
 export function matchRoute(pattern: string, pathname: string): boolean {
+  // "/dashboard/aufnahme*": der Pfad selbst und alles darunter.
+  if (pattern.endsWith('*')) {
+    const base = pattern.slice(0, -1).replace(/\/$/, '');
+    const path = pathname.replace(/\/$/, '');
+    return path === base || path.startsWith(`${base}/`);
+  }
   const source = pattern.split('/').map(part => (part.startsWith(':') ? '[^/]+' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('/');
   return new RegExp(`^${source}/?$`).test(pathname);
 }
@@ -175,12 +197,21 @@ export function tourSeen(user: { id: string; user_metadata?: Record<string, unkn
 export interface GuideState { userId: string; stepId: string; paused: boolean; jobPath?: string }
 export const GUIDE_STATE_KEY = 'matchunt.recruiterGuide';
 
-export function readGuideState(storage: Pick<Storage, 'getItem'> | null, userId: string): GuideState | null {
+export function readGuideState(
+  storage: Pick<Storage, 'getItem'> | null,
+  userId: string,
+  steps: GuideStep[] = GUIDE_STEPS,
+  key: string = GUIDE_STATE_KEY,
+  dynamicRoute: string = '/recruiter/jobs/:id',
+): GuideState | null {
   try {
-    const raw = storage?.getItem(GUIDE_STATE_KEY);
+    const raw = storage?.getItem(key);
     if (!raw) return null;
     const state = JSON.parse(raw) as Partial<GuideState>;
-    if (state.userId !== userId || !GUIDE_STEPS.some(step => step.id === state.stepId)) return null;
-    return { userId, stepId: state.stepId!, paused: state.paused === true, ...(typeof state.jobPath === 'string' && matchRoute('/recruiter/jobs/:id', state.jobPath) ? { jobPath: state.jobPath } : {}) };
+    if (state.userId !== userId || !steps.some(step => step.id === state.stepId)) return null;
+    return { userId, stepId: state.stepId!, paused: state.paused === true, ...(typeof state.jobPath === 'string' && matchRoute(dynamicRoute, state.jobPath) ? { jobPath: state.jobPath } : {}) };
   } catch { return null; }
 }
+
+/** Ein Muster wie "/dashboard/aufnahme*" als Adresse zum Hinnavigieren. */
+export const concretePath = (route: string) => route.replace(/\*$/, '').replace(/\/$/, '') || '/';

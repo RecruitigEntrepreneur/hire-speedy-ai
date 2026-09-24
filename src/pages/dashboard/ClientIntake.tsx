@@ -16,7 +16,7 @@ import { remoteLabel, levelLabel } from '@/lib/intakeMapping';
 import { knownFromForm, completeness as katalogCompleteness } from '@/lib/briefCatalog';
 import { cn } from '@/lib/utils';
 import {
-  ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Circle, Clock, Loader2, Mail, Plus,
+  ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Loader2, Mail, Plus,
 } from 'lucide-react';
 
 /**
@@ -63,7 +63,7 @@ export default function ClientIntake() {
       : vorschau === 'ohne' ? null : realFramework;
 
   const [step, setStep] = useState<Step>('capture');
-  const [done, setDone] = useState<{ jobId: string; status: string; packageName: string | null; upgraded: boolean } | null>(null);
+  const [done, setDone] = useState<{ titel: string; text: string; vorschau: boolean } | null>(null);
   const [delegateOpen, setDelegateOpen] = useState(false);
 
   const isOwner = vorschau ? true : target?.myRole === 'owner';
@@ -133,14 +133,39 @@ export default function ClientIntake() {
     }
   };
 
+  /**
+   * Das Abschlussfenster nach dem Einreichen (Entscheidung 24.09.2026):
+   * "Ihre Stelle wurde eingereicht" mit drei Wegen -- Meine Jobs, weitere
+   * Stelle, Dashboard. Ohne die fruehere Liste mit vier Schritten: der Stand
+   * steht jetzt an der Stelle selbst (Jobliste, Detail, Dashboard), und die
+   * "Auftragsbestaetigung per Mail" darin gab es gar nicht.
+   */
+  const abschluss = (status: string, choice: Parameters<typeof submit>[0], nurVorschau: boolean) => {
+    const pkg = choice ? packages.find((p) => p.package_key === choice.package_key) : null;
+    const internal = status === 'pending_client_approval';
+    const text = internal
+      ? 'Ihre Personalabteilung wurde benachrichtigt und gibt die Position frei.'
+      : framework
+        ? choice?.upgraded && pkg?.public_name
+          ? `${pkg.public_name} für diese Position · sonst gilt Rahmenvertrag ${framework.agreement_number}.`
+          : `Läuft unter Rahmenvertrag ${framework.agreement_number}, keine Unterschrift nötig.`
+        : 'Wir prüfen Ihre Anfrage und melden uns.';
+    setDone({
+      titel: internal ? 'Ihre Stelle ist zur Freigabe an Ihr Team geschickt' : 'Ihre Stelle wurde eingereicht',
+      text: internal
+        ? `${text} Den Stand sehen Sie jederzeit unter „Meine Jobs“.`
+        : `${text} Matchunt prüft die Stelle, meist in unter 24 Stunden. Den Stand sehen Sie jederzeit unter „Meine Jobs“.`,
+      vorschau: nurVorschau,
+    });
+    setStep('done');
+    window.scrollTo({ top: 0 });
+  };
+
   const doSubmit = async (choice: Parameters<typeof submit>[0]) => {
     if (vorschau) {
       await saveDraft();
-      const pkg = choice ? packages.find((p) => p.package_key === choice.package_key) : null;
       toast.info('Vorschau: nichts eingereicht, der Entwurf bleibt gespeichert.');
-      setDone({ jobId: intake.jobId ?? '', status: needsInternalApproval ? 'pending_client_approval' : 'pending_approval', packageName: pkg?.public_name ?? null, upgraded: !!choice?.upgraded });
-      setStep('done');
-      window.scrollTo({ top: 0 });
+      abschluss(needsInternalApproval ? 'pending_client_approval' : 'pending_approval', choice, true);
       return;
     }
     const res = await submit(choice);
@@ -148,10 +173,7 @@ export default function ClientIntake() {
       toast.error(res.message);
       return;
     }
-    const pkg = choice ? packages.find((p) => p.package_key === choice.package_key) : null;
-    setDone({ jobId: res.jobId, status: res.status, packageName: pkg?.public_name ?? null, upgraded: !!choice?.upgraded });
-    setStep('done');
-    window.scrollTo({ top: 0 });
+    abschluss(res.status, choice, false);
   };
 
   // Personio und Mail sind sichtbar, aber noch nicht angeschlossen -- und
@@ -212,11 +234,19 @@ export default function ClientIntake() {
 
       <Dialog open onOpenChange={(o) => { if (!o) void close(); }}>
         <DialogContent
-          className="flex h-[92vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+          className={cn(
+            'flex flex-col gap-0 overflow-hidden p-0',
+            // Der Abschluss ist eine kurze Nachricht -- im grossen Aufnahme-
+            // Fenster stand sie verloren in 92 % der Hoehe (24.09.2026).
+            step === 'done' ? 'w-[92vw] max-w-xl' : 'h-[92vh] w-[96vw] max-w-6xl',
+          )}
           onInteractOutside={(e) => e.preventDefault()}
         >
           {/* Kopf: Titel, Schrittleiste, Speicherstand */}
-          <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 pr-12 md:px-6 md:pr-14">
+          <div className={cn(
+            'flex flex-wrap items-center gap-3 border-b px-4 py-3 pr-12 md:px-6 md:pr-14',
+            step === 'done' && 'sr-only',
+          )}>
             <DialogTitle className="truncate text-base font-semibold">
               {title || 'Neue Position aufnehmen'}
             </DialogTitle>
@@ -224,7 +254,7 @@ export default function ClientIntake() {
               Position aufnehmen, Briefing beantworten und bei Matchunt einreichen.
             </DialogDescription>
             {step !== 'done' && (
-              <ol className="ml-auto flex items-center gap-1.5 text-xs">
+            <ol className="ml-auto flex items-center gap-1.5 text-xs">
                 {steps.map((s, i) => {
                   const active = s.key === step;
                   const past = step === 'submit' && s.key === 'capture';
@@ -245,7 +275,7 @@ export default function ClientIntake() {
                     </li>
                   );
                 })}
-              </ol>
+            </ol>
             )}
             {step === 'capture' && (
               <span className="text-xs text-muted-foreground">
@@ -254,8 +284,8 @@ export default function ClientIntake() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-5 md:px-6">
-            {import.meta.env.DEV && (
+          <div className={cn('flex-1 overflow-y-auto', step === 'done' ? 'p-6' : 'px-4 py-5 md:px-6')}>
+            {import.meta.env.DEV && step !== 'done' && (
               <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-amber-500/50 px-3 py-2 text-xs">
                 <span className="font-medium text-amber-600">Test-Vorschau (nur lokal):</span>
                 {[
@@ -365,13 +395,15 @@ export default function ClientIntake() {
             )}
 
             {step === 'done' && done && (
-              <DoneStep
-                title={title || 'Die Position'}
+              <Abschluss
                 done={done}
-                framework={framework ?? null}
-                onAnother={() => window.location.assign('/dashboard/aufnahme')}
+                jobTitel={title || 'Die Position'}
+                onJobs={() => navigate('/dashboard/jobs?tab=review')}
+                onWeitere={() => window.location.assign('/dashboard/aufnahme')}
+                onDashboard={() => navigate('/dashboard')}
               />
             )}
+
           </div>
         </DialogContent>
       </Dialog>
@@ -387,55 +419,37 @@ export default function ClientIntake() {
   );
 }
 
-// ---- Danke -----------------------------------------------------------------
+// ---- Abschluss -------------------------------------------------------------
 
-function DoneStep({
-  title, done, framework, onAnother,
+function Abschluss({
+  done, jobTitel, onJobs, onWeitere, onDashboard,
 }: {
-  title: string;
-  done: { jobId: string; status: string; packageName: string | null; upgraded: boolean };
-  framework: { agreement_number: string } | null;
-  onAnother: () => void;
+  done: { titel: string; text: string; vorschau: boolean };
+  jobTitel: string;
+  onJobs: () => void;
+  onWeitere: () => void;
+  onDashboard: () => void;
 }) {
-  const internal = done.status === 'pending_client_approval';
-  const schritte = internal
-    ? ['Freigabe durch Ihre Personalabteilung', 'Prüfung durch Matchunt', 'Stelle geht live']
-    : ['Prüfung durch Matchunt', 'Auftragsbestätigung per Mail', 'Stelle geht live', 'Erste anonyme Kandidaten'];
   return (
-    <div className="mx-auto max-w-xl py-6">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15">
-        <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+    <div>
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
+        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
       </div>
-      <h2 className="text-2xl font-bold tracking-tight">
-        {internal ? `${title} ist zur Freigabe geschickt` : `${title} ist eingereicht`}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {internal
-          ? 'Ihre Personalabteilung wurde benachrichtigt und gibt die Position frei.'
-          : framework
-            ? done.upgraded && done.packageName
-              ? `${done.packageName} für diese Position · sonst gilt Rahmenvertrag ${framework.agreement_number}.`
-              : `Läuft unter Rahmenvertrag ${framework.agreement_number}, keine Unterschrift nötig.`
-            : 'Wir prüfen Ihre Anfrage und melden uns.'}
-      </p>
-      <div className="mt-5 space-y-2.5 rounded-xl border bg-card p-4 text-sm">
-        {schritte.map((s, i) => (
-          <div key={s} className={cn('flex items-center gap-2.5', i > 0 && 'text-muted-foreground')}>
-            {/* Kein Lade-Kreisel: hier laedt nichts, der Schritt liegt bei Matchunt. */}
-            {i === 0 ? <Clock className="h-4 w-4 text-primary" /> : <Circle className="h-4 w-4 text-muted-foreground/40" />}
-            {s}
-          </div>
-        ))}
-      </div>
+      <h2 className="text-xl font-bold tracking-tight">{done.titel}</h2>
+      <p className="mt-1 text-sm font-medium">{jobTitel}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{done.text}</p>
+      {done.vorschau && (
+        <p className="mt-2 text-xs text-amber-600">Vorschau: nichts eingereicht, die Stelle ist weiter ein Entwurf.</p>
+      )}
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button asChild className="gap-1.5">
-          <Link to={`/dashboard/jobs/${done.jobId}`}>Zur Stelle <ArrowRight className="h-4 w-4" /></Link>
+        <Button className="gap-1.5" onClick={onJobs}>
+          Zu meinen Jobs <ArrowRight className="h-4 w-4" />
         </Button>
-        <Button variant="outline" className="gap-1.5" onClick={onAnother}>
-          <Plus className="h-4 w-4" /> Weitere Position aufnehmen
+        <Button variant="outline" className="gap-1.5" onClick={onWeitere}>
+          <Plus className="h-4 w-4" /> Weitere Stelle einreichen
         </Button>
-        <Button variant="ghost" asChild>
-          <Link to="/dashboard">Zum Dashboard</Link>
+        <Button variant="ghost" className="px-3" onClick={onDashboard}>
+          Zum Dashboard
         </Button>
       </div>
     </div>

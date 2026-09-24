@@ -269,12 +269,12 @@ export function useClientIntake(jobIdParam?: string) {
   );
 
   const persist = useCallback(
-    async (status: string, extra?: Record<string, unknown>) => {
+    async (status: string, extra?: Record<string, unknown>, spalten?: Record<string, unknown>) => {
       const c = captureRef.current;
       if (!c?.built?.title?.trim() || !user) return { id: jobIdRef.current, error: null };
       const row = buildRow(c, companyRef.current, extra);
       if (!row) return { id: jobIdRef.current, error: null };
-      const full = { ...row, status, ...(jobIdRef.current ? {} : { client_id: user.id }) };
+      const full = { ...row, ...spalten, status, ...(jobIdRef.current ? {} : { client_id: user.id }) };
       const res = await writeJob(jobIdRef.current, full);
       if (res.id && !jobIdRef.current) {
         jobIdRef.current = res.id;
@@ -429,7 +429,9 @@ export function useClientIntake(jobIdParam?: string) {
           }
         : undefined;
       if (inFlight.current) await inFlight.current;
-      const res = await persist(t.status, commercial);
+      // "Eingereicht am" im Verlauf der Stelle. Fehlt die Spalte live noch,
+      // laesst writeJob sie weg -- das Einreichen scheitert daran nicht.
+      const res = await persist(t.status, commercial, { submitted_at: new Date().toISOString() });
       if (res.error || !res.id) {
         const msg = String((res.error as any)?.message ?? '');
         return {
@@ -469,6 +471,10 @@ export function useClientIntake(jobIdParam?: string) {
     firmaFest: firma && firmendatenVollstaendig(firma)
       ? {
           zeile: [firma.legal_name, joinAddress(firma), firma.registration_number, firma.vat_id].filter(Boolean).join(' · '),
+          name: firma.legal_name,
+          adresse: joinAddress(firma),
+          register: [firma.registration_number, firma.vat_id ? `USt-IdNr. ${firma.vat_id}` : '']
+            .filter(Boolean).join(' · '),
           verifiziertAm: firma.verified_at,
         }
       : null,

@@ -5,6 +5,11 @@ import { JobHealthIndicator } from '@/components/jobs/JobHealthIndicator';
 import { BentoTile } from './BentoTile';
 import type { JobStats } from '@/hooks/useClientDashboard';
 import { Briefcase, Users, Calendar, Gift } from 'lucide-react';
+import { stellenVerlauf } from '@/lib/stellenVerlauf';
+import { VerlaufPunkte } from '@/components/dashboard/StellenVerlauf';
+
+// Die Kachel kennt nur den Status -- fuer die Punkte reicht das.
+const pruefVerlauf = stellenVerlauf({ status: 'pending_approval' });
 
 interface Props {
   jobs: JobStats[];
@@ -39,9 +44,13 @@ export function AktiveJobsTile({ jobs, loading }: Props) {
                 <div className="flex items-center gap-2">
                   <p className="truncate text-sm font-medium transition-colors group-hover:text-primary">{job.title}</p>
                   {job.status === 'pending_approval' ? (
-                    <Badge variant="outline" className="h-5 shrink-0 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
-                      In Freigabe
-                    </Badge>
+                    /* Dieselbe Sprache wie Jobliste und Job-Detail (lib/stellenVerlauf). */
+                    <>
+                      <Badge variant="outline" className="h-5 shrink-0 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
+                        In Prüfung
+                      </Badge>
+                      {pruefVerlauf && <VerlaufPunkte verlauf={pruefVerlauf} className="shrink-0" />}
+                    </>
                   ) : (
                     <JobHealthIndicator
                       candidatesCount={job.totalCandidates}

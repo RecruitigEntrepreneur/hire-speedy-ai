@@ -12,6 +12,9 @@
  * importieren. Wer hier etwas ändert, ändert es dort mit.
  */
 import { chipTreffer, sizeBand } from './briefCatalog';
+import {
+  aufbauAusAnzeige, teamgroesseAus, type TeamStructureParsed,
+} from '../../supabase/functions/_shared/abteilung';
 import type { ParsedJobData } from '@/hooks/useJobParsing';
 import type { ParsedJobProfile } from '@/hooks/useJobPdfParsing';
 import type { BuiltJob, FreelanceTerms, RevealSetup } from '@/components/dashboard/intake/types';
@@ -443,14 +446,25 @@ export function catalogFromParsed(
   // Rolle
   setz('daily_routine', d.daily_routine);
   setz('task_focus', d.task_focus);
-  /* `department_structure` liest der Parser ebenfalls, und jobs hat die Spalte
-     seit Januar -- aber der Katalog hat keinen Slot dafuer. Sie hier zu setzen
-     hiesse nur, den Wert eine Ebene spaeter fallen zu lassen. Offen. */
+  /* Der Aufbau der Abteilung -- die Treppe (24.09.2026). Vorher hatte der
+     Katalog keinen Slot dafuer, und `department_structure` fiel hier auf den
+     Boden ("12 Personen, 2 Finanzbuchhalter ..." -> Spalte leer).
+     `team_structure` liefert der Parser seit diesem Tag; fehlt es (aelterer
+     Parser, PDF-Weg), bleibt der Rueckfall auf die Teamzahl. Direkt gesetzt,
+     nicht ueber `setz`: das ist ein Objekt, kein Chip. */
+  const aufbau = aufbauAusAnzeige(
+    (d as { team_structure?: TeamStructureParsed | null }).team_structure,
+    { teamSize: d.team_size, leitung: stufeAusTitel(d.title) === 'lead' },
+  );
+  if (aufbau) out.department_structure = { value: aufbau, from: 'ad' };
 
   /* Team -- die Rohzahl. Vorher wurde sie auf die Chipstufen gerundet: eine
      Anzeige mit "Team von 7" landete auf 10, weil der Chip "6-15" hiess. Seit
-     die Zeile ein Zahlenfeld ist, gibt es nichts mehr zu runden. */
-  if (d.team_size != null) {
+     die Zeile ein Zahlenfeld ist, gibt es nichts mehr zu runden. Die Treppe
+     gewinnt, wo sie eine Zahl hat -- sonst stuenden zwei verschiedene da. */
+  const ausTreppe = teamgroesseAus(aufbau);
+  if (ausTreppe) setz('team_size', ausTreppe);
+  else if (!aufbau && d.team_size != null) {
     const n = Number(d.team_size);
     if (Number.isFinite(n) && n > 0) setz('team_size', Math.round(n));
   }

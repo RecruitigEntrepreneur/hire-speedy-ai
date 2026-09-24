@@ -65,12 +65,16 @@
  * braucht, fragt nach der Erfahrung im Team, nicht nach dem Alter.
  */
 
+import { aufbauFertig, istAufbau } from '../../supabase/functions/_shared/abteilung';
+
 export type BriefLevel = 'company' | 'position' | 'process';
 /**
  * `short` ist eine einzeilige Eingabe: eine Uhrzeitspanne ist kein Aufsatz,
  * und ein zweizeiliges Textfeld daneben laedt zu einem ein.
  */
-export type BriefForm = 'chips' | 'multi' | 'range' | 'number' | 'date' | 'short' | 'text' | 'ai';
+export type BriefForm = 'chips' | 'multi' | 'range' | 'number' | 'date' | 'short' | 'text' | 'ai'
+  /** Die Treppe aus Folgefragen zum Aufbau der Abteilung (AbteilungsTreppe). */
+  | 'struktur';
 export type RevealClass = 'safe' | 'gated';
 /**
  * Woher der Wert einer Zeile kommen KANN.
@@ -443,6 +447,21 @@ const LINKS: BriefQuestion[] = [
     textFreelance: 'Wie ist das Projektteam aufgestellt, und wer arbeitet noch extern mit?',
     why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
     slots: [
+      /**
+       * Der Aufbau der Abteilung als Treppe (24.09.2026).
+       *
+       * Vorher stand hier nur "Teamgroesse" als Zahlenfeld ueber die volle
+       * Breite -- viel Platz, wenig Auskunft. Ob die Person fuehrt oder
+       * mitarbeitet, wer noch im Team ist, wie gross die Abteilung ist und
+       * mit wem sie eng zusammenarbeitet, fehlte. Jetzt oeffnet jede Antwort
+       * die passende naechste Frage (supabase/functions/_shared/abteilung.ts).
+       * Steht als ERSTE Zeile, damit Markos Frage darueber steht.
+       */
+      {
+        key: 'department_structure', label: 'Aufbau der Abteilung', form: 'struktur',
+        column: 'department_structure', store: 'text',
+        required: true, weight: 2, reveal: 'safe', sources: ['ad'],
+      },
       {
         /**
          * Die Zahl, nicht das Band.
@@ -457,7 +476,12 @@ const LINKS: BriefQuestion[] = [
         key: 'team_size', label: 'Teamgröße', form: 'number',
         placeholder: 'Anzahl Personen',
         column: 'team_size', store: 'number',
-        required: true, weight: 2, reveal: 'safe', sources: ['ad', 'derive'],
+        /* Seit 24.09.2026 abgeleitet: die Treppe darueber schreibt die Zahl
+           mit (Kolleg:innen, Fuehrungsspanne oder Zielgroesse). Kein eigenes
+           Feld mehr und keine eigene Pflicht -- sonst waere dieselbe Zahl
+           zweimal erhoben und zweimal gezaehlt. Die Spalte bleibt. */
+        required: false, weight: 2, reveal: 'safe', sources: ['ad', 'derive'],
+        imFormular: true,
       },
       {
         key: 'remote_days', label: 'Homeoffice-Tage pro Woche', form: 'chips',
@@ -1208,6 +1232,9 @@ export interface SlotState {
 export type Known = Record<string, SlotState | undefined>;
 
 const belegt = (v: unknown) => {
+  // Die Treppe gilt erst als belegt, wenn jede Stufe ihres Zweigs beantwortet
+  // ist -- eine halb durchlaufene Treppe ist keine Angabe zum Aufbau.
+  if (istAufbau(v)) return aufbauFertig(v);
   if (Array.isArray(v)) return v.length > 0;
   if (v && typeof v === 'object') return Object.values(v).some((x) => String(x ?? '').trim());
   return v !== null && v !== undefined && String(v).trim() !== '';

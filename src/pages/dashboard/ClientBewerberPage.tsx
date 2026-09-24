@@ -113,7 +113,7 @@ export default function ClientBewerberPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
+        <div data-tour="candidates.header">
           <h1 className="text-3xl font-bold">{t('bewerber.title')}</h1>
           <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>

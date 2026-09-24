@@ -58,6 +58,8 @@ import {
 import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, notifyCreatorOfDecision } from '@/lib/intakeApproval';
+import { stellenVerlauf, verlaufDatum } from '@/lib/stellenVerlauf';
+import { VerlaufLeiste } from '@/components/dashboard/StellenVerlauf';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { cn } from '@/lib/utils';
 
@@ -385,11 +387,10 @@ export default function ClientJobDetail() {
       fetchJobData();
     };
 
-    // "Besetzt" ist Funnel, kein Lebenszyklus-Schritt — gehört nicht in den Stepper.
-    const steps = phase === 'client_approval'
-      ? ['Entwurf', 'Interne Freigabe', 'Prüfung Matchunt', 'Aktiv']
-      : ['Entwurf', 'In Freigabe', 'Aktiv'];
-    const stepIdx = phase === 'review' || phase === 'client_approval' ? 1 : 0;
+    // Derselbe Verlauf wie in Jobliste und Dashboard (lib/stellenVerlauf).
+    // Entwuerfe haben keinen -- sie stehen noch in der Aufnahme.
+    const verlauf = stellenVerlauf(raw as unknown as Parameters<typeof stellenVerlauf>[0]);
+    const eingereichtAm = verlaufDatum(verlauf?.schritte[0]?.datum ?? null);
     const flex: Record<string, string> = raw.intake_payload?.flexibility ?? {};
     const descriptor: string | null = raw.reveal_envelope?.descriptor ?? null;
     const flexLabel = (s: string) => (flex[s] === 'negotiable' ? 'verhandelbar' : flex[s] === 'flexible' ? 'flexibel' : 'fix');
@@ -420,13 +421,9 @@ export default function ClientJobDetail() {
           <div className="rounded-xl border bg-card p-5">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold capitalize md:text-2xl">{job.title}</h1>
-              {phase === 'review' ? (
+              {(phase === 'review' || phase === 'client_approval') && verlauf ? (
                 <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-600">
-                  <Clock className="h-3 w-3" /> In Freigabe
-                </Badge>
-              ) : phase === 'client_approval' ? (
-                <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-600">
-                  <Clock className="h-3 w-3" /> Interne Freigabe
+                  <Clock className="h-3 w-3" /> {verlauf.kurz}
                 </Badge>
               ) : (
                 <>
@@ -436,27 +433,12 @@ export default function ClientJobDetail() {
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {phase === 'review'
-                ? `Eingereicht am ${new Date((raw.updated_at as string) || job.created_at).toLocaleDateString('de-DE')} — Prüfung i. d. R. unter 24 Std. Wir benachrichtigen Sie.`
-                : phase === 'client_approval'
-                ? `Eingereicht am ${new Date((raw.updated_at as string) || job.created_at).toLocaleDateString('de-DE')} — wartet auf interne Freigabe durch Admin/HR Ihres Teams.`
+              {phase === 'review' || phase === 'client_approval'
+                ? eingereichtAm ? `Eingereicht am ${eingereichtAm}` : 'Eingereicht'
                 : `zuletzt bearbeitet vor ${Math.max(0, Math.floor((Date.now() - new Date((raw.updated_at as string) || job.created_at).getTime()) / 86_400_000))} Tagen${job.location ? ` · ${job.location}` : ''}${job.remote_type ? ` · ${job.remote_type === 'remote' ? 'Remote' : job.remote_type === 'onsite' ? 'Vor Ort' : 'Hybrid'}` : ''}`}
             </p>
 
-            {/* Status-Stepper (Kandidaten/Interviews sind Funnel, keine Status) */}
-            <div className="mt-4 flex items-center gap-2 text-xs">
-              {steps.map((s, i) => (
-                <span key={s} className="flex flex-1 items-center gap-2 last:flex-none">
-                  <span className={cn('flex items-center gap-1.5 whitespace-nowrap', i === stepIdx ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-                    <span className={cn('flex h-5 w-5 items-center justify-center rounded-full text-[10px]', i === stepIdx ? 'bg-primary text-primary-foreground' : i < stepIdx ? 'bg-primary/20 text-primary' : 'bg-muted')}>
-                      {i + 1}
-                    </span>
-                    {s}
-                  </span>
-                  {i < steps.length - 1 && <span className="h-px flex-1 bg-border" />}
-                </span>
-              ))}
-            </div>
+            {verlauf && <VerlaufLeiste verlauf={verlauf} className="mt-4" />}
 
             {/* Aktionen je Phase */}
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
@@ -586,6 +568,10 @@ export default function ClientJobDetail() {
   // Ehrliche Laufzeit: ab Freigabe (approved_at), nicht ab Entwurfs-Anlage.
   const liveSince = job.approved_at || job.created_at;
   const liveDays = Math.max(0, Math.floor((Date.now() - new Date(liveSince).getTime()) / 86_400_000));
+  const liveVerlauf = stellenVerlauf(job as unknown as Parameters<typeof stellenVerlauf>[0], {
+    kandidaten: bewerberItems.length,
+    ersterKandidatAm: bewerberItems.map((i) => i.submittedAt).filter(Boolean).sort()[0] ?? null,
+  });
   const diagnose = diagnoseJob(bewerberItems, { pausedAt: job.paused_at, liveSince, status: job.status });
   const turnTabs = myTurnTabs(bewerberItems);
   const hiredCount = bewerberItems.filter((i) => i.archiveKind === 'eingestellt').length;
@@ -724,6 +710,13 @@ export default function ClientJobDetail() {
             </div>
           </div>
 
+          {/* Live, aber noch ohne Kandidaten: derselbe Verlauf wie vor dem
+              Livegang, damit der Kunde sieht, wo die Stelle steht. Ab dem
+              ersten Kandidaten traegt der Funnel die Auskunft. */}
+          {!bewerberLoading && !bewerberError && liveVerlauf?.aktuell && (
+            <VerlaufLeiste verlauf={liveVerlauf} className="mt-4" />
+          )}
+
           {bewerberLoading ? (
             <Skeleton className="mt-4 h-24 w-full" />
           ) : bewerberError ? (
@@ -836,3 +829,4 @@ export default function ClientJobDetail() {
     </DashboardLayout>
   );
 }
+

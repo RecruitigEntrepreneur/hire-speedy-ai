@@ -10,7 +10,11 @@ import { AnstehendeInterviewsTile } from '@/components/dashboard/bento/Anstehend
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { useAuth } from '@/lib/auth';
-import { RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useClientGuide } from '@/components/recruiter/guide/RecruiterGuide';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { Compass, RefreshCw } from 'lucide-react';
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -24,6 +28,24 @@ export default function ClientDashboard() {
   const { user } = useAuth();
 
   usePageViewTracking('client_dashboard');
+
+  /* Rundgang (lib/clientGuide.ts): startet von selbst nur für NEUE Kunden --
+     Konten ohne jede Stelle, auch ohne Entwurf. Bestehende Kunden erreichen
+     ihn über den Knopf "Rundgang" (Entscheidung 24.09.2026). */
+  const guide = useClientGuide();
+  const { data: stellenAnzahl } = useQuery({
+    queryKey: ['client-guide-job-count', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('jobs').select('id', { count: 'exact', head: true }).eq('client_id', user!.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+  useEffect(() => {
+    if (!isLoading && stellenAnzahl === 0) guide.offer();
+  }, [isLoading, stellenAnzahl, guide]);
 
   const rawName = String(
     (user?.user_metadata as { full_name?: string } | undefined)?.full_name || user?.email?.split('@')[0] || '',
@@ -51,23 +73,32 @@ export default function ClientDashboard() {
         <VerificationStatusBanner />
 
         {/* Header / Begrüßung */}
-        <div>
-          <h1 className="text-2xl font-bold">
-            {getGreeting()}
-            {firstName ? `, ${firstName}` : ''}
-          </h1>
-          <p className="text-sm text-muted-foreground">Ihr Command Center für alle Kandidaten-Aktivitäten.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">
+              {getGreeting()}
+              {firstName ? `, ${firstName}` : ''}
+            </h1>
+            <p className="text-sm text-muted-foreground">Ihr Command Center für alle Kandidaten-Aktivitäten.</p>
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => guide.start()}>
+            <Compass className="h-4 w-4" /> Rundgang
+          </Button>
         </div>
 
         {/* Neue Position – fuehrt in dieselbe Aufnahme wie der Link /start */}
-        <PositionEntry hasJobs={isLoading || (data?.liveJobs?.length ?? 0) > 0} />
+        <div data-tour="client.entry">
+          <PositionEntry hasJobs={isLoading || (data?.liveJobs?.length ?? 0) > 0} />
+        </div>
 
         {/* 2x2 Bento – vier gleich große Boxen */}
         <TooltipProvider>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <BewerbungenTile />
             <AktiveJobsTile jobs={data?.liveJobs ?? []} loading={isLoading} />
-            <BrauchtEntscheidungTile actions={data?.actions ?? []} loading={isLoading} />
+            <div data-tour="client.decide">
+              <BrauchtEntscheidungTile actions={data?.actions ?? []} loading={isLoading} />
+            </div>
             <AnstehendeInterviewsTile />
           </div>
         </TooltipProvider>

@@ -9,7 +9,30 @@ import type { GuideTarget } from './useGuideTarget';
 
 /** Abstand der Markierung um das Ziel. */
 const PAD = 6;
-const DIM = 'fixed z-[100] bg-slate-950/60';
+// pointer-events-auto: Ein offenes modales Fenster (Aufnahme im Kunden-Dashboard)
+// setzt pointer-events: none auf <body>. Ohne das liessen sich Karte und Abdeckung
+// nicht anklicken, und Klicks fielen durch die Abdeckung auf das Fenster.
+const DIM = 'pointer-events-auto fixed z-[100] bg-slate-950/60';
+
+/** Die Worte des Rundgangs -- Headhunter duzen wir, Kunden siezen wir. */
+export interface GuideTexts {
+  yourTurn: string;
+  start: string;
+  skip: string;
+  finish: string;
+  paused: string;
+  resume: string;
+  finalCta: string;
+}
+export const RECRUITER_GUIDE_TEXTS: GuideTexts = {
+  yourTurn: 'Du bist dran: Klick auf die markierte Stelle.',
+  start: "Los geht's",
+  skip: 'Überspringen',
+  finish: 'Fertig',
+  paused: 'Rundgang pausiert',
+  resume: 'Fortsetzen',
+  finalCta: 'Offene Jobs ansehen',
+};
 
 function useViewport() {
   const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
@@ -31,7 +54,7 @@ function Backdrop({ hole, clickable }: { hole: TourRect | null; clickable: boole
     <div className={DIM} style={{ top: bottom, left: 0, right: 0, bottom: 0 }} />
     <div className={DIM} style={{ top: hole.top, left: 0, width: Math.max(hole.left, 0), height: hole.height }} />
     <div className={DIM} style={{ top: hole.top, left: right, right: 0, height: hole.height }} />
-    {!clickable && <div className="fixed z-[100]" style={hole} />}
+    {!clickable && <div className="pointer-events-auto fixed z-[100]" style={hole} />}
     <div className="pointer-events-none fixed z-[101] rounded-lg ring-2 ring-primary" style={hole} />
     {clickable && <div className="pointer-events-none fixed z-[101] rounded-lg ring-4 ring-primary/40 motion-safe:animate-pulse" style={hole} />}
   </div>;
@@ -50,10 +73,13 @@ export interface GuideOverlayProps {
   onClose: () => void;
   /** Klick-Schritte: dasselbe wie der Klick auf das Ziel, oder die Navigation, wo das nicht geht. */
   onAct: () => void;
+  /** Der Hauptknopf im letzten Schritt. */
   onOpenJobs: () => void;
+  chapters?: readonly string[];
+  texts?: GuideTexts;
 }
 
-export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, clickable, onNext, onBack, onClose, onAct, onOpenJobs }: GuideOverlayProps) {
+export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, clickable, onNext, onBack, onClose, onAct, onOpenJobs, chapters = GUIDE_CHAPTERS, texts = RECRUITER_GUIDE_TEXTS }: GuideOverlayProps) {
   const viewport = useViewport();
   const cardRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +89,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   const missing = !!step.target && !target.el && !target.waiting;
   const showExample = !!step.example && (!step.exampleWhenMissing || missing);
   const body = step.click && !clickable ? step.narrowBody ?? step.body : step.body;
-  const title = step.id === 'welcome' && firstName ? `${step.title}, ${firstName}` : step.title;
+  const title = first && firstName ? `${step.title}, ${firstName}` : step.title;
 
   const rect = target.rect;
   const hole = rect && {
@@ -85,12 +111,14 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
     const onKey = (event: KeyboardEvent) => {
       const el = event.target as HTMLElement | null;
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
-      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+      // Vor einem offenen Fenster (Aufnahme) abfangen: sonst schlösse Escape
+      // Rundgang UND Fenster zugleich.
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
       if (event.key === 'ArrowRight' && !step.click && !last) { event.preventDefault(); onNext(); }
       if (event.key === 'ArrowLeft' && onBack) { event.preventDefault(); onBack(); }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [step.click, last, onNext, onBack, onClose]);
 
   return createPortal(<>
@@ -101,12 +129,12 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
       aria-modal="false"
       aria-labelledby="guide-title"
       aria-describedby="guide-body"
-      className="fixed z-[102] w-[min(380px,calc(100vw-2rem))] rounded-xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl transition-[top,left] duration-300 motion-reduce:transition-none"
+      className="pointer-events-auto fixed z-[102] w-[min(380px,calc(100vw-2rem))] rounded-xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl transition-[top,left] duration-300 motion-reduce:transition-none"
       style={{ top: position.top, left: position.left }}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Kapitel {step.chapter} von {GUIDE_CHAPTERS.length} · {GUIDE_CHAPTERS[step.chapter - 1]}
+          Kapitel {step.chapter} von {chapters.length} · {chapters[step.chapter - 1]}
         </p>
         <button type="button" onClick={onClose} aria-label="Rundgang beenden" className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <X className="h-4 w-4" />
@@ -118,17 +146,17 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
       <h2 id="guide-title" className="mt-4 text-lg font-semibold leading-snug">{title}</h2>
       <p id="guide-body" className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
       {showExample && <GuideExampleView kind={step.example!} />}
-      {clickable && <p className="mt-3 flex items-center gap-2 text-sm font-medium"><MousePointerClick className="h-4 w-4 text-primary" />Du bist dran: Klick auf die markierte Stelle.</p>}
+      {clickable && <p className="mt-3 flex items-center gap-2 text-sm font-medium"><MousePointerClick className="h-4 w-4 text-primary" />{texts.yourTurn}</p>}
       <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
         {first ? <>
-          <Button variant="ghost" size="sm" onClick={onClose}>Überspringen</Button>
-          <Button ref={primaryRef} size="sm" onClick={onNext}>Los geht's<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>{texts.skip}</Button>
+          <Button ref={primaryRef} size="sm" onClick={onNext}>{texts.start}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
         </> : <>
           {onBack && !last && <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-1.5 h-4 w-4" />Zurück</Button>}
           {last
             ? <>
-              <Button variant="outline" size="sm" onClick={onClose}>Fertig</Button>
-              <Button ref={primaryRef} size="sm" onClick={onOpenJobs}>Offene Jobs ansehen<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" onClick={onClose}>{texts.finish}</Button>
+              <Button ref={primaryRef} size="sm" onClick={onOpenJobs}>{texts.finalCta}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </>
             : step.click
               ? <Button ref={primaryRef} size="sm" variant={clickable ? 'outline' : 'default'} onClick={onAct}>{step.click.label}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
@@ -139,13 +167,19 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   </>, document.body);
 }
 
-/** Klickt der Headhunter woanders hin, pausiert der Rundgang und wartet hier. */
-export function GuidePausePill({ onResume, onClose }: { onResume: () => void; onClose: () => void }) {
+/**
+ * Klickt der Nutzer woanders hin, pausiert der Rundgang und wartet hier. Mit
+ * `text` sagt der Hinweis, worauf er wartet; ohne `onResume` bietet er kein
+ * „Fortsetzen“ an (etwa mitten in der Aufnahme, wo ein Seitenwechsel sie schlösse).
+ */
+export function GuidePausePill({ onResume, onClose, text = RECRUITER_GUIDE_TEXTS.paused, resumeLabel = RECRUITER_GUIDE_TEXTS.resume }: {
+  onResume?: () => void; onClose: () => void; text?: string; resumeLabel?: string;
+}) {
   return createPortal(
-    <div role="status" className="fixed bottom-4 right-4 z-[102] flex items-center gap-2 rounded-full border border-border bg-popover py-1.5 pl-4 pr-1.5 text-popover-foreground shadow-lg">
-      <Compass className="h-4 w-4 text-primary" />
-      <span className="text-sm">Rundgang pausiert</span>
-      <Button size="sm" className="h-8 rounded-full" onClick={onResume}>Fortsetzen</Button>
+    <div role="status" className="pointer-events-auto fixed bottom-4 right-4 z-[102] flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-popover py-1.5 pl-4 pr-1.5 text-popover-foreground shadow-lg">
+      <Compass className="h-4 w-4 shrink-0 text-primary" />
+      <span className="text-sm">{text}</span>
+      {onResume && <Button size="sm" className="h-8 rounded-full" onClick={onResume}>{resumeLabel}</Button>}
       <button type="button" onClick={onClose} aria-label="Rundgang beenden" className="rounded-full p-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <X className="h-4 w-4" />
       </button>

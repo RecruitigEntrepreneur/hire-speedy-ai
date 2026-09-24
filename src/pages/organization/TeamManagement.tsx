@@ -152,7 +152,7 @@ export default function TeamManagement() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div data-tour="team.header" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">{t('team.title')}</h1>
             <p className="text-muted-foreground">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -19,6 +19,8 @@ import { BriefingNotesDialog } from '@/components/jobs/BriefingNotesDialog';
 import { JobBoostDialog } from '@/components/jobs/JobBoostDialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { stellenVerlauf, verlaufDatum, type VerlaufJob } from '@/lib/stellenVerlauf';
+import { VerlaufPunkte } from '@/components/dashboard/StellenVerlauf';
 import {
   Plus, Search, Briefcase, Loader2, MoreVertical, Copy, Pause, Play, XCircle,
   Clock, AlertTriangle, Eye, Sparkles, ArrowRight, FileText, Zap, Trash2, Users,
@@ -70,7 +72,13 @@ export default function JobsList() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [tab, setTab] = useState<LifecycleTab>('active');
+  // ?tab=review: das Abschlussfenster der Aufnahme fuehrt direkt zu "In Pruefung",
+  // wo die gerade eingereichte Stelle steht.
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<LifecycleTab>(() => {
+    const t = searchParams.get('tab');
+    return t === 'review' || t === 'drafts' || t === 'archive' ? t : 'active';
+  });
   const [chipFilter, setChipFilter] = useState<'returned' | 'stale' | 'waiting' | null>(null);
   const [boostDialog, setBoostDialog] = useState({ open: false, jobId: '', jobTitle: '' });
   const [briefingDialog, setBriefingDialog] = useState({ open: false, jobId: '', jobTitle: '', notes: '' });
@@ -245,7 +253,7 @@ export default function JobsList() {
 
   const TABS: { key: LifecycleTab; label: string }[] = [
     { key: 'active', label: 'Aktiv' },
-    { key: 'review', label: 'In Freigabe' },
+    { key: 'review', label: 'In Prüfung' },
     { key: 'drafts', label: 'Entwürfe' },
     { key: 'archive', label: 'Archiv' },
   ];
@@ -268,7 +276,7 @@ export default function JobsList() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Meine Stellen</h1>
             <p className="text-sm text-muted-foreground">
-              {counts.active} aktiv · {counts.review} in Freigabe · {counts.drafts} Entwürfe
+              {counts.active} aktiv · {counts.review} in Prüfung · {counts.drafts} Entwürfe
             </p>
           </div>
           <Button variant="hero" size="sm" onClick={() => navigate('/dashboard/aufnahme', { state: { from: '/dashboard/jobs' } })}>
@@ -356,7 +364,7 @@ export default function JobsList() {
               <Briefcase className="h-8 w-8 text-muted-foreground/40" />
               <div>
                 <h3 className="text-sm font-medium">
-                  {searchQuery || chipFilter ? 'Keine passenden Stellen' : tab === 'drafts' ? 'Keine Entwürfe' : tab === 'review' ? 'Nichts in der Freigabe' : tab === 'archive' ? 'Kein Archiv' : 'Noch keine aktive Stelle'}
+                  {searchQuery || chipFilter ? 'Keine passenden Stellen' : tab === 'drafts' ? 'Keine Entwürfe' : tab === 'review' ? 'Nichts in Prüfung' : tab === 'archive' ? 'Kein Archiv' : 'Noch keine aktive Stelle'}
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   {searchQuery || chipFilter ? 'Filter anpassen oder zurücksetzen.' : 'Eine neue Position ist in wenigen Minuten aufgenommen.'}
@@ -370,10 +378,12 @@ export default function JobsList() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" data-tour="jobs.main">
             {visible.map((j) => {
               const returned = returnedReason(j);
               const lifecycle = tabOf(j);
+              // Derselbe Verlauf wie im Job-Detail (lib/stellenVerlauf).
+              const verlauf = stellenVerlauf(j.raw as VerlaufJob, { kandidaten: j.submissions_count });
               return (
                 <div
                   key={j.id}
@@ -401,8 +411,11 @@ export default function JobsList() {
                       {lifecycle === 'review' && (
                         <Badge variant="outline" className="h-5 gap-1 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
                           <Clock className="h-3 w-3" />
-                          {j.status === 'pending_client_approval' ? 'Interne Freigabe' : 'In Freigabe'}
+                          {verlauf?.kurz ?? 'In Prüfung bei Matchunt'}
                         </Badge>
+                      )}
+                      {verlauf?.aktuell && (lifecycle === 'review' || (lifecycle === 'active' && !j.paused_at)) && (
+                        <VerlaufPunkte verlauf={verlauf} />
                       )}
                       {lifecycle === 'drafts' && !returned && (
                         <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
@@ -421,10 +434,11 @@ export default function JobsList() {
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {lifecycle === 'active' &&
                         `${j.submissions_count} Kandidaten · ${j.interviews_count} Interviews${j.new_candidates > 0 ? ` · ${j.new_candidates} neu zu prüfen` : ''}`}
-                      {lifecycle === 'review' &&
-                        (j.status === 'pending_client_approval'
-                          ? `eingereicht am ${formatDate(j.updated_at || j.created_at)} · wartet auf interne Freigabe (Admin/HR)`
-                          : `eingereicht am ${formatDate(j.updated_at || j.created_at)} · wird von Matchunt geprüft`)}
+                      {lifecycle === 'review' && verlauf?.aktuell &&
+                        [
+                          `${verlauf.aktuell.label} · ${verlauf.aktuell.hinweis ?? ''}`,
+                          verlauf.schritte[0].datum ? `eingereicht am ${verlaufDatum(verlauf.schritte[0].datum)}` : null,
+                        ].filter(Boolean).join(' · ')}
                       {lifecycle === 'drafts' && `zuletzt bearbeitet vor ${daysSince(j.updated_at || j.created_at)} Tagen${j.location ? ` · ${j.location}` : ''}`}
                       {lifecycle === 'archive' && `geschlossen · ${j.submissions_count} Kandidaten insgesamt`}
                     </p>

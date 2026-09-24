@@ -36,6 +36,19 @@ interface ParsedJobData {
   team_size: number | null;
   reports_to: string | null;
   department_structure: string | null;
+  /** Aufbau der Abteilung als Treppe (24.09.2026) -- siehe _shared/abteilung.ts. */
+  team_structure?: {
+    einbindung: 'team' | 'leitung' | 'bereich' | 'allein' | 'aufbau' | null;
+    direct_team: number | null;
+    leads: number | null;
+    leadership: 'fachlich' | 'disziplinarisch' | 'beides' | null;
+    teams: number | null;
+    target_size: number | null;
+    roles: { role: string; count: number | null }[];
+    department_name: string | null;
+    department_size: number | null;
+    interfaces: string[];
+  } | null;
   
   // Arbeitsweise
   core_hours: string | null;
@@ -274,6 +287,27 @@ TEAM & STRUKTUR (falls erwähnt):
   INSTANDHALTUNG, nicht an den Werkleiter. Ist die Vorgesetztenrolle nicht
   eindeutig, gib null.
 - department_structure: String (z.B. "Teil des Finance-Teams")
+- team_structure: der Aufbau rund um die Position, NUR was die Anzeige sagt --
+  jedes Feld, zu dem sie schweigt, ist null bzw. eine leere Liste. Nichts
+  schaetzen, nichts aus der Branche ableiten.
+  - einbindung: "team" (arbeitet in einem Team mit), "leitung" (fuehrt EIN
+    Team), "bereich" (fuehrt mehrere Teams), "allein" (Einzelposition, ohne
+    Team), "aufbau" (Team wird neu aufgebaut). Ohne klaren Hinweis: null.
+  - direct_team: Zahl der Kolleg:innen im direkten Team OHNE die Position selbst
+    ("Team aus 4 Kolleginnen und Kollegen" -> 4)
+  - leads: Zahl der direkt gefuehrten Personen ("fuehren Sie 6 Mitarbeitende" -> 6)
+  - leadership: "fachlich", "disziplinarisch" oder "beides" -- nur wenn genannt
+  - teams: Zahl der gefuehrten Teams
+  - target_size: Zielgroesse eines Teams im Aufbau
+  - roles: die Rollen im Team mit Anzahl, Berufsbezeichnung neutral mit "/in"
+    ("2 Finanzbuchhalter, 1 Lohnbuchhalterin" -> [{role:"Finanzbuchhalter/in",
+    count:2},{role:"Lohnbuchhalter/in",count:1}]). Ohne Zahl: count null.
+  - department_name: Name der Abteilung ("Abteilung Rechnungswesen" -> "Rechnungswesen")
+  - department_size: Personen in der GANZEN Abteilung ("insgesamt 12 Personen" -> 12)
+  - interfaces: Bereiche und externe Partner, mit denen die Position laut Text
+    eng zusammenarbeitet ("Abstimmung mit Controlling und Einkauf",
+    "mit Steuerberater und Wirtschaftspruefer" -> ["Controlling","Einkauf",
+    "Steuerberater","Wirtschaftsprüfer"]). Kurze Namen, keine Saetze.
 
 ARBEITSWEISE (falls erwähnt):
 - core_hours: String (z.B. "Kernarbeitszeit 10-16 Uhr", "flexibel Mo-Fr")
@@ -487,6 +521,44 @@ WICHTIGE REGELN:
                   team_size: { type: "integer", nullable: true },
                   reports_to: { type: "string", nullable: true },
                   department_structure: { type: "string", nullable: true },
+                  team_structure: {
+                    type: "object",
+                    nullable: true,
+                    description: "Aufbau rund um die Position. Nur, was die Anzeige sagt.",
+                    properties: {
+                      einbindung: {
+                        type: "string",
+                        enum: ["team", "leitung", "bereich", "allein", "aufbau"],
+                        nullable: true,
+                      },
+                      direct_team: { type: "integer", nullable: true },
+                      leads: { type: "integer", nullable: true },
+                      leadership: {
+                        type: "string",
+                        enum: ["fachlich", "disziplinarisch", "beides"],
+                        nullable: true,
+                      },
+                      teams: { type: "integer", nullable: true },
+                      target_size: { type: "integer", nullable: true },
+                      roles: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            role: { type: "string" },
+                            count: { type: "integer", nullable: true },
+                          },
+                          required: ["role", "count"],
+                        },
+                      },
+                      department_name: { type: "string", nullable: true },
+                      department_size: { type: "integer", nullable: true },
+                      interfaces: { type: "array", items: { type: "string" } },
+                    },
+                    required: ["einbindung", "direct_team", "leads", "leadership", "teams",
+                               "target_size", "roles", "department_name", "department_size",
+                               "interfaces"],
+                  },
                   
                   // Arbeitsweise
                   core_hours: { type: "string", nullable: true },
@@ -603,7 +675,7 @@ required: ["title", "company_name", "description", "requirements", "location",
                            "remote_type", "employment_type", "experience_level", "salary_min", 
                            "salary_max", "day_rate_min", "day_rate_max", "skills", 
                            "requirements_classified", "must_haves", "nice_to_haves", 
-                           "team_size", "reports_to", "department_structure", "core_hours", 
+                           "team_size", "reports_to", "department_structure", "team_structure", "core_hours", 
                            "remote_days", "overtime_policy", "daily_routine", "task_focus", 
                            "company_culture", "benefits_extracted", "unique_selling_points", 
                            "career_path", "hiring_urgency", "vacancy_reason", 

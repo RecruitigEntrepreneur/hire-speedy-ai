@@ -7,6 +7,16 @@ import {
   type BriefPlace, type BriefSlot, type Known,
 } from '@/lib/briefCatalog';
 import { Check } from 'lucide-react';
+import { AbteilungsTreppe } from './AbteilungsTreppe';
+import { teamgroesseAus, type Abteilungsaufbau } from '../../../../supabase/functions/_shared/abteilung';
+
+/** Vorschlaege fuer die Treppe "Aufbau der Abteilung" (Rollen, Schnittstellen). */
+export interface AufbauVorschlaege {
+  rollen: string[];
+  schnittstellen: string[];
+  laedt: boolean;
+  holen: () => void;
+}
 
 /**
  * Die Katalogfragen, die LINKS als Formular stehen.
@@ -36,9 +46,10 @@ interface Props {
   mustHaves?: string[];
   /** "stimmt" an einem Wert aus der Anzeige -- bestaetigt ihn, wo er steht. */
   onConfirm?: (key: string) => void;
+  aufbauVorschlaege?: AufbauVorschlaege;
 }
 
-export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm }: Props) {
+export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege }: Props) {
   const fragen = questionsAt(place, contract).filter((q) =>
     q.slots.some((s) => !s.only || s.only === contract),
   );
@@ -81,6 +92,25 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
             <div className="space-y-2.5">
               {slots.map((s) => (
                 <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 rounded-md outline-none">
+                  {s.form === 'struktur' ? (
+                    /* Die Treppe schreibt die Teamgroesse mit -- abgeleitet aus
+                       Kolleg:innen, Fuehrungsspanne oder Zielgroesse. So gibt es
+                       die Zahl nur einmal, und die Spalte bleibt gefuellt. */
+                    <AbteilungsTreppe
+                      wert={known[s.key]?.value}
+                      quelle={known[s.key]?.from}
+                      onSet={(v: Abteilungsaufbau | undefined) => {
+                        onSet(s.key, v);
+                        onSet('team_size', teamgroesseAus(v) ?? undefined);
+                      }}
+                      onConfirm={onConfirm ? () => { onConfirm(s.key); onConfirm('team_size'); } : undefined}
+                      rollenVorschlaege={aufbauVorschlaege?.rollen}
+                      schnittstellenVorschlaege={aufbauVorschlaege?.schnittstellen}
+                      laedtVorschlaege={aufbauVorschlaege?.laedt}
+                      onVorschlaegeNoetig={aufbauVorschlaege?.holen}
+                    />
+                  ) : (
+                  <>
                   <p className="mb-1 text-[11px] text-muted-foreground">
                     {slotLabel(s, contract)}
                     {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
@@ -105,6 +135,8 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                     onSet={(v) => onSet(s.key, v)}
                     onConfirm={onConfirm ? () => onConfirm(s.key) : undefined}
                   />
+                  </>
+                  )}
                 </div>
               ))}
             </div>

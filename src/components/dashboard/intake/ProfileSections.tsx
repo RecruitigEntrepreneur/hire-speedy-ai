@@ -8,7 +8,7 @@ import {
 import { type BuiltJob, type FreelanceTerms, type JobType, type RevealSetup, REVEAL_TRIGGER_LABELS } from './types';
 import { cn } from '@/lib/utils';
 import { frageNach, type Known as KatalogKnown } from '@/lib/briefCatalog';
-import { CatalogFields } from './CatalogFields';
+import { CatalogFields, type AufbauVorschlaege } from './CatalogFields';
 import { AlertTriangle, Building2, Coins, Lock, MapPin, Plus, Sparkles, X } from 'lucide-react';
 
 /** Flexibilitätsmatrix: wie hart ist jedes Muss-Kriterium wirklich? */
@@ -59,15 +59,60 @@ interface Props {
   onCatalogSet?: (key: string, value: unknown) => void;
   onCatalogConfirm?: (key: string) => void;
   onDismissSuggestion?: (skill: string) => void;
+  /** Rollen- und Schnittstellen-Vorschlaege fuer die Treppe "Aufbau der Abteilung". */
+  aufbauVorschlaege?: AufbauVorschlaege;
 }
 
-function Section({ title, icon: Icon, children, className }: { title: string; icon: any; children: React.ReactNode; className?: string }) {
+function Section({ title, icon: Icon, children, className, tour }: { title: string; icon: any; children: React.ReactNode; className?: string; tour?: string }) {
   return (
-    <div className={cn('border-b p-4 last:border-b-0', className)}>
+    <div data-tour={tour} className={cn('border-b p-4 last:border-b-0', className)}>
       <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <Icon className="h-3.5 w-3.5" /> {title}
       </p>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Von/bis in Euro -- mit Zeichen und Tausenderpunkt.
+ *
+ * Vorher stand "62000 | 72000": das € nur im Platzhalter, also weg, sobald
+ * eine Zahl dastand, und ohne Punkt schwer zu lesen (Durchklicken
+ * 24.09.2026). Gespeichert wird weiter die nackte Zahl.
+ */
+function EuroSpanne({ feld, von, bis, einheit, onVon, onBis }: {
+  feld: string;
+  von: number | null | undefined;
+  bis: number | null | undefined;
+  einheit: string;
+  onVon: (n: number | null) => void;
+  onBis: (n: number | null) => void;
+}) {
+  const zeige = (n: number | null | undefined) => (n ? n.toLocaleString('de-DE') : '');
+  const lies = (t: string) => {
+    const ziffern = t.replace(/\D/g, '').slice(0, 7);
+    return ziffern ? Number(ziffern) : null;
+  };
+  const euro = (wert: number | null | undefined, on: (n: number | null) => void, platz: string, dataFeld?: string) => (
+    <div className="relative min-w-0 flex-1">
+      <Input
+        data-feld={dataFeld}
+        value={zeige(wert)}
+        onChange={(e) => on(lies(e.target.value))}
+        placeholder={platz}
+        inputMode="numeric"
+        className="h-8 pr-6 text-xs"
+      />
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-2">
+      {euro(von, onVon, 'von', feld)}
+      <span className="text-xs text-muted-foreground">bis</span>
+      {euro(bis, onBis, 'bis')}
+      <span className="shrink-0 text-xs text-muted-foreground">{einheit}</span>
     </div>
   );
 }
@@ -218,7 +263,7 @@ const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number
 /** Linke Studio-Spalte: das KI-gefüllte Profil, in Sektionen editierbar. */
 export function ProfileSections({
   type, built, onChange, freelance, onFreelanceChange, reveal, onRevealChange, flexibility, onFlexibilityChange,
-  skillSuggestions, onDismissSuggestion, catalogKnown, onCatalogSet, onCatalogConfirm,
+  skillSuggestions, onDismissSuggestion, catalogKnown, onCatalogSet, onCatalogConfirm, aufbauVorschlaege,
 }: Props) {
   const set = (patch: Partial<BuiltJob>) => onChange({ ...built, ...patch });
 
@@ -310,6 +355,7 @@ export function ProfileSections({
           onConfirm={onCatalogConfirm}
           contract={type}
           mustHaves={built.must_haves ?? []}
+          aufbauVorschlaege={aufbauVorschlaege}
         />
       </div>
     ) : null;
@@ -371,21 +417,17 @@ export function ProfileSections({
       <Section title={isFreelance ? 'Konditionen (Contracting)' : 'Vergütung'} icon={Coins}>
         {isFreelance ? (
           <div className="grid grid-cols-2 gap-2">
-            <Input
-              data-feld="day_rate_range"
-              value={freelance.dayRateMin ?? ''}
-              onChange={(e) => onFreelanceChange({ ...freelance, dayRateMin: numOrNull(e.target.value) })}
-              placeholder="Tagessatz von (€)"
-              inputMode="numeric"
-              className="h-8 text-xs"
-            />
-            <Input
-              value={freelance.dayRateMax ?? ''}
-              onChange={(e) => onFreelanceChange({ ...freelance, dayRateMax: numOrNull(e.target.value) })}
-              placeholder="Tagessatz bis (€)"
-              inputMode="numeric"
-              className="h-8 text-xs"
-            />
+            <div className="col-span-2">
+              <p className="mb-1 text-[11px] text-muted-foreground">Tagessatz von / bis (netto, zzgl. USt)</p>
+              <EuroSpanne
+                feld="day_rate_range"
+                von={freelance.dayRateMin}
+                bis={freelance.dayRateMax}
+                einheit="/ Tag"
+                onVon={(n) => onFreelanceChange({ ...freelance, dayRateMin: n })}
+                onBis={(n) => onFreelanceChange({ ...freelance, dayRateMax: n })}
+              />
+            </div>
             <Input
               data-feld="contract_duration_months"
               value={freelance.durationMonths ?? ''}
@@ -418,21 +460,15 @@ export function ProfileSections({
             </label>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              data-feld="salary_range"
-              value={built.salary_min ?? ''}
-              onChange={(e) => set({ salary_min: numOrNull(e.target.value) })}
-              placeholder="Gehalt von (€)"
-              inputMode="numeric"
-              className="h-8 text-xs"
-            />
-            <Input
-              value={built.salary_max ?? ''}
-              onChange={(e) => set({ salary_max: numOrNull(e.target.value) })}
-              placeholder="Gehalt bis (€)"
-              inputMode="numeric"
-              className="h-8 text-xs"
+          <div>
+            <p className="mb-1 text-[11px] text-muted-foreground">Gehalt von / bis (brutto)</p>
+            <EuroSpanne
+              feld="salary_range"
+              von={built.salary_min}
+              bis={built.salary_max}
+              einheit="/ Jahr"
+              onVon={(n) => set({ salary_min: n })}
+              onBis={(n) => set({ salary_max: n })}
             />
           </div>
         )}
@@ -456,7 +492,7 @@ export function ProfileSections({
         diese Wunschliste soll Markos Frage aufbrechen.
       */}
       <div data-feld="kriterien" tabIndex={-1} />
-      <Section title="Anforderungen" icon={Sparkles}>
+      <Section title="Anforderungen" icon={Sparkles} tour="intake.criteria">
         {/* Der Wortlaut kommt aus dem Katalog, nicht aus diesem Bauteil.
             Vorher stand Markos Frage hier als Literal im JSX -- zwei
             Wahrheiten fuer denselben Satz, und wer den Katalog aendert,

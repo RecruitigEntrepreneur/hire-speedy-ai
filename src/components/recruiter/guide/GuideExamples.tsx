@@ -76,5 +76,34 @@ export function GuideExampleView({ kind }: { kind: GuideExample }) {
         <p className="mt-2 text-muted-foreground">Danach: kurzer Debrief, wie es gelaufen ist.</p>
       </div>
     </Frame>;
+
+    // ---- Kunden-Rundgang (lib/clientGuide.ts) ------------------------------
+    case 'clientSubmit': return <Frame>
+      <div className="rounded-md border border-border bg-card p-3 text-xs">
+        <p className="text-sm font-semibold">Einreichen</p>
+        <p className="mt-1 text-muted-foreground">Unter Ihrem Rahmenvertrag · Paket Core 20 % · keine neue Unterschrift</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2"><Chip>Diese Position aufstocken</Chip><Chip strong>Position einreichen</Chip></div>
+      </div>
+    </Frame>;
+    case 'clientStatus': return <Frame>
+      <div className="rounded-md border border-border bg-card p-3 text-xs">
+        <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">Senior Controller (m/w/d) <Chip>In Prüfung bei Matchunt</Chip></p>
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {[['Eingereicht', 'done'], ['Prüfung', 'now'], ['Live', ''], ['Kandidaten', '']].map(([label, st]) =>
+            <div key={label} className={st === 'done' ? 'border-t-[3px] border-emerald-500 pt-1' : st === 'now' ? 'border-t-[3px] border-primary pt-1 font-medium' : 'border-t-[3px] border-border pt-1 text-muted-foreground'}>{st === 'done' ? '✓ ' : ''}{label}</div>)}
+        </div>
+      </div>
+    </Frame>;
+    case 'clientCandidate': return <Frame>
+      <div className="rounded-md border border-border bg-card p-3 text-xs">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-semibold">PR-3F8A21 · Senior Controller</p>
+          <p className="shrink-0 text-sm font-semibold text-emerald-600">89 %</p>
+        </div>
+        <p className="mt-1 text-muted-foreground">„8 Jahre Konzernabschluss, SAP S/4HANA, sucht mehr Gestaltung.“ (Headhunter)</p>
+        <p className="mt-1.5 flex items-center gap-1 text-muted-foreground"><Lock className="h-3 w-3 shrink-0" />Name und Lebenslauf nach Zustimmung der Person</p>
+        <div className="mt-2 flex items-center gap-2"><Chip strong>Kennenlernen</Chip><Chip>Absagen</Chip></div>
+      </div>
+    </Frame>;
   }
 }

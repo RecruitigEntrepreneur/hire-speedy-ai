@@ -87,7 +87,7 @@ import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 // Onboarding
 import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
 import RecruiterAccessGate from "./components/verification/RecruiterAccessGate";
-import { AppRecruiterGuide } from "./components/recruiter/guide/RecruiterGuide";
+import { AppClientGuide, AppRecruiterGuide } from "./components/recruiter/guide/RecruiterGuide";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
@@ -583,8 +583,11 @@ const App = () => (
         <AuthProvider>
           {/* Begleiteter Rundgang für Headhunter; muss über den Routen sitzen, damit er Seitenwechsel übersteht. */}
           <AppRecruiterGuide>
-            <AppRoutes />
-            <CookieConsentBanner />
+            {/* Dasselbe für Kunden: Rundgang beim ersten Öffnen des Dashboards. */}
+            <AppClientGuide>
+              <AppRoutes />
+              <CookieConsentBanner />
+            </AppClientGuide>
           </AppRecruiterGuide>
         </AuthProvider>
       </BrowserRouter>

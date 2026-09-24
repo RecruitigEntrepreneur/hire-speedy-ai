@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -10,6 +11,7 @@ import { BenefitsBlock } from './BenefitsBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
 import { CatalogBriefing } from '@/components/dashboard/intake/CatalogBriefing';
 import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
+import { einzelneBezeichnungen } from '../../../../supabase/functions/_shared/abteilung';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
 import {
@@ -116,7 +118,14 @@ interface Props {
    * Aufnahme sie als feste Zeile statt als Block zum Pruefen und Ergaenzen --
    * ein verifizierter Kunde traegt seine Firma nicht je Position neu ein.
    */
-  firmaFest?: { zeile: string; verifiziertAm: string | null } | null;
+  firmaFest?: {
+    zeile: string;
+    /** Firmierung, Anschrift und Register einzeln -- fuer die Kopfzeile. */
+    name?: string;
+    adresse?: string;
+    register?: string;
+    verifiziertAm: string | null;
+  } | null;
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
@@ -481,6 +490,72 @@ export function CaptureStep({
     if (v !== undefined && v !== null) setKatalogVon(key, v, 'answer');
   };
 
+  /**
+   * Vorschlaege fuer die Treppe "Aufbau der Abteilung" -- Rollen im Team und
+   * Schnittstellen, passend zu DIESER Stelle.
+   *
+   * Derselbe Weg wie die Vorschlaege je Briefing-Frage (intake-questions,
+   * `answer_suggestions`), einmal je Aufnahme und erst, wenn die Treppe bei
+   * Rollen oder Schnittstellen ankommt. Steht beides schon aus der Anzeige
+   * da, faellt der Aufruf ganz weg. Ohne KI zeigt die Treppe ihre festen
+   * Schnittstellen und bei den Rollen nur das freie Feld.
+   */
+  const aufbauGeholt = useRef(false);
+  const [aufbauLaedt, setAufbauLaedt] = useState(false);
+  const holeAufbauVorschlaege = () => {
+    if (aufbauGeholt.current || dyn.catalog?.aiAvailable === false) return;
+    const da = dyn.catalog?.answerSuggestions ?? {};
+    if (da.aufbau_rollen?.length && da.aufbau_schnittstellen?.length) return;
+    aufbauGeholt.current = true;
+    setAufbauLaedt(true);
+    const zeilen = [
+      {
+        key: 'aufbau_rollen', form: 'ai',
+        label: 'Rollen im Team dieser Position. Je Vorschlag GENAU EINE Berufsbezeichnung, ohne Zahl '
+          + 'und ohne "und", z. B. "Finanzbuchhalter/in", "Lohnbuchhalter/in", "Auszubildende/r"',
+      },
+      {
+        key: 'aufbau_schnittstellen', form: 'ai',
+        label: 'Abteilungen und externe Partner, mit denen diese Position eng zusammenarbeitet. Je '
+          + 'Vorschlag GENAU EIN Name, z. B. "Controlling", "Einkauf", "Steuerberater"',
+      },
+    ];
+    askAi({
+      contract_type: type,
+      job_draft: jobDraft,
+      question: { key: 'team', text: 'Wie strukturiert sich die Abteilung von der Position?', slots: zeilen },
+      answer: '',
+      open_slots: zeilen,
+      known: Object.fromEntries(Object.entries(katalogKnown).map(([k, v]) => [k, v?.value])),
+      asked_followups: dyn.catalog?.askedFollowups ?? [],
+    })
+      .then((data) => {
+        const neu = data?.answer_suggestions as Record<string, string[]> | undefined;
+        if (!neu || typeof neu !== 'object') return;
+        const nur = Object.fromEntries(
+          Object.entries(neu).filter(([k, v]) => k.startsWith('aufbau_') && Array.isArray(v)),
+        );
+        onState((st) => ({
+          ...st,
+          dyn: {
+            ...st.dyn,
+            catalog: {
+              ...(st.dyn.catalog ?? EMPTY_CATALOG_STATE),
+              answerSuggestions: { ...(st.dyn.catalog?.answerSuggestions ?? {}), ...nur },
+            },
+          },
+        }));
+      })
+      .catch((e) => console.warn('[CaptureStep] Vorschlaege fuer den Aufbau nicht geladen:', e))
+      .finally(() => setAufbauLaedt(false));
+  };
+  const aufbauVorschlaege = {
+    rollen: einzelneBezeichnungen(dyn.catalog?.answerSuggestions?.aufbau_rollen),
+    schnittstellen: einzelneBezeichnungen(dyn.catalog?.answerSuggestions?.aufbau_schnittstellen),
+    laedt: aufbauLaedt,
+    holen: holeAufbauVorschlaege,
+  };
+
   const katalogFortschritt = useMemo(
     () => katalogCompleteness(katalogKnown, type),
     [katalogKnown, type],
@@ -669,6 +744,8 @@ export function CaptureStep({
   // Sichtbares passiert war — genau der Punkt, an dem Leute abspringen.
   if (entryMode === 'kind') {
     return (
+      /* data-tour: Ankerpunkte des Kunden-Rundgangs (lib/clientGuide.ts). */
+      <div data-tour="intake.kind">
       <ContractKindStep
         onChoose={(kind) => {
           // Die Wahl wandert in den Entwurf: GuestIntake speichert
@@ -686,6 +763,7 @@ export function CaptureStep({
         onDecline={() => setEntryMode('anue')}
         onBack={built ? () => setEntryMode('choose') : undefined}
       />
+      </div>
     );
   }
 
@@ -883,7 +961,7 @@ export function CaptureStep({
           </Alert>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-3" data-tour="intake.ways">
           <EntryCard
             icon={FileText}
             title="Stellenanzeige einfügen"
@@ -930,16 +1008,58 @@ export function CaptureStep({
   // ---- Aufnahme -----------------------------------------------------------
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3" data-tour="intake.head">
         <div>
           {/* EIN Titel. Vorher stand er zweimal untereinander: hier als h2 und
               120 px tiefer noch einmal als Eingabefeld in ProfileSections --
               zwei Groessen, gleiches Gewicht, und aenderbar war die kleinere. */}
           <h2 className="text-2xl font-bold tracking-tight">{built.title || 'Ihre Position'}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {[company.company_legal_name || company.company_name, built.location]
-              .filter(Boolean).join(' · ') || 'Alles ist änderbar.'}
-          </p>
+          {firmaFest ? (
+            /* Die Firma eines Kunden mit Konto steht HIER, nicht mehr als
+               eigener Block zwischen Anforderungen und Rahmendaten
+               (Durchklicken 24.09.2026, Variante A). Der Name stand in dieser
+               Zeile ohnehin schon; das Siegel sagt, dass nichts zu pruefen
+               ist, und Anschrift, Register und USt-ID gibt es auf Klick --
+               beim Beschreiben der Stelle braucht sie niemand staendig. */
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span>{firmaFest.name || company.company_legal_name || company.company_name}</span>
+              {firmaFest.verifiziertAm && (
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">✓ verifiziert</span>
+              )}
+              {built.location && <span className="text-muted-foreground">· {built.location}</span>}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Firmendaten ▾
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto max-w-sm p-3 text-xs">
+                  <p className="font-medium">{firmaFest.name || company.company_legal_name || company.company_name}</p>
+                  {firmaFest.adresse && <p className="text-muted-foreground">{firmaFest.adresse}</p>}
+                  {firmaFest.register && <p className="text-muted-foreground">{firmaFest.register}</p>}
+                  {firmaFest.verifiziertAm && (
+                    <p className="mt-1.5 text-emerald-600">
+                      ✓ von Matchunt verifiziert am {new Date(firmaFest.verifiziertAm).toLocaleDateString('de-DE')}
+                    </p>
+                  )}
+                  <a
+                    href="/dashboard/settings"
+                    className="mt-2 inline-block text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    In den Einstellungen ändern
+                  </a>
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {[company.company_legal_name || company.company_name, built.location]
+                .filter(Boolean).join(' · ') || 'Alles ist änderbar.'}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {/* Die gewaehlte Vertragsart, sichtbar und aenderbar. Ohne sie war
@@ -1022,6 +1142,7 @@ export function CaptureStep({
             catalogKnown={katalogKnown}
             onCatalogSet={setKatalog}
             onCatalogConfirm={bestaetige}
+            aufbauVorschlaege={aufbauVorschlaege}
             onDismissSuggestion={(skill) =>
               onState((s) => ({
                 ...s,
@@ -1044,18 +1165,8 @@ export function CaptureStep({
               Stand vorher VOR dem Profil und nahm ~1.200 px, bevor der Kunde
               seine Stelle sah. Es sind Werte, die er einmal bestaetigt und die
               ab der zweiten Stelle vererbt werden. */}
-          {firmaFest ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border bg-card px-4 py-2.5 text-xs">
-              <span className="shrink-0 font-semibold uppercase tracking-wider text-muted-foreground">Ihr Unternehmen</span>
-              {firmaFest.verifiziertAm && (
-                <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-600">✓ verifiziert</span>
-              )}
-              <span className="min-w-0 flex-1 text-muted-foreground">{firmaFest.zeile}</span>
-              <a href="/dashboard/settings" className="shrink-0 text-muted-foreground underline underline-offset-2 hover:text-foreground">
-                In den Einstellungen ändern
-              </a>
-            </div>
-          ) : (
+          {/* Mit Konto steht die Firma oben in der Kopfzeile (Firmendaten ▾). */}
+          {firmaFest ? null : (
           <CollapsibleGroup
             titel="Ihr Unternehmen"
             offen={firmaOffen}
@@ -1108,7 +1219,7 @@ export function CaptureStep({
             ~1.200 px an einer leeren Spalte entlangscrollte. Auf der ganzen
             Seite war KEIN Element fixiert. */}
         <div className="space-y-4 lg:sticky lg:top-24" ref={briefingRef} data-feld="briefing" tabIndex={-1}>
-          <div>
+          <div data-tour="intake.briefing">
             {/*
               Seit dem 04.09.2026 fuehrt der Fragenkatalog das Briefing
               (src/lib/briefCatalog.ts, Wortlaut aus Markos Leitfaden). Die
@@ -1160,7 +1271,7 @@ export function CaptureStep({
           ("13/26", "fehlt:", "Später", "Weiter"). Vorher brach die Leiste auf
           drei Zeilen um und verdeckte das Formular (Durchklicken 24.09.2026).
           xl, nicht lg: das Fenster ist schmaler als der Bildschirm. */}
-      <div className="sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+      <div data-tour="intake.footer" className="sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
         <span className="shrink-0 text-sm font-medium">
           {erfasst}<span className="hidden xl:inline"> von </span><span className="xl:hidden">/</span>{katalogFortschritt.feldGesamt}
           {zuPruefen > 0 && <span className="hidden font-normal text-muted-foreground xl:inline"> · {zuPruefen} zu prüfen</span>}

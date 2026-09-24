@@ -21,6 +21,8 @@
  * Migration, die zu dieser Datei gehoert.
  */
 
+import { aufbauAlsText, istAufbau } from './abteilung.ts';
+
 export type BriefStore = 'text' | 'number' | 'array' | 'json' | 'bool' | 'range';
 
 export interface BriefColumn {
@@ -54,6 +56,7 @@ export const BRIEF_COLUMNS: BriefColumn[] = [
 
   // Team und Vertrag
   { key: 'team_size', column: 'team_size', store: 'number' },
+  { key: 'department_structure', column: 'department_structure', store: 'text' },
   { key: 'remote_days', column: 'onsite_days_required', store: 'number' },
   { key: 'contract_limitation', column: 'contract_limitation', store: 'text', only: 'full-time' },
 
@@ -120,6 +123,12 @@ export const OHNE_SPALTE = [
  * dass bei "zwei Tage Homeoffice" der Chip 3 markiert war.
  */
 const UMRECHNUNG: Record<string, (v: unknown) => unknown> = {
+  // Die Treppe legt ein Objekt ab, die Spalte ist Text -- der Headhunter liest
+  // "Aufbau der Abteilung" als Satz. Aeltere Entwuerfe tragen schon Text.
+  department_structure: (v) => {
+    if (istAufbau(v)) return aufbauAlsText(v) || undefined;
+    return typeof v === 'string' ? v : undefined;
+  },
   // Der Chip fragt Homeoffice-Tage, die Spalte speichert Tage VOR ORT.
   remote_days: (v) => {
     const n = Number(v);
