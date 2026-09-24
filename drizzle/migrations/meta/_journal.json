@@ -22,6 +22,13 @@
       "when": 1790252720949,
       "tag": "0002_company_profile_legal_data",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790272710525,
+      "tag": "0003_jobs_submitted_at",
+      "breakpoints": true
     }
   ]
 }

@@ -6036,6 +6036,7 @@ export type Database = {
           skills: string[] | null
           source: string | null
           status: string | null
+          submitted_at: string | null
           success_profile: string | null
           target_companies: string[] | null
           task_breakdown: Json | null
@@ -6155,6 +6156,7 @@ export type Database = {
           skills?: string[] | null
           source?: string | null
           status?: string | null
+          submitted_at?: string | null
           success_profile?: string | null
           target_companies?: string[] | null
           task_breakdown?: Json | null
@@ -6274,6 +6276,7 @@ export type Database = {
           skills?: string[] | null
           source?: string | null
           status?: string | null
+          submitted_at?: string | null
           success_profile?: string | null
           target_companies?: string[] | null
           task_breakdown?: Json | null
