@@ -68,7 +68,11 @@ async function inflate(data: Uint8Array): Promise<string> {
   if (typeof DecompressionStream === 'undefined') {
     throw new DocxError('Ihr Browser kann Word-Dateien nicht öffnen. Bitte als PDF oder Text.');
   }
-  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  // Kopie statt `data` selbst: ab TypeScript 5.7 kann ein Uint8Array auch auf
+  // einem SharedArrayBuffer liegen, und BlobPart nimmt das nicht an
+  // (Typfehler im Lovable-Build, 24.09.2026). Die Kopie liegt immer auf einem
+  // normalen ArrayBuffer -- in jeder TS-Version.
+  const stream = new Blob([new Uint8Array(data)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
   return await new Response(stream).text();
 }
 
