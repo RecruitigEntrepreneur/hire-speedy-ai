@@ -3251,6 +3251,7 @@ export type Database = {
           billing_email: string | null
           brand_color_primary: string | null
           brand_color_secondary: string | null
+          city: string | null
           company_awards: string[] | null
           company_name: string
           created_at: string
@@ -3261,14 +3262,18 @@ export type Database = {
           id: string
           industry: string | null
           last_enriched_at: string | null
+          legal_name: string | null
           logo_url: string | null
           office_locations: Json | null
           opt_in_message: string | null
           perks: Json | null
+          postal_code: string | null
+          registration_number: string | null
           remote_policy: string | null
           show_benefits_in_opt_in: boolean | null
           show_culture_in_opt_in: boolean | null
           show_team_size_in_opt_in: boolean | null
+          street: string | null
           tagline: string | null
           tax_id: string | null
           team_size_range: string | null
@@ -3285,6 +3290,7 @@ export type Database = {
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
+          city?: string | null
           company_awards?: string[] | null
           company_name: string
           created_at?: string
@@ -3295,14 +3301,18 @@ export type Database = {
           id?: string
           industry?: string | null
           last_enriched_at?: string | null
+          legal_name?: string | null
           logo_url?: string | null
           office_locations?: Json | null
           opt_in_message?: string | null
           perks?: Json | null
+          postal_code?: string | null
+          registration_number?: string | null
           remote_policy?: string | null
           show_benefits_in_opt_in?: boolean | null
           show_culture_in_opt_in?: boolean | null
           show_team_size_in_opt_in?: boolean | null
+          street?: string | null
           tagline?: string | null
           tax_id?: string | null
           team_size_range?: string | null
@@ -3319,6 +3329,7 @@ export type Database = {
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
+          city?: string | null
           company_awards?: string[] | null
           company_name?: string
           created_at?: string
@@ -3329,14 +3340,18 @@ export type Database = {
           id?: string
           industry?: string | null
           last_enriched_at?: string | null
+          legal_name?: string | null
           logo_url?: string | null
           office_locations?: Json | null
           opt_in_message?: string | null
           perks?: Json | null
+          postal_code?: string | null
+          registration_number?: string | null
           remote_policy?: string | null
           show_benefits_in_opt_in?: boolean | null
           show_culture_in_opt_in?: boolean | null
           show_team_size_in_opt_in?: boolean | null
+          street?: string | null
           tagline?: string | null
           tax_id?: string | null
           team_size_range?: string | null
