@@ -67,6 +67,13 @@ serve(async (req) => {
     if (!found.ok) return fail(found.reason!, found.message!);
     const draft = found.draft!;
 
+    // Die drei Pakete sind Festanstellung. Contracting hat eine feste
+    // Kondition und keine Wahl (_shared/contracting-konditionen.ts).
+    if (draft.contract_type === 'freelance') {
+      return fail('conflict',
+        'Für Contracting gibt es keine Paketwahl. Die Konditionen stehen auf der Seite „Anfragen“.');
+    }
+
     // Die kundenseitige View. Sie fuehrt die Innenaufteilung nicht -- damit
     // kann sie hier auch nicht versehentlich mitgeschickt werden.
     const { data: packages, error } = await supabase

@@ -45,7 +45,9 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const action = body?.action === 'patch' ? 'patch' : 'get';
+    const action = body?.action === 'patch' ? 'patch'
+      : body?.action === 'recheck_company' ? 'recheck_company'
+      : 'get';
 
     const supabase = serviceClient();
     const ip = clientIp(req);
@@ -81,6 +83,46 @@ serve(async (req) => {
         link: link ? publicLink(link, ownerName) : null,
         packages,
         locked,
+      });
+    }
+
+    // ---- Firma neu pruefen ------------------------------------------------
+    // Der Kunde hat fehlende Firmenangaben ergaenzt (Aufnahme, Schritt
+    // "Pruefen und beauftragen"). Die Pruefung laeuft hier SYNCHRON, damit die
+    // Seite sofort weiss, ob es weitergeht -- vorher lief sie nur einmal still
+    // nach der E-Mail-Bestaetigung, und ein Befund erreichte den Kunden nie
+    // (Live-Test 24.09.2026: Vertrag angehalten, Kunde ohne Ausweg).
+    if (action === 'recheck_company') {
+      if (locked) {
+        return fail('conflict', 'Ihre Anfrage liegt bereits bei uns und kann nicht mehr geändert werden.');
+      }
+      const limit = await checkLimits(supabase, LIMITS.draftPatch(draft.id));
+      if (!limit.allowed) return fail('rate_limited', 'Zu viele Versuche. Bitte kurz warten.');
+
+      let ergebnis: Record<string, unknown> = {};
+      try {
+        const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/verify-company`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
+          },
+          body: JSON.stringify({ draft_id: draft.id }),
+        });
+        ergebnis = await res.json().catch(() => ({}));
+      } catch (e) {
+        console.warn('[intake-draft] verify-company:', e instanceof Error ? e.message : e);
+      }
+      const { data: fresh } = await supabase.from('intake_drafts').select('*').eq('id', draft.id).single();
+      return json({
+        draft: publicDraft(fresh ?? draft, await contractState(supabase, draft.id)),
+        link: link ? publicLink(link, ownerName) : null,
+        packages,
+        locked: false,
+        company: {
+          state: (fresh ?? draft).company_state,
+          critical_fields: Array.isArray(ergebnis.critical_fields) ? ergebnis.critical_fields : [],
+        },
       });
     }
 

@@ -466,8 +466,8 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     async (signerName: string) => {
       await flush();
       const res = await withToken<{
-        ok: boolean; review_state: string; mandate_number: string;
-        confirmation_sent: boolean; requires_signature: boolean; draft: GuestDraft;
+        ok: boolean; review_state: string; mandate_number: string | null;
+        confirmation_sent: boolean; requires_signature: boolean; contracting?: boolean; draft: GuestDraft;
       }>('intake-submit', { accept_terms: true, accept_agb: true, signer_name: signerName });
       if (!isFailure(res) && res.draft) {
         setState((s) => ({ ...s, draft: res.draft, locked: true }));
@@ -569,7 +569,38 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     });
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany };
+  /**
+   * Firmenangaben ergaenzen und sofort neu pruefen lassen.
+   *
+   * Vorher lief die Firmenpruefung nur einmal still nach der E-Mail-
+   * Bestaetigung; ein Befund erreichte den Kunden nie, der Vertrag wurde
+   * spaeter angehalten (Live-Test 24.09.2026). Jetzt: speichern, pruefen,
+   * Ergebnis zurueck -- in einem Zug.
+   */
+  const recheckCompany = useCallback(
+    async (patch: Record<string, unknown>) => {
+      pending.current = { ...pending.current, ...patch };
+      if (timer.current) clearTimeout(timer.current);
+      await flush();
+      const res = await withToken<{
+        draft: GuestDraft; packages: PackageSummary[] | null; locked: boolean;
+        company: { state: GuestDraft['states']['company']; critical_fields: string[] };
+      }>('intake-draft', { action: 'recheck_company' });
+      if (!isFailure(res)) setState((s) => ({ ...s, draft: res.draft, packages: res.packages ?? s.packages }));
+      return res;
+    },
+    [flush],
+  );
+
+  /** Den Entwurf neu holen -- etwa um das Ergebnis der Firmenpruefung abzuwarten. */
+  const refreshDraft = useCallback(async () => {
+    const res = await withToken<{ draft: GuestDraft; packages: PackageSummary[] | null; locked: boolean }>(
+      'intake-draft', { action: 'get' });
+    if (!isFailure(res)) setState((s) => ({ ...s, draft: res.draft, locked: res.locked }));
+    return res;
+  }, []);
+
+  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany, recheckCompany, refreshDraft };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */

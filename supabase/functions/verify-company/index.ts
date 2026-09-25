@@ -3,6 +3,7 @@ import { preflight, json, fail } from '../_shared/http.ts';
 import { serviceClient, touchDraft, logEvent } from '../_shared/intake-core.ts';
 import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { normalizeDomain, domainFromEmail, isFreemailDomain } from '../_shared/domain.ts';
+import { fehlendeFirmenangaben } from '../_shared/firma-pflicht.ts';
 
 /**
  * verify-company — automatisierte Pruefung der Firmen- und Kontaktangaben.
@@ -103,8 +104,10 @@ function factualChecks(d: Record<string, any>): { deviations: Deviation[]; findi
   }
 
   // (d) Vollstaendigkeit der Anschrift.
-  const fehlend = ['company_legal_name', 'company_street', 'company_postal_code', 'company_city']
-    .filter((f) => !String(d[f] ?? '').trim());
+  // Dieselbe Regel wie im Kontakt-Schritt (_shared/firma-pflicht.ts). Ein
+  // Firmenname mit Rechtsform ("ASMPT GmbH & Co. KG") IST die Firmierung --
+  // vorher meldete die Pruefung sie als fehlend (Live-Test 24.09.2026).
+  const fehlend = fehlendeFirmenangaben(d);
   if (fehlend.length) {
     findings.missing_fields = fehlend;
     // Fehlende Pflichtangaben halten den Vertrag an (Entscheidung des
@@ -298,6 +301,10 @@ serve(async (req) => {
       recommendation: empfehlung,
       deviations: alle.length,
       critical: kritisch,
+      // Felder mit kritischem Befund -- damit der Kunde sie in der Aufnahme
+      // gezielt ergaenzen kann, statt vor einem angehaltenen Vertrag zu stehen.
+      critical_fields: [...new Set(alle.filter((x) => x.severity === 'critical')
+        .flatMap((x) => String(x.field ?? '').split(',').map((f) => f.trim()).filter(Boolean)))],
     });
   } catch (e) {
     console.error('[verify-company]', e);

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Check, CloudOff, Loader2, ShieldCheck, TriangleAlert } from 'lucide-react';
 import type { PackageSummary } from '@/hooks/useGuestIntake';
+import { ANTEIL_SPEZIALIST } from '../../../../supabase/functions/_shared/contracting-konditionen';
 
 /**
  * Rahmen der login-freien Jobaufnahme.
@@ -31,6 +32,8 @@ interface Props {
   reachable: string[];
   onStep: (key: string) => void;
   packages: PackageSummary[] | null;
+  /** Contracting: statt der Festanstellungs-Pakete die Aufteilung des Tagessatzes. */
+  contracting?: boolean;
   ownerName?: string | null;
   saving?: boolean;
   saveError?: string | null;
@@ -40,7 +43,7 @@ interface Props {
 }
 
 export function IntakeShell({
-  steps, activeStep, reachable, onStep, packages, ownerName,
+  steps, activeStep, reachable, onStep, packages, contracting, ownerName,
   saving, saveError, lastSavedAt, onResumeLater, children,
 }: Props) {
   const activeIndex = Math.max(0, steps.findIndex((s) => s.key === activeStep));
@@ -57,7 +60,13 @@ export function IntakeShell({
               Spezifikation verlangt sie ausdrücklich ab der ersten Sekunde.
               Deshalb auch auf dem Handy sichtbar, dort nur kürzer: der Zusatz
               „keine Fixkosten" weicht, die Zahl bleibt. */}
-          {packages && packages.length > 0 && (
+          {contracting ? (
+            <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              Contracting · {ANTEIL_SPEZIALIST} % an den Spezialisten
+              <span className="hidden sm:inline">· keine Fixkosten</span>
+            </Badge>
+          ) : packages && packages.length > 0 && (
             <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
               ab {Math.min(...packages.map((p) => p.fee_percent))} % Erfolgshonorar

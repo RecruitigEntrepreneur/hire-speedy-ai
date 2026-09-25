@@ -173,6 +173,9 @@ export default function AdminIntakeDetail() {
             <CommercialBadge state={d.commercial_state} />
             <ReviewBadge state={d.review_state} />
             {mandate && <SignatureBadge status={mandate.signature_status} />}
+            {d.contract_type === 'freelance' && (
+              <Badge variant="outline" className="border-amber-500/50 text-amber-700">Contracting · Vertrag von Hand</Badge>
+            )}
           </div>
         </div>
 
@@ -330,7 +333,17 @@ export default function AdminIntakeDetail() {
 
           {/* ---- Konditionen & Vertrag ----------------------------------- */}
           <TabsContent value="terms" className="mt-4 space-y-4">
-            {!mandate ? (
+            {!mandate && d.contract_type === 'freelance' ? (
+              <Alert>
+                <AlertDescription className="text-sm">
+                  {d.review_state === 'pending_admin'
+                    ? 'Contracting: Der Kunde hat die Konditionen (78 % Spezialist, 22 % Matchunt) bestätigt. '
+                      + 'Es gibt kein Paket und keinen Einzelauftrag. Den Rahmenvertrag mit Modul Contracting '
+                      + 'bitte von Hand erstellen und zur Unterschrift senden.'
+                    : 'Contracting: Die Konditionen stehen auf der Seite „Anfragen“ der Aufnahme. Es gibt keine Paketwahl.'}
+                </AlertDescription>
+              </Alert>
+            ) : !mandate ? (
               <Alert>
                 <AlertDescription className="text-sm">
                   Der Kunde hat noch keine Konditionen bestätigt. Eine Vereinbarung entsteht erst mit

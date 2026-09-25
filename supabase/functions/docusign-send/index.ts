@@ -5,6 +5,67 @@ import { serviceClient, resolveDraft, logEvent } from '../_shared/intake-core.ts
 import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { docusignConfig, createEnvelope, recipientView, docusignAppOrigin, type Signer } from '../_shared/docusign.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
+import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
+import { fehlendeFirmenangaben, FIRMA_LABEL } from '../_shared/firma-pflicht.ts';
+
+/**
+ * Vertrag zurueckgehalten: Admins und Betreuer erfahren es SOFORT, einmal je
+ * Aufnahme -- in der Glocke und per Mail. Vorher sah man es nur, wenn man die
+ * Aufnahme im Admin-Bereich oeffnete, waehrend der Kunde wartete (Live-Test
+ * 24.09.2026). Nie blockierend: die Antwort an den Kunden haengt nicht daran.
+ */
+async function meldeZurueckgehalten(supabase: ReturnType<typeof serviceClient>, draft: Record<string, any>) {
+  try {
+    const { data: schon } = await supabase.from('notifications').select('id')
+      .eq('type', 'contract_held').eq('related_id', draft.id).limit(1);
+    if (schon?.length) return;
+
+    const fehlt = fehlendeFirmenangaben(draft).map((f) => FIRMA_LABEL[f] ?? f);
+    const grund = fehlt.length ? `Fehlt: ${fehlt.join(', ')}` : 'Firmenprüfung mit Befund';
+    const firma = draft.company_legal_name || draft.company_name || 'Unbekannte Firma';
+    const titel = draft.title || 'Position';
+
+    const empfaenger = new Set<string>();
+    if (draft.owner_user_id) empfaenger.add(draft.owner_user_id);
+    const { data: admins } = await supabase.from('user_roles').select('user_id').eq('role', 'admin').limit(10);
+    (admins ?? []).forEach((a: { user_id: string }) => empfaenger.add(a.user_id));
+    if (!empfaenger.size) return;
+
+    await supabase.from('notifications').insert([...empfaenger].map((user_id) => ({
+      user_id,
+      type: 'contract_held',
+      title: 'Vertrag zurückgehalten',
+      message: `${firma} · ${titel} — ${grund}`,
+      related_type: 'intake_draft',
+      related_id: draft.id,
+    })));
+
+    const { data: profile } = await supabase.from('profiles').select('email').in('user_id', [...empfaenger]);
+    const link = `${getPublicAppUrl()}/admin/intakes/${draft.id}`;
+    for (const p of profile ?? []) {
+      if (!p.email) continue;
+      await sendIntakeMail(supabase, {
+        to: p.email,
+        subject: `Vertrag zurückgehalten: ${firma}`,
+        template: 'contract_held_admin',
+        meta: { draft_id: draft.id },
+        html: layout({
+          preheader: `${firma} wartet auf den Vertrag.`,
+          heading: 'Vertrag zurückgehalten',
+          body: `
+            <p style="margin:0 0 16px 0;">${esc(draft.contact_name ?? 'Der Kunde')} hat
+              <strong>${esc(titel)}</strong> für <strong>${esc(firma)}</strong> angefragt.
+              Der Vertrag ging nicht raus: ${esc(grund)}.</p>
+            <p style="margin:0 0 16px 0;">Bitte die Angaben klären (Rückfrage oder Telefon),
+              dann im Admin-Bereich freigeben und den Vertrag senden.</p>`,
+          cta: { label: 'Aufnahme öffnen', url: link },
+        }),
+      });
+    }
+  } catch (e) {
+    console.warn('[docusign-send] Meldung "zurueckgehalten" fehlgeschlagen:', e instanceof Error ? e.message : e);
+  }
+}
 
 /**
  * docusign-send — den Vertrag zur Unterschrift geben.
@@ -75,6 +136,16 @@ serve(async (req) => {
       .from('intake_drafts').select('*').eq('id', draftId).maybeSingle();
     if (!draft) return fail('not_found', 'Die Aufnahme wurde nicht gefunden.');
 
+    // Rahmenvertrag und Einzelauftrag in DocuSign sind Festanstellung. Fuer
+    // Contracting (Modul B) gibt es noch keine Vorlage; der Vertrag geht von
+    // Hand raus (Live-Befund 25.09.2026). Auch fuer den Admin: ein falscher
+    // Vertrag ist schlimmer als keiner.
+    if (draft.contract_type === 'freelance') {
+      return fail('conflict',
+        'Für Contracting senden wir Ihnen den Rahmenvertrag mit dem Modul Contracting persönlich zu. '
+        + 'Ihre Anfrage ist eingegangen.');
+    }
+
     // Harte Widersprueche halten den Vertrag an (Entscheidung des
     // Auftraggebers, 02.09.2026): fehlende Pflichtangaben oder eine
     // USt-IdNr., die nicht zum Laendermuster passt. Es muss zusammenpassen,
@@ -91,6 +162,7 @@ serve(async (req) => {
     // kleine Firmen, junge Gruendungen und Umfirmierungen sehen genauso aus.
     const durchAdmin = body?.override === true && adminAufruf;
     if (draft.company_state === 'failed' && !durchAdmin) {
+      await meldeZurueckgehalten(supabase, draft);
       return fail('conflict',
         'Die Firmenangaben sind noch nicht vollständig oder stimmig. '
         + 'Wir sehen uns das an und melden uns bei Ihnen — Ihre Anfrage ist eingegangen.');

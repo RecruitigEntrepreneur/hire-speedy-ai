@@ -64,6 +64,15 @@ export default function GuestIntake() {
 
   const draft = state.draft;
 
+  // Contracting hat keine Paketwahl: die drei Pakete sind Festanstellung. Die
+  // eine Kondition steht auf der Seite "Anfragen" (Live-Befund 25.09.2026,
+  // Kanna Medics: Contracting bekam Festanstellungs-Konditionen angeboten).
+  const contracting = (capture?.type ?? draft?.contract_type) === 'freelance';
+  const steps = useMemo(() => (contracting ? STEPS.filter((s) => s.key !== 'packages') : STEPS), [contracting]);
+  useEffect(() => {
+    if (contracting && step === 'packages') setStep('summary');
+  }, [contracting, step]);
+
   // ---- Zustand aus dem Entwurf herstellen ---------------------------------
   // Gebunden an die Entwurfs-ID, nicht an "schon mal gelaufen": ein Wechsel des
   // Entwurfs (anderer Token, weitergeleiteter Zugang) muss den lokalen Zustand
@@ -89,7 +98,9 @@ export default function GuestIntake() {
 
     // Beim Fortsetzen dort einsteigen, wo es weitergeht.
     if (draft.states.review === 'pending_admin' || draft.states.review === 'accepted') setStep('summary');
-    else if (draft.states.identity === 'email_verified') setStep(draft.states.commercial === 'confirmed' ? 'summary' : 'packages');
+    else if (draft.states.identity === 'email_verified') {
+      setStep(draft.contract_type === 'freelance' || draft.states.commercial === 'confirmed' ? 'summary' : 'packages');
+    }
     else if (draft.states.identity === 'contact_provided') setStep('verify');
     else if (draft.built) setStep('capture');
   }, [draft]);
@@ -148,10 +159,10 @@ export default function GuestIntake() {
     );
     if (hatPosition || draft.contact_name) out.push('contact');
     if (draft.states.identity !== 'anonymous') out.push('verify');
-    if (draft.states.identity === 'email_verified') out.push('packages');
-    if (draft.states.commercial === 'confirmed') out.push('summary');
+    if (draft.states.identity === 'email_verified') out.push(contracting ? 'summary' : 'packages');
+    if (!contracting && draft.states.commercial === 'confirmed') out.push('summary');
     return out;
-  }, [draft]);
+  }, [draft, contracting]);
 
   const summaryRows = useMemo(() => {
     if (!capture?.built || !draft) return [];
@@ -257,7 +268,9 @@ export default function GuestIntake() {
     // erfolgt. `ordered` traegt den Stand auch ueber ein Neuladen.
     const unterRahmenvertrag =
       submitted?.requiresSignature === false || Boolean(draft.contract?.ordered);
-    const requiresSignature = !unterRahmenvertrag;
+    // Contracting: kein Umschlag -- der Rahmenvertrag mit Modul Contracting
+    // kommt von Matchunt (docusign-send lehnt Contracting ab).
+    const requiresSignature = !unterRahmenvertrag && !contracting;
 
     const waehlen = async (args: { self: boolean; name?: string; email?: string }) => {
       setSignBusy(true);
@@ -383,7 +396,9 @@ export default function GuestIntake() {
                 <Step icon={Mail} title="Bestätigung per E-Mail"
                   text={`Eine Übersicht Ihrer Anfrage samt Konditionen ist an ${draft.contact_email} unterwegs.`} />
                 <Step icon={FileSignature} title="Unterschrift"
-                  text={bereitsUnterschrieben
+                  text={contracting
+                    ? 'Wir senden Ihnen den Rahmenvertrag mit dem Modul Contracting zur Unterschrift. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.'
+                    : bereitsUnterschrieben
                     ? 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen — danach starten wir die Suche.'
                     : anDrittenVersandt
                     ? `Der Vertrag ist an ${anDrittenVersandt} unterwegs. Sobald dort unterschrieben ist, zeichnet Matchunt gegen und wir starten die Suche.`
@@ -409,11 +424,12 @@ export default function GuestIntake() {
 
   return (
     <IntakeShell
-      steps={STEPS}
+      steps={steps}
       activeStep={step}
       reachable={reachable}
       onStep={(k) => setStep(k as StepKey)}
       packages={state.packages}
+      contracting={contracting}
       ownerName={link?.owner_name}
       saving={state.saving}
       saveError={state.saveError}
@@ -479,6 +495,7 @@ export default function GuestIntake() {
           freemailBlocked={Boolean(freemailBlocked)}
           onChange={(patch) => save(patch)}
           onNext={() => setStep('verify')}
+          onEnrich={enrichCompany}
         />
       )}
 
@@ -490,7 +507,7 @@ export default function GuestIntake() {
           onEditEmail={() => setStep('contact')}
           onVerified={(company) => {
             setKnownCompany(company);
-            setStep('packages');
+            setStep(contracting ? 'summary' : 'packages');
           }}
         />
       )}
@@ -509,15 +526,20 @@ export default function GuestIntake() {
           draft={draft}
           packages={state.packages}
           framework={rahmenvertrag}
+          contracting={contracting
+            ? { dayRateMin: capture?.freelance.dayRateMin ?? null, dayRateMax: capture?.freelance.dayRateMax ?? null }
+            : null}
           summary={summaryRows}
           openQuestions={openQuestionCount}
           onBack={() => setStep('capture')}
           onForward={() => setForwardOpen(true)}
+          onRecheckCompany={intake.recheckCompany}
+          onRefreshDraft={intake.refreshDraft}
           onSubmit={async (signerName) => {
             const res = await submit(signerName);
             if (!isFailure(res)) {
               setSubmitted({
-                mandate: res.mandate_number,
+                mandate: res.mandate_number ?? '',
                 requiresSignature: res.requires_signature,
                 mailSent: res.confirmation_sent,
               });

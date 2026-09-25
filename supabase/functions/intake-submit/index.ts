@@ -7,6 +7,10 @@ import {
 } from '../_shared/intake-core.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
+import {
+  CONTRACTING_FASSUNG, CONTRACTING_EINLEITUNG, CONTRACTING_PUNKTE, CONTRACTING_SCHLUSS,
+  CONTRACTING_ZUSTIMMUNG, ANTEIL_SPEZIALIST, ANTEIL_MATCHUNT, aufteilungAusBudget,
+} from '../_shared/contracting-konditionen.ts';
 
 /**
  * intake-submit — die Beauftragungsanfrage. Ohne Login.
@@ -26,6 +30,180 @@ import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
  *  Version — sonst ist der Nachweis wertlos. Spiegel in
  *  src/components/intake/guest/consentText.ts. */
 const CONSENT_VERSION = '2026-09-v1';
+
+/**
+ * Die Anfrage bei Contracting: Konditionen bestätigt, eingereicht, gemeldet.
+ *
+ * Kein Paket, kein Einzelauftrag, kein Umschlag. Der Rahmenvertrag mit Modul
+ * Contracting (Vertragswerk v4, Teil III) liegt noch nicht als DocuSign-Vorlage
+ * vor; Matchunt schickt ihn nach der Prüfung selbst. Der Nachweis der Zustimmung
+ * ist die Fassung der Konditionen samt Prüfsumme des gezeigten Textes.
+ */
+async function contractingAnfrage(
+  supabase: ReturnType<typeof serviceClient>,
+  draft: Record<string, any>,
+  args: { signerName: string; ipHash: string | null; ua: string | null; draftToken: string },
+) {
+  const now = new Date().toISOString();
+  const built = (draft.built ?? {}) as Record<string, any>;
+  const titel = String(built.title ?? draft.title ?? 'Position');
+  const firma = draft.company_legal_name || draft.company_name || 'Unbekannte Firma';
+  const freelance = (draft.freelance ?? {}) as Record<string, any>;
+  const budget = aufteilungAusBudget(freelance.dayRateMin, freelance.dayRateMax);
+
+  const nachweis = {
+    fassung: CONTRACTING_FASSUNG,
+    einleitung: CONTRACTING_EINLEITUNG,
+    aufteilung: { spezialist: ANTEIL_SPEZIALIST, matchunt: ANTEIL_MATCHUNT },
+    punkte: CONTRACTING_PUNKTE,
+    schluss: CONTRACTING_SCHLUSS,
+    zustimmung: CONTRACTING_ZUSTIMMUNG,
+    budget,
+    signer_name: args.signerName,
+    contact_email: draft.contact_email,
+    captured_at: now,
+  };
+  const nachweisSha = await contentHash(JSON.stringify(nachweis));
+
+  const { data: saved, error } = await supabase
+    .from('intake_drafts')
+    .update({
+      capture_state: 'complete',
+      commercial_state: 'confirmed',
+      review_state: 'pending_admin',
+      submitted_at: now,
+      last_activity_at: now,
+    })
+    .eq('id', draft.id)
+    .select('*')
+    .single();
+  if (error || !saved) {
+    console.error('[intake-submit] Contracting-Anfrage nicht eingereicht:', error?.message);
+    return fail('internal_error', 'Die Anfrage konnte nicht eingereicht werden.');
+  }
+
+  // ---- Nachweise ------------------------------------------------------------
+  const { data: agbTpl } = await supabase
+    .from('contract_templates').select('agb_version')
+    .eq('doc_type', 'assignment').eq('language', 'de').eq('is_active', true).maybeSingle();
+  const consentRows = [
+    { consent_type: 'commercial_terms', version: CONTRACTING_FASSUNG },
+    ...(agbTpl?.agb_version ? [{ consent_type: 'agb', version: agbTpl.agb_version }] : []),
+  ].map((c) => ({
+    subject_type: 'intake_draft',
+    subject_id: draft.id,
+    consent_type: c.consent_type,
+    version: c.version,
+    granted: true,
+    ip_address: args.ipHash,
+    user_agent: args.ua,
+    granted_at: now,
+    scope: CONTRACTING_FASSUNG,
+  }));
+  const { error: consentErr } = await supabase.from('consents').insert(consentRows);
+  if (consentErr) console.warn('[intake-submit] consents (Contracting):', consentErr.message);
+
+  await logEvent(supabase, {
+    type: 'terms_confirmed', linkId: draft.link_id, draftId: draft.id, ipHash: args.ipHash, userAgent: args.ua,
+    meta: { contracting: true, fassung: CONTRACTING_FASSUNG, nachweis_sha256: nachweisSha, signer_name: args.signerName },
+  });
+  await logEvent(supabase, {
+    type: 'intake_completed', linkId: draft.link_id, draftId: draft.id, ipHash: args.ipHash,
+    meta: { completeness: saved.completeness },
+  });
+  await logEvent(supabase, {
+    type: 'submitted', linkId: draft.link_id, draftId: draft.id, ipHash: args.ipHash, userAgent: args.ua,
+    meta: { contracting: true },
+  });
+
+  // ---- Eingangsbestätigung an den Kunden --------------------------------------
+  const zeile = (label: string, wert: string) =>
+    `<tr><td style="padding:6px 0;color:#6b7280;width:38%;vertical-align:top;">${esc(label)}</td>`
+    + `<td style="padding:6px 0;">${esc(wert)}</td></tr>`;
+  const html = layout({
+    preheader: `Ihre Anfrage für ${esc(titel)} ist bei uns eingegangen.`,
+    heading: 'Ihre Beauftragungsanfrage ist eingegangen',
+    body: `
+      <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name)},</p>
+      <p style="margin:0 0 16px 0;">
+        vielen Dank. Wir haben Ihre Anfrage für <strong>${esc(titel)}</strong> (Contracting)
+        erhalten und prüfen sie.
+      </p>
+      <p style="margin:0 0 8px 0;font-weight:600;">Konditionen Contracting</p>
+      <p style="margin:0 0 12px 0;">${esc(CONTRACTING_EINLEITUNG)}</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:0 0 16px 0;border-collapse:collapse;">
+        ${zeile('Aufteilung Tagessatz', `${ANTEIL_SPEZIALIST} % an den Spezialisten, ${ANTEIL_MATCHUNT} % Matchunt`)}
+        ${budget ? zeile('Ihr Budget', budget) : ''}
+        ${CONTRACTING_PUNKTE.map((p) => zeile(p.label, p.text)).join('')}
+      </table>
+      <p style="margin:0 0 16px 0;">${esc(CONTRACTING_SCHLUSS)}</p>
+      <p style="margin:0 0 8px 0;font-weight:600;">Wie es weitergeht</p>
+      <p style="margin:0 0 16px 0;">
+        Wir prüfen Ihre Anfrage und senden Ihnen den Rahmenvertrag mit dem Modul Contracting
+        zur Unterschrift. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.
+      </p>`,
+    cta: { label: 'Anfrage ansehen', url: intakeResumeUrl(args.draftToken) },
+    footnote: 'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit '
+      + 'unserer ausdrücklichen Annahme zustande. Bis dahin entstehen Ihnen keine Kosten.',
+  });
+  const mail = await sendIntakeMail(supabase, {
+    to: draft.contact_email,
+    subject: `Ihre Beauftragungsanfrage für ${titel} ist eingegangen`,
+    html,
+    template: 'intake_submitted_contracting',
+    meta: { draft_id: draft.id, fassung: CONTRACTING_FASSUNG },
+  });
+
+  // ---- Und Matchunt erfährt es: der Vertrag geht hier von Hand raus -----------
+  const empfaenger = new Set<string>();
+  if (draft.owner_user_id) empfaenger.add(draft.owner_user_id);
+  const { data: admins } = await supabase.from('user_roles').select('user_id').eq('role', 'admin').limit(10);
+  (admins ?? []).forEach((a: { user_id: string }) => empfaenger.add(a.user_id));
+  if (empfaenger.size > 0) {
+    await supabase.from('notifications').insert([...empfaenger].map((user_id) => ({
+      user_id,
+      type: 'intake_submitted',
+      title: 'Neue Contracting-Anfrage',
+      message: `${firma} · ${titel} — Rahmenvertrag mit Modul Contracting von Hand senden`,
+      related_type: 'intake_draft',
+      related_id: draft.id,
+    })));
+    const { data: profile } = await supabase.from('profiles').select('email').in('user_id', [...empfaenger]);
+    const link = `${getPublicAppUrl()}/admin/intakes/${draft.id}`;
+    for (const p of profile ?? []) {
+      if (!p.email) continue;
+      await sendIntakeMail(supabase, {
+        to: p.email,
+        subject: `Contracting-Anfrage: ${firma} · ${titel}`,
+        template: 'contracting_request_admin',
+        meta: { draft_id: draft.id },
+        html: layout({
+          preheader: `${firma} hat Contracting angefragt.`,
+          heading: 'Neue Contracting-Anfrage',
+          body: `
+            <p style="margin:0 0 16px 0;">${esc(draft.contact_name ?? 'Der Kunde')} hat
+              <strong>${esc(titel)}</strong> für <strong>${esc(firma)}</strong> als Contracting angefragt
+              und die Konditionen (${ANTEIL_SPEZIALIST}/${ANTEIL_MATCHUNT}, Fassung ${esc(CONTRACTING_FASSUNG)}) bestätigt.</p>
+            ${budget ? `<p style="margin:0 0 16px 0;">${esc(budget)}</p>` : ''}
+            <p style="margin:0 0 16px 0;">Es ging kein Vertrag automatisch raus. Bitte den Rahmenvertrag
+              mit Modul Contracting erstellen und zur Unterschrift senden.</p>`,
+          cta: { label: 'Aufnahme öffnen', url: link },
+        }),
+      });
+    }
+  }
+
+  return json({
+    ok: true,
+    review_state: 'pending_admin',
+    mandate_number: null,
+    confirmation_sent: mail.sent,
+    requires_signature: false,
+    contracting: true,
+    framework_agreement_number: null,
+    draft: publicDraft(saved),
+  });
+}
 
 serve(async (req) => {
   const pre = preflight(req);
@@ -72,6 +250,35 @@ serve(async (req) => {
       return fail('invalid_request', 'Bitte geben Sie Ihren Namen an.');
     }
 
+    // Gelaufen, nicht zugestimmt. Ein 'failed' entsteht schon bei einer
+    // USt-IdNr., die nicht zum Laendermuster passt -- also bei einem Tippfehler.
+    // Den Kunden daran endgueltig scheitern zu lassen, hiesse die automatische
+    // Pruefung entscheiden zu lassen. Sie liefert einen Bericht; entschieden
+    // wird im Admin-Bereich.
+    if (['not_checked', 'checking'].includes(draft.company_state)) {
+      return fail('conflict',
+        'Die Prüfung Ihrer Firmenangaben läuft noch. Bitte versuchen Sie es in einem Moment erneut.');
+    }
+    // Seit 25.09.2026 auch 'failed' nicht mehr: ein 'failed' entsteht nur aus
+    // Befunden, die der Kunde selbst beheben kann (fehlende Firmierung oder
+    // Anschrift, USt-IdNr. im falschen Format). Die Aufnahme zeigt sie ihm jetzt
+    // mit Feldern zum Ergaenzen. Vorher ging die Anfrage trotzdem durch, der
+    // Vertrag wurde danach angehalten -- und der Kunde stand ohne Ausweg da
+    // (Live-Test 24.09.2026). Der Einzelauftrag friert die Firmendaten beim
+    // Absenden ein; ergaenzt werden muss also VORHER.
+    if (draft.company_state === 'failed') {
+      return fail('conflict',
+        'Für die Vereinbarung fehlen noch Angaben zu Ihrer Firma. Bitte ergänzen Sie sie oben, dann geht es weiter.');
+    }
+
+    // Contracting hat keine Paketwahl und keinen Einzelauftrag: die Pakete
+    // und der Auftragstext sind Festanstellung (Live-Befund 25.09.2026).
+    if (draft.contract_type === 'freelance') {
+      return await contractingAnfrage(supabase, draft, {
+        signerName, ipHash, ua, draftToken: String(body?.draft_token),
+      });
+    }
+
     // ---- Geltende Konditionen ----------------------------------------------
     let link: Record<string, any> | null = null;
     if (draft.link_id) {
@@ -103,15 +310,6 @@ serve(async (req) => {
     if (!packageKey) {
       return fail('invalid_request',
         'Bitte wählen Sie zuerst eines der drei Pakete aus.');
-    }
-    // Gelaufen, nicht zugestimmt. Ein 'failed' entsteht schon bei einer
-    // USt-IdNr., die nicht zum Laendermuster passt -- also bei einem Tippfehler.
-    // Den Kunden daran endgueltig scheitern zu lassen, hiesse die automatische
-    // Pruefung entscheiden zu lassen. Sie liefert einen Bericht; entschieden
-    // wird im Admin-Bereich.
-    if (['not_checked', 'checking'].includes(draft.company_state)) {
-      return fail('conflict',
-        'Die Prüfung Ihrer Firmenangaben läuft noch. Bitte versuchen Sie es in einem Moment erneut.');
     }
 
     const { data: pkg } = await supabase
