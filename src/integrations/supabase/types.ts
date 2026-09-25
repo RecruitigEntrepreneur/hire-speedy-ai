@@ -2548,6 +2548,7 @@ export type Database = {
           document_sha256: string | null
           draft_id: string | null
           envelope_id: string | null
+          envelope_last_synced_at: string | null
           fee_basis: string
           fee_percentage: number
           framework_agreement_id: string | null
@@ -2624,6 +2625,7 @@ export type Database = {
           document_sha256?: string | null
           draft_id?: string | null
           envelope_id?: string | null
+          envelope_last_synced_at?: string | null
           fee_basis: string
           fee_percentage: number
           framework_agreement_id?: string | null
@@ -2700,6 +2702,7 @@ export type Database = {
           document_sha256?: string | null
           draft_id?: string | null
           envelope_id?: string | null
+          envelope_last_synced_at?: string | null
           fee_basis?: string
           fee_percentage?: number
           framework_agreement_id?: string | null
