@@ -10,7 +10,8 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { hashKey } from './tokens.ts';
 
-export type LimitScope = 'ip' | 'link' | 'draft' | 'email' | 'ai' | 'mail' | 'forward';
+/** Genau die Bereiche, die intake_rate_limits.scope zulaesst (CHECK in der Migration). */
+export type LimitScope = 'ip' | 'link' | 'draft' | 'email' | 'ai' | 'mail';
 
 export interface LimitRule {
   scope: LimitScope;
@@ -19,6 +20,19 @@ export interface LimitRule {
   limit: number;
   /** Fensterlaenge in Sekunden. Voreinstellung: eine Stunde. */
   windowSeconds?: number;
+  /**
+   * Wofuer gezaehlt wird. Geht mit in den Schluessel ein, damit jede Grenze
+   * ihren EIGENEN Topf hat.
+   *
+   * BEFUND (Live, 25.09.2026, Kunde Kanna Medics): Die Datenbank fuehrt einen
+   * Zaehler je (Bereich, Schluessel, Fenster). Code-Eingabe (50/h) und
+   * Autosave (600/h) zaehlten beide unter ('draft', Aufnahme-ID) -- wer die
+   * Position ausfuehrlich eintippte, war beim ERSTEN Code schon gesperrt.
+   * Genauso teilten sich Oeffnen, KI, Code-Eingabe, Weiterleiten und
+   * Fortsetzen den Topf ('ip', IP). Und die Weiterleiten-Grenze lief auf den
+   * Bereich 'forward', den die Datenbank ablehnt -- sie zaehlte nie.
+   */
+  zweck: string;
 }
 
 const STUNDE = 3600;
@@ -57,7 +71,7 @@ export async function checkLimits(
     const fenster = rule.windowSeconds ?? STUNDE;
     const { data, error } = await supabase.rpc('intake_rate_limit_hit', {
       _scope: rule.scope,
-      _key: await hashKey(rule.key),
+      _key: await hashKey(`${rule.zweck}|${rule.key}`),
       _limit: rule.limit,
       _window: `${fenster} seconds`,
     });
@@ -86,17 +100,17 @@ export async function checkLimits(
 export const LIMITS = {
   /** Link oeffnen: 30 pro IP und Stunde, 300 pro Link und Stunde. */
   start:  (ip: string | null, linkId: string): LimitRule[] => [
-    { scope: 'ip',   key: ip,     limit: 30  },
-    { scope: 'link', key: linkId, limit: 300 },
+    { zweck: 'start', scope: 'ip',   key: ip,     limit: 30  },
+    { zweck: 'start', scope: 'link', key: linkId, limit: 300 },
   ],
   /** Autosave: grosszuegig, das ist normale Tipparbeit. */
   draftPatch: (draftId: string): LimitRule[] => [
-    { scope: 'draft', key: draftId, limit: 600 },
+    { zweck: 'autosave', scope: 'draft', key: draftId, limit: 600 },
   ],
   /** KI-Aufrufe: die einzige Stelle, an der echtes Geld verbrannt wird. */
   ai: (draftId: string, ip: string | null): LimitRule[] => [
-    { scope: 'ai', key: draftId, limit: 60  },
-    { scope: 'ip', key: ip,      limit: 150 },
+    { zweck: 'ki', scope: 'ai', key: draftId, limit: 60  },
+    { zweck: 'ki', scope: 'ip', key: ip,      limit: 150 },
   ],
   /** Verifizierungsmail: 3 Sendungen je Entwurf und Stunde, 10 je IP. */
   /**
@@ -121,8 +135,8 @@ export const LIMITS = {
    * Codelaufzeit passen statt zur Uhr.
    */
   verifySend: (_draftId: string, email: string, ip: string | null): LimitRule[] => [
-    { scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
-    { scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
+    { zweck: 'code-senden', scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
+    { zweck: 'code-senden', scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
   ],
   /**
    * Code-Eingabe: der harte Zaehler sitzt auf der Code-Zeile (max_attempts = 5),
@@ -132,10 +146,14 @@ export const LIMITS = {
    * vertippt und dann zwei neue Codes anfordert, kam der alten Grenze naeher
    * als jeder Angreifer -- der raet 1.000.000 Kombinationen nicht in 20
    * Versuchen, und nach fuenf ist die Zeile ohnehin tot.
+   *
+   * Die Grenze je Entwurf bleibt trotzdem: der Versuchszaehler der Code-Zeile
+   * wird gelesen und danach geschrieben, nicht atomar. Parallele Anfragen von
+   * vielen IPs koennten sonst weit mehr als fuenfmal raten.
    */
   verifyConfirm: (draftId: string, ip: string | null): LimitRule[] => [
-    { scope: 'draft', key: draftId, limit: 50  },
-    { scope: 'ip',    key: ip,      limit: 100 },
+    { zweck: 'code-eingabe', scope: 'draft', key: draftId, limit: 50  },
+    { zweck: 'code-eingabe', scope: 'ip',    key: ip,      limit: 100 },
   ],
   /**
    * Weiterleiten und Fortsetzen: eng, das sind Mail-versendende Aktionen.
@@ -147,12 +165,12 @@ export const LIMITS = {
    * ahnen, warum.
    */
   forward: (draftId: string, ip: string | null): LimitRule[] => [
-    { scope: 'forward', key: draftId, limit: 3 },
-    { scope: 'ip',      key: ip,      limit: 10 },
+    { zweck: 'weiterleiten', scope: 'draft',   key: draftId, limit: 3 },
+    { zweck: 'weiterleiten', scope: 'ip',      key: ip,      limit: 10 },
   ],
   resume: (email: string, ip: string | null): LimitRule[] => [
-    { scope: 'email', key: email, limit: 3  },
-    { scope: 'ip',    key: ip,    limit: 10 },
+    { zweck: 'fortsetzen', scope: 'email', key: email, limit: 3  },
+    { zweck: 'fortsetzen', scope: 'ip',    key: ip,    limit: 10 },
   ],
   /**
    * Anmeldecode im Headhunter-Onboarding: gleiche Logik wie verifySend. Der
@@ -160,20 +178,20 @@ export const LIMITS = {
    * Bei Einladungen geht der Code ohnehin nur an die Einladungsadresse.
    */
   recruiterCode: (email: string, ip: string | null): LimitRule[] => [
-    { scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
-    { scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
+    { zweck: 'hh-code-senden', scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
+    { zweck: 'hh-code-senden', scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
   ],
   /**
    * Code-Eingabe im Headhunter-Onboarding: der harte Zaehler sitzt am Code
    * selbst (fuenf Versuche); das hier bremst nur die Streuung ueber viele Codes.
    */
   recruiterVerify: (email: string, ip: string | null): LimitRule[] => [
-    { scope: 'email', key: email, limit: 30  },
-    { scope: 'ip',    key: ip,    limit: 100 },
+    { zweck: 'hh-code-eingabe', scope: 'email', key: email, limit: 30  },
+    { zweck: 'hh-code-eingabe', scope: 'ip',    key: ip,    limit: 100 },
   ],
   /** Impressum lesen: Firecrawl und KI kosten Geld; ein Vorgang braucht das ein-, zweimal. */
   recruiterEnrich: (caseId: string, ip: string | null): LimitRule[] => [
-    { scope: 'draft', key: caseId, limit: 6  },
-    { scope: 'ip',    key: ip,     limit: 20 },
+    { zweck: 'hh-impressum', scope: 'draft', key: caseId, limit: 6  },
+    { zweck: 'hh-impressum', scope: 'ip',    key: ip,     limit: 20 },
   ],
 } as const;
