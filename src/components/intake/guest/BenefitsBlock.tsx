@@ -99,9 +99,9 @@ export const CONTRACTING_GRUPPEN: { titel: string; items: string[] }[] = [
     items: [
       'Reisekosten werden erstattet',
       'Übernachtung wird gestellt',
-      'Zahlungsziel 14 Tage',
-      'Monatliche Abrechnung',
-      'Kein Rahmenvertrag nötig',
+      // Zahlungsziel, Abrechnung und Vertrag mit dem Spezialisten regelt
+      // Matchunt (Durchleitung). Als Kundenzusage hätten sie den Konditionen
+      // widersprochen (Test 25.09.2026).
     ],
   },
   {

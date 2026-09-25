@@ -9,7 +9,8 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
 import {
   CONTRACTING_FASSUNG, CONTRACTING_EINLEITUNG, CONTRACTING_PUNKTE, CONTRACTING_SCHLUSS,
-  CONTRACTING_ZUSTIMMUNG, ANTEIL_SPEZIALIST, ANTEIL_MATCHUNT, aufteilungAusBudget,
+  CONTRACTING_ZUSTIMMUNG, CONTRACTING_BUDGET_HINWEIS, CONTRACTING_OHNE_BUDGET,
+  ANTEIL_SPEZIALIST, ANTEIL_MATCHUNT, budgetZeile, innenRechnung,
 } from '../_shared/contracting-konditionen.ts';
 
 /**
@@ -49,16 +50,19 @@ async function contractingAnfrage(
   const titel = String(built.title ?? draft.title ?? 'Position');
   const firma = draft.company_legal_name || draft.company_name || 'Unbekannte Firma';
   const freelance = (draft.freelance ?? {}) as Record<string, any>;
-  const budget = aufteilungAusBudget(freelance.dayRateMin, freelance.dayRateMax);
+  // Der Kunde sieht sein Budget als All-in-Satz, nie die Aufteilung
+  // (Entscheidung 25.09.2026). Die Innenrechnung geht nur an Matchunt.
+  const budget = budgetZeile(freelance.dayRateMin, freelance.dayRateMax);
+  const innen = innenRechnung(freelance.dayRateMin, freelance.dayRateMax);
 
   const nachweis = {
     fassung: CONTRACTING_FASSUNG,
     einleitung: CONTRACTING_EINLEITUNG,
-    aufteilung: { spezialist: ANTEIL_SPEZIALIST, matchunt: ANTEIL_MATCHUNT },
+    budget: budget ?? CONTRACTING_OHNE_BUDGET,
+    budget_hinweis: budget ? CONTRACTING_BUDGET_HINWEIS : null,
     punkte: CONTRACTING_PUNKTE,
     schluss: CONTRACTING_SCHLUSS,
     zustimmung: CONTRACTING_ZUSTIMMUNG,
-    budget,
     signer_name: args.signerName,
     contact_email: draft.contact_email,
     captured_at: now,
@@ -132,8 +136,7 @@ async function contractingAnfrage(
       <p style="margin:0 0 8px 0;font-weight:600;">Konditionen Contracting</p>
       <p style="margin:0 0 12px 0;">${esc(CONTRACTING_EINLEITUNG)}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:0 0 16px 0;border-collapse:collapse;">
-        ${zeile('Aufteilung Tagessatz', `${ANTEIL_SPEZIALIST} % an den Spezialisten, ${ANTEIL_MATCHUNT} % Matchunt`)}
-        ${budget ? zeile('Ihr Budget', budget) : ''}
+        ${zeile('Tagessatz', budget ? `${budget}. ${CONTRACTING_BUDGET_HINWEIS}` : CONTRACTING_OHNE_BUDGET)}
         ${CONTRACTING_PUNKTE.map((p) => zeile(p.label, p.text)).join('')}
       </table>
       <p style="margin:0 0 16px 0;">${esc(CONTRACTING_SCHLUSS)}</p>
@@ -183,8 +186,9 @@ async function contractingAnfrage(
           body: `
             <p style="margin:0 0 16px 0;">${esc(draft.contact_name ?? 'Der Kunde')} hat
               <strong>${esc(titel)}</strong> für <strong>${esc(firma)}</strong> als Contracting angefragt
-              und die Konditionen (${ANTEIL_SPEZIALIST}/${ANTEIL_MATCHUNT}, Fassung ${esc(CONTRACTING_FASSUNG)}) bestätigt.</p>
-            ${budget ? `<p style="margin:0 0 16px 0;">${esc(budget)}</p>` : ''}
+              und die Konditionen (Fassung ${esc(CONTRACTING_FASSUNG)}, Tagessatz all-in) bestätigt.</p>
+            <p style="margin:0 0 16px 0;">${esc(innen ?? 'Kein Budget angegeben.')}
+              Der Kunde sieht die Aufteilung ${ANTEIL_SPEZIALIST}/${ANTEIL_MATCHUNT} nicht.</p>
             <p style="margin:0 0 16px 0;">Es ging kein Vertrag automatisch raus. Bitte den Rahmenvertrag
               mit Modul Contracting erstellen und zur Unterschrift senden.</p>`,
           cta: { label: 'Aufnahme öffnen', url: link },

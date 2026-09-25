@@ -180,9 +180,11 @@ export default function GuestIntake() {
       { label: 'Arbeitsmodell', value: remoteLabel(b.remote_type) },
       { label: 'Erfahrung', value: levelLabel(b.experience_level) },
       {
-        label: isFreelance ? 'Tagessatz' : 'Gehaltsband',
+        // Contracting: das Budget des Kunden, alles inklusive -- nicht der Satz
+        // des Spezialisten (Marge ist Innenseite, Entscheidung 25.09.2026).
+        label: isFreelance ? 'Budget je Tag' : 'Gehaltsband',
         value: isFreelance
-          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€ / Tag')
+          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€, alles inklusive')
           : money(b.salary_min, b.salary_max, '€ p. a.'),
       },
       { label: 'Muss-Kriterien', value: b.must_haves.length ? b.must_haves.join(' · ') : '—' },

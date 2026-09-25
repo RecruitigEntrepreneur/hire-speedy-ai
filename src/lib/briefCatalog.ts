@@ -348,7 +348,7 @@ const LINKS: BriefQuestion[] = [
       // Contracting-Stelle fehlte damit die wichtigste Zahl in der
       // Vollstaendigkeit, und das Briefing galt als fertig ohne sie.
       {
-        key: 'day_rate_range', label: 'Tagessatz von / bis (€)', form: 'range',
+        key: 'day_rate_range', label: 'Budget je Tag, alles inklusive (€)', form: 'range',
         column: 'day_rate_min', store: 'range',
         required: true, weight: 3, reveal: 'safe', sources: ['ad'], only: 'freelance',
         blocksSubmit: true, imFormular: true,

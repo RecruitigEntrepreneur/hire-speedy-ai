@@ -6,13 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Loader2, Send, ShieldCheck, TriangleAlert, Users } from 'lucide-react';
+import { CircleCheck, FileText, Loader2, Send, ShieldCheck, TriangleAlert, Users } from 'lucide-react';
 import { CONSENT_TEXT } from './consentText';
 import { isFailure, type GuestDraft, type PackageSummary } from '@/hooks/useGuestIntake';
 import { FIRMA_LABEL, fehlendeFirmenangaben, firmierungAus } from '../../../../supabase/functions/_shared/firma-pflicht';
 import {
-  ANTEIL_MATCHUNT, ANTEIL_SPEZIALIST, CONTRACTING_EINLEITUNG, CONTRACTING_PUNKTE, CONTRACTING_SCHLUSS,
-  CONTRACTING_ZUSTIMMUNG, aufteilungAusBudget,
+  CONTRACTING_BUDGET_HINWEIS, CONTRACTING_EINLEITUNG, CONTRACTING_OHNE_BUDGET, CONTRACTING_PUNKTE,
+  CONTRACTING_SCHLUSS, CONTRACTING_ZUSTIMMUNG, budgetZeile,
 } from '../../../../supabase/functions/_shared/contracting-konditionen';
 
 /**
@@ -31,7 +31,7 @@ interface Props {
    *  angefragt, und es wird nichts mehr unterschrieben. */
   framework?: { agreement_number: string; fee_percent: number; name: string | null } | null;
   /** Gesetzt bei Contracting: keine Paketkarte, sondern die eine Kondition
-   *  (Tagessatz, 78/22), gerechnet aus dem Budget der Aufnahme. */
+   *  (Tagessatz, alles inklusive) mit dem Budget aus der Aufnahme. */
   contracting?: { dayRateMin: number | null; dayRateMax: number | null } | null;
   summary: { label: string; value: string }[];
   openQuestions: number;
@@ -314,9 +314,10 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
 }
 
 /** Die Konditionen für Contracting. Der Text lebt in _shared/contracting-konditionen.ts,
- *  damit Seite, Eingangsbestätigung und Nachweis dasselbe sagen. */
+ *  damit Seite, Eingangsbestätigung und Nachweis dasselbe sagen. Die Aufteilung
+ *  des Tagessatzes steht hier bewusst NICHT (Entscheidung 25.09.2026). */
 function ContractingKarte({ budget }: { budget: { dayRateMin: number | null; dayRateMax: number | null } }) {
-  const rechnung = aufteilungAusBudget(budget.dayRateMin, budget.dayRateMax);
+  const zeile = budgetZeile(budget.dayRateMin, budget.dayRateMax);
   return (
     <Card className="border-primary/25">
       <CardContent className="space-y-4 p-5">
@@ -326,17 +327,12 @@ function ContractingKarte({ budget }: { budget: { dayRateMin: number | null; day
         </div>
         <p className="text-sm text-muted-foreground">{CONTRACTING_EINLEITUNG}</p>
 
-        <div className="rounded-lg bg-muted/40 p-3">
-          <p className="mb-2 text-xs font-medium">Transparente Aufteilung Ihres Tagessatzes</p>
-          <div className="flex h-7 overflow-hidden rounded-md text-xs font-medium">
-            <div className="flex items-center bg-emerald-600/15 pl-2 text-emerald-700" style={{ width: `${ANTEIL_SPEZIALIST}%` }}>
-              {ANTEIL_SPEZIALIST} % Spezialist
-            </div>
-            <div className="flex items-center justify-center bg-primary/15 text-primary" style={{ width: `${ANTEIL_MATCHUNT}%` }}>
-              {ANTEIL_MATCHUNT} % Matchunt
-            </div>
+        <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
+          <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+          <div>
+            <p className="text-sm font-medium">{zeile ?? CONTRACTING_OHNE_BUDGET}</p>
+            {zeile && <p className="mt-0.5 text-xs text-muted-foreground">{CONTRACTING_BUDGET_HINWEIS}</p>}
           </div>
-          {rechnung && <p className="mt-2 text-xs text-muted-foreground">{rechnung}</p>}
         </div>
 
         <dl className="space-y-2 text-sm">

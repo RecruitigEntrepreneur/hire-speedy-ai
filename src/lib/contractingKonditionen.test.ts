@@ -1,29 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ANTEIL_MATCHUNT, ANTEIL_SPEZIALIST, anteilSpezialist, aufteilungAusBudget,
+  ANTEIL_MATCHUNT, ANTEIL_SPEZIALIST, CONTRACTING_BUDGET_HINWEIS, CONTRACTING_EINLEITUNG, CONTRACTING_PUNKTE,
+  CONTRACTING_SCHLUSS, CONTRACTING_ZUSTIMMUNG, anteilSpezialist, budgetZeile, innenRechnung,
 } from '../../supabase/functions/_shared/contracting-konditionen';
 
 describe('Konditionen Contracting', () => {
-  it('teilt den Tagessatz vollständig auf', () => {
+  it('teilt den Tagessatz intern vollständig auf', () => {
     expect(ANTEIL_SPEZIALIST + ANTEIL_MATCHUNT).toBe(100);
     expect(anteilSpezialist(1000)).toBe(780);
     expect(anteilSpezialist(1400)).toBe(1092);
   });
 
-  it('rechnet die Spanne aus dem Budget der Aufnahme', () => {
-    expect(aufteilungAusBudget(900, 1100))
-      .toBe('Mit Ihrem Budget von 900–1.100 € je Tag erhält der Spezialist 702–858 € je Tag.');
-  });
-
-  it('kommt mit nur einer Grenze und vertauschten Werten zurecht', () => {
-    expect(aufteilungAusBudget(1000, null))
-      .toBe('Mit Ihrem Budget von 1.000 € je Tag erhält der Spezialist 780 € je Tag.');
-    expect(aufteilungAusBudget(1100, 900))
-      .toBe('Mit Ihrem Budget von 900–1.100 € je Tag erhält der Spezialist 702–858 € je Tag.');
+  it('zeigt dem Kunden das Budget als All-in-Satz', () => {
+    expect(budgetZeile(900, 1100)).toBe('Ihr Budget: 900–1.100 € je Tag, alles inklusive');
+    expect(budgetZeile(1000, null)).toBe('Ihr Budget: 1.000 € je Tag, alles inklusive');
+    expect(budgetZeile(1100, 900)).toBe('Ihr Budget: 900–1.100 € je Tag, alles inklusive');
   });
 
   it('erfindet ohne Budget keine Zahl', () => {
-    expect(aufteilungAusBudget(null, null)).toBeNull();
-    expect(aufteilungAusBudget(0, '')).toBeNull();
+    expect(budgetZeile(null, null)).toBeNull();
+    expect(budgetZeile(0, '')).toBeNull();
+    expect(innenRechnung(null, undefined)).toBeNull();
+  });
+
+  it('rechnet für Admin und Recruiter die Innenseite', () => {
+    expect(innenRechnung(900, 1100))
+      .toBe('Budget 900–1.100 € je Tag (all-in) → Spezialist bis 702–858 € (78 %), Matchunt 22 %.');
+  });
+
+  it('verrät dem Kunden die Aufteilung nirgends', () => {
+    // Entscheidung 25.09.2026: Marge ist Innenseite. Jeder Text, der beim
+    // Kunden landet (Seite, Mail, Nachweis), darf die Anteile nicht nennen.
+    const kundentexte = [
+      CONTRACTING_EINLEITUNG, CONTRACTING_BUDGET_HINWEIS, CONTRACTING_SCHLUSS, CONTRACTING_ZUSTIMMUNG,
+      ...CONTRACTING_PUNKTE.map((p) => p.text), budgetZeile(900, 1100)!,
+    ].join(' ');
+    expect(kundentexte).not.toMatch(new RegExp(`\\b(${ANTEIL_SPEZIALIST}|${ANTEIL_MATCHUNT}) ?%`));
+    expect(kundentexte).not.toMatch(/Marge/);
   });
 });

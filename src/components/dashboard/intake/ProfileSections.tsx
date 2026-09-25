@@ -418,7 +418,11 @@ export function ProfileSections({
         {isFreelance ? (
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <p className="mb-1 text-[11px] text-muted-foreground">Tagessatz von / bis (netto, zzgl. USt)</p>
+              {/* Budget des Kunden, alles inklusive: der Tagessatz enthält die
+                  Vergütung des Spezialisten und die von Matchunt (Durchleitung,
+                  Vertragswerk § 12 Abs. 4). „Tagessatz von/bis“ las sich wie
+                  der Satz des Freelancers. */}
+              <p className="mb-1 text-[11px] text-muted-foreground">Ihr Budget je Tag (alles inklusive, zzgl. USt)</p>
               <EuroSpanne
                 feld="day_rate_range"
                 von={freelance.dayRateMin}
