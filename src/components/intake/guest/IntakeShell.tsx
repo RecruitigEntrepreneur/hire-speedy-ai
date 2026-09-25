@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Check, CloudOff, Loader2, ShieldCheck, TriangleAlert } from 'lucide-react';
 import type { PackageSummary } from '@/hooks/useGuestIntake';
-import { ANTEIL_SPEZIALIST } from '../../../../supabase/functions/_shared/contracting-konditionen';
 
 /**
  * Rahmen der login-freien Jobaufnahme.
@@ -63,7 +62,9 @@ export function IntakeShell({
           {contracting ? (
             <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-              Contracting · {ANTEIL_SPEZIALIST} % an den Spezialisten
+              {/* Keine Prozentzahl hier: „78 %“ allein liest sich wie eine Gebühr.
+                  Die Aufteilung steht mit Erklärung auf der Seite „Anfragen“. */}
+              Contracting · Abrechnung nach Einsatztagen
               <span className="hidden sm:inline">· keine Fixkosten</span>
             </Badge>
           ) : packages && packages.length > 0 && (
