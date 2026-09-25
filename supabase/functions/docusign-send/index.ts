@@ -5,6 +5,7 @@ import { serviceClient, resolveDraft, logEvent } from '../_shared/intake-core.ts
 import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { docusignConfig, createEnvelope, recipientView, docusignAppOrigin, type Signer } from '../_shared/docusign.ts';
 import { clientConnect } from '../_shared/recruiter-connect.ts';
+import { linkFramework } from '../_shared/framework-link.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { fehlendeFirmenangaben, FIRMA_LABEL } from '../_shared/firma-pflicht.ts';
@@ -253,6 +254,24 @@ serve(async (req) => {
             .order('created_at', { ascending: false }).limit(1).maybeSingle();
           framework = data ?? null;
         }
+      }
+    }
+
+    // Ueber das Kundenkonto: ein Rahmenvertrag, der nie an die Firma gehaengt
+    // wurde (vor dem 25.09.2026 trug die Annahme sie nicht nach). Ohne diesen
+    // Schritt bekaeme der Kunde fuer die zweite Stelle einen ZWEITEN Rahmenvertrag
+    // (framework-link.ts). Gefunden wird er bei der Gelegenheit nachgetragen.
+    const kundenKonto = draft.client_user_id ?? draft.matched_client_user_id ?? null;
+    if (!framework && kundenKonto) {
+      const { data } = await supabase.from('client_framework_agreements').select('*')
+        .eq('client_user_id', kundenKonto).is('organization_id', null).in('status', LEBEND)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (data && orgId) {
+        // Scheitert das Nachtragen, gilt er trotzdem: besser unverknuepft als doppelt.
+        const res = await linkFramework(supabase, { frameworkId: data.id, organizationId: orgId });
+        framework = res.linked ? { ...data, organization_id: orgId } : data;
+      } else {
+        framework = data ?? null;
       }
     }
 

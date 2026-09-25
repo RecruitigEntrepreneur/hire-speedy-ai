@@ -154,9 +154,20 @@ export function useIntakeDetail(id: string | undefined) {
       // Der Rahmenvertrag des Kunden. Er haengt nicht am Entwurf, sondern an
       // der Organisation -- ein zweiter Auftrag desselben Kunden findet ihn
       // deshalb wieder, statt einen neuen zu erzeugen.
+      //
+      // Zuerst ueber den Auftrag: er kennt seinen Rahmenvertrag direkt. Vor dem
+      // 25.09.2026 trug die Annahme die Firma am Rahmenvertrag nicht nach; ueber
+      // die Firma allein stand dann "noch kein Rahmenvertrag" samt Knopf
+      // "anlegen" -- bei einem laengst wirksamen Vertrag (Kanna Medics).
       let framework: Record<string, any> | null = null;
+      const fromMandate = (mandates.data ?? []).find((m) => m.framework_agreement_id)?.framework_agreement_id;
+      if (fromMandate) {
+        const { data } = await supabase.from('client_framework_agreements').select('*')
+          .eq('id', fromMandate).maybeSingle();
+        framework = data ?? null;
+      }
       const orgId = draft.data?.organization_id ?? draft.data?.matched_organization_id;
-      if (orgId || draft.data?.id) {
+      if (!framework && (orgId || draft.data?.id)) {
         const q = supabase.from('client_framework_agreements').select('*')
           .order('created_at', { ascending: false }).limit(1);
         const { data } = orgId

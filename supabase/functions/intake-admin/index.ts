@@ -8,6 +8,7 @@ import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeResumeUrl } from '../_shared/app-url.ts';
 import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess } from '../_shared/client-access.ts';
+import { linkFramework, notifyFrameworkConflict } from '../_shared/framework-link.ts';
 
 type Db = ReturnType<typeof serviceClient>;
 
@@ -209,6 +210,23 @@ serve(async (req) => {
       if (rpcErr) {
         console.error('[intake-admin] accept_intake_draft:', rpcErr.message);
         return fail('internal_error', rpcErr.message);
+      }
+
+      // ---- Rahmenvertrag an die Firma haengen ---------------------------------
+      // Die Firma entsteht erst hier; der Rahmenvertrag kam schon beim Absenden.
+      // Ohne diesen Schritt findet ihn keiner, der ueber die Firma sucht
+      // (framework-link.ts, Befund Kanna Medics 25.09.2026).
+      const { data: angenommen } = await supabase
+        .from('intake_drafts').select('organization_id').eq('id', draftId).maybeSingle();
+      const verknuepft = await linkFramework(supabase, {
+        frameworkId: mandate.framework_agreement_id,
+        organizationId: angenommen?.organization_id,
+        clientUserId,
+      });
+      if (!verknuepft.linked && verknuepft.reason === 'conflict') {
+        const { data: rv } = await supabase.from('client_framework_agreements')
+          .select('agreement_number').eq('id', mandate.framework_agreement_id).maybeSingle();
+        await notifyFrameworkConflict(supabase, draft, { own: rv?.agreement_number ?? 'Rahmenvertrag', other: verknuepft.other });
       }
 
       // ---- Zugang des Kunden --------------------------------------------------
