@@ -123,6 +123,7 @@ const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 // im ganzen Projekt keinen Passwort-Weg — ein serverseitig angelegtes Konto
 // hätte keinen Weg hinein gehabt.
 const SetPassword = lazy(() => import("./pages/SetPassword"));
+const ClientLogin = lazy(() => import("./pages/ClientLogin"));
 const RecruiterInvitation = lazy(() => import("./pages/onboarding/RecruiterInvitation"));
 const RecruiterLogin = lazy(() => import("./pages/recruiter/RecruiterLogin"));
 const PartnerCheck = lazy(() => import("./pages/public/PartnerCheck"));
@@ -549,6 +550,8 @@ function AppRoutes() {
       {/* Öffentliche Prüfseite des Partnerstatus: ohne Login, nicht für Suchmaschinen. */}
       <Route path="/partner/:number" element={<Suspense fallback={<RouteFallback />}><PartnerCheck /></Suspense>} />
       <Route path="/passwort" element={<Suspense fallback={<RouteFallback />}><SetPassword /></Suspense>} />
+      {/* Kunden: „Jetzt loslegen“ aus der Zugangsmail nach der Gegenzeichnung, Code statt Passwort. */}
+      <Route path="/anmelden" element={<Suspense fallback={<RouteFallback />}><ClientLogin /></Suspense>} />
       <Route path="/start/:token" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       {/* Vor der allgemeinen Entwurfsroute, sonst faengt :draftToken das Wort
           "rueckfrage" als Token ab. */}

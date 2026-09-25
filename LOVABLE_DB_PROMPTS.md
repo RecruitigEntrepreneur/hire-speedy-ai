@@ -621,6 +621,48 @@ greift nur bei neuen Übergängen.
 
 ---
 
+## 10 — Kundenzugang nach der Gegenzeichnung (25.09.2026)
+
+Befund Kanna Medics: Matchunt hatte in DocuSign gegengezeichnet, die Datenbank erfuhr es
+nie, der Kunde bekam weder Konto noch Zugang. Jetzt: DocuSign meldet Kundenverträge per
+Connect, und `docusign-sync` fragt alle 15 Minuten nach. Mit der Gegenzeichnung geht die
+Mail „Ihre Position ist auf Matchunt“ mit persönlichem Link auf `/anmelden` raus.
+
+### 10a — Migration
+
+> Bitte die Migration `supabase/migrations/20260925160000_client_envelope_sync.sql`
+> ausführen. Sie ergänzt `commercial_mandates.envelope_last_synced_at`, einen Teilindex
+> und den Cron-Job `docusign-client-sync` (alle 15 Minuten, ruft die Edge Function
+> `docusign-sync` mit dem Service-Schlüssel auf, gleiches Muster wie
+> `recruiter-evidence-reminder`). Keine Daten werden verändert.
+
+### 10b — Edge Functions
+
+> Bitte diese Edge Functions deployen: `client-login` (neu), `docusign-sync` (neu),
+> `intake-admin`, `contract-admin`, `docusign-send`, `docusign-webhook`,
+> `docusign-status`. `client-login` und `docusign-sync` haben `verify_jwt = false`
+> (steht in `supabase/config.toml`); beide prüfen selbst.
+
+Die Headhunter-Anmeldung teilt jetzt ihren Code-Kern mit der Kundenanmeldung
+(`_shared/login-code.ts`), ohne Verhaltensänderung. Ihre Functions müssen dafür nicht neu
+deployt werden.
+
+### 10c — Secret
+
+`DOCUSIGN_HMAC_KEY`: in DocuSign unter Einstellungen › Connect › HMAC-Schlüssel einen
+Schlüssel anlegen, den Wert in Lovable als Secret hinterlegen. Ohne ihn läuft alles über
+den 15-Minuten-Abgleich; mit ihm meldet DocuSign sofort (auch die Headhunter-Verträge).
+
+### 10d — Frontend
+
+Publish. Neu: `/anmelden`, Hinweis auf `/auth`, Block „Zugang des Kunden“ in der
+Jobaufnahme, Rundgang beim ersten Besuch.
+
+**Reihenfolge: 10a → 10b → 10c → 10d.** `docusign-status` schreibt ab 10b in die neue
+Spalte; ohne 10a schlägt nur dieses Schreiben still fehl.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

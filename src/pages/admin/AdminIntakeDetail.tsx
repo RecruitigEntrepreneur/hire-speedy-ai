@@ -25,6 +25,7 @@ import {
 } from '@/components/admin/IntakeStateBadges';
 import { useIntakeDetail, useIntakeAction, useContractAction, useClarifyAction, useMandateDocument } from '@/hooks/useAdminIntakes';
 import { IntakeAnswers } from '@/components/admin/IntakeAnswers';
+import { ClientAccessPanel } from '@/components/admin/ClientAccessPanel';
 
 /**
  * Eine Aufnahme prüfen, annehmen und durch den Vertragslauf führen.
@@ -434,6 +435,9 @@ export default function AdminIntakeDetail() {
                   onRun={runContract}
                   draftId={data.draft.id}
                 />
+
+                {/* Nach der Gegenzeichnung: kommt der Kunde in sein Dashboard? */}
+                <ClientAccessPanel draftId={data.draft.id} hasEnvelope={Boolean(mandate.envelope_id)} />
 
                 {data.mandates.length > 1 && (
                   <Card>

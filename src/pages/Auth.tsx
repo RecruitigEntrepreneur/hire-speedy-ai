@@ -274,6 +274,14 @@ export default function Auth() {
                 </Button>
                 {mode === 'signin' && (
                   <p className="text-center text-sm text-muted-foreground">
+                    {t('auth.clientCode')}{' '}
+                    <Link to="/anmelden" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                      {t('auth.clientCodeLink')}
+                    </Link>
+                  </p>
+                )}
+                {mode === 'signin' && (
+                  <p className="text-center text-sm text-muted-foreground">
                     {t('auth.recruiterCode')}{' '}
                     <Link to="/recruiter/login" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
                       {t('auth.recruiterCodeLink')}

@@ -358,3 +358,11 @@ verify_jwt = false
 # Public partner check page and website badge: no login, returns only what the check page may show.
 [functions.partner-check]
 verify_jwt = false
+
+# Customer sign-in by code (/anmelden): no session yet; link, code and rate limits checked in the handler.
+[functions.client-login]
+verify_jwt = false
+
+# Cron every 15 minutes: fetch open customer envelopes from DocuSign. Checks the service key itself.
+[functions.docusign-sync]
+verify_jwt = false

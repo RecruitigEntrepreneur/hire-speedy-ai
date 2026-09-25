@@ -4,6 +4,7 @@ import { contentHash } from '../_shared/tokens.ts';
 import { serviceClient, resolveDraft, logEvent } from '../_shared/intake-core.ts';
 import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { docusignConfig, createEnvelope, recipientView, docusignAppOrigin, type Signer } from '../_shared/docusign.ts';
+import { clientConnect } from '../_shared/recruiter-connect.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { fehlendeFirmenangaben, FIRMA_LABEL } from '../_shared/firma-pflicht.ts';
@@ -381,6 +382,8 @@ serve(async (req) => {
         framework_id: framework!.id,
         draft_id: draftId,
       },
+      // DocuSign meldet Unterschrift und Gegenzeichnung sofort (docusign-webhook).
+      eventNotification: clientConnect(),
     });
 
     const jetzt = new Date().toISOString();

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { logEvent } from '../_shared/intake-core.ts';
+import { docusignConfig, completedDocument } from './docusign.ts';
 
 /**
  * Den Zustand eines Umschlags auf unsere Daten anwenden.
@@ -143,39 +144,86 @@ export async function applyEnvelopeState(
       // entschieden. Ein zweiter Klick "annehmen" waere eine Formalie, die
       // liegenbleiben kann, waehrend der Kunde auf seinen Zugang wartet.
       //
-      // Angelegt wird: Stelle, Kundenkonto, Zugangslink, Annahmemail.
+      // Angelegt wird: Stelle, Kundenkonto, Zugangslink, Zugangsmail. Hat
+      // der Admin schon vorher angenommen, geht nur noch die Zugangsmail raus.
       // NICHT veroeffentlicht: das bleibt ein bewusster Klick, damit ein
       // duennes Briefing nicht ungeprueft ans Recruiter-Netz geht.
-      //
-      // Nicht blockierend: der Vertrag ist wirksam, auch wenn die Anlage
-      // scheitert. Sie laesst sich im Admin-Bereich nachholen.
-      if (draftId) {
-        try {
-          const res = await fetch(
-            `${Deno.env.get('SUPABASE_URL')}/functions/v1/intake-admin`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
-              },
-              body: JSON.stringify({
-                action: 'accept',
-                draft_id: draftId,
-                acting_user_id: countersignerUserId ?? null,
-              }),
-            });
-          if (!res.ok) {
-            const d = await res.json().catch(() => ({}));
-            console.warn('[docusign-apply] Annahme nicht ausgefuehrt:', d?.message ?? res.status);
-          }
-        } catch (e) {
-          console.warn('[docusign-apply] Annahme fehlgeschlagen:',
-            e instanceof Error ? e.message : e);
-        }
-      }
+      if (draftId) await afterCountersign(draftId, countersignerUserId);
     }
   }
 
   return ergebnis;
+}
+
+/**
+ * Was die Gegenzeichnung beim Kunden ausloest (intake-admin
+ * `after_countersign`): annehmen, Konto, Zugangsmail. Auch der Admin-Knopf
+ * „Gegenzeichnen“ (contract-admin) kommt hier an, damit beide Wege dasselbe tun.
+ *
+ * Nicht blockierend: der Vertrag ist wirksam, auch wenn die Anlage scheitert.
+ * Sie laesst sich im Admin-Bereich nachholen (Block „Zugang des Kunden“).
+ */
+export async function afterCountersign(draftId: string, actingUserId: string | null) {
+  try {
+    const res = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/intake-admin`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
+        },
+        body: JSON.stringify({
+          action: 'after_countersign',
+          draft_id: draftId,
+          acting_user_id: actingUserId ?? null,
+        }),
+      });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      console.warn('[docusign-apply] Annahme nicht ausgefuehrt:', d?.message ?? res.status);
+    }
+  } catch (e) {
+    console.warn('[docusign-apply] Annahme fehlgeschlagen:',
+      e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Das beidseitig unterzeichnete Dokument ablegen. Aus dem Webhook und aus
+ * docusign-sync: ohne HMAC-Schluessel kommt kein Webhook, und die Kopie fehlte
+ * sonst fuer immer.
+ */
+export async function saveSignedDocument(
+  supabase: SupabaseClient,
+  envelopeId: string,
+  ids: Pick<ApplyResult, 'mandateId' | 'frameworkId'>,
+) {
+  const cfg = docusignConfig();
+  if (!cfg) return;
+  try {
+    const bytes = await completedDocument(cfg, envelopeId);
+    const pfad = `${ids.mandateId ?? ids.frameworkId}/${envelopeId}-signiert.pdf`;
+    await supabase.storage.from('mandate-documents')
+      .upload(pfad, bytes, { contentType: 'application/pdf', upsert: true });
+
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const sha = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0')).join('');
+
+    if (ids.mandateId) {
+      await supabase.from('commercial_mandates')
+        .update({ signed_document_path: pfad }).eq('id', ids.mandateId);
+    }
+    if (ids.frameworkId) {
+      await supabase.from('client_framework_agreements')
+        .update({ signed_document_path: pfad, signed_document_sha256: sha })
+        .eq('id', ids.frameworkId);
+    }
+  } catch (e) {
+    // Der Vertrag ist wirksam -- das haengt nicht daran, ob wir die
+    // Kopie schon abgelegt haben. Nur vermerken.
+    console.warn('[docusign-apply] Dokument nicht gesichert:',
+      e instanceof Error ? e.message : e);
+  }
 }

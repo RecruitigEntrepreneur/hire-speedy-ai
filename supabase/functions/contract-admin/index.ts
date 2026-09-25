@@ -3,6 +3,7 @@ import { preflight, json, fail } from '../_shared/http.ts';
 import { contentHash } from '../_shared/tokens.ts';
 import { serviceClient, logEvent } from '../_shared/intake-core.ts';
 import { requireAdmin } from '../_shared/admin-auth.ts';
+import { afterCountersign } from '../_shared/docusign-apply.ts';
 
 /**
  * contract-admin — Rahmenvertrag und Einzelauftrag durch den Unterschriftslauf.
@@ -317,6 +318,9 @@ serve(async (req) => {
         type: 'contract_countersigned', draftId: data.draft_id, actorUserId: adminId,
         meta: { mandate: data.mandate_number },
       });
+      // Derselbe Schritt wie nach der Gegenzeichnung in DocuSign: der Kunde
+      // bekommt seinen Zugang (Entscheidung 25.09.2026).
+      if (data.draft_id) await afterCountersign(data.draft_id, adminId);
       return json({ ok: true, mandate: data, publishable: true });
     }
 

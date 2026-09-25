@@ -6,7 +6,46 @@ import { serviceClient, logEvent, resolveTemplate, effectiveTerms, issueDraftTok
 import { draftToJobRow, draftSummary } from '../_shared/intake-mapping.ts';
 import { requireAdmin, isServiceRole } from '../_shared/admin-auth.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
-import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
+import { intakeResumeUrl } from '../_shared/app-url.ts';
+import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess } from '../_shared/client-access.ts';
+
+type Db = ReturnType<typeof serviceClient>;
+
+/**
+ * Die Zugangsmail zum Auftrag (client-access.ts). Sie geht mit der
+ * Gegenzeichnung raus, nicht mit der Annahme: erst dann ist der Auftrag
+ * wirksam (Entscheidung 25.09.2026). Nimmt der Admin vorher an, folgt sie über
+ * `after_countersign`. `force` ist der Admin-Knopf „erneut senden“.
+ */
+async function deliverAccess(supabase: Db, draft: Record<string, any>, mandate: Record<string, any>,
+  userId: string, jobId: string | null, opts: { force?: boolean } = {}) {
+  const signed = Boolean(mandate.countersigned_at);
+  if (!signed && mandate.signature_status !== 'not_required' && !opts.force) {
+    return { sent: false, waiting: 'countersignature' as const };
+  }
+  // An die Adresse des Kontos: nur für sie öffnet der Link die Anmeldung.
+  const { data } = await supabase.auth.admin.getUserById(userId);
+  const result = await sendClientAccess(supabase, {
+    userId, email: data?.user?.email ?? draft.contact_email, name: draft.contact_name ?? null,
+    title: draftSummary(draft).title, mandateNumber: mandate.mandate_number ?? null,
+    signed: signed || mandate.signature_status === 'not_required',
+    mandateId: mandate.id, draftId: draft.id, jobId,
+  }, { resend: opts.force });
+  // Automatisch verschickt und gescheitert: sonst merkt es niemand, und der Kunde
+  // wartet. Beim Admin-Knopf sieht der Admin den Fehler direkt.
+  if (!result.sent && !result.already && !opts.force) {
+    await notifyAccessProblem(supabase, draft, { kind: 'failed', error: result.error });
+  }
+  return result;
+}
+
+/** Headhunter-Konto unter der Kundenadresse? Dann nichts still übernehmen. */
+async function isRecruiterAccount(supabase: Db, userId: string) {
+  const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId);
+  return (data ?? []).some((r: { role: string }) => r.role === 'recruiter');
+}
+const RECRUITER_ACCOUNT = (email: string) =>
+  `Die Adresse ${email} gehört zu einem Headhunter-Konto. Unter „Zugang des Kunden“ als Kunde umstellen, dann geht der Zugang raus.`;
 
 /**
  * intake-admin — Pruefung, Annahme und Vertragslauf einer Beauftragungsanfrage.
@@ -51,6 +90,12 @@ serve(async (req) => {
 
     const summary = draftSummary(draft);
 
+    // Nach der Gegenzeichnung (docusign-apply, contract-admin): noch offen →
+    // annehmen; schon angenommen → nur noch den Zugang schicken.
+    let step = action === 'after_countersign'
+      ? (draft.review_state === 'pending_admin' ? 'accept' : 'send_access')
+      : action;
+
     const currentMandate = async () => {
       const { data } = await supabase
         .from('commercial_mandates')
@@ -63,8 +108,22 @@ serve(async (req) => {
       return data;
     };
 
+    // ======================================================= Konto umstellen
+    // Der Ausweg aus „Headhunter-Konto unter der Kundenadresse“: Matchunt
+    // entscheidet, dass das Konto Kunde ist. Danach läuft, was die
+    // Gegenzeichnung ausgelöst hätte.
+    if (action === 'make_client') {
+      const account = await accountForEmail(supabase, draft.contact_email ?? '');
+      if (!account) return fail('not_found', 'Zu dieser Adresse gibt es kein Konto.');
+      if (!account.roles.includes('recruiter')) return fail('conflict', 'Das Konto ist kein Headhunter-Konto.');
+      const { error } = await supabase.from('user_roles')
+        .update({ role: 'client' }).eq('user_id', account.userId).eq('role', 'recruiter');
+      if (error) return fail('internal_error', error.message);
+      step = draft.review_state === 'pending_admin' ? 'accept' : 'send_access';
+    }
+
     // ==================================================================== accept
-    if (action === 'accept') {
+    if (step === 'accept') {
       if (draft.review_state !== 'pending_admin') {
         return fail('conflict', `Die Aufnahme steht auf "${draft.review_state}".`);
       }
@@ -84,6 +143,15 @@ serve(async (req) => {
         const { data: profile } = await supabase
           .from('profiles').select('user_id').ilike('email', draft.contact_email).maybeSingle();
         clientUserId = profile?.user_id ?? null;
+      }
+
+      // Headhunter-Konto unter der Kundenadresse: nichts still übernehmen. Die
+      // Stelle hinge an einem Headhunter-Konto, und die Anmeldung führte zur
+      // Headhunter-Vertragsseite (Kanna Medics, 25.09.2026). Ist schon
+      // gegengezeichnet, wartet der Kunde -- dann bekommt Matchunt Bescheid.
+      if (clientUserId && await isRecruiterAccount(supabase, clientUserId)) {
+        if (mandate.countersigned_at) await notifyAccessProblem(supabase, draft, { kind: 'held' });
+        return fail('conflict', RECRUITER_ACCOUNT(draft.contact_email), { code: 'recruiter_account' });
       }
 
       if (!clientUserId) {
@@ -143,80 +211,68 @@ serve(async (req) => {
         return fail('internal_error', rpcErr.message);
       }
 
-      // ---- Zugangslink ------------------------------------------------------
-      // Ein serverseitig angelegtes Konto hat kein Passwort. Ohne diesen Link
-      // bekaeme der Kunde eine Zusage und stuende vor einer verschlossenen Tuer:
-      // im Projekt existiert keine "Passwort vergessen"-Strecke.
-      let accessLink: string | null = null;
-      if (accountCreated) {
-        const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
-          type: 'recovery',
-          email: draft.contact_email,
-          options: { redirectTo: `${getPublicAppUrl()}/passwort` },
-        });
-        if (linkErr) console.warn('[intake-admin] Zugangslink nicht erzeugt:', linkErr.message);
-        accessLink = linkData?.properties?.action_link ?? null;
+      // ---- Zugang des Kunden --------------------------------------------------
+      // Neu angelegt oder schon vorhanden: der Kunde bekommt denselben Weg
+      // hinein, einen persönlichen Link auf /anmelden. Der frühere
+      // Passwort-Link galt nur für neue Konten und nur kurz.
+      const access = await deliverAccess(supabase, draft, mandate, clientUserId!, jobId as string | null);
+
+      return json({ ok: true, job_id: jobId, client_user_id: clientUserId, account_created: accountCreated, access_mail: access });
+    }
+
+    // ================================================= Zugang (erneut) senden
+    if (step === 'send_access' || action === 'resend_access') {
+      if (!draft.job_id) return fail('conflict', 'Die Aufnahme ist noch nicht angenommen.');
+      const mandate = await currentMandate();
+      if (!mandate) return fail('conflict', 'Zu dieser Aufnahme gibt es keinen Auftrag.');
+      const { data: job } = await supabase.from('jobs').select('client_id').eq('id', draft.job_id).maybeSingle();
+      if (!job?.client_id) return fail('conflict', 'Zur Stelle gibt es kein Kundenkonto.');
+      if (await isRecruiterAccount(supabase, job.client_id)) {
+        if (mandate.countersigned_at) await notifyAccessProblem(supabase, draft, { kind: 'held' });
+        return fail('conflict', RECRUITER_ACCOUNT(draft.contact_email), { code: 'recruiter_account' });
       }
+      const force = action === 'resend_access';
+      const access = await deliverAccess(supabase, draft, mandate, job.client_id, draft.job_id, { force });
+      if (force && !access.sent) {
+        return fail('upstream_error', `Die Mail konnte nicht versendet werden (${'error' in access ? access.error ?? 'unbekannt' : 'unbekannt'}).`);
+      }
+      return json({ ok: true, access_mail: access });
+    }
 
-      // ---- Kunde informieren ------------------------------------------------
-      const requiresSignature = mandate.signature_status !== 'not_required';
-      const html = layout({
-        preheader: 'Wir haben Ihre Beauftragung angenommen.',
-        heading: 'Wir haben Ihren Auftrag angenommen',
-        body: `
-          <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name)},</p>
-          <p style="margin:0 0 16px 0;">
-            wir haben Ihre Anfrage für <strong>${esc(summary.title)}</strong> geprüft und angenommen.
-            Vorgangsnummer <strong>${esc(mandate.mandate_number)}</strong>.
-          </p>
-          ${
-            /* Der Vertrag geht seit dem 02.09.2026 unmittelbar nach der Anfrage
-               raus, nicht mehr nach der Annahme. Der alte Text kuendigte ihm
-               etwas an, das er laengst erledigt hatte. */
-            mandate.countersigned_at
-              ? `<p style="margin:0 0 16px 0;">
-                   Rahmenvertrag und Einzelauftrag liegen <strong>beidseitig unterzeichnet</strong> vor.
-                   Wir geben die Position nun für unsere Recruiter frei und die Suche beginnt.
-                 </p>`
-              : mandate.customer_signed_at
-              ? `<p style="margin:0 0 16px 0;">
-                   Ihre Unterschrift liegt vor. Sobald wir gegengezeichnet haben, geben wir die
-                   Position für unsere Recruiter frei und die Suche beginnt.
-                 </p>`
-              : requiresSignature
-              ? `<p style="margin:0 0 16px 0;">
-                   Sie erhalten den Vertrag zur digitalen Unterschrift. Sobald beide Seiten
-                   unterzeichnet haben, geben wir die Position für unsere Recruiter frei
-                   und die Suche beginnt.
-                 </p>`
-              : `<p style="margin:0 0 16px 0;">Wir geben die Position jetzt für unsere Recruiter frei.</p>`
-          }
-          ${
-            accountCreated
-              ? `<p style="margin:0 0 16px 0;">
-                   Für Sie wurde ein Zugang angelegt (${esc(draft.contact_email)}). Dort sehen Sie
-                   jederzeit den Stand Ihrer Position und die eingehenden Kandidaten.
-                   ${accessLink ? 'Über den Knopf unten vergeben Sie Ihr Passwort.' : 'Ihr Ansprechpartner sendet Ihnen den Zugangslink zu.'}
-                 </p>`
-              : ''
-          }`,
-        cta: accountCreated && accessLink
-          ? { label: 'Zugang einrichten', url: accessLink }
-          : { label: 'Zum Dashboard', url: `${getPublicAppUrl()}/auth` },
-        footnote: accountCreated && accessLink
-          ? 'Der Zugangslink ist aus Sicherheitsgründen nur begrenzt gültig. Ist er abgelaufen, melden Sie sich kurz bei uns — wir senden einen neuen.'
-          : undefined,
+    // ======================================================= Zugang ansehen
+    // Für den Block „Zugang des Kunden“: Konto, Rolle, erste Anmeldung, Mail.
+    if (action === 'access_status') {
+      const mandate = await currentMandate();
+      let userId: string | null = null;
+      if (draft.job_id) {
+        const { data: job } = await supabase.from('jobs').select('client_id').eq('id', draft.job_id).maybeSingle();
+        userId = job?.client_id ?? null;
+      }
+      const found = userId ? null : await accountForEmail(supabase, draft.contact_email ?? '');
+      userId = userId ?? found?.userId ?? null;
+      let account: Record<string, unknown> | null = null;
+      if (userId) {
+        const [{ data: auth }, { data: roles }] = await Promise.all([
+          supabase.auth.admin.getUserById(userId),
+          supabase.from('user_roles').select('role').eq('user_id', userId),
+        ]);
+        account = {
+          user_id: userId,
+          email: auth?.user?.email ?? null,
+          roles: (roles ?? []).map((r: { role: string }) => r.role),
+          created_at: auth?.user?.created_at ?? null,
+          last_sign_in_at: auth?.user?.last_sign_in_at ?? null,
+          password_set_at: auth?.user?.user_metadata?.password_set_at ?? null,
+        };
+      }
+      return json({
+        ok: true,
+        account,
+        mail: mandate ? await lastAccessMail(supabase, mandate.id) : null,
+        countersigned: Boolean(mandate?.countersigned_at),
+        signature_required: mandate ? mandate.signature_status !== 'not_required' : true,
+        accepted: Boolean(draft.job_id),
       });
-
-      await sendIntakeMail(supabase, {
-        to: draft.contact_email,
-        subject: `Auftrag angenommen — ${mandate.mandate_number}`,
-        html,
-        template: 'intake_accepted',
-        meta: { draft_id: draftId, job_id: jobId, mandate_id: mandate.id },
-      });
-
-      return json({ ok: true, job_id: jobId, client_user_id: clientUserId, account_created: accountCreated });
     }
 
     // ================================================== reject / request_changes

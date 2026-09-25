@@ -1,11 +1,12 @@
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
-import { hashToken, hashCode, generateNumericCode, timingSafeEqual } from './tokens.ts';
+import { hashToken } from './tokens.ts';
 import { checkLimits, LIMITS, type LimitResult, type LimitRule } from './intake-limits.ts';
 import { sendIntakeMail, layout, esc } from './intake-mail.ts';
 import { isPlausibleEmail, maskEmail } from './domain.ts';
 import { normalizeEmail } from './recruiter-contract-policy.ts';
 import { must, dbError, type OnboardingCase } from './recruiter-onboarding-service.ts';
 import { checkLoginLink } from './recruiter-login-link.ts';
+import { CODE_LENGTH, CODE_PATTERN, storeCode, redeemCode, type SessionDeps } from './login-code.ts';
 
 /**
  * Anmeldung per Code statt Konto.
@@ -39,18 +40,12 @@ import { checkLoginLink } from './recruiter-login-link.ts';
 
 export type CaseStatus = 'open' | 'claimed' | 'expired' | 'revoked';
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-export const CODE_LENGTH = 6;
-export const CODE_TTL_MINUTES = 60;
-export const CODE_MAX_ATTEMPTS = 5;
-export const CODE_PATTERN = /^\d{6}$/;
+export { CODE_LENGTH, CODE_TTL_MINUTES, CODE_MAX_ATTEMPTS, CODE_PATTERN } from './login-code.ts';
 const CODE_KEY = 'recruiter_code';
-interface StoredCode { hash: string; expires_at: string; attempts: number }
 
-export interface CodeDeps {
+export interface CodeDeps extends SessionDeps {
   limits: (db: SupabaseClient, rules: LimitRule[]) => Promise<LimitResult>;
   mail: typeof sendIntakeMail;
-  fetch: typeof fetch;
-  env: (key: string) => string | undefined;
 }
 export const liveDeps = (): CodeDeps => ({
   limits: checkLimits,
@@ -169,12 +164,8 @@ export async function sendCode(db: SupabaseClient, body: Identity & { ip: string
   } else {
     userId = (await ensureUser(db, target.email, target.name)).id;
   }
-  const code = generateNumericCode(CODE_LENGTH);
-  const stored: StoredCode = { hash: await hashCode(target.email, code), expires_at: new Date(Date.now() + CODE_TTL_MINUTES * 60000).toISOString(), attempts: 0 };
-  // Ein neuer Code ersetzt den alten: es ist immer nur einer gültig.
-  const saved = await db.auth.admin.updateUserById(userId, { app_metadata: { [CODE_KEY]: stored } });
-  if (saved.error) console.error('[recruiter-code] Code nicht gespeichert', saved.error.status ?? '');
-  must(!saved.error, 'Der Code konnte nicht erzeugt werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
+  const code = await storeCode(db, userId, target.email, CODE_KEY);
+  must(code, 'Der Code konnte nicht erzeugt werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
   const result = await deps.mail(db, {
     to: target.email,
     subject: `${code} ist dein Matchunt-Code`,
@@ -205,31 +196,10 @@ export async function verifyCode(db: SupabaseClient, body: Identity & { code?: u
   must(limit.allowed, 'Zu viele Versuche. Warte einen Moment und fordere dann einen neuen Code an.', 'rate_limited');
   // Anmeldeseite: Ohne bestehendes Headhunter-Konto gibt es nichts zu prüfen und nichts anzulegen.
   if (loginMode(body)) must(await findRecruiter(db, target.email), 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
-  // Konto samt gespeichertem Code holen; das Einmal-Token wird gleich zur Sitzung.
-  const link = await db.auth.admin.generateLink({ type: 'magiclink', email: target.email });
-  const user = link.data?.user;
-  const tokenHash = link.data?.properties?.hashed_token;
-  must(!link.error && user && tokenHash, 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
-  const stored = (user.app_metadata as Record<string, unknown> | undefined)?.[CODE_KEY] as StoredCode | undefined;
-  const usable = !!stored && typeof stored.hash === 'string' && Date.parse(stored.expires_at) > Date.now() && stored.attempts < CODE_MAX_ATTEMPTS;
-  if (!usable || !timingSafeEqual(stored.hash, await hashCode(target.email, code))) {
-    // Fehlversuch zählen; ein abgelaufener oder verbrauchter Code wird entfernt.
-    const attempts = usable ? stored.attempts + 1 : CODE_MAX_ATTEMPTS;
-    const remaining = usable && attempts < CODE_MAX_ATTEMPTS;
-    await db.auth.admin.updateUserById(user.id, { app_metadata: { [CODE_KEY]: remaining ? { ...stored, attempts } : null } });
-    must(false, usable && !remaining ? 'Zu oft falsch eingegeben. Fordere bitte einen neuen Code an.' : 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
-  }
-  const cleared = await db.auth.admin.updateUserById(user.id, { app_metadata: { [CODE_KEY]: null } });
-  must(!cleared.error, 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
-  // Serverseitig, damit die Adresse bei Einladungen im Browser nie auftaucht.
-  const res = await deps.fetch(`${url}/auth/v1/verify`, {
-    method: 'POST',
-    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'magiclink', token_hash: tokenHash }),
-    signal: AbortSignal.timeout(15000),
-  });
-  const session = res.ok ? await res.json().catch(() => null) : null;
-  if (!session?.access_token) console.error('[recruiter-code] Sitzung nicht ausgestellt', res.status);
-  must(session?.access_token && session?.refresh_token, 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte fordere einen neuen Code an.', 'upstream_error');
-  return { access_token: session.access_token as string, refresh_token: session.refresh_token as string, expires_in: session.expires_in ?? null };
+  const result = await redeemCode(db, target.email, code, CODE_KEY, deps);
+  if (result.ok) return result.session;
+  must(result.failure !== 'exhausted', 'Zu oft falsch eingegeben. Fordere bitte einen neuen Code an.');
+  must(result.failure !== 'wrong', 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
+  must(result.failure !== 'unsaved', 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
+  must(false, 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte fordere einen neuen Code an.', 'upstream_error');
 }

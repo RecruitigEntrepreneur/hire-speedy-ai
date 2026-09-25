@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useClientGuide } from '@/components/recruiter/guide/RecruiterGuide';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { FIRST_VISIT_PARAM } from '@/lib/clientLogin';
 import { Compass, RefreshCw } from 'lucide-react';
 
 function getGreeting(): string {
@@ -31,8 +33,12 @@ export default function ClientDashboard() {
 
   /* Rundgang (lib/clientGuide.ts): startet von selbst nur für NEUE Kunden --
      Konten ohne jede Stelle, auch ohne Entwurf. Bestehende Kunden erreichen
-     ihn über den Knopf "Rundgang" (Entscheidung 24.09.2026). */
+     ihn über den Knopf "Rundgang" (Entscheidung 24.09.2026). Seit 25.09.2026
+     auch bei der ersten Anmeldung über /anmelden: Kunden aus der Jobaufnahme
+     haben dann schon eine Stelle. */
   const guide = useClientGuide();
+  const [searchParams] = useSearchParams();
+  const ersterBesuch = searchParams.has(FIRST_VISIT_PARAM);
   const { data: stellenAnzahl } = useQuery({
     queryKey: ['client-guide-job-count', user?.id],
     enabled: !!user?.id,
@@ -44,8 +50,8 @@ export default function ClientDashboard() {
     },
   });
   useEffect(() => {
-    if (!isLoading && stellenAnzahl === 0) guide.offer();
-  }, [isLoading, stellenAnzahl, guide]);
+    if (!isLoading && (stellenAnzahl === 0 || ersterBesuch)) guide.offer();
+  }, [isLoading, stellenAnzahl, ersterBesuch, guide]);
 
   const rawName = String(
     (user?.user_metadata as { full_name?: string } | undefined)?.full_name || user?.email?.split('@')[0] || '',

@@ -60,6 +60,9 @@ serve(async (req) => {
       return fail('not_found', 'Zu diesem Vorgang liegt noch kein Umschlag vor.');
     }
 
+    // Zaehlt fuer die 15-Minuten-Regel von DocuSign mit (docusign-sync).
+    await supabase.from('commercial_mandates')
+      .update({ envelope_last_synced_at: new Date().toISOString() }).eq('envelope_id', envelopeId);
     const stand = await envelopeStatus(cfg, envelopeId);
     const signers = (stand?.recipients?.signers ?? []) as SignerState[];
     const ergebnis = await applyEnvelopeState(supabase, envelopeId, signers);

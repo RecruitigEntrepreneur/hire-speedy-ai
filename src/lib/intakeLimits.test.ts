@@ -24,6 +24,8 @@ const ALLE: Record<string, LimitRule[]> = {
   recruiterCode: LIMITS.recruiterCode('a@b.de', '1.2.3.4'),
   recruiterVerify: LIMITS.recruiterVerify('a@b.de', '1.2.3.4'),
   recruiterEnrich: LIMITS.recruiterEnrich('draft-1', '1.2.3.4'),
+  clientCode: LIMITS.clientCode('a@b.de', '1.2.3.4'),
+  clientVerify: LIMITS.clientVerify('a@b.de', '1.2.3.4'),
 };
 
 describe('Zähler der Aufnahme', () => {

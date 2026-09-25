@@ -174,6 +174,8 @@ export async function createEnvelope(c: DocuSignConfig, args: {
   signers: Signer[];
   /** Landet unveraendert in den Webhook-Ereignissen -- unser Rueckbezug. */
   customFields?: Record<string, string>;
+  /** Connect je Umschlag (recruiter-connect.ts); ohne HMAC-Schluessel leer. */
+  eventNotification?: Record<string, unknown>;
 }): Promise<EnvelopeResult> {
   const token = await accessToken(c);
 
@@ -218,6 +220,7 @@ export async function createEnvelope(c: DocuSignConfig, args: {
           })),
         }
       : undefined,
+    eventNotification: args.eventNotification,
     status: 'sent',
   };
 

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { IntakeAccess } from '@/lib/clientAccessState';
 
 /**
  * Aus einem Edge-Function-Fehler eine Meldung machen, mit der man etwas
@@ -218,8 +219,46 @@ export function useIntakeAction(draftId: string | undefined) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });
+      qc.invalidateQueries({ queryKey: ['admin-intake-access', draftId] });
       qc.invalidateQueries({ queryKey: ['admin-intakes'] });
       qc.invalidateQueries({ queryKey: ['admin-intake-counts'] });
+    },
+  });
+}
+
+/** Zugang des Kunden: Konto, Rolle, letzte Zugangsmail (lib/clientAccessState.ts). */
+export function useIntakeAccess(draftId: string | undefined) {
+  return useQuery({
+    queryKey: ['admin-intake-access', draftId],
+    enabled: Boolean(draftId),
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('intake-admin', {
+        body: { action: 'access_status', draft_id: draftId },
+      });
+      if (error) throw await describeFunctionError(error);
+      return data as IntakeAccess;
+    },
+  });
+}
+
+/**
+ * Den Stand des Umschlags bei DocuSign holen (docusign-status). Erkennt die
+ * Gegenzeichnung, falls DocuSign sie nicht gemeldet hat; danach laufen Annahme
+ * und Zugangsmail von selbst.
+ */
+export function useSignatureRefresh(draftId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('docusign-status', { body: { draft_id: draftId } });
+      if (error) throw await describeFunctionError(error);
+      if (data && typeof data === 'object' && 'reason' in data) throw new Error((data as { message?: string }).message);
+      return data as { summary: string; countersigned: boolean };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });
+      qc.invalidateQueries({ queryKey: ['admin-intake-access', draftId] });
+      qc.invalidateQueries({ queryKey: ['admin-intakes'] });
     },
   });
 }
@@ -244,6 +283,8 @@ export function useContractAction(draftId: string | undefined) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-intake', draftId] });
+      // Die Gegenzeichnung schickt dem Kunden den Zugang.
+      qc.invalidateQueries({ queryKey: ['admin-intake-access', draftId] });
       qc.invalidateQueries({ queryKey: ['admin-intakes'] });
     },
   });

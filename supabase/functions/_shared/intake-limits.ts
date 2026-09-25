@@ -189,6 +189,15 @@ export const LIMITS = {
     { zweck: 'hh-code-eingabe', scope: 'email', key: email, limit: 30  },
     { zweck: 'hh-code-eingabe', scope: 'ip',    key: ip,    limit: 100 },
   ],
+  /** Kundenanmeldung per Code (/anmelden): dieselben Deckel wie bei Headhuntern, eigener Topf. */
+  clientCode: (email: string, ip: string | null): LimitRule[] => [
+    { zweck: 'kunde-code-senden', scope: 'email', key: email, limit: 4,  windowSeconds: 15 * 60 },
+    { zweck: 'kunde-code-senden', scope: 'ip',    key: ip,    limit: 20, windowSeconds: 15 * 60 },
+  ],
+  clientVerify: (email: string, ip: string | null): LimitRule[] => [
+    { zweck: 'kunde-code-eingabe', scope: 'email', key: email, limit: 30  },
+    { zweck: 'kunde-code-eingabe', scope: 'ip',    key: ip,    limit: 100 },
+  ],
   /** Impressum lesen: Firecrawl und KI kosten Geld; ein Vorgang braucht das ein-, zweimal. */
   recruiterEnrich: (caseId: string, ip: string | null): LimitRule[] => [
     { zweck: 'hh-impressum', scope: 'draft', key: caseId, limit: 6  },
