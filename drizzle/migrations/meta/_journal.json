@@ -57,6 +57,13 @@
       "when": 1790422234865,
       "tag": "0007_cron_token_docusign_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790424230689,
+      "tag": "0008_firmenprofil_aus_aufnahme",
+      "breakpoints": true
     }
   ]
 }

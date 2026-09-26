@@ -3260,10 +3260,13 @@ export type Database = {
           created_at: string
           culture_values: Json | null
           description: string | null
+          employer_selling_points: Json | null
+          excluded_companies: string[] | null
           founded_year: number | null
           headcount: number | null
           id: string
           industry: string | null
+          intake_source: Json | null
           last_enriched_at: string | null
           legal_name: string | null
           logo_url: string | null
@@ -3278,6 +3281,7 @@ export type Database = {
           show_team_size_in_opt_in: boolean | null
           street: string | null
           tagline: string | null
+          target_companies: string[] | null
           tax_id: string | null
           team_size_range: string | null
           unique_selling_point: string | null
@@ -3299,10 +3303,13 @@ export type Database = {
           created_at?: string
           culture_values?: Json | null
           description?: string | null
+          employer_selling_points?: Json | null
+          excluded_companies?: string[] | null
           founded_year?: number | null
           headcount?: number | null
           id?: string
           industry?: string | null
+          intake_source?: Json | null
           last_enriched_at?: string | null
           legal_name?: string | null
           logo_url?: string | null
@@ -3317,6 +3324,7 @@ export type Database = {
           show_team_size_in_opt_in?: boolean | null
           street?: string | null
           tagline?: string | null
+          target_companies?: string[] | null
           tax_id?: string | null
           team_size_range?: string | null
           unique_selling_point?: string | null
@@ -3338,10 +3346,13 @@ export type Database = {
           created_at?: string
           culture_values?: Json | null
           description?: string | null
+          employer_selling_points?: Json | null
+          excluded_companies?: string[] | null
           founded_year?: number | null
           headcount?: number | null
           id?: string
           industry?: string | null
+          intake_source?: Json | null
           last_enriched_at?: string | null
           legal_name?: string | null
           logo_url?: string | null
@@ -3356,6 +3367,7 @@ export type Database = {
           show_team_size_in_opt_in?: boolean | null
           street?: string | null
           tagline?: string | null
+          target_companies?: string[] | null
           tax_id?: string | null
           team_size_range?: string | null
           unique_selling_point?: string | null
