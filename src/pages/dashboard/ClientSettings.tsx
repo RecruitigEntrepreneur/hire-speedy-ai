@@ -101,6 +101,13 @@ export default function ClientSettings() {
     }
   }, [user]);
 
+  // Aus „Ihr Start bei Matchunt“ (Firmendaten ergänzen) direkt zum Abschnitt.
+  useEffect(() => {
+    if (!loading && window.location.hash === '#firmendaten') {
+      document.getElementById('firmendaten')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loading]);
+
   const fetchCompanyProfile = async () => {
     try {
       const { data, error } = await supabase
@@ -358,7 +365,7 @@ export default function ClientSettings() {
 
               {/* Firmendaten: stehen auf der Vereinbarung und werden in der
                   Positionsaufnahme nur noch angezeigt, nicht mehr abgefragt. */}
-              <div className="space-y-4">
+              <div id="firmendaten" className="scroll-mt-24 space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm font-semibold">Firmendaten</h3>
                   <span className="text-xs text-muted-foreground">— stehen auf Ihrem Rahmenvertrag</span>

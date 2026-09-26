@@ -85,7 +85,6 @@ import AdminAcademyCourse from "./pages/admin/AdminAcademyCourse";
 import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 
 // Onboarding
-import ClientOnboarding from "./pages/onboarding/ClientOnboarding";
 import RecruiterAccessGate from "./components/verification/RecruiterAccessGate";
 import { AppClientGuide, AppRecruiterGuide } from "./components/recruiter/guide/RecruiterGuide";
 
@@ -521,11 +520,10 @@ function AppRoutes() {
       {/* Onboarding */}
       <Route path="/recruiter/login" element={<Suspense fallback={<RouteFallback />}><RecruiterLogin /></Suspense>} />
       <Route path="/recruiter/invitation" element={<Suspense fallback={<RouteFallback />}><RecruiterInvitation /></Suspense>} />
-      <Route path="/onboarding" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <ClientOnboarding />
-        </ProtectedRoute>
-      } />
+      {/* Das alte Kunden-Onboarding (AGB, getippte Unterschrift, KYC) ist
+          abgeloest: Vertrag per DocuSign ueber die erste Position, der Stand
+          steht im Dashboard unter „Ihr Start bei Matchunt“. */}
+      <Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
       <Route path="/recruiter/onboarding" element={<Suspense fallback={<RouteFallback />}><RecruiterInvitation /></Suspense>} />
       
 

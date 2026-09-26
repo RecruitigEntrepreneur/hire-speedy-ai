@@ -1,7 +1,7 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { VerificationStatusBanner } from '@/components/verification/VerificationStatusBanner';
+import { ClientStartChecklist } from '@/components/dashboard/ClientStartChecklist';
 import { PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
 import { AktiveJobsTile } from '@/components/dashboard/bento/AktiveJobsTile';
@@ -75,8 +75,10 @@ export default function ClientDashboard() {
   return (
     <DashboardLayout fluid>
       <div className="space-y-6">
-        {/* Verification Banner */}
-        <VerificationStatusBanner />
+        {/* Ihr Start bei Matchunt: Vertrag, erste Position, Firmendaten, Rundgang
+            (lib/clientStart.ts). Ersetzt den alten Kasten „Verifikation
+            erforderlich“, der AGB und KYC aus dem früheren Onboarding verlangte. */}
+        <ClientStartChecklist onTour={() => guide.start()} />
 
         {/* Header / Begrüßung */}
         <div className="flex flex-wrap items-start justify-between gap-3">

@@ -38,19 +38,15 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
 
-  const [justSignedUp, setJustSignedUp] = useState(false);
-
   useEffect(() => {
     if (user && role) {
-      // Redirect new clients to onboarding
-      if (justSignedUp && role === 'client') {
-        navigate('/onboarding');
-        return;
-      }
+      // Neue Kunden landen im Dashboard: „Ihr Start bei Matchunt“ zeigt dort den
+      // Weg über die erste Position. Das alte Onboarding (AGB, getippte
+      // Unterschrift, KYC) gibt es nicht mehr.
       const dashboardPath = role === 'admin' ? '/admin' : role === 'recruiter' ? '/recruiter' : '/dashboard';
       navigate(dashboardPath);
     }
-  }, [user, role, navigate, justSignedUp]);
+  }, [user, role, navigate]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; fullName?: string } = {};
@@ -103,9 +99,6 @@ export default function Auth() {
           }
         } else {
           toast.success(t('auth.toast.signupSuccess'));
-          if (selectedRole === 'client') {
-            setJustSignedUp(true);
-          }
         }
       } else {
         const { error } = await signIn(email, password);
