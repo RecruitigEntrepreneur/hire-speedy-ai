@@ -43,6 +43,20 @@
       "when": 1790421535373,
       "tag": "0005_vertragswerk_v2_contracting",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790422204050,
+      "tag": "0006_framework_org_once",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790422234865,
+      "tag": "0007_cron_token_docusign_sync",
+      "breakpoints": true
     }
   ]
 }
