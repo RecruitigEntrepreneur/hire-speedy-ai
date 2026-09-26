@@ -9,6 +9,7 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeResumeUrl } from '../_shared/app-url.ts';
 import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess } from '../_shared/client-access.ts';
 import { linkFramework, notifyFrameworkConflict } from '../_shared/framework-link.ts';
+import { firmenprofilAusAufnahme } from '../_shared/firmenprofil.ts';
 
 type Db = ReturnType<typeof serviceClient>;
 
@@ -240,6 +241,13 @@ serve(async (req) => {
           .select('agreement_number').eq('id', mandate.framework_agreement_id).maybeSingle();
         await notifyFrameworkConflict(supabase, draft, { own: rv?.agreement_number ?? 'Rahmenvertrag', other: verknuepft.other });
       }
+
+      // ---- Firmenprofil aus der Aufnahme ---------------------------------------
+      // Vorher entstand kein Profil: der Start-Kasten meldete "Firmendaten
+      // fehlt", obwohl der Kunde alles angegeben hatte (Befund 26.09.2026).
+      // Nur leere Felder, nie ueberschreiben (firmenprofil.ts).
+      const profilRes = await firmenprofilAusAufnahme(supabase, clientUserId!, draft, jobRow);
+      if (profilRes.fehler) console.warn('[intake-admin] Firmenprofil nicht gefuellt:', profilRes.fehler);
 
       // ---- Zugang des Kunden --------------------------------------------------
       // Neu angelegt oder schon vorhanden: der Kunde bekommt denselben Weg

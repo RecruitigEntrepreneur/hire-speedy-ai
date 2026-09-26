@@ -12,6 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import { ProfileCompletenessCard } from '@/components/client/ProfileCompletenessCard';
 import { firmendatenAus, joinAddress } from '@/lib/firmendaten';
 import {
+  ARBEITGEBER_FELDER, arbeitgeberVorschlaege, listeAus, type VorschlagStelle,
+} from '@/lib/arbeitgeberVorschlaege';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,6 +32,7 @@ import {
   Users,
   TrendingUp,
   Calendar,
+  HeartHandshake,
 } from 'lucide-react';
 
 interface CompanyProfile {
@@ -53,7 +57,22 @@ interface CompanyProfile {
   founded_year: number | null;
   unique_selling_point: string | null;
   company_awards: string[] | null;
+  // Arbeitgeberprofil (Variante B, 26.09.2026) -- Listen, beim Tippen roh
+  // mit leeren Zeilen, beim Speichern bereinigt.
+  culture_values?: unknown;
+  employer_selling_points?: unknown;
+  benefits?: unknown;
+  target_companies?: unknown;
+  excluded_companies?: unknown;
+  /** Welche Felder aus der Aufnahme kamen (Migration 20260926170000). */
+  intake_source?: { draft_id?: string | null; at?: string; fields?: string[] } | null;
 }
+
+/** Die still aus der Aufnahme übernommenen Felder -- markiert, bis der Kunde sie ändert. */
+const HERKUNFT_FELDER = [
+  'company_name', 'legal_name', 'street', 'postal_code', 'city', 'registration_number',
+  'tax_id', 'website', 'industry', 'billing_email', 'headcount',
+] as const;
 
 const INDUSTRIES = [
   'Technologie',
@@ -74,6 +93,12 @@ export default function ClientSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const partnerFactsRef = useRef<HTMLDivElement>(null);
+  const arbeitgeberRef = useRef<HTMLDivElement>(null);
+  // Stand beim Laden: daran erkennt die Seite, ob ein Feld aus der Aufnahme
+  // noch unverändert ist ("aus Aufnahme") oder vom Kunden geändert wurde.
+  const [geladen, setGeladen] = useState<Record<string, unknown>>({});
+  // Die jüngste Stelle aus einer Aufnahme -- Quelle der Vorschläge.
+  const [stelle, setStelle] = useState<VorschlagStelle | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [verifiziertAm, setVerifiziertAm] = useState<string | null>(null);
@@ -128,7 +153,7 @@ export default function ClientSettings() {
       if (data) {
         // Die Felder kommen aus den neuen Spalten -- oder, solange es die live
         // noch nicht gibt, aus Adresszeile und Verifizierung.
-        setProfile({
+        const stand = {
           ...(data as any),
           legal_name: f.legal_name,
           street: f.street,
@@ -136,8 +161,20 @@ export default function ClientSettings() {
           city: f.city,
           registration_number: f.registration_number,
           tax_id: f.vat_id || null,
-        });
+        };
+        setProfile(stand);
+        setGeladen(stand);
       }
+
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('id, title, employment_type, company_culture, unique_selling_points, benefits, target_companies, nogo_companies')
+        .eq('client_id', user!.id)
+        .not('intake_draft_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setStelle((job as VorschlagStelle | null) ?? null);
     } catch (error) {
       console.error('Error fetching company profile:', error);
     } finally {
@@ -157,12 +194,27 @@ export default function ClientSettings() {
       const adresse = joinAddress({
         street: profile.street ?? '', postal_code: profile.postal_code ?? '', city: profile.city ?? '',
       }) || profile.address;
+      const liste = (v: unknown) => { const l = listeAus(v); return l.length ? l : null; };
+      // Ein geändertes Feld ist nicht mehr "aus Aufnahme".
+      const herkunft = profile.intake_source
+        ? {
+            ...profile.intake_source,
+            fields: (profile.intake_source.fields ?? []).filter(
+              (feld) => String((profile as any)[feld] ?? '') === String(geladen[feld] ?? '')),
+          }
+        : null;
       const neueFelder = {
         legal_name: profile.legal_name || null,
         street: profile.street || null,
         postal_code: profile.postal_code || null,
         city: profile.city || null,
         registration_number: profile.registration_number || null,
+        culture_values: liste(profile.culture_values),
+        employer_selling_points: liste(profile.employer_selling_points),
+        benefits: liste(profile.benefits),
+        target_companies: liste(profile.target_companies),
+        excluded_companies: liste(profile.excluded_companies),
+        intake_source: herkunft,
       };
       // HRB und USt-ID auch in der Verifizierung -- die gibt es live schon.
       await supabase
@@ -222,9 +274,14 @@ export default function ClientSettings() {
           .single();
 
         if (error) throw error;
-        setProfile(data);
+        // Firmierung, Anschrift und Arbeitgeberprofil gingen beim ersten
+        // Speichern bisher verloren -- der Insert kannte sie nicht.
+        const nach = await supabase.from('company_profiles').update({ ...neueFelder } as any).eq('id', data.id);
+        if (nach.error && !/column/i.test(nach.error.message ?? '')) throw nach.error;
+        setProfile({ ...profile, ...(data as any) });
       }
 
+      setGeladen({ ...profile });
       toast({ title: 'Einstellungen gespeichert' });
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -233,6 +290,14 @@ export default function ClientSettings() {
       setSaving(false);
     }
   };
+
+  const vorschlaege = arbeitgeberVorschlaege(stelle, profile as any);
+  // "aus Aufnahme": übernommen und seitdem nicht geändert.
+  const herkunft = (feld: (typeof HERKUNFT_FELDER)[number]) =>
+    profile.intake_source?.fields?.includes(feld)
+    && String((profile as any)[feld] ?? '') === String(geladen[feld] ?? '')
+      ? <span className="ml-1.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-normal text-emerald-600">aus Aufnahme</span>
+      : null;
 
   if (loading) {
     return (
@@ -251,6 +316,22 @@ export default function ClientSettings() {
             <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
             <p className="text-muted-foreground">Verwalten Sie Ihr Firmenprofil und Ihre Einstellungen</p>
           </div>
+
+          {/* Vorschläge aus der ersten Stelle (Variante B, 26.09.2026) */}
+          {vorschlaege.length > 0 && (
+            <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <p className="flex-1">
+                Aus Ihrer ersten Stelle haben wir{' '}
+                <strong>{vorschlaege.length === 1 ? 'einen Vorschlag' : `${vorschlaege.length} Vorschläge`}</strong>{' '}
+                für Ihr Arbeitgeberprofil. <span className="text-muted-foreground">Prüfen und übernehmen Sie sie unten.</span>
+              </p>
+              <Button size="sm" variant="outline"
+                      onClick={() => arbeitgeberRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                Ansehen
+              </Button>
+            </div>
+          )}
 
           {/* Profile Completeness Banner */}
           <ProfileCompletenessCard 
@@ -298,7 +379,7 @@ export default function ClientSettings() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="company_name">Firmenname *</Label>
+                  <Label htmlFor="company_name">Firmenname *{herkunft('company_name')}</Label>
                   <Input
                     id="company_name"
                     value={profile.company_name}
@@ -308,7 +389,7 @@ export default function ClientSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="industry">Branche</Label>
+                  <Label htmlFor="industry">Branche{herkunft('industry')}</Label>
                   <Select 
                     value={profile.industry || ''} 
                     onValueChange={(v) => setProfile({ ...profile, industry: v })}
@@ -317,15 +398,18 @@ export default function ClientSettings() {
                       <SelectValue placeholder="Branche auswählen" />
                     </SelectTrigger>
                     <SelectContent>
-                      {INDUSTRIES.map((ind) => (
-                        <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                      ))}
+                      {/* Die Aufnahme kennt freie Branchen ("Telemedizin") -- sonst
+                          bliebe die Auswahl leer, obwohl ein Wert gespeichert ist. */}
+                      {[...INDUSTRIES, ...(profile.industry && !INDUSTRIES.includes(profile.industry) ? [profile.industry] : [])]
+                        .map((ind) => (
+                          <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
+                  <Label htmlFor="website">Website{herkunft('website')}</Label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -339,7 +423,7 @@ export default function ClientSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="billing_email">Rechnungs-E-Mail</Label>
+                  <Label htmlFor="billing_email">Rechnungs-E-Mail{herkunft('billing_email')}</Label>
                   <Input
                     id="billing_email"
                     type="email"
@@ -410,34 +494,34 @@ export default function ClientSettings() {
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="legal_name">Vollständige Firmierung</Label>
+                    <Label htmlFor="legal_name">Vollständige Firmierung{herkunft('legal_name')}</Label>
                     <Input id="legal_name" value={profile.legal_name || ''} placeholder="Muster & Partner GmbH"
                            onChange={(e) => setProfile({ ...profile, legal_name: e.target.value })} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="street">Straße und Hausnummer</Label>
+                    <Label htmlFor="street">Straße und Hausnummer{herkunft('street')}</Label>
                     <Input id="street" value={profile.street || ''} placeholder="Musterstraße 1"
                            onChange={(e) => setProfile({ ...profile, street: e.target.value })} />
                   </div>
                   <div className="grid grid-cols-[7rem_1fr] gap-4 md:col-span-2">
                     <div className="space-y-2">
-                      <Label htmlFor="postal_code">PLZ</Label>
+                      <Label htmlFor="postal_code">PLZ{herkunft('postal_code')}</Label>
                       <Input id="postal_code" value={profile.postal_code || ''} placeholder="80331"
                              onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="city">Ort</Label>
+                      <Label htmlFor="city">Ort{herkunft('city')}</Label>
                       <Input id="city" value={profile.city || ''} placeholder="München"
                              onChange={(e) => setProfile({ ...profile, city: e.target.value })} />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="registration_number">Handelsregister</Label>
+                    <Label htmlFor="registration_number">Handelsregister{herkunft('registration_number')}</Label>
                     <Input id="registration_number" value={profile.registration_number || ''} placeholder="HRB 123456"
                            onChange={(e) => setProfile({ ...profile, registration_number: e.target.value })} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="tax_id">USt-IdNr.</Label>
+                    <Label htmlFor="tax_id">USt-IdNr.{herkunft('tax_id')}</Label>
                     <Input id="tax_id" value={profile.tax_id || ''} placeholder="DE123456789"
                            onChange={(e) => setProfile({ ...profile, tax_id: e.target.value })} />
                   </div>
@@ -465,7 +549,7 @@ export default function ClientSettings() {
                 <div className="space-y-2">
                   <Label htmlFor="headcount" className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    Mitarbeiteranzahl
+                    Mitarbeiteranzahl{herkunft('headcount')}
                   </Label>
                   <Input
                     id="headcount"
@@ -517,6 +601,53 @@ export default function ClientSettings() {
                   Was macht Ihr Unternehmen für Kandidaten besonders attraktiv?
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Arbeitgeberprofil (Variante B, 26.09.2026): was je nach Stelle
+              anders sein kann, wird aus der ersten Stelle nur VORGESCHLAGEN. */}
+          <Card ref={arbeitgeberRef} className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HeartHandshake className="h-5 w-5" />
+                Arbeitgeberprofil
+              </CardTitle>
+              <CardDescription>
+                Gilt für jede Stelle und hebt Sie bei Recruitern hervor. Kandidaten sehen es erst nach Ihrer Freigabe.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {ARBEITGEBER_FELDER.map(({ feld, label, hilfe }) => {
+                const roh = (profile as any)[feld];
+                const vorschlag = vorschlaege.find((v) => v.feld === feld);
+                return (
+                  <div key={feld} className="space-y-2">
+                    <Label htmlFor={feld}>{label}</Label>
+                    {vorschlag && (
+                      <div className="flex items-start gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 text-sm">
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-muted-foreground">
+                            Vorschlag aus Ihrer Stelle{stelle?.title ? ` „${stelle.title}“` : ''}:
+                          </p>
+                          <p>{vorschlag.werte.join(' · ')}</p>
+                        </div>
+                        <Button size="sm" onClick={() => setProfile({ ...profile, [feld]: vorschlag.werte })}>
+                          Übernehmen
+                        </Button>
+                      </div>
+                    )}
+                    <Textarea
+                      id={feld}
+                      rows={2}
+                      value={Array.isArray(roh) ? roh.join('\n') : listeAus(roh).join('\n')}
+                      onChange={(e) => setProfile({ ...profile, [feld]: e.target.value.split('\n') })}
+                      placeholder="Eine Angabe pro Zeile"
+                    />
+                    <p className="text-xs text-muted-foreground">{hilfe}</p>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
 
