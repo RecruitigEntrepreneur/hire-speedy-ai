@@ -43,6 +43,13 @@
       "when": 1790421535373,
       "tag": "0005_vertragswerk_v2_contracting",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790422204050,
+      "tag": "0006_framework_org_once",
+      "breakpoints": true
     }
   ]
 }
