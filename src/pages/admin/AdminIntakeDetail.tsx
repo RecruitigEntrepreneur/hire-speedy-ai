@@ -175,7 +175,7 @@ export default function AdminIntakeDetail() {
             <ReviewBadge state={d.review_state} />
             {mandate && <SignatureBadge status={mandate.signature_status} />}
             {d.contract_type === 'freelance' && (
-              <Badge variant="outline" className="border-amber-500/50 text-amber-700">Contracting · Vertrag von Hand</Badge>
+              <Badge variant="outline">Contracting</Badge>
             )}
           </div>
         </div>
@@ -338,9 +338,9 @@ export default function AdminIntakeDetail() {
               <Alert>
                 <AlertDescription className="text-sm">
                   {d.review_state === 'pending_admin'
-                    ? 'Contracting: Der Kunde hat die Konditionen (78 % Spezialist, 22 % Matchunt) bestätigt. '
-                      + 'Es gibt kein Paket und keinen Einzelauftrag. Den Rahmenvertrag mit Modul Contracting '
-                      + 'bitte von Hand erstellen und zur Unterschrift senden.'
+                    ? 'Contracting-Anfrage aus der Zeit vor dem Vertragswerk v4 (25.09.2026): Es gibt keinen Auftrag '
+                      + 'und damit keinen Vertrag. Der Kunde reicht die Aufnahme neu ein – dann entstehen Auftrag, '
+                      + 'Rahmenvertrag und Auftragsbestätigung automatisch.'
                     : 'Contracting: Die Konditionen stehen auf der Seite „Anfragen“ der Aufnahme. Es gibt keine Paketwahl.'}
                 </AlertDescription>
               </Alert>
@@ -359,16 +359,28 @@ export default function AdminIntakeDetail() {
                       <div>
                         <p className="text-sm font-semibold">{mandate.mandate_number}</p>
                         <p className="text-xs text-muted-foreground">
-                          Vorlage v{mandate.template_version} · AGB {mandate.agb_version}
+                          Vorlage v{mandate.snapshot?.contract?.template_version ?? mandate.template_version ?? '—'} · AGB {mandate.agb_version}
                         </p>
                       </div>
                       <SignatureBadge status={mandate.signature_status} />
                     </div>
                     <Rows rows={[
-                      ['Erfolgshonorar', `${mandate.fee_percentage} %`],
-                      ['Davon Recruiter (intern)', `${mandate.recruiter_fee_percentage} %`],
-                      ['Zahlungsziel', `${mandate.payment_terms_days} Tage`],
-                      ['Nachbesetzung', mandate.guarantee_days ? `${mandate.guarantee_days} Tage` : '—'],
+                      // Contracting: Tagessatz all-in. Die Prozente sind Innenseite
+                      // (Marge und Recruiter-Anteil vom Tagessatz), der Kunde sieht sie nie.
+                      ...(mandate.fee_basis === 'day_rate_all_in'
+                        ? [
+                            ['Modell', 'Contracting · Tagessatz alles inklusive'],
+                            ['Budget je Tag', tagessatz(mandate.snapshot?.position)],
+                            ['Marge (intern)', `${mandate.fee_percentage} % vom Tagessatz`],
+                            ['Davon Recruiter (intern)', `${mandate.recruiter_fee_percentage} % vom Tagessatz`],
+                            ['Zahlungsziel', `${mandate.payment_terms_days} Tage`],
+                          ] as [string, string][]
+                        : [
+                            ['Erfolgshonorar', `${mandate.fee_percentage} %`],
+                            ['Davon Recruiter (intern)', `${mandate.recruiter_fee_percentage} %`],
+                            ['Zahlungsziel', `${mandate.payment_terms_days} Tage`],
+                            ['Nachbesetzung', mandate.guarantee_days ? `${mandate.guarantee_days} Tage` : '—'],
+                          ] as [string, string][]),
                       ['Vom Kunden bestätigt', `${fmt(mandate.client_confirmed_at)}${mandate.client_confirmed_name ? ` · ${mandate.client_confirmed_name}` : ''}`],
                       ['Bestätigt von', mandate.client_confirmed_email],
                       ['Von Matchunt angenommen', fmt(mandate.accepted_at)],
@@ -1111,4 +1123,13 @@ function ClarificationPanel({
       </CardContent>
     </Card>
   );
+}
+
+/** Budget je Tag aus dem Auftrags-Snapshot (Contracting). */
+function tagessatz(position: Record<string, any> | null | undefined): string {
+  const a = Number(position?.day_rate_min) > 0 ? Number(position?.day_rate_min) : null;
+  const b = Number(position?.day_rate_max) > 0 ? Number(position?.day_rate_max) : null;
+  if (!a && !b) return '—';
+  const f = (n: number) => n.toLocaleString('de-DE');
+  return a && b && a !== b ? `${f(a)}–${f(b)} €, alles inklusive` : `${f((a ?? b)!)} €, alles inklusive`;
 }

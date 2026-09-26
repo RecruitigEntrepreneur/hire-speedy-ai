@@ -9,6 +9,7 @@ import { linkFramework } from '../_shared/framework-link.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { fehlendeFirmenangaben, FIRMA_LABEL } from '../_shared/firma-pflicht.ts';
+import { rahmenSchritt, type Vertragsart } from '../_shared/contracting-mandat.ts';
 
 /**
  * Vertrag zurueckgehalten: Admins und Betreuer erfahren es SOFORT, einmal je
@@ -138,15 +139,10 @@ serve(async (req) => {
       .from('intake_drafts').select('*').eq('id', draftId).maybeSingle();
     if (!draft) return fail('not_found', 'Die Aufnahme wurde nicht gefunden.');
 
-    // Rahmenvertrag und Einzelauftrag in DocuSign sind Festanstellung. Fuer
-    // Contracting (Modul B) gibt es noch keine Vorlage; der Vertrag geht von
-    // Hand raus (Live-Befund 25.09.2026). Auch fuer den Admin: ein falscher
-    // Vertrag ist schlimmer als keiner.
-    if (draft.contract_type === 'freelance') {
-      return fail('conflict',
-        'Für Contracting senden wir Ihnen den Rahmenvertrag mit dem Modul Contracting persönlich zu. '
-        + 'Ihre Anfrage ist eingegangen.');
-    }
+    // Seit dem Vertragswerk v4 (Fassung 2, 25.09.2026) regelt der Rahmenvertrag
+    // Festanstellung UND Contracting. Welche Fassung ein Kunde braucht, entscheidet
+    // rahmenSchritt() weiter unten.
+    const art: Vertragsart = draft.contract_type === 'freelance' ? 'freelance' : 'full-time';
 
     // Harte Widersprueche halten den Vertrag an (Entscheidung des
     // Auftraggebers, 02.09.2026): fehlende Pflichtangaben oder eine
@@ -275,10 +271,25 @@ serve(async (req) => {
       }
     }
 
-    if (!framework) {
+    // Was ins Datenblatt (Anlage 1) gehoert -- aus dem Auftrag, der den Vertrag
+    // ausloest. Der Rahmenvertrag friert es in seinem Snapshot ein.
+    const auftragPaket = (mandate.snapshot?.package ?? null) as Record<string, any> | null;
+    const datenblatt = {
+      modul_a: auftragPaket?.key
+        ? { package_key: auftragPaket.key, package_name: auftragPaket.name,
+            fee_percentage: auftragPaket.fee_percentage,
+            continuity_days: auftragPaket.continuity_days ?? null,
+            payment_terms_days: auftragPaket.payment_terms_days ?? mandate.payment_terms_days }
+        // Beginn mit Contracting: Core bis zur Wahl bei der ersten Festanstellung (§ 8 Abs. 2).
+        : { package_key: null, bis_zur_wahl: 'core', payment_terms_days: 14 },
+      modul_b: { gilt_ab_vertragsschluss: true, payment_terms_days: 14 },
+      erste_position: { ...(mandate.snapshot?.position ?? {}), contract_type: draft.contract_type },
+    };
+
+    const neuerRahmen = async (abloesung?: { id: string; organization_id: string | null }) => {
       const { data: tpl } = await supabase.from('contract_templates').select('*')
         .eq('doc_type', 'framework').eq('language', 'de').eq('is_active', true).maybeSingle();
-      if (!tpl) return fail('not_deployed', 'Es ist kein aktiver Rahmenvertragstext hinterlegt.');
+      if (!tpl) return { error: 'Es ist kein aktiver Rahmenvertragstext hinterlegt.' } as const;
 
       const snapshot = {
         captured_at: new Date().toISOString(),
@@ -294,18 +305,23 @@ serve(async (req) => {
           company_city: draft.company_city, company_country: draft.company_country,
           company_vat_id: draft.company_vat_id,
           company_registration_number: draft.company_registration_number,
+          // active_framework_for_draft findet den Vertrag spaeter auch ueber die
+          // Domain -- ohne sie hier griff dieser Weg nie.
+          company_domain: draft.company_domain,
           contact_name: draft.contact_name, contact_email: draft.contact_email,
           contact_role: draft.contact_role, signer_name: draft.contact_name,
         },
         agb: { version: tpl.agb_version, sha256: tpl.agb_sha256 },
+        datenblatt,
       };
 
       const { data: neu, error: rvErr } = await supabase
         .from('client_framework_agreements').insert({
-          organization_id: orgId,
+          organization_id: abloesung?.organization_id ?? orgId,
           origin_draft_id: draftId,
           client_user_id: draft.client_user_id ?? draft.matched_client_user_id ?? null,
           template_id: tpl.id, template_version: tpl.version,
+          supersedes_id: abloesung?.id ?? null,
           snapshot, snapshot_sha256: await contentHash(JSON.stringify(snapshot)),
           agb_version: tpl.agb_version, agb_sha256: tpl.agb_sha256,
           customer_signer_name: draft.contact_name,
@@ -313,8 +329,27 @@ serve(async (req) => {
           customer_signer_role: draft.contact_role,
           status: 'draft',
         }).select('*').single();
-      if (rvErr) return fail('internal_error', `Rahmenvertrag: ${rvErr.message}`);
-      framework = neu;
+      if (rvErr) return { error: `Rahmenvertrag: ${rvErr.message}` } as const;
+      return { rahmen: neu as Record<string, any> } as const;
+    };
+
+    // Passt der gefundene Vertrag? Fassung 1 kennt kein Contracting und geht an
+    // Neukunden nicht mehr raus (Vertragswerk v4, Entscheidung 25.09.2026).
+    const schritt = rahmenSchritt(framework, art);
+    if (schritt.art === 'konflikt') return fail('conflict', schritt.grund);
+    if (schritt.art === 'verwerfen_und_neu') {
+      await supabase.from('client_framework_agreements')
+        .update({ status: 'voided' }).eq('id', framework!.id);
+    }
+    if (schritt.art !== 'verwenden') {
+      const res = await neuerRahmen(schritt.art === 'abloesen'
+        ? { id: framework!.id, organization_id: framework!.organization_id ?? null }
+        : undefined);
+      if (res.error || !res.rahmen) {
+        const meldung = res.error ?? 'Rahmenvertrag konnte nicht angelegt werden.';
+        return fail(meldung.startsWith('Es ist kein') ? 'not_deployed' : 'internal_error', meldung);
+      }
+      framework = res.rahmen;
     }
 
     const rahmenNochOffen = framework!.status !== 'active';
@@ -341,8 +376,11 @@ serve(async (req) => {
       const d = await pdf({ framework_id: framework!.id });
       dokumente.push({ base64: d.base64, name: `Rahmenvertrag ${d.number}.pdf` });
     }
+    // Ab dem Vertragswerk v4 heisst das Positionsdokument Auftragsbestaetigung.
+    const auftragsName = Number(mandate.snapshot?.contract?.template_version ?? 1) >= 2
+      ? 'Auftragsbestätigung' : 'Einzelauftrag';
     const dEinzel = await pdf({ mandate_id: mandate.id });
-    dokumente.push({ base64: dEinzel.base64, name: `Einzelauftrag ${dEinzel.number}.pdf` });
+    dokumente.push({ base64: dEinzel.base64, name: `${auftragsName} ${dEinzel.number}.pdf` });
 
     // ---- Umschlag -----------------------------------------------------------
     // ---- Wer unterschreibt --------------------------------------------------
@@ -391,8 +429,8 @@ serve(async (req) => {
 
     const umschlag = await createEnvelope(cfg, {
       subject: rahmenNochOffen
-        ? `Rahmenvertrag und Einzelauftrag ${mandate.mandate_number}`
-        : `Einzelauftrag ${mandate.mandate_number}`,
+        ? `Rahmenvertrag und ${auftragsName} ${mandate.mandate_number}`
+        : `${auftragsName} ${mandate.mandate_number}`,
       blurb: 'Bitte prüfen und unterzeichnen Sie die beigefügten Unterlagen.',
       documents: dokumente,
       signers,

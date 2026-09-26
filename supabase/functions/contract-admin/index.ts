@@ -4,6 +4,7 @@ import { contentHash } from '../_shared/tokens.ts';
 import { serviceClient, logEvent } from '../_shared/intake-core.ts';
 import { requireAdmin } from '../_shared/admin-auth.ts';
 import { afterCountersign } from '../_shared/docusign-apply.ts';
+import { rahmenvertragWirksam } from '../_shared/framework-activate.ts';
 
 /**
  * contract-admin — Rahmenvertrag und Einzelauftrag durch den Unterschriftslauf.
@@ -278,11 +279,11 @@ serve(async (req) => {
         }
         if (rv.countersigned_at) return json({ ok: true, already: true, framework: rv });
 
-        const { data, error } = await supabase.from('client_framework_agreements')
-          .update({ status: 'active', countersigned_at: now,
-                    countersigner_name: name, countersigner_user_id: adminId })
-          .eq('id', rv.id).select('*').single();
-        if (error) return fail('conflict', error.message);
+        // Abloesung und Paketuebernahme stecken mit drin (framework-activate.ts).
+        const { data, error } = await rahmenvertragWirksam(supabase, rv, {
+          countersignedAt: now, name, userId: adminId,
+        });
+        if (error || !data) return fail('conflict', error ?? 'Rahmenvertrag nicht wirksam.');
 
         await logEvent(supabase, {
           type: 'contract_countersigned', draftId: data.origin_draft_id, actorUserId: adminId,

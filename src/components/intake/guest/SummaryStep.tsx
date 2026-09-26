@@ -300,8 +300,8 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
 
           <p className="text-[11px] text-muted-foreground">
             {contracting
-              ? 'Mit dem Absenden kommt noch kein Vertrag zustande. Wir prüfen Ihre Anfrage und senden Ihnen '
-                + 'den Rahmenvertrag mit dem Modul Contracting zur Unterschrift.'
+              ? 'Mit dem Absenden kommt noch kein Vertrag zustande. Besteht noch kein Rahmenvertrag, '
+                + 'unterschreiben Sie ihn im nächsten Schritt digital; erst danach starten wir die Suche.'
               : framework
               ? `Der Auftrag läuft unter Ihrem Rahmenvertrag ${framework.agreement_number} `
                 + `zu ${framework.fee_percent} % — keine erneute Unterschrift nötig.`

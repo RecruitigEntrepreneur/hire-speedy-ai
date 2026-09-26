@@ -270,9 +270,9 @@ export default function GuestIntake() {
     // erfolgt. `ordered` traegt den Stand auch ueber ein Neuladen.
     const unterRahmenvertrag =
       submitted?.requiresSignature === false || Boolean(draft.contract?.ordered);
-    // Contracting: kein Umschlag -- der Rahmenvertrag mit Modul Contracting
-    // kommt von Matchunt (docusign-send lehnt Contracting ab).
-    const requiresSignature = !unterRahmenvertrag && !contracting;
+    // Seit dem Vertragswerk v4 (25.09.2026) gilt das auch fuer Contracting:
+    // Rahmenvertrag und Auftragsbestaetigung gehen per DocuSign raus.
+    const requiresSignature = !unterRahmenvertrag;
 
     const waehlen = async (args: { self: boolean; name?: string; email?: string }) => {
       setSignBusy(true);
@@ -398,9 +398,7 @@ export default function GuestIntake() {
                 <Step icon={Mail} title="Bestätigung per E-Mail"
                   text={`Eine Übersicht Ihrer Anfrage samt Konditionen ist an ${draft.contact_email} unterwegs.`} />
                 <Step icon={FileSignature} title="Unterschrift"
-                  text={contracting
-                    ? 'Wir senden Ihnen den Rahmenvertrag mit dem Modul Contracting zur Unterschrift. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.'
-                    : bereitsUnterschrieben
+                  text={bereitsUnterschrieben
                     ? 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen — danach starten wir die Suche.'
                     : anDrittenVersandt
                     ? `Der Vertrag ist an ${anDrittenVersandt} unterwegs. Sobald dort unterschrieben ist, zeichnet Matchunt gegen und wir starten die Suche.`

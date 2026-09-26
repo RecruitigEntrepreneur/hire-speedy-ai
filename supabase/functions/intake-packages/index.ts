@@ -121,6 +121,13 @@ serve(async (req) => {
       const rv = rvRaw && (rvRaw as Record<string, any>).package_key
         ? (rvRaw as Record<string, any>)
         : null;
+      // Rahmenvertrag ab Fassung 2 ohne Paket: der Kunde hat mit Contracting
+      // begonnen und waehlt jetzt, bei seiner ersten Festanstellung, einmal sein
+      // Paket (§ 8 Abs. 2) -- ohne neue Unterschrift.
+      const ersteWahl = !rv && rvRaw && (rvRaw as Record<string, any>).id
+        && Number((rvRaw as Record<string, any>).template_version ?? 1) >= 2
+        ? (rvRaw as Record<string, any>)
+        : null;
       const festeKondition = rv
         ? {
             agreement_number: rv.agreement_number,
@@ -147,6 +154,10 @@ serve(async (req) => {
           ? 'Ihre Konditionen stehen im Rahmenvertrag ' + festeKondition.agreement_number
             + ' und gelten unverändert. Diese Position wird darunter beauftragt — '
             + 'ohne erneute Unterschrift.'
+          : ersteWahl
+          ? 'Ihr Rahmenvertrag ' + ersteWahl.agreement_number + ' gilt bereits. Für Ihre erste '
+            + 'Festanstellung wählen Sie jetzt einmal Ihr Paket — es gilt dann für alle weiteren '
+            + 'Festanstellungen, ohne erneute Unterschrift.'
           : 'Ihre Auswahl ist eine Anfrage, noch kein Vertrag. Wir prüfen sie '
             + 'und senden Ihnen anschließend den Vertrag zur digitalen Unterschrift. '
             + 'Erst nach beidseitiger Unterschrift starten wir die Suche.',

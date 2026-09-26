@@ -10,8 +10,12 @@ import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
 import {
   CONTRACTING_FASSUNG, CONTRACTING_EINLEITUNG, CONTRACTING_PUNKTE, CONTRACTING_SCHLUSS,
   CONTRACTING_ZUSTIMMUNG, CONTRACTING_BUDGET_HINWEIS, CONTRACTING_OHNE_BUDGET,
-  ANTEIL_SPEZIALIST, ANTEIL_MATCHUNT, budgetZeile, innenRechnung,
+  budgetZeile, innenRechnung,
 } from '../_shared/contracting-konditionen.ts';
+import {
+  CONTRACTING_AUFTRAG, contractingPreisSnapshot, contractingPosition, auftragsvorlageFassung,
+  unterRahmenvertrag as unterRahmenvertrag_, type Vertragsart,
+} from '../_shared/contracting-mandat.ts';
 
 /**
  * intake-submit — die Beauftragungsanfrage. Ohne Login.
@@ -33,41 +37,148 @@ import {
 const CONSENT_VERSION = '2026-09-v1';
 
 /**
- * Die Anfrage bei Contracting: Konditionen bestätigt, eingereicht, gemeldet.
+ * Der Auftrag bei Contracting (Vertragswerk v4, Modul B).
  *
- * Kein Paket, kein Einzelauftrag, kein Umschlag. Der Rahmenvertrag mit Modul
- * Contracting (Vertragswerk v4, Teil III) liegt noch nicht als DocuSign-Vorlage
- * vor; Matchunt schickt ihn nach der Prüfung selbst. Der Nachweis der Zustimmung
- * ist die Fassung der Konditionen samt Prüfsumme des gezeigten Textes.
+ * Wie bei Festanstellung entsteht ein bestaetigter Auftrag -- nur ohne Paket:
+ * die Kondition ist der Tagessatz all-in (fee_basis 'day_rate_all_in'), intern
+ * 22 % Marge, davon die Haelfte an den Recruiter. Der Kunde sieht nie die
+ * Aufteilung, sondern sein Budget "alles inklusive" (Entscheidung 25.09.2026).
+ *
+ * Danach laeuft alles ueber die bestehende Kette: "Wer unterschreibt?",
+ * docusign-send (Rahmenvertrag Fassung 2 + Auftragsbestaetigung), Gegenzeichnung,
+ * Annahme, Zugangsmail. Traegt der Kunde schon einen wirksamen Rahmenvertrag ab
+ * Fassung 2, ist die Position damit beauftragt -- ohne neue Unterschrift.
  */
-async function contractingAnfrage(
+async function contractingAuftrag(
   supabase: ReturnType<typeof serviceClient>,
   draft: Record<string, any>,
-  args: { signerName: string; ipHash: string | null; ua: string | null; draftToken: string },
+  args: {
+    signerName: string; ipHash: string | null; ua: string | null; draftToken: string;
+    framework: Record<string, any> | null; unterRahmenvertrag: boolean;
+  },
 ) {
   const now = new Date().toISOString();
-  const built = (draft.built ?? {}) as Record<string, any>;
-  const titel = String(built.title ?? draft.title ?? 'Position');
+  const { framework, unterRahmenvertrag } = args;
+  const titel = String(contractingPosition(draft).title ?? 'Position');
   const firma = draft.company_legal_name || draft.company_name || 'Unbekannte Firma';
   const freelance = (draft.freelance ?? {}) as Record<string, any>;
-  // Der Kunde sieht sein Budget als All-in-Satz, nie die Aufteilung
-  // (Entscheidung 25.09.2026). Die Innenrechnung geht nur an Matchunt.
+  // Der Kunde sieht sein Budget als All-in-Satz, nie die Aufteilung. Die
+  // Innenrechnung geht nur an Matchunt.
   const budget = budgetZeile(freelance.dayRateMin, freelance.dayRateMax);
   const innen = innenRechnung(freelance.dayRateMin, freelance.dayRateMax);
 
-  const nachweis = {
-    fassung: CONTRACTING_FASSUNG,
-    einleitung: CONTRACTING_EINLEITUNG,
-    budget: budget ?? CONTRACTING_OHNE_BUDGET,
-    budget_hinweis: budget ? CONTRACTING_BUDGET_HINWEIS : null,
-    punkte: CONTRACTING_PUNKTE,
-    schluss: CONTRACTING_SCHLUSS,
-    zustimmung: CONTRACTING_ZUSTIMMUNG,
-    signer_name: args.signerName,
-    contact_email: draft.contact_email,
+  // Die Auftragsbestaetigung gehoert zum Vertragswerk v4 (Fassung 2).
+  const { data: tpl } = await supabase.from('contract_templates').select('*')
+    .eq('doc_type', 'assignment').eq('language', 'de').eq('version', 2).maybeSingle();
+  if (!tpl) return fail('not_deployed', 'Der Vertragstext ist nicht hinterlegt.');
+
+  const preis = contractingPreisSnapshot(freelance, now);
+  const preisSha = await contentHash(JSON.stringify(preis));
+
+  // Der unveraenderliche Snapshot: was der Kunde gesehen und bestaetigt hat.
+  // Kein 'package' -- daran erkennt generate-mandate-pdf den Contracting-Auftrag.
+  const snapshot = {
     captured_at: now,
+    consent_version: CONSENT_VERSION,
+    contracting: {
+      fassung: CONTRACTING_FASSUNG,
+      einleitung: CONTRACTING_EINLEITUNG,
+      budget: budget ?? CONTRACTING_OHNE_BUDGET,
+      budget_hinweis: budget ? CONTRACTING_BUDGET_HINWEIS : null,
+      punkte: CONTRACTING_PUNKTE,
+      schluss: CONTRACTING_SCHLUSS,
+      zustimmung: CONTRACTING_ZUSTIMMUNG,
+    },
+    contract: {
+      template_id: tpl.id,
+      template_version: tpl.version,
+      title: tpl.title,
+      body_md: tpl.body_md,
+      body_sha256: tpl.body_sha256,
+      vendor: {
+        legal_name: tpl.vendor_legal_name, brand: tpl.vendor_brand, street: tpl.vendor_street,
+        postal_code: tpl.vendor_postal_code, city: tpl.vendor_city,
+        register: tpl.vendor_register, court: tpl.vendor_court,
+      },
+    },
+    agb: { version: tpl.agb_version, url: `${getPublicAppUrl()}/agb`, sha256: tpl.agb_sha256 ?? null },
+    client: {
+      contact_name: draft.contact_name,
+      contact_email: draft.contact_email,
+      contact_phone: draft.contact_phone,
+      contact_role: draft.contact_role,
+      signer_name: args.signerName,
+      company_name: draft.company_name,
+      company_legal_name: draft.company_legal_name,
+      company_street: draft.company_street,
+      company_postal_code: draft.company_postal_code,
+      company_city: draft.company_city,
+      company_country: draft.company_country,
+      company_vat_id: draft.company_vat_id,
+      company_registration_number: draft.company_registration_number,
+      company_domain: draft.company_domain,
+      billing_email: draft.billing_email ?? draft.contact_email,
+    },
+    position: contractingPosition(draft),
   };
-  const nachweisSha = await contentHash(JSON.stringify(nachweis));
+  const snapshotSha = await contentHash(JSON.stringify(snapshot));
+
+  // Nach einer Rueckfrage reicht derselbe Kunde denselben Vorgang erneut ein:
+  // ein offenes Angebot wird ueberschrieben, ein bestaetigtes nie (Trigger
+  // commercial_mandates_guard) -- wie bei Festanstellung.
+  const { data: open } = await supabase
+    .from('commercial_mandates')
+    .select('id, status')
+    .eq('draft_id', draft.id)
+    .in('status', ['proposed', 'client_confirmed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const mandateFields = {
+    draft_id: draft.id,
+    contract_template_id: tpl.id,
+    ...CONTRACTING_AUFTRAG,
+    package_key: null,
+    package_version: null,
+    pricing_snapshot: preis,
+    pricing_snapshot_sha256: preisSha,
+    package_selected_at: null,
+    snapshot,
+    snapshot_sha256: snapshotSha,
+    agb_version: tpl.agb_version,
+    agb_sha256: tpl.agb_sha256 ?? null,
+    client_confirmed_at: now,
+    client_confirmed_name: args.signerName,
+    client_confirmed_email: draft.contact_email,
+    client_confirmed_ip_hash: args.ipHash,
+    client_confirmed_user_agent: args.ua,
+    agb_accepted_at: now,
+    // Unter dem wirksamen Rahmenvertrag ab Fassung 2 ist die Position mit der
+    // Bestellung beauftragt; sonst wartet der Auftrag auf die Unterschrift.
+    status: unterRahmenvertrag ? 'accepted' : 'client_confirmed',
+    signature_status: unterRahmenvertrag ? 'not_required' : 'pending',
+    ...(unterRahmenvertrag
+      ? {
+          framework_agreement_id: framework!.id,
+          ordered_at: now,
+          ordered_by_name: args.signerName,
+          ordered_by_email: draft.contact_email,
+          ordered_ip_hash: args.ipHash,
+          ordered_user_agent: args.ua,
+          order_terms_version: framework!.template_version,
+          accepted_at: now,
+        }
+      : {}),
+  };
+
+  const { data: mandate, error: mandateErr } = open
+    ? await supabase.from('commercial_mandates').update(mandateFields).eq('id', open.id).select('*').single()
+    : await supabase.from('commercial_mandates').insert(mandateFields).select('*').single();
+  if (mandateErr || !mandate) {
+    console.error('[intake-submit] Contracting-Auftrag nicht angelegt:', mandateErr?.message);
+    return fail('internal_error', 'Die Beauftragungsanfrage konnte nicht gespeichert werden.');
+  }
 
   const { data: saved, error } = await supabase
     .from('intake_drafts')
@@ -87,12 +198,9 @@ async function contractingAnfrage(
   }
 
   // ---- Nachweise ------------------------------------------------------------
-  const { data: agbTpl } = await supabase
-    .from('contract_templates').select('agb_version')
-    .eq('doc_type', 'assignment').eq('language', 'de').eq('is_active', true).maybeSingle();
   const consentRows = [
     { consent_type: 'commercial_terms', version: CONTRACTING_FASSUNG },
-    ...(agbTpl?.agb_version ? [{ consent_type: 'agb', version: agbTpl.agb_version }] : []),
+    { consent_type: 'agb', version: tpl.agb_version },
   ].map((c) => ({
     subject_type: 'intake_draft',
     subject_id: draft.id,
@@ -102,14 +210,14 @@ async function contractingAnfrage(
     ip_address: args.ipHash,
     user_agent: args.ua,
     granted_at: now,
-    scope: CONTRACTING_FASSUNG,
+    scope: mandate.mandate_number,
   }));
   const { error: consentErr } = await supabase.from('consents').insert(consentRows);
   if (consentErr) console.warn('[intake-submit] consents (Contracting):', consentErr.message);
 
   await logEvent(supabase, {
     type: 'terms_confirmed', linkId: draft.link_id, draftId: draft.id, ipHash: args.ipHash, userAgent: args.ua,
-    meta: { contracting: true, fassung: CONTRACTING_FASSUNG, nachweis_sha256: nachweisSha, signer_name: args.signerName },
+    meta: { contracting: true, fassung: CONTRACTING_FASSUNG, mandate: mandate.mandate_number },
   });
   await logEvent(supabase, {
     type: 'intake_completed', linkId: draft.link_id, draftId: draft.id, ipHash: args.ipHash,
@@ -117,47 +225,56 @@ async function contractingAnfrage(
   });
   await logEvent(supabase, {
     type: 'submitted', linkId: draft.link_id, draftId: draft.id, ipHash: args.ipHash, userAgent: args.ua,
-    meta: { contracting: true },
+    meta: { contracting: true, mandate: mandate.mandate_number },
   });
 
-  // ---- Eingangsbestätigung an den Kunden --------------------------------------
+  // ---- Eingangsbestaetigung an den Kunden --------------------------------------
   const zeile = (label: string, wert: string) =>
     `<tr><td style="padding:6px 0;color:#6b7280;width:38%;vertical-align:top;">${esc(label)}</td>`
     + `<td style="padding:6px 0;">${esc(wert)}</td></tr>`;
   const html = layout({
-    preheader: `Ihre Anfrage für ${esc(titel)} ist bei uns eingegangen.`,
-    heading: 'Ihre Beauftragungsanfrage ist eingegangen',
+    preheader: unterRahmenvertrag
+      ? `Ihr Auftrag für ${esc(titel)} ist eingegangen.`
+      : `Ihre Anfrage für ${esc(titel)} ist bei uns eingegangen.`,
+    heading: unterRahmenvertrag ? 'Ihr Auftrag ist eingegangen' : 'Ihre Beauftragungsanfrage ist eingegangen',
     body: `
       <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name)},</p>
       <p style="margin:0 0 16px 0;">
-        vielen Dank. Wir haben Ihre Anfrage für <strong>${esc(titel)}</strong> (Contracting)
-        erhalten und prüfen sie.
+        vielen Dank. Wir haben ${unterRahmenvertrag ? 'Ihren Auftrag' : 'Ihre Anfrage'} für
+        <strong>${esc(titel)}</strong> (Contracting) erhalten${unterRahmenvertrag ? '' : ' und prüfen sie'}.
       </p>
-      <p style="margin:0 0 8px 0;font-weight:600;">Konditionen Contracting</p>
-      <p style="margin:0 0 12px 0;">${esc(CONTRACTING_EINLEITUNG)}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:0 0 16px 0;border-collapse:collapse;">
+        ${zeile('Vorgangsnummer', mandate.mandate_number)}
+        ${zeile('Vertragsart', 'Contracting')}
         ${zeile('Tagessatz', budget ? `${budget}. ${CONTRACTING_BUDGET_HINWEIS}` : CONTRACTING_OHNE_BUDGET)}
         ${CONTRACTING_PUNKTE.map((p) => zeile(p.label, p.text)).join('')}
       </table>
       <p style="margin:0 0 16px 0;">${esc(CONTRACTING_SCHLUSS)}</p>
       <p style="margin:0 0 8px 0;font-weight:600;">Wie es weitergeht</p>
-      <p style="margin:0 0 16px 0;">
-        Wir prüfen Ihre Anfrage und senden Ihnen den Rahmenvertrag mit dem Modul Contracting
-        zur Unterschrift. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.
+      <p style="margin:0 0 16px 0;">${unterRahmenvertrag
+        ? `Der Auftrag läuft unter Ihrem Rahmenvertrag <strong>${esc(framework!.agreement_number)}</strong>. `
+          + 'Eine erneute Unterschrift ist nicht nötig. Wir sichten die Position und starten die Suche.'
+        : 'Sie unterschreiben den Rahmenvertrag und die Auftragsbestätigung digital. '
+          + 'Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.'}
       </p>`,
     cta: { label: 'Anfrage ansehen', url: intakeResumeUrl(args.draftToken) },
-    footnote: 'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit '
-      + 'unserer ausdrücklichen Annahme zustande. Bis dahin entstehen Ihnen keine Kosten.',
+    footnote: unterRahmenvertrag
+      ? 'Diese Bestätigung dokumentiert Ihre Auftragserteilung unter dem bestehenden Rahmenvertrag. '
+        + 'Kosten entstehen erst ab dem ersten Einsatztag.'
+      : 'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit '
+        + 'beidseitiger Unterschrift zustande. Bis dahin entstehen Ihnen keine Kosten.',
   });
   const mail = await sendIntakeMail(supabase, {
     to: draft.contact_email,
-    subject: `Ihre Beauftragungsanfrage für ${titel} ist eingegangen`,
+    subject: unterRahmenvertrag
+      ? `Ihr Auftrag ${mandate.mandate_number} ist eingegangen`
+      : `Ihre Beauftragungsanfrage ${mandate.mandate_number} ist eingegangen`,
     html,
     template: 'intake_submitted_contracting',
-    meta: { draft_id: draft.id, fassung: CONTRACTING_FASSUNG },
+    meta: { draft_id: draft.id, mandate_id: mandate.id, fassung: CONTRACTING_FASSUNG },
   });
 
-  // ---- Und Matchunt erfährt es: der Vertrag geht hier von Hand raus -----------
+  // ---- Und der Betreuer erfaehrt es (Innenrechnung nur hier) -------------------
   const empfaenger = new Set<string>();
   if (draft.owner_user_id) empfaenger.add(draft.owner_user_id);
   const { data: admins } = await supabase.from('user_roles').select('user_id').eq('role', 'admin').limit(10);
@@ -166,45 +283,21 @@ async function contractingAnfrage(
     await supabase.from('notifications').insert([...empfaenger].map((user_id) => ({
       user_id,
       type: 'intake_submitted',
-      title: 'Neue Contracting-Anfrage',
-      message: `${firma} · ${titel} — Rahmenvertrag mit Modul Contracting von Hand senden`,
+      title: unterRahmenvertrag ? 'Neuer Contracting-Auftrag (Rahmenvertrag)' : 'Neue Contracting-Anfrage',
+      message: `${firma} · ${titel} — ${mandate.mandate_number}${innen ? ` · ${innen}` : ''}`,
       related_type: 'intake_draft',
       related_id: draft.id,
     })));
-    const { data: profile } = await supabase.from('profiles').select('email').in('user_id', [...empfaenger]);
-    const link = `${getPublicAppUrl()}/admin/intakes/${draft.id}`;
-    for (const p of profile ?? []) {
-      if (!p.email) continue;
-      await sendIntakeMail(supabase, {
-        to: p.email,
-        subject: `Contracting-Anfrage: ${firma} · ${titel}`,
-        template: 'contracting_request_admin',
-        meta: { draft_id: draft.id },
-        html: layout({
-          preheader: `${firma} hat Contracting angefragt.`,
-          heading: 'Neue Contracting-Anfrage',
-          body: `
-            <p style="margin:0 0 16px 0;">${esc(draft.contact_name ?? 'Der Kunde')} hat
-              <strong>${esc(titel)}</strong> für <strong>${esc(firma)}</strong> als Contracting angefragt
-              und die Konditionen (Fassung ${esc(CONTRACTING_FASSUNG)}, Tagessatz all-in) bestätigt.</p>
-            <p style="margin:0 0 16px 0;">${esc(innen ?? 'Kein Budget angegeben.')}
-              Der Kunde sieht die Aufteilung ${ANTEIL_SPEZIALIST}/${ANTEIL_MATCHUNT} nicht.</p>
-            <p style="margin:0 0 16px 0;">Es ging kein Vertrag automatisch raus. Bitte den Rahmenvertrag
-              mit Modul Contracting erstellen und zur Unterschrift senden.</p>`,
-          cta: { label: 'Aufnahme öffnen', url: link },
-        }),
-      });
-    }
   }
 
   return json({
     ok: true,
     review_state: 'pending_admin',
-    mandate_number: null,
+    mandate_number: mandate.mandate_number,
     confirmation_sent: mail.sent,
-    requires_signature: false,
+    requires_signature: !unterRahmenvertrag,
     contracting: true,
-    framework_agreement_number: null,
+    framework_agreement_number: unterRahmenvertrag ? framework!.agreement_number : null,
     draft: publicDraft(saved),
   });
 }
@@ -275,11 +368,27 @@ serve(async (req) => {
         'Für die Vereinbarung fehlen noch Angaben zu Ihrer Firma. Bitte ergänzen Sie sie oben, dann geht es weiter.');
     }
 
-    // Contracting hat keine Paketwahl und keinen Einzelauftrag: die Pakete
-    // und der Auftragstext sind Festanstellung (Live-Befund 25.09.2026).
-    if (draft.contract_type === 'freelance') {
-      return await contractingAnfrage(supabase, draft, {
+    // ---- Besteht schon ein Rahmenvertrag? ----------------------------------
+    // Wenn ja und er passt, wird die Position unter ihm beauftragt: ein
+    // protokollierter Vorgang, keine zweite Unterschrift. Der Vertragstext
+    // selbst regelt, dass die Auftragserteilung ueber dieses System erfolgt.
+    const { data: rvRaw } = await supabase
+      .rpc('active_framework_for_draft', { _draft_id: draft.id });
+    const framework = rvRaw && (rvRaw as Record<string, any>).id
+      ? (rvRaw as Record<string, any>)
+      : null;
+    const art: Vertragsart = draft.contract_type === 'freelance' ? 'freelance' : 'full-time';
+    // Ab Fassung 2 traegt der Rahmenvertrag beide Module. Fassung 1 nur
+    // Festanstellung, und auch das nur, wenn er seine Kondition kennt --
+    // sonst laeuft der Vorgang wie bisher mit Einzelauftrag und Unterschrift.
+    const unterRahmenvertrag = unterRahmenvertrag_(framework, art);
+
+    // Contracting: ein Auftrag ohne Paket (Tagessatz all-in). Die Pakete sind
+    // Festanstellung (Live-Befund 25.09.2026).
+    if (art === 'freelance') {
+      return await contractingAuftrag(supabase, draft, {
         signerName, ipHash, ua, draftToken: String(body?.draft_token),
+        framework, unterRahmenvertrag,
       });
     }
 
@@ -289,28 +398,21 @@ serve(async (req) => {
       const { data } = await supabase.from('intake_links').select('*').eq('id', draft.link_id).maybeSingle();
       link = data ?? null;
     }
-    // ---- Besteht schon ein Rahmenvertrag? ----------------------------------
-    // Wenn ja, sind die Konditionen dort EINMAL gewaehlt und stehen fest. Die
-    // Position wird dann unter diesem Vertrag beauftragt: ein protokollierter
-    // Vorgang, keine zweite Unterschrift. Der Vertragstext selbst regelt, dass
-    // die Auftragserteilung ueber dieses System erfolgt.
-    const { data: rvRaw } = await supabase
-      .rpc('active_framework_for_draft', { _draft_id: draft.id });
-    const framework = rvRaw && (rvRaw as Record<string, any>).id
-      ? (rvRaw as Record<string, any>)
-      : null;
-    // Ein Rahmenvertrag ohne Konditionen taugt nicht als Grundlage -- das kann
-    // nur ein Altvertrag aus dem Modell "ein Vertrag je Position" sein. Dann
-    // laeuft dieser Vorgang wie bisher.
-    const unterRahmenvertrag = !!(framework?.package_key && framework?.pricing_snapshot);
+    // Die Kondition steht im Rahmenvertrag, wenn er ein Paket traegt. Ein
+    // Rahmenvertrag ab Fassung 2 ohne Paket gehoert einem Kunden, der mit
+    // Contracting begonnen hat: er waehlt sein Paket jetzt, einmal, ohne neue
+    // Unterschrift (§ 8 Abs. 2) -- die Wahl wird unten im Vertrag nachgetragen.
+    const konditionImRahmen = unterRahmenvertrag
+      && Boolean(framework?.package_key && framework?.pricing_snapshot);
+    const paketWahlNachtragen = unterRahmenvertrag && !konditionImRahmen;
 
-    const packageKey     = unterRahmenvertrag ? framework!.package_key     : draft.selected_package_key;
-    const packageVersion = unterRahmenvertrag ? framework!.package_version : draft.selected_package_version;
+    const packageKey     = konditionImRahmen ? framework!.package_key     : draft.selected_package_key;
+    const packageVersion = konditionImRahmen ? framework!.package_version : draft.selected_package_version;
 
     // Ohne Paketwahl gibt es keine Anfrage. Die Constraint
     // intake_drafts_submit_requires_verified wuerde es ohnehin ablehnen --
     // hier steht es, damit der Kunde einen Satz statt eines Datenbankfehlers
-    // bekommt. Unter einem Rahmenvertrag entfaellt die Wahl.
+    // bekommt. Traegt der Rahmenvertrag die Kondition, entfaellt die Wahl.
     if (!packageKey) {
       return fail('invalid_request',
         'Bitte wählen Sie zuerst eines der drei Pakete aus.');
@@ -324,13 +426,15 @@ serve(async (req) => {
       .maybeSingle();
     if (!pkg) return fail('not_deployed', 'Das gewählte Paket ist nicht hinterlegt.');
 
-    // Der Vertragstext des Einzelauftrags, zentral gepflegt.
+    // Der Vertragstext des Auftrags, zentral gepflegt. Welche Fassung, haengt
+    // am Rahmenvertrag: der Einzelauftrag v1 verweist auf die Paragrafen der
+    // Fassung 1, die Auftragsbestaetigung v2 auf die des Vertragswerks v4.
     const { data: contractTpl } = await supabase
       .from('contract_templates')
       .select('*')
       .eq('doc_type', 'assignment')
       .eq('language', 'de')
-      .eq('is_active', true)
+      .eq('version', auftragsvorlageFassung(framework, art))
       .maybeSingle();
     if (!contractTpl) return fail('not_deployed', 'Der Vertragstext ist nicht hinterlegt.');
 
@@ -357,10 +461,10 @@ serve(async (req) => {
     // Unter einem Rahmenvertrag gilt DESSEN Abbild, nicht ein neu gebautes.
     // Sonst wanderte eine zwischenzeitliche Preisaenderung still in die
     // naechste Position -- obwohl die Kondition fest vereinbart ist.
-    const geltenderSnapshot = unterRahmenvertrag
+    const geltenderSnapshot = konditionImRahmen
       ? framework!.pricing_snapshot
       : pricingSnapshot;
-    const pricingSha = unterRahmenvertrag && framework!.pricing_snapshot_sha256
+    const pricingSha = konditionImRahmen && framework!.pricing_snapshot_sha256
       ? framework!.pricing_snapshot_sha256
       : await contentHash(JSON.stringify(pricingSnapshot));
 
@@ -532,6 +636,26 @@ serve(async (req) => {
     if (mandateErr || !mandate) {
       console.error('[intake-submit] Mandat nicht angelegt:', mandateErr?.message);
       return fail('internal_error', 'Die Beauftragungsanfrage konnte nicht gespeichert werden.');
+    }
+
+    // Paketwahl nach § 8 Abs. 2: der Kunde hat mit Contracting begonnen, sein
+    // Rahmenvertrag traegt noch kein Paket. Die Wahl gilt ab jetzt fuer alle
+    // Festanstellungen -- sie wird deshalb am Vertrag festgehalten, nicht nur
+    // an diesem Auftrag. Der Vertrag selbst bleibt unveraendert (framework_guard
+    // sperrt Text und Unterschrift, nicht das Paket).
+    if (paketWahlNachtragen) {
+      const { error: wahlErr } = await supabase.from('client_framework_agreements').update({
+        package_key: pkg.package_key,
+        package_version: pkg.version,
+        pricing_snapshot: pricingSnapshot,
+        pricing_snapshot_sha256: pricingSha,
+        package_selected_at: now,
+      }).eq('id', framework!.id).is('package_key', null);
+      if (wahlErr) console.warn('[intake-submit] Paketwahl nicht am Rahmenvertrag:', wahlErr.message);
+      await logEvent(supabase, {
+        type: 'terms_confirmed', linkId: draft.link_id, draftId: draft.id, ipHash, userAgent: ua,
+        meta: { framework: framework!.agreement_number, package: pkg.package_key, erste_festanstellung: true },
+      });
     }
 
     // ---- Entwurf einreichen -------------------------------------------------

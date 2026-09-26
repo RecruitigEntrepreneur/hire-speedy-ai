@@ -1,6 +1,7 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { logEvent } from '../_shared/intake-core.ts';
 import { docusignConfig, completedDocument } from './docusign.ts';
+import { rahmenvertragWirksam } from './framework-activate.ts';
 
 /**
  * Den Zustand eines Umschlags auf unsere Daten anwenden.
@@ -122,11 +123,11 @@ export async function applyEnvelopeState(
 
     // Der Rahmenvertrag zuerst: der Einzelauftrag verlangt ihn wirksam.
     if (framework && !framework.countersigned_at && framework.customer_signed_at) {
-      await supabase.from('client_framework_agreements').update({
-        status: 'active',
-        countersigned_at: gegenAt,
-        countersigner_name: gegen?.name ?? 'Matchunt',
-      }).eq('id', framework.id);
+      // Abloesung und Paketuebernahme stecken mit drin (framework-activate.ts).
+      const res = await rahmenvertragWirksam(supabase, framework, {
+        countersignedAt: gegenAt, name: gegen?.name ?? 'Matchunt',
+      });
+      if (res.error) console.warn('[docusign-apply] Rahmenvertrag nicht wirksam:', res.error);
     }
     if (mandate && !mandate.countersigned_at && mandate.customer_signed_at) {
       await supabase.from('commercial_mandates').update({

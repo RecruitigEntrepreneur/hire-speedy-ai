@@ -212,6 +212,18 @@ serve(async (req) => {
         return fail('internal_error', rpcErr.message);
       }
 
+      // ---- Honorarsaetze der Stelle aus dem Auftrag -------------------------
+      // accept_intake_draft setzt sie nicht; die Stelle behielt die Vorgaben der
+      // Tabelle (20/15) -- auch bei Continuity (23/26 %) und bei Contracting,
+      // wo 22 % Marge vom Tagessatz gelten (Befund 25.09.2026, Kanna Medics).
+      if (jobId && mandate.fee_percentage != null) {
+        const { error: feeErr } = await supabase.from('jobs').update({
+          fee_percentage: mandate.fee_percentage,
+          recruiter_fee_percentage: mandate.recruiter_fee_percentage,
+        }).eq('id', jobId as string);
+        if (feeErr) console.warn('[intake-admin] Honorarsaetze nicht uebernommen:', feeErr.message);
+      }
+
       // ---- Rahmenvertrag an die Firma haengen ---------------------------------
       // Die Firma entsteht erst hier; der Rahmenvertrag kam schon beim Absenden.
       // Ohne diesen Schritt findet ihn keiner, der ueber die Firma sucht
