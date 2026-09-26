@@ -11812,6 +11812,10 @@ export type Database = {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
       }
+      cron_token_valid: {
+        Args: { _name: string; _token: string }
+        Returns: boolean
+      }
       find_similar_candidates: {
         Args: {
           exclude_id?: string
