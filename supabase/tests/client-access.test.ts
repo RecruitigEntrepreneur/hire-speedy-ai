@@ -1,7 +1,7 @@
 import { peekClientLink, sendClientCode, verifyClientCode, CLIENT_LINK_KEY, CLIENT_CODE_KEY, type ClientCodeDeps } from '../functions/_shared/client-code.ts';
 import { clientAccessMail, notifyAccessProblem, sendClientAccess, type AccessDeps } from '../functions/_shared/client-access.ts';
 import { issueLoginLink } from '../functions/_shared/recruiter-login-link.ts';
-import { syncClientEnvelopes, syncDue, SYNC_INTERVAL_MS } from '../functions/_shared/docusign-sync.ts';
+import { syncAllowed, syncClientEnvelopes, syncDue, SYNC_INTERVAL_MS } from '../functions/_shared/docusign-sync.ts';
 import { hashCode } from '../functions/_shared/tokens.ts';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { LimitResult } from '../functions/_shared/intake-limits.ts';
@@ -195,4 +195,23 @@ Deno.test('Gescheiterte Zugangsmail: Glocke und Mail an Admins, einmal je Aufnah
   assert(mail.html.includes('/admin/intakes/d-1') && mail.html.includes('erneut senden') && mail.template === 'client_access_failed_admin');
   await notifyAccessProblem(f.db, draft, { kind: 'held' }, deps);
   assert(glocke.length === 2 && glocke[1].type === 'client_access_held' && mails.length === 2, 'eigener Anlass, eigene Meldung');
+});
+
+Deno.test('Abgleich: Cron-Schlüssel oder Service-Schlüssel, sonst nichts', async () => {
+  const gueltig = 'c'.repeat(64);
+  const aufrufe: unknown[] = [];
+  const db = { rpc: (name: string, args: Record<string, unknown>) => {
+    aufrufe.push([name, args]);
+    return Promise.resolve(args._token === gueltig ? { data: true, error: null } : { data: false, error: null });
+  } } as unknown as SupabaseClient;
+  const req = (headers: Record<string, string> = {}) => new Request('https://x.test/functions/v1/docusign-sync', { method: 'POST', headers });
+  assert(await syncAllowed(req(), db, () => true), 'Service-Schlüssel');
+  assert(await syncAllowed(req({ 'x-cron-token': gueltig }), db, () => false), 'Cron-Schlüssel');
+  assert(!await syncAllowed(req({ 'x-cron-token': 'd'.repeat(64) }), db, () => false), 'falscher Schlüssel');
+  const vorher = aufrufe.length;
+  assert(!await syncAllowed(req({ 'x-cron-token': 'kurz' }), db, () => false) && !await syncAllowed(req(), db, () => false), 'kurz oder fehlend');
+  assert(aufrufe.length === vorher, 'ohne brauchbaren Schlüssel keine Datenbankabfrage');
+  assert(JSON.stringify(aufrufe[0]) === JSON.stringify(['cron_token_valid', { _name: 'docusign-sync', _token: gueltig }]));
+  const kaputt = { rpc: () => Promise.resolve({ data: null, error: { message: 'Funktion fehlt' } }) } as unknown as SupabaseClient;
+  assert(!await syncAllowed(req({ 'x-cron-token': gueltig }), kaputt, () => false), 'Fehler heißt nein');
 });

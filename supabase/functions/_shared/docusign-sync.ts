@@ -17,6 +17,8 @@ import type { ApplyResult, SignerState } from './docusign-apply.ts';
  */
 
 export const SYNC_INTERVAL_MS = 15 * 60_000;
+/** Name des Cron-Schlüssels in private.cron_tokens (Migration 20260926151000). */
+export const CRON_TOKEN_NAME = 'docusign-sync';
 /** Ältere Umschläge gelten als liegengeblieben; die fragt niemand mehr automatisch ab. */
 export const SYNC_MAX_AGE_DAYS = 60;
 const BATCH = 10;
@@ -70,4 +72,18 @@ export async function syncClientEnvelopes(db: SupabaseClient, cfg: DocuSignConfi
     }
   }
   return { checked: results.length, results };
+}
+
+/**
+ * Wer den Abgleich auslösen darf: der Cron mit seinem Schlüssel (x-cron-token,
+ * Migration 20260926151000 -- app.settings gibt es in diesem Projekt nicht)
+ * oder das eigene Backend mit dem Service-Schlüssel.
+ */
+export async function syncAllowed(req: Request, db: SupabaseClient, isService: (req: Request) => boolean): Promise<boolean> {
+  if (isService(req)) return true;
+  const token = req.headers.get('x-cron-token');
+  if (!token || token.length < 32) return false;
+  const { data, error } = await db.rpc('cron_token_valid', { _name: CRON_TOKEN_NAME, _token: token });
+  if (error) console.warn('[docusign-sync] Cron-Schlüssel nicht prüfbar:', error.message);
+  return !error && data === true;
 }

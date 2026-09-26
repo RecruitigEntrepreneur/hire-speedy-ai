@@ -663,6 +663,23 @@ Spalte; ohne 10a schlägt nur dieses Schreiben still fehl.
 
 ---
 
+## 11 — Cron ohne app.settings, Firma am Rahmenvertrag (26.09.2026)
+
+Befund: Der Cron `docusign-client-sync` scheiterte bei jedem Lauf (app.settings fehlt im
+Projekt), und `framework_guard` verbot nach der Kundenunterschrift, die Firma am
+Rahmenvertrag nachzutragen. Reihenfolge: erst die Migrationen, dann Function, dann die
+Datenkorrektur.
+
+> 1. Migration `supabase/migrations/20260926150000_framework_org_once.sql` ausführen
+>    (framework_guard: Firma darf einmal von leer auf eine Firma gesetzt werden).
+> 2. Migration `supabase/migrations/20260926151000_cron_token_docusign_sync.sql` ausführen
+>    (Schema private mit Cron-Schlüssel, Funktion cron_token_valid, Cron-Job neu).
+> 3. Edge Function `docusign-sync` deployen.
+> 4. `UPDATE public.client_framework_agreements SET organization_id = '7dd3982f-7f02-409a-8d3c-4f2231f11212' WHERE agreement_number = 'RV-2026-001002' AND organization_id IS NULL;`
+> 5. Nach 15 Minuten prüfen: `select status, return_message, start_time from cron.job_run_details where jobid = (select jobid from cron.job where jobname = 'docusign-client-sync') order by start_time desc limit 3;`
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
