@@ -6072,6 +6072,7 @@ export type Database = {
           closed_reason: string | null
           commute_flexibility: string | null
           company_culture: string | null
+          company_headcount: number | null
           company_name: string
           company_size_band: string | null
           contract_creation_days: number | null
@@ -6192,6 +6193,7 @@ export type Database = {
           closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
+          company_headcount?: number | null
           company_name: string
           company_size_band?: string | null
           contract_creation_days?: number | null
@@ -6312,6 +6314,7 @@ export type Database = {
           closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
+          company_headcount?: number | null
           company_name?: string
           company_size_band?: string | null
           contract_creation_days?: number | null
@@ -11777,11 +11780,10 @@ export type Database = {
         Row: {
           benefits: string[] | null
           bonus_structure: string | null
-          candidates_dropped_reason: string | null
-          candidates_in_pipeline: number | null
           career_example: string | null
           career_path: string | null
           company_culture: string | null
+          company_headcount: number | null
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
