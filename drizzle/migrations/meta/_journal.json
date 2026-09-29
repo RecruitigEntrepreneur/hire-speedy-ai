@@ -78,6 +78,13 @@
       "when": 1790717929514,
       "tag": "0010_submission_activation_and_criteria",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790717942343,
+      "tag": "0011_candidate_capture_sources",
+      "breakpoints": true
     }
   ]
 }

@@ -418,6 +418,77 @@ export type Database = {
           },
         ]
       }
+      candidate_capture_sources: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          kind: string
+          label: string | null
+          raw_text: string | null
+          recording_consent: boolean | null
+          recruiter_id: string
+          suggestions_accepted: number | null
+          suggestions_total: number | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          raw_text?: string | null
+          recording_consent?: boolean | null
+          recruiter_id: string
+          suggestions_accepted?: number | null
+          suggestions_total?: number | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          raw_text?: string | null
+          recording_consent?: boolean | null
+          recruiter_id?: string
+          suggestions_accepted?: number | null
+          suggestions_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+        ]
+      }
       candidate_client_summary: {
         Row: {
           candidate_id: string
@@ -11942,6 +12013,7 @@ export type Database = {
         Args: { _org_id: string }
         Returns: boolean
       }
+      purge_expired_capture_sources: { Args: never; Returns: number }
       recruiter_counter_deadline: {
         Args: { signed_at: string }
         Returns: string
