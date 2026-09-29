@@ -418,6 +418,77 @@ export type Database = {
           },
         ]
       }
+      candidate_capture_sources: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          kind: string
+          label: string | null
+          raw_text: string | null
+          recording_consent: boolean | null
+          recruiter_id: string
+          suggestions_accepted: number | null
+          suggestions_total: number | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          raw_text?: string | null
+          recording_consent?: boolean | null
+          recruiter_id: string
+          suggestions_accepted?: number | null
+          suggestions_total?: number | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          raw_text?: string | null
+          recording_consent?: boolean | null
+          recruiter_id?: string
+          suggestions_accepted?: number | null
+          suggestions_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_capture_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+        ]
+      }
       candidate_client_summary: {
         Row: {
           candidate_id: string
@@ -1236,6 +1307,7 @@ export type Database = {
       candidate_interview_notes: {
         Row: {
           additional_notes: string | null
+          blocked_companies: string[]
           candidate_id: string
           career_3_5_year_plan: string | null
           career_actions_taken: string | null
@@ -1244,6 +1316,7 @@ export type Database = {
           career_what_worked: string | null
           change_motivation: string | null
           change_motivation_tags: string[] | null
+          change_readiness: string | null
           created_at: string | null
           current_negative: string | null
           current_positive: string | null
@@ -1252,9 +1325,17 @@ export type Database = {
           frequency_of_issues: string | null
           id: string
           interview_date: string | null
+          interview_type: string | null
+          leadership_scope: string | null
+          leadership_team_size: number | null
           notice_period: string | null
           offer_requirements: string[] | null
+          other_applications: string | null
+          other_applications_notes: string | null
+          presentation_consent: boolean | null
+          presentation_consent_at: string | null
           previous_process_issues: string | null
+          recommendation_level: string | null
           recommendation_notes: string | null
           recruiter_id: string
           salary_current: string | null
@@ -1270,10 +1351,12 @@ export type Database = {
           updated_at: string | null
           why_now: string | null
           would_recommend: boolean | null
+          would_stay_answer: string | null
           would_stay_if_matched: boolean | null
         }
         Insert: {
           additional_notes?: string | null
+          blocked_companies?: string[]
           candidate_id: string
           career_3_5_year_plan?: string | null
           career_actions_taken?: string | null
@@ -1282,6 +1365,7 @@ export type Database = {
           career_what_worked?: string | null
           change_motivation?: string | null
           change_motivation_tags?: string[] | null
+          change_readiness?: string | null
           created_at?: string | null
           current_negative?: string | null
           current_positive?: string | null
@@ -1290,9 +1374,17 @@ export type Database = {
           frequency_of_issues?: string | null
           id?: string
           interview_date?: string | null
+          interview_type?: string | null
+          leadership_scope?: string | null
+          leadership_team_size?: number | null
           notice_period?: string | null
           offer_requirements?: string[] | null
+          other_applications?: string | null
+          other_applications_notes?: string | null
+          presentation_consent?: boolean | null
+          presentation_consent_at?: string | null
           previous_process_issues?: string | null
+          recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id: string
           salary_current?: string | null
@@ -1308,10 +1400,12 @@ export type Database = {
           updated_at?: string | null
           why_now?: string | null
           would_recommend?: boolean | null
+          would_stay_answer?: string | null
           would_stay_if_matched?: boolean | null
         }
         Update: {
           additional_notes?: string | null
+          blocked_companies?: string[]
           candidate_id?: string
           career_3_5_year_plan?: string | null
           career_actions_taken?: string | null
@@ -1320,6 +1414,7 @@ export type Database = {
           career_what_worked?: string | null
           change_motivation?: string | null
           change_motivation_tags?: string[] | null
+          change_readiness?: string | null
           created_at?: string | null
           current_negative?: string | null
           current_positive?: string | null
@@ -1328,9 +1423,17 @@ export type Database = {
           frequency_of_issues?: string | null
           id?: string
           interview_date?: string | null
+          interview_type?: string | null
+          leadership_scope?: string | null
+          leadership_team_size?: number | null
           notice_period?: string | null
           offer_requirements?: string[] | null
+          other_applications?: string | null
+          other_applications_notes?: string | null
+          presentation_consent?: boolean | null
+          presentation_consent_at?: string | null
           previous_process_issues?: string | null
+          recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id?: string
           salary_current?: string | null
@@ -1346,6 +1449,7 @@ export type Database = {
           updated_at?: string | null
           why_now?: string | null
           would_recommend?: boolean | null
+          would_stay_answer?: string | null
           would_stay_if_matched?: boolean | null
         }
         Relationships: [
@@ -10623,6 +10727,8 @@ export type Database = {
           consent_confirmed: boolean | null
           consent_confirmed_at: string | null
           consent_document_url: string | null
+          criteria_assessment: Json | null
+          fit_overrides: Json | null
           full_access_granted: boolean | null
           full_access_granted_at: string | null
           id: string
@@ -10652,6 +10758,8 @@ export type Database = {
           consent_confirmed?: boolean | null
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
+          criteria_assessment?: Json | null
+          fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
           id?: string
@@ -10681,6 +10789,8 @@ export type Database = {
           consent_confirmed?: boolean | null
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
+          criteria_assessment?: Json | null
+          fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
           id?: string
@@ -11903,6 +12013,7 @@ export type Database = {
         Args: { _org_id: string }
         Returns: boolean
       }
+      purge_expired_capture_sources: { Args: never; Returns: number }
       recruiter_counter_deadline: {
         Args: { signed_at: string }
         Returns: string

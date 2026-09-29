@@ -64,6 +64,27 @@
       "when": 1790424230689,
       "tag": "0008_firmenprofil_aus_aufnahme",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790717909156,
+      "tag": "0009_interview_dossier_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790717929514,
+      "tag": "0010_submission_activation_and_criteria",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790717942343,
+      "tag": "0011_candidate_capture_sources",
+      "breakpoints": true
     }
   ]
 }
