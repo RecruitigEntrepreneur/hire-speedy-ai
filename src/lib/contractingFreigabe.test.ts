@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  einsatzZeile, euroSpanne, kundenBudget, modellDesAuftrags, recruiterJeTag, spanne, vertragsabweichung,
+  einsatzZeile, euroSpanne, kundenBudget, modellDesAuftrags, recruiterJeTag, recruiterTagessatz, spanne, vertragsabweichung,
 } from './contractingFreigabe';
 
 const contractingAuftrag = {
@@ -58,5 +58,14 @@ describe('Freigabe: Zahlen', () => {
       .toBe('3 Tage/Woche · 12 Monate · Verlängerung möglich');
     expect(einsatzZeile({ contract_duration_months: 6 })).toBe('6 Monate');
     expect(einsatzZeile({})).toBeNull();
+  });
+});
+
+describe('Freigabe: was Recruiter sehen', () => {
+  it('zeigt den Satz des Spezialisten wie recruiter_jobs_view', () => {
+    expect(recruiterTagessatz([400, 1000], contractingAuftrag)).toEqual([310, 780]);
+    expect(recruiterTagessatz([1000, 1200], { fee_basis: 'day_rate_all_in', pricing_snapshot: { specialistPct: 80 } })).toEqual([800, 960]);
+    expect(recruiterTagessatz([400, 1000], festAuftrag)).toEqual([310, 780]);
+    expect(recruiterTagessatz(null, contractingAuftrag)).toBeNull();
   });
 });

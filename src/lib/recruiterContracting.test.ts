@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ANTEIL_SPEZIALIST, spezialistenTagessatz } from '../../supabase/functions/_shared/contracting-konditionen';
-import { spezialistenSatz, verdienstImMonat, verdienstJeTag } from './recruiterContracting';
+import { einsatzFuerKandidat, spezialistenSatz, verdienstImMonat, verdienstJeTag } from './recruiterContracting';
 
 // So liefert recruiter_jobs_view eine Contracting-Stelle mit Budget 400–1.000 € aus.
 const ausView = {
@@ -36,5 +36,13 @@ describe('Contracting für Recruiter', () => {
     const sql = readFileSync('supabase/migrations/20260929100000_recruiter_tagessatz_spezialist.sql', 'utf8');
     expect(sql).toContain(`'specialistPct')::numeric, ${ANTEIL_SPEZIALIST})`);
     expect(sql).toContain('/ 1000) * 10)::integer');
+  });
+});
+
+describe('Gesprächskarte (Variante C)', () => {
+  it('nennt für den Kandidaten USt und Einsatz, ohne Budget', () => {
+    expect(einsatzFuerKandidat({ ...ausView, contract_duration_months: 12, extension_possible: true }))
+      .toBe('zzgl. USt · 3 Tage/Woche · 12 Monate · Verlängerung möglich');
+    expect(einsatzFuerKandidat({})).toBe('zzgl. USt');
   });
 });

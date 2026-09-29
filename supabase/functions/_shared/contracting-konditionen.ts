@@ -79,8 +79,8 @@ export const anteilSpezialist = (tagessatz: number): number => Math.round((tages
  * auf volle 10 € (Entscheidung 29.09.2026) -- nie mehr, als ankommt.
  * recruiter_jobs_view rechnet dasselbe (Migration 20260929100000).
  */
-export const spezialistenTagessatz = (tagessatz: number): number =>
-  Math.floor((tagessatz * ANTEIL_SPEZIALIST) / 1000) * 10;
+export const spezialistenTagessatz = (tagessatz: number, anteil: number = ANTEIL_SPEZIALIST): number =>
+  Math.floor((tagessatz * anteil) / 1000) * 10;
 
 /**
  * Die Budgetzeile für den Kunden. Ohne Budget kein Betrag -- eine erfundene

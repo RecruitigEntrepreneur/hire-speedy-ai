@@ -16,6 +16,7 @@ import {
   Globe,
   Cpu,
   Zap,
+  FileText,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
@@ -219,6 +220,13 @@ export function JobPreviewPanel({
             ) : (
               <><Search className="h-3.5 w-3.5 mr-1" />Ich suche</>
             )}
+          </Button>
+          {/* Direkt aus der Liste an Anzeige und Ansprachetexte (29.09.2026). */}
+          <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" asChild>
+            <Link to={`/recruiter/jobs/${job.id}/anzeige`}>
+              <FileText className="h-3.5 w-3.5 mr-1" />
+              Anzeige &amp; Ansprache
+            </Link>
           </Button>
           {isActive ? (
             <Button size="sm" className="flex-1 h-8 text-xs" asChild>

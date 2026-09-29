@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { JobApprovalDialog } from '@/components/admin/JobApprovalDialog';
+import { AnzeigeNeuDialog } from '@/components/admin/AnzeigeNeuDialog';
 
 interface Job {
   id: string;
@@ -54,6 +55,8 @@ export default function AdminJobs() {
   const [activeTab, setActiveTab] = useState('pending');
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  /** Live-Stelle, deren Anzeige & Ansprache neu erzeugt wird. */
+  const [anzeigeJob, setAnzeigeJob] = useState<Job | null>(null);
 
   /**
    * Ein Sprung aus der Aufnahme oeffnet die Pruefung direkt.
@@ -420,6 +423,7 @@ export default function AdminJobs() {
                                 Prüfen
                               </Button>
                             ) : (
+                              <div className="flex items-center gap-2">
                               <Select 
                                 value={job.status || 'draft'} 
                                 onValueChange={(value) => handleStatusChange(job.id, value)}
@@ -438,6 +442,12 @@ export default function AdminJobs() {
                                   <SelectItem value="closed">Schließen</SelectItem>
                                 </SelectContent>
                               </Select>
+                              {job.status === 'published' && (
+                                <Button size="sm" variant="outline" onClick={() => setAnzeigeJob(job)}>
+                                  Anzeige neu erzeugen
+                                </Button>
+                              )}
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>
@@ -452,6 +462,12 @@ export default function AdminJobs() {
       </div>
 
       {/* Approval Dialog */}
+      <AnzeigeNeuDialog
+        job={anzeigeJob as unknown as Record<string, any> | null}
+        onClose={() => setAnzeigeJob(null)}
+        onUebernommen={fetchJobs}
+      />
+
       <JobApprovalDialog
         job={selectedJob}
         open={approvalDialogOpen}

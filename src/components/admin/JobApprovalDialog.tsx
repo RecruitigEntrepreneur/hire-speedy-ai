@@ -43,6 +43,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import { RecruiterTextReview, type TextEntwurf } from '@/components/admin/RecruiterTextReview';
 import {
   CONTRACTING_AUFTRAG,
   RAHMEN_STATUS,
@@ -52,6 +53,7 @@ import {
   modellDerStelle,
   modellDesAuftrags,
   recruiterJeTag,
+  recruiterTagessatz,
   spanne,
   vertragsabweichung,
 } from '@/lib/contractingFreigabe';
@@ -126,6 +128,10 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
   /** Der Rahmenvertrag unter dem Auftrag (Nummer, Fassung, Stand). */
   const [rahmen, setRahmen] = useState<Record<string, any> | null>(null);
   const [gateLoading, setGateLoading] = useState(false);
+  /** Anzeige & Ansprache: der geprüfte Entwurf, der beim Freigeben live geht. */
+  const [textEntwurf, setTextEntwurf] = useState<TextEntwurf | null>(null);
+  const [textBusy, setTextBusy] = useState(false);
+  const [textGesperrt, setTextGesperrt] = useState(false);
 
   useEffect(() => {
     if (!job) return;
@@ -208,8 +214,12 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
 
     setLoading(true);
     try {
-      // First, format the job content using AI
-      const formattedContent = await formatJobForRecruiters(job.id);
+      // Veröffentlicht wird, was Matchunt oben gesehen hat: der Entwurf, sonst
+      // eine schon veröffentlichte neue Anzeige. Nur wenn beides fehlt, erzeugt
+      // die KI wie bisher beim Freigeben.
+      const bisher = (job as { formatted_content?: Record<string, unknown> | null }).formatted_content;
+      const formattedContent = textEntwurf?.content
+        ?? (bisher?.anzeige ? bisher : await formatJobForRecruiters(job.id));
 
       // Update job with approval data
       const { error } = await supabase
@@ -226,6 +236,10 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
         .eq('id', job.id);
 
       if (error) throw error;
+
+      if (textEntwurf) {
+        await supabase.from('job_recruiter_text_drafts' as never).delete().eq('job_id', job.id);
+      }
 
       // Summary entsteht ops-seitig beim Publish — nie als Kunden-Aufgabe.
       // Fire-and-forget: Fehler blockieren die Freigabe nicht.
@@ -328,8 +342,10 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
 
   const potentialEarning = calculatePotentialEarning();
   const budget = kundenBudget(mandate, job);
-  // Recruiter sehen den Tagessatz der Stelle, nicht den des Auftrags.
+  // Gerechnet wird vom Tagessatz der Stelle (all-in). Recruiter sehen davon
+  // nur den Satz des Spezialisten und ihren Verdienst in Euro.
   const stellenTagessatz = spanne(job.day_rate_min, job.day_rate_max);
+  const satzFuerRecruiter = recruiterTagessatz(stellenTagessatz, mandate);
   const recruiterTag = recruiterJeTag(stellenTagessatz, recruiterFeePercentage);
   const einsatz = einsatzZeile(job);
   const zahlungsziel = mandate?.payment_terms_days ?? mandate?.pricing_snapshot?.paymentTermsDays ?? CONTRACTING_AUFTRAG.payment_terms_days;
@@ -513,12 +529,11 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
                 <p className="font-semibold">{job.title}</p>
                 <p className="text-xs text-muted-foreground">{anonymeFirma} · Firma verborgen bis zum Reveal</p>
                 <p className="text-sm">
-                  Tagessatz {stellenTagessatz ? `${euroSpanne(stellenTagessatz)} pro Tag` : 'nicht angegeben'}
+                  Tagessatz Spezialist {satzFuerRecruiter ? `${euroSpanne(satzFuerRecruiter)} pro Tag` : 'nicht angegeben'}
                 </p>
-                <p className="text-sm">Provision {recruiterFeePercentage.toLocaleString('de-DE')} % vom Tagessatz, laufend</p>
                 {recruiterTag && (
                   <p className="text-sm">
-                    Recruiter verdient ca. <span className="font-semibold text-emerald">{recruiterTag} je Einsatztag</span>
+                    Verdienst ca. <span className="font-semibold text-emerald">{recruiterTag} je Einsatztag</span>, laufend
                   </p>
                 )}
               </div>
@@ -601,6 +616,10 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
           </div>
           )}
 
+          <Separator />
+          <RecruiterTextReview key={job.id} job={job as unknown as Record<string, any>} mandate={mandate}
+            onEntwurf={setTextEntwurf} onBusy={setTextBusy} onSperre={setTextGesperrt} />
+
           {fromIntake && (
             <>
               <Separator />
@@ -682,8 +701,9 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
           <Button
             variant="emerald"
             onClick={handleApprove}
-            disabled={loading || formatting || !contractOk}
-            title={!contractOk ? 'Erst nach unterzeichneter Vermittlungsvereinbarung' : undefined}
+            disabled={loading || formatting || textBusy || textGesperrt || !contractOk}
+            title={!contractOk ? 'Erst nach unterzeichneter Vermittlungsvereinbarung'
+              : textGesperrt ? 'Erst wenn der Firmenname aus der Anzeige entfernt ist' : undefined}
           >
             {loading || formatting ? (
               <>

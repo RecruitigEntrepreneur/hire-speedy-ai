@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { spezialistenTagessatz } from "../_shared/contracting-konditionen.ts";
+import { isServiceRole, requireAdmin } from "../_shared/admin-auth.ts";
+import {
+  ANZEIGE_FASSUNG, betragFunde, namensFunde, textDerAnzeige, verboteneBegriffe,
+  type Ansprache, type Anzeige,
+} from "../_shared/recruiter-anzeige.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,7 +26,14 @@ interface FormattedContent {
     culture_keywords: string[];
     interview_process: string | null;
   };
+  /** Anzeige & Ansprache (29.09.2026), siehe _shared/recruiter-anzeige.ts. */
+  anzeige?: Anzeige;
+  ansprache?: Ansprache;
+  fassung?: string;
 }
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -37,17 +49,25 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const { jobId } = await req.json();
+    // entwurf: true -> in job_recruiter_text_drafts statt live in
+    // jobs.formatted_content. Matchunt prüft den Entwurf im Freigabe-Dialog
+    // bzw. in Admin > Jobs und übernimmt ihn selbst.
+    const { jobId, entwurf } = await req.json();
 
-    if (!jobId) {
-      return new Response(
-        JSON.stringify({ error: "jobId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (!jobId) return json({ error: "jobId is required" }, 400);
 
-    // Fetch job details from database
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Bisher konnte jeder angemeldete Nutzer den Recruiter-Text jeder Stelle
+    // neu erzeugen lassen. Aufrufer ist allein der Admin (Freigabe-Dialog,
+    // Admin > Jobs) oder unser eigenes Backend.
+    let erzeugtVon: string | null = null;
+    if (!isServiceRole(req)) {
+      // Die Function hängt an supabase-js 2.49.1, admin-auth an @2 -- nur der Typ weicht ab.
+      const admin = await requireAdmin(req, supabase as unknown as Parameters<typeof requireAdmin>[1]);
+      if (!admin.ok) return json({ error: admin.message ?? "Keine Berechtigung." }, 403);
+      erzeugtVon = admin.userId ?? null;
+    }
     
     const { data: job, error: jobError } = await supabase
       .from('jobs')
@@ -180,6 +200,26 @@ Erstelle eine ansprechende Formatierung mit:
 6. NEUE PFLICHTFELDER:
    - anonymous_company_pitch: 2-3 Sätze über das Unternehmen OHNE Firmennamen zu nennen (z.B. "Innovatives IT-Unternehmen im Benelux-Raum mit Fokus auf Enterprise-Lösungen...")
    - quick_facts: Team-Größe, Wachstumsphase, Kultur-Keywords, Interview-Prozess
+7. ANZEIGE (anzeige): eine vollständige, gut lesbare Stellenanzeige, die der Headhunter einem Kandidaten schicken kann. Du-Form, sachlich-warm, keine Floskeln.
+   - einleitung: 3-5 Sätze "Worum es geht" -- Aufhänger, Rolle, was sie besonders macht
+   - unternehmen: 2-4 Sätze über das Unternehmen, ANONYM (Branche, Größe, Region grob, was es auszeichnet)
+   - aufgaben: 4-8 konkrete Aufgaben
+   - arbeitsalltag: 1-3 Sätze, wie ein typischer Tag/Woche aussieht (leer lassen, wenn nichts bekannt)
+   - profil_zwingend: was zwingend nötig ist; profil_vorteil: was von Vorteil ist
+   - angebot: 3-6 Punkte, was die Stelle bzw. das Projekt bietet
+   - team: 1-2 Sätze zu Team und Zusammenarbeit (leer lassen, wenn nichts bekannt)
+   - ablauf: Schritte des Auswahlprozesses NUR soweit aus den Angaben bekannt, sonst leeres Array
+8. ANSPRACHE (ansprache): fertige Texte für den Headhunter, Du-Form
+   - linkedin: Kontaktanfrage, höchstens 280 Zeichen, beginnt mit "Hallo {VORNAME},"
+   - email_betreff: kurz, ohne Firmennamen
+   - email_text: 4-7 Sätze, beginnt mit "Hallo {VORNAME},", endet mit der Frage nach einem kurzen Gespräch (ohne Grußformel, die setzt das System)
+   - telefon: einstieg (1 Satz), argumente (3 kurze Punkte), fragen (3 Fragen zur Passung aus den Muss-Kriterien)
+
+REGELN FÜR ANZEIGE UND ANSPRACHE:
+- Schreibe KEINE Geldbeträge, keine Zahlen mit €, EUR oder "k". Wo die Vergütung genannt werden soll, schreibe genau {VERGUETUNG}. Die Zahl setzt das System ein.
+- Nenne nie Honorar, Provision, Fee, Marge, Konkurrenzlage oder warum frühere Kandidaten abgesprungen sind.
+- Nutze nur, was oben steht. Was nicht in den Angaben steht, lässt du weg -- lieber kürzer als erfunden.
+- Kein Firmenname, keine Produkt- oder Personennamen des Kunden, keine Domain.
 
 WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
 
@@ -248,9 +288,44 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
                       interview_process: { type: "string", description: "z.B. '3-stufig, ca. 2 Wochen'" }
                     },
                     required: ["growth_stage", "culture_keywords"]
+                  },
+                  anzeige: {
+                    type: "object",
+                    description: "Vollständige anonyme Stellenanzeige in Du-Form, ohne Geldbeträge (dafür {VERGUETUNG})",
+                    properties: {
+                      einleitung: { type: "string" },
+                      unternehmen: { type: "string" },
+                      aufgaben: { type: "array", items: { type: "string" } },
+                      arbeitsalltag: { type: "string" },
+                      profil_zwingend: { type: "array", items: { type: "string" } },
+                      profil_vorteil: { type: "array", items: { type: "string" } },
+                      angebot: { type: "array", items: { type: "string" } },
+                      team: { type: "string" },
+                      ablauf: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["einleitung", "unternehmen", "aufgaben", "profil_zwingend", "angebot"]
+                  },
+                  ansprache: {
+                    type: "object",
+                    description: "Kurzansprachen in Du-Form mit {VORNAME} und {VERGUETUNG}, ohne Geldbeträge",
+                    properties: {
+                      linkedin: { type: "string", description: "max. 280 Zeichen" },
+                      email_betreff: { type: "string" },
+                      email_text: { type: "string" },
+                      telefon: {
+                        type: "object",
+                        properties: {
+                          einstieg: { type: "string" },
+                          argumente: { type: "array", items: { type: "string" } },
+                          fragen: { type: "array", items: { type: "string" } }
+                        },
+                        required: ["einstieg", "argumente", "fragen"]
+                      }
+                    },
+                    required: ["linkedin", "email_betreff", "email_text", "telefon"]
                   }
                 },
-                required: ["headline", "highlights", "role_summary", "ideal_candidate", "selling_points", "anonymous_company_pitch", "quick_facts"],
+                required: ["headline", "highlights", "role_summary", "ideal_candidate", "selling_points", "anonymous_company_pitch", "quick_facts", "anzeige", "ansprache"],
                 additionalProperties: false
               }
             }
@@ -335,16 +410,41 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
       };
     }
 
-    // Update job with formatted content
-    await supabase
-      .from('jobs')
-      .update({ formatted_content: formattedContent })
-      .eq('id', jobId);
+    formattedContent.fassung = ANZEIGE_FASSUNG;
 
-    return new Response(
-      JSON.stringify({ formattedContent }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Prüfungen für Matchunt. Sie enthalten den Firmennamen und gehören
+    // deshalb NIE in formatted_content (das lesen Recruiter), nur in den
+    // Entwurf, den allein Admins lesen.
+    const domains: string[] = [];
+    if (job.intake_draft_id) {
+      const { data: d } = await supabase.from('intake_drafts')
+        .select('company_domain, company_website').eq('id', job.intake_draft_id).maybeSingle();
+      if (d) domains.push(d.company_domain, d.company_website);
+    }
+    const begriffe = verboteneBegriffe(job.company_name, job.reveal_envelope?.red_list, domains);
+    const texte = textDerAnzeige(formattedContent);
+    const fakten = prompt.slice(prompt.indexOf('STELLENINFORMATIONEN:'), prompt.indexOf('Erstelle eine ansprechende Formatierung'));
+    const pruefung = {
+      begriffe,
+      namensFunde: namensFunde(texte, begriffe),
+      betragFunde: betragFunde(texte),
+      ohneGrundlage: await ohneGrundlage(LOVABLE_API_KEY, fakten, texte),
+      erzeugtAm: new Date().toISOString(),
+    };
+
+    if (entwurf) {
+      const { error: draftError } = await supabase.from('job_recruiter_text_drafts').upsert({
+        job_id: jobId, content: formattedContent, pruefung, created_by: erzeugtVon, created_at: pruefung.erzeugtAm,
+      }, { onConflict: 'job_id' });
+      if (draftError) throw new Error(`Entwurf nicht gespeichert: ${draftError.message}`);
+    } else {
+      await supabase
+        .from('jobs')
+        .update({ formatted_content: formattedContent })
+        .eq('id', jobId);
+    }
+
+    return json({ formattedContent, pruefung });
 
   } catch (error) {
     console.error("Error in format-job-for-recruiters:", error);
@@ -354,3 +454,46 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
     );
   }
 });
+
+/**
+ * Belegprüfung: eine zweite KI liest Anzeige und Ansprache gegen die Angaben
+ * des Kunden und nennt Sätze mit Behauptungen ohne Grundlage. Sie findet viel,
+ * aber nicht garantiert alles -- deshalb liest Matchunt vor der Freigabe mit.
+ * Scheitert sie, blockiert das nichts (null = nicht geprüft).
+ */
+async function ohneGrundlage(apiKey: string, fakten: string, texte: string[]): Promise<string[] | null> {
+  if (!texte.length) return [];
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: "Du prüfst Stellentexte auf Tatsachenbehauptungen ohne Beleg. Antworte nur über das Werkzeug." },
+          { role: "user", content: `ANGABEN DES KUNDEN:\n${fakten}\n\nTEXTE:\n${texte.map((t, i) => `[${i + 1}] ${t}`).join('\n')}\n\nNenne jeden Satz aus den TEXTEN, der eine konkrete Tatsache behauptet (Zahl, Häufigkeit, Werkzeug, Ablauf, Eigenschaft des Unternehmens), die sich NICHT aus den ANGABEN ergibt. Allgemeine Formulierungen ohne Tatsachenbehauptung und die Platzhalter {VORNAME} und {VERGUETUNG} zählen nicht. Gib die Sätze wörtlich zurück; gibt es keine, eine leere Liste.` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "ergebnis",
+            parameters: {
+              type: "object",
+              properties: { ohne_grundlage: { type: "array", items: { type: "string" } } },
+              required: ["ohne_grundlage"],
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "ergebnis" } },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    const liste = args ? JSON.parse(args).ohne_grundlage : null;
+    return Array.isArray(liste) ? liste.map(String).filter(Boolean).slice(0, 20) : null;
+  } catch (e) {
+    console.error("Belegprüfung fehlgeschlagen:", e);
+    return null;
+  }
+}

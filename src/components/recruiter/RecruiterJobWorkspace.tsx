@@ -9,7 +9,7 @@ import { JobFactsBar } from './JobFactsBar';
 import { FeeCalculatorCard } from './FeeCalculatorCard';
 import { CompanyRevealBadge } from './CompanyRevealBadge';
 import { buildBriefingSections, getRecruiterCriteria, narrativeAnswer, type BriefingJob, type BriefingRow } from '@/lib/recruiterBriefing';
-import { spezialistenSatz, verdienstImMonat, verdienstJeTag } from '@/lib/recruiterContracting';
+import { ContractingKonditionen } from './ContractingKonditionen';
 
 export interface WorkspaceJob extends BriefingJob {
   id: string;
@@ -168,13 +168,13 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           {/* Der Verdienst zuerst. Ein Headhunter waehlt aus dutzenden
               Stellen; woran er in dreissig Sekunden entscheidet, ist diese
               Zahl. Vorher stand sie unter vier Knoepfen. */}
-          {job.employment_type === 'freelance' ? <div className="rounded-xl border border-border p-5"><h3 className="font-medium">Projektkonditionen</h3><p className="mt-3 text-xs text-muted-foreground">Tagessatz für den Spezialisten</p><p className="text-lg font-semibold">{spezialistenSatz(job) ? `${spezialistenSatz(job)} / Tag` : 'Tagessatz nicht verfügbar'}</p>{verdienstJeTag(job) && <><p className="mt-3 text-sm">Dein Verdienst: <span className="font-semibold text-emerald-600">ca. {verdienstJeTag(job)} je Einsatztag</span></p><p className="mt-1 text-xs leading-6 text-muted-foreground">laufend, solange der Einsatz läuft{verdienstImMonat(job) ? ` · bei ${job.utilization_days_per_week} Tagen/Woche ca. ${verdienstImMonat(job)} im Monat` : ''}</p></>}</div> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}
+          {job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}
           <div className="rounded-xl border border-border bg-card p-5">
             <p className="mb-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">Dein nächster Schritt</p>
             <h2 className="text-lg font-semibold">Die passende Person vorstellen</h2>
             <p className="mb-5 mt-2 text-sm leading-6 text-muted-foreground">Profil wählen, Passung begründen und Angaben vor dem Einreichen prüfen.</p>
             <Button className="h-auto min-h-11 w-full whitespace-normal py-3" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>
-            <div className="mt-4 space-y-1 border-t border-border pt-3"><Button variant="ghost" className="w-full justify-start" asChild><Link to={`/recruiter/jobs/${job.id}/anzeige`}><FileText />Stellenanzeige ansehen</Link></Button><Button variant="ghost" className="w-full justify-start" onClick={onExpose}><FileText />Anonymes Exposé</Button><Button variant="ghost" className="w-full justify-start" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden</Button></div>
+            <div className="mt-4 space-y-1 border-t border-border pt-3"><Button variant="ghost" className="w-full justify-start" asChild><Link to={`/recruiter/jobs/${job.id}/anzeige`}><FileText />Anzeige &amp; Ansprache</Link></Button><Button variant="ghost" className="w-full justify-start" onClick={onExpose}><FileText />Anonymes Exposé</Button><Button variant="ghost" className="w-full justify-start" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden</Button></div>
           </div>
           <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? 'Unternehmensdaten sind für dich freigegeben.' : 'Unternehmensidentität geschützt. So funktioniert die Freigabe.'}</span></button>
         </aside>

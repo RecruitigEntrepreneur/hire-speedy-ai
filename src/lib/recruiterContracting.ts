@@ -6,13 +6,29 @@
  * des Recruiters je Einsatztag. Budget und Marge des Kunden sieht der
  * Recruiter nicht. Hier wird nur noch formatiert.
  */
-import { euroSpanne, spanne } from './contractingFreigabe';
+import { einsatzZeile, euroSpanne, spanne } from './contractingFreigabe';
 
 // Jede Stellenform aus recruiter_jobs_view; gelesen werden nur die Spalten unten.
 type Job = object | null | undefined;
 const feld = (job: Job, name: string): unknown => (job as Record<string, unknown> | null | undefined)?.[name];
 
 export const istContracting = (job: Job) => feld(job, 'employment_type') === 'freelance';
+
+/**
+ * Wie der Kandidat bezahlt wird -- Entscheidung 25.09.2026
+ * (CONTRACTING_ABRECHNUNGSMODELL.md, Freelancer-Vertrag § 5): 30 Tage,
+ * Schnellzahlung in 7 Tagen gegen 2 % Skonto.
+ */
+export const ZAHLUNG_KANDIDAT = 'Zahlung 30 Tage nach Abnahme, auf Wunsch in 7 Tagen mit 2 % Skonto';
+
+/** Wann der Recruiter sein Geld sieht (CONTRACTING_ABRECHNUNGSMODELL.md). */
+export const AUSZAHLUNG_RECRUITER = 'monatlich nach Zahlung des Kunden';
+
+/** "zzgl. USt · 3 Tage/Woche · 12 Monate · Verlängerung möglich" */
+export function einsatzFuerKandidat(job: Job): string {
+  const einsatz = job ? einsatzZeile(job as Record<string, unknown>) : null;
+  return ['zzgl. USt', einsatz].filter(Boolean).join(' · ');
+}
 
 /** "310–780 €" -- der Tagessatz für den Spezialisten. */
 export function spezialistenSatz(job: Job): string | null {

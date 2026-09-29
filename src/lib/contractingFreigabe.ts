@@ -10,6 +10,7 @@
  * Recruiter sehen, und warnt, wenn Stelle und Auftrag verschiedene Modelle sind.
  */
 import { CONTRACTING_AUFTRAG, RECRUITER_ANTEIL_AN_MARGE } from '../../supabase/functions/_shared/contracting-mandat.ts';
+import { ANTEIL_SPEZIALIST, spezialistenTagessatz } from '../../supabase/functions/_shared/contracting-konditionen.ts';
 
 export { CONTRACTING_AUFTRAG, RECRUITER_ANTEIL_AN_MARGE };
 
@@ -71,6 +72,17 @@ export function kundenBudget(m: Json | null | undefined, job: Json): [number, nu
   const snap = m?.pricing_snapshot as Json | null | undefined;
   if (snap && ('dayRateMin' in snap || 'dayRateMax' in snap)) return spanne(snap.dayRateMin, snap.dayRateMax);
   return spanne(job.day_rate_min, job.day_rate_max);
+}
+
+/**
+ * Der Tagessatz, den Recruiter sehen: der Anteil des Spezialisten, abgerundet
+ * auf volle 10 € -- dieselbe Rechnung wie recruiter_jobs_view (20260929100000),
+ * mit dem Anteil aus dem Auftrag, sonst der geltenden Kondition.
+ */
+export function recruiterTagessatz(budget: [number, number] | null, m: Json | null | undefined): [number, number] | null {
+  if (!budget) return null;
+  const anteil = m?.fee_basis === 'day_rate_all_in' ? zahl(m?.pricing_snapshot?.specialistPct) ?? ANTEIL_SPEZIALIST : ANTEIL_SPEZIALIST;
+  return [spezialistenTagessatz(budget[0], anteil), spezialistenTagessatz(budget[1], anteil)];
 }
 
 /** Was der Recruiter je Einsatztag verdient: sein Anteil vom Tagessatz. */

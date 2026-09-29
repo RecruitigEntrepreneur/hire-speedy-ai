@@ -5,6 +5,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthProvider } from '@/lib/auth';
 import { JobApprovalDialog } from '@/components/admin/JobApprovalDialog';
+import { BEISPIEL_ANZEIGE } from './beispielAnzeige';
 import '@/index.css';
 
 // Separate Vite-Entwicklungsseite für den Freigabedialog „Job zur Genehmigung“.
@@ -21,6 +22,8 @@ const stelle = {
   description: null, requirements: null, location: 'München', remote_type: 'hybrid', experience_level: 'senior',
   skills: ['Cannabinoidmedizin', 'Telemedizin', 'Approbation'], must_haves: null, nice_to_haves: null,
   industry: 'Telemedizin', urgency: 'standard', status: 'pending_approval', client_id: 'kunde-1',
+  formatted_content: null, reveal_envelope: { red_list: ['Kanna'] },
+  must_have_criteria: ['Approbation', 'Erfahrung Cannabinoidmedizin'], contract_creation_days: 3,
   mandate_id: 'm-1', intake_draft_id: 'd-1', company_size_band: '1-50',
   salary_min: null, salary_max: null, fee_percentage: 20, recruiter_fee_percentage: 15,
   employment_type: 'freelance', day_rate_min: 400, day_rate_max: 1000,
@@ -65,18 +68,34 @@ const rows = (table: string): unknown[] => ({
   commercial_terms_templates: [{ key: 'standard', fee_percentage: 20, recruiter_fee_percentage: 15, min_fee_percentage: 15, max_fee_percentage: 30, min_recruiter_fee_percentage: 10, max_recruiter_fee_percentage: 25, fee_basis: 'annual_target_salary' }],
   commercial_mandates: [s.mandat],
   client_framework_agreements: [s.rahmen],
+  job_recruiter_text_drafts: [],
 } as Record<string, unknown[]>)[table] ?? [];
 
 // Jede Kette (select/eq/update/…) endet entweder in maybeSingle() oder wird direkt abgewartet.
 Object.assign(supabase, { from: (table: string) => {
   const q: Record<string, unknown> = {
     select: () => q, eq: () => q, order: () => q, limit: () => q, in: () => q, update: () => q, insert: () => q,
+    upsert: () => q, delete: () => q,
     maybeSingle: async () => ({ data: rows(table)[0] ?? null, error: null }),
     then: (resolve: (r: unknown) => unknown) => Promise.resolve({ data: rows(table), error: null }).then(resolve),
   };
   return q;
 } });
-Object.assign(supabase.functions, { invoke: async () => ({ data: null, error: null }) });
+// format-job-for-recruiters mit entwurf: true -- nachgestellte KI-Antwort samt Prüfung.
+// `supabase.functions` ist ein Getter, der jedes Mal einen neuen Client baut --
+// deshalb die Eigenschaft selbst ersetzen, sonst geht der Aufruf an den Server.
+Object.defineProperty(supabase, 'functions', { configurable: true, value: { invoke: async (name: string) => {
+  if (name !== 'format-job-for-recruiters') return { data: null, error: null };
+  await new Promise(r => setTimeout(r, 800));
+  return { data: {
+    formattedContent: BEISPIEL_ANZEIGE,
+    pruefung: {
+      begriffe: ['Kanna Medics GmbH', 'Kanna Medics', 'Kanna', 'kanna-medics.de', 'kanna-medics'],
+      ohneGrundlage: ['Sprechstunden in festen Blöcken, dazwischen Dokumentation.'],
+      erzeugtAm: new Date().toISOString(),
+    },
+  }, error: null };
+} } });
 Object.assign(supabase.auth, {
   getSession: async () => ({ data: { session }, error: null }),
   onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
