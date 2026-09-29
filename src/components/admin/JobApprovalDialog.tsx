@@ -40,7 +40,21 @@ import {
   Sparkles,
   FileSignature,
   ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
+import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import {
+  CONTRACTING_AUFTRAG,
+  RAHMEN_STATUS,
+  einsatzZeile,
+  euroSpanne,
+  kundenBudget,
+  modellDerStelle,
+  modellDesAuftrags,
+  recruiterJeTag,
+  spanne,
+  vertragsabweichung,
+} from '@/lib/contractingFreigabe';
 
 interface Job {
   id: string;
@@ -67,6 +81,16 @@ interface Job {
   /** Aus einer Beauftragungsanfrage über einen Aufnahme-Link entstanden. */
   mandate_id?: string | null;
   intake_draft_id?: string | null;
+  /** Contracting (employment_type 'freelance'): Budget je Tag und Einsatz. */
+  day_rate_min?: number | null;
+  day_rate_max?: number | null;
+  utilization_days_per_week?: number | null;
+  contract_duration_months?: number | null;
+  extension_possible?: boolean | null;
+  /** Für die anonyme Firmenzeile, wie Recruiter sie sehen. */
+  company_size_band?: string | null;
+  funding_stage?: string | null;
+  tech_environment?: string[] | null;
 }
 
 const SIGNATURE_LABEL: Record<string, string> = {
@@ -99,6 +123,8 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
   const [terms, setTerms] = useState<Record<string, any> | null>(null);
   /** Die Vermittlungsvereinbarung, falls die Stelle aus einer Anfrage stammt. */
   const [mandate, setMandate] = useState<Record<string, any> | null>(null);
+  /** Der Rahmenvertrag unter dem Auftrag (Nummer, Fassung, Stand). */
+  const [rahmen, setRahmen] = useState<Record<string, any> | null>(null);
   const [gateLoading, setGateLoading] = useState(false);
 
   useEffect(() => {
@@ -119,16 +145,27 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
           .select('*').eq('id', job.mandate_id).maybeSingle();
         m = data ?? null;
       }
+      let rv: Record<string, any> | null = null;
+      if (m?.framework_agreement_id) {
+        const { data } = await supabase.from('client_framework_agreements')
+          .select('agreement_number, status, template_version, countersigned_at')
+          .eq('id', m.framework_agreement_id).maybeSingle();
+        rv = data ?? null;
+      }
 
       if (cancelled) return;
       setTerms(tpl ?? null);
       setMandate(m);
+      setRahmen(rv);
       // Ein bestätigtes Mandat schlägt alles: der Kunde hat GENAU diese Zahl
-      // bestätigt, sie darf hier nicht still überschrieben werden.
-      setFeePercentage(Number(m?.fee_percentage ?? job.fee_percentage ?? tpl?.fee_percentage ?? 20));
-      setRecruiterFeePercentage(
-        Number(m?.recruiter_fee_percentage ?? job.recruiter_fee_percentage ?? tpl?.recruiter_fee_percentage ?? 15),
-      );
+      // bestätigt, sie darf hier nicht still überschrieben werden. Contracting
+      // ohne Auftrag rechnet mit der Contracting-Kondition, nicht mit den
+      // Festanstellungs-Werten, die draftToJobRow in die Stelle schreibt.
+      const standard = m || job.employment_type !== 'freelance'
+        ? { fee: job.fee_percentage ?? tpl?.fee_percentage ?? 20, recruiter: job.recruiter_fee_percentage ?? tpl?.recruiter_fee_percentage ?? 15 }
+        : { fee: CONTRACTING_AUFTRAG.fee_percentage, recruiter: CONTRACTING_AUFTRAG.recruiter_fee_percentage };
+      setFeePercentage(Number(m?.fee_percentage ?? standard.fee));
+      setRecruiterFeePercentage(Number(m?.recruiter_fee_percentage ?? standard.recruiter));
       setGateLoading(false);
     })();
 
@@ -144,6 +181,10 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
     (mandate?.status === 'accepted' &&
       ['signed', 'not_required'].includes(mandate?.signature_status ?? ''));
   const feeLocked = Boolean(mandate?.client_confirmed_at);
+  // Welche Konditionen gezeigt werden, bestimmt der Auftrag -- nach ihm wird
+  // abgerechnet. Passt die Stelle nicht dazu, steht oben die Warnung.
+  const contracting = (modellDesAuftrags(mandate) ?? modellDerStelle(job?.employment_type)) === 'contracting';
+  const abweichung = gateLoading ? null : vertragsabweichung(job?.employment_type, mandate);
 
   const formatJobForRecruiters = async (jobId: string) => {
     setFormatting(true);
@@ -286,6 +327,54 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
   if (!job) return null;
 
   const potentialEarning = calculatePotentialEarning();
+  const budget = kundenBudget(mandate, job);
+  // Recruiter sehen den Tagessatz der Stelle, nicht den des Auftrags.
+  const stellenTagessatz = spanne(job.day_rate_min, job.day_rate_max);
+  const recruiterTag = recruiterJeTag(stellenTagessatz, recruiterFeePercentage);
+  const einsatz = einsatzZeile(job);
+  const zahlungsziel = mandate?.payment_terms_days ?? mandate?.pricing_snapshot?.paymentTermsDays ?? CONTRACTING_AUFTRAG.payment_terms_days;
+  const anonymeFirma = formatAnonymousCompany({
+    industry: job.industry,
+    companySize: job.company_size_band,
+    fundingStage: job.funding_stage,
+    techStack: job.tech_environment,
+    location: job.location,
+    remoteType: job.remote_type,
+  });
+
+  const dringlichkeit = (
+    <div className="space-y-3">
+      <Label>Dringlichkeit</Label>
+      <Select value={urgency} onValueChange={setUrgency}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="standard">
+            <div className="flex items-center gap-2">
+              <Circle className="h-3 w-3 text-muted-foreground" />
+              Standard
+            </div>
+          </SelectItem>
+          <SelectItem value="urgent">
+            <div className="flex items-center gap-2">
+              <Zap className="h-3 w-3 text-warning" />
+              Urgent
+            </div>
+          </SelectItem>
+          <SelectItem value="hot">
+            <div className="flex items-center gap-2">
+              <Flame className="h-3 w-3 text-destructive" />
+              Hot
+            </div>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">
+        Beeinflusst die Sichtbarkeit und Priorisierung für Recruiter
+      </p>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -296,11 +385,30 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
             Job zur Genehmigung
           </DialogTitle>
           <DialogDescription>
-            Prüfe die Stellendetails und lege die Konditionen für Recruiter fest
+            {contracting
+              ? 'Prüfe, was der Kunde bestätigt hat und was Recruiter sehen'
+              : 'Prüfe die Stellendetails und lege die Konditionen für Recruiter fest'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          {abweichung && (
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 !text-amber-600" />
+              <AlertDescription className="space-y-1 text-sm">
+                <p className="font-medium">{abweichung.titel}</p>
+                <p className="text-muted-foreground">{abweichung.text}</p>
+                {job.intake_draft_id && (
+                  <Button asChild variant="outline" size="sm" className="mt-1 gap-1.5">
+                    <Link to={`/admin/intakes/${job.intake_draft_id}`}>
+                      <ExternalLink className="h-3.5 w-3.5" /> Zum Vertragslauf
+                    </Link>
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Job Preview */}
           <Card className="bg-muted/30">
             <CardContent className="pt-4">
@@ -325,15 +433,23 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
                     )}
                     {job.employment_type && (
                       <Badge variant="outline" className="capitalize text-xs">
-                        {job.employment_type}
+                        {job.employment_type === 'freelance' ? 'Contracting' : job.employment_type}
                       </Badge>
                     )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Gehalt</p>
-                  <p className="font-semibold">{formatSalary(job.salary_min, job.salary_max)}</p>
-                </div>
+                {contracting ? (
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Budget je Tag</p>
+                    <p className="font-semibold">{budget ? euroSpanne(budget) : 'Nicht angegeben'}</p>
+                    {budget && <p className="text-xs text-muted-foreground">alles inklusive</p>}
+                  </div>
+                ) : (
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Gehalt</p>
+                    <p className="font-semibold">{formatSalary(job.salary_min, job.salary_max)}</p>
+                  </div>
+                )}
               </div>
 
               {/* Skills */}
@@ -359,7 +475,66 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
 
           <Separator />
 
-          {/* Conditions Configuration */}
+          {contracting ? (
+          <div className="space-y-6">
+            <h4 className="font-semibold flex items-center gap-2">
+              <Euro className="h-4 w-4" />
+              Konditionen
+            </h4>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2 rounded-lg border p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Was der Kunde bestätigt hat
+                </p>
+                <p className="font-semibold">
+                  {budget ? `Budget ${euroSpanne(budget)} je Tag` : 'Ohne Budget: Tagessatz je Einsatz abstimmen'}
+                </p>
+                {budget && <p className="text-xs text-muted-foreground">alles inklusive, zzgl. USt</p>}
+                {einsatz && <p className="text-sm">{einsatz}</p>}
+                <p className="text-sm">Zahlungsziel {zahlungsziel} Tage</p>
+                {mandate?.client_confirmed_at && (
+                  <p className="text-sm">
+                    Bestätigt am {new Date(mandate.client_confirmed_at).toLocaleDateString('de-DE')}
+                    {mandate.mandate_number ? <> · {mandate.mandate_number}</> : null}
+                  </p>
+                )}
+                <p className="text-sm">
+                  {rahmen
+                    ? <>Rahmenvertrag {rahmen.agreement_number} · Fassung {rahmen.template_version} · {RAHMEN_STATUS[rahmen.status] ?? rahmen.status}</>
+                    : mandate ? 'Kein Rahmenvertrag am Auftrag' : 'Ohne Auftrag angelegt'}
+                </p>
+              </div>
+
+              <div className="space-y-2 rounded-lg border p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Was Recruiter sehen
+                </p>
+                <p className="font-semibold">{job.title}</p>
+                <p className="text-xs text-muted-foreground">{anonymeFirma} · Firma verborgen bis zum Reveal</p>
+                <p className="text-sm">
+                  Tagessatz {stellenTagessatz ? `${euroSpanne(stellenTagessatz)} pro Tag` : 'nicht angegeben'}
+                </p>
+                <p className="text-sm">Provision {recruiterFeePercentage.toLocaleString('de-DE')} % vom Tagessatz, laufend</p>
+                {recruiterTag && (
+                  <p className="text-sm">
+                    Recruiter verdient ca. <span className="font-semibold text-emerald">{recruiterTag} je Einsatztag</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Intern: Marge {feePercentage.toLocaleString('de-DE')} % vom Tagessatz, davon{' '}
+              {recruiterFeePercentage.toLocaleString('de-DE')} % an den Recruiter.{' '}
+              {feeLocked
+                ? <>Fest aus {mandate?.mandate_number ?? 'dem Auftrag'}, vom Kunden bestätigt — nicht änderbar.</>
+                : mandate ? 'Aus dem Auftrag.' : 'Contracting-Kondition, weil kein Auftrag vorliegt.'}
+            </p>
+
+            {dringlichkeit}
+          </div>
+          ) : (
           <div className="space-y-6">
             <h4 className="font-semibold flex items-center gap-2">
               <Euro className="h-4 w-4" />
@@ -422,39 +597,9 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
               )}
             </div>
 
-            {/* Urgency */}
-            <div className="space-y-3">
-              <Label>Dringlichkeit</Label>
-              <Select value={urgency} onValueChange={setUrgency}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">
-                    <div className="flex items-center gap-2">
-                      <Circle className="h-3 w-3 text-muted-foreground" />
-                      Standard
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="urgent">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-3 w-3 text-warning" />
-                      Urgent
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="hot">
-                    <div className="flex items-center gap-2">
-                      <Flame className="h-3 w-3 text-destructive" />
-                      Hot
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Beeinflusst die Sichtbarkeit und Priorisierung für Recruiter
-              </p>
-            </div>
+            {dringlichkeit}
           </div>
+          )}
 
           {fromIntake && (
             <>
@@ -548,7 +693,7 @@ export function JobApprovalDialog({ job, open, onOpenChange, onApproved }: JobAp
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Genehmigen & Veröffentlichen
+                {abweichung ? 'Trotzdem veröffentlichen' : 'Genehmigen & Veröffentlichen'}
               </>
             )}
           </Button>
