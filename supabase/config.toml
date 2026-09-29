@@ -136,6 +136,9 @@ verify_jwt = true
 [functions.process-interview-notes]
 verify_jwt = true
 
+[functions.extract-candidate-dossier]
+verify_jwt = true
+
 [functions.client-candidate-summary]
 verify_jwt = true
 

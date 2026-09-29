@@ -83,6 +83,8 @@ interface CandidateTasksSectionProps {
   } | null;
   onEdit?: () => void;
   onCvUpload?: () => void;
+  /** Aus, wenn die Karte "Bereit zum Einreichen" die Exposé-Aufgaben ersetzt. */
+  showExposeTasks?: boolean;
   onStartInterview?: () => void;
 }
 
@@ -217,7 +219,7 @@ function toDetailItem(
   };
 }
 
-export function CandidateTasksSection({ candidateId, activeTaskId, candidate, onEdit, onCvUpload, onStartInterview }: CandidateTasksSectionProps) {
+export function CandidateTasksSection({ candidateId, activeTaskId, candidate, onEdit, onCvUpload, onStartInterview, showExposeTasks = true }: CandidateTasksSectionProps) {
   const [tasks, setTasks] = useState<CandidateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState<CandidateContact>({});
@@ -424,7 +426,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
   const pendingTasks = tasks.filter(t => !t.action_taken);
   const completedTasks = tasks.filter(t => t.action_taken);
-  const exposeTasks = buildExposeTasks(candidate, hasInterview);
+  const exposeTasks = showExposeTasks ? buildExposeTasks(candidate, hasInterview) : [];
   const candidateManualTasks = manualTasks.filter(t => t.candidate_id === candidateId);
   const derivedTasks = inboxItems.filter(i => i.itemType === 'derived' && i.candidateId === candidateId);
 

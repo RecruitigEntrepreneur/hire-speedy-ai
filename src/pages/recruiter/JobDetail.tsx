@@ -11,6 +11,7 @@ import { AnonymousExposeDialog } from '@/components/recruiter/AnonymousExposeDia
 import { JobCandidateProcessCards, type JobSubmission } from '@/components/recruiter/JobCandidateProcessCards';
 import { RecruiterJobWorkspace, type WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
 import { getRecruiterCriteria } from '@/lib/recruiterBriefing';
+import { ActivateJobDialog, useActivationGate } from '@/components/recruiter/ActivateJobDialog';
 
 type RecruiterJob = WorkspaceJob & { company_revealed?: boolean };
 type Submission = JobSubmission & { company_revealed: boolean; full_access_granted: boolean };
@@ -25,7 +26,14 @@ export default function JobDetail() {
   const [revision, setRevision] = useState(0);
   const [showSubmit, setShowSubmit] = useState(false);
   const [showExpose, setShowExpose] = useState(false);
+  const [showActivate, setShowActivate] = useState(false);
   const reload = useCallback(() => setRevision(value => value + 1), []);
+  // Einreichen nur auf aktivierte Stellen: ohne Aktivierung erst der Aktivierungsdialog
+  const gate = useActivationGate();
+  const openSubmit = useCallback(() => {
+    if (id && gate.isActivated(id)) setShowSubmit(true);
+    else setShowActivate(true);
+  }, [id, gate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,14 +79,15 @@ export default function JobDetail() {
   return <DashboardLayout fluid>
     {/* Bereich für den Rundgang (Kopf, Reiter, Aktionen); „contents“ lässt das Layout unberührt. */}
     <div data-tour-scope="job" className="contents">
-      <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={() => setShowSubmit(true)} onExpose={() => setShowExpose(true)} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={() => setShowSubmit(true)} />} />
+      <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={openSubmit} onExpose={() => setShowExpose(true)} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={openSubmit} />} />
     </div>
     <Dialog open={showSubmit} onOpenChange={setShowSubmit}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>Vorstellung vorbereiten</DialogTitle><DialogDescription>{job.title} · Kandidat wählen, Angaben prüfen und anschließend einreichen.</DialogDescription></DialogHeader>
-        <CandidateSubmitForm jobId={job.id} jobTitle={job.title} mustHaves={getRecruiterCriteria(job).required} onSuccess={() => { setShowSubmit(false); reload(); }} />
+        <CandidateSubmitForm jobId={job.id} jobTitle={job.title} job={job as unknown as Record<string, unknown>} mustHaves={getRecruiterCriteria(job).required} onSuccess={() => { setShowSubmit(false); reload(); }} />
       </DialogContent>
     </Dialog>
     <AnonymousExposeDialog open={showExpose} onOpenChange={setShowExpose} jobId={job.id} />
+    <ActivateJobDialog job={showActivate ? (job as unknown as Record<string, unknown> & { id: string; title: string }) : null} gate={gate} onClose={() => setShowActivate(false)} onActivated={() => setShowSubmit(true)} />
   </DashboardLayout>;
 }

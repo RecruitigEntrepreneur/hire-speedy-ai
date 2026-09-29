@@ -7,7 +7,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getExposeReadiness } from '@/hooks/useExposeReadiness';
+import { useCandidateDossier } from '@/hooks/useCandidateDossier';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
 import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
@@ -15,13 +15,18 @@ import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
 import { Candidate } from '@/components/candidates/CandidateCard';
 import { AddActivityDialog } from '@/components/candidates/AddActivityDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
-import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
 import { CandidateInterviewTab } from '@/components/candidates/CandidateInterviewTab';
 import { CandidatePlaybookPanel } from '@/components/candidates/CandidatePlaybookPanel';
 import { CandidateHeroHeader } from '@/components/candidates/CandidateHeroHeader';
 import { CandidateActionBar } from '@/components/candidates/CandidateActionBar';
 import { CandidateMainContent } from '@/components/candidates/CandidateMainContent';
-import { InterviewCardSlider } from '@/components/candidates/InterviewCardSlider';
+import { CandidateEditSheet, EditFocus } from '@/components/candidates/dossier/CandidateEditSheet';
+import { CandidateInterviewDialog } from '@/components/candidates/dossier/CandidateInterviewDialog';
+import { DossierFactsCard, DossierReadinessCard } from '@/components/candidates/dossier/DossierCards';
+import { SubmitToJobDialog } from '@/components/candidates/dossier/SubmitToJobDialog';
+import { CaptureDialog } from '@/components/candidates/dossier/CaptureDialog';
+import { InterviewEntryCard } from '@/components/candidates/dossier/InterviewEntryCard';
+import type { DossierForm } from '@/lib/candidateDossier';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -48,9 +53,16 @@ export default function RecruiterCandidateDetail() {
   const [addActivityOpen, setAddActivityOpen] = useState(false);
   const [cvUploadOpen, setCvUploadOpen] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [editFocus, setEditFocus] = useState<EditFocus | null>(null);
   const [showFullInterview, setShowFullInterview] = useState(false);
   const [interviewSliderOpen, setInterviewSliderOpen] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  // Interview erfassen: schon geführt (einwerfen) oder aus dem Kopf
+  const [captureMode, setCaptureMode] = useState<'import' | 'quick' | null>(null);
+  const [sourcesRefresh, setSourcesRefresh] = useState(0);
+
+  // Kandidatenakte: eine Quelle für Bearbeiten, Interview, Eckdaten und "Bereit zum Einreichen"
+  const dossier = useCandidateDossier(id);
 
   const { getCandidateTags } = useCandidateTags();
   const candidateTags = candidate ? getCandidateTags(candidate.id) : [];
@@ -124,38 +136,32 @@ export default function RecruiterCandidateDetail() {
 
   const extCandidate = candidate as any;
 
-  // Load interview notes for readiness check
-  const { data: interviewNotes } = useQuery({
-    queryKey: ['candidate-interview-readiness', id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('candidate_interview_notes')
-        .select('change_motivation, would_recommend')
-        .eq('candidate_id', id!)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!id,
-  });
+  const readiness = dossier.loading ? null : {
+    done: dossier.readiness.done,
+    total: dossier.readiness.total,
+    isReady: dossier.readiness.isReady,
+    missing: dossier.readiness.missing.map((m) => m.label),
+  };
 
-  const readiness = candidate ? getExposeReadiness({
-    full_name: candidate.full_name,
-    email: candidate.email,
-    phone: candidate.phone,
-    job_title: candidate.job_title,
-    skills: candidate.skills,
-    experience_years: candidate.experience_years,
-    expected_salary: candidate.expected_salary,
-    availability_date: extCandidate?.availability_date,
-    notice_period: extCandidate?.notice_period,
-    city: candidate.city,
-    cv_ai_summary: extCandidate?.cv_ai_summary,
-    cv_ai_bullets: extCandidate?.cv_ai_bullets,
-    change_motivation: interviewNotes?.change_motivation,
-    would_recommend: interviewNotes?.would_recommend,
-  }) : null;
+  const refreshCandidate = async () => {
+    if (!id) return;
+    const { data } = await supabase.from('candidates').select('*').eq('id', id).single();
+    if (data) setCandidate(data as unknown as Candidate);
+  };
+
+  const handleDossierSave = async (next: DossierForm) => {
+    const result = await dossier.save(next);
+    if (result.ok) {
+      refreshCandidate();
+      queryClient.invalidateQueries({ queryKey: ['candidate-interview-readiness', id] });
+    }
+    return result;
+  };
+
+  const openEdit = (focus: EditFocus | null = null) => {
+    setEditFocus(focus);
+    setFormDialogOpen(true);
+  };
 
   const [currentStatus, setCurrentStatus] = useState(candidate?.candidate_status || 'new');
   useEffect(() => {
@@ -167,19 +173,6 @@ export default function RecruiterCandidateDetail() {
     await logActivity(candidate.id, activityType as any, title, description);
     setAddActivityOpen(false);
     toast.success('Aktivität hinzugefügt');
-  };
-
-  const handleSaveCandidate = async (candidateData: Partial<Candidate>) => {
-    if (!candidate) return;
-    setProcessing(true);
-    try {
-      const { error } = await supabase.from('candidates').update(candidateData as never).eq('id', candidate.id);
-      if (error) throw error;
-      toast.success('Kandidat aktualisiert');
-      setFormDialogOpen(false);
-      const { data } = await supabase.from('candidates').select('*').eq('id', candidate.id).single();
-      if (data) setCandidate(data as unknown as Candidate);
-    } catch { toast.error('Fehler beim Speichern'); } finally { setProcessing(false); }
   };
 
   const handleViewExpose = () => { if (candidate) window.open(`/expose/${candidate.id}`, '_blank'); };
@@ -235,7 +228,7 @@ export default function RecruiterCandidateDetail() {
             currentStatus={currentStatus}
             candidateId={candidate.id}
             activeTaskId={activeTaskId}
-            onEdit={() => setFormDialogOpen(true)}
+            onEdit={() => openEdit()}
             onCvUpload={() => setCvUploadOpen(true)}
             onStartInterview={handleStartInterview}
           />
@@ -282,13 +275,37 @@ export default function RecruiterCandidateDetail() {
           activitiesLoading={activitiesLoading}
           onAddActivity={() => setAddActivityOpen(true)}
           onStartInterview={handleStartInterview}
+          dossierSlot={
+            dossier.loading ? undefined : (
+              <div className="space-y-6">
+                <InterviewEntryCard
+                  candidateId={candidate.id}
+                  hasInterview={dossier.hasNotes}
+                  interviewDate={dossier.form.interview_date}
+                  refreshKey={sourcesRefresh}
+                  onImport={() => setCaptureMode('import')}
+                  onLive={handleStartInterview}
+                  onQuick={() => setCaptureMode('quick')}
+                />
+                <DossierReadinessCard
+                  readiness={dossier.readiness}
+                  firstName={candidate.full_name.split(' ')[0] || candidate.full_name}
+                  onEdit={openEdit}
+                  onStartInterview={handleStartInterview}
+                  onViewExpose={handleViewExpose}
+                  onSubmit={() => setSubmitOpen(true)}
+                />
+                <DossierFactsCard form={dossier.form} onEdit={openEdit} />
+              </div>
+            )
+          }
         />
       </div>
 
       <CandidateActionBar
         onViewExpose={handleViewExpose}
         onStartInterview={handleStartInterview}
-        onSubmitToJob={() => {}}
+        onSubmitToJob={() => setSubmitOpen(true)}
         exposeReady={readiness?.isReady}
         currentStatus={currentStatus}
       />
@@ -300,12 +317,48 @@ export default function RecruiterCandidateDetail() {
         existingCandidateId={candidate?.id}
         onCandidateCreated={async () => {
           setCvUploadOpen(false);
-          const { data } = await supabase.from('candidates').select('*').eq('id', candidate.id).single();
-          if (data) setCandidate(data as unknown as Candidate);
+          await refreshCandidate();
+          dossier.reload();
         }}
       />
-      <CandidateFormDialog open={formDialogOpen} onOpenChange={setFormDialogOpen} candidate={candidate} onSave={handleSaveCandidate} processing={processing} />
-      <InterviewCardSlider open={interviewSliderOpen} onOpenChange={setInterviewSliderOpen} candidateId={candidate.id} candidateName={candidate.full_name} />
+      <CandidateEditSheet
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        candidateName={candidate.full_name}
+        form={dossier.form}
+        onSave={handleDossierSave}
+        focus={editFocus}
+      />
+      <SubmitToJobDialog
+        open={submitOpen}
+        onOpenChange={setSubmitOpen}
+        candidateId={candidate.id}
+        candidateName={candidate.full_name}
+        onSubmitted={() => {
+          queryClient.invalidateQueries({ queryKey: ['candidate-submissions-header', id] });
+          queryClient.invalidateQueries({ queryKey: ['candidate-active-processes', id] });
+          refetchActivities();
+        }}
+      />
+      <CandidateInterviewDialog
+        open={interviewSliderOpen}
+        onOpenChange={setInterviewSliderOpen}
+        candidateId={candidate.id}
+        form={dossier.form}
+        pendingColumns={dossier.pendingColumns}
+        onSave={handleDossierSave}
+        onComplete={async () => { await dossier.markInterviewCompleted(); setSourcesRefresh((n) => n + 1); }}
+      />
+      <CaptureDialog
+        open={captureMode !== null}
+        onOpenChange={(o) => { if (!o) { setCaptureMode(null); setSourcesRefresh((n) => n + 1); } }}
+        mode={captureMode ?? 'import'}
+        candidateId={candidate.id}
+        form={dossier.form}
+        onSave={handleDossierSave}
+        onEdit={openEdit}
+        onSubmitToJob={() => setSubmitOpen(true)}
+      />
     </DashboardLayout>
   );
 }

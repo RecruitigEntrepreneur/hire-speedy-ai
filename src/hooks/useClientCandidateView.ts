@@ -165,11 +165,14 @@ function formatAvailability(
   if (noticePeriod) {
     // Rohe DB-Enums nie ungefiltert anzeigen („6_months" → „6 Monate Kündigungsfrist")
     const noticeLabels: Record<string, string> = {
+      immediate: 'Sofort verfügbar',
       immediately: 'Sofort verfügbar',
       '2_weeks': '2 Wochen Kündigungsfrist',
       '1_month': '1 Monat Kündigungsfrist',
+      '6_weeks': '6 Wochen Kündigungsfrist',
       '2_months': '2 Monate Kündigungsfrist',
       '3_months': '3 Monate Kündigungsfrist',
+      '3_months_eoq': 'Kündigungsfrist 3 Monate zum Quartalsende',
       '6_months': '6 Monate Kündigungsfrist',
     };
     if (noticeLabels[noticePeriod]) return noticeLabels[noticePeriod];

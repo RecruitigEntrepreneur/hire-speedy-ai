@@ -205,7 +205,7 @@ export function ActivationConfirmDialog({
                   </div>
 
                   <p className="text-xs text-muted-foreground">
-                    Nach der Bestätigung wird der Firmenname enthüllt. Die Aktivierung belegt einen Slot und kann derzeit nicht beendet werden.
+                    Die Aktivierung belegt einen Platz und kann derzeit nicht beendet werden. Erst danach kannst du Kandidaten für diese Stelle einreichen.
                   </p>
 
                   {/* Checkbox */}

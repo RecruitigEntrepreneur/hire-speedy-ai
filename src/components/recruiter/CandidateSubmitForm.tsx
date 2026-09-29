@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/lib/auth';
@@ -32,7 +32,9 @@ import { useToast } from '@/hooks/use-toast';
 import { FileUpload } from '@/components/files/FileUpload';
 import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
-import { getExposeReadiness } from '@/hooks/useExposeReadiness';
+import { fetchDossier } from '@/hooks/useCandidateDossier';
+import { DossierForm, isMissingColumnError, redactIdentity } from '@/lib/candidateDossier';
+import { CRITERION_RATING_OPTIONS, CriterionAssessment, FitCandidate, OVERRIDE_MIN_LENGTH, computeFitCheck, toCriteriaPayload, toOverridesPayload } from '@/lib/fitCheck';
 import { CandidateSubmissionReview } from './CandidateSubmissionReview';
 
 interface CandidateSubmitFormProps {
@@ -40,6 +42,8 @@ interface CandidateSubmitFormProps {
   jobTitle: string;
   mustHaves?: string[];
   initialCandidateId?: string;
+  /** Stelle aus recruiter_jobs_view für den Passungs-Check (Budget, Arbeitsmodell, Ort, Sprachen). */
+  job?: Record<string, unknown> | null;
   onSuccess: () => void;
 }
 
@@ -59,7 +63,7 @@ interface ExistingCandidate {
   cv_ai_bullets: Json | null;
 }
 
-export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCandidateId, onSuccess }: CandidateSubmitFormProps) {
+export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCandidateId, job = null, onSuccess }: CandidateSubmitFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { calculateSingleMatch, loading: matchLoading } = useMatchScoreV31();
@@ -77,9 +81,19 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
   const [selectedCandidateReadiness, setSelectedCandidateReadiness] = useState<{
     candidateId: string;
     isReady: boolean;
-    score: number;
+    done: number;
+    total: number;
     missingFields: string[];
   } | null>(null);
+  const [selectedDossier, setSelectedDossier] = useState<DossierForm | null>(null);
+  const [criteria, setCriteria] = useState<CriterionAssessment[]>([]);
+  // Begründungen zum Übergehen von Warnungen (Regel → Text), werden mitgespeichert
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setCriteria(mustHaves.map((criterion) => ({ criterion, rating: null, evidence: '' })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mustHaves.join('|')]);
 
   // New candidate form
   const [formData, setFormData] = useState({
@@ -331,23 +345,44 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
       checkDuplicate(candidate.email);
       checkSkillsMatch(candidate.skills || []);
 
-      // Fetch interview notes for change_motivation (lives in separate table)
-      const { data: interviewNotes } = await supabase
-        .from('candidate_interview_notes')
-        .select('change_motivation')
-        .eq('candidate_id', candidateId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const readiness = getExposeReadiness({
-        ...candidate,
-        cv_ai_bullets: Array.isArray(candidate.cv_ai_bullets) ? candidate.cv_ai_bullets : null,
-        change_motivation: interviewNotes?.change_motivation || null,
+      // Gleiche Regel wie "Bereit zum Einreichen" im Kandidatenprofil (Kandidatenakte);
+      // ein Lebenslauf ist dafür keine Pflicht mehr.
+      const { form: dossier, readiness } = await fetchDossier(candidateId);
+      setSelectedDossier(dossier);
+      setSelectedCandidateReadiness({
+        candidateId,
+        isReady: readiness.isReady,
+        done: readiness.done,
+        total: readiness.total,
+        missingFields: readiness.missing.map((m) => m.label),
       });
-      setSelectedCandidateReadiness({ ...readiness, candidateId });
     }
   };
+
+  // Passungs-Check: harte Fakten aus Akte und Stelle, Muss-Kriterien vom Headhunter eingeschätzt
+  const fitCandidate: FitCandidate = selectedDossier && !createNew
+    ? {
+        expected_salary: selectedDossier.expected_salary,
+        salary_minimum: selectedDossier.salary_minimum,
+        remote_preference: selectedDossier.remote_preference,
+        city: selectedDossier.city || null,
+        relocation_willing: selectedDossier.relocation_willing,
+        languages: selectedDossier.languages,
+        work_permit: selectedDossier.work_permit,
+      }
+    : {
+        expected_salary: formData.expected_salary ? parseInt(formData.expected_salary) : null,
+        salary_minimum: null,
+        remote_preference: null,
+        city: null,
+        relocation_willing: null,
+        languages: [],
+        work_permit: null,
+      };
+  const fit = useMemo(() => computeFitCheck(fitCandidate, job ?? {}, criteria, overrides), [JSON.stringify(fitCandidate), job, criteria, overrides]);
+
+  const updateCriterion = (index: number, patch: Partial<CriterionAssessment>) =>
+    setCriteria((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
 
   const handleEmailBlur = () => {
     if (formData.email) {
@@ -378,8 +413,22 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
     // Readiness gate for existing candidates
     if (selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady) {
       toast({
-        title: 'Profil unvollständig',
+        title: 'Noch nicht bereit zum Einreichen',
         description: `Fehlende Felder: ${selectedCandidateReadiness.missingFields.join(', ')}`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!fit.canSubmit) {
+      const openWarnings = fit.warnings.filter((w) => w.reason.length < OVERRIDE_MIN_LENGTH);
+      toast({
+        title: fit.blocking.length ? 'Einreichen gesperrt' : openWarnings.length ? 'Begründung fehlt' : 'Muss-Kriterien einschätzen',
+        description: fit.blocking.length
+          ? fit.blocking.join(' ')
+          : openWarnings.length
+            ? `Bitte begründe, warum du trotzdem einreichst: ${openWarnings.map((w) => w.message).join(' ')}`
+            : `Noch offen: ${fit.criteriaMissing.join(', ')}`,
         variant: 'destructive'
       });
       return;
@@ -432,18 +481,26 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         return;
       }
 
-      // Create submission with GDPR consent
-      const { error: submissionError } = await supabase
-        .from('submissions')
-        .insert({
-          job_id: jobId,
-          candidate_id: candidateId,
-          recruiter_id: user.id,
-          recruiter_notes: recruiterNotes || null,
-          status: 'submitted',
-          consent_confirmed: gdprConsent,
-          consent_confirmed_at: gdprConsent ? new Date().toISOString() : null,
-        });
+      // Create submission with GDPR consent and the must-have assessment (anonymised evidence)
+      const identityName = createNew ? formData.full_name : selectedDossier?.full_name || '';
+      const identityCompany = createNew ? '' : selectedDossier?.company || '';
+      const submissionRow = {
+        job_id: jobId,
+        candidate_id: candidateId,
+        recruiter_id: user.id,
+        recruiter_notes: recruiterNotes || null,
+        status: 'submitted',
+        consent_confirmed: gdprConsent,
+        consent_confirmed_at: gdprConsent ? new Date().toISOString() : null,
+        criteria_assessment: toCriteriaPayload(criteria, (text) => redactIdentity(text, identityName, identityCompany)),
+        fit_overrides: toOverridesPayload(fit),
+      };
+      let { error: submissionError } = await supabase.from('submissions').insert(submissionRow as never);
+      if (submissionError && isMissingColumnError(submissionError)) {
+        // Neue Spalten noch nicht migriert: ohne Einschätzung und Begründungen einreichen
+        const { criteria_assessment: _c, fit_overrides: _o, ...withoutNew } = submissionRow;
+        ({ error: submissionError } = await supabase.from('submissions').insert(withoutNew as never));
+      }
 
       if (submissionError) throw submissionError;
 
@@ -525,20 +582,19 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
       {/* Readiness Gate for existing candidates */}
       {selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady && (
-        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
-          <Lock className="h-4 w-4 text-amber-600" />
+        <Alert className="border-warning/40 bg-warning/10">
+          <Lock className="h-4 w-4 text-warning" />
           <AlertDescription>
             <div className="space-y-2">
-              <p className="font-medium text-amber-700 dark:text-amber-400">
-                Profil unvollständig ({selectedCandidateReadiness.score}%)
+              <p className="font-medium text-warning">
+                Noch nicht bereit zum Einreichen ({selectedCandidateReadiness.done} von {selectedCandidateReadiness.total})
               </p>
-              <p className="text-sm text-amber-600 dark:text-amber-500">
-                Der Kandidat kann erst eingereicht werden, wenn das Profil vollständig ist.
-                Bitte vervollständigen Sie das Profil im Kandidaten-Detail.
+              <p className="text-sm text-foreground">
+                Es fehlen noch Angaben. Du trägst sie im Kandidatenprofil unter „Bearbeiten“ oder im Interview ein.
               </p>
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {selectedCandidateReadiness.missingFields.map((field) => (
-                  <Badge key={field} variant="outline" className="text-xs text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+                  <Badge key={field} variant="outline" className="text-xs text-warning border-warning/40">
                     <XCircle className="h-3 w-3 mr-1" />
                     {field}
                   </Badge>
@@ -551,10 +607,10 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
       {/* Readiness OK indicator for existing candidates */}
       {selectedCandidate && selectedCandidateReadiness && selectedCandidateReadiness.isReady && (
-        <Alert className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-400">
-            Profil vollständig ({selectedCandidateReadiness.score}%) — Kandidat kann eingereicht werden.
+        <Alert className="border-success/40 bg-success/10">
+          <CheckCircle2 className="h-4 w-4 text-success" />
+          <AlertDescription className="text-sm text-success">
+            Bereit zum Einreichen ({selectedCandidateReadiness.done} von {selectedCandidateReadiness.total}).
           </AlertDescription>
         </Alert>
       )}
@@ -721,8 +777,10 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
                   <SelectItem value="immediate">Sofort verfügbar</SelectItem>
                   <SelectItem value="2_weeks">2 Wochen</SelectItem>
                   <SelectItem value="1_month">1 Monat</SelectItem>
+                  <SelectItem value="6_weeks">6 Wochen</SelectItem>
                   <SelectItem value="2_months">2 Monate</SelectItem>
                   <SelectItem value="3_months">3 Monate</SelectItem>
+                  <SelectItem value="3_months_eoq">3 Monate zum Quartalsende</SelectItem>
                   <SelectItem value="6_months">6 Monate</SelectItem>
                 </SelectContent>
               </Select>
@@ -768,23 +826,101 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         </Alert>
       )}
 
-      {/* Skills Match */}
-      {mustHaves.length > 0 && (skillsMatch.matched.length > 0 || skillsMatch.missing.length > 0) && (
-        <div className="space-y-2">
-          <Label>Stichworthinweise zu den Pflichtkriterien</Label>
-          <p className="text-xs leading-6 text-muted-foreground">Treffer dienen zur Orientierung. Prüfe Erfahrung und Verantwortungsumfang im Gespräch; fehlende Stichworte sind kein Ausschlussgrund.</p>
-          <div className="flex flex-wrap gap-2">
-            {skillsMatch.matched.map((skill) => (
-              <Badge key={skill} className="bg-emerald/10 text-emerald border-emerald/20">
-                <CheckCircle2 className="h-3 w-3 mr-1" /> {skill}
-              </Badge>
-            ))}
-            {skillsMatch.missing.map((skill) => (
-              <Badge key={skill} variant="outline" className="text-destructive border-destructive/30">
-                <XCircle className="h-3 w-3 mr-1" /> {skill}
-              </Badge>
-            ))}
+      {/* Passungs-Check (ersetzt die Stichworthinweise) */}
+      {(selectedCandidate || createNew) && (job || criteria.length > 0) && (
+        <div className="space-y-3 rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between">
+            <Label>Passungs-Check</Label>
+            <span className="text-xs text-muted-foreground">aus Akte und Stelle</span>
           </div>
+          {job && (
+            <div className="space-y-0">
+              {fit.items.map((item) => (
+                <div key={item.key} className="flex items-start justify-between gap-3 border-b border-border py-1.5 text-sm last:border-b-0">
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-right text-xs">
+                    <span className="text-muted-foreground">{item.detail}</span>{' '}
+                    <span className={item.status === 'ok' ? 'text-success' : item.status === 'hint' ? 'text-warning' : 'text-destructive'}>
+                      {item.status === 'ok' ? `✓ ${item.message}` : item.status === 'hint' ? 'Hinweis' : '⚠ Ausschluss'}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {criteria.length > 0 && (
+            <div className="space-y-3 pt-1">
+              <p className="text-xs font-semibold text-muted-foreground">Muss-Kriterien der Stelle, bitte je Kriterium einschätzen</p>
+              {criteria.map((c, i) => (
+                <div key={c.criterion} className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm">{c.criterion}</span>
+                    <div className="flex gap-1">
+                      {CRITERION_RATING_OPTIONS.map((o) => {
+                        const active = c.rating === o.value;
+                        return (
+                          <button
+                            key={o.value}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => updateCriterion(i, { rating: active ? null : o.value })}
+                            className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${
+                              active
+                                ? o.value === 'not_met'
+                                  ? 'border-destructive bg-destructive text-destructive-foreground'
+                                  : 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border hover:bg-muted'
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Input
+                    value={c.evidence}
+                    onChange={(e) => updateCriterion(i, { evidence: e.target.value })}
+                    placeholder="Beleg, z. B. konkrete Erfahrung (ohne Namen oder Arbeitgeber)"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground">Deine Einschätzung und der Beleg gehen mit der Einreichung an den Kunden.</p>
+            </div>
+          )}
+          {fit.warnings.length > 0 && (
+            <div className="space-y-2 rounded-md bg-warning/10 px-3 py-2">
+              {fit.warnings.map((w) => (
+                <div key={w.rule} className="space-y-1.5">
+                  <p className="text-sm text-warning">{w.message}</p>
+                  <Input
+                    value={overrides[w.rule] ?? ''}
+                    onChange={(e) => setOverrides((prev) => ({ ...prev, [w.rule]: e.target.value }))}
+                    placeholder="Trotzdem einreichen, weil … (wird mit der Einreichung gespeichert)"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {fit.blocking.length > 0 ? (
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              Einreichen gesperrt: {fit.blocking.join(' ')}
+              {selectedCandidate && (
+                <a href={`/recruiter/candidates/${selectedCandidate}`} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">
+                  Profil prüfen
+                </a>
+              )}
+            </div>
+          ) : fit.hints.length > 0 ? (
+            <div className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+              {fit.hints.length === 1 ? '1 Hinweis' : `${fit.hints.length} Hinweise`}: {fit.hints.join(' ')} Einreichen ist möglich.
+            </div>
+          ) : null}
+          {fit.blocking.length === 0 && fit.criteriaMissing.length > 0 && (
+            <p className="text-xs text-muted-foreground">Noch einzuschätzen: {fit.criteriaMissing.join(', ')}</p>
+          )}
         </div>
       )}
 
@@ -827,6 +963,8 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
           loading || checking ||
           (!selectedCandidate && !createNew) ||
           !gdprConsent ||
+          fit.blocking.length > 0 ||
+          fit.warnings.some((w) => w.reason.length < OVERRIDE_MIN_LENGTH) ||
           (!!selectedCandidate && (selectedCandidateReadiness?.candidateId !== selectedCandidate || !selectedCandidateReadiness?.isReady))
         }
       >
@@ -838,7 +976,12 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         ) : selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady ? (
           <>
             <Lock className="h-4 w-4 mr-2" />
-            Profil unvollständig
+            Noch nicht bereit zum Einreichen
+          </>
+        ) : fit.blocking.length > 0 ? (
+          <>
+            <Lock className="h-4 w-4 mr-2" />
+            Einreichen gesperrt
           </>
         ) : (
           <>
@@ -852,7 +995,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
         data={{
           name: createNew ? formData.full_name : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.full_name || '',
           email: createNew ? formData.email : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.email || '',
-          expectedSalary: createNew ? (formData.expected_salary ? Number(formData.expected_salary) : null) : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.expected_salary ?? null,
+          expectedSalary: createNew ? (formData.expected_salary ? Number(formData.expected_salary) : null) : selectedDossier?.expected_salary ?? existingCandidates.find(candidate => candidate.id === selectedCandidate)?.expected_salary ?? null,
           availability: createNew ? formData.availability_date : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.availability_date ?? null,
           notes: recruiterNotes,
           criteria: mustHaves,

@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,8 @@ interface CandidateMainContentProps {
   activitiesLoading: boolean;
   onAddActivity: () => void;
   onStartInterview: () => void;
+  /** Ersetzt die alte Interview-Kurzübersicht (Kandidatenakte). */
+  dossierSlot?: ReactNode;
 }
 
 export function CandidateMainContent({
@@ -54,6 +57,7 @@ export function CandidateMainContent({
   activitiesLoading,
   onAddActivity,
   onStartInterview,
+  dossierSlot,
 }: CandidateMainContentProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -83,10 +87,12 @@ export function CandidateMainContent({
         </div>
       </div>
       <div className="space-y-6">
-        <QuickInterviewSummary
-          candidateId={candidate.id}
-          onViewDetails={onStartInterview}
-        />
+        {dossierSlot ?? (
+          <QuickInterviewSummary
+            candidateId={candidate.id}
+            onViewDetails={onStartInterview}
+          />
+        )}
         {tags.length > 0 && (
           <Card>
             <CardHeader className="pb-2">

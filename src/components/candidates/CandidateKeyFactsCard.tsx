@@ -46,8 +46,10 @@ const noticePeriodLabels: Record<string, string> = {
   immediate: 'Sofort',
   '2_weeks': '2 Wo.',
   '1_month': '1 Mo.',
+  '6_weeks': '6 Wo.',
   '2_months': '2 Mo.',
   '3_months': '3 Mo.',
+  '3_months_eoq': '3 Mo. z. Q.',
   '6_months': '6 Mo.',
 };
 

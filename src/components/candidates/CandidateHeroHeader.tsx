@@ -7,20 +7,13 @@ import {
   Mail,
   Phone,
   Linkedin,
-  Edit,
-  RefreshCw,
+  Pencil,
+  Upload,
   MapPin,
   CheckCircle,
   TrendingUp,
-  MoreHorizontal,
   FileText,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +27,7 @@ import { useCandidateDocuments } from '@/hooks/useCandidateDocuments';
 
 interface CandidateHeroHeaderProps {
   candidate: Candidate;
-  readiness: { score: number; isReady: boolean; missingFields?: string[] } | null;
+  readiness: { done: number; total: number; isReady: boolean; missing: string[] } | null;
   currentStatus: string;
   candidateId: string;
   activeTaskId?: string;
@@ -115,23 +108,23 @@ export function CandidateHeroHeader({
                   {/* Inline Badges with Tooltip */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {readiness?.isReady ? (
-                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                      <Badge className="bg-success/10 text-success border-success/20 text-xs">
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Exposé-Ready
+                        Bereit zum Einreichen
                       </Badge>
                     ) : readiness && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Badge variant="outline" className="text-amber-600 border-amber-500/50 text-xs cursor-help">
+                          <Badge variant="outline" className="text-warning border-warning/50 text-xs cursor-help">
                             <TrendingUp className="h-3 w-3 mr-1" />
-                            {readiness.score}%
+                            Bereit {readiness.done} von {readiness.total}
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-[220px]">
-                          <p className="text-xs font-medium">Exposé-Vollständigkeit</p>
-                          {readiness.missingFields && readiness.missingFields.length > 0 && (
+                          <p className="text-xs font-medium">Bereit zum Einreichen</p>
+                          {readiness.missing.length > 0 && (
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Fehlend: {readiness.missingFields.join(', ')}
+                              Fehlt noch: {readiness.missing.join(', ')}
                             </p>
                           )}
                         </TooltipContent>
@@ -141,7 +134,15 @@ export function CandidateHeroHeader({
                 </div>
                 
                 {/* Actions Row */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+                  <Button variant="outline" size="sm" className="h-8" onClick={onEdit}>
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Bearbeiten
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8" onClick={onCvUpload}>
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    CV hochladen
+                  </Button>
                   {candidate.phone && (
                     <Button 
                       variant="outline" 
@@ -185,23 +186,6 @@ export function CandidateHeroHeader({
                       <TooltipContent>CV öffnen</TooltipContent>
                     </Tooltip>
                   )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-3.5 w-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={onEdit}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={onCvUpload}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        CV hochladen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
             </div>
@@ -267,6 +251,7 @@ export function CandidateHeroHeader({
               onEdit={onEdit}
               onCvUpload={onCvUpload}
               onStartInterview={onStartInterview}
+              showExposeTasks={false}
             />
           </div>
         </div>

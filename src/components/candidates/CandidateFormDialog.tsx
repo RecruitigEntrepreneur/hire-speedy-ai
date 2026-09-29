@@ -146,8 +146,10 @@ const noticePeriodOptions = [
   { value: 'immediate', label: 'Sofort verfügbar' },
   { value: '2_weeks', label: '2 Wochen' },
   { value: '1_month', label: '1 Monat' },
+  { value: '6_weeks', label: '6 Wochen' },
   { value: '2_months', label: '2 Monate' },
   { value: '3_months', label: '3 Monate' },
+  { value: '3_months_eoq', label: '3 Monate zum Quartalsende' },
   { value: '6_months', label: '6 Monate' },
 ];
 

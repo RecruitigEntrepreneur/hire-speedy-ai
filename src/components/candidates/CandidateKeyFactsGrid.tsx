@@ -4,7 +4,6 @@ import {
   Clock, 
   Home, 
   TrendingUp,
-  Users 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -17,6 +16,8 @@ interface CandidateKeyFactsGridProps {
     experience_years?: number | null;
     city?: string | null;
     expected_salary?: number | null;
+    current_salary?: number | null;
+    salary_fix?: number | null;
     salary_expectation_min?: number | null;
     salary_expectation_max?: number | null;
     notice_period?: string | null;
@@ -39,12 +40,12 @@ const seniorityLabels: Record<string, string> = {
 };
 
 const noticePeriodLabels: Record<string, string> = {
-  immediate: 'Sofort', '2_weeks': '2 Wochen', '1_month': '1 Monat',
-  '2_months': '2 Monate', '3_months': '3 Monate', '6_months': '6 Monate',
+  immediate: 'Sofort', '2_weeks': '2 Wochen', '1_month': '1 Monat', '6_weeks': '6 Wochen',
+  '2_months': '2 Monate', '3_months': '3 Monate', '3_months_eoq': '3 Monate zum Quartalsende', '6_months': '6 Monate',
 };
 
 const remoteLabels: Record<string, string> = {
-  remote: 'Full Remote', hybrid: 'Hybrid', onsite: 'Vor Ort',
+  remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort', flexible: 'Flexibel',
 };
 
 export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps) {
@@ -53,10 +54,14 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
     return `${Math.round(value / 1000)}k€`;
   };
 
-  const salaryRange = candidate.salary_expectation_min && candidate.salary_expectation_max
-    ? `${formatSalary(candidate.salary_expectation_min)} – ${formatSalary(candidate.salary_expectation_max)}`
-    : candidate.expected_salary
-      ? formatSalary(candidate.expected_salary)
+  // Gleiche Quelle wie die Kandidatenakte: aktuell → Wunsch (Wunsch = expected_salary, alt salary_fix)
+  const wish = candidate.expected_salary ?? candidate.salary_fix ?? null;
+  const salaryRange = wish
+    ? candidate.current_salary && candidate.current_salary !== wish
+      ? `${formatSalary(candidate.current_salary)} → ${formatSalary(wish)}`
+      : formatSalary(wish)
+    : candidate.salary_expectation_min && candidate.salary_expectation_max
+      ? `${formatSalary(candidate.salary_expectation_min)} – ${formatSalary(candidate.salary_expectation_max)}`
       : null;
 
   const getAvailabilityText = () => {
@@ -81,8 +86,7 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
     { icon: TrendingUp, label: 'Seniority', value: candidate.seniority ? seniorityLabels[candidate.seniority] || candidate.seniority : null },
     { icon: Euro, label: 'Gehalt', value: salaryRange, highlight: salaryRange ? 'green' : undefined },
     { icon: Clock, label: 'Verfügbar', value: getAvailabilityText() },
-    { icon: Home, label: 'Remote', value: getRemoteText(), highlight: getRemoteText() ? 'blue' : undefined },
-    { icon: Users, label: 'Führung', value: null },
+    { icon: Home, label: 'Arbeitsmodell', value: getRemoteText(), highlight: getRemoteText() ? 'blue' : undefined },
   ];
 
   return (
