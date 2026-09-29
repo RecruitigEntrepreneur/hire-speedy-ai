@@ -64,6 +64,13 @@
       "when": 1790424230689,
       "tag": "0008_firmenprofil_aus_aufnahme",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790717909156,
+      "tag": "0009_interview_dossier_fields",
+      "breakpoints": true
     }
   ]
 }

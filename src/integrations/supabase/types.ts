@@ -1236,6 +1236,7 @@ export type Database = {
       candidate_interview_notes: {
         Row: {
           additional_notes: string | null
+          blocked_companies: string[]
           candidate_id: string
           career_3_5_year_plan: string | null
           career_actions_taken: string | null
@@ -1244,6 +1245,7 @@ export type Database = {
           career_what_worked: string | null
           change_motivation: string | null
           change_motivation_tags: string[] | null
+          change_readiness: string | null
           created_at: string | null
           current_negative: string | null
           current_positive: string | null
@@ -1252,9 +1254,17 @@ export type Database = {
           frequency_of_issues: string | null
           id: string
           interview_date: string | null
+          interview_type: string | null
+          leadership_scope: string | null
+          leadership_team_size: number | null
           notice_period: string | null
           offer_requirements: string[] | null
+          other_applications: string | null
+          other_applications_notes: string | null
+          presentation_consent: boolean | null
+          presentation_consent_at: string | null
           previous_process_issues: string | null
+          recommendation_level: string | null
           recommendation_notes: string | null
           recruiter_id: string
           salary_current: string | null
@@ -1270,10 +1280,12 @@ export type Database = {
           updated_at: string | null
           why_now: string | null
           would_recommend: boolean | null
+          would_stay_answer: string | null
           would_stay_if_matched: boolean | null
         }
         Insert: {
           additional_notes?: string | null
+          blocked_companies?: string[]
           candidate_id: string
           career_3_5_year_plan?: string | null
           career_actions_taken?: string | null
@@ -1282,6 +1294,7 @@ export type Database = {
           career_what_worked?: string | null
           change_motivation?: string | null
           change_motivation_tags?: string[] | null
+          change_readiness?: string | null
           created_at?: string | null
           current_negative?: string | null
           current_positive?: string | null
@@ -1290,9 +1303,17 @@ export type Database = {
           frequency_of_issues?: string | null
           id?: string
           interview_date?: string | null
+          interview_type?: string | null
+          leadership_scope?: string | null
+          leadership_team_size?: number | null
           notice_period?: string | null
           offer_requirements?: string[] | null
+          other_applications?: string | null
+          other_applications_notes?: string | null
+          presentation_consent?: boolean | null
+          presentation_consent_at?: string | null
           previous_process_issues?: string | null
+          recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id: string
           salary_current?: string | null
@@ -1308,10 +1329,12 @@ export type Database = {
           updated_at?: string | null
           why_now?: string | null
           would_recommend?: boolean | null
+          would_stay_answer?: string | null
           would_stay_if_matched?: boolean | null
         }
         Update: {
           additional_notes?: string | null
+          blocked_companies?: string[]
           candidate_id?: string
           career_3_5_year_plan?: string | null
           career_actions_taken?: string | null
@@ -1320,6 +1343,7 @@ export type Database = {
           career_what_worked?: string | null
           change_motivation?: string | null
           change_motivation_tags?: string[] | null
+          change_readiness?: string | null
           created_at?: string | null
           current_negative?: string | null
           current_positive?: string | null
@@ -1328,9 +1352,17 @@ export type Database = {
           frequency_of_issues?: string | null
           id?: string
           interview_date?: string | null
+          interview_type?: string | null
+          leadership_scope?: string | null
+          leadership_team_size?: number | null
           notice_period?: string | null
           offer_requirements?: string[] | null
+          other_applications?: string | null
+          other_applications_notes?: string | null
+          presentation_consent?: boolean | null
+          presentation_consent_at?: string | null
           previous_process_issues?: string | null
+          recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id?: string
           salary_current?: string | null
@@ -1346,6 +1378,7 @@ export type Database = {
           updated_at?: string | null
           why_now?: string | null
           would_recommend?: boolean | null
+          would_stay_answer?: string | null
           would_stay_if_matched?: boolean | null
         }
         Relationships: [
