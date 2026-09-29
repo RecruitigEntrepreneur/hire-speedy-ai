@@ -67,6 +67,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { isMissingColumnError } from '@/lib/intakeCapture';
+import { verdienstJeTag } from '@/lib/recruiterContracting';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -305,12 +307,17 @@ export default function RecruiterDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const { data: jobs, error: jobsError } = await supabase
+      const basis = 'id, title, company_name, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, created_at';
+      const neueJobs = (spalten: string) => supabase
         .from('recruiter_jobs_view')
-        .select('id, title, company_name, industry, company_size_band, funding_stage, tech_environment, location, salary_min, salary_max, remote_type, recruiter_fee_percentage, hiring_urgency, created_at')
+        .select(spalten)
         .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(4);
+      // Contracting: Verdienst je Einsatztag (Migration 20260929100000). Vor
+      // deren Ausrollen fehlen die Spalten -- dann wie bisher ohne.
+      let { data: jobs, error: jobsError } = await neueJobs(`${basis}, employment_type, recruiter_day_earning_min, recruiter_day_earning_max`);
+      if (jobsError && isMissingColumnError(jobsError)) ({ data: jobs, error: jobsError } = await neueJobs(basis));
 
       if (!jobsError && jobs) {
         setRecentJobs(jobs);
@@ -940,8 +947,9 @@ export default function RecruiterDashboard() {
 
                         <div className="text-right shrink-0">
                           <p className="text-xs font-semibold text-emerald-600">
-                            {earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`}
+                            {verdienstJeTag(job) ?? (earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`)}
                           </p>
+                          {verdienstJeTag(job) && <p className="text-[10px] text-muted-foreground">je Einsatztag</p>}
                         </div>
                       </Link>
                     );

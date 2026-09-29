@@ -23,6 +23,7 @@ import { getCompanyLogoUrl, formatHeadcount } from '@/lib/companyLogo';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
 
 interface CompanyProfile {
   logo_url: string | null;
@@ -53,6 +54,11 @@ interface JobPreviewPanelProps {
     company_size_band: string | null;
     funding_stage: string | null;
     tech_environment: string[] | null;
+    /** Contracting: aus recruiter_jobs_view, Satz des Spezialisten und Verdienst je Tag. */
+    day_rate_min?: number | null;
+    day_rate_max?: number | null;
+    recruiter_day_earning_min?: number | null;
+    recruiter_day_earning_max?: number | null;
   };
   earning: number | null;
   isRevealed: boolean;
@@ -232,7 +238,20 @@ export function JobPreviewPanel({
 
       {/* ── Scrollable Card-Block Content ── */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {/* Card: Earning + Gehalt */}
+        {/* Card: Earning + Gehalt (Contracting: je Einsatztag + Tagessatz) */}
+        {verdienstJeTag(job) ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/10">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Earning</p>
+            <p className="text-lg font-bold text-emerald-500 tabular-nums mt-0.5">{verdienstJeTag(job)}</p>
+            <p className="text-[10px] text-muted-foreground">je Einsatztag</p>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Tagessatz Spezialist</p>
+            <p className="text-sm font-semibold tabular-nums mt-0.5">{spezialistenSatz(job) ?? 'k.A.'}</p>
+          </div>
+        </div>
+        ) : (
         <div className="grid grid-cols-2 gap-2">
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/10">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Earning</p>
@@ -247,6 +266,7 @@ export function JobPreviewPanel({
             </p>
           </div>
         </div>
+        )}
 
         {/* Card: Level/Typ + Arbeitsort */}
         <div className="grid grid-cols-2 gap-2">

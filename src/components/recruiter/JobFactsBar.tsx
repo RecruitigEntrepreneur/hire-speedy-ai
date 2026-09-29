@@ -110,7 +110,7 @@ export function JobFactsBar({ facts }: { facts: JobFacts }) {
     : facts.dayRateMax != null ? `bis ${rate(facts.dayRateMax)} € / Tag` : null;
   const gehalt = geld(facts.salaryMin, facts.salaryMax);
 
-  if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz', wert: tagessatz });
+  if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz Spezialist', wert: tagessatz });
   /* "Gehalt" liess offen, was darin steckt -- der Katalog fragt woertlich nach
      dem FIXGEHALT ("In was fuer eine Range befindet sich das Fixgehalt?"), und
      die Monatsgehaelter sind eine eigene Frage. Beide Antworten liegen vor;

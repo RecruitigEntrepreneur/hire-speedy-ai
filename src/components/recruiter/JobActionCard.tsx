@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
 import { getCompanyLogoUrl } from '@/lib/companyLogo';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -42,6 +43,12 @@ interface JobActionCardProps {
     funding_stage: string | null;
     tech_environment: string[] | null;
     updated_at?: string | null;
+    /** Contracting: aus recruiter_jobs_view, Satz des Spezialisten und Verdienst je Tag. */
+    employment_type?: string | null;
+    day_rate_min?: number | null;
+    day_rate_max?: number | null;
+    recruiter_day_earning_min?: number | null;
+    recruiter_day_earning_max?: number | null;
   };
   earning: number | null;
   isRevealed: boolean;
@@ -80,6 +87,8 @@ export function JobActionCard({
   onToggleActive,
 }: JobActionCardProps) {
   const salaryRange = formatSalaryRange(job.salary_min, job.salary_max);
+  const tagVerdienst = verdienstJeTag(job);
+  const tagessatz = spezialistenSatz(job);
   const topSkills = (job.skills || []).slice(0, 3);
   const moreSkills = Math.max((job.skills?.length || 0) - 3, 0);
   const freshness = job.updated_at
@@ -112,6 +121,13 @@ export function JobActionCard({
           </div>
         </div>
         <div className="text-right shrink-0">
+          {tagVerdienst ? (
+            <>
+              <span className="block text-sm font-bold text-emerald-500 tabular-nums">{tagVerdienst}</span>
+              <span className="block text-[10px] text-muted-foreground">je Einsatztag</span>
+            </>
+          ) : (
+          <>
           <span className="block text-sm font-bold text-emerald-500 tabular-nums">
             {earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage}%`}
           </span>
@@ -119,6 +135,8 @@ export function JobActionCard({
             <span className="block text-[10px] text-muted-foreground tabular-nums">
               {job.recruiter_fee_percentage} % Fee
             </span>
+          )}
+          </>
           )}
         </div>
       </div>
@@ -165,8 +183,13 @@ export function JobActionCard({
       </div>
 
       {/* Row 4: Salary + Skills chips */}
-      {(salaryRange || topSkills.length > 0) && (
+      {(salaryRange || tagessatz || topSkills.length > 0) && (
         <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          {tagessatz && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground tabular-nums">
+              Contracting · {tagessatz} / Tag
+            </span>
+          )}
           {salaryRange && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground tabular-nums">
               {salaryRange}

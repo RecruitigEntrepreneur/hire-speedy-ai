@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { spezialistenTagessatz } from "../_shared/contracting-konditionen.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,8 +82,10 @@ STELLENINFORMATIONEN:
 - Remote: ${job.remote_type || 'Hybrid'}
 - Anstellung: ${job.employment_type || 'Vollzeit'}
 - Erfahrung: ${job.experience_level || 'Mid-Level'}
-- Gehalt: ${job.salary_min ? `€${job.salary_min.toLocaleString()}` : 'k.A.'} - ${job.salary_max ? `€${job.salary_max.toLocaleString()}` : 'k.A.'}
-- Recruiter-Fee: ${job.recruiter_fee_percentage || 15}%
+${job.employment_type === 'freelance'
+  ? `- Verguetung: siehe CONTRACTING unten (Tagessatz, kein Gehalt)`
+  : `- Gehalt: ${job.salary_min ? `€${job.salary_min.toLocaleString()}` : 'k.A.'} - ${job.salary_max ? `€${job.salary_max.toLocaleString()}` : 'k.A.'}
+- Recruiter-Fee: ${job.recruiter_fee_percentage || 15}%`}
 - Unternehmensgröße: ${job.company_size_band || 'Nicht angegeben'}
 - Funding-Stage: ${job.funding_stage || 'Nicht angegeben'}
 - Tech-Stack: ${job.tech_environment?.join(', ') || 'Nicht angegeben'}
@@ -154,8 +157,10 @@ ${job.employment_type === 'freelance' ? [
   'Laufzeit. Formuliere die Selling Points fuer einen Freiberufler: Technik,',
   'Referenz, Entscheidungsspielraum, Aussicht auf Anschluss.',
   '',
+  // Die Stelle traegt das Budget des Kunden (all-in). Recruiter und Kandidaten
+  // sehen nur den Satz des Spezialisten -- das Budget darf nicht in den Text.
   job.day_rate_min || job.day_rate_max
-    ? `- Tagessatz: ${job.day_rate_min ? `${job.day_rate_min} EUR` : 'k.A.'} bis ${job.day_rate_max ? `${job.day_rate_max} EUR` : 'k.A.'}`
+    ? `- Tagessatz fuer den Spezialisten: ${job.day_rate_min ? `${spezialistenTagessatz(job.day_rate_min)} EUR` : 'k.A.'} bis ${job.day_rate_max ? `${spezialistenTagessatz(job.day_rate_max)} EUR` : 'k.A.'} (nenne nur diesen Satz, nie einen anderen Betrag pro Tag)`
     : '- Tagessatz: nicht angegeben -- erfinde KEINEN und schreibe auch keine Floskel wie "wettbewerbsfaehig"',
   job.contract_duration_months != null ? `- Laufzeit: ${job.contract_duration_months} Monate` : null,
   job.utilization_days_per_week != null ? `- Auslastung: ${job.utilization_days_per_week} Tage pro Woche` : null,
@@ -309,8 +314,12 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
         headline: job.title,
         highlights: [
           job.remote_type === 'remote' ? '100% Remote möglich' : `${job.location || 'Flexibler Standort'}`,
-          job.salary_max ? `Gehalt bis €${job.salary_max.toLocaleString()}` : 'Wettbewerbsfähiges Gehalt',
-          `${job.recruiter_fee_percentage || 15}% Recruiter-Fee`,
+          ...(job.employment_type === 'freelance'
+            ? [job.day_rate_max ? `Tagessatz bis ${spezialistenTagessatz(job.day_rate_max)} €` : 'Contracting nach Einsatztagen']
+            : [
+                job.salary_max ? `Gehalt bis €${job.salary_max.toLocaleString()}` : 'Wettbewerbsfähiges Gehalt',
+                `${job.recruiter_fee_percentage || 15}% Recruiter-Fee`,
+              ]),
         ],
         role_summary: job.description?.substring(0, 200) + '...' || 'Spannende Position mit Entwicklungsmöglichkeiten.',
         ideal_candidate: `Erfahrung auf ${job.experience_level || 'Mid'}-Level mit Skills in ${job.skills?.slice(0, 3).join(', ') || 'relevanten Technologien'}.`,

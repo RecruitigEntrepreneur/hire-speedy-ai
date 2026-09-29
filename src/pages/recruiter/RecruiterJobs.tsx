@@ -50,6 +50,7 @@ import { useJobSubmissionStats } from '@/hooks/useJobSubmissionStats';
 import { useRecruiterTrustLevel } from '@/hooks/useRecruiterTrustLevel';
 import { useJobActivation } from '@/hooks/useJobActivation';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -805,6 +806,7 @@ export default function RecruiterJobs() {
             })}
             earning={calculateEarning(dialogJob.salary_min, dialogJob.salary_max, dialogJob.recruiter_fee_percentage)}
             feePercentage={dialogJob.recruiter_fee_percentage}
+            earningPerDay={verdienstJeTag(dialogJob)}
             hiringUrgency={dialogJob.hiring_urgency}
             recruiterCount={submissionStats[dialogJob.id]?.recruiterCount || 0}
             activeCount={effectiveActiveCount}

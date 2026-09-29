@@ -39,6 +39,8 @@ interface ActivationConfirmDialogProps {
   anonymousLabel: string;
   earning: number | null;
   feePercentage: number | null;
+  /** Contracting: Verdienst je Einsatztag, z. B. "44–110 €" -- ersetzt die Fee-Zeile. */
+  earningPerDay?: string | null;
   hiringUrgency: string | null;
   recruiterCount: number;
   activeCount: number;
@@ -61,6 +63,7 @@ export function ActivationConfirmDialog({
   anonymousLabel,
   earning,
   feePercentage,
+  earningPerDay,
   hiringUrgency,
   recruiterCount,
   activeCount,
@@ -150,7 +153,11 @@ export function ActivationConfirmDialog({
 
                   {/* Business case */}
                   <div className="flex flex-wrap gap-1.5">
-                    {earning !== null && (
+                    {earningPerDay ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-xs font-medium">
+                        Verdienst ca. {earningPerDay} je Einsatztag
+                      </span>
+                    ) : earning !== null && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-xs font-medium">
                         Fee {feePercentage ? `${feePercentage} % ` : ''}≈ {formatEuroShort(earning)}
                       </span>
