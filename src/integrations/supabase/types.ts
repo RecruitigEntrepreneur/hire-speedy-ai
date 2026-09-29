@@ -6138,6 +6138,7 @@ export type Database = {
           recruiter_fee_percentage: number | null
           rejected_at: string | null
           rejection_reason: string | null
+          remote_days_flexible: boolean | null
           remote_policy: string | null
           remote_type: string | null
           reports_to: string | null
@@ -6259,6 +6260,7 @@ export type Database = {
           recruiter_fee_percentage?: number | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          remote_days_flexible?: boolean | null
           remote_policy?: string | null
           remote_type?: string | null
           reports_to?: string | null
@@ -6380,6 +6382,7 @@ export type Database = {
           recruiter_fee_percentage?: number | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          remote_days_flexible?: boolean | null
           remote_policy?: string | null
           remote_type?: string | null
           reports_to?: string | null
@@ -11827,6 +11830,7 @@ export type Database = {
           overtime_policy: string | null
           position_advantages: string[] | null
           recruiter_fee_percentage: number | null
+          remote_days_flexible: boolean | null
           remote_policy: string | null
           remote_type: string | null
           reports_to: string | null
