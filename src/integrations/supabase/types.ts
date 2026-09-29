@@ -11783,10 +11783,11 @@ export type Database = {
         Row: {
           benefits: string[] | null
           bonus_structure: string | null
+          candidates_dropped_reason: string | null
+          candidates_in_pipeline: number | null
           career_example: string | null
           career_path: string | null
           company_culture: string | null
-          company_headcount: number | null
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
@@ -11830,7 +11831,6 @@ export type Database = {
           overtime_policy: string | null
           position_advantages: string[] | null
           recruiter_fee_percentage: number | null
-          remote_days_flexible: boolean | null
           remote_policy: string | null
           remote_type: string | null
           reports_to: string | null
