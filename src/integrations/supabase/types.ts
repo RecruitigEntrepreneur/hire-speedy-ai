@@ -5945,6 +5945,48 @@ export type Database = {
           },
         ]
       }
+      job_recruiter_text_drafts: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          job_id: string
+          pruefung: Json | null
+          updated_at: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          job_id: string
+          pruefung?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          job_id?: string
+          pruefung?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_recruiter_text_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_recruiter_text_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_scorecards: {
         Row: {
           created_at: string | null

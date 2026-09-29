@@ -113,6 +113,13 @@
       "when": 1790718177732,
       "tag": "0015_recruiter_tagessatz_spezialist",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790718189478,
+      "tag": "0016_recruiter_anzeige_entwurf",
+      "breakpoints": true
     }
   ]
 }
