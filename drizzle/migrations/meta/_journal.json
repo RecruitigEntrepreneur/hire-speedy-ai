@@ -71,6 +71,13 @@
       "when": 1790717909156,
       "tag": "0009_interview_dossier_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790717929514,
+      "tag": "0010_submission_activation_and_criteria",
+      "breakpoints": true
     }
   ]
 }

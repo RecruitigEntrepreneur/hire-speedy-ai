@@ -10656,6 +10656,8 @@ export type Database = {
           consent_confirmed: boolean | null
           consent_confirmed_at: string | null
           consent_document_url: string | null
+          criteria_assessment: Json | null
+          fit_overrides: Json | null
           full_access_granted: boolean | null
           full_access_granted_at: string | null
           id: string
@@ -10685,6 +10687,8 @@ export type Database = {
           consent_confirmed?: boolean | null
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
+          criteria_assessment?: Json | null
+          fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
           id?: string
@@ -10714,6 +10718,8 @@ export type Database = {
           consent_confirmed?: boolean | null
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
+          criteria_assessment?: Json | null
+          fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
           id?: string
