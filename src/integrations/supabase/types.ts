@@ -5945,6 +5945,48 @@ export type Database = {
           },
         ]
       }
+      job_recruiter_text_drafts: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          job_id: string
+          pruefung: Json | null
+          updated_at: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          job_id: string
+          pruefung?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          job_id?: string
+          pruefung?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_recruiter_text_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_recruiter_text_drafts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_scorecards: {
         Row: {
           created_at: string | null
@@ -6072,6 +6114,7 @@ export type Database = {
           closed_reason: string | null
           commute_flexibility: string | null
           company_culture: string | null
+          company_headcount: number | null
           company_name: string
           company_size_band: string | null
           contract_creation_days: number | null
@@ -6137,6 +6180,7 @@ export type Database = {
           recruiter_fee_percentage: number | null
           rejected_at: string | null
           rejection_reason: string | null
+          remote_days_flexible: boolean | null
           remote_policy: string | null
           remote_type: string | null
           reports_to: string | null
@@ -6192,6 +6236,7 @@ export type Database = {
           closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
+          company_headcount?: number | null
           company_name: string
           company_size_band?: string | null
           contract_creation_days?: number | null
@@ -6257,6 +6302,7 @@ export type Database = {
           recruiter_fee_percentage?: number | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          remote_days_flexible?: boolean | null
           remote_policy?: string | null
           remote_type?: string | null
           reports_to?: string | null
@@ -6312,6 +6358,7 @@ export type Database = {
           closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
+          company_headcount?: number | null
           company_name?: string
           company_size_band?: string | null
           contract_creation_days?: number | null
@@ -6377,6 +6424,7 @@ export type Database = {
           recruiter_fee_percentage?: number | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          remote_days_flexible?: boolean | null
           remote_policy?: string | null
           remote_type?: string | null
           reports_to?: string | null
@@ -11782,6 +11830,7 @@ export type Database = {
           career_example: string | null
           career_path: string | null
           company_culture: string | null
+          company_headcount: number | null
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
@@ -11824,7 +11873,11 @@ export type Database = {
           onsite_required: boolean | null
           overtime_policy: string | null
           position_advantages: string[] | null
+          recruiter_briefing_answers: Json | null
+          recruiter_day_earning_max: number | null
+          recruiter_day_earning_min: number | null
           recruiter_fee_percentage: number | null
+          remote_days_flexible: boolean | null
           remote_policy: string | null
           remote_type: string | null
           reports_to: string | null
