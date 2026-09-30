@@ -57,6 +57,7 @@ export default function RecruiterCandidateDetail() {
   const [showFullInterview, setShowFullInterview] = useState(false);
   const [interviewSliderOpen, setInterviewSliderOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitJobId, setSubmitJobId] = useState<string | null>(null);
   // Interview erfassen: schon geführt (einwerfen) oder aus dem Kopf
   const [captureMode, setCaptureMode] = useState<'import' | 'quick' | null>(null);
   const [sourcesRefresh, setSourcesRefresh] = useState(0);
@@ -275,6 +276,8 @@ export default function RecruiterCandidateDetail() {
           activitiesLoading={activitiesLoading}
           onAddActivity={() => setAddActivityOpen(true)}
           onStartInterview={handleStartInterview}
+          onSubmitToJob={(jobId) => { setSubmitJobId(jobId ?? null); setSubmitOpen(true); }}
+          onEditDossier={() => openEdit()}
           dossierSlot={
             dossier.loading ? undefined : (
               <div className="space-y-6">
@@ -331,7 +334,8 @@ export default function RecruiterCandidateDetail() {
       />
       <SubmitToJobDialog
         open={submitOpen}
-        onOpenChange={setSubmitOpen}
+        onOpenChange={(o) => { setSubmitOpen(o); if (!o) setSubmitJobId(null); }}
+        initialJobId={submitJobId}
         candidateId={candidate.id}
         candidateName={candidate.full_name}
         onSubmitted={() => {

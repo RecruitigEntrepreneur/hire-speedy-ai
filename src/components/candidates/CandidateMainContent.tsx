@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Clock, Building2, Tag } from 'lucide-react';
 
-import { CandidateHeroMatching } from './CandidateHeroMatching';
+import { PassendeStellenCard } from './matching/PassendeStellen';
 import { CandidateSkillsCard } from './CandidateSkillsCard';
 import { CandidateCvAiSummaryCard } from './CandidateCvAiSummaryCard';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
@@ -48,6 +48,9 @@ interface CandidateMainContentProps {
   onStartInterview: () => void;
   /** Ersetzt die alte Interview-Kurzübersicht (Kandidatenakte). */
   dossierSlot?: ReactNode;
+  /** Einreichen aus „Passende Stellen", optional mit vorausgewählter Stelle. */
+  onSubmitToJob?: (jobId?: string) => void;
+  onEditDossier?: () => void;
 }
 
 export function CandidateMainContent({
@@ -58,11 +61,18 @@ export function CandidateMainContent({
   onAddActivity,
   onStartInterview,
   dossierSlot,
+  onSubmitToJob,
+  onEditDossier,
 }: CandidateMainContentProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
-        <CandidateHeroMatching candidateId={candidate.id} onNavigateToMatching={() => {}} />
+        <PassendeStellenCard
+          candidateId={candidate.id}
+          firstName={candidate.full_name.split(' ')[0] || candidate.full_name}
+          onSubmit={(jobId) => onSubmitToJob?.(jobId)}
+          onEditDossier={onEditDossier}
+        />
         <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
         <CandidateCvAiSummaryCard summary={candidate.cv_ai_summary || null} bullets={candidate.cv_ai_bullets} />
         <div>

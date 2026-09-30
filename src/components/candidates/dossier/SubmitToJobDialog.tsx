@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Loader2, Lock, MapPin, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -47,12 +47,15 @@ export function SubmitToJobDialog({
   candidateId,
   candidateName,
   onSubmitted,
+  initialJobId = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   candidateId: string;
   candidateName: string;
   onSubmitted: () => void;
+  /** Aus „Passende Stellen": diese Stelle gleich öffnen, wenn sie aktiviert ist. */
+  initialJobId?: string | null;
 }) {
   const { user } = useAuth();
   const gate = useActivationGate();
@@ -63,8 +66,11 @@ export function SubmitToJobDialog({
   const [job, setJob] = useState<JobRow | null>(null);
   const [activateFor, setActivateFor] = useState<JobRow | null>(null);
 
+  const preselected = useRef(false);
+
   useEffect(() => {
     if (!open || !user) return;
+    preselected.current = false;
     setJob(null);
     setQuery('');
     setLoading(true);
@@ -79,6 +85,14 @@ export function SubmitToJobDialog({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user, candidateId]);
+
+  useEffect(() => {
+    if (!open || !initialJobId || preselected.current || loading || gate.loading || jobs.length === 0) return;
+    preselected.current = true;
+    const found = jobs.find((j) => j.id === initialJobId);
+    if (found && gate.isActivated(found.id) && !submittedJobIds.has(found.id)) setJob(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialJobId, loading, gate.loading, jobs, submittedJobIds]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
