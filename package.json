@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "eval:matching": "tsx evals/run-matching-eval.ts",
     "eval:check": "tsx evals/compare-to-baseline.ts",
+    "eval:v41": "tsx evals/v41/run-v41-catalogue.ts",
     "test:evals": "vitest run",
     "typecheck:evals": "tsc -p evals/tsconfig.json"
   },

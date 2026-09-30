@@ -1,0 +1,1809 @@
+[
+  {
+    "id": "M01",
+    "tags": [
+      "synonym",
+      "sentence_fragment",
+      "language_native_vs_c1",
+      "live_case"
+    ],
+    "candidate": {
+      "title": "Mitarbeiterin Patientenservice",
+      "years": 6,
+      "seniority": "mid",
+      "skills": [
+        "Patientenbetreuung",
+        "Terminkoordination",
+        "Datenschutz im Gesundheitswesen (DSGVO)",
+        "Medizinische Grundkenntnisse / Nomenklatur",
+        "Telefonischer Kundenservice",
+        "Orbis KIS"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "B1"
+        }
+      ],
+      "salary_wish": 46000,
+      "salary_min": 42000,
+      "notice": "3_months_eoq",
+      "city": "Köln",
+      "work_model": "hybrid",
+      "max_commute_min": 45,
+      "relocation": false,
+      "employment_type": "fulltime",
+      "work_permit": "citizen"
+    },
+    "job": {
+      "title": "Mitarbeiter:in Patientensupport",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "DSGVO im Gesundheitswesen",
+        "Medizinische Terminologie",
+        "Erfahrung im telefonischen Patienten- oder Kundenservice"
+      ],
+      "verhandelbar": [
+        "Erfahrung mit einem KIS (z. B. Orbis)"
+      ],
+      "lernbar": [
+        "Salesforce Service Cloud"
+      ],
+      "salary_min": 40000,
+      "salary_max": 48000,
+      "location": "Köln",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ],
+      "employment_type": "fulltime",
+      "fill_by_days": 90
+    },
+    "expected_tier": "Sehr passend",
+    "acceptable_tiers": [
+      "Sehr passend"
+    ],
+    "reasons": [
+      "Gleiche Rolle; alle drei unverzichtbaren Kriterien belegt – DSGVO = Datenschutz im Gesundheitswesen, Terminologie = Nomenklatur, Telefonservice (Synonyme, nicht Wortlaut)",
+      "Deutsch Muttersprache erfüllt C1; Gehalt mittig in der Spanne, 3 Monate zum Quartalsende passen zur Besetzung in 90 Tagen"
+    ],
+    "must_not_claim": [
+      "Deutsch fehlt",
+      "DSGVO fehlt",
+      "kurzfristig verfügbar"
+    ]
+  },
+  {
+    "id": "M02",
+    "tags": [
+      "cross_domain",
+      "empty_must_list",
+      "salary_far_below",
+      "live_case"
+    ],
+    "candidate": {
+      "title": "Mitarbeiterin Patientenservice",
+      "years": 6,
+      "seniority": "mid",
+      "skills": [
+        "Patientenbetreuung",
+        "Terminkoordination",
+        "Datenschutz im Gesundheitswesen (DSGVO)",
+        "Telefonischer Kundenservice"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 46000,
+      "salary_min": 42000,
+      "notice": "3_months_eoq",
+      "city": "Köln",
+      "work_model": "hybrid",
+      "max_commute_min": 45,
+      "relocation": false,
+      "employment_type": "fulltime"
+    },
+    "job": {
+      "title": "Senior Softwareentwickler Backend (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [],
+      "verhandelbar": [],
+      "lernbar": [],
+      "note": "Anforderungen nur im Freitext (Java, Spring Boot, Microservices)",
+      "salary_min": 90000,
+      "salary_max": 110000,
+      "location": "Köln",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": []
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Fremde Berufsfamilie: Patientenservice → Softwareentwicklung, kein einziger technischer Beleg; leere Muss-Liste heißt 'unbekannt', nicht '100 % erfüllt'",
+      "Wunsch 46k liegt ~50 % unter dem Budget-Minimum – bestätigt die falsche Ebene"
+    ],
+    "must_not_claim": [
+      "Gehalt im Budget",
+      "kurzfristig verfügbar",
+      "Muss-Kriterien erfüllt"
+    ]
+  },
+  {
+    "id": "M03",
+    "tags": [
+      "employment_type",
+      "parttime_salary_normalization",
+      "legal_parttime_never_exclude"
+    ],
+    "candidate": {
+      "title": "Kauffrau im Gesundheitswesen (Patientenaufnahme)",
+      "years": 9,
+      "seniority": "mid",
+      "skills": [
+        "Patientenaufnahme",
+        "Terminvergabe",
+        "Abrechnung EBM/GOÄ",
+        "Medizinische Terminologie",
+        "DSGVO"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 30000,
+      "salary_min": 28000,
+      "notice": "3_months",
+      "city": "Düsseldorf",
+      "work_model": "onsite",
+      "max_commute_min": 30,
+      "employment_type": "parttime",
+      "note": "max. 25 Std./Woche, vormittags (30k bei 25 Std. ≈ 48k Vollzeit)"
+    },
+    "job": {
+      "title": "Mitarbeiter:in Patientenaufnahme (Vollzeit, 40 Std.)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Erfahrung in der Patientenaufnahme",
+        "Medizinische Terminologie"
+      ],
+      "verhandelbar": [
+        "Abrechnungskenntnisse EBM/GOÄ"
+      ],
+      "lernbar": [],
+      "salary_min": 38000,
+      "salary_max": 44000,
+      "location": "Düsseldorf",
+      "remote_type": "onsite",
+      "onsite_days": 5,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ],
+      "employment_type": "fulltime"
+    },
+    "expected_tier": "Prüfen",
+    "acceptable_tiers": [
+      "Prüfen",
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Anstellungsart unterschiedlich: Kandidatin will 25 Std., Stelle ist ausdrücklich Vollzeit – Prüfpunkt, kein Ausschluss",
+      "Rechtlich (§ 4 TzBfG, mittelbare Benachteiligung nach AGG): Teilzeit/Vollzeit schließt nie automatisch aus; der Headhunter klärt, ob der Kunde öffnet oder die Kandidatin aufstocken will",
+      "Fachlich passend; Teilzeitgehalt nicht als 'deutlich unter Budget' werten"
+    ],
+    "must_not_claim": [
+      "Gehalt deutlich unter Budget",
+      "Seniorität prüfen"
+    ]
+  },
+  {
+    "id": "M04",
+    "tags": [
+      "title_as_evidence",
+      "language_normalization",
+      "notice_normal",
+      "live_case"
+    ],
+    "candidate": {
+      "title": "Senior Data Scientist",
+      "years": 8,
+      "seniority": "senior",
+      "skills": [
+        "Python",
+        "pandas",
+        "scikit-learn",
+        "PyTorch",
+        "SQL",
+        "Spark",
+        "MLOps",
+        "A/B-Testing",
+        "Forecasting"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "fluent"
+        }
+      ],
+      "salary_wish": 85000,
+      "salary_min": 80000,
+      "notice": "3_months",
+      "city": "Berlin",
+      "work_model": "hybrid",
+      "max_commute_min": 45,
+      "relocation": false,
+      "employment_type": "fulltime"
+    },
+    "job": {
+      "title": "Data Scientist (m/w/d) – Pricing",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Python",
+        "Machine Learning",
+        "SQL",
+        "Erfahrung mit Data Science im Produktumfeld"
+      ],
+      "verhandelbar": [
+        "Databricks"
+      ],
+      "lernbar": [
+        "dbt"
+      ],
+      "salary_min": 75000,
+      "salary_max": 92000,
+      "location": "Berlin",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": [
+        {
+          "language": "Englisch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ],
+      "fill_by_days": 120
+    },
+    "expected_tier": "Sehr passend",
+    "acceptable_tiers": [
+      "Sehr passend"
+    ],
+    "reasons": [
+      "Titel 'Senior Data Scientist' belegt 'Data Science'; Machine Learning über scikit-learn/PyTorch belegt",
+      "Rahmen grün: Schmerzgrenze im Budget, 3 Monate Kündigungsfrist ist Normalfall, 'fluent' zählt als C1"
+    ],
+    "must_not_claim": [
+      "Data Science fehlt",
+      "Englisch fehlt",
+      "kurzfristig verfügbar"
+    ]
+  },
+  {
+    "id": "M05",
+    "tags": [
+      "remote_only_vs_onsite",
+      "location",
+      "no_relocation"
+    ],
+    "candidate": {
+      "title": "Data Scientist",
+      "years": 5,
+      "seniority": "mid",
+      "skills": [
+        "Python",
+        "scikit-learn",
+        "SQL",
+        "NLP",
+        "AWS SageMaker"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 75000,
+      "salary_min": 70000,
+      "notice": "2_months",
+      "city": "Leipzig",
+      "work_model": "remote",
+      "max_commute_min": 30,
+      "relocation": false
+    },
+    "job": {
+      "title": "Data Scientist NLP (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Python",
+        "NLP",
+        "SQL"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 72000,
+      "salary_max": 88000,
+      "location": "München",
+      "remote_type": "onsite",
+      "onsite_days": 4,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ]
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Kandidat arbeitet nur remote, Stelle verlangt 4 Tage vor Ort",
+      "Leipzig–München nicht pendelbar, keine Umzugsbereitschaft"
+    ],
+    "must_not_claim": [
+      "Arbeitsmodell passt"
+    ]
+  },
+  {
+    "id": "M06",
+    "tags": [
+      "salary_far_below",
+      "seniority_check",
+      "title_inflation",
+      "or_alternatives"
+    ],
+    "candidate": {
+      "title": "Senior Data Engineer",
+      "years": 4,
+      "seniority": "senior",
+      "skills": [
+        "Python",
+        "SQL",
+        "Airflow",
+        "dbt",
+        "BigQuery"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "C1"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 56000,
+      "salary_min": 52000,
+      "notice": "1_month",
+      "city": "München",
+      "work_model": "hybrid",
+      "max_commute_min": 45,
+      "note": "bisher Start-up mit 15 Mitarbeitenden"
+    },
+    "job": {
+      "title": "Senior Data Engineer (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Python",
+        "SQL",
+        "Airflow oder vergleichbares Orchestrierungstool",
+        "Cloud Data Warehouse (BigQuery, Snowflake oder Redshift)",
+        "5+ Jahre Data Engineering"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 82000,
+      "salary_max": 98000,
+      "location": "München",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": [
+        {
+          "language": "Englisch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ]
+    },
+    "expected_tier": "Prüfen",
+    "acceptable_tiers": [
+      "Prüfen"
+    ],
+    "reasons": [
+      "Fachlich deckungsgleich, aber Wunsch ~32 % unter Budget-Minimum und 4 statt 5+ Jahre – Titel-Inflation ('Senior' im Start-up) prüfen",
+      "Niedriger Wunsch ist ein Warnsignal, kein Pluspunkt; Gesprächsfrage: welche Verantwortung konkret?"
+    ],
+    "must_not_claim": [
+      "Gehalt im Budget",
+      "Gehalt als Vorteil"
+    ]
+  },
+  {
+    "id": "M07",
+    "tags": [
+      "synonym",
+      "sentence_fragment",
+      "fragment_split",
+      "real_job_shape"
+    ],
+    "candidate": {
+      "title": "Finanzbuchhalterin",
+      "years": 9,
+      "seniority": "mid",
+      "skills": [
+        "FiBu",
+        "Kreditoren",
+        "Debitoren",
+        "DATEV Kanzlei-Rechnungswesen",
+        "USt-Voranmeldung",
+        "Monatsabschluss",
+        "Anlagenbuchhaltung"
+      ],
+      "certificates": [
+        "Steuerfachangestellte"
+      ],
+      "industries": [
+        "Steuerberatung",
+        "Handel"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 58000,
+      "salary_min": 54000,
+      "notice": "3_months",
+      "city": "Frankfurt am Main",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Buchhalter (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": null,
+      "verhandelbar": null,
+      "lernbar": null,
+      "must_haves_raw": [
+        "abgeschlossene Ausbildung oder vergleichbare Qualifikation",
+        "mehrjährige Berufserfahrung im Bereich Buchhaltung",
+        "umfangreiche Kenntnisse der Rechnungslegung"
+      ],
+      "nice_to_haves_raw": [
+        "schnelle Auffassungsgabe",
+        "Fähigkeit",
+        "sich in komplexe Fragestellungen reinzudenken"
+      ],
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "location": "Schwalbach am Taunus",
+      "remote_type": "hybrid",
+      "onsite_days": 3,
+      "required_languages": []
+    },
+    "expected_tier": "Sehr passend",
+    "acceptable_tiers": [
+      "Sehr passend",
+      "Passend"
+    ],
+    "reasons": [
+      "FiBu = Finanzbuchhaltung; StFA-Ausbildung + 9 Jahre belegen Ausbildung, 'mehrjährig' und Rechnungslegung",
+      "Soft-Skill-Fragmente ('Fähigkeit', 'schnelle Auffassungsgabe') sind nicht prüfbar und zählen nicht; Frankfurt–Schwalbach ca. 25 Min."
+    ],
+    "must_not_claim": [
+      "Fähigkeit fehlt",
+      "Buchhaltung fehlt",
+      "Finanzbuchhaltung fehlt"
+    ]
+  },
+  {
+    "id": "M08",
+    "tags": [
+      "regulated_qualification",
+      "seniority_gap",
+      "keyword_overlap",
+      "salary_far_below"
+    ],
+    "candidate": {
+      "title": "Kreditorenbuchhalterin",
+      "years": 4,
+      "seniority": "mid",
+      "skills": [
+        "Kreditorenbuchhaltung",
+        "Rechnungsprüfung",
+        "Zahlungsverkehr",
+        "SAP FI"
+      ],
+      "certificates": [
+        "Kauffrau für Büromanagement"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 46000,
+      "salary_min": 43000,
+      "notice": "1_month",
+      "city": "Nürnberg",
+      "work_model": "hybrid",
+      "max_commute_min": 40
+    },
+    "job": {
+      "title": "Bilanzbuchhalter (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Bilanzbuchhalter IHK oder Steuerfachwirt",
+        "Eigenständige Erstellung von Monats- und Jahresabschlüssen nach HGB"
+      ],
+      "verhandelbar": [
+        "DATEV"
+      ],
+      "lernbar": [
+        "IFRS"
+      ],
+      "salary_min": 68000,
+      "salary_max": 82000,
+      "location": "Nürnberg",
+      "remote_type": "hybrid",
+      "onsite_days": 2
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Unverzichtbare Qualifikation fehlt (kein Bilanzbuchhalter IHK/Steuerfachwirt), keine Abschlusserstellung belegt – Kreditoren-Sachbearbeitung ist eine andere Ebene",
+      "Wunsch ~32 % unter Budget-Minimum bestätigt den Ebenenabstand"
+    ],
+    "must_not_claim": [
+      "Gehalt im Budget",
+      "Buchhaltung erfüllt"
+    ]
+  },
+  {
+    "id": "M09",
+    "tags": [
+      "salary_slightly_over"
+    ],
+    "candidate": {
+      "title": "Finanzbuchhalter",
+      "years": 12,
+      "seniority": "senior",
+      "skills": [
+        "Finanzbuchhaltung",
+        "DATEV",
+        "Monats- und Jahresabschluss HGB",
+        "Umsatzsteuer",
+        "Kreditoren",
+        "Debitoren"
+      ],
+      "certificates": [
+        "Steuerfachangestellter"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 74000,
+      "salary_min": 70000,
+      "notice": "3_months",
+      "city": "Hannover",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Senior Finanzbuchhalter (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Abgeschlossene kaufmännische Ausbildung",
+        "Mehrjährige Erfahrung in der Finanzbuchhaltung",
+        "DATEV"
+      ],
+      "verhandelbar": [
+        "Erfahrung mit Jahresabschlussvorbereitung"
+      ],
+      "lernbar": [],
+      "salary_min": 60000,
+      "salary_max": 70000,
+      "location": "Hannover",
+      "remote_type": "hybrid",
+      "onsite_days": 3,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ]
+    },
+    "expected_tier": "Passend",
+    "acceptable_tiers": [
+      "Passend"
+    ],
+    "reasons": [
+      "Fachlich voll belegt",
+      "Wunsch 74k liegt ~6 % über Budget-Max, Schmerzgrenze 70k genau am Max → verhandelbar, kein Ausschluss"
+    ],
+    "must_not_claim": [
+      "Gehalt im Budget"
+    ]
+  },
+  {
+    "id": "M10",
+    "tags": [
+      "relocation_yes",
+      "industry_proximity"
+    ],
+    "candidate": {
+      "title": "Controller",
+      "years": 7,
+      "seniority": "senior",
+      "skills": [
+        "SAP CO-OM",
+        "SAP CO-PA",
+        "Kostenstellenrechnung",
+        "Kostenträgerrechnung",
+        "Budgetplanung",
+        "Forecast",
+        "Power BI"
+      ],
+      "industries": [
+        "Automobilzulieferer"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 80000,
+      "salary_min": 75000,
+      "notice": "3_months_eoq",
+      "city": "Hamburg",
+      "work_model": "hybrid",
+      "relocation": true,
+      "target_locations": [
+        "Stuttgart",
+        "Hamburg"
+      ]
+    },
+    "job": {
+      "title": "Senior Controller Werkscontrolling (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "SAP CO",
+        "Kostenstellen- und Kostenträgerrechnung",
+        "Erfahrung im produzierenden Gewerbe"
+      ],
+      "verhandelbar": [
+        "S/4HANA"
+      ],
+      "lernbar": [
+        "SAP Analytics Cloud"
+      ],
+      "salary_min": 72000,
+      "salary_max": 88000,
+      "location": "Stuttgart",
+      "remote_type": "hybrid",
+      "onsite_days": 3,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        },
+        {
+          "language": "Englisch",
+          "min_level": "B2",
+          "source": "client"
+        }
+      ],
+      "fill_by_days": 120
+    },
+    "expected_tier": "Sehr passend",
+    "acceptable_tiers": [
+      "Sehr passend",
+      "Passend"
+    ],
+    "reasons": [
+      "Alle unverzichtbaren belegt: SAP CO-OM/PA, Kostenrechnung, Zulieferer = produzierendes Gewerbe",
+      "Ort kein Hindernis: Umzug nach Stuttgart ausdrücklich gewünscht; Gehalt und Frist im Rahmen"
+    ],
+    "must_not_claim": [
+      "Ort passt nicht",
+      "Pendelzeit zu lang"
+    ]
+  },
+  {
+    "id": "M11",
+    "tags": [
+      "keyword_trap",
+      "cross_domain"
+    ],
+    "candidate": {
+      "title": "Qualitätsingenieur",
+      "years": 8,
+      "seniority": "senior",
+      "skills": [
+        "Qualitätscontrolling",
+        "SAP QM",
+        "FMEA",
+        "SPC",
+        "8D-Report",
+        "IATF 16949",
+        "Lieferantenaudits"
+      ],
+      "industries": [
+        "Automobilzulieferer"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "B2"
+        }
+      ],
+      "salary_wish": 76000,
+      "salary_min": 72000,
+      "notice": "3_months",
+      "city": "Stuttgart",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Senior Controller Werkscontrolling (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "SAP CO",
+        "Kostenstellen- und Kostenträgerrechnung",
+        "Erfahrung im produzierenden Gewerbe"
+      ],
+      "verhandelbar": [
+        "S/4HANA"
+      ],
+      "lernbar": [
+        "SAP Analytics Cloud"
+      ],
+      "salary_min": 72000,
+      "salary_max": 88000,
+      "location": "Stuttgart",
+      "remote_type": "hybrid",
+      "onsite_days": 3
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Fremde Berufsfamilie: Qualitätsmanagement ≠ Finanzcontrolling; 'Controlling' und 'SAP' sind nur Worttreffer (Qualitätscontrolling, SAP QM ≠ SAP CO)",
+      "Gleiche Branche und passendes Gehalt dürfen den fachfremden Kandidaten nicht nach oben ziehen"
+    ],
+    "must_not_claim": [
+      "SAP CO erfüllt",
+      "Controlling-Erfahrung"
+    ]
+  },
+  {
+    "id": "M12",
+    "tags": [
+      "salary_far_over",
+      "overqualified"
+    ],
+    "candidate": {
+      "title": "Head of Controlling",
+      "years": 18,
+      "seniority": "director",
+      "skills": [
+        "Konzerncontrolling",
+        "SAP CO",
+        "IFRS",
+        "M&A-Integration",
+        "Monatsreporting"
+      ],
+      "leadership": {
+        "scope": "disciplinary",
+        "team_size": 12
+      },
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 125000,
+      "salary_min": 110000,
+      "notice": "6_months",
+      "city": "München",
+      "work_model": "hybrid"
+    },
+    "job": {
+      "title": "Controller (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "SAP CO",
+        "Monatsreporting",
+        "Abweichungsanalysen"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 65000,
+      "salary_max": 80000,
+      "location": "München",
+      "remote_type": "hybrid",
+      "onsite_days": 3
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Schmerzgrenze 110k liegt ~38 % über Budget-Max – nicht verhandelbar",
+      "Zwei Ebenen Rückschritt (Leitung mit 12 MA → Controller ohne Führung), hohe Absprunggefahr"
+    ],
+    "must_not_claim": [
+      "Gehalt verhandelbar"
+    ]
+  },
+  {
+    "id": "M13",
+    "tags": [
+      "substring_trap",
+      "cross_role"
+    ],
+    "candidate": {
+      "title": "Frontend Developer",
+      "years": 4,
+      "seniority": "mid",
+      "skills": [
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Next.js",
+        "CSS",
+        "Node.js (Grundlagen)"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 68000,
+      "salary_min": 62000,
+      "notice": "1_month",
+      "city": "Köln",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Senior Java Backend Developer (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Java",
+        "Spring Boot",
+        "Microservices",
+        "Kafka"
+      ],
+      "verhandelbar": [
+        "Kubernetes"
+      ],
+      "lernbar": [],
+      "salary_min": 80000,
+      "salary_max": 95000,
+      "location": "Köln",
+      "remote_type": "hybrid",
+      "onsite_days": 2
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "JavaScript ist nicht Java – kein unverzichtbares Backend-Kriterium belegt",
+      "Frontend → Senior Backend ist Rollen- und Ebenenwechsel zugleich"
+    ],
+    "must_not_claim": [
+      "Java erfüllt"
+    ]
+  },
+  {
+    "id": "M14",
+    "tags": [
+      "notice_long_vs_urgent"
+    ],
+    "candidate": {
+      "title": "Senior Backend Developer",
+      "years": 9,
+      "seniority": "senior",
+      "skills": [
+        "Java",
+        "Spring Boot",
+        "Kafka",
+        "PostgreSQL",
+        "AWS",
+        "Microservices",
+        "Kubernetes"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 95000,
+      "salary_min": 90000,
+      "notice": "6_months",
+      "city": "Köln",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Senior Java Backend Developer (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Java",
+        "Spring Boot",
+        "Microservices",
+        "Kafka"
+      ],
+      "verhandelbar": [
+        "Kubernetes"
+      ],
+      "lernbar": [],
+      "salary_min": 85000,
+      "salary_max": 105000,
+      "location": "Köln",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "fill_by_days": 56,
+      "urgent": true,
+      "note": "Projektstart, Besetzung dringend"
+    },
+    "expected_tier": "Prüfen",
+    "acceptable_tiers": [
+      "Prüfen",
+      "Passend"
+    ],
+    "reasons": [
+      "Fachlich sehr passend, alle vier unverzichtbaren belegt",
+      "6 Monate Kündigungsfrist gegen Besetzung in 8 Wochen – vorab klären: Freistellung/Aufhebung möglich oder späterer Start für den Kunden okay?"
+    ],
+    "must_not_claim": [
+      "kurzfristig verfügbar"
+    ]
+  },
+  {
+    "id": "M15",
+    "tags": [
+      "missing_data",
+      "or_alternatives",
+      "confidence_low"
+    ],
+    "candidate": {
+      "title": "Backend Developer",
+      "years": 5,
+      "seniority": null,
+      "skills": [
+        "Python",
+        "Django",
+        "PostgreSQL",
+        "Docker",
+        "REST"
+      ],
+      "languages": [],
+      "salary_wish": null,
+      "salary_min": null,
+      "notice": null,
+      "city": "Hamburg",
+      "work_model": null,
+      "max_commute_min": null,
+      "relocation": null
+    },
+    "job": {
+      "title": "Backend Developer Python (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Python",
+        "Django oder FastAPI",
+        "REST-APIs",
+        "SQL-Datenbanken"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 65000,
+      "salary_max": 80000,
+      "location": "Hamburg",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": []
+    },
+    "expected_tier": "Passend",
+    "acceptable_tiers": [
+      "Passend",
+      "Prüfen"
+    ],
+    "reasons": [
+      "Fachlich klar belegt (Python, Django, REST, PostgreSQL = SQL), gleicher Ort",
+      "Gehalt, Kündigungsfrist und Arbeitsmodell unbekannt → Sicherheit niedrig, im Gespräch klären"
+    ],
+    "must_not_claim": [
+      "Gehalt im Budget",
+      "kurzfristig verfügbar",
+      "Arbeitsmodell passt"
+    ]
+  },
+  {
+    "id": "M16",
+    "tags": [
+      "effective_work_model",
+      "remote_only_vs_onsite"
+    ],
+    "candidate": {
+      "title": "Senior Backend Engineer",
+      "years": 10,
+      "seniority": "senior",
+      "skills": [
+        "Go",
+        "Kubernetes",
+        "gRPC",
+        "PostgreSQL",
+        "AWS",
+        "Terraform",
+        "Verteilte Systeme"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 90000,
+      "salary_min": 85000,
+      "notice": "3_months",
+      "city": "Rostock",
+      "work_model": "remote",
+      "relocation": false
+    },
+    "job": {
+      "title": "Senior Go Engineer (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Go",
+        "Kubernetes",
+        "Verteilte Systeme"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 85000,
+      "salary_max": 100000,
+      "location": "Berlin",
+      "remote_type": "hybrid",
+      "onsite_days": 5
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Effektiv Vor-Ort-Stelle: 'hybrid' mit 5 Präsenztagen = 5 Tage Berlin",
+      "Kandidat nur remote, Rostock–Berlin nicht täglich pendelbar, kein Umzug"
+    ],
+    "must_not_claim": [
+      "Arbeitsmodell passt"
+    ]
+  },
+  {
+    "id": "M17",
+    "tags": [
+      "language_parser_default",
+      "language_one_level_below"
+    ],
+    "candidate": {
+      "title": "Backend Developer",
+      "years": 6,
+      "seniority": "senior",
+      "skills": [
+        "Kotlin",
+        "Java",
+        "Spring Boot",
+        "PostgreSQL",
+        "Docker",
+        "REST"
+      ],
+      "languages": [
+        {
+          "language": "Englisch",
+          "level": "C1"
+        },
+        {
+          "language": "Deutsch",
+          "level": "B2"
+        }
+      ],
+      "salary_wish": 78000,
+      "salary_min": 72000,
+      "notice": "2_months",
+      "city": "Berlin",
+      "work_model": "hybrid",
+      "max_commute_min": 45,
+      "work_permit": "permit"
+    },
+    "job": {
+      "title": "Backend Engineer Kotlin (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Kotlin oder Java",
+        "Spring Boot",
+        "Relationale Datenbanken"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 70000,
+      "salary_max": 85000,
+      "location": "Berlin",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "parser_default"
+        },
+        {
+          "language": "Englisch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ],
+      "note": "Teamsprache Englisch"
+    },
+    "expected_tier": "Passend",
+    "acceptable_tiers": [
+      "Sehr passend",
+      "Passend"
+    ],
+    "reasons": [
+      "Fachlich voll belegt, Gehalt im Budget",
+      "'Deutsch C1' stammt vom Anzeigen-Parser, nicht vom Kunden, Teamsprache Englisch – B2 ist höchstens Gesprächspunkt, kein Ausschluss"
+    ],
+    "must_not_claim": [
+      "Pflichtsprache nicht erfüllt"
+    ]
+  },
+  {
+    "id": "M18",
+    "tags": [
+      "salary_ote",
+      "unit_mismatch"
+    ],
+    "candidate": {
+      "title": "Senior Account Executive (SaaS)",
+      "years": 7,
+      "seniority": "senior",
+      "skills": [
+        "Enterprise Sales",
+        "Neukundenakquise",
+        "Salesforce CRM",
+        "MEDDIC",
+        "Pipeline-Management",
+        "Verhandlungsführung"
+      ],
+      "industries": [
+        "B2B SaaS"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 78000,
+      "salary_min": 72000,
+      "salary_note": "Fixum; OTE-Wunsch 115000",
+      "notice": "3_months",
+      "city": "München",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Account Executive Enterprise (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Mehrjährige Erfahrung im B2B-SaaS-Vertrieb",
+        "Neukundengewinnung im Enterprise-Segment",
+        "Deutsch verhandlungssicher"
+      ],
+      "verhandelbar": [
+        "MEDDIC oder vergleichbare Vertriebsmethodik"
+      ],
+      "lernbar": [],
+      "salary_min": 110000,
+      "salary_max": 130000,
+      "salary_basis": "OTE (Fixum 70–85k)",
+      "location": "München",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "travel": "20 %",
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ]
+    },
+    "expected_tier": "Sehr passend",
+    "acceptable_tiers": [
+      "Sehr passend"
+    ],
+    "reasons": [
+      "Gleiche Rolle und Branche, Enterprise-Neukundengeschäft und MEDDIC belegt",
+      "Gehalt wie mit wie vergleichen: Fixum 78k in 70–85k, OTE 115k in 110–130k – kein 'Wunsch weit unter Budget'"
+    ],
+    "must_not_claim": [
+      "Gehalt deutlich unter Budget",
+      "Seniorität prüfen"
+    ]
+  },
+  {
+    "id": "M19",
+    "tags": [
+      "adjacent_role_trap",
+      "missing_field_travel",
+      "target_roles"
+    ],
+    "candidate": {
+      "title": "Vertriebsinnendienst",
+      "years": 5,
+      "seniority": "mid",
+      "skills": [
+        "Auftragsabwicklung",
+        "Angebotserstellung",
+        "SAP SD",
+        "Telefonische Kundenbetreuung",
+        "Reklamationsmanagement"
+      ],
+      "industries": [
+        "Maschinenbau"
+      ],
+      "target_roles": [
+        "Teamleitung Vertriebsinnendienst"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 55000,
+      "salary_min": 50000,
+      "notice": "3_months",
+      "city": "Bielefeld",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Gebietsverkaufsleiter Außendienst NRW (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Erfahrung im Außendienst",
+        "Neukundengewinnung",
+        "Führerschein Klasse B",
+        "Reisebereitschaft (4 Tage/Woche beim Kunden)"
+      ],
+      "verhandelbar": [
+        "Branchenkenntnis Maschinenbau"
+      ],
+      "lernbar": [],
+      "salary_min": 60000,
+      "salary_max": 72000,
+      "salary_note": "zzgl. Firmenwagen",
+      "location": "NRW (Gebiet)",
+      "remote_type": "field",
+      "onsite_days": null
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen",
+      "Prüfen"
+    ],
+    "reasons": [
+      "Innendienst ist nicht Außendienst: keine Außendienst- oder Neukundenerfahrung belegt, 4 Reisetage pro Woche",
+      "Zielrollen zeigen Richtung Innendienst-Führung – nur vorschlagen, wenn der Kandidat den Wechsel ausdrücklich will"
+    ],
+    "must_not_claim": [
+      "Vertriebserfahrung erfüllt Außendienst"
+    ]
+  },
+  {
+    "id": "M20",
+    "tags": [
+      "blocked_company",
+      "triple_blind"
+    ],
+    "candidate": {
+      "title": "Key Account Manager Medizintechnik",
+      "years": 8,
+      "seniority": "senior",
+      "skills": [
+        "Key Account Management",
+        "Klinikvertrieb",
+        "Ausschreibungen",
+        "Einkaufsgemeinschaften",
+        "Salesforce",
+        "Medizinprodukte (MDR)"
+      ],
+      "industries": [
+        "Medizintechnik"
+      ],
+      "blocked_companies": [
+        "Medtech Beta GmbH"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "C1"
+        }
+      ],
+      "salary_wish": 90000,
+      "salary_min": 85000,
+      "notice": "3_months",
+      "city": "Hamburg",
+      "work_model": "hybrid"
+    },
+    "job": {
+      "title": "Key Account Manager Kliniken (m/w/d)",
+      "company": "Medtech Beta GmbH",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Vertrieb von Medizinprodukten an Kliniken",
+        "Erfahrung mit Einkaufsgemeinschaften"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 80000,
+      "salary_max": 95000,
+      "location": "Hamburg",
+      "remote_type": "hybrid",
+      "onsite_days": 2
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Kandidat hat diesen Arbeitgeber gesperrt – fachliche Passung ist dann irrelevant",
+      "Grund nur allgemein nennen ('Ausschlusswunsch des Kandidaten'), Firmenname nie in der Headhunter-Ansicht"
+    ],
+    "must_not_claim": [
+      "Medtech Beta GmbH"
+    ]
+  },
+  {
+    "id": "M21",
+    "tags": [
+      "synonym_regulated",
+      "nursing",
+      "onsite_normal"
+    ],
+    "candidate": {
+      "title": "Gesundheits- und Krankenpflegerin, Intensivstation",
+      "years": 10,
+      "seniority": "senior",
+      "skills": [
+        "Intensivpflege",
+        "Beatmungspflege",
+        "Pflegedokumentation",
+        "Praxisanleitung",
+        "Schichtdienst"
+      ],
+      "certificates": [
+        "Examen Gesundheits- und Krankenpflege",
+        "Fachweiterbildung Anästhesie- und Intensivpflege"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 54000,
+      "salary_min": 50000,
+      "notice": "3_months_eoq",
+      "city": "Hamburg",
+      "work_model": "onsite",
+      "max_commute_min": 45,
+      "employment_type": "fulltime"
+    },
+    "job": {
+      "title": "Pflegefachkraft Intensivstation (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Examen als Pflegefachfrau/Pflegefachmann oder vergleichbare Ausbildung",
+        "Bereitschaft zum Schichtdienst"
+      ],
+      "verhandelbar": [
+        "Fachweiterbildung Intensiv/Anästhesie"
+      ],
+      "lernbar": [
+        "ECMO"
+      ],
+      "salary_min": 48000,
+      "salary_max": 58000,
+      "salary_note": "TVöD P8–P9 inkl. Zulagen",
+      "location": "Hamburg",
+      "remote_type": "onsite",
+      "onsite_days": 5,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "B2",
+          "source": "client"
+        }
+      ],
+      "fill_by_days": 90
+    },
+    "expected_tier": "Sehr passend",
+    "acceptable_tiers": [
+      "Sehr passend"
+    ],
+    "reasons": [
+      "Examen Gesundheits- und Krankenpflege = Pflegefachfrau (Synonym nach PflBG); Fachweiterbildung Intensiv als Plus",
+      "Vor-Ort-Schichtdienst ist in der Pflege Normalfall und entspricht dem Wunsch; Gehalt in der TVöD-Spanne"
+    ],
+    "must_not_claim": [
+      "Examen fehlt"
+    ]
+  },
+  {
+    "id": "M22",
+    "tags": [
+      "visa_unknown",
+      "regulated_qualification"
+    ],
+    "candidate": {
+      "title": "Pflegefachkraft (ausländischer Abschluss, Anerkennung erteilt)",
+      "years": 6,
+      "seniority": "mid",
+      "skills": [
+        "Allgemeine Krankenpflege",
+        "Chirurgie",
+        "Wundmanagement",
+        "Pflegedokumentation",
+        "Schichtdienst"
+      ],
+      "certificates": [
+        "Berufsurkunde Pflegefachfrau (Anerkennung)",
+        "telc Deutsch B2 Pflege"
+      ],
+      "languages": [
+        {
+          "language": "Englisch",
+          "level": "C1"
+        },
+        {
+          "language": "Deutsch",
+          "level": "B2"
+        }
+      ],
+      "salary_wish": 46000,
+      "salary_min": 42000,
+      "notice": "1_month",
+      "city": null,
+      "work_model": "onsite",
+      "relocation": true,
+      "target_locations": [
+        "Hannover",
+        "Niedersachsen"
+      ],
+      "work_permit": "needs_visa"
+    },
+    "job": {
+      "title": "Pflegefachkraft Chirurgie (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Examen oder Anerkennung als Pflegefachkraft",
+        "Deutsch B2"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 44000,
+      "salary_max": 52000,
+      "location": "Hannover",
+      "remote_type": "onsite",
+      "onsite_days": 5,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "B2",
+          "source": "client"
+        }
+      ],
+      "visa_sponsorship": null
+    },
+    "expected_tier": "Prüfen",
+    "acceptable_tiers": [
+      "Prüfen",
+      "Passend"
+    ],
+    "reasons": [
+      "Fachlich und sprachlich erfüllt (Anerkennung + Deutsch B2 Pflege)",
+      "Visum nötig, Sponsoring der Stelle unbekannt → beim Kunden klären (beschleunigtes Fachkräfteverfahren), nicht ausschließen"
+    ],
+    "must_not_claim": [
+      "Kein Visum-Sponsoring"
+    ]
+  },
+  {
+    "id": "M23",
+    "tags": [
+      "substring_trap",
+      "cross_domain",
+      "regulated_qualification"
+    ],
+    "candidate": {
+      "title": "Stammdatenmanagerin",
+      "years": 7,
+      "seniority": "mid",
+      "skills": [
+        "Stammdatenpflege",
+        "Artikelstammpflege",
+        "SAP MDG",
+        "Datenqualität",
+        "Excel"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        }
+      ],
+      "salary_wish": 50000,
+      "salary_min": 46000,
+      "notice": "3_months",
+      "city": "Hannover",
+      "work_model": "hybrid",
+      "max_commute_min": 45
+    },
+    "job": {
+      "title": "Pflegefachkraft Altenpflege (m/w/d)",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "Examinierte Pflegefachkraft (Altenpflege oder generalistisch)",
+        "Pflegedokumentation"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 44000,
+      "salary_max": 52000,
+      "location": "Hannover",
+      "remote_type": "onsite",
+      "onsite_days": 5,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "B2",
+          "source": "client"
+        }
+      ]
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "'Pflege' in 'Stammdatenpflege' ist ein Worttreffer, keine Pflegequalifikation – Examen fehlt",
+      "Fremde Berufsfamilie; passendes Gehalt und gleicher Ort ändern daran nichts"
+    ],
+    "must_not_claim": [
+      "Pflegeerfahrung",
+      "Pflegedokumentation erfüllt"
+    ]
+  },
+  {
+    "id": "M24",
+    "tags": [
+      "or_alternatives",
+      "onsite_vs_hybrid_negotiable"
+    ],
+    "candidate": {
+      "title": "Konstrukteur Maschinenbau",
+      "years": 6,
+      "seniority": "mid",
+      "skills": [
+        "Creo Parametric",
+        "Blechkonstruktion",
+        "Baugruppenkonstruktion",
+        "Technische Zeichnungen",
+        "Toleranzrechnung",
+        "Windchill PDM"
+      ],
+      "certificates": [
+        "Staatlich geprüfter Techniker Maschinenbau"
+      ],
+      "industries": [
+        "Sondermaschinenbau"
+      ],
+      "languages": [
+        {
+          "language": "Deutsch",
+          "level": "Muttersprache"
+        },
+        {
+          "language": "Englisch",
+          "level": "B1"
+        }
+      ],
+      "salary_wish": 62000,
+      "salary_min": 58000,
+      "notice": "3_months",
+      "city": "Bielefeld",
+      "work_model": "hybrid",
+      "max_commute_min": 30
+    },
+    "job": {
+      "title": "Konstrukteur (m/w/d) Sondermaschinenbau",
+      "seniority": "mid",
+      "unverzichtbar": [
+        "CAD (Creo oder SolidWorks)",
+        "Abgeschlossenes Studium Maschinenbau oder Techniker",
+        "Erfahrung im Sondermaschinenbau"
+      ],
+      "verhandelbar": [
+        "Erfahrung mit PDM-Systemen"
+      ],
+      "lernbar": [],
+      "salary_min": 55000,
+      "salary_max": 68000,
+      "location": "Gütersloh",
+      "remote_type": "hybrid",
+      "onsite_days": 4
+    },
+    "expected_tier": "Passend",
+    "acceptable_tiers": [
+      "Passend",
+      "Sehr passend"
+    ],
+    "reasons": [
+      "Alle unverzichtbaren belegt: 'Creo oder SolidWorks' ist eine Alternative, Creo genügt; Techniker erfüllt 'Studium oder Techniker'",
+      "Hybrid-Wunsch vs. 4 Präsenztage bei ca. 25 Min. Pendelweg: verhandelbar, im Gespräch ansprechen"
+    ],
+    "must_not_claim": [
+      "SolidWorks fehlt",
+      "Studium fehlt"
+    ]
+  },
+  {
+    "id": "M25",
+    "tags": [
+      "language_knockout_confirmed",
+      "customer_facing"
+    ],
+    "candidate": {
+      "title": "Application Engineer Messtechnik",
+      "years": 7,
+      "seniority": "senior",
+      "skills": [
+        "Industrielle Messtechnik",
+        "Kundenschulungen",
+        "Inbetriebnahme",
+        "LabVIEW",
+        "Technischer Support"
+      ],
+      "languages": [
+        {
+          "language": "Englisch",
+          "level": "C1"
+        },
+        {
+          "language": "Deutsch",
+          "level": "A2"
+        }
+      ],
+      "salary_wish": 70000,
+      "salary_min": 65000,
+      "notice": "2_months",
+      "city": "Stuttgart",
+      "work_model": "hybrid",
+      "work_permit": "permit"
+    },
+    "job": {
+      "title": "Application Engineer Messtechnik (m/w/d)",
+      "seniority": "senior",
+      "unverzichtbar": [
+        "Erfahrung in der Messtechnik",
+        "Kundenschulungen und Vor-Ort-Support bei deutschen Mittelstandskunden"
+      ],
+      "verhandelbar": [],
+      "lernbar": [],
+      "salary_min": 65000,
+      "salary_max": 78000,
+      "location": "Stuttgart",
+      "remote_type": "hybrid",
+      "onsite_days": 2,
+      "required_languages": [
+        {
+          "language": "Deutsch",
+          "min_level": "C1",
+          "source": "client"
+        }
+      ]
+    },
+    "expected_tier": "Ausgeschlossen",
+    "acceptable_tiers": [
+      "Ausgeschlossen"
+    ],
+    "reasons": [
+      "Vom Kunden bestätigte Pflichtsprache Deutsch C1 bei direktem Kundenkontakt, Kandidat A2 – drei Stufen darunter",
+      "Fachlich passend – für englischsprachige Stellen im Pool vormerken"
+    ],
+    "must_not_claim": [
+      "Sprachen erfüllt"
+    ]
+  }
+]

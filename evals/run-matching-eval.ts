@@ -12,6 +12,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ALL_V31_ADAPTERS } from './adapters/v31-baseline';
+import { ALL_V32_ADAPTERS } from './adapters/v32';
 import type { AdapterEvalResult, MacroMetrics } from './lib/evaluate';
 import { datasetSha256, evaluateAdapter, parseDataset } from './lib/evaluate';
 
@@ -92,12 +93,14 @@ function main(): void {
   const dataset = parseDataset(rawJson);
   const sha256 = datasetSha256(rawJson);
 
+  // V3.2-Prototyp (evals/adapters/v32) inkl. Ablationen; die CI-Baseline bleibt v31-code-defaults.
+  const allAdapters = [...ALL_V31_ADAPTERS, ...ALL_V32_ADAPTERS];
   const adapters =
     adapterFilters.length > 0
-      ? ALL_V31_ADAPTERS.filter((a) => adapterFilters.includes(a.name))
-      : ALL_V31_ADAPTERS;
+      ? allAdapters.filter((a) => adapterFilters.includes(a.name))
+      : allAdapters;
   if (adapters.length === 0) {
-    throw new Error(`Kein Adapter gefunden für: ${adapterFilters.join(', ')} (verfügbar: ${ALL_V31_ADAPTERS.map((a) => a.name).join(', ')})`);
+    throw new Error(`Kein Adapter gefunden für: ${adapterFilters.join(', ')} (verfügbar: ${allAdapters.map((a) => a.name).join(', ')})`);
   }
 
   const results = adapters.map((a) => evaluateAdapter(a, dataset));

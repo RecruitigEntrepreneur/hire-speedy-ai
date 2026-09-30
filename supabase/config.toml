@@ -139,6 +139,10 @@ verify_jwt = true
 [functions.extract-candidate-dossier]
 verify_jwt = true
 
+# Match V4.1 (KI-Matching): prüft Nutzer und Besitz des Kandidaten zusätzlich im Code.
+[functions.match-v41]
+verify_jwt = true
+
 [functions.client-candidate-summary]
 verify_jwt = true
 
