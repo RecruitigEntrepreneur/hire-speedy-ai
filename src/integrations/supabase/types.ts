@@ -6852,6 +6852,197 @@ export type Database = {
           },
         ]
       }
+      match_v41_overrides: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          decision: string
+          job_id: string
+          reason: string | null
+          recruiter_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          decision: string
+          job_id: string
+          reason?: string | null
+          recruiter_id?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          decision?: string
+          job_id?: string
+          reason?: string | null
+          recruiter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_v41_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_v41_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_v41_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_v41_overrides_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_v41_overrides_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_v41_overrides_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_v41_profiles: {
+        Row: {
+          ai_ok: boolean
+          entity_id: string
+          entity_type: string
+          input_hash: string
+          model: string | null
+          profile: Json
+          prompt_version: string
+          updated_at: string
+        }
+        Insert: {
+          ai_ok?: boolean
+          entity_id: string
+          entity_type: string
+          input_hash: string
+          model?: string | null
+          profile: Json
+          prompt_version: string
+          updated_at?: string
+        }
+        Update: {
+          ai_ok?: boolean
+          entity_id?: string
+          entity_type?: string
+          input_hash?: string
+          model?: string | null
+          profile?: Json
+          prompt_version?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      match_v41_results: {
+        Row: {
+          ai_judged: boolean
+          candidate_id: string
+          computed_at: string
+          confidence: number
+          input_hash: string
+          job_id: string
+          model: string | null
+          prompt_version: string
+          recruiter_id: string
+          result: Json
+          sort_score: number
+          tier: string
+        }
+        Insert: {
+          ai_judged?: boolean
+          candidate_id: string
+          computed_at?: string
+          confidence?: number
+          input_hash: string
+          job_id: string
+          model?: string | null
+          prompt_version: string
+          recruiter_id: string
+          result: Json
+          sort_score?: number
+          tier: string
+        }
+        Update: {
+          ai_judged?: boolean
+          candidate_id?: string
+          computed_at?: string
+          confidence?: number
+          input_hash?: string
+          job_id?: string
+          model?: string | null
+          prompt_version?: string
+          recruiter_id?: string
+          result?: Json
+          sort_score?: number
+          tier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_v41_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_v41_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_v41_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_v41_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "match_v41_results_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_v41_results_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matching_config: {
         Row: {
           active: boolean | null
