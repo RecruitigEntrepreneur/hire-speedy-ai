@@ -37,7 +37,8 @@ const RESULT_TTL_MS = 14 * 86_400_000;
 const JOB_COLUMNS = [
   'id', 'status', 'title', 'description', 'requirements', 'company_name', 'must_haves', 'nice_to_haves',
   'must_have_criteria', 'nice_to_have_criteria', 'trainable_skills', 'experience_level', 'required_languages',
-  'salary_min', 'salary_max', 'day_rate_min', 'day_rate_max', 'location', 'remote_type', 'work_model',
+  // jobs hat (anders als candidates) KEINE Spalte work_model – live geprüft 01.10.2026.
+  'salary_min', 'salary_max', 'day_rate_min', 'day_rate_max', 'location', 'remote_type',
   'onsite_days_required', 'employment_type', 'visa_sponsorship', 'urgency', 'hiring_urgency', 'deadline',
   'hiring_deadline', 'nogo_companies',
 ].join(', ');
@@ -139,7 +140,10 @@ Deno.serve(async (req) => {
     let q = db.from('jobs').select(JOB_COLUMNS).eq('status', 'published').limit(MAX_JOBS);
     if (jobIds?.length) q = q.in('id', jobIds);
     const { data: jobs, error: jobsErr } = await q;
-    if (jobsErr) return fail('internal_error', 'Stellen konnten nicht geladen werden.');
+    if (jobsErr) {
+      console.error('match-v41: Stellen laden', jobsErr.message);
+      return fail('internal_error', 'Stellen konnten nicht geladen werden.', { detail: jobsErr.message });
+    }
     const jobRows = (jobs ?? []) as unknown as Row[];
 
     const jobProfiles = new Map<string, { profile: JobProfile; hash: string; row: Row }>();

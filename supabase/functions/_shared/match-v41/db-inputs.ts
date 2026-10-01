@@ -168,7 +168,7 @@ export function jobInputFromRow(j: Row, nowMs: number): JobInput {
     salary_max: dayRate ? num(j.day_rate_max) : num(j.salary_max),
     salary_basis: dayRate ? 'daily_rate' : null,
     location: str(j.location),
-    remote_type: str(j.remote_type) ?? str(j.work_model),
+    remote_type: str(j.remote_type),
     onsite_days_required: num(j.onsite_days_required),
     employment_type: str(j.employment_type),
     visa_sponsorship: typeof j.visa_sponsorship === 'boolean' ? j.visa_sponsorship : null,
