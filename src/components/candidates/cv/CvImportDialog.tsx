@@ -128,7 +128,7 @@ export function CvImportDialog({
   const [form, setForm] = useState<DossierForm>(emptyDossier());
   const [origins, setOrigins] = useState<OriginMap>({});
   const [stations, setStations] = useState<CvStation[]>([]);
-  const [duplicate, setDuplicate] = useState<{ id: string; full_name: string } | null>(null);
+  const [duplicate, setDuplicate] = useState<{ id: string; full_name: string; reason: 'name' | 'email' } | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
   // Aktualisieren
@@ -352,7 +352,11 @@ export function CvImportDialog({
             {duplicate && (
               <p className="flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
-                <span className="flex-1">„{duplicate.full_name}“ gibt es in deinen Kandidaten schon.</span>
+                <span className="flex-1">
+                  {duplicate.reason === 'name'
+                    ? `„${duplicate.full_name}“ gibt es in deinen Kandidaten schon – lieber dort den Lebenslauf aktualisieren?`
+                    : `Diese E-Mail gehört schon zu „${duplicate.full_name}“.`}
+                </span>
                 <button type="button" className="text-primary hover:underline" onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${duplicate.id}`); }}>Öffnen</button>
               </p>
             )}

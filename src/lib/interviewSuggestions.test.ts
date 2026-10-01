@@ -20,7 +20,8 @@ describe('Vorschläge aus der Akte', () => {
     const d = careerDirections(base);
     expect(d[0]).toBe('Finance Manager');
     expect(d).toContain('Leitung Controlling');
-    expect(d).toContain('Teamleitung');
+    expect(d).toContain('Abteilungsleitung'); // führt schon disziplinarisch → nächste Ebene
+    expect(d).not.toContain('Teamleitung');
   });
   it('„Schon getan" nutzt Weiterbildung und Führung aus dem Lebenslauf', () => {
     expect(actionsTaken(base).slice(0, 2)).toEqual(['Weiterbildung: Bilanzbuchhalterin (IHK)', 'Team von 4 geführt']);

@@ -66,11 +66,16 @@ const AREA: [RegExp, string][] = [
 /** Richtungen für „Wohin will sie oder er?": Lebenslauf-Ziel zuerst, dann übliche nächste Schritte. */
 export function careerDirections(f: DossierForm): string[] {
   const area = AREA.find(([re]) => re.test(f.job_title))?.[1];
-  const level = f.seniority ?? (f.leadership_scope === 'disciplinary' ? 'lead' : (f.experience_years ?? 0) >= 6 ? 'senior' : 'mid');
+  // Wer schon disziplinarisch führt, steht mindestens auf „Lead" – sonst würde „Teamleitung" vorgeschlagen.
+  const base = f.seniority ?? ((f.experience_years ?? 0) >= 6 ? 'senior' : 'mid');
+  const level = f.leadership_scope === 'disciplinary' && ['junior', 'mid', 'senior'].includes(base) ? 'lead' : base;
   const steps = NEXT_STEP[level] ?? NEXT_STEP.mid;
   const lead = area && (level === 'senior' || level === 'lead') ? [`Leitung ${area}`] : [];
+  const currentlyLeads = f.leadership_scope === 'disciplinary';
   const fromCv = f.target_roles.slice(0, 3);
-  return uniq([...fromCv, ...lead, ...steps, 'Wechsel in den Mittelstand', 'Wechsel in den Konzern', 'Internationale Aufgaben']).slice(0, 8);
+  return uniq([...fromCv, ...lead, ...steps, 'Wechsel in den Mittelstand', 'Wechsel in den Konzern', 'Internationale Aufgaben'])
+    .filter((d) => !(currentlyLeads && /^teamleitung$/i.test(d)))
+    .slice(0, 8);
 }
 
 export const TIMEFRAME_OPTIONS = ['sofort', 'in 1–2 Jahren', 'in 3–5 Jahren'];

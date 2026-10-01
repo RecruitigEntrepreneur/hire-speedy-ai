@@ -21,11 +21,17 @@ const sanitize = (name: string) => name.normalize('NFKD').replace(/[̀-ͯ]/g, ''
 async function invokeError(error: unknown): Promise<string> {
   const ctx = (error as { context?: unknown })?.context;
   if (ctx instanceof Response) {
-    if (ctx.status === 404) return 'Das Auslesen ist noch nicht freigeschaltet (Funktion extract-candidate-cv fehlt).';
+    if (ctx.status === 404) return 'Das Auslesen ist noch nicht veröffentlicht (Funktion extract-candidate-cv fehlt).';
     const detail = await ctx.clone().json().catch(() => null);
     if (typeof detail?.message === 'string') return detail.message;
   }
+  // Keine Antwort vom Server: Funktion nicht veröffentlicht oder Netz weg.
+  if ((error as { name?: string })?.name === 'FunctionsFetchError') return 'Das Auslesen ist gerade nicht erreichbar (Funktion extract-candidate-cv noch nicht veröffentlicht?).';
   return 'Der Lebenslauf konnte nicht ausgelesen werden. Bitte gleich noch einmal versuchen.';
+}
+
+function devMockEnabled(): boolean {
+  try { return import.meta.env.DEV && localStorage.getItem('cvImportMock') === '1'; } catch { return false; }
 }
 
 /**
@@ -46,6 +52,10 @@ export async function extractCv(params: { userId: string; file?: File | null; te
     if (isDocx(file)) text = await docxToText(file);
     else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) pdfPath = path;
     else text = await file.text();
+  }
+  if (devMockEnabled()) {
+    const { cvImportMock } = await import('@/dev/cvImportMock');
+    return { cv: cvImportMock(), fileInfo };
   }
   const { data, error } = await supabase.functions.invoke('extract-candidate-cv', {
     body: { pdfPath, text: pdfPath ? undefined : text, notes: params.notes ?? '', candidateId: params.candidateId },
@@ -186,14 +196,20 @@ export async function saveCvIntoExisting(p: {
   return { candidateId, failed };
 }
 
-/** Gibt es diesen Kandidaten schon (gleiche E-Mail oder gleicher Name)? */
-export async function findDuplicate(userId: string, form: DossierForm): Promise<{ id: string; full_name: string } | null> {
+/**
+ * Gibt es diesen Kandidaten schon? Gleicher Name zählt zuerst; nur gleiche E-Mail wird
+ * eigens benannt (Testadressen teilen sich oft mehrere Kandidaten).
+ */
+export async function findDuplicate(userId: string, form: DossierForm): Promise<{ id: string; full_name: string; reason: 'name' | 'email' } | null> {
   const name = form.full_name.trim();
   const email = form.email.trim().toLowerCase();
   if (!name && !email) return null;
-  let q = supabase.from('candidates').select('id, full_name, email').eq('recruiter_id', userId).limit(5);
-  q = email ? q.or(`email.eq.${email},full_name.eq.${name.replace(/[,()]/g, ' ')}`) : q.eq('full_name', name);
-  const { data } = await q;
-  const hit = ((data ?? []) as { id: string; full_name: string }[])[0];
-  return hit ?? null;
+  const { data } = await supabase.from('candidates').select('id, full_name, email').eq('recruiter_id', userId)
+    .or([name ? `full_name.ilike.${name.replace(/[,()%]/g, ' ')}` : '', email ? `email.eq.${email}` : ''].filter(Boolean).join(','))
+    .limit(10);
+  const rows = (data ?? []) as { id: string; full_name: string; email: string | null }[];
+  const byName = rows.find((r) => r.full_name.trim().toLowerCase() === name.toLowerCase());
+  if (byName) return { id: byName.id, full_name: byName.full_name, reason: 'name' };
+  const byEmail = rows.find((r) => (r.email ?? '').toLowerCase() === email);
+  return byEmail ? { id: byEmail.id, full_name: byEmail.full_name, reason: 'email' } : null;
 }
