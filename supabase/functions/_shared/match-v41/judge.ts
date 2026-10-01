@@ -15,7 +15,7 @@
 import type { CandidateProfile, JobProfile } from './profiles.ts';
 import { FAMILIES } from './profiles.ts';
 
-export const JUDGE_V41_PROMPT_VERSION = 'judge-v41-2';
+export const JUDGE_V41_PROMPT_VERSION = 'judge-v41-3';
 
 export type ReqStatus = 'met' | 'partial' | 'not_met' | 'unknown';
 
@@ -159,6 +159,8 @@ export function quoteInSource(quote: string, source: string): boolean {
   const src = norm(source);
   const parts = quote.split(/…|\.\.\./).map((p) => norm(p).replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, '')).filter((p) => p.length > 0);
   if (parts.length === 0) return false;
+  // Eine Zahl allein ist kein Beleg (Live-Test 01.10.2026: „10" belegte „mehrjährige Erfahrung").
+  if (!parts.some((p) => /[a-zß]{2,}/.test(p))) return false;
   const minLen = parts.length === 1 ? 2 : 4;
   if (parts.every((p) => p.length >= minLen && inWords(p, src))) return true;
   // Aufzählung aus dem Profil, von der KI neu zusammengestellt („Python, Machine Learning,

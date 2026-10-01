@@ -140,7 +140,7 @@ export function PassendeStellenCard({ candidateId, firstName, onSubmit, onEditDo
         {openGap && (
           <p className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1">Sicherheit {confidenceLabel(top[0].confidence)}: {openGap.text}.</span>
+            <span className="flex-1">Noch offen: {openGap.text}.</span>
             {onEditDossier && <button type="button" className="text-primary hover:underline" onClick={onEditDossier}>Nachtragen</button>}
           </p>
         )}

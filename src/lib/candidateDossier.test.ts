@@ -149,7 +149,8 @@ describe('Kurzprofil gegen die Akte prüfen', () => {
   it('ist still beim frischen Entwurf aus der Akte', () => {
     const f = { ...base, expose_summary: '' };
     expect(exposeSummaryIssues({ ...f, expose_summary: buildExposeDraft(f) })).toEqual([]);
-    expect(buildExposeDraft(f)).toContain('Kündigungsfrist 3 Monate zum Quartalsende. Wunschgehalt um 45.000 € im Jahr.');
+    expect(buildExposeDraft(f)).toContain('Kündigungsfrist 3 Monate zum Quartalsende, frühestens ab ');
+    expect(buildExposeDraft(f)).toContain('Wunschgehalt um 45.000 € im Jahr.');
   });
 });
 
@@ -160,8 +161,8 @@ describe('Kundenprofil und Exposé bleiben anonym', () => {
     const s = buildClientSummary(f);
     expect(s.summary_salary).toBe('Wunschgehalt um 42.000 € im Jahr');
     expect(s.summary_salary).not.toContain('40.000');
-    expect(s.summary_notice).toBe('Kündigungsfrist 1 Monat');
-    expect(s.summary_key_requirements).toBe('Feste Arbeitszeiten · Arbeitsmodell: Flexibel');
+    expect(s.summary_notice).toMatch(/^Kündigungsfrist 1 Monat, frühestens ab \d{1,2}\.\d{1,2}\.\d{4}$/);
+    expect(s.summary_key_requirements).toBe('Feste Arbeitszeiten · Arbeitsmodell: Flexibel, bis 30 Min. Arbeitsweg · Vollzeit');
   });
 
   it('ersetzt Arbeitgeber und Namen', () => {
@@ -186,7 +187,7 @@ describe('Notiz auswerten', () => {
   it('liest Geldbeträge und Kündigungsfristen aus Freitext', () => {
     expect(parseMoney('42k')).toBe(42000);
     expect(parseMoney('38.500 €')).toBe(38500);
-    expect(mapNoticeText('einen Monat zum Monatsende')).toBe('1_month');
+    expect(mapNoticeText('einen Monat zum Monatsende')).toBe('1_month_eom');
     expect(mapNoticeText('sofort')).toBe('immediate');
     expect(mapNoticeText('6 Wochen')).toBe('6_weeks');
     expect(mapNoticeText('KüF 3M z. QE')).toBe('3_months_eoq');

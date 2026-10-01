@@ -121,3 +121,30 @@ describe('Live-Befund 4: Maskierung trifft keine Fachbegriffe', () => {
     expect(maskCompany('Infra wächst', t)).toBe('[Kunde] wächst');
   });
 });
+
+describe('Live-Befund 5 (Katharina, 01.10.2026): Nachbarberuf ohne Rollenerfahrung, Zahl als Beleg', () => {
+  const katharina = assembleCandidateProfile({
+    job_title: 'Teamleiterin Rechnungswesen und Controlling', experience_years: 10, seniority: 'senior',
+    skills: ['HGB', 'SAP FI/CO', 'DATEV Unternehmen online', 'Excel'], city: 'München',
+  }, { families: ['finance_accounting', 'controlling'] });
+  const kSection = buildCandidateSection(katharina, '');
+
+  it('Lohnbuchhalter: nur DATEV belegt, Lohnbuchhaltung offen → Ausgeschlossen', () => {
+    const job = assembleJobProfile({ title: 'Lohnbuchhalter (m/w/d)' }, {
+      families: ['finance_accounting'],
+      requirements: [
+        { text: 'Erfahrung in der Lohnbuchhaltung', kind: 'experience', class: 'must', evidence: [] },
+        { text: 'DATEV-Kenntnisse', kind: 'competence', class: 'must', evidence: [] },
+      ],
+    });
+    const judged = verifyJudgement({ requirements: [{ id: 'r1', status: 'unknown', evidence: '' }, { id: 'r2', status: 'met', evidence: 'DATEV Unternehmen online' }], role_fit: 'adjacent' }, job, kSection);
+    const res = decideTier(job, katharina, evaluateFrame(job, katharina, priv, NOW), judged);
+    expect(res.tier).toBe('ausgeschlossen');
+    expect(res.exclusion?.code).toBe('family_no_role_experience');
+  });
+
+  it('„10" allein belegt keine Erfahrung', () => {
+    expect(quoteInSource('10', kSection)).toBe(false);
+    expect(quoteInSource('Berufsjahre: 10', kSection)).toBe(true);
+  });
+});

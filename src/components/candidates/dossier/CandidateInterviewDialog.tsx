@@ -16,18 +16,30 @@ import {
   FREQUENCY_OPTIONS,
   INTERVIEW_TYPE_OPTIONS,
   LEADERSHIP_OPTIONS,
-  OFFER_OPTIONS,
   OTHER_APPLICATIONS_OPTIONS,
   WOULD_STAY_OPTIONS,
+  autoClientSummary,
   buildClientSummary,
   changeEvidence,
   computeReadiness,
+  type ClientSummary,
 } from '@/lib/candidateDossier';
+import {
+  DIDNT_WORK_OPTIONS,
+  NEGATIVE_OPTIONS,
+  POSITIVE_OPTIONS,
+  PROCESS_ISSUE_OPTIONS,
+  TIMEFRAME_OPTIONS,
+  WORKED_OPTIONS,
+  actionsTaken,
+  careerDirections,
+} from '@/lib/interviewSuggestions';
 import { quickExtract, type CaptureSuggestion } from '@/lib/quickExtract';
 import { buildReview, freshText, fromAiFields, mergeSuggestions, type ReviewItem } from '@/lib/captureReview';
 import type { DossierSaveResult } from '@/hooks/useCandidateDossier';
-import { AreaField, ChipGroup, Field, MultiChips, NumberField, TagInput, TextField } from './DossierFields';
+import { AreaField, ChipGroup, Field, NumberField, PhraseChips, TextField } from './DossierFields';
 import {
+  AngebotBlock,
   ArbeitsortBlock,
   ArbeitserlaubnisBlock,
   EmpfehlungBlock,
@@ -35,6 +47,7 @@ import {
   KundeBlock,
   MotivationBlock,
   RolleBlock,
+  SperrlisteBlock,
   SprachenBlock,
   VerfuegbarkeitBlock,
   ZieleBlock,
@@ -108,6 +121,10 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const [startedAt, setStartedAt] = useState<number>(Date.now());
   const [now, setNow] = useState<number>(Date.now());
   const [aiSuggestions, setAiSuggestions] = useState<CaptureSuggestion[]>([]);
+  // Kundenprofil schreibt sich mit: zuletzt erzeugte Entwürfe und vom Headhunter geänderte Felder
+  const lastSummaryRef = useRef<ClientSummary>(buildClientSummary(form));
+  const [editedSummaries, setEditedSummaries] = useState<Set<keyof ClientSummary>>(new Set());
+  const [formerEmployers, setFormerEmployers] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -209,16 +226,26 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
 
   const applyItem = (i: ReviewItem) => set({ [i.key]: i.value } as Partial<DossierForm>);
 
-  const goTo = (i: number) => {
-    setPhase(i);
-    if (PHASES[i].key === 'kundenprofil') {
-      const f = draftRef.current;
-      if (!f.summary_motivation && !f.summary_salary && !f.summary_notice && !f.summary_key_requirements && !f.summary_cultural_fit) {
-        const s = buildClientSummary(f);
-        if (Object.values(s).some(Boolean)) set(s);
-      }
-    }
-  };
+  const goTo = (i: number) => setPhase(i);
+
+  // Beim Öffnen: frühere Arbeitgeber für die Sperrliste laden, Entwurfsstand festhalten.
+  useEffect(() => {
+    if (!open) return;
+    lastSummaryRef.current = buildClientSummary(form);
+    supabase.from('candidate_experiences').select('company_name').eq('candidate_id', candidateId)
+      .then(({ data }) => setFormerEmployers(((data ?? []) as { company_name: string | null }[]).map((r) => r.company_name ?? '').filter(Boolean)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, candidateId]);
+
+  // Kundenprofil: Entwürfe folgen den Antworten, selbst geänderte Felder bleiben.
+  useEffect(() => {
+    if (!open) return;
+    const { patch, generated, edited } = autoClientSummary(draft, lastSummaryRef.current);
+    lastSummaryRef.current = generated;
+    setEditedSummaries((prev) => (prev.size === edited.size && [...edited].every((k) => prev.has(k)) ? prev : edited));
+    if (Object.keys(patch).length) set(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, draft]);
 
   const markMoment = () => {
     const stamp = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
@@ -304,16 +331,16 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Was gefällt Ihnen heute besonders gut?" field="current_positive">
-                <AreaField field="current_positive" value={draft.current_positive} onChange={(v) => set({ current_positive: v })} placeholder="Team, Patientenkontakt, …" rows={2} />
+                <PhraseChips field="current_positive" options={POSITIVE_OPTIONS} value={draft.current_positive} onChange={(v) => set({ current_positive: v })} />
               </Field>
               <Field label="Was gefällt Ihnen weniger? Was stört Sie?" field="current_negative">
-                <AreaField field="current_negative" value={draft.current_negative} onChange={(v) => set({ current_negative: v })} placeholder="Schichtdienst, …" rows={2} />
+                <PhraseChips field="current_negative" options={NEGATIVE_OPTIONS} value={draft.current_negative} onChange={(v) => set({ current_negative: v })} />
               </Field>
             </div>
             <MotivationBlock form={draft} set={set} label="Woher kommt Ihre Wechselmotivation konkret?" />
             <FollowUps>
               <Field label="Gab es einen konkreten Auslöser?" field="specific_incident">
-                <TextField field="specific_incident" value={draft.specific_incident} onChange={(v) => set({ specific_incident: v })} placeholder="Neuer Dienstplan, Chefwechsel, …" />
+                <TextField field="specific_incident" value={draft.specific_incident} onChange={(v) => set({ specific_incident: v })} placeholder="Übernahme, Chefwechsel, Umstrukturierung …" />
               </Field>
               <Field label="Wie oft kommt das vor?" field="frequency_of_issues">
                 <ChipGroup field="frequency_of_issues" options={FREQUENCY_OPTIONS} value={draft.frequency_of_issues} onChange={(v) => set({ frequency_of_issues: v })} />
@@ -332,23 +359,23 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
         );
       case 'ziele':
         return (
-          <Phase title="Karriereziele">
-            <Field label="Was wollen Sie ultimativ beruflich erreichen?" field="career_ultimate_goal">
-              <AreaField field="career_ultimate_goal" value={draft.career_ultimate_goal} onChange={(v) => set({ career_ultimate_goal: v })} rows={2} />
+          <Phase title={`Wohin will ${firstName}?`} intro="Frag nach, dann antippen. Vorschläge kommen aus Lebenslauf und Werdegang; eigene Worte gehen immer.">
+            <Field label="Wo sehen Sie sich beruflich? Was ist Ihr Ziel?" field="career_ultimate_goal">
+              <PhraseChips field="career_ultimate_goal" options={careerDirections(draft)} suggested={draft.target_roles} value={draft.career_ultimate_goal} onChange={(v) => set({ career_ultimate_goal: v })} />
             </Field>
-            <Field label="Was wünschen Sie sich für die nächsten 3–5 Jahre?" field="career_3_5_year_plan">
-              <AreaField field="career_3_5_year_plan" value={draft.career_3_5_year_plan} onChange={(v) => set({ career_3_5_year_plan: v })} rows={2} />
+            <Field label="Bis wann? Was soll in den nächsten Jahren passieren?" field="career_3_5_year_plan">
+              <PhraseChips field="career_3_5_year_plan" options={TIMEFRAME_OPTIONS} value={draft.career_3_5_year_plan} onChange={(v) => set({ career_3_5_year_plan: v })} />
             </Field>
             <FollowUps>
-              <Field label="Was haben Sie bisher unternommen, um dieses Ziel zu erreichen?" field="career_actions_taken">
-                <AreaField field="career_actions_taken" value={draft.career_actions_taken} onChange={(v) => set({ career_actions_taken: v })} rows={2} />
+              <Field label="Was haben Sie dafür schon getan?" field="career_actions_taken">
+                <PhraseChips field="career_actions_taken" options={actionsTaken(draft)} suggested={actionsTaken(draft).filter((a) => a.startsWith('Weiterbildung:') || a.startsWith('Team von'))} value={draft.career_actions_taken} onChange={(v) => set({ career_actions_taken: v })} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Was hat gut funktioniert?" field="career_what_worked">
-                  <AreaField field="career_what_worked" value={draft.career_what_worked} onChange={(v) => set({ career_what_worked: v })} rows={2} />
+                  <PhraseChips field="career_what_worked" options={WORKED_OPTIONS} value={draft.career_what_worked} onChange={(v) => set({ career_what_worked: v })} />
                 </Field>
                 <Field label="Was weniger?" field="career_what_didnt_work">
-                  <AreaField field="career_what_didnt_work" value={draft.career_what_didnt_work} onChange={(v) => set({ career_what_didnt_work: v })} rows={2} />
+                  <PhraseChips field="career_what_didnt_work" options={DIDNT_WORK_OPTIONS} value={draft.career_what_didnt_work} onChange={(v) => set({ career_what_didnt_work: v })} />
                 </Field>
               </div>
             </FollowUps>
@@ -365,9 +392,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               <p className="text-xs font-semibold text-muted-foreground">Wo liegen Sie aktuell? Wo möchten Sie hin? Was ist Ihre Schmerzgrenze?</p>
               <GehaltBlock form={draft} set={set} />
             </div>
-            <Field label="Welche 3 Punkte müsste ein Angebot erfüllen, damit Sie es annehmen?" field="offer_requirements" hint={`${draft.offer_requirements.length} von 3 gewählt`}>
-              <MultiChips field="offer_requirements" options={OFFER_OPTIONS} values={draft.offer_requirements} onChange={(v) => set({ offer_requirements: v })} max={3} />
-            </Field>
+            <AngebotBlock form={draft} set={set} />
             <VerfuegbarkeitBlock form={draft} set={set} />
             <ArbeitsortBlock form={draft} set={set} />
             <Field label="Sprachen" field="languages">
@@ -389,11 +414,9 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
                 <TextField field="other_applications_notes" value={draft.other_applications_notes} onChange={(v) => set({ other_applications_notes: v })} placeholder="Zweites Gespräch nächste Woche, …" />
               </Field>
             )}
-            <Field label="Wo sollen wir Sie auf keinen Fall vorstellen?" field="blocked_companies">
-              <TagInput field="blocked_companies" values={draft.blocked_companies} onChange={(v) => set({ blocked_companies: v })} placeholder="Aktueller Arbeitgeber, …" />
-            </Field>
+            <SperrlisteBlock form={draft} set={set} formerEmployers={formerEmployers} />
             <Field label="Was lief in früheren Bewerbungsprozessen nicht gut?" field="previous_process_issues">
-              <AreaField field="previous_process_issues" value={draft.previous_process_issues} onChange={(v) => set({ previous_process_issues: v })} placeholder="Lange Wartezeiten, kein Feedback, …" rows={2} />
+              <PhraseChips field="previous_process_issues" options={PROCESS_ISSUE_OPTIONS} value={draft.previous_process_issues} onChange={(v) => set({ previous_process_issues: v })} />
             </Field>
             <div className="border-t border-border pt-4">
               <EmpfehlungBlock form={draft} set={set} question={`Würdest du ${firstName} empfehlen?`} />
@@ -416,9 +439,9 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
         );
       case 'kundenprofil':
         return (
-          <Phase title="Kundenprofil" intro="Aus deinen Antworten vorbefüllt. Der Kunde sieht diese Texte anonym im Exposé, nie Schmerzgrenze, aktuelles Gehalt oder andere Bewerbungen.">
-            <Button type="button" variant="outline" size="sm" onClick={() => set(buildClientSummary(draftRef.current))}>
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Aus dem Interview neu übernehmen
+          <Phase title="Kundenprofil" intro="Schreibt sich während des Gesprächs mit, anonym. Nie Schmerzgrenze, aktuelles Gehalt oder andere Bewerbungen. Was du selbst änderst, wird nicht mehr überschrieben.">
+            <Button type="button" variant="outline" size="sm" onClick={() => { const g = buildClientSummary(draftRef.current); lastSummaryRef.current = g; set(g); }}>
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Alle Entwürfe neu erzeugen
             </Button>
             {[
               { key: 'summary_motivation' as const, label: 'Wechselmotivation (Zusammenfassung)' },
@@ -427,7 +450,20 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               { key: 'summary_key_requirements' as const, label: 'Key Requirements' },
               { key: 'summary_cultural_fit' as const, label: 'Cultural Fit' },
             ].map((item) => (
-              <Field key={item.key} label={item.label} field={item.key}>
+              <Field
+                key={item.key}
+                label={
+                  <span className="flex items-center gap-2">
+                    {item.label}
+                    {draft[item.key].trim() && (
+                      <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-normal', editedSummaries.has(item.key) ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
+                        {editedSummaries.has(item.key) ? 'von dir bearbeitet' : 'Entwurf · aktualisiert sich'}
+                      </span>
+                    )}
+                  </span>
+                }
+                field={item.key}
+              >
                 <AreaField field={item.key} value={draft[item.key]} onChange={(v) => set({ [item.key]: v } as Partial<DossierForm>)} rows={2} />
               </Field>
             ))}

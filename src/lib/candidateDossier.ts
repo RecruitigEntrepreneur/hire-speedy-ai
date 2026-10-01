@@ -10,16 +10,76 @@ export interface Option<T extends string = string> {
   label: string;
 }
 
-export const NOTICE_OPTIONS: Option[] = [
-  { value: 'immediate', label: 'Sofort verfügbar' },
+/**
+ * Kündigungsfrist = Dauer + Stichtag. Gespeichert als ein Wert, z. B. "3_months_eoq"
+ * (3 Monate zum Quartalsende) oder "1_month_eom" (1 Monat zum Monatsende). Alte
+ * Werte ("3_months", "6_weeks", "3_months_eoq") bleiben gültig.
+ */
+export const NOTICE_DURATIONS: Option[] = [
+  { value: 'immediate', label: 'Sofort' },
   { value: '2_weeks', label: '2 Wochen' },
+  { value: '4_weeks', label: '4 Wochen' },
   { value: '1_month', label: '1 Monat' },
   { value: '6_weeks', label: '6 Wochen' },
   { value: '2_months', label: '2 Monate' },
   { value: '3_months', label: '3 Monate' },
-  { value: '3_months_eoq', label: '3 Monate zum Quartalsende' },
   { value: '6_months', label: '6 Monate' },
+  { value: '12_months', label: '12 Monate' },
 ];
+export const NOTICE_ANCHORS: Option[] = [
+  { value: '15_eom', label: 'zum 15. oder Monatsende' },
+  { value: 'eom', label: 'zum Monatsende' },
+  { value: 'eoq', label: 'zum Quartalsende' },
+  { value: 'eoy', label: 'zum Jahresende' },
+];
+export const NOTICE_OPTIONS: Option[] = [
+  { value: 'immediate', label: 'Sofort verfügbar' },
+  ...NOTICE_DURATIONS.filter((d) => d.value !== 'immediate').flatMap((d) => [
+    { value: d.value, label: d.label },
+    ...NOTICE_ANCHORS.map((a) => ({ value: `${d.value}_${a.value}`, label: `${d.label} ${a.label}` })),
+  ]),
+];
+
+/** "3_months_eoq" → { duration: "3_months", anchor: "eoq" } */
+export function noticeParts(value: string | null | undefined): { duration: string | null; anchor: string | null } {
+  if (!value) return { duration: null, anchor: null };
+  if (value === 'immediate') return { duration: 'immediate', anchor: null };
+  const anchor = NOTICE_ANCHORS.map((a) => a.value).find((a) => value.endsWith(`_${a}`)) ?? null;
+  const duration = anchor ? value.slice(0, -(anchor.length + 1)) : value;
+  return { duration: NOTICE_DURATIONS.some((d) => d.value === duration) ? duration : null, anchor };
+}
+
+export function composeNotice(duration: string | null, anchor: string | null): string | null {
+  if (!duration) return null;
+  if (duration === 'immediate' || !anchor) return duration;
+  return `${duration}_${anchor}`;
+}
+
+const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Frühester Start bei Kündigung am Stichtag `from`: Frist ablaufen lassen, dann bis zum
+ * Stichtag (15./Monatsende, Monats-, Quartals-, Jahresende) und einen Tag weiter.
+ */
+export function earliestStart(value: string | null | undefined, from: Date): string | null {
+  const { duration, anchor } = noticeParts(value);
+  if (!duration) return null;
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  if (duration === 'immediate') return isoDate(d);
+  const weeks = duration.match(/^(\d+)_weeks$/);
+  const months = duration.match(/^(\d+)_months?$/);
+  if (weeks) d.setDate(d.getDate() + Number(weeks[1]) * 7);
+  else if (months) d.setMonth(d.getMonth() + Number(months[1]));
+  let end: Date;
+  if (anchor === '15_eom') {
+    end = d.getDate() <= 15 ? new Date(d.getFullYear(), d.getMonth(), 15) : new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  } else if (anchor === 'eom') end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  else if (anchor === 'eoq') end = new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3 + 3, 0);
+  else if (anchor === 'eoy') end = new Date(d.getFullYear(), 11, 31);
+  else return isoDate(d);
+  end.setDate(end.getDate() + 1);
+  return isoDate(end);
+}
 
 export const WORK_MODEL_OPTIONS: Option[] = [
   { value: 'onsite', label: 'Vor Ort' },
@@ -64,10 +124,19 @@ export const MOTIVATION_TAGS = [
   'Team', 'Unternehmenskultur', 'Standort', 'Remote', 'Projekte', 'Technologie', 'Sicherheit',
 ];
 
-export const OFFER_OPTIONS = [
-  'Mindestgehalt', 'Feste Arbeitszeiten', 'Flexible Zeiten', 'Remote-Option', 'Weiterbildung',
-  'Führungsrolle', 'Gute Anbindung', 'Moderne Arbeitsmittel', 'Flache Hierarchien', 'Gutes Team', 'Sicherheit',
+/**
+ * Was das nächste Angebot haben muss (Top 3). „Mindestgehalt" entfällt bewusst: das will
+ * jeder, und die Untergrenze steht schon als Schmerzgrenze in der Akte. Eigene Einträge
+ * sind erlaubt; alte Werte bleiben lesbar.
+ */
+export const OFFER_GROUPS: { label: string; options: string[] }[] = [
+  { label: 'Rolle', options: ['Führungsverantwortung', 'Gestaltungsspielraum', 'Entwicklungsperspektive', 'Fachliche Herausforderung', 'Weiterbildung'] },
+  { label: 'Arbeitsweise', options: ['Remote oder hybrid', 'Flexible Zeiten', '4-Tage-Woche', 'Teilzeit möglich', 'Wenig Reisen'] },
+  { label: 'Umfeld', options: ['Gutes Team', 'Unternehmenskultur', 'Flache Hierarchien', 'Stabiles Unternehmen', 'Moderne Arbeitsmittel'] },
+  { label: 'Konditionen', options: ['Gehaltssprung', 'Bonus', 'Firmenwagen', 'Altersvorsorge', 'Mehr Urlaub'] },
+  { label: 'Ort', options: ['Kurzer Arbeitsweg'] },
 ];
+export const OFFER_OPTIONS = OFFER_GROUPS.flatMap((g) => g.options);
 
 export const FREQUENCY_OPTIONS: Option[] = ['Einmalig', 'Gelegentlich', 'Regelmäßig', 'Dauerhaft'].map((v) => ({ value: v, label: v }));
 
@@ -294,10 +363,25 @@ export function mapNoticeText(value: unknown): string | null {
   if (NOTICE_OPTIONS.some((o) => o.value === value)) return value;
   const s = value.toLowerCase();
   if (/sofort|keine\s*(kündigung|frist)|ab sofort/.test(s)) return 'immediate';
+  if (/gesetzlich/.test(s)) return '4_weeks_15_eom';
+  const anchor = /15\.?\s*(oder|o\.)\s*(zum\s*)?monatsende|zum 15\./.test(s) ? '15_eom'
+    : /monatsende|zum monat|z\.\s?me\b/.test(s) ? 'eom'
+    : /jahresende|zum jahr/.test(s) ? 'eoy'
+    : /quartalsende|zum quartal|qe\b/.test(s) ? 'eoq' : null;
+  const dur = /(12|zwölf)\s*monat/.test(s) ? '12_months'
+    : /(6|sechs)\s*woche/.test(s) ? '6_weeks'
+    : /(4|vier)\s*woche/.test(s) ? '4_weeks'
+    : /(2|zwei)\s*woche/.test(s) ? '2_weeks'
+    : /(6|sechs)\s*(m\b|monat)/.test(s) ? '6_months'
+    : /(3|drei)\s*(m\b|mon)/.test(s) ? '3_months'
+    : /(2|zwei)\s*(m\b|monat)/.test(s) ? '2_months'
+    : /(1|ein|einen|einem)\s*(m\b|monat)/.test(s) ? '1_month' : null;
+  if (dur && anchor) return `${dur}_${anchor}`;
   if (/(3|drei)\s*(m\b|mon(ate?)?\.?)\s*(z(um|\.)?\s*)?(q(uartal)?(s?ende)?\b|qe\b)/.test(s) || /quartalsende|zum quartal/.test(s)) return '3_months_eoq';
   if (/(6|sechs)\s*woche/.test(s)) return '6_weeks';
-  if (/(4|vier)\s*woche/.test(s)) return '1_month';
+  if (/(4|vier)\s*woche/.test(s)) return '4_weeks';
   if (/(2|zwei)\s*woche/.test(s)) return '2_weeks';
+  if (/(12|zwölf)\s*monat/.test(s)) return '12_months';
   if (/(6|sechs)\s*(m\b|monat)/.test(s)) return '6_months';
   if (/(3|drei)\s*(m\b|monat)|quartal/.test(s)) return '3_months';
   if (/(2|zwei)\s*(m\b|monat)/.test(s)) return '2_months';
@@ -593,7 +677,10 @@ function neutralize(text: string, f: DossierForm): string {
 }
 
 /** Entwürfe für die fünf Felder des Kundenprofils, nur aus der Akte, anonym. */
-export function buildClientSummary(f: DossierForm): Pick<DossierForm, 'summary_motivation' | 'summary_salary' | 'summary_notice' | 'summary_key_requirements' | 'summary_cultural_fit'> {
+export type ClientSummary = Pick<DossierForm, 'summary_motivation' | 'summary_salary' | 'summary_notice' | 'summary_key_requirements' | 'summary_cultural_fit'>;
+export const CLIENT_SUMMARY_KEYS = ['summary_motivation', 'summary_salary', 'summary_notice', 'summary_key_requirements', 'summary_cultural_fit'] as const;
+
+export function buildClientSummary(f: DossierForm, today: Date = new Date()): ClientSummary {
   const motivation = f.change_motivation.trim()
     ? neutralize(f.change_motivation, f)
     : f.change_motivation_tags.length ? `Wechselmotive: ${f.change_motivation_tags.join(', ')}` : '';
@@ -601,14 +688,21 @@ export function buildClientSummary(f: DossierForm): Pick<DossierForm, 'summary_m
   // sonst genau auf diese Grenze (Entgelttransparenz, Vertrauen des Kandidaten).
   const salary = f.expected_salary ? `Wunschgehalt um ${formatEuro(f.expected_salary)} im Jahr` : '';
   const noticeLabel = optionLabel(NOTICE_OPTIONS, f.notice_period);
+  const start = f.availability_date ?? (f.notice_period && f.notice_period !== 'immediate' ? earliestStart(f.notice_period, today) : null);
   const notice = [
     noticeLabel ? (f.notice_period === 'immediate' ? 'Sofort verfügbar' : `Kündigungsfrist ${noticeLabel}`) : '',
-    f.availability_date ? `verfügbar ab ${new Date(f.availability_date).toLocaleDateString('de-DE')}` : '',
+    start ? `${f.availability_date ? 'verfügbar ab' : 'frühestens ab'} ${new Date(start).toLocaleDateString('de-DE')}` : '',
   ].filter(Boolean).join(', ');
   const workModel = optionLabel(WORK_MODEL_OPTIONS, f.remote_preference);
-  const requirements = [f.offer_requirements.join(', '), workModel ? `Arbeitsmodell: ${workModel}` : ''].filter(Boolean).join(' · ');
+  const employment = optionLabel(EMPLOYMENT_OPTIONS, f.employment_type);
+  const requirements = [
+    f.offer_requirements.join(', '),
+    workModel ? `Arbeitsmodell: ${workModel}${f.max_commute_minutes ? `, bis ${f.max_commute_minutes} Min. Arbeitsweg` : ''}` : '',
+    employment ?? '',
+  ].filter(Boolean).join(' · ');
   const cultureTags = f.change_motivation_tags.filter((t) => ['Team', 'Unternehmenskultur', 'Führung', 'Work-Life-Balance', 'Arbeitszeiten'].includes(t));
-  const culture = cultureTags.length ? `Legt Wert auf: ${cultureTags.join(', ')}` : '';
+  const valued = [...cultureTags, ...f.offer_requirements.filter((o) => ['Gutes Team', 'Unternehmenskultur', 'Flache Hierarchien', 'Gestaltungsspielraum'].includes(o))];
+  const culture = valued.length ? `Legt Wert auf: ${[...new Set(valued)].join(', ')}` : '';
   return {
     summary_motivation: motivation,
     summary_salary: salary,
@@ -711,4 +805,26 @@ export function stripNewColumns(payload: Record<string, unknown>): Record<string
   const out = { ...payload };
   for (const col of NEW_NOTE_COLUMNS) delete out[col];
   return out;
+}
+
+/**
+ * Kundenprofil schreibt sich mit: Ein Feld gilt als Entwurf, solange es leer ist oder genau
+ * dem zuletzt erzeugten Text entspricht. Solche Felder bekommen den neuen Entwurf; was der
+ * Headhunter selbst geändert hat, bleibt unangetastet.
+ */
+export function autoClientSummary(
+  current: DossierForm,
+  lastGenerated: ClientSummary,
+  today: Date = new Date(),
+): { patch: Partial<ClientSummary>; generated: ClientSummary; edited: Set<keyof ClientSummary> } {
+  const next = buildClientSummary(current, today);
+  const patch: Partial<ClientSummary> = {};
+  const edited = new Set<keyof ClientSummary>();
+  for (const key of CLIENT_SUMMARY_KEYS) {
+    const value = current[key];
+    const isDraft = !value.trim() || value === lastGenerated[key] || value === next[key];
+    if (!isDraft) { edited.add(key); continue; }
+    if (value !== next[key]) patch[key] = next[key];
+  }
+  return { patch, generated: next, edited };
 }

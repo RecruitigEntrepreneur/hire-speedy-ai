@@ -25,7 +25,10 @@ export interface FieldSpec {
   max?: number;
 }
 
-export const NOTICE_VALUES = ['immediate', '2_weeks', '1_month', '6_weeks', '2_months', '3_months', '3_months_eoq', '6_months'];
+// Kündigungsfrist = Dauer + Stichtag (gleiche Liste wie NOTICE_OPTIONS in src/lib/candidateDossier.ts).
+const NOTICE_DURATION_VALUES = ['2_weeks', '4_weeks', '1_month', '6_weeks', '2_months', '3_months', '6_months', '12_months'];
+const NOTICE_ANCHOR_VALUES = ['15_eom', 'eom', 'eoq', 'eoy'];
+export const NOTICE_VALUES = ['immediate', ...NOTICE_DURATION_VALUES.flatMap((d) => [d, ...NOTICE_ANCHOR_VALUES.map((a) => `${d}_${a}`)])];
 export const WORK_MODEL_VALUES = ['onsite', 'hybrid', 'remote', 'flexible'];
 export const EMPLOYMENT_VALUES = ['fulltime', 'parttime', 'freelance', 'contract'];
 export const PERMIT_VALUES = ['citizen', 'permit', 'needs_visa', 'pending'];
@@ -38,9 +41,13 @@ export const MOTIVATION_TAG_VALUES = [
   'Gehalt', 'Arbeitszeiten', 'Work-Life-Balance', 'Karriere', 'Verantwortung', 'Führung',
   'Team', 'Unternehmenskultur', 'Standort', 'Remote', 'Projekte', 'Technologie', 'Sicherheit',
 ];
+// Gleiche Liste wie OFFER_GROUPS in src/lib/candidateDossier.ts (ohne „Mindestgehalt", seit 01.10.2026).
 export const OFFER_VALUES = [
-  'Mindestgehalt', 'Feste Arbeitszeiten', 'Flexible Zeiten', 'Remote-Option', 'Weiterbildung',
-  'Führungsrolle', 'Gute Anbindung', 'Moderne Arbeitsmittel', 'Flache Hierarchien', 'Gutes Team', 'Sicherheit',
+  'Führungsverantwortung', 'Gestaltungsspielraum', 'Entwicklungsperspektive', 'Fachliche Herausforderung', 'Weiterbildung',
+  'Remote oder hybrid', 'Flexible Zeiten', '4-Tage-Woche', 'Teilzeit möglich', 'Wenig Reisen',
+  'Gutes Team', 'Unternehmenskultur', 'Flache Hierarchien', 'Stabiles Unternehmen', 'Moderne Arbeitsmittel',
+  'Gehaltssprung', 'Bonus', 'Firmenwagen', 'Altersvorsorge', 'Mehr Urlaub',
+  'Kurzer Arbeitsweg',
 ];
 export const LANGUAGE_LEVEL_VALUES = ['Muttersprache', 'C2', 'C1', 'B2', 'B1', 'A2', 'A1'];
 export const PROTECTED_CATEGORIES = ['Gesundheit', 'Religion', 'Gewerkschaft', 'Sexuelle Orientierung', 'Herkunft', 'Familie', 'Alter'];

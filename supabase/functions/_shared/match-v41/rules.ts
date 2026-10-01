@@ -584,33 +584,48 @@ function daysBetween(fromMs: number, toMs: number): number {
  * Quartals, in dem dieses Datum liegt.
  */
 export function noticePeriodToDays(value: string | null | undefined, nowMs: number): number | null {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (!raw) return null;
+  // Strukturierter Wert aus der Akte: Dauer + Stichtag, z. B. "3_months_eoq", "1_month_eom", "4_weeks_15_eom".
+  const st = raw.match(/^(immediate|(\d+)_(weeks?|months?))(?:_(15_eom|eom|eoq|eoy))?$/);
+  if (st) {
+    if (st[1] === 'immediate') return 0;
+    const n = Number(st[2]);
+    const unit = st[3].startsWith('week') ? 'weeks' : 'months';
+    const anchor = (st[4] as Anchor | undefined) ?? null;
+    // Ohne Stichtag wie bisher: Wochen × 7, „1 Monat" = 30 Tage, sonst Kalendermonate.
+    if (!anchor) return unit === 'weeks' ? n * 7 : n === 1 ? 30 : daysBetween(nowMs, addMonths(nowMs, n).getTime());
+    return daysUntilAnchor(nowMs, n, unit, anchor);
+  }
   const t = normalizeText(value).trim();
-  if (!t) return null;
-  const fixed: Record<string, number> = { immediate: 0, '2_weeks': 14, '1_month': 30, '6_weeks': 42 };
-  if (t in fixed) return fixed[t];
-  const monthsEnum: Record<string, number> = { '2_months': 2, '3_months': 3, '6_months': 6 };
-  if (t in monthsEnum) return daysBetween(nowMs, addMonths(nowMs, monthsEnum[t]).getTime());
-  const eoq = t === '3_months_eoq' || /quartal|quarter|eoq/.test(t);
   if (/sofort|immediate|keine|none|verfugbar/.test(t) && !/\d/.test(t)) return 0;
+  const anchor: Anchor | null = /15\.?\s*(oder|o\.)\s*(zum\s*)?monatsende/.test(t) ? '15_eom'
+    : /monatsende|end of month/.test(t) ? 'eom'
+    : /jahresende|end of year/.test(t) ? 'eoy'
+    : /quartal|quarter|eoq/.test(t) ? 'eoq' : null;
   const m = t.match(/(\d+)\s*(woche|week|wo\b|monat|month|mo\b|tag|day)/);
-  let days: number | null = null;
-  let afterMonths: Date | null = null;
-  if (t === '3_months_eoq') afterMonths = addMonths(nowMs, 3);
-  else if (m) {
-    const n = Number(m[1]);
-    if (/woche|week|wo/.test(m[2])) days = n * 7;
-    else if (/tag|day/.test(m[2])) days = n;
-    else afterMonths = addMonths(nowMs, n);
-  }
-  if (afterMonths) {
-    if (eoq) {
-      const q = Math.floor(afterMonths.getUTCMonth() / 3);
-      const endOfQuarter = Date.UTC(afterMonths.getUTCFullYear(), q * 3 + 3, 0); // letzter Tag des Quartals
-      return daysBetween(nowMs, endOfQuarter);
-    }
-    return daysBetween(nowMs, afterMonths.getTime());
-  }
-  return days;
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (/tag|day/.test(m[2])) return anchor ? daysUntilAnchor(nowMs, n, 'days', anchor) : n;
+  const unit = /woche|week|wo/.test(m[2]) ? 'weeks' : 'months';
+  if (!anchor) return unit === 'weeks' ? n * 7 : daysBetween(nowMs, addMonths(nowMs, n).getTime());
+  return daysUntilAnchor(nowMs, n, unit, anchor);
+}
+
+type Anchor = '15_eom' | 'eom' | 'eoq' | 'eoy';
+
+/** Frist ablaufen lassen, dann bis zum Stichtag (15./Monatsende, Monats-, Quartals-, Jahresende). */
+function daysUntilAnchor(nowMs: number, n: number, unit: 'days' | 'weeks' | 'months', anchor: Anchor | null): number {
+  const after = unit === 'months' ? addMonths(nowMs, n) : new Date(nowMs + (unit === 'weeks' ? n * 7 : n) * 86_400_000);
+  if (!anchor) return daysBetween(nowMs, after.getTime());
+  const y = after.getUTCFullYear();
+  const mo = after.getUTCMonth();
+  const end = anchor === '15_eom'
+    ? (after.getUTCDate() <= 15 ? Date.UTC(y, mo, 15) : Date.UTC(y, mo + 1, 0))
+    : anchor === 'eom' ? Date.UTC(y, mo + 1, 0)
+    : anchor === 'eoq' ? Date.UTC(y, Math.floor(mo / 3) * 3 + 3, 0)
+    : Date.UTC(y, 11, 31);
+  return daysBetween(nowMs, end);
 }
 
 export interface StartInfo {

@@ -19,7 +19,7 @@ import type { CandidateProfile, JobProfile, ReqClass } from './profiles.ts';
 import { familyRelation, MATCH_V41_VERSION, SENIORITY } from './profiles.ts';
 
 /** Steckt im Cache-Schlüssel der Urteile: neue Regeln = neu einstufen. */
-export const POLICY_V41_VERSION = 'policy-v41-2';
+export const POLICY_V41_VERSION = 'policy-v41-3';
 
 export type Tier = 'sehr_passend' | 'passend' | 'pruefen' | 'ausgeschlossen';
 
@@ -122,6 +122,16 @@ export function decideTier(
     return base('ausgeschlossen', {
       code: 'family_no_evidence',
       text: musts.length ? 'Nachbar-Berufsfeld, kein Muss-Kriterium belegt' : 'Nachbar-Berufsfeld, Stelle ohne prüfbare Kriterien',
+      overridable: true,
+    });
+  }
+  // Nachbarberuf, dessen Berufserfahrung in genau dieser Rolle nicht belegt ist (Live-Test:
+  // Senior-Controllerin für „Lohnbuchhalter" nur über „DATEV" auf Prüfen).
+  const roleExperienceOpen = musts.filter((r) => mustReq(r.id).kind === 'experience' && (r.status === 'unknown' || r.status === 'not_met'));
+  if (aiSaysAdjacent && roleExperienceOpen.length > 0) {
+    return base('ausgeschlossen', {
+      code: 'family_no_role_experience',
+      text: `Nachbar-Berufsfeld, Erfahrung in der Rolle nicht belegt: ${roleExperienceOpen.map((r) => r.text).join('; ')}`,
       overridable: true,
     });
   }
