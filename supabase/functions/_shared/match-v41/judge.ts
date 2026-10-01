@@ -15,7 +15,7 @@
 import type { CandidateProfile, JobProfile } from './profiles.ts';
 import { FAMILIES } from './profiles.ts';
 
-export const JUDGE_V41_PROMPT_VERSION = 'judge-v41-1';
+export const JUDGE_V41_PROMPT_VERSION = 'judge-v41-2';
 
 export type ReqStatus = 'met' | 'partial' | 'not_met' | 'unknown';
 
@@ -51,7 +51,7 @@ export function buildJudgeSystemPrompt(): string {
     '- Mindestjahre prüfst du an Berufsjahren und belegten Stationen.',
     '- Geregelte Qualifikationen (Examen, IHK-Abschluss, Anerkennung) nur mit ausdrücklichem Beleg.',
     '',
-    'Beleg: Für met und partial kopierst du ein kurzes Stück WÖRTLICH aus dem Kandidatenteil (ein Skill, eine Qualifikation oder ein Satzstück, höchstens 120 Zeichen). Nichts umformulieren, nichts erfinden. Die Zeilen unter „Einordnung" sind abgeleitet und zählen nicht als Beleg. Ohne passendes Zitat ist das Kriterium unknown.',
+    'Beleg: Für met und partial kopierst du ein kurzes Stück WÖRTLICH und zusammenhängend aus dem Kandidatenteil (ein Skill, eine Qualifikation oder ein Satzstück, höchstens 120 Zeichen), z. B. „Machine Learning" oder „Berufsjahre: 6". Nichts umformulieren, nichts zusammensetzen, nichts erfinden. Die Zeile „Einordnung" ist abgeleitet und zählt nicht als Beleg. Ohne passendes Zitat ist das Kriterium unknown.',
     '',
     'role_fit: Gehört der Kandidat zur Berufsfamilie der Stelle (same), zu einer Nachbarfamilie (adjacent) oder zu einer anderen (different)?',
     'seniority_fit: erfüllt die Ebene oder liegt darüber (fits), eine Stufe darunter (one_off), zwei oder mehr Stufen darunter (far_off), unbekannt (unknown). Mehr Erfahrung als verlangt ist KEIN Minus und immer fits.',
@@ -160,7 +160,14 @@ export function quoteInSource(quote: string, source: string): boolean {
   const parts = quote.split(/…|\.\.\./).map((p) => norm(p).replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, '')).filter((p) => p.length > 0);
   if (parts.length === 0) return false;
   const minLen = parts.length === 1 ? 2 : 4;
-  return parts.every((p) => p.length >= minLen && inWords(p, src));
+  if (parts.every((p) => p.length >= minLen && inWords(p, src))) return true;
+  // Aufzählung aus dem Profil, von der KI neu zusammengestellt („Python, Machine Learning,
+  // scikit-learn"): gilt, wenn JEDES Element für sich wörtlich vorkommt (Live-Test 01.10.2026).
+  const items = parts
+    .flatMap((p) => p.split(/\s*[,;|·]\s*|\s+(?:und|sowie|oder)\s+/))
+    .map((i) => i.trim())
+    .filter(Boolean);
+  return items.length >= 2 && items.every((i) => i.length >= 2 && inWords(i, src));
 }
 
 function inWords(part: string, src: string): boolean {

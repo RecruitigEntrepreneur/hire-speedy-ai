@@ -122,12 +122,24 @@ export function candidateInputFromRows(
 
 const LEGAL_FORMS = /\b(gmbh|ag|se|kg|kgaa|ohg|ug|mbh|co|inc|ltd|llc|holding|group|gruppe|deutschland|germany|und|and|&)\b/gi;
 
-/** Wörter, an denen man den Kunden erkennt: voller Name und markante Namensteile (≥ 4 Zeichen). */
+/**
+ * Allgemeine Wörter in Firmennamen, die einzeln nichts verraten und in Anforderungen vorkommen
+ * („MS Project", „Cloud", „Data"). Sie werden nur im vollen Namen maskiert, nie einzeln.
+ */
+const GENERIC_NAME_PARTS = new Set([
+  'project', 'projects', 'consulting', 'consult', 'solutions', 'solution', 'services', 'service', 'digital', 'technik',
+  'technology', 'technologies', 'tech', 'systems', 'system', 'software', 'partner', 'partners', 'management', 'energy',
+  'energie', 'data', 'analytics', 'health', 'medical', 'medizin', 'cloud', 'global', 'international', 'industries',
+  'industrie', 'engineering', 'logistik', 'logistics', 'finance', 'capital', 'media', 'network', 'networks', 'labs',
+  'office', 'personal', 'team', 'service', 'immobilien', 'bau', 'versicherung', 'bank', 'group', 'werke', 'werk',
+]);
+
+/** Wörter, an denen man den Kunden erkennt: voller Name und markante Namensteile (≥ 4 Zeichen, nicht allgemein). */
 export function companyMaskTokens(companyName: string | null | undefined): string[] {
   const full = str(companyName);
   if (!full) return [];
   const core = full.replace(LEGAL_FORMS, ' ').replace(/[^\p{L}\p{N}\s-]/gu, ' ').replace(/\s+/g, ' ').trim();
-  const parts = core.split(' ').filter((p) => p.length >= 4);
+  const parts = core.split(' ').filter((p) => p.length >= 4 && !GENERIC_NAME_PARTS.has(p.toLowerCase()));
   return [...new Set([full, core, ...parts].filter((t) => t && t.length >= 3))].sort((a, b) => b.length - a.length);
 }
 

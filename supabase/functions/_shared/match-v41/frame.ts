@@ -13,6 +13,7 @@
  */
 
 import type { CandidateProfile, JobProfile, PrivateMatchContext } from './profiles.ts';
+import { distanceKm, roughCommuteMinutes } from './geo.ts';
 import { noticePeriodToDays } from './rules.ts';
 
 export type FrameStatus = 'ok' | 'check' | 'unknown' | 'exclude';
@@ -99,19 +100,36 @@ export function evaluateFrame(
     add({ key: 'work_model', status: 'unknown', text: 'Arbeitsmodell nicht vollständig erfasst' });
   }
 
-  // Ort: ohne Geodaten nur Stadtvergleich. Andere Stadt ohne Umzug heißt „Pendelweg unbekannt"
-  // (Frankfurt → Schwalbach sind 25 Minuten), also offen und nie Ausschluss – außer der
-  // Kandidat arbeitet nur remote (siehe oben).
+  // Ort: Entfernung aus Koordinaten oder Stadttabelle. Bis 30 km passt es; bis 70 km ist es eine
+  // Klärfrage, wenn die Fahrzeit über der Angabe des Kandidaten liegt; darüber geht es nur mit
+  // Umzug. Ausgeschlossen wird nur mit Beleg auf beiden Seiten: kein Umzug UND mind. 3 Präsenztage.
+  // Unbekannter Ort bleibt offen, nie geraten.
   if (job.location.remote === 'remote') {
     add({ key: 'location', status: 'ok', text: 'Remote-Stelle, Ort egal' });
   } else if (citySame === true) {
     add({ key: 'location', status: 'ok', text: 'Gleicher Ort' });
   } else if (canMove) {
     add({ key: 'location', status: 'ok', text: wantsThere ? 'Zielort des Kandidaten' : 'Kandidat ist umzugsbereit' });
-  } else if (citySame === false && !remoteOnly) {
-    add({ key: 'location', status: 'unknown', text: `Anderer Ort (${cand.logistics.city} → ${job.location.city}) – Pendelweg klären` });
-  } else if (citySame === null) {
-    add({ key: 'location', status: 'unknown', text: 'Ort nicht vollständig erfasst' });
+  } else if (!remoteOnly) {
+    const km = distanceKm(
+      { lat: cand.logistics.lat ?? null, lng: cand.logistics.lng ?? null, city: cand.logistics.city },
+      { lat: job.location.lat ?? null, lng: job.location.lng ?? null, city: job.location.city },
+    );
+    const route = `${cand.logistics.city ?? 'Wohnort'} → ${job.location.city ?? 'Arbeitsort'}`;
+    const maxMin = cand.logistics.max_commute_min;
+    if (km === null) {
+      add({ key: 'location', status: 'unknown', text: citySame === false ? `Anderer Ort (${route}) – Pendelweg klären` : 'Ort nicht vollständig erfasst' });
+    } else if (km <= 30) {
+      add({ key: 'location', status: 'ok', text: `Pendelbar (${route}, ca. ${km} km)` });
+    } else if (km <= 70) {
+      const mins = roughCommuteMinutes(km);
+      if (maxMin && mins > maxMin) add({ key: 'location', status: 'check', text: `${route}: ca. ${km} km (~${mins} Min.), Kandidat max. ${maxMin} Min. – klären` });
+      else add({ key: 'location', status: maxMin ? 'ok' : 'check', text: `${route}: ca. ${km} km${maxMin ? '' : ' – Pendelweg klären'}` });
+    } else if (cand.logistics.relocation === false && (onsiteDays ?? 0) >= 3) {
+      add({ key: 'location', status: 'exclude', text: `Zu weit (${route}, ca. ${km} km), kein Umzug, ${onsiteDays} Präsenztage` });
+    } else {
+      add({ key: 'location', status: 'check', text: `${route}: ca. ${km} km – Umzug klären` });
+    }
   }
 
   // Visum: Ausschluss nur, wenn die Stelle ausdrücklich kein Sponsoring bietet.

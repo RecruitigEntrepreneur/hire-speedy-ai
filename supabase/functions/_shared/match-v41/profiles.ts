@@ -147,7 +147,11 @@ export interface JobProfile {
   seniority: Seniority | null;
   requirements: JobRequirement[];
   languages: LanguageNeed[];
-  location: { city: string | null; remote: 'onsite' | 'hybrid' | 'remote' | 'field' | null; onsite_days: number | null };
+  location: {
+    city: string | null; remote: 'onsite' | 'hybrid' | 'remote' | 'field' | null; onsite_days: number | null;
+    /** Bürostandort aus jobs.office_lat/lng, falls gepflegt (sonst Stadttabelle in geo.ts). */
+    lat?: number | null; lng?: number | null;
+  };
   salary: { min: number | null; max: number | null; basis: 'fixed' | 'ote' | 'daily_rate' | null };
   employment: 'fulltime' | 'parttime' | 'freelance' | null;
   visa_sponsorship: boolean | null;
@@ -184,6 +188,8 @@ export interface CandidateProfile {
     max_commute_min: number | null;
     relocation: boolean | null;
     target_locations: string[];
+    /** Wohnort aus candidates.address_lat/lng, falls gepflegt. Geht nie an die KI. */
+    lat?: number | null; lng?: number | null;
   };
   /** Wunsch und Untergrenze – gehen nie an den Kunden. */
   salary: { wish: number | null; minimum: number | null; basis: 'fixed' | 'ote' | 'daily_rate' | null };

@@ -135,7 +135,7 @@ export function PassendeStellenCard({ candidateId, firstName, onSubmit, onEditDo
           </ul>
         )}
         {m.pending > 0 && top.length > 0 && (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {m.pending} weitere Stellen werden geprüft …</p>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {m.pending === 1 ? '1 weitere Stelle wird' : `${m.pending} weitere Stellen werden`} geprüft …</p>
         )}
         {openGap && (
           <p className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground">
@@ -240,7 +240,7 @@ function PassendeStellenSheet({ open, onOpenChange, firstName, match, gate, onSu
           </ul>
         )}
         <div className="mt-6 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-          <span>{match.pending > 0 ? `${match.pending} Stellen werden noch geprüft …` : `${match.rows.length} offene Stellen geprüft`}</span>
+          <span>{match.pending > 0 ? `${match.pending === 1 ? '1 Stelle wird' : `${match.pending} Stellen werden`} noch geprüft …` : `${match.rows.length} offene Stellen geprüft`}</span>
           <Button
             variant="ghost"
             size="sm"

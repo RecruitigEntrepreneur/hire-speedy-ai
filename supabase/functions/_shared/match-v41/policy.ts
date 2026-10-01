@@ -18,6 +18,9 @@ import type { ReqStatus, VerifiedJudgement } from './judge.ts';
 import type { CandidateProfile, JobProfile, ReqClass } from './profiles.ts';
 import { familyRelation, MATCH_V41_VERSION, SENIORITY } from './profiles.ts';
 
+/** Steckt im Cache-Schlüssel der Urteile: neue Regeln = neu einstufen. */
+export const POLICY_V41_VERSION = 'policy-v41-2';
+
 export type Tier = 'sehr_passend' | 'passend' | 'pruefen' | 'ausgeschlossen';
 
 export const TIER_LABEL: Record<Tier, string> = {
@@ -109,6 +112,18 @@ export function decideTier(
   }
   if (rel === 'different' && judged.role_fit === 'unknown') {
     return base('ausgeschlossen', { code: 'family', text: 'Andere Berufsfamilie', overridable: true });
+  }
+
+  // 2b. Nachbar-Berufsfeld ohne einen einzigen Beleg: kein Vorschlag (Live-Test 01.10.2026:
+  //     Data Scientist bekam DevOps/Backend/Cloud-Stellen als „Prüfen" ohne belegtes Kriterium).
+  //     Nur wenn die KI geurteilt hat – bei KI-Ausfall wird hier nie ausgeschlossen.
+  const aiSaysAdjacent = judged.role_fit === 'adjacent' || (rel === 'adjacent' && judged.role_fit !== 'unknown' && judged.role_fit !== 'same');
+  if (aiSaysAdjacent && count('met') === 0) {
+    return base('ausgeschlossen', {
+      code: 'family_no_evidence',
+      text: musts.length ? 'Nachbar-Berufsfeld, kein Muss-Kriterium belegt' : 'Nachbar-Berufsfeld, Stelle ohne prüfbare Kriterien',
+      overridable: true,
+    });
   }
 
   // 3. Unverzichtbares Kriterium verfehlt.

@@ -22,7 +22,7 @@ import { candidateInputFromRows, companyMaskTokens, jobInputFromRow, maskCompany
 import { evaluateFrame } from '../_shared/match-v41/frame.ts';
 import { buildCandidateSection, JUDGE_V41_PROMPT_VERSION, verifyJudgement } from '../_shared/match-v41/judge.ts';
 import { judgePair, understandCandidate, understandJob, type AiCaller } from '../_shared/match-v41/pipeline.ts';
-import { decideTier, type MatchV41Result } from '../_shared/match-v41/policy.ts';
+import { decideTier, POLICY_V41_VERSION, type MatchV41Result } from '../_shared/match-v41/policy.ts';
 import { familyRelation, MATCH_V41_VERSION, type CandidateProfile, type JobProfile, type PrivateMatchContext } from '../_shared/match-v41/profiles.ts';
 import { buildCandidateSource, UNDERSTAND_PROMPT_VERSION } from '../_shared/match-v41/understand.ts';
 
@@ -40,7 +40,7 @@ const JOB_COLUMNS = [
   // jobs hat (anders als candidates) KEINE Spalte work_model – live geprüft 01.10.2026.
   'salary_min', 'salary_max', 'day_rate_min', 'day_rate_max', 'location', 'remote_type',
   'onsite_days_required', 'employment_type', 'visa_sponsorship', 'urgency', 'hiring_urgency', 'deadline',
-  'hiring_deadline', 'nogo_companies',
+  'hiring_deadline', 'nogo_companies', 'office_lat', 'office_lng',
 ].join(', ');
 
 type Row = Record<string, unknown>;
@@ -135,6 +135,9 @@ Deno.serve(async (req) => {
       });
     }
     const redacted = candInput.redacted_text ?? '';
+    // Wohnort-Koordinaten nur für die Entfernung (frame.ts), nie für die KI und nicht im Profil-Cache.
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    candProfile = { ...candProfile, logistics: { ...candProfile.logistics, lat: num(candidate.address_lat), lng: num(candidate.address_lng) } };
 
     // 3. Live-Stellen verstehen.
     let q = db.from('jobs').select(JOB_COLUMNS).eq('status', 'published').limit(MAX_JOBS);
@@ -186,7 +189,8 @@ Deno.serve(async (req) => {
     let cached = 0;
     let withoutAi = 0;
 
-    for (const [jobId, { profile: job, hash: jobHash, row }] of jobProfiles) {
+    for (const [jobId, { profile: storedJob, hash: jobHash, row }] of jobProfiles) {
+      const job: JobProfile = { ...storedJob, location: { ...storedJob.location, lat: num(row.office_lat), lng: num(row.office_lng) } };
       const priv: PrivateMatchContext = {
         candidate_blocked_companies: blocked,
         job_company_name: (row.company_name as string | null) ?? null,
@@ -194,7 +198,8 @@ Deno.serve(async (req) => {
         candidate_employers: employers,
       };
       const privHash = await sha(priv);
-      const hash = await sha({ jobHash, candHash, privHash, j: JUDGE_V41_PROMPT_VERSION, day: Math.floor(started / 86_400_000) });
+      const geo = [job.location.lat, job.location.lng, candProfile.logistics.lat, candProfile.logistics.lng];
+      const hash = await sha({ jobHash, candHash, privHash, geo, j: JUDGE_V41_PROMPT_VERSION, p: POLICY_V41_VERSION, day: Math.floor(started / 86_400_000) });
       const stored = resultById.get(jobId);
       if (!force && stored && stored.input_hash === hash && started - Date.parse(String(stored.computed_at)) < RESULT_TTL_MS) {
         results.set(jobId, stored.result as MatchV41Result);
