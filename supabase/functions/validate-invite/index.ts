@@ -68,14 +68,16 @@ serve(async (req) => {
       .ilike('email', invite.email)
       .maybeSingle();
 
+    const orgJoin = Array.isArray(invite.organizations) ? invite.organizations[0] : invite.organizations;
+
     return jsonResponse({
       valid: true,
       email: invite.email,
       role: invite.role,
       job_count: Array.isArray(invite.job_ids) ? invite.job_ids.length : 0,
       expires_at: invite.expires_at,
-      organization_name: invite.organizations?.name ?? null,
-      organization_logo: invite.organizations?.logo_url ?? null,
+      organization_name: orgJoin?.name ?? null,
+      organization_logo: orgJoin?.logo_url ?? null,
       account_exists: !!existingProfile,
     });
   } catch (error) {

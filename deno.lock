@@ -56,7 +56,9 @@
     "packageJson": {
       "dependencies": [
         "npm:@eslint/js@^9.32.0",
+        "npm:@fontsource/noto-sans@5.2.6",
         "npm:@hookform/resolvers@^3.10.0",
+        "npm:@pdf-lib/fontkit@1.1.1",
         "npm:@radix-ui/react-accordion@^1.2.11",
         "npm:@radix-ui/react-alert-dialog@^1.1.14",
         "npm:@radix-ui/react-aspect-ratio@^1.1.7",
@@ -96,6 +98,8 @@
         "npm:clsx@^2.1.1",
         "npm:cmdk@^1.1.1",
         "npm:date-fns@^3.6.0",
+        "npm:drizzle-kit@~0.31.11",
+        "npm:drizzle-orm@~0.45.3",
         "npm:embla-carousel-react@^8.6.0",
         "npm:eslint-plugin-react-hooks@^5.2.0",
         "npm:eslint-plugin-react-refresh@~0.4.20",
@@ -107,7 +111,9 @@
         "npm:lovable-tagger@^1.1.11",
         "npm:lucide-react@0.462",
         "npm:next-themes@0.3",
+        "npm:pdf-lib@1.17.1",
         "npm:postcss@^8.5.6",
+        "npm:postgres@^3.4.9",
         "npm:react-day-picker@^8.10.1",
         "npm:react-dom@^18.3.1",
         "npm:react-hook-form@^7.61.1",
