@@ -26,7 +26,7 @@ export const DEFAULT_INTERVIEW_HOURS: InterviewHoursRules = {
     '4': [['09:00', '12:00'], ['14:00', '17:00']],
     '5': [['09:00', '12:00']],
   },
-  bufferMinutes: 15,
+  bufferMinutes: 0,
   minNoticeHours: 24,
   horizonDays: 14,
   skipHolidays: true,
@@ -114,6 +114,8 @@ export interface ScheduleDay { date: string; label: string; slots: ScheduleSlot[
 export interface AvailabilityResult {
   /** frei/belegt aus Outlook berücksichtigt */
   connected: boolean;
+  /** Eigener Outlook-Kalender gelesen; false bei Verbindung heißt: Zeiten ungeprüft */
+  selfVisible?: boolean;
   stepMinutes: number;
   days: ScheduleDay[];
   people: { key: string; name: string; required: boolean; visible: boolean }[];
@@ -284,6 +286,10 @@ export function weekStartOf(iso: string, weeks = 0): string {
   return day.toISOString().slice(0, 10);
 }
 
+/** Puffer-Stufen, die der Kunde wählen kann; ältere Werte (z. B. 30) rasten auf die nächstkleinere Stufe ein. */
+export const BUFFER_STEPS = [0, 5, 10, 15] as const;
+const bufferStep = (minutes: number) => [...BUFFER_STEPS].reverse().find((s) => minutes >= s) ?? 0;
+
 /** Gleiche Regeln wie serverseitig (_shared/interview-availability.ts normalizeRules). */
 export function normalizeRules(raw: unknown): InterviewHoursRules {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<InterviewHoursRules>;
@@ -301,7 +307,7 @@ export function normalizeRules(raw: unknown): InterviewHoursRules {
   };
   return {
     weekly,
-    bufferMinutes: num(r.bufferMinutes, DEFAULT_INTERVIEW_HOURS.bufferMinutes, 0, 120),
+    bufferMinutes: bufferStep(num(r.bufferMinutes, DEFAULT_INTERVIEW_HOURS.bufferMinutes, 0, 120)),
     minNoticeHours: num(r.minNoticeHours, DEFAULT_INTERVIEW_HOURS.minNoticeHours, 0, 24 * 14),
     horizonDays: num(r.horizonDays, DEFAULT_INTERVIEW_HOURS.horizonDays, 1, 60),
     skipHolidays: r.skipHolidays !== false,

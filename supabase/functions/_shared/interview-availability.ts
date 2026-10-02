@@ -24,7 +24,7 @@ export const DEFAULT_INTERVIEW_HOURS: InterviewHoursRules = {
     '4': [['09:00', '12:00'], ['14:00', '17:00']],
     '5': [['09:00', '12:00']],
   },
-  bufferMinutes: 15,
+  bufferMinutes: 0,
   minNoticeHours: 24,
   horizonDays: 14,
   skipHolidays: true,
@@ -144,7 +144,8 @@ export function scheduleSlots(q: SlotQuery): ScheduleSlot[] {
       const unknown: string[] = [];
       for (const person of q.participants) {
         const isBooked = (person.booked ?? []).some((b) => overlaps(b, padded));
-        const isBusy = person.busy?.some((b) => overlaps(b, slot)) ?? false;
+        // Der Puffer des Kunden gilt vor und nach jedem Termin, auch vor/nach Outlook-Terminen
+        const isBusy = person.busy?.some((b) => overlaps(b, padded)) ?? false;
         if (person.busy === null && !isBooked) unknown.push(person.name);
         if (!isBooked && !isBusy) continue;
         if (!person.required) missing.push(person.name);
@@ -171,6 +172,10 @@ export function isSlotStillFree(q: SlotQuery, startIso: string): boolean {
     .some((s) => Date.parse(s.start) === t && (s.status === 'all' || s.status === 'required'));
 }
 
+/** Puffer-Stufen, die der Kunde wählen kann; ältere Werte (z. B. 30) rasten auf die nächstkleinere Stufe ein. */
+export const BUFFER_STEPS = [0, 5, 10, 15] as const;
+const bufferStep = (minutes: number) => [...BUFFER_STEPS].reverse().find((s) => minutes >= s) ?? 0;
+
 /** Liest gespeicherte Interview-Zeiten robust ein und füllt Lücken mit Standardwerten. */
 export function normalizeRules(raw: unknown): InterviewHoursRules {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<InterviewHoursRules>;
@@ -188,7 +193,7 @@ export function normalizeRules(raw: unknown): InterviewHoursRules {
   };
   return {
     weekly,
-    bufferMinutes: num(r.bufferMinutes, DEFAULT_INTERVIEW_HOURS.bufferMinutes, 0, 120),
+    bufferMinutes: bufferStep(num(r.bufferMinutes, DEFAULT_INTERVIEW_HOURS.bufferMinutes, 0, 120)),
     minNoticeHours: num(r.minNoticeHours, DEFAULT_INTERVIEW_HOURS.minNoticeHours, 0, 24 * 14),
     horizonDays: num(r.horizonDays, DEFAULT_INTERVIEW_HOURS.horizonDays, 1, 60),
     skipHolidays: r.skipHolidays !== false,

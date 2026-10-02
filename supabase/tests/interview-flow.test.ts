@@ -208,7 +208,8 @@ Deno.test({ name: 'Mit Outlook: Kollegen-Belegung, sofort gebuchte andere Zeit, 
   tables.calendar_connections = [{
     id: 'conn1', user_id: CLIENT, provider: 'microsoft', status: 'connected', account_email: 'marko@example.test',
     access_token_encrypted: await encryptToken('ACCESS', KEY), refresh_token_encrypted: await encryptToken('REFRESH', KEY),
-    token_expires_at: new Date(NOW + 3600000).toISOString(),
+    // Ablauf gegen die echte Uhr (userAccessToken nutzt Date.now)
+    token_expires_at: new Date(Date.now() + 3600000).toISOString(),
   }];
   const graphCalls: { url: string; body: any }[] = [];
   const realFetch = globalThis.fetch;
@@ -342,4 +343,54 @@ Deno.test({ name: 'Kollegen einladen: Firmenkonto wird angelegt, Stelle angehän
   let reason = '';
   try { await inviteColleague(ctxFor(viewer.db, []), user('u-hm', 'hm@example.test'), { submissionId: SUB, name: 'X Y', email: 'x@y.de' }); } catch (e: any) { reason = e.message; }
   assert(reason.includes('Marko Benko'), 'Nicht-Admin bekommt den Namen der Admins');
+}});
+
+Deno.test({ name: 'Mit Outlook: Login-Adresse ≠ Outlook-Adresse, Puffer des Kunden gilt auch für Outlook-Termine', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const ms = { clientId: 'cid', clientSecret: 'sec', redirectUri: 'https://x/cb', encryptionKey: KEY };
+  // Login bei Matchunt mit privater Adresse, Outlook in der Firma
+  tables.calendar_connections = [{
+    id: 'conn1', user_id: CLIENT, provider: 'microsoft', status: 'connected', account_email: 'Marko.Benko@Bluewater-Bridge.de',
+    access_token_encrypted: await encryptToken('ACCESS', KEY), refresh_token_encrypted: await encryptToken('REFRESH', KEY),
+    // Ablauf gegen die echte Uhr (userAccessToken nutzt Date.now)
+    token_expires_at: new Date(Date.now() + 3600000).toISOString(),
+  }];
+  const asked: string[][] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (!String(input).endsWith('/me/calendar/getSchedule')) return new Response('{}', { status: 404 });
+    const schedules: string[] = JSON.parse(init.body).schedules;
+    asked.push(schedules);
+    // Wie Graph: nur Adressen aus dem eigenen Mandanten haben einen Kalender
+    return new Response(JSON.stringify({ value: schedules.map((id) => id === 'marko.benko@bluewater-bridge.de'
+      ? { scheduleId: id, scheduleItems: [
+        { status: 'busy', start: { dateTime: at(5, 9).replace('Z', '') }, end: { dateTime: at(5, 10, 30).replace('Z', '') } },
+        { status: 'busy', start: { dateTime: at(5, 14).replace('Z', '') }, end: { dateTime: at(5, 15).replace('Z', '') } },
+      ] }
+      : { scheduleId: id, error: { message: 'not found' } }) }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const ctx = ctxFor(db, [], ms);
+    const me = user(CLIENT, 'marko@example.test');
+    const status = (week: any, d: number, h: number) => week.days.flatMap((x: any) => x.slots).find((s: any) => s.start === at(d, h))?.status;
+
+    const week = await availability(ctx, me, { submissionId: SUB, durationMinutes: 60, weekStart: '2026-10-05', attendees: [] });
+    eq(asked[0], ['marko.benko@bluewater-bridge.de'], 'Outlook-Adresse statt Login-Adresse');
+    eq(week.selfVisible, true);
+    eq([status(week, 5, 9), status(week, 5, 10), status(week, 5, 11)], ['busy', 'busy', 'all'], 'Termin 9:00–10:30');
+    eq([status(week, 5, 14), status(week, 5, 15)], ['busy', 'all'], 'ohne Puffer direkt im Anschluss frei');
+
+    tables.client_interview_hours = [{ user_id: CLIENT, rules: { bufferMinutes: 15 } }];
+    const buffered = await availability(ctx, me, { submissionId: SUB, durationMinutes: 60, weekStart: '2026-10-05', attendees: [] });
+    eq(status(buffered, 5, 15), 'busy', '15 Min. Puffer nach dem Outlook-Termin');
+    eq(status(buffered, 5, 11), 'all', '10:30 + 15 Min. < 11:00');
+
+    // Verbunden, aber Outlook liefert den eigenen Kalender nicht: ungeprüft statt still frei
+    tables.calendar_connections[0].account_email = 'jemand@anderer-mandant.de';
+    const blind = await availability(ctx, me, { submissionId: SUB, durationMinutes: 60, weekStart: '2026-10-05', attendees: [] });
+    eq(blind.connected, true);
+    eq(blind.selfVisible, false);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 }});

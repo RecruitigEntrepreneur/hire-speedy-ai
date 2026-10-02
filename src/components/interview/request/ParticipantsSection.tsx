@@ -199,6 +199,10 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
                   <span className="inline-flex items-center gap-1 text-foreground">
                     <AlertTriangle className="h-3.5 w-3.5 text-warning" /> Kalender nicht sichtbar
                   </span>
+                ) : calendarConnected && person ? (
+                  <span className="inline-flex items-center gap-1 text-foreground" title="Matchunt konnte die Termine gerade nicht aus Outlook lesen.">
+                    <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {mine ? 'Outlook nicht lesbar' : 'Kalender nicht lesbar'}
+                  </span>
                 ) : null}
               </span>
               {mine ? (

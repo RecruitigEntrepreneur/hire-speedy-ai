@@ -47,7 +47,10 @@ const DOT: Record<ScheduleSlot['status'], string> = {
   booked: 'bg-muted-foreground/40',
 };
 
-const normalizeDayKey = (date: string) => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : berlinDateKey(date));
+// Freie Zeit ohne gelesenen eigenen Kalender: wählbar, aber nicht grün
+const UNCHECKED_TILE = 'border-dashed border-muted-foreground/50 bg-transparent text-foreground hover:bg-muted/40';
+
+const normalizeDayKey =(date: string) => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : berlinDateKey(date));
 
 export function ProposalGrid({
   weekStart, canGoBack, canGoForward, onWeekChange, data, isLoading, isFetching, error, onRetry,
@@ -69,6 +72,8 @@ export function ProposalGrid({
   const sortedSelected = [...selected].sort((a, b) => Date.parse(a) - Date.parse(b));
   const full = selected.length >= MAX_PROPOSALS;
   const notConnected = calendar.state !== 'connected';
+  // Verbunden, aber der eigene Kalender war nicht lesbar: freie Zeiten sind nur ungeprüft
+  const unchecked = !notConnected && !!data && data.selfVisible === false;
 
   return (
     <div className="space-y-3">
@@ -88,6 +93,18 @@ export function ProposalGrid({
               {calendar.state === 'expired' ? 'Outlook neu verbinden' : 'Outlook verbinden'}
             </Button>
           )}
+        </div>
+      )}
+
+      {unchecked && (
+        <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm sm:flex-row sm:items-center">
+          <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />
+          <p className="flex-1">
+            Ihre Outlook-Termine konnten gerade nicht gelesen werden. Die Zeiten sind ungeprüft – prüfen Sie Ihre Vorschläge in Outlook.
+          </p>
+          <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
+            Outlook neu verbinden
+          </Button>
         </div>
       )}
 
@@ -167,6 +184,7 @@ export function ProposalGrid({
                     const isSelected = selectedSet.has(Date.parse(slot.start));
                     const blocked = clickable && !isSelected && full;
                     const hint = [
+                      unchecked && clickable ? 'Ungeprüft: Outlook nicht lesbar' : '',
                       slot.unknown.length ? `Kalender nicht sichtbar: ${slot.unknown.join(', ')}` : '',
                       blocked ? `Höchstens ${MAX_PROPOSALS} Vorschläge` : '',
                     ].filter(Boolean).join(' · ');
@@ -180,11 +198,13 @@ export function ProposalGrid({
                         title={hint || undefined}
                         className={cn(
                           'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs tabular-nums transition-colors',
-                          isSelected ? 'border-foreground bg-foreground font-medium text-background hover:bg-foreground/90' : TILE[slot.status],
+                          isSelected
+                            ? 'border-foreground bg-foreground font-medium text-background hover:bg-foreground/90'
+                            : unchecked && clickable ? UNCHECKED_TILE : TILE[slot.status],
                           blocked && 'cursor-not-allowed opacity-50',
                         )}
                       >
-                        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', isSelected ? 'bg-background' : DOT[slot.status])} />
+                        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', isSelected ? 'bg-background' : unchecked && clickable ? 'bg-muted-foreground/60' : DOT[slot.status])} />
                         <span className="truncate">{slotText(slot, peopleCount)}</span>
                       </button>
                     );
@@ -230,6 +250,14 @@ export function ProposalGrid({
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> grau = belegt
             </span>
+            {unchecked && (
+              <>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-sm border border-dashed border-muted-foreground" /> gestrichelt = ungeprüft
+                </span>
+              </>
+            )}
             <span>· deutsche Zeit</span>
           </p>
         </div>

@@ -200,20 +200,37 @@ async function matchuntBooked(db: SupabaseClient, userIds: string[], fromMs: num
 
 interface PeopleQuery { organizerId: string; organizer: { email: string; name: string }; attendees: AttendeeDraft[]; fromMs: number; toMs: number; excludeInterviewId?: string | null }
 
+/**
+ * Outlook-Adresse je Matchunt-Nutzer mit verbundenem Kalender. Die Login-Adresse
+ * kann eine andere sein (z. B. Gmail-Login, Outlook in der Firma); Microsoft
+ * kennt nur die Outlook-Adresse.
+ */
+async function outlookAddresses(db: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!userIds.length) return out;
+  const { data } = await db.from('calendar_connections').select('user_id, account_email')
+    .in('user_id', userIds).eq('provider', 'microsoft').eq('status', 'connected');
+  for (const row of (data ?? []) as any[]) if (row.account_email) out.set(row.user_id, String(row.account_email).toLowerCase());
+  return out;
+}
+
 async function participantsFor(ctx: ServiceCtx, q: PeopleQuery): Promise<{ connected: boolean; participants: (ScheduleParticipant & { visible: boolean })[] }> {
   const others = q.attendees.filter((a) => a.email.toLowerCase() !== q.organizer.email.toLowerCase());
   const token = await organizerToken(ctx, q.organizerId);
+  const internalIds = [q.organizerId, ...others.map((a) => a.userId).filter(Boolean) as string[]];
+  const outlook = token ? await outlookAddresses(ctx.db, internalIds) : new Map<string, string>();
+  const scheduleOf = (email: string, userId?: string | null) => ((userId && outlook.get(userId)) || email).toLowerCase();
   let busy: Record<string, Interval[] | null> = {};
   if (token) {
     try {
-      busy = await getBusy(token, [q.organizer.email, ...others.map((a) => a.email)], q.fromMs, q.toMs);
+      busy = await getBusy(token, [scheduleOf(q.organizer.email, q.organizerId), ...others.map((a) => scheduleOf(a.email, a.userId))].filter(Boolean), q.fromMs, q.toMs);
     } catch (e) {
       console.warn('[interview] frei/belegt nicht abrufbar', e instanceof Error ? e.message : e);
     }
   }
-  const booked = await matchuntBooked(ctx.db, [q.organizerId, ...others.map((a) => a.userId).filter(Boolean) as string[]], q.fromMs, q.toMs, q.excludeInterviewId);
+  const booked = await matchuntBooked(ctx.db, internalIds, q.fromMs, q.toMs, q.excludeInterviewId);
   const entry = (key: string, name: string, required: boolean, email: string, userId?: string | null, external = false) => {
-    const b = token ? busy[email.toLowerCase()] : undefined;
+    const b = token ? busy[scheduleOf(email, userId)] : undefined;
     // Ohne Verbindung kennen wir nur Matchunt-Termine; die Person gilt als „nicht sichtbar“, blockiert aber nichts.
     const visible = !!token && Array.isArray(b);
     return { key, name, required, busy: visible ? b! : (external || token ? null : []), booked: userId ? booked.get(userId) ?? [] : [], visible };
@@ -390,6 +407,8 @@ export async function availability(ctx: ServiceCtx, user: User, body: any) {
   }
   return {
     connected,
+    // Eigener Kalender trotz Verbindung nicht lesbar: Zeiten sind dann ungeprüft, nicht „frei“
+    selfVisible: participants[0]?.visible === true,
     stepMinutes: stepFor(duration),
     days,
     people: participants.map((p) => ({ key: p.key, name: p.name, required: p.required, visible: p.visible })),

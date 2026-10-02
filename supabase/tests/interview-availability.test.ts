@@ -60,7 +60,7 @@ Deno.test('Slots: Pflicht belegt = belegt, optional belegt = gelb mit Namen, ext
 
 Deno.test('Slots: gebuchtes Matchunt-Interview sperrt inklusive Puffer', () => {
   const participants = [{ key: 'me', name: 'Marko B.', required: true, busy: [], booked: [{ start: at(6, 14), end: at(6, 15) }] }];
-  const slots = scheduleSlots({ rules: DEFAULT_INTERVIEW_HOURS, durationMinutes: 60, fromMs: at(6, 0), toMs: at(7, 0), nowMs: NOW, participants });
+  const slots = scheduleSlots({ rules: { ...DEFAULT_INTERVIEW_HOURS, bufferMinutes: 15 }, durationMinutes: 60, fromMs: at(6, 0), toMs: at(7, 0), nowMs: NOW, participants });
   eq(slots.find((s) => s.start === iso(6, 14))!.status, 'booked');
   eq(slots.find((s) => s.start === iso(6, 15))!.status, 'booked', '15 Uhr scheitert am 15-Minuten-Puffer');
   eq(slots.find((s) => s.start === iso(6, 16))!.status, 'all');
@@ -87,7 +87,15 @@ Deno.test('Feiertag und Abwesenheit fallen weg', () => {
 Deno.test('normalizeRules verwirft kaputte Fenster und begrenzt Zahlen', () => {
   const r = normalizeRules({ weekly: { '1': [['10:00', '09:00'], ['08:00', '10:00']], '9': [['x', 'y']] }, bufferMinutes: 999, horizonDays: -3 });
   eq(r.weekly, { '1': [['08:00', '10:00']] });
-  eq(r.bufferMinutes, 120);
+  eq(r.bufferMinutes, 15, 'höchste Stufe');
   eq(r.horizonDays, 1);
   eq(normalizeRules(null).weekly, DEFAULT_INTERVIEW_HOURS.weekly);
+});
+
+Deno.test('Puffer: Vorbelegung kein, ältere Werte rasten auf 0/5/10/15 ein', () => {
+  eq(normalizeRules(null).bufferMinutes, 0);
+  eq(normalizeRules({ bufferMinutes: 30 }).bufferMinutes, 15);
+  eq(normalizeRules({ bufferMinutes: 12 }).bufferMinutes, 10);
+  eq(normalizeRules({ bufferMinutes: 7 }).bufferMinutes, 5);
+  eq(normalizeRules({ bufferMinutes: 3 }).bufferMinutes, 0);
 });

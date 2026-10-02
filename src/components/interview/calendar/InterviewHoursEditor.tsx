@@ -15,7 +15,7 @@ import { WEEKDAY_LABELS, type InterviewHoursRules, type Weekday } from '@/lib/in
 const WORKDAYS: Weekday[] = ['1', '2', '3', '4', '5'];
 const WEEKEND: Weekday[] = ['6', '7'];
 
-const BUFFER = [{ value: 0, label: 'kein' }, { value: 10, label: '10 Min.' }, { value: 15, label: '15 Min.' }, { value: 30, label: '30 Min.' }];
+const BUFFER = [{ value: 0, label: 'kein' }, { value: 5, label: '5 Min.' }, { value: 10, label: '10 Min.' }, { value: 15, label: '15 Min.' }];
 const NOTICE = [{ value: 0, label: 'ab sofort' }, { value: 24, label: 'ab morgen' }, { value: 48, label: 'ab 2 Tagen' }];
 const HORIZON = [{ value: 7, label: '1 Woche' }, { value: 14, label: '2 Wochen' }, { value: 21, label: '3 Wochen' }, { value: 30, label: '30 Tage' }];
 
