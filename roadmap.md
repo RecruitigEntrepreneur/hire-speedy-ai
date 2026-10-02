@@ -10,5 +10,5 @@
 ## Parallel / offen
 - [ ] DOCUSIGN_HMAC_KEY: Formular zum Überschreiben öffnen (kein eigener Wert erzeugen — DocuSign vergibt den Schlüssel); erster Versuch wurde durch neue Nachricht abgebrochen
 - [ ] Cron-Job docusign-client-sync existiert, aber alle 85 Läufe fehlgeschlagen: `unrecognized configuration parameter "app.settings.supabase_url"` — Lovable Cloud hat diese Settings nicht; Wartung durch User/Codex
-- [ ] MS_CLIENT_ID / MS_CLIENT_SECRET als Secrets anlegen (User traegt Werte ein)
-- [ ] Publish erneut starten (vom User abgelehnt, wartet)
+- [x] MS_CLIENT_ID / MS_CLIENT_SECRET als Secrets anlegen (User traegt Werte ein)
+- [x] Publish erneut starten (vom User abgelehnt, wartet)
