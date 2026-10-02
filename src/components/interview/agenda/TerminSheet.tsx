@@ -186,8 +186,13 @@ export function TerminSheet({
                 <MeetingIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate">
                   {meetingLabel}
-                  {iv.meetingType === 'onsite' && iv.onsiteAddress ? ` · ${iv.onsiteAddress}` : ''}
+                  {iv.meetingType === 'onsite' && iv.onsiteAddress ? ` · ${iv.onsiteAddress.replace(/\s*\n\s*/g, ', ')}` : ''}
                 </span>
+                {iv.meetingType === 'phone' && iv.callPhone && (
+                  <a href={`tel:${iv.callPhone}`} className="shrink-0 text-xs font-medium text-primary hover:underline">
+                    Anrufen: {iv.callPhone}
+                  </a>
+                )}
                 {variant === 'agenda' && iv.joinUrl && (
                   <a
                     href={iv.joinUrl}

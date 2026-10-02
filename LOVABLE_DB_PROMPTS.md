@@ -728,6 +728,24 @@ beim Öffnen einen Ladefehler.
 
 ---
 
+## 13 — Interview anfragen: Telefon, Vor Ort, Kollegen einladen (02.10.2026)
+
+Befund Live-Test: Im neuen Fenster gab es nur Teams, Kollegen ließen sich nicht einladen
+(„Noch keine Kollegen in Ihrem Team“), und ohne Microsoft-App stand in der Checkliste
+„Die Kalender-Verbindung wird gerade eingerichtet“.
+
+> 1. Migration `supabase/migrations/20261002150000_interview_formats_and_invites.sql` ausführen
+>    (Rückrufnummer und Ortshinweis an `interviews`, Entscheider/Funktion/Einladung an
+>    `interview_attendees`; keine Daten werden verändert).
+> 2. Edge Functions deployen: `interview-request`, `get-interview-by-token`,
+>    `process-interview-response`, `interview-client-link`.
+> 3. Publish.
+
+**Reihenfolge einhalten: erst 1, dann 2, dann 3.** Die Interview-Übersicht liest ab dem Publish
+die neue Spalte `call_phone`; ohne Migration bleibt sie sonst leer.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

@@ -5,7 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import {
-  authUser, availability, confirmAlternative, defaultCtx, interviewFailure, must, preview, requestContext, send, withdraw,
+  authUser, availability, confirmAlternative, defaultCtx, interviewFailure, inviteColleague, must, preview, requestContext, send, withdraw,
 } from '../_shared/interview-service.ts';
 
 serve(async (req) => {
@@ -23,6 +23,7 @@ serve(async (req) => {
       case 'send': return json(await send(ctx, user, body));
       case 'confirm_alternative': return json(await confirmAlternative(ctx, user, body.interviewId));
       case 'withdraw': return json(await withdraw(ctx, user, body.interviewId, body.reason));
+      case 'invite_colleague': return json(await inviteColleague(ctx, user, body));
       default: must(false, 'Unbekannte Aktion.');
     }
   } catch (e) {

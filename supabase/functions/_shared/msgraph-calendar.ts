@@ -224,10 +224,14 @@ export interface EventInput {
   endMs: number;
   attendees: { email: string; name: string; required: boolean }[];
   transactionId: string;
+  /** false = Telefon/Vor Ort: Termin ohne Teams-Besprechung */
+  online?: boolean;
+  location?: string;
 }
 
-/** Termin mit Teams-Link im Kalender des Kunden anlegen. Kollegen bekommen die Einladung aus Outlook. */
+/** Termin im Kalender des Kunden anlegen (bei Teams mit Besprechungslink). Kollegen bekommen die Einladung aus Outlook. */
 export async function createTeamsEvent(token: string, input: EventInput): Promise<{ eventId: string; joinUrl: string | null }> {
+  const online = input.online !== false;
   const created = await graph(token, '/me/events', {
     method: 'POST',
     body: JSON.stringify({
@@ -235,16 +239,15 @@ export async function createTeamsEvent(token: string, input: EventInput): Promis
       body: { contentType: 'HTML', content: input.bodyHtml },
       start: utcInput(input.startMs),
       end: utcInput(input.endMs),
-      location: { displayName: 'Microsoft Teams-Besprechung' },
+      location: { displayName: input.location ?? (online ? 'Microsoft Teams-Besprechung' : '') },
       attendees: input.attendees.map((a) => ({ emailAddress: { address: a.email, name: a.name }, type: a.required ? 'required' : 'optional' })),
-      isOnlineMeeting: true,
-      onlineMeetingProvider: 'teamsForBusiness',
+      ...(online ? { isOnlineMeeting: true, onlineMeetingProvider: 'teamsForBusiness' } : { isOnlineMeeting: false }),
       allowNewTimeProposals: false,
       transactionId: input.transactionId,
     }),
   });
   let joinUrl: string | null = created?.onlineMeeting?.joinUrl ?? null;
-  if (!joinUrl && created?.id) {
+  if (online && !joinUrl && created?.id) {
     // Der Link wird teils erst kurz nach dem Anlegen befüllt
     for (let i = 0; i < 3 && !joinUrl; i++) {
       await new Promise((r) => setTimeout(r, 800));

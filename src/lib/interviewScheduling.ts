@@ -40,6 +40,12 @@ export const MAX_PROPOSALS = 5;
 /** Person aus dem Team des Kunden. */
 export interface TeamPerson { userId: string; name: string; email: string; title: string | null; role: string }
 
+export type MeetingFormat = 'teams' | 'phone' | 'onsite';
+export type FunctionKey = 'fachbereich' | 'fuehrungskraft' | 'geschaeftsfuehrung' | 'hr' | 'andere';
+export const FUNCTION_LABELS: Record<FunctionKey, string> = { fachbereich: 'Fachbereich', fuehrungskraft: 'Führungskraft', geschaeftsfuehrung: 'Geschäftsführung', hr: 'HR', andere: 'Andere' };
+/** Vorgeschlagener Zugriff je Funktion: Geschäftsführung und HR sehen alles. */
+export const FUNCTION_DEFAULT_ACCESS: Record<FunctionKey, 'job' | 'all'> = { fachbereich: 'job', fuehrungskraft: 'job', geschaeftsfuehrung: 'all', hr: 'all', andere: 'job' };
+
 /** Teilnehmer auf Kundenseite, wie er im Anfrage-Fenster gewählt wird. */
 export interface AttendeeDraft {
   userId?: string | null;
@@ -48,7 +54,23 @@ export interface AttendeeDraft {
   title?: string | null;
   required: boolean;
   kind: 'client_user' | 'external';
+  /** entscheidet über die Einstellung */
+  decisionMaker?: boolean;
+  functionKey?: FunctionKey | null;
+  /** gerade ins Team eingeladen, Einladung noch offen */
+  invited?: boolean;
 }
+
+export interface InviteColleagueInput {
+  submissionId: string;
+  name: string;
+  email: string;
+  functionKey: FunctionKey;
+  functionLabel?: string;
+  decisionMaker: boolean;
+  access: 'job' | 'all';
+}
+export interface InviteColleagueResult { attendee: AttendeeDraft; emailSent: boolean; note: string | null }
 
 export type CalendarState = 'not_configured' | 'not_connected' | 'connected' | 'expired' | 'it_pending';
 
@@ -80,6 +102,10 @@ export interface RequestContext {
   defaultMessage: string;
   /** offene Anfrage, die durch eine neue ersetzt würde */
   openRequest: { interviewId: string; status: string; createdAt: string } | null;
+  /** Firmenanschrift aus den Firmendaten (Vorbelegung „Vor Ort“), mehrzeilig */
+  onsiteDefault: string | null;
+  /** Darf Kollegen ins Team einladen; sonst Namen der Admins */
+  invite: { allowed: boolean; adminNames: string[] };
 }
 
 export interface ScheduleSlot { start: string; status: SlotStatus; missing: string[]; unknown: string[] }
@@ -103,6 +129,11 @@ export interface AvailabilityInput {
 
 export interface SendInput {
   submissionId: string;
+  meetingFormat: MeetingFormat;
+  /** Pflicht bei „Vor Ort“ */
+  onsiteAddress?: string | null;
+  /** Hinweis für den Kandidaten bei „Vor Ort“ (Empfang, Parken) */
+  locationNote?: string | null;
   durationMinutes: number;
   slots: string[];
   attendees: AttendeeDraft[];
@@ -139,6 +170,7 @@ export const interviewApi = {
   send: (input: SendInput) => callFunction<SendResult>('interview-request', { action: 'send', ...input }),
   confirmAlternative: (interviewId: string) => callFunction<{ scheduledAt: string }>('interview-request', { action: 'confirm_alternative', interviewId }),
   withdraw: (interviewId: string, reason: string) => callFunction<{ ok: true }>('interview-request', { action: 'withdraw', interviewId, reason }),
+  inviteColleague: (input: InviteColleagueInput) => callFunction<InviteColleagueResult>('interview-request', { action: 'invite_colleague', ...input }),
 };
 
 export const calendarApi = {
@@ -175,7 +207,13 @@ export interface CandidateView {
   companyName: string;
   jobTitle: string;
   durationMinutes: number;
-  format: 'teams';
+  format: MeetingFormat;
+  /** Vor Ort: Adresse, Hinweis, Kartenlink */
+  onsite: { address: string; note: string | null; mapsUrl: string } | null;
+  /** Telefon: hinterlegte Nummer des Kandidaten, maskiert („··· 11“), oder null */
+  phoneOnFile: string | null;
+  /** Telefon: bestätigte Rückrufnummer, maskiert */
+  callPhone: string | null;
   message: string | null;
   /** Gesprächspartner auf Kundenseite: nur Name und Rolle, keine Mailadressen */
   interviewers: { name: string; title: string | null }[];
@@ -199,10 +237,10 @@ export const CANDIDATE_CONSENT_VERSION = '2026-10-v1';
 
 export const candidateApi = {
   load: (token: string) => callFunction<CandidateView>('get-interview-by-token', { token }),
-  accept: (token: string, slotStart: string, consent: boolean) =>
-    callFunction<CandidateView>('process-interview-response', { action: 'accept', token, slotStart, consentGiven: consent, consentTextVersion: CANDIDATE_CONSENT_VERSION }),
-  alternative: (token: string, start: string, message: string, consent: boolean) =>
-    callFunction<CandidateView>('process-interview-response', { action: 'alternative', token, start, message, consentGiven: consent, consentTextVersion: CANDIDATE_CONSENT_VERSION }),
+  accept: (token: string, slotStart: string, consent: boolean, phone?: string) =>
+    callFunction<CandidateView>('process-interview-response', { action: 'accept', token, slotStart, consentGiven: consent, consentTextVersion: CANDIDATE_CONSENT_VERSION, phone }),
+  alternative: (token: string, start: string, message: string, consent: boolean, phone?: string) =>
+    callFunction<CandidateView>('process-interview-response', { action: 'alternative', token, start, message, consentGiven: consent, consentTextVersion: CANDIDATE_CONSENT_VERSION, phone }),
   decline: (token: string, reason: string) =>
     callFunction<CandidateView>('process-interview-response', { action: 'decline', token, reason }),
 };

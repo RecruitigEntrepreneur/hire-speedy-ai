@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { describeHours, normalizeRules, type InterviewHoursRules } from '@/lib/interviewScheduling';
 import { CalendarConnectCard } from './CalendarConnectCard';
 import { InterviewHoursEditor } from './InterviewHoursEditor';
-import { useInterviewHours } from './useCalendarStatus';
+import { useCalendarStatus, useInterviewHours } from './useCalendarStatus';
 
 /**
  * Einstellungen › „Kalender und Interview-Zeiten“ (02.10.2026): Outlook
@@ -17,6 +17,8 @@ import { useInterviewHours } from './useCalendarStatus';
  */
 export function CalendarSettingsSection() {
   const hours = useInterviewHours();
+  // Ohne Microsoft-App gibt es nichts zu verbinden: nur die Interview-Zeiten zeigen.
+  const calendarReady = useCalendarStatus().status?.state !== 'not_configured';
   const [draft, setDraft] = useState<InterviewHoursRules | null>(null);
   const current = draft ?? hours.rules;
   const dirty = !!draft && !!hours.rules && JSON.stringify(normalizeRules(draft)) !== JSON.stringify(hours.rules);
@@ -40,13 +42,18 @@ export function CalendarSettingsSection() {
           Kalender und Interview-Zeiten
         </CardTitle>
         <CardDescription>
-          Wann Kandidaten Ihnen ein Interview vorschlagen dürfen, und woher Matchunt weiß, wann Sie belegt sind.
+          {calendarReady
+            ? 'Wann Kandidaten Ihnen ein Interview vorschlagen dürfen, und woher Matchunt weiß, wann Sie belegt sind.'
+            : 'Wann Kandidaten Ihnen ein Interview vorschlagen dürfen.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <CalendarConnectCard variant="settings" />
-
-        <Separator />
+        {calendarReady && (
+          <>
+            <CalendarConnectCard variant="settings" />
+            <Separator />
+          </>
+        )}
 
         <div className="space-y-4">
           <div className="space-y-1">

@@ -61,14 +61,14 @@ export function clientStartSteps(input: {
     ? { id: 'company', label: 'Firmendaten für Rechnungen', state: 'open', detail: `Es fehlt: ${input.missingCompany.join(', ')}`, action: 'Ergänzen' }
     : { id: 'company', label: 'Firmendaten für Rechnungen', state: 'done', detail: 'Firmierung und Anschrift sind hinterlegt' };
 
-  // not_configured: Die Verbindung richtet Matchunt gerade ein -- das liegt
-  // nicht beim Kunden, also „waiting“ ohne Aktion statt einer Sackgasse.
-  const calendar: ClientStep = input.calendar === 'connected'
+  // not_configured: Die Microsoft-App von Matchunt fehlt noch. Dann gibt es für
+  // den Kunden nichts zu tun, der Schritt erscheint gar nicht.
+  const calendar: ClientStep | null = input.calendar === 'not_configured'
+    ? null
+    : input.calendar === 'connected'
     ? { id: 'calendar', label: 'Kalender verbinden', state: 'done', detail: 'Outlook ist verbunden' }
     : input.calendar === 'it_pending'
     ? { id: 'calendar', label: 'Kalender verbinden', state: 'waiting', detail: 'Wartet auf Ihre IT', action: 'Ansehen' }
-    : input.calendar === 'not_configured'
-    ? { id: 'calendar', label: 'Kalender verbinden', state: 'waiting', detail: 'Die Kalender-Verbindung wird gerade eingerichtet' }
     : input.calendar === 'expired'
     ? { id: 'calendar', label: 'Kalender verbinden', state: 'open', detail: 'Die Verbindung zu Outlook ist abgelaufen', action: 'Neu verbinden' }
     : { id: 'calendar', label: 'Kalender verbinden', state: 'open', detail: 'Damit Kandidaten nur freie Zeiten sehen', action: 'Verbinden' };
@@ -77,7 +77,7 @@ export function clientStartSteps(input: {
     ? { id: 'tour', label: 'Rundgang', state: 'done', detail: 'Das Wichtigste in zwei Minuten', action: 'Nochmal ansehen' }
     : { id: 'tour', label: 'Rundgang', state: 'open', detail: 'Das Wichtigste in zwei Minuten', action: 'Rundgang starten' };
 
-  return [contract, position, company, calendar, tour];
+  return calendar ? [contract, position, company, calendar, tour] : [contract, position, company, tour];
 }
 
 /** Der Rahmenvertrag, der für den Kunden gerade zählt: der wirksame, sonst der am weitesten fortgeschrittene. */

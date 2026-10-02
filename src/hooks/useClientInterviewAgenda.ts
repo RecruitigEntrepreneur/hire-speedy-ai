@@ -18,6 +18,8 @@ export interface AgendaInterview {
   meetingType: string | null;
   joinUrl: string | null;
   onsiteAddress: string | null;
+  /** Telefon-Interview: Nummer, unter der der Kandidat angerufen wird */
+  callPhone: string | null;
   notes: string | null;
   feedback: string | null;
   proposedSlots: AgendaSlot[];
@@ -95,7 +97,7 @@ export function useClientInterviewAgenda() {
         supabase
           .from('interviews')
           .select(
-            'id, submission_id, scheduled_at, duration_minutes, status, meeting_type, meeting_format, meeting_link, teams_join_url, google_meet_link, onsite_address, notes, feedback, proposed_slots, counter_slots, candidate_message, created_at',
+            'id, submission_id, scheduled_at, duration_minutes, status, meeting_type, meeting_format, meeting_link, teams_join_url, google_meet_link, onsite_address, call_phone, notes, feedback, proposed_slots, counter_slots, candidate_message, created_at',
           )
           .order('scheduled_at', { ascending: true }),
         supabase
@@ -127,6 +129,7 @@ export function useClientInterviewAgenda() {
           meetingType: r.meeting_type ?? r.meeting_format ?? null,
           joinUrl: r.teams_join_url ?? r.google_meet_link ?? r.meeting_link ?? null,
           onsiteAddress: r.onsite_address ?? null,
+          callPhone: r.call_phone ?? null,
           notes: r.notes ?? null,
           feedback: r.feedback ?? null,
           proposedSlots,

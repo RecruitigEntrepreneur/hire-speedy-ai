@@ -2,10 +2,11 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  AlertCircle, ArrowLeft, CalendarPlus, CalendarX, CheckCircle2, Clock, History, Loader2, Video, XCircle,
+  AlertCircle, ArrowLeft, Building2, CalendarPlus, CalendarX, CheckCircle2, Clock, History, Loader2, MapPin, Phone, Video, XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
@@ -49,6 +50,8 @@ export default function InterviewResponsePage() {
   // Alte Mail-Links: ?action=decline öffnet die Absage, ?action=counter die andere Zeit.
   const [mode, setMode] = useState<Mode>(action === 'decline' ? 'decline' : action === 'counter' ? 'alternative' : 'pick');
   const [consent, setConsent] = useState(false);
+  // Telefon-Interview: leer = hinterlegte Nummer verwenden
+  const [phone, setPhone] = useState('');
 
   useEffect(() => {
     document.title = 'Interview-Einladung · Matchunt';
@@ -128,7 +131,9 @@ export default function InterviewResponsePage() {
               consent={consent}
               onConsent={setConsent}
               onBack={() => setMode('pick')}
-              onSubmit={(start, message) => run(() => candidateApi.alternative(token, start, message, view.consentRequired && consent))}
+              phone={phone}
+              onPhone={setPhone}
+              onSubmit={(start, message) => run(() => candidateApi.alternative(token, start, message, view.consentRequired && consent, phone.trim() || undefined))}
             />
           : <OpenPanel
               view={view}
@@ -136,7 +141,9 @@ export default function InterviewResponsePage() {
               busy={busy}
               consent={consent}
               onConsent={setConsent}
-              onAccept={(start) => run(() => candidateApi.accept(token, start, view.consentRequired && consent))}
+              phone={phone}
+              onPhone={setPhone}
+              onAccept={(start) => run(() => candidateApi.accept(token, start, view.consentRequired && consent, phone.trim() || undefined))}
               onAlternative={() => { setMode('alternative'); window.scrollTo(0, 0); }}
               onDecline={() => { setMode('decline'); window.scrollTo(0, 0); }}
             />;
@@ -186,8 +193,9 @@ function InviteHeader({ view }: { view: CandidateView }) {
     <div className="space-y-2">
       <h1 className="text-2xl font-semibold leading-tight tracking-tight">{view.companyName} möchte Sie kennenlernen</h1>
       <p className="text-sm text-muted-foreground">
-        {view.jobTitle} · {view.durationMinutes} Min · Microsoft Teams
+        {view.jobTitle} · {view.durationMinutes} Min · {formatText(view)}
       </p>
+      <OnsiteBlock view={view} />
       {view.interviewers.length > 0 && (
         <p className="text-sm">
           <span className="text-muted-foreground">Gesprächspartner: </span>
@@ -197,6 +205,56 @@ function InviteHeader({ view }: { view: CandidateView }) {
     </div>
   );
 }
+
+const formatText = (view: CandidateView) =>
+  view.format === 'phone' ? `telefonisch, ${view.companyName} ruft Sie an` : view.format === 'onsite' ? 'vor Ort' : 'Microsoft Teams';
+
+function OnsiteBlock({ view }: { view: CandidateView }) {
+  if (view.format !== 'onsite' || !view.onsite) return null;
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-border bg-card p-3 text-sm">
+      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0">
+        <p className="whitespace-pre-line">{view.onsite.address}</p>
+        {view.onsite.note && <p className="mt-1 text-muted-foreground">{view.onsite.note}</p>}
+        <a href={view.onsite.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-medium underline underline-offset-4">
+          Karte öffnen
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/** Telefon-Interview: Unter welcher Nummer erreichen wir Sie? */
+function PhoneBox({ view, phone, onPhone }: { view: CandidateView; phone: string; onPhone: (v: string) => void }) {
+  const [useOther, setUseOther] = useState(false);
+  if (view.format !== 'phone') return null;
+  const showInput = !view.phoneOnFile || useOther;
+  return (
+    <section className="space-y-2 rounded-xl border border-border bg-card p-4">
+      <p className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4 text-muted-foreground" /> Unter welcher Nummer erreichen wir Sie?</p>
+      {view.phoneOnFile && !useOther && (
+        <p className="text-sm">
+          Hinterlegte Nummer, endet auf {view.phoneOnFile.replace('··· ', '')}{' '}
+          <button type="button" className="font-medium underline underline-offset-4" onClick={() => setUseOther(true)}>andere angeben</button>
+        </p>
+      )}
+      {showInput && (
+        <Input
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => onPhone(e.target.value)}
+          placeholder="+49 170 1234567"
+          className="h-11 text-base sm:text-sm"
+        />
+      )}
+    </section>
+  );
+}
+
+const phoneMissing = (view: CandidateView, phone: string) => view.format === 'phone' && !view.phoneOnFile && phone.trim().length < 6;
 
 function ConsentBox({ view, consent, onConsent }: { view: CandidateView; consent: boolean; onConsent: (v: boolean) => void }) {
   if (!view.consentRequired) return null;
@@ -220,8 +278,10 @@ function ConsentBox({ view, consent, onConsent }: { view: CandidateView; consent
   );
 }
 
-function OpenPanel({ view, initialSlot, busy, consent, onConsent, onAccept, onAlternative, onDecline }: {
+function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone, onAccept, onAlternative, onDecline }: {
   view: CandidateView;
+  phone: string;
+  onPhone: (v: string) => void;
   /** Termin aus dem Mail-Link (?slot=…) vorauswählen */
   initialSlot?: string | null;
   busy: boolean;
@@ -294,13 +354,15 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, onAccept, onAl
         )}
       </section>
 
+      <PhoneBox view={view} phone={phone} onPhone={onPhone} />
+
       <ConsentBox view={view} consent={consent} onConsent={onConsent} />
 
       <div className="space-y-3">
         <Button
           size="lg"
           className="h-12 w-full"
-          disabled={!chosen || missingConsent || busy}
+          disabled={!chosen || missingConsent || phoneMissing(view, phone) || busy}
           onClick={() => chosen && onAccept(chosen)}
         >
           {busy && <Loader2 className="animate-spin" />}
@@ -308,6 +370,9 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, onAccept, onAl
         </Button>
         {chosen && missingConsent && (
           <p className="text-center text-xs text-muted-foreground">Bitte bestätigen Sie zuerst die Einwilligung.</p>
+        )}
+        {chosen && !missingConsent && phoneMissing(view, phone) && (
+          <p className="text-center text-xs text-muted-foreground">Bitte geben Sie Ihre Telefonnummer an.</p>
         )}
         {view.allowAlternative && (
           <Button variant="outline" size="lg" className="h-12 w-full" disabled={busy} onClick={onAlternative}>
@@ -354,7 +419,9 @@ function Chip({ active, disabled, onClick, children, className }: {
   );
 }
 
-function AlternativePanel({ view, busy, consent, onConsent, onBack, onSubmit }: {
+function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBack, onSubmit }: {
+  phone: string;
+  onPhone: (v: string) => void;
   view: CandidateView;
   busy: boolean;
   consent: boolean;
@@ -443,13 +510,15 @@ function AlternativePanel({ view, busy, consent, onConsent, onBack, onSubmit }: 
             />
           </div>
 
+          <PhoneBox view={view} phone={phone} onPhone={onPhone} />
+
           <ConsentBox view={view} consent={consent} onConsent={onConsent} />
 
           <div className="space-y-2">
             <Button
               size="lg"
               className="h-auto min-h-12 w-full whitespace-normal py-3"
-              disabled={!chosen || missingConsent || busy}
+              disabled={!chosen || missingConsent || phoneMissing(view, phone) || busy}
               onClick={() => chosen && onSubmit(chosen, message.trim())}
             >
               {busy && <Loader2 className="animate-spin" />}
@@ -549,8 +618,12 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
           </div>
         )}
         <p className="flex items-center gap-2 text-sm">
-          <Video className="h-4 w-4 text-muted-foreground" /> Microsoft Teams
+          {view.format === 'phone' ? <Phone className="h-4 w-4 text-muted-foreground" /> : view.format === 'onsite' ? <Building2 className="h-4 w-4 text-muted-foreground" /> : <Video className="h-4 w-4 text-muted-foreground" />}
+          {view.format === 'phone'
+            ? `${view.companyName} ruft Sie an${view.callPhone ? ` (Nummer endet auf ${view.callPhone.replace('··· ', '')})` : ''}`
+            : view.format === 'onsite' ? 'Vor Ort' : 'Microsoft Teams'}
         </p>
+        <OnsiteBlock view={view} />
         {view.interviewers.length > 0 && (
           <p className="text-sm">
             <span className="text-muted-foreground">Gesprächspartner: </span>
@@ -560,12 +633,17 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
       </div>
 
       <div className="space-y-3">
-        {s?.joinUrl ? (
+        {view.format === 'teams' && (s?.joinUrl ? (
           <Button asChild size="lg" className="h-12 w-full">
             <a href={s.joinUrl} target="_blank" rel="noopener noreferrer"><Video /> Teams-Besprechung öffnen</a>
           </Button>
         ) : (
           <p className="rounded-xl border border-border bg-card p-4 text-sm">Den Teams-Link bekommen Sie mit der Kalendereinladung per Mail.</p>
+        ))}
+        {view.format === 'onsite' && view.onsite && (
+          <Button asChild size="lg" className="h-12 w-full">
+            <a href={view.onsite.mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin /> Anfahrt in Karte öffnen</a>
+          </Button>
         )}
         {s?.icsUrl && (
           <Button asChild variant="outline" size="lg" className="h-12 w-full">
@@ -575,8 +653,9 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {s?.joinUrl ? 'Kalendereinladung mit Teams-Link kommt per Mail. ' : ''}
-        Teilnahme mit Teams-App oder im Browser. Erinnerung 24 h und 1 h vorher.
+        {view.format === 'teams'
+          ? `${s?.joinUrl ? 'Kalendereinladung mit Teams-Link kommt per Mail. ' : ''}Teilnahme mit Teams-App oder im Browser. Erinnerung 24 h und 1 h vorher.`
+          : 'Die Kalendereinladung kommt per Mail. Erinnerung 24 h und 1 h vorher.'}
       </p>
 
       <div className="space-y-3">

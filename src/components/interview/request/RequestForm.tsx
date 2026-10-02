@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Info, Loader2, Lock, Send, Video } from 'lucide-react';
+import { Building2, Info, Loader2, Lock, Phone, Send, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
@@ -15,6 +16,7 @@ import {
   weekStartOf,
   type AttendeeDraft,
   type MailPreview,
+  type MeetingFormat,
   type RequestContext,
   type SendInput,
   type SendResult,
@@ -95,6 +97,9 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const minWeek = weekStartOf(nowIso);
   const maxWeek = weekStartOf(nowIso, MAX_WEEKS_AHEAD);
 
+  const [format, setFormat] = useState<MeetingFormat>('teams');
+  const [onsiteAddress, setOnsiteAddress] = useState(ctx.onsiteDefault ?? '');
+  const [locationNote, setLocationNote] = useState('');
   const [duration, setDuration] = useState(60);
   const [attendees, setAttendees] = useState<AttendeeDraft[]>(() => initialAttendees(ctx));
   const [weekStart, setWeekStart] = useState(() => initialWeekStart(nowIso));
@@ -128,8 +133,13 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
       return [...cur, iso];
     });
 
+  const addressMissing = format === 'onsite' && onsiteAddress.trim().length < 5;
+
   const buildInput = (): SendInput => ({
     submissionId: ctx.submissionId,
+    meetingFormat: format,
+    onsiteAddress: format === 'onsite' ? onsiteAddress.trim() : null,
+    locationNote: format === 'onsite' ? locationNote.trim() || null : null,
     durationMinutes: duration,
     slots: [...selected].sort((a, b) => Date.parse(a) - Date.parse(b)),
     attendees: attendees.map((a) => (isMe(a) ? { ...a, required: true } : a)),
@@ -201,12 +211,20 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
         <div className="grid gap-5 sm:grid-cols-2">
           <Section title="Format">
             <div className="flex flex-wrap gap-2">
-              <Chip active>
+              <Chip active={format === 'teams'} onClick={() => setFormat('teams')}>
                 <Video className="h-3.5 w-3.5" /> Microsoft Teams
+              </Chip>
+              <Chip active={format === 'phone'} onClick={() => setFormat('phone')}>
+                <Phone className="h-3.5 w-3.5" /> Telefon
+              </Chip>
+              <Chip active={format === 'onsite'} onClick={() => setFormat('onsite')}>
+                <Building2 className="h-3.5 w-3.5" /> Vor Ort
               </Chip>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Teams-Link entsteht automatisch · Teilnahme mit App oder im Browser, kein Konto nötig
+              {format === 'teams' && 'Teams-Link entsteht automatisch · Teilnahme mit App oder im Browser, kein Konto nötig'}
+              {format === 'phone' && 'Sie rufen den Kandidaten zum Termin an. Seine Nummer sehen Sie, sobald er bestätigt hat.'}
+              {format === 'onsite' && 'Der Kandidat sieht die Adresse schon in der Einladung, mit Link zur Karte.'}
             </p>
           </Section>
           <Section title="Dauer">
@@ -220,8 +238,42 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           </Section>
         </div>
 
+        {format === 'onsite' && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="onsite-address" className="mb-1.5 block text-sm font-medium">Adresse</label>
+              <Textarea
+                id="onsite-address"
+                value={onsiteAddress}
+                onChange={(e) => setOnsiteAddress(e.target.value)}
+                rows={3}
+                maxLength={300}
+                placeholder={'Firma\nStraße und Hausnummer\nPLZ Ort'}
+                className="text-sm"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {ctx.onsiteDefault ? 'Aus Ihren Firmendaten, änderbar' : 'Bitte die Anschrift für das Gespräch angeben'}
+              </p>
+            </div>
+            <div>
+              <label htmlFor="onsite-note" className="mb-1.5 block text-sm font-medium">Hinweis für den Kandidaten (optional)</label>
+              <Input
+                id="onsite-note"
+                value={locationNote}
+                onChange={(e) => setLocationNote(e.target.value)}
+                maxLength={300}
+                placeholder="Bitte am Empfang melden, Parkplätze im Hof"
+                className="text-sm"
+              />
+            </div>
+          </div>
+        )}
+
         <Section title="Wer ist dabei">
           <ParticipantsSection
+            submissionId={ctx.submissionId}
+            jobTitle={ctx.jobTitle}
+            invite={ctx.invite ?? { allowed: false, adminNames: [] }}
             me={ctx.me}
             team={ctx.team ?? []}
             attendees={attendees}
@@ -271,7 +323,11 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             {[
               recruiter ? `Kandidat und Headhunter ${recruiter} werden benachrichtigt` : 'Kandidat und Headhunter werden benachrichtigt',
               'Der Kandidat bestätigt einen Ihrer Termine, wählt eine andere Zeit oder lehnt ab',
-              `Steht der Termin: ${inviteNames} bekommen die Einladung mit Teams-Link, der Kandidat seine eigene`,
+              format === 'teams'
+                ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit Teams-Link, der Kandidat seine eigene`
+                : format === 'phone'
+                  ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Nummer des Kandidaten, der Kandidat seine eigene`
+                  : `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Adresse, der Kandidat seine eigene`,
             ].map((text, i) => (
               <li key={i} className="flex gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
@@ -295,13 +351,15 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           Mail ansehen, so wie der Kandidat sie bekommt
         </button>
         <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-3">
-          {selected.length === 0 && (
+          {selected.length === 0 ? (
             <span className="text-xs text-muted-foreground sm:text-right">Wählen Sie mindestens einen Termin.</span>
-          )}
+          ) : addressMissing ? (
+            <span className="text-xs text-muted-foreground sm:text-right">Bitte die Adresse angeben.</span>
+          ) : null}
           <Button
             type="button"
             onClick={() => send.mutate(buildInput())}
-            disabled={selected.length === 0 || send.isPending}
+            disabled={selected.length === 0 || addressMissing || send.isPending}
             className="gap-1.5"
           >
             {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

@@ -51,8 +51,7 @@ describe('Ihr Start bei Matchunt', () => {
     // null = Stand unbekannt (Laden fehlgeschlagen) -> als offen behandeln
     expect(kalender(null)).toMatchObject({ state: 'open', detail: 'Damit Kandidaten nur freie Zeiten sehen' });
     // Liegt bei Matchunt: kein Knopf, der in eine Sackgasse führt
-    expect(kalender('not_configured')).toMatchObject({ state: 'waiting' });
-    expect(kalender('not_configured').action).toBeUndefined();
+    expect(clientStartSteps({ ...lucaHeute, calendar: 'not_configured' }).map(s => s.id)).toEqual(['contract', 'position', 'company', 'tour']);
   });
 
   it('der Kalender-Schritt steht nach den Firmendaten', () => {

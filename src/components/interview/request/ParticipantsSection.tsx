@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AlertTriangle, Mail, Plus, UserPlus, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, Gavel, Mail, Plus, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,8 +10,13 @@ import {
 import { cn } from '@/lib/utils';
 import type { AttendeeDraft, AvailabilityResult, TeamPerson } from '@/lib/interviewScheduling';
 import { attendeeIdentity, isValidEmail, personFor, sameAttendee } from '@/lib/interviewRequestUtils';
+import { InviteColleagueDialog } from './InviteColleagueDialog';
 
 interface Props {
+  submissionId: string;
+  jobTitle: string;
+  /** Darf ins Team einladen; sonst Namen der Admins */
+  invite: { allowed: boolean; adminNames: string[] };
   me: TeamPerson;
   team: TeamPerson[];
   attendees: AttendeeDraft[];
@@ -59,10 +64,20 @@ function RequiredToggle({ value, onChange, disabled }: { value: boolean; onChang
   );
 }
 
-function ExternalPersonForm({ existing, onAdd }: { existing: AttendeeDraft[]; onAdd: (a: AttendeeDraft) => void }) {
-  const [open, setOpen] = useState(false);
+function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
+  existing: AttendeeDraft[];
+  onAdd: (a: AttendeeDraft) => void;
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  initial: string;
+}) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  useEffect(() => {
+    if (!open || !initial.trim()) return;
+    setName(initial.includes('@') ? '' : initial.trim());
+    setEmail(initial.includes('@') ? initial.trim() : '');
+  }, [open, initial]);
   const [title, setTitle] = useState('');
   const [touched, setTouched] = useState(false);
 
@@ -123,8 +138,16 @@ function ExternalPersonForm({ existing, onAdd }: { existing: AttendeeDraft[]; on
   );
 }
 
-export function ParticipantsSection({ me, team, attendees, onChange, people, calendarConnected }: Props) {
+export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, attendees, onChange, people, calendarConnected }: Props) {
   const [teamOpen, setTeamOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [externalOpen, setExternalOpen] = useState(false);
+  const [seed, setSeed] = useState('');
+
+  const startInvite = () => { setSeed(search); setTeamOpen(false); setInviteOpen(true); };
+  const startExternal = () => { setSeed(search); setTeamOpen(false); setExternalOpen(true); };
+  const adminHint = invite.adminNames.length ? `Ins Team einladen können nur Admins: ${invite.adminNames.join(', ')}.` : 'Ins Team einladen können nur Admins.';
 
   const isMe = (a: AttendeeDraft) => sameAttendee(a, { userId: me.userId, email: me.email });
   const available = team.filter(
@@ -152,9 +175,23 @@ export function ParticipantsSection({ me, team, attendees, onChange, people, cal
                 </p>
                 {a.kind === 'external' && <p className="truncate text-xs text-muted-foreground">{a.email}</p>}
               </div>
+              <button
+                type="button"
+                aria-pressed={!!a.decisionMaker}
+                onClick={() => update(key, { decisionMaker: !a.decisionMaker })}
+                title="Entscheidet über die Einstellung"
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                  a.decisionMaker ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Gavel className="h-3 w-3" /> Entscheider
+              </button>
               <RequiredToggle value={mine ? true : a.required} disabled={mine} onChange={(v) => update(key, { required: v })} />
               <span className="flex min-w-[9.5rem] shrink-0 items-center justify-end gap-1 text-xs">
-                {person?.visible ? (
+                {a.invited ? (
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">eingeladen</span>
+                ) : person?.visible ? (
                   <span className="inline-flex items-center gap-1 text-success">
                     <OutlookMark className="h-3.5 w-3.5" /> sichtbar
                   </span>
@@ -182,7 +219,7 @@ export function ParticipantsSection({ me, team, attendees, onChange, people, cal
       </ul>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Popover open={teamOpen} onOpenChange={setTeamOpen} modal>
+        <Popover open={teamOpen} onOpenChange={(o) => { setTeamOpen(o); if (o) setSearch(''); }} modal>
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
               <UserPlus className="h-3.5 w-3.5" /> Kollege aus Ihrem Team
@@ -190,10 +227,22 @@ export function ParticipantsSection({ me, team, attendees, onChange, people, cal
           </PopoverTrigger>
           <PopoverContent className="w-72 p-0" align="start">
             <Command>
-              <CommandInput placeholder="Name suchen …" />
+              <CommandInput placeholder="Name oder E-Mail suchen …" value={search} onValueChange={setSearch} />
               <CommandList>
-                <CommandEmpty>
-                  {team.length <= 1 ? 'Noch keine Kollegen in Ihrem Team.' : 'Keine weiteren Kollegen gefunden.'}
+                <CommandEmpty className="space-y-1 p-2 text-sm">
+                  <p className="px-1 pb-1 text-muted-foreground">
+                    {search.trim() ? `${search.trim()} ist noch nicht in Ihrem Team.` : 'Noch keine Kollegen in Ihrem Team.'}
+                  </p>
+                  {invite.allowed ? (
+                    <button type="button" onClick={startInvite} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-medium hover:bg-accent">
+                      <UserPlus className="h-3.5 w-3.5" /> {search.trim() ? `${search.trim()} ins Team einladen` : 'Kollegen ins Team einladen'}
+                    </button>
+                  ) : (
+                    <p className="px-1 text-xs text-muted-foreground">{adminHint}</p>
+                  )}
+                  <button type="button" onClick={startExternal} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-muted-foreground hover:bg-accent hover:text-foreground">
+                    <Mail className="h-3.5 w-3.5" /> Nur zu diesem Interview einladen (ohne Matchunt-Zugang)
+                  </button>
                 </CommandEmpty>
                 <CommandGroup>
                   {available.map((t) => (
@@ -214,12 +263,31 @@ export function ParticipantsSection({ me, team, attendees, onChange, people, cal
                     </CommandItem>
                   ))}
                 </CommandGroup>
+                {invite.allowed && available.length > 0 && (
+                  <CommandGroup>
+                    <CommandItem value={`__invite__ ${search}`} onSelect={startInvite}>
+                      <UserPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> Neue Person ins Team einladen
+                    </CommandItem>
+                  </CommandGroup>
+                )}
               </CommandList>
             </Command>
           </PopoverContent>
         </Popover>
-        <ExternalPersonForm existing={attendees} onAdd={(a) => onChange([...attendees, a])} />
+        <ExternalPersonForm existing={attendees} onAdd={(a) => onChange([...attendees, a])} open={externalOpen} setOpen={setExternalOpen} initial={seed} />
       </div>
+      <InviteColleagueDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        submissionId={submissionId}
+        jobTitle={jobTitle}
+        initial={seed}
+        onInvited={(a) => {
+          const rest = attendees.filter((x) => !sameAttendee(x, a));
+          onChange([...rest, a]);
+          setSearch('');
+        }}
+      />
 
       {calendarConnected && (
         <p className="text-xs text-muted-foreground">

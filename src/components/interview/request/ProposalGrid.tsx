@@ -77,9 +77,11 @@ export function ProposalGrid({
           <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />
           <p className="flex-1">
             {calendar.state === 'expired'
-              ? 'Ihre Outlook-Verbindung ist abgelaufen. '
-              : 'Ihr Kalender ist nicht verbunden. '}
-            Prüfen Sie Ihre Vorschläge in Outlook. Andere Zeiten kann der Kandidat nur anfragen, Sie bestätigen sie.
+              ? 'Ihre Outlook-Verbindung ist abgelaufen. Prüfen Sie Ihre Vorschläge in Outlook. '
+              : calendar.state === 'not_configured'
+                ? 'Prüfen Sie Ihre Vorschläge in Ihrem Kalender. '
+                : 'Ihr Kalender ist nicht verbunden. Prüfen Sie Ihre Vorschläge in Outlook. '}
+            Andere Zeiten kann der Kandidat nur anfragen, Sie bestätigen sie.
           </p>
           {calendar.state !== 'not_configured' && (
             <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>

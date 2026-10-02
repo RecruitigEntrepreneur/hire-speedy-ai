@@ -210,9 +210,8 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
       </div>
     );
   }
-  if (status.state === 'not_configured') {
-    return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Info className="h-4 w-4 shrink-0" />Die Kalender-Verbindung wird gerade eingerichtet.</p>;
-  }
+  // Ohne Microsoft-App gibt es für den Kunden nichts zu verbinden: nichts anzeigen.
+  if (status.state === 'not_configured') return null;
   if (itFlow && status.state !== 'connected') return <ItPanel cal={cal} onClose={closeIt} />;
 
   if (status.state === 'connected') {
@@ -380,8 +379,8 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
 function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itFlow: boolean; closeIt: () => void; className?: string }) {
   const { status } = cal;
   const returnPath = window.location.pathname;
-  if (!status) return null;
-  if (itFlow && status.state !== 'connected' && status.state !== 'not_configured') {
+  if (!status || status.state === 'not_configured') return null;
+  if (itFlow && status.state !== 'connected') {
     return <div className={className}><ItPanel cal={cal} onClose={closeIt} compact /></div>;
   }
 
@@ -391,8 +390,6 @@ function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itF
     ? `Wartet auf Ihre IT · ${pendingLine(status)}`
     : status.state === 'expired'
     ? 'Die Verbindung zu Outlook ist abgelaufen.'
-    : status.state === 'not_configured'
-    ? 'Die Kalender-Verbindung wird gerade eingerichtet.'
     : 'Damit Kandidaten nur freie Zeiten sehen.';
 
   return (

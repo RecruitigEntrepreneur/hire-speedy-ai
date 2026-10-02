@@ -12,7 +12,7 @@
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fail, type FailureReason } from './http.ts';
 import { canUserActOnJob } from './team-access.ts';
-import { generateToken, hashToken } from './tokens.ts';
+import { generateToken, hashToken, sha256Hex } from './tokens.ts';
 import { getPublicAppUrl } from './app-url.ts';
 import {
   alternativeSlots, isSlotStillFree, normalizeRules, scheduleSlots, stepFor,
@@ -93,7 +93,14 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CLOSED_STAGES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn', 'expired'];
 
 export interface TeamPerson { userId: string; name: string; email: string; title: string | null; role: string }
-export interface AttendeeDraft { userId?: string | null; email: string; name: string; title?: string | null; required: boolean; kind: 'client_user' | 'external' }
+export interface AttendeeDraft {
+  userId?: string | null; email: string; name: string; title?: string | null; required: boolean; kind: 'client_user' | 'external';
+  decisionMaker?: boolean; functionKey?: FunctionKey | null; invited?: boolean;
+}
+export type FunctionKey = 'fachbereich' | 'fuehrungskraft' | 'geschaeftsfuehrung' | 'hr' | 'andere';
+export const FUNCTION_LABELS: Record<FunctionKey, string> = { fachbereich: 'Fachbereich', fuehrungskraft: 'Führungskraft', geschaeftsfuehrung: 'Geschäftsführung', hr: 'HR', andere: 'Andere' };
+const FUNCTION_KEYS = Object.keys(FUNCTION_LABELS) as FunctionKey[];
+export type MeetingFormat = 'teams' | 'phone' | 'onsite';
 
 interface SubmissionBundle {
   submission: any;
@@ -234,9 +241,15 @@ function cleanAttendees(raw: unknown, me: TeamPerson, team: TeamPerson[]): Atten
     must(EMAIL.test(email), `Ungültige E-Mail-Adresse: ${email}`);
     const member = a?.userId ? byId.get(String(a.userId)) : team.find((t) => t.email === email);
     seen.add(email);
+    const extra = {
+      decisionMaker: a?.decisionMaker === true,
+      functionKey: FUNCTION_KEYS.includes(a?.functionKey) ? a.functionKey as FunctionKey : null,
+      invited: a?.invited === true,
+    };
+    const title = a?.title ? String(a.title).trim().slice(0, 120) || null : null;
     out.push(member
-      ? { userId: member.userId, email: member.email, name: member.name, title: member.title, required: a?.required !== false, kind: 'client_user' }
-      : { userId: null, email, name: String(a?.name ?? '').trim().slice(0, 120) || email, title: a?.title ? String(a.title).slice(0, 120) : null, required: a?.required === true, kind: 'external' });
+      ? { userId: member.userId, email: member.email, name: member.name, title: title ?? member.title, required: a?.required !== false, kind: 'client_user', ...extra }
+      : { userId: null, email, name: String(a?.name ?? '').trim().slice(0, 120) || email, title, required: a?.required === true, kind: 'external', ...extra });
   }
   return out;
 }
@@ -262,8 +275,8 @@ async function nextRound(db: SupabaseClient, submissionId: string): Promise<numb
 async function previousAttendees(db: SupabaseClient, submissionId: string): Promise<AttendeeDraft[]> {
   const { data } = await db.from('interviews').select('id').eq('submission_id', submissionId).in('status', ['completed', 'scheduled']).order('scheduled_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return [];
-  const { data: rows } = await db.from('interview_attendees').select('user_id, email, name, title, required, kind, is_organizer').eq('interview_id', data.id);
-  return (rows ?? []).filter((r: any) => !r.is_organizer).map((r: any) => ({ userId: r.user_id, email: r.email, name: r.name, title: r.title, required: r.required, kind: r.kind }));
+  const { data: rows } = await db.from('interview_attendees').select('*').eq('interview_id', data.id);
+  return (rows ?? []).filter((r: any) => !r.is_organizer).map((r: any) => ({ userId: r.user_id, email: r.email, name: r.name, title: r.title, required: r.required, kind: r.kind, decisionMaker: !!r.is_decision_maker, functionKey: r.function_key ?? null }));
 }
 
 export async function calendarStatusFor(ctx: ServiceCtx, userId: string) {
@@ -281,7 +294,7 @@ const DEFAULT_MESSAGE = 'Vielen Dank für Ihr Interesse an der Stelle. Wir freue
 export async function requestContext(ctx: ServiceCtx, user: User, submissionId: string) {
   const bundle = await requireClient(ctx, user, submissionId);
   const me = await personOf(ctx.db, user);
-  const [team, recruiter, round, prev, calendar, hours, open] = await Promise.all([
+  const [team, recruiter, round, prev, calendar, hours, open, onsiteDefault, invite] = await Promise.all([
     teamOf(ctx.db, bundle.job, me),
     profileOf(ctx.db, bundle.submission.recruiter_id),
     nextRound(ctx.db, submissionId),
@@ -289,6 +302,8 @@ export async function requestContext(ctx: ServiceCtx, user: User, submissionId: 
     calendarStatusFor(ctx, user.id),
     hoursOf(ctx.db, user.id),
     openInterviewOf(ctx.db, submissionId),
+    companyAddress(ctx.db, user.id, bundle.job.client_id),
+    inviteRights(ctx.db, user.id, bundle.job),
   ]);
   return {
     submissionId,
@@ -307,7 +322,44 @@ export async function requestContext(ctx: ServiceCtx, user: User, submissionId: 
     hours,
     defaultMessage: round > 1 ? 'Vielen Dank für das erste Gespräch. Wir möchten Sie gern zu einem weiteren Gespräch einladen.' : DEFAULT_MESSAGE,
     openRequest: open ? { interviewId: open.id, status: open.status, createdAt: open.created_at } : null,
+    onsiteDefault,
+    invite,
   };
+}
+
+/** Firmenanschrift aus den Firmendaten (Vorbelegung für „Vor Ort“). */
+async function companyAddress(db: SupabaseClient, userId: string, jobClientId: string | null): Promise<string | null> {
+  for (const id of [userId, jobClientId].filter(Boolean) as string[]) {
+    const { data } = await db.from('company_profiles').select('*').eq('user_id', id).maybeSingle();
+    if (data?.street && data?.city) {
+      const name = data.legal_name || data.company_name || '';
+      return [name, data.street, [data.postal_code, data.city].filter(Boolean).join(' ')].filter(Boolean).join('\n');
+    }
+  }
+  return null;
+}
+
+/** Darf der Nutzer Kollegen ins Team einladen? Owner/Admin ja; ohne Firmenkonto der Ersteller der Stelle. */
+async function inviteRights(db: SupabaseClient, userId: string, job: any): Promise<{ allowed: boolean; adminNames: string[] }> {
+  const orgId = job.organization_id ?? (await ownOrganization(db, userId))?.id ?? null;
+  if (!orgId) return { allowed: job.client_id === userId, adminNames: [] };
+  const { data: org } = await db.from('organizations').select('owner_id').eq('id', orgId).maybeSingle();
+  if (org?.owner_id === userId) return { allowed: true, adminNames: [] };
+  const { data: me } = await db.from('organization_members').select('role').eq('organization_id', orgId).eq('user_id', userId).eq('status', 'active').maybeSingle();
+  if (me && ['owner', 'admin'].includes(me.role)) return { allowed: true, adminNames: [] };
+  const { data: admins } = await db.from('organization_members').select('user_id').eq('organization_id', orgId).eq('status', 'active').in('role', ['owner', 'admin']);
+  const ids = [...new Set([org?.owner_id, ...(admins ?? []).map((a: any) => a.user_id)].filter(Boolean))];
+  const { data: profiles } = ids.length ? await db.from('profiles').select('full_name').in('user_id', ids) : { data: [] };
+  return { allowed: false, adminNames: (profiles ?? []).map((p: any) => p.full_name).filter(Boolean) };
+}
+
+async function ownOrganization(db: SupabaseClient, userId: string): Promise<{ id: string; name: string } | null> {
+  const { data: owned } = await db.from('organizations').select('id, name').eq('owner_id', userId).eq('type', 'client').limit(1).maybeSingle();
+  if (owned) return owned;
+  const { data: member } = await db.from('organization_members').select('organization_id').eq('user_id', userId).eq('status', 'active').limit(1).maybeSingle();
+  if (!member) return null;
+  const { data: org } = await db.from('organizations').select('id, name').eq('id', member.organization_id).maybeSingle();
+  return org ?? null;
 }
 
 const WEEKDAY_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -345,6 +397,9 @@ export async function availability(ctx: ServiceCtx, user: User, body: any) {
 }
 
 interface SendDraft {
+  meetingFormat: MeetingFormat;
+  onsiteAddress: string | null;
+  locationNote: string | null;
   durationMinutes: number;
   slots: string[];
   attendees: AttendeeDraft[];
@@ -368,7 +423,14 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
     return new Date(t).toISOString();
   }).sort();
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
+  const meetingFormat: MeetingFormat = ['teams', 'phone', 'onsite'].includes(body.meetingFormat) ? body.meetingFormat : 'teams';
+  const onsiteAddress = typeof body.onsiteAddress === 'string' ? body.onsiteAddress.trim().slice(0, 300) : '';
+  const locationNote = typeof body.locationNote === 'string' ? body.locationNote.trim().slice(0, 300) : '';
+  if (meetingFormat === 'onsite') must(onsiteAddress.length >= 5, 'Bitte die Adresse für das Gespräch vor Ort angeben.');
   return {
+    meetingFormat,
+    onsiteAddress: meetingFormat === 'onsite' ? onsiteAddress : null,
+    locationNote: meetingFormat === 'onsite' && locationNote ? locationNote : null,
     durationMinutes: duration,
     slots,
     attendees: cleanAttendees(body.attendees, me, team),
@@ -381,8 +443,11 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
 }
 
 function interviewerRefs(me: TeamPerson, attendees: AttendeeDraft[]) {
-  return [{ name: me.name, title: me.title }, ...attendees.map((a) => ({ name: a.name, title: a.title ?? null }))];
+  return [{ name: me.name, title: me.title }, ...attendees.map((a) => ({ name: a.name, title: a.title ?? (a.functionKey ? FUNCTION_LABELS[a.functionKey] : null) }))];
 }
+
+const draftMeeting = (draft: SendDraft, companyName: string): mails.MeetingInfo =>
+  ({ format: draft.meetingFormat, companyName, address: draft.onsiteAddress, note: draft.locationNote });
 
 export async function preview(ctx: ServiceCtx, user: User, body: any) {
   const bundle = await requireClient(ctx, user, body.submissionId);
@@ -403,6 +468,7 @@ export async function preview(ctx: ServiceCtx, user: User, body: any) {
     round: draft.round,
     allowAlternative: draft.allowAlternative,
     consentRequired: !bundle.submission.identity_unlocked,
+    meeting: draftMeeting(draft, bundle.job.company_name),
   });
   return { subject: content.subject, html: content.html, fromName: recruiter ? `${recruiter.name} über Matchunt` : 'Matchunt' };
 }
@@ -432,8 +498,10 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     status: 'pending_response',
     proposed_slots: draft.slots.map((datetime) => ({ datetime, status: 'available' })),
     duration_minutes: draft.durationMinutes,
-    meeting_format: 'teams',
-    meeting_type: 'teams',
+    meeting_format: draft.meetingFormat,
+    meeting_type: draft.meetingFormat,
+    onsite_address: draft.onsiteAddress,
+    location_note: draft.locationNote,
     client_message: draft.message,
     round,
     requested_by: user.id,
@@ -447,8 +515,13 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   dbFail(error, 'Die Anfrage');
 
   const attendeeRows = [
-    { interview_id: iv!.id, user_id: me.userId, email: me.email, name: me.name, title: me.title, required: true, kind: 'client_user', is_organizer: true },
-    ...draft.attendees.map((a) => ({ interview_id: iv!.id, user_id: a.userId ?? null, email: a.email, name: a.name, title: a.title ?? null, required: a.required, kind: a.kind, is_organizer: false })),
+    { interview_id: iv!.id, user_id: me.userId, email: me.email, name: me.name, title: me.title, required: true, kind: 'client_user', is_organizer: true,
+      is_decision_maker: (Array.isArray(body.attendees) ? body.attendees : []).some((a: any) => String(a?.email ?? '').toLowerCase() === me.email && a?.decisionMaker === true) },
+    ...draft.attendees.map((a) => ({
+      interview_id: iv!.id, user_id: a.userId ?? null, email: a.email, name: a.name,
+      title: a.title ?? (a.functionKey ? FUNCTION_LABELS[a.functionKey] : null), required: a.required, kind: a.kind, is_organizer: false,
+      is_decision_maker: !!a.decisionMaker, function_key: a.functionKey ?? null, invited_at: a.invited ? new Date(ctx.now()).toISOString() : null,
+    })),
   ];
   const { error: attErr } = await ctx.db.from('interview_attendees').insert(attendeeRows);
   dbFail(attErr, 'Die Teilnehmer');
@@ -474,6 +547,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     round,
     allowAlternative: draft.allowAlternative,
     consentRequired: !bundle.submission.identity_unlocked,
+    meeting: draftMeeting(draft, bundle.job.company_name),
   });
   const candidateMail = await ctx.mail({ fromEmail: ctx.fromEmail, fromName, to: bundle.candidate.email, replyTo: recruiter?.email ?? undefined, ...invitation }, { template: 'interview_invitation_v2', meta: { interview_id: iv!.id, submission_id: bundle.submission.id } });
 
@@ -489,6 +563,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
       durationMinutes: draft.durationMinutes,
       round,
       detailUrl: `${ctx.appUrl()}/recruiter/submissions/${bundle.submission.id}`,
+      format: draft.meetingFormat,
     });
     recruiterMail = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: recruiter.email, ...content }, { template: 'interview_requested_recruiter', meta: { interview_id: iv!.id } });
   }
@@ -599,6 +674,36 @@ function stateOf(b: InterviewBundle, now: number): string {
   return 'open';
 }
 
+const formatOf = (iv: any): MeetingFormat => (iv.meeting_format === 'phone' || iv.meeting_format === 'onsite' ? iv.meeting_format : 'teams');
+const maskPhone = (phone: string | null | undefined) => {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  return digits.length >= 4 ? `··· ${digits.slice(-2)}` : null;
+};
+
+/** Wie das Gespräch stattfindet, für Mails und Einladungen. */
+function meetingOf(b: InterviewBundle): mails.MeetingInfo {
+  const iv = b.interview;
+  return { format: formatOf(iv), companyName: b.job.company_name, joinUrl: iv.teams_join_url ?? iv.meeting_link ?? null, address: iv.onsite_address ?? null, note: iv.location_note ?? null, callPhone: iv.call_phone ?? null };
+}
+
+function icsLocation(m: mails.MeetingInfo): string {
+  if (m.format === 'phone') return `Telefon: ${m.companyName} ruft an`;
+  if (m.format === 'onsite') return (m.address ?? 'Vor Ort').replace(/\s*\n\s*/g, ', ');
+  return 'Microsoft Teams-Besprechung';
+}
+
+/** Telefon-Interview: Nummer des Kandidaten (neu angegeben oder hinterlegt). */
+function callPhoneFor(b: InterviewBundle, body: any): string | null {
+  if (formatOf(b.interview) !== 'phone') return null;
+  const given = typeof body.phone === 'string' ? body.phone.trim().slice(0, 40) : '';
+  if (given) {
+    must(/^[+\d][\d\s/()-]{5,}$/.test(given), 'Bitte eine gültige Telefonnummer angeben.');
+    return given;
+  }
+  must(b.candidate.phone, 'Bitte geben Sie an, unter welcher Nummer wir Sie erreichen.');
+  return b.candidate.phone;
+}
+
 export async function candidateView(ctx: ServiceCtx, b: InterviewBundle) {
   const iv = b.interview;
   const now = ctx.now();
@@ -621,7 +726,10 @@ export async function candidateView(ctx: ServiceCtx, b: InterviewBundle) {
     companyName: b.job.company_name,
     jobTitle: b.job.title,
     durationMinutes: iv.duration_minutes ?? 60,
-    format: 'teams',
+    format: formatOf(iv),
+    onsite: formatOf(iv) === 'onsite' && iv.onsite_address ? { address: iv.onsite_address, note: iv.location_note ?? null, mapsUrl: mails.mapsUrl(iv.onsite_address) } : null,
+    phoneOnFile: formatOf(iv) === 'phone' ? maskPhone(b.candidate.phone) : null,
+    callPhone: formatOf(iv) === 'phone' ? maskPhone(iv.call_phone) : null,
     message: iv.client_message ?? null,
     interviewers: b.attendees.map((a: any) => ({ name: a.name, title: a.title ?? null })),
     recruiter: b.recruiter ? { name: b.recruiter.name, phone: b.recruiter.phone, email: b.recruiter.email } : null,
@@ -646,7 +754,7 @@ function candidateIcsUrl(b: InterviewBundle): string | null {
   const ics = buildIcs({
     method: 'REQUEST', uid: inviteUid(iv.id, 'candidate'), sequence: 0, startIso: iv.scheduled_at, durationMinutes: iv.duration_minutes ?? 60,
     summary: `Interview: ${b.job.title} bei ${b.job.company_name}`,
-    description: inviteDescription(iv.teams_join_url ?? null, ''), location: 'Microsoft Teams-Besprechung', url: iv.teams_join_url ?? undefined,
+    description: inviteDescription(meetingOf(b), ''), location: icsLocation(meetingOf(b)), url: formatOf(iv) === 'teams' ? iv.teams_join_url ?? undefined : undefined,
     organizerEmail: 'termine@matchunt.ai', organizerName: 'Matchunt Termine', attendeeEmail: b.candidate.email, attendeeName: b.candidate.full_name,
   });
   return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
@@ -674,18 +782,20 @@ export async function candidateRespond(ctx: ServiceCtx, body: any) {
     must(slot, 'Bitte einen der vorgeschlagenen Termine wählen.');
     must(Date.parse(slot.datetime) > now + 30 * 60000, 'Dieser Termin liegt zu kurz vor dem Beginn. Bitte einen anderen wählen.');
     const consent = requireConsent(b, body);
-    await finalizeBooking(ctx, b, slot.datetime, { by: 'candidate', consent });
+    const callPhone = callPhoneFor(b, body);
+    await finalizeBooking(ctx, b, slot.datetime, { by: 'candidate', consent, callPhone });
   } else if (body.action === 'alternative') {
     must(iv.allow_alternative, 'Für diese Einladung ist keine andere Zeit vorgesehen.');
     const start = new Date(Date.parse(String(body.start))).toISOString();
     const alt = await alternativesFor(ctx, b);
     must(alt.slots.some((s) => s.start === start), 'Diese Zeit ist nicht mehr frei. Bitte eine andere wählen.', 'conflict');
     const consent = requireConsent(b, body);
+    const callPhone = callPhoneFor(b, body);
     const message = typeof body.message === 'string' ? body.message.trim().slice(0, 1000) || null : null;
     if (alt.connected) {
-      await finalizeBooking(ctx, b, start, { by: 'candidate', consent, candidateMessage: message });
+      await finalizeBooking(ctx, b, start, { by: 'candidate', consent, candidateMessage: message, callPhone });
     } else {
-      await requestAlternative(ctx, b, start, message, consent);
+      await requestAlternative(ctx, b, start, message, consent, callPhone);
     }
   } else if (body.action === 'decline') {
     const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) || null : null;
@@ -696,11 +806,12 @@ export async function candidateRespond(ctx: ServiceCtx, body: any) {
   return candidateView(ctx, (await loadInterview(ctx.db, { id: iv.id }))!);
 }
 
-async function requestAlternative(ctx: ServiceCtx, b: InterviewBundle, start: string, message: string | null, consent: Record<string, unknown> | null) {
+async function requestAlternative(ctx: ServiceCtx, b: InterviewBundle, start: string, message: string | null, consent: Record<string, unknown> | null, callPhone: string | null = null) {
   const iv = b.interview;
   const clientToken = generateToken();
   const { data: updated, error } = await ctx.db.from('interviews').update({
     status: 'counter_proposed',
+    ...(callPhone ? { call_phone: callPhone } : {}),
     counter_slots: [{ datetime: start }],
     candidate_message: message,
     consent_given_at: consent ? consent.consented_at : iv.consent_given_at,
@@ -754,7 +865,7 @@ async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: str
 // Buchung abschließen: Status, Freigabe, Teams-Link, Einladungen, Mails
 // ---------------------------------------------------------------------------
 
-interface BookingOptions { by: 'candidate' | 'client'; consent?: Record<string, unknown> | null; candidateMessage?: string | null; clientUserId?: string }
+interface BookingOptions { by: 'candidate' | 'client'; consent?: Record<string, unknown> | null; candidateMessage?: string | null; clientUserId?: string; callPhone?: string | null }
 
 export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, startIso: string, opts: BookingOptions) {
   const iv = b.interview;
@@ -785,6 +896,7 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
     consent_given_at: opts.consent ? opts.consent.consented_at : iv.consent_given_at,
     pending_opt_in: false,
     client_token_hash: null,
+    ...(opts.callPhone ? { call_phone: opts.callPhone } : {}),
   }).eq('id', iv.id).in('status', ['pending_response', 'counter_proposed']).select('*').maybeSingle();
   dbFail(error, 'Der Termin');
   must(updated, 'Diese Einladung wurde bereits beantwortet.', 'conflict');
@@ -810,7 +922,9 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
   }
   b.submission.identity_unlocked = b.submission.identity_unlocked || !!consentAt;
 
-  // Teams-Link
+  // Termin im Kalender des Kunden bzw. Teams-Link
+  const format = formatOf(b.interview);
+  const meeting = meetingOf(b);
   const subject = `Interview: ${b.candidate.full_name} · ${b.job.title}`;
   const appLink = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
   let provider: 'client_calendar' | 'matchunt_teams' | 'none' = 'none';
@@ -819,21 +933,24 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
   const token = await organizerToken(ctx, organizerId);
   if (token) {
     try {
+      const phoneLine = format === 'phone' && meeting.callPhone ? `<p><strong>Bitte anrufen:</strong> ${meeting.callPhone}</p>` : '';
       const ev = await createTeamsEvent(token, {
         subject,
-        bodyHtml: `<p>Interview über Matchunt mit ${b.candidate.full_name} für ${b.job.title}.</p><p>Lebenslauf, Leitfaden und Umbuchen: <a href="${appLink}">${appLink}</a></p>`,
+        bodyHtml: `<p>Interview über Matchunt mit ${b.candidate.full_name} für ${b.job.title}.</p>${phoneLine}<p>Lebenslauf, Leitfaden und Umbuchen: <a href="${appLink}">${appLink}</a></p>`,
         startMs, endMs: startMs + duration * 60000,
         attendees: b.attendees.filter((a: any) => !a.is_organizer).map((a: any) => ({ email: a.email, name: a.name, required: a.required })),
         transactionId: `matchunt-${iv.id}`,
+        online: format === 'teams',
+        location: format === 'teams' ? undefined : icsLocation(meeting),
       });
       provider = 'client_calendar';
-      joinUrl = ev.joinUrl;
-      Object.assign(patch, { outlook_event_id: ev.eventId, calendar_event_id: ev.eventId, teams_join_url: ev.joinUrl });
+      joinUrl = format === 'teams' ? ev.joinUrl : null;
+      Object.assign(patch, { outlook_event_id: ev.eventId, calendar_event_id: ev.eventId, ...(format === 'teams' ? { teams_join_url: ev.joinUrl } : {}) });
     } catch (e) {
       console.warn('[interview] Termin im Outlook des Kunden nicht angelegt', e instanceof Error ? e.message : e);
     }
   }
-  if (provider === 'none' && ctx.ms) {
+  if (provider === 'none' && format === 'teams' && ctx.ms) {
     try {
       const meeting = await createMatchuntMeeting(ctx.ms, subject, startMs, startMs + duration * 60000);
       if (meeting) {
@@ -851,8 +968,13 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
   await sendBookingMails(ctx, b, startMs, joinUrl, provider);
 }
 
-function inviteDescription(joinUrl: string | null, extra: string) {
-  return [joinUrl ? `Microsoft Teams: ${joinUrl}` : 'Den Teams-Link bekommen Sie rechtzeitig vor dem Termin.', 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.', extra].filter(Boolean).join('\n\n');
+function inviteDescription(m: mails.MeetingInfo, extra: string) {
+  const how = m.format === 'phone'
+    ? `Telefon-Interview: ${m.companyName} ruft an${m.callPhone ? ` (${m.callPhone})` : ''}.`
+    : m.format === 'onsite'
+      ? [`Vor Ort: ${(m.address ?? '').replace(/\s*\n\s*/g, ', ')}`, m.note, m.address ? `Karte: ${mails.mapsUrl(m.address)}` : null].filter(Boolean).join('\n')
+      : [m.joinUrl ? `Microsoft Teams: ${m.joinUrl}` : 'Den Teams-Link bekommen Sie rechtzeitig vor dem Termin.', 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.'].join('\n\n');
+  return [how, extra].filter(Boolean).join('\n\n');
 }
 
 async function sendInvite(ctx: ServiceCtx, b: InterviewBundle, r: { key: string; email: string; name: string }, method: 'REQUEST' | 'CANCEL', content: mails.MailContent, ics: { summary: string; description: string; startMs: number }, template: string) {
@@ -862,7 +984,7 @@ async function sendInvite(ctx: ServiceCtx, b: InterviewBundle, r: { key: string;
   const sequence = existing ? existing.sequence + 1 : 0;
   const icsContent = buildIcs({
     method, uid, sequence, startIso: new Date(ics.startMs).toISOString(), durationMinutes: iv.duration_minutes ?? 60,
-    summary: ics.summary, description: ics.description, location: 'Microsoft Teams-Besprechung', url: iv.teams_join_url ?? undefined,
+    summary: ics.summary, description: ics.description, location: icsLocation(meetingOf(b)), url: formatOf(iv) === 'teams' ? iv.teams_join_url ?? undefined : undefined,
     organizerEmail: ctx.fromEmail, organizerName: 'Matchunt Termine', attendeeEmail: r.email, attendeeName: r.name, nowMs: ctx.now(),
   });
   const result = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt Termine', to: r.email, ...content, ics: { content: icsContent, method } }, { template, meta: { interview_id: iv.id, recipient: r.key } });
@@ -881,19 +1003,20 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   const candidateName = b.candidate.full_name;
   const agendaUrl = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
   const interviewerNames = b.attendees.map((a: any) => a.name).join(', ');
+  const meeting: mails.MeetingInfo = { ...meetingOf(b), joinUrl };
 
   // Kandidat
   await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName },
     'REQUEST',
-    mails.candidateBooked({ firstName: firstName(candidateName), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, recruiter: recruiterRef, link: '' }),
-    { summary: `Interview: ${b.job.title} bei ${b.job.company_name}`, description: inviteDescription(joinUrl, `Gesprächspartner: ${interviewerNames}${recruiterRef ? `\nFragen: ${recruiterRef.name}${recruiterRef.phone ? `, ${recruiterRef.phone}` : ''}` : ''}`), startMs },
+    mails.candidateBooked({ firstName: firstName(candidateName), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, recruiter: recruiterRef, link: '', meeting }),
+    { summary: `Interview: ${b.job.title} bei ${b.job.company_name}`, description: inviteDescription(meeting, `Gesprächspartner: ${interviewerNames}${recruiterRef ? `\nFragen: ${recruiterRef.name}${recruiterRef.phone ? `, ${recruiterRef.phone}` : ''}` : ''}`), startMs },
     'interview_booked_candidate');
 
   // Headhunter
   if (b.recruiter?.email) {
     await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name }, 'REQUEST',
-      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` }),
-      { summary: `Interview ${candidateName} · ${b.job.company_name}`, description: inviteDescription(joinUrl, `Kandidat: ${candidateName}\nStelle: ${b.job.title}`), startMs },
+      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format }),
+      { summary: `Interview ${candidateName} · ${b.job.company_name}`, description: inviteDescription(meeting, `Kandidat: ${candidateName}\nStelle: ${b.job.title}`), startMs },
       'interview_booked_recruiter');
   }
 
@@ -901,19 +1024,19 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   const clientSide = b.attendees.length ? b.attendees : (await clientRecipients(ctx.db, b)).map((r, i) => ({ ...r, id: `legacy-${i}`, is_organizer: true }));
   for (const a of clientSide) {
     if (a.is_organizer) {
-      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}` });
+      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting });
       if (provider === 'client_calendar') {
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: a.email, ...content }, { template: 'interview_booked_client', meta: { interview_id: iv.id } });
       } else {
         await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name }, 'REQUEST', content,
-          { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(joinUrl, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_booked_client');
+          { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(meeting, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_booked_client');
       }
       await notify(ctx, a.user_id, 'interview_scheduled', `${candidateName} hat das Interview bestätigt`, formatBerlinDateShort(startIso), iv.id);
     } else if (provider !== 'client_calendar') {
       // Im Outlook-Fall verschickt Outlook die Einladung an die Kollegen selbst
       await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name }, 'REQUEST',
-        mails.attendeeBooked({ name: a.name, organizerName: b.organizer?.name ?? 'Ihr Team', candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, agendaUrl }),
-        { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(joinUrl, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_booked_attendee');
+        mails.attendeeBooked({ name: a.name, organizerName: b.organizer?.name ?? 'Ihr Team', candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, agendaUrl, meeting }),
+        { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(meeting, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_booked_attendee');
     }
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_scheduled', `Interview steht: ${candidateName}`, `${b.job.title} · ${formatBerlinDateShort(startIso)}`, iv.id);
@@ -1015,6 +1138,78 @@ export async function withdraw(ctx: ServiceCtx, user: User, interviewId: string,
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_cancelled', `Interview-Anfrage zurückgezogen: ${b.candidate.full_name}`, text, iv.id);
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Kollegen aus dem Anfrage-Fenster ins Team einladen
+// ---------------------------------------------------------------------------
+
+/**
+ * Nutzt die bestehende Team-Einladung (organization_invites, Link /invite/:token,
+ * Annahme über accept-invite). Gibt es noch kein Firmenkonto, wird es angelegt
+ * und die eigenen Stellen werden daran gehängt, damit Kollegen sie sehen.
+ */
+export async function inviteColleague(ctx: ServiceCtx, user: User, body: any) {
+  const bundle = await requireClient(ctx, user, body.submissionId);
+  const name = String(body.name ?? '').trim().slice(0, 120);
+  const email = String(body.email ?? '').trim().toLowerCase();
+  must(name.length >= 2, 'Bitte den Namen angeben.');
+  must(EMAIL.test(email), 'Bitte eine gültige E-Mail-Adresse angeben.');
+  const functionKey: FunctionKey = FUNCTION_KEYS.includes(body.functionKey) ? body.functionKey : 'fachbereich';
+  const functionLabel = functionKey === 'andere' ? (String(body.functionLabel ?? '').trim().slice(0, 60) || 'Andere') : FUNCTION_LABELS[functionKey];
+  const access: 'job' | 'all' = body.access === 'all' ? 'all' : 'job';
+  const decisionMaker = body.decisionMaker === true;
+  const attendee: AttendeeDraft = { userId: null, email, name, title: functionLabel, required: true, kind: 'external', decisionMaker, functionKey, invited: true };
+
+  const rights = await inviteRights(ctx.db, user.id, bundle.job);
+  must(rights.allowed, rights.adminNames.length
+    ? `Kollegen ins Team einladen können nur Admins. Fragen Sie ${rights.adminNames.join(' oder ')}, oder laden Sie die Person nur zum Interview ein.`
+    : 'Kollegen ins Team einladen können nur Admins. Laden Sie die Person nur zum Interview ein.', 'not_allowed');
+
+  // Firmenkonto sicherstellen
+  let orgId: string | null = bundle.job.organization_id ?? null;
+  if (!orgId) {
+    const own = await ownOrganization(ctx.db, user.id);
+    if (own) {
+      orgId = own.id;
+    } else {
+      const { data: org, error } = await ctx.db.from('organizations').insert({ name: bundle.job.company_name || 'Mein Unternehmen', type: 'client', owner_id: user.id }).select('id').single();
+      dbFail(error, 'Das Firmenkonto');
+      orgId = org!.id;
+      await ctx.db.from('organization_members').insert({ organization_id: orgId, user_id: user.id, role: 'owner', status: 'active', joined_at: new Date(ctx.now()).toISOString() });
+    }
+    const { error: jobErr } = await ctx.db.from('jobs').update({ organization_id: orgId }).eq('client_id', user.id).is('organization_id', null);
+    if (jobErr) console.warn('[interview] Stellen nicht an das Firmenkonto gehängt', jobErr.code, jobErr.message);
+  }
+  const { data: org } = await ctx.db.from('organizations').select('name').eq('id', orgId).maybeSingle();
+
+  // Schon im Team?
+  const { data: existing } = await ctx.db.from('profiles').select('user_id, full_name').ilike('email', email).maybeSingle();
+  if (existing) {
+    const { data: member } = await ctx.db.from('organization_members').select('status').eq('organization_id', orgId).eq('user_id', existing.user_id).maybeSingle();
+    if (member?.status === 'active') {
+      return { attendee: { ...attendee, userId: existing.user_id, name: existing.full_name || name, kind: 'client_user', invited: false }, emailSent: false, note: `${existing.full_name || name} ist schon in Ihrem Team.` };
+    }
+  }
+  const { data: open } = await ctx.db.from('organization_invites').select('id').eq('organization_id', orgId).ilike('email', email)
+    .is('accepted_at', null).is('revoked_at', null).gt('expires_at', new Date(ctx.now()).toISOString()).maybeSingle();
+  if (open) return { attendee, emailSent: false, note: `${name} ist bereits eingeladen. Die Interview-Einladung bekommt ${name.split(' ')[0]} trotzdem.` };
+
+  const token = generateToken();
+  const role = access === 'all' ? (functionKey === 'hr' ? 'hr' : 'admin') : 'hiring_manager';
+  const { error: inviteErr } = await ctx.db.from('organization_invites').insert({
+    organization_id: orgId, email, role, job_ids: access === 'job' ? [bundle.job.id] : [],
+    token_hash: await sha256Hex(token), expires_at: new Date(ctx.now() + 7 * 86400000).toISOString(), invited_by: user.id,
+    permissions: { function_key: functionKey, function_label: functionLabel, decision_maker: decisionMaker, invited_from: 'interview_request' },
+  });
+  dbFail(inviteErr, 'Die Einladung');
+  const me = await personOf(ctx.db, user);
+  const content = mails.teamInviteForInterview({
+    inviterName: me.name, orgName: org?.name ?? bundle.job.company_name, functionLabel, jobTitle: bundle.job.title, access,
+    inviteUrl: `${ctx.appUrl()}/invite/${token}`, decisionMaker,
+  });
+  const result = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: `${me.name} über Matchunt`, to: email, replyTo: me.email || undefined, ...content }, { template: 'team_invite_interview', meta: { organization_id: orgId } });
+  return { attendee, emailSent: result.sent, note: result.sent ? null : 'Die Team-Einladung konnte nicht verschickt werden. Bitte später erneut versuchen.' };
 }
 
 // ---------------------------------------------------------------------------

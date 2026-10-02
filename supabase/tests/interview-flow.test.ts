@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, clientLink, confirmAlternative, loadCandidateView, requestContext, send, withdraw, type ServiceCtx,
+  availability, candidateRespond, clientLink, confirmAlternative, inviteColleague, loadCandidateView, requestContext, send, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -269,3 +269,77 @@ Deno.test('Rücksprung-Pfade bleiben intern und behalten den Anker', () => {
 });
 
 void confirmAlternative;
+
+Deno.test({ name: 'Telefon: Nummer wird beim Bestätigen verlangt, Einladung ohne Teams-Link mit Rückruf-Hinweis', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  tables.candidates[0].phone = null;
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await send(ctx, me, { submissionId: SUB, meetingFormat: 'phone', durationMinutes: 30, slots: [at(6, 10)], attendees: [], allowAlternative: false, alternativeRules: {}, round: 1 });
+  assert(sent[0].html.includes('am Telefon, Bluewater &amp; Bridge GmbH ruft Sie an'), 'Einladung nennt Telefon');
+  const token = linkToken(sent);
+  const view = await loadCandidateView(ctx, token);
+  eq(view.format, 'phone');
+  eq(view.phoneOnFile, null);
+  let message = '';
+  try { await candidateRespond(ctx, { action: 'accept', token, slotStart: at(6, 10), consentGiven: true }); } catch (e: any) { message = e.message; }
+  assert(message.includes('Nummer'), 'ohne Nummer keine Buchung');
+  sent.length = 0;
+  await candidateRespond(ctx, { action: 'accept', token, slotStart: at(6, 10), consentGiven: true, phone: '+49 170 1234567' });
+  eq(tables.interviews[0].call_phone, '+49 170 1234567');
+  eq(tables.interviews[0].meeting_provider, 'none');
+  const clientMail = sent.find((m) => m.template === 'interview_booked_client');
+  assert(clientMail.html.includes('Bitte rufen Sie Katharina Brenner an') && clientMail.html.includes('+49 170 1234567'), 'Kunde bekommt die Nummer');
+  assert(clientMail.ics.content.includes('LOCATION:Telefon: Bluewater & Bridge GmbH ruft an'), 'Ort in der Einladung');
+  assert(!sent.some((m) => m.ics?.content.includes('teams.microsoft.com')), 'kein Teams-Link');
+}});
+
+Deno.test({ name: 'Vor Ort: Adresse ist Pflicht und steht in Einladung, Mail und Kalender', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  let message = '';
+  try { await send(ctx, me, { submissionId: SUB, meetingFormat: 'onsite', durationMinutes: 60, slots: [at(6, 10)], attendees: [], allowAlternative: false, alternativeRules: {}, round: 1 }); } catch (e: any) { message = e.message; }
+  assert(message.includes('Adresse'), 'ohne Adresse kein Senden');
+  await send(ctx, me, { submissionId: SUB, meetingFormat: 'onsite', onsiteAddress: 'Bluewater & Bridge GmbH\nAdlzreiterstraße 2\n80337 München', locationNote: 'Bitte am Empfang melden', durationMinutes: 60, slots: [at(6, 10)], attendees: [], allowAlternative: false, alternativeRules: {}, round: 1 });
+  assert(sent[0].html.includes('Adlzreiterstraße 2') && sent[0].html.includes('Karte öffnen'), 'Adresse in der Einladung');
+  const token = linkToken(sent);
+  const view = await loadCandidateView(ctx, token);
+  eq(view.format, 'onsite');
+  assert(view.onsite?.mapsUrl.includes('google.com/maps'));
+  sent.length = 0;
+  await candidateRespond(ctx, { action: 'accept', token, slotStart: at(6, 10), consentGiven: true });
+  const candidateMail = sent.find((m) => m.template === 'interview_booked_candidate');
+  assert(candidateMail.ics.content.includes('LOCATION:Bluewater & Bridge GmbH\\, Adlzreiterstraße 2\\, 80337 München'), 'Ort mit Adresse');
+  assert(candidateMail.html.includes('Anfahrt in Karte öffnen'));
+}});
+
+Deno.test({ name: 'Kollegen einladen: Firmenkonto wird angelegt, Stelle angehängt, Einladung mit Funktion', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  tables.jobs[0].organization_id = null;
+  tables.organizations = [];
+  tables.organization_members = [];
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  const r = await inviteColleague(ctx, me, { submissionId: SUB, name: 'Leon Benko', email: 'Leon@Example.test', functionKey: 'geschaeftsfuehrung', access: 'all', decisionMaker: true });
+  eq(r.emailSent, true);
+  eq([r.attendee.email, r.attendee.title, r.attendee.decisionMaker, r.attendee.invited], ['leon@example.test', 'Geschäftsführung', true, true]);
+  eq(tables.organizations.length, 1, 'Firmenkonto angelegt');
+  eq(tables.jobs[0].organization_id, tables.organizations[0].id, 'Stelle hängt am Firmenkonto');
+  const invite = tables.organization_invites[0];
+  eq([invite.role, invite.job_ids, invite.email], ['admin', [], 'leon@example.test']);
+  const mail = sent.find((m) => m.template === 'team_invite_interview');
+  assert(mail.html.includes('Geschäftsführung') && mail.html.includes('/invite/'), 'Mail mit Funktion und Annahme-Link');
+  const again = await inviteColleague(ctx, me, { submissionId: SUB, name: 'Leon Benko', email: 'leon@example.test', functionKey: 'fachbereich' });
+  assert(again.note?.includes('bereits eingeladen'), 'keine doppelte Einladung');
+
+  const viewer = seed(); fixCandidate(viewer.tables);
+  viewer.tables.organization_members.push({ organization_id: 'org1', user_id: 'u-hm', role: 'hiring_manager', status: 'active' });
+  viewer.tables.job_collaborators.push({ job_id: 'j1', user_id: 'u-hm' });
+  let reason = '';
+  try { await inviteColleague(ctxFor(viewer.db, []), user('u-hm', 'hm@example.test'), { submissionId: SUB, name: 'X Y', email: 'x@y.de' }); } catch (e: any) { reason = e.message; }
+  assert(reason.includes('Marko Benko'), 'Nicht-Admin bekommt den Namen der Admins');
+}});
