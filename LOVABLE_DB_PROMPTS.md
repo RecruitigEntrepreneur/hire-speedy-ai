@@ -746,6 +746,18 @@ die neue Spalte `call_phone`; ohne Migration bleibt sie sonst leer.
 
 ---
 
+## 14 — Outlook-Termine im Interview-Raster, Puffer wählt der Kunde (02.10.2026)
+
+Befund Live-Test: Outlook verbunden (Marko.Benko@bluewater-bridge.de), Login bei Matchunt mit
+Gmail — Matchunt fragte frei/belegt mit der Login-Adresse ab, alle Zeiten waren grün. Commit
+`003ae17`. **Keine Migration.**
+
+> 1. Edge Functions deployen: `interview-request`, `get-interview-by-token`,
+>    `process-interview-response`, `interview-client-link`.
+> 2. Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
