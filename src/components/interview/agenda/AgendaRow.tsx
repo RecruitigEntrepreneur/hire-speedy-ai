@@ -11,9 +11,10 @@ import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { CandidateAvatar, CandidateName } from './CandidateIdentity';
 import { meetingTypeLabel, MeetingTypeIcon } from './meetingType';
 import { buildIcs, downloadIcs } from '@/lib/ics';
+import { fmtRange } from '@/lib/interviewScheduling';
 import { cn } from '@/lib/utils';
 import {
-  ArrowLeftRight, Bell, CalendarPlus, Hourglass, MoreHorizontal, Star, UserX, Video, XCircle,
+  ArrowLeftRight, Bell, CalendarCheck, CalendarPlus, Hourglass, Loader2, MoreHorizontal, Star, UserX, Video, XCircle,
 } from 'lucide-react';
 
 export type AgendaRowVariant = 'agenda' | 'counter' | 'awaiting' | 'feedback' | 'past';
@@ -22,7 +23,12 @@ interface Props {
   iv: AgendaInterview;
   variant: AgendaRowVariant;
   onDetails: (iv: AgendaInterview) => void;
-  onEdit?: (iv: AgendaInterview) => void;
+  /** neue Anfrage über das Fenster „Interview anfragen“ (ersetzt die alte bzw. den Termin) */
+  onNewRequest?: (iv: AgendaInterview) => void;
+  /** angefragte andere Zeit des Kandidaten bestätigen */
+  onConfirmAlternative?: (iv: AgendaInterview) => void;
+  /** Bestätigung läuft gerade */
+  confirming?: boolean;
   onCancel?: (iv: AgendaInterview) => void;
   onNoShow?: (iv: AgendaInterview) => void;
   onRespondCounter?: (iv: AgendaInterview) => void;
@@ -31,11 +37,21 @@ interface Props {
   onOpenGuide?: (iv: AgendaInterview) => void;
 }
 
-const timeShort = (iso: string) => new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+// Anzeige immer in deutscher Zeit, egal wo der Browser steht
+const timeShort = (iso: string) =>
+  new Date(iso).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
 const dateShort = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  new Date(iso).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit' });
 
 const waitLabel = (h: number) => (h >= 48 ? `wartet seit ${Math.floor(h / 24)} Tagen` : h >= 1 ? `wartet seit ${h} Std` : 'gerade angefragt');
+const sinceLabel = (h: number) => (h >= 48 ? `seit ${Math.floor(h / 24)} Tagen` : h >= 24 ? 'seit gestern' : h >= 1 ? `seit ${h} Std` : 'seit eben');
+
+/** „3 Vorschläge seit 2 Tagen“ */
+const awaitingLabel = (iv: AgendaInterview) => {
+  const n = iv.proposedSlots.length;
+  if (n === 0) return `angefragt ${sinceLabel(iv.waitingHours)}`;
+  return `${n} ${n === 1 ? 'Vorschlag' : 'Vorschläge'} ${sinceLabel(iv.waitingHours)}`;
+};
 
 const PAST_LABEL: Record<string, { label: string; cls: string }> = {
   completed: { label: 'Absolviert', cls: 'text-emerald-600 border-emerald-500/40' },
@@ -47,8 +63,13 @@ const PAST_LABEL: Record<string, { label: string; cls: string }> = {
 
 /** Eine Interview-Zeile – die Variante bestimmt Zeitblock, Status und Aktionen. */
 export function AgendaRow({
-  iv, variant, onDetails, onEdit, onCancel, onNoShow, onRespondCounter, onRemind, onFeedback, onOpenGuide,
+  iv, variant, onDetails, onNewRequest, onConfirmAlternative, confirming, onCancel, onNoShow, onRespondCounter, onRemind,
+  onFeedback, onOpenGuide,
 }: Props) {
+  // „Kandidat fragt eine andere Zeit an“: die angefragte Zeit steht in counter_slots[0]
+  const requested = variant === 'counter' ? iv.counterSlots[0]?.datetime ?? null : null;
+  const requestedOpen = !!requested && new Date(requested).getTime() > Date.now();
+
   const addToCalendar = () =>
     iv.scheduledAt &&
     downloadIcs(
@@ -68,8 +89,8 @@ export function AgendaRow({
         <Hourglass className="h-4 w-4 text-muted-foreground" />
       </div>
     ) : variant === 'counter' ? (
-      <div className="flex min-w-[60px] items-center justify-center rounded-lg bg-destructive/10 px-2 py-2.5">
-        <ArrowLeftRight className="h-4 w-4 text-destructive" />
+      <div className="flex min-w-[60px] items-center justify-center rounded-lg bg-warning/10 px-2 py-2.5">
+        <ArrowLeftRight className="h-4 w-4 text-warning" />
       </div>
     ) : iv.scheduledAt ? (
       <div className={cn('min-w-[60px] rounded-lg px-2 py-1.5 text-center', variant === 'agenda' ? 'bg-muted' : 'bg-muted/50')}>
@@ -81,35 +102,54 @@ export function AgendaRow({
     );
 
   return (
-    <div className="group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/40">
+    <div
+      className={cn(
+        'group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/40',
+        variant === 'counter' && 'flex-wrap sm:flex-nowrap',
+      )}
+    >
       {leftBlock}
       <CandidateAvatar iv={iv} />
 
-      <button onClick={() => onDetails(iv)} className="min-w-0 flex-1 text-left">
-        <CandidateName iv={iv} />
-        <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-          <MeetingTypeIcon type={iv.meetingType} className="h-3 w-3 shrink-0" />
-          {meetingTypeLabel(iv.meetingType)}
-          {iv.onsiteAddress ? `, ${iv.onsiteAddress}` : ''} · {iv.jobTitle}
-          {variant === 'awaiting' && iv.proposedSlots.length > 0 && ` · ${iv.proposedSlots.length} Slots vorgeschlagen`}
-        </p>
-      </button>
+      {variant === 'counter' ? (
+        <button onClick={() => onDetails(iv)} className="min-w-0 flex-1 text-left">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
+            <CandidateName iv={iv} />
+            {requested ? (
+              <span className={cn('truncate', !requestedOpen && 'text-muted-foreground line-through')}>
+                fragt {fmtRange(requested, iv.durationMinutes)} an
+              </span>
+            ) : (
+              <span className="truncate">fragt eine andere Zeit an</span>
+            )}
+          </span>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {iv.candidateMessage ? `„${iv.candidateMessage}“ · ` : ''}
+            {iv.jobTitle}
+            {requested && !requestedOpen ? ' · angefragte Zeit ist verstrichen' : ''}
+          </p>
+        </button>
+      ) : (
+        <button onClick={() => onDetails(iv)} className="min-w-0 flex-1 text-left">
+          <CandidateName iv={iv} />
+          <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+            <MeetingTypeIcon type={iv.meetingType} className="h-3 w-3 shrink-0" />
+            {meetingTypeLabel(iv.meetingType)}
+            {iv.onsiteAddress ? `, ${iv.onsiteAddress}` : ''} · {iv.jobTitle}
+          </p>
+        </button>
+      )}
 
       {/* Status/Zusatz je Variante */}
       {variant === 'agenda' && !iv.confirmed && (
         <Badge variant="outline" className="shrink-0 text-xs text-amber-600">unbestätigt</Badge>
       )}
       {variant === 'counter' && (
-        <span className="shrink-0 text-xs font-medium text-destructive">{waitLabel(iv.waitingHours)}</span>
+        <span className="hidden shrink-0 text-xs text-muted-foreground lg:inline">{waitLabel(iv.waitingHours)}</span>
       )}
       {variant === 'awaiting' && (
-        <span
-          className={cn(
-            'shrink-0 text-xs',
-            iv.slotsExpired ? 'font-medium text-destructive' : iv.waitingHours >= 48 ? 'font-medium text-amber-600' : 'text-muted-foreground',
-          )}
-        >
-          {iv.slotsExpired ? 'Slots abgelaufen' : waitLabel(iv.waitingHours)}
+        <span className={cn('shrink-0 text-xs', iv.slotsExpired ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+          {iv.slotsExpired ? 'Vorschläge verstrichen' : awaitingLabel(iv)}
         </span>
       )}
       {variant === 'past' && (
@@ -126,9 +166,37 @@ export function AgendaRow({
           </a>
         </Button>
       )}
-      {variant === 'counter' && onRespondCounter && (
-        <Button size="sm" variant="destructive" className="h-7 shrink-0 text-xs" onClick={() => onRespondCounter(iv)}>
-          Antworten
+      {variant === 'counter' && (
+        <div className="flex w-full shrink-0 justify-end gap-1.5 sm:w-auto">
+          {requestedOpen && onConfirmAlternative ? (
+            <Button size="sm" className="h-7 gap-1 text-xs" disabled={confirming} onClick={() => onConfirmAlternative(iv)}>
+              {confirming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarCheck className="h-3.5 w-3.5" />}
+              Zeit bestätigen
+            </Button>
+          ) : (
+            !onNewRequest &&
+            onRespondCounter && (
+              <Button size="sm" className="h-7 text-xs" onClick={() => onRespondCounter(iv)}>
+                Antworten
+              </Button>
+            )
+          )}
+          {onNewRequest && (
+            <Button
+              size="sm"
+              variant={requestedOpen ? 'outline' : 'default'}
+              className="h-7 text-xs"
+              disabled={confirming}
+              onClick={() => onNewRequest(iv)}
+            >
+              Neue Termine
+            </Button>
+          )}
+        </div>
+      )}
+      {variant === 'awaiting' && iv.slotsExpired && onNewRequest && (
+        <Button size="sm" className="h-7 shrink-0 gap-1 text-xs" onClick={() => onNewRequest(iv)}>
+          <CalendarPlus className="h-3.5 w-3.5" /> Neue Termine
         </Button>
       )}
       {variant === 'awaiting' && onRemind && (
@@ -159,9 +227,12 @@ export function AgendaRow({
               <CalendarPlus className="mr-2 h-4 w-4" /> Zum Kalender (.ics)
             </DropdownMenuItem>
           )}
-          {onEdit && (variant === 'agenda' || variant === 'awaiting') && (
-            <DropdownMenuItem onClick={() => onEdit(iv)}>
-              {variant === 'awaiting' ? 'Neue Slots vorschlagen' : 'Umbuchen'}
+          {variant === 'counter' && onRespondCounter && (
+            <DropdownMenuItem onClick={() => onRespondCounter(iv)}>Anfrage ansehen</DropdownMenuItem>
+          )}
+          {onNewRequest && (variant === 'agenda' || variant === 'awaiting') && (
+            <DropdownMenuItem onClick={() => onNewRequest(iv)}>
+              {variant === 'awaiting' ? 'Neue Termine' : 'Umbuchen'}
             </DropdownMenuItem>
           )}
           {variant === 'feedback' && onNoShow && (
@@ -173,7 +244,7 @@ export function AgendaRow({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onCancel(iv)}>
-                <XCircle className="mr-2 h-4 w-4" /> {variant === 'awaiting' ? 'Anfrage zurückziehen' : 'Absagen'}
+                <XCircle className="mr-2 h-4 w-4" /> {variant === 'agenda' ? 'Absagen' : 'Anfrage zurückziehen'}
               </DropdownMenuItem>
             </>
           )}

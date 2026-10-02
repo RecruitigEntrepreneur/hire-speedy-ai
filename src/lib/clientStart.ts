@@ -5,10 +5,12 @@
  * früheren Kunden-Onboardings (client_verifications) und schickte Kunden, die
  * längst per DocuSign unterschrieben hatten, zu „AGB akzeptieren“ und in ein
  * altes Onboarding mit eigenen AGB (Live-Fall Kanna Medics). Die Schritte hier
- * kommen aus echten Daten: Rahmenvertrag, Stellen, Firmendaten, Rundgang.
+ * kommen aus echten Daten: Rahmenvertrag, Stellen, Firmendaten, Kalender
+ * (seit 02.10.2026), Rundgang.
  */
+import type { CalendarState } from '@/lib/interviewScheduling';
 
-export type ClientStepId = 'contract' | 'position' | 'company' | 'tour';
+export type ClientStepId = 'contract' | 'position' | 'company' | 'calendar' | 'tour';
 /** done: erledigt · waiting: liegt bei Matchunt · open: der Kunde ist dran */
 export type ClientStepState = 'done' | 'waiting' | 'open';
 export interface ClientStep { id: ClientStepId; label: string; state: ClientStepState; detail: string; action?: string }
@@ -29,6 +31,8 @@ export function clientStartSteps(input: {
   jobs: StartJob[];
   /** Was für die Rechnung an Firmendaten fehlt, als lesbare Bezeichnungen. */
   missingCompany: string[];
+  /** Stand der Kalender-Verbindung; null = unbekannt (noch nicht geladen oder Fehler). */
+  calendar: CalendarState | null;
   tourDone: boolean;
 }): ClientStep[] {
   const { framework: rv, jobs } = input;
@@ -57,11 +61,23 @@ export function clientStartSteps(input: {
     ? { id: 'company', label: 'Firmendaten für Rechnungen', state: 'open', detail: `Es fehlt: ${input.missingCompany.join(', ')}`, action: 'Ergänzen' }
     : { id: 'company', label: 'Firmendaten für Rechnungen', state: 'done', detail: 'Firmierung und Anschrift sind hinterlegt' };
 
+  // not_configured: Die Verbindung richtet Matchunt gerade ein -- das liegt
+  // nicht beim Kunden, also „waiting“ ohne Aktion statt einer Sackgasse.
+  const calendar: ClientStep = input.calendar === 'connected'
+    ? { id: 'calendar', label: 'Kalender verbinden', state: 'done', detail: 'Outlook ist verbunden' }
+    : input.calendar === 'it_pending'
+    ? { id: 'calendar', label: 'Kalender verbinden', state: 'waiting', detail: 'Wartet auf Ihre IT', action: 'Ansehen' }
+    : input.calendar === 'not_configured'
+    ? { id: 'calendar', label: 'Kalender verbinden', state: 'waiting', detail: 'Die Kalender-Verbindung wird gerade eingerichtet' }
+    : input.calendar === 'expired'
+    ? { id: 'calendar', label: 'Kalender verbinden', state: 'open', detail: 'Die Verbindung zu Outlook ist abgelaufen', action: 'Neu verbinden' }
+    : { id: 'calendar', label: 'Kalender verbinden', state: 'open', detail: 'Damit Kandidaten nur freie Zeiten sehen', action: 'Verbinden' };
+
   const tour: ClientStep = input.tourDone
     ? { id: 'tour', label: 'Rundgang', state: 'done', detail: 'Das Wichtigste in zwei Minuten', action: 'Nochmal ansehen' }
     : { id: 'tour', label: 'Rundgang', state: 'open', detail: 'Das Wichtigste in zwei Minuten', action: 'Rundgang starten' };
 
-  return [contract, position, company, tour];
+  return [contract, position, company, calendar, tour];
 }
 
 /** Der Rahmenvertrag, der für den Kunden gerade zählt: der wirksame, sonst der am weitesten fortgeschrittene. */

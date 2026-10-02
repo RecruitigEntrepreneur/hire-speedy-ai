@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ProfileCompletenessCard } from '@/components/client/ProfileCompletenessCard';
+import { CalendarSettingsSection } from '@/components/interview/calendar/CalendarSettingsSection';
 import { firmendatenAus, joinAddress } from '@/lib/firmendaten';
 import {
   ARBEITGEBER_FELDER, arbeitgeberVorschlaege, listeAus, type VorschlagStelle,
@@ -126,10 +127,12 @@ export default function ClientSettings() {
     }
   }, [user]);
 
-  // Aus „Ihr Start bei Matchunt“ (Firmendaten ergänzen) direkt zum Abschnitt.
+  // Aus „Ihr Start bei Matchunt“ (#firmendaten, #kalender) und nach dem
+  // Rücksprung aus Microsoft (#kalender) direkt zum Abschnitt.
   useEffect(() => {
-    if (!loading && window.location.hash === '#firmendaten') {
-      document.getElementById('firmendaten')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const ziel = window.location.hash.slice(1);
+    if (!loading && ziel) {
+      document.getElementById(ziel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [loading]);
 
@@ -532,6 +535,10 @@ export default function ClientSettings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Kalender und Interview-Zeiten (02.10.2026): Outlook verbinden und
+              die Zeiten für Interview-Vorschläge der Kandidaten -- speichert für sich. */}
+          <CalendarSettingsSection />
 
           {/* Partner Facts for Recruiters */}
           <Card ref={partnerFactsRef}>

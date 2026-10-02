@@ -43,6 +43,15 @@ Object.assign(supabase, { from: (table: string) => {
   };
   return q;
 } });
+// Kalender-Schritt (seit 02.10.2026): `supabase.functions` ist ein Getter, deshalb defineProperty.
+Object.defineProperty(supabase, 'functions', { configurable: true, value: {
+  invoke: async () => ({
+    data: scenario === 'fertig'
+      ? { state: 'connected', provider: 'microsoft', accountEmail: 'luca.bartosch@kanna-medics.de', itRequest: null }
+      : { state: 'not_connected', provider: null, accountEmail: null, itRequest: null },
+    error: null,
+  }),
+} });
 Object.assign(supabase.auth, {
   getSession: async () => ({ data: { session }, error: null }),
   onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),

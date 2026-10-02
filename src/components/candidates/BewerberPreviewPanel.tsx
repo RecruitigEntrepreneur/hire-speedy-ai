@@ -43,6 +43,8 @@ export interface PrimaryAction {
   run: 'wizard' | string; // 'wizard' öffnet den Interview-Wizard, sonst Navigationsziel
 }
 
+const TERMINAL_STAGES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn'];
+
 // Genau EINE Primäraktion pro Zustand — sie beantwortet „Was ist jetzt zu tun?".
 export function primaryActionFor(stateKey: string): PrimaryAction {
   if (stateKey === 'opted_in') return { labelKey: 'bewerber.actions.plan_interview', icon: Calendar, run: 'wizard' };
@@ -111,6 +113,8 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
     item.fullName || item.currentRole || item.career[0]?.jobTitle || t('bewerber.card.no_role');
   const initials = displayName.slice(0, 2).toUpperCase();
   const isArchived = item.tab === 'archiv';
+  // Eingestellt/abgelehnt/zurückgezogen: keine Primäraktion, auch wenn nur die Stage es sagt
+  const isClosed = TERMINAL_STAGES.includes(item.status) || TERMINAL_STAGES.includes(item.stage);
   const primary = primaryActionFor(item.state.key);
   const PrimaryIcon = primary.icon;
   const [aiExpanded, setAiExpanded] = useState(false);
@@ -214,10 +218,12 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={runPrimary}>
-              <PrimaryIcon className="h-3.5 w-3.5 mr-1.5" />
-              {t(primary.labelKey)}
-            </Button>
+            {!isClosed && (
+              <Button size="sm" onClick={runPrimary}>
+                <PrimaryIcon className="h-3.5 w-3.5 mr-1.5" />
+                {t(primary.labelKey)}
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="text-muted-foreground" onClick={onReject}>
               <X className="h-3.5 w-3.5 mr-1.5" />
               {t('bewerber.actions.reject')}

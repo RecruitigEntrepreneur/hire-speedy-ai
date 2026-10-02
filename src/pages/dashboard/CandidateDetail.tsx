@@ -43,7 +43,7 @@ import { de } from 'date-fns/locale';
 import { CandidateFitAssessmentCard } from '@/components/candidates/CandidateFitAssessmentCard';
 import { CandidateExperienceTimeline } from '@/components/candidates/CandidateExperienceTimeline';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
-import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
+import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import { PendingRequestStatus } from '@/components/interview/PendingRequestStatus';
 import { StatePill } from '@/components/candidates/BewerberStatusPill';
 import { primaryActionFor } from '@/components/candidates/BewerberPreviewPanel';
@@ -327,11 +327,15 @@ export default function CandidateDetail() {
   } = candidateView;
 
   const enrichedWorkModel = buildWorkModelLabel(workModel, remoteDaysPreferred, relocationWilling);
-  const isTerminal = status === 'hired' || status === 'rejected' || status === 'client_rejected';
   const anonCode = candidateAnonCode(candidateId);
   const fmtSeniority = (s: string) => (s && /^[a-z]/.test(s) ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   const state = subState?.state ?? { key: 'wait_today', tone: 'neutral' as const, turn: 'me' as const };
+  // Eingestellt, abgelehnt, zurückgezogen oder abgeschlossen: keine Primäraktion
+  // („Interview anfragen“) mehr — Status UND Stage zählen, dazu der Archiv-Zustand.
+  const TERMINAL_STATES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn'];
+  const isTerminal =
+    TERMINAL_STATES.includes(status) || TERMINAL_STATES.includes(stage) || state.key === 'archiv';
   const primary = primaryActionFor(state.key);
   const PrimaryIcon = primary.icon;
   // Nur „wartet auf Kandidat" nutzt den Pending-Baustein; beim Gegenvorschlag
@@ -816,13 +820,11 @@ export default function CandidateDetail() {
         onSuccess={() => { setShowRejectDialog(false); refetch(); }}
       />
 
-      <ProfessionalInterviewWizard
+      <InterviewRequestDialog
         open={showInterviewDialog}
         onOpenChange={setShowInterviewDialog}
         submissionId={submissionId}
-        candidateAnonymousId={displayName}
-        jobTitle={jobTitle}
-        onSuccess={() => { setShowInterviewDialog(false); refetch(); }}
+        onSent={() => { setShowInterviewDialog(false); refetch(); }}
       />
     </DashboardLayout>
   );

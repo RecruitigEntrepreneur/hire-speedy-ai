@@ -56,8 +56,12 @@ const TERMINAL = ['declined', 'cancelled', 'no_show'];
 const parseSlots = (raw: unknown): AgendaSlot[] => {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((s: any) => ({ datetime: typeof s === 'string' ? s : s?.datetime }))
-    .filter((s) => !!s.datetime);
+    // Altbestand: { datetime }, neue Anfragen (interview-request) ggf. { start } oder ISO-Strings
+    .map((s: unknown) => {
+      const o = s as string | { datetime?: string; start?: string } | null;
+      return { datetime: typeof o === 'string' ? o : o?.datetime ?? o?.start };
+    })
+    .filter((s): s is AgendaSlot => !!s.datetime);
 };
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -157,13 +161,14 @@ export function useClientInterviewAgenda() {
         if (TERMINAL.includes(iv.status)) {
           past.push(iv);
         } else if (iv.status === 'counter_proposed') {
+          // „Kandidat fragt eine andere Zeit an“ (counter_slots[0]) – der Kunde ist am Zug
           counterProposals.push(iv);
         } else if (!iv.scheduledAt) {
           awaitingCandidate.push(iv);
         } else if (iv.endsAt !== null && iv.endsAt > now) {
           agenda.push(iv);
         } else if (iv.status === 'pending_response' || iv.status === 'pending') {
-          // Termin(e) verstrichen, Kandidat hat nie geantwortet → wartet, mit Hinweis "Slots abgelaufen"
+          // Termin(e) verstrichen, Kandidat hat nie geantwortet → wartet, mit Hinweis „Vorschläge verstrichen“
           awaitingCandidate.push({ ...iv, slotsExpired: true });
         } else if (!iv.feedback) {
           feedbackDue.push(iv);

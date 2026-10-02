@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { BewerberPreviewPanel } from './BewerberPreviewPanel';
 import { BewerberStatusPill } from './BewerberStatusPill';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
-import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
+import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import type { BewerberItem } from '@/hooks/useBewerber';
 
 interface BewerberInboxViewProps {
@@ -162,13 +162,11 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
       />
 
       {wizardFor && (
-        <ProfessionalInterviewWizard
+        <InterviewRequestDialog
           open={!!wizardFor}
           onOpenChange={(open: boolean) => !open && setWizardFor(null)}
           submissionId={wizardFor.submissionId}
-          candidateAnonymousId={displayNameOf(wizardFor)}
-          jobTitle={wizardFor.jobTitle}
-          onSuccess={() => {
+          onSent={() => {
             setWizardFor(null);
             onRefresh?.();
           }}

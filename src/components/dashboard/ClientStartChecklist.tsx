@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { clientTourSeen } from '@/lib/clientGuide';
 import { ladeFirmendaten } from '@/lib/firmendaten';
+import { useCalendarStatus } from '@/components/interview/calendar/useCalendarStatus';
 import {
   CLIENT_START_HIDDEN_KEY, clientStartDone, clientStartSteps, currentFramework,
   type ClientStep, type ClientStepId, type StartFramework, type StartJob,
@@ -28,13 +29,14 @@ const ICON: Record<ClientStep['state'], JSX.Element> = {
 
 /**
  * „Ihr Start bei Matchunt“ (lib/clientStart.ts): Vertrag, erste Position,
- * Firmendaten, Rundgang -- aus echten Daten, mit direktem Weg zum nächsten
- * Schritt. Bei 4 von 4 eine schmale Zeile zum Ausblenden.
+ * Firmendaten, Kalender, Rundgang -- aus echten Daten, mit direktem Weg zum
+ * nächsten Schritt. Wenn alles erledigt ist, eine schmale Zeile zum Ausblenden.
  */
 export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [hidden, setHidden] = useState(false);
+  const calendar = useCalendarStatus();
 
   const { data } = useQuery({
     queryKey: ['client-start', user?.id],
@@ -55,14 +57,16 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
     },
   });
 
-  if (!user || !data) return null;
-  const steps = clientStartSteps({ ...data, tourDone: clientTourSeen(user, browserStorage()) });
+  // Auf den Kalender-Stand warten, sonst springt die Zählung kurz nach dem Laden.
+  if (!user || !data || calendar.isLoading) return null;
+  const steps = clientStartSteps({ ...data, calendar: calendar.state, tourDone: clientTourSeen(user, browserStorage()) });
   const done = clientStartDone(steps);
 
   const act = (id: ClientStepId) => {
     if (id === 'tour') onTour();
     else if (id === 'position') navigate('/dashboard/aufnahme');
     else if (id === 'company') navigate('/dashboard/settings#firmendaten');
+    else if (id === 'calendar') navigate('/dashboard/settings#kalender');
   };
 
   if (done === steps.length) {

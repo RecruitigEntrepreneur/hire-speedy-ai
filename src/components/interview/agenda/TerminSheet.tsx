@@ -7,6 +7,7 @@ import {
   CalendarPlus,
   CalendarX,
   ClockAlert,
+  Loader2,
   Lock,
   MapPin,
   MessageSquareQuote,
@@ -20,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
+import { fmtDayShort, fmtRange, fmtTime } from '@/lib/interviewScheduling';
 import { cn } from '@/lib/utils';
 
 export type TerminVariant = 'counter' | 'awaiting' | 'agenda' | 'feedback' | 'past';
@@ -31,11 +33,11 @@ const PILL_CLASSES: Record<string, string> = {
   neutral: 'bg-muted text-muted-foreground',
 };
 
-const fmtSlot = (iso: string) =>
-  `${new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}, ${new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
+// Anzeige immer in deutscher Zeit
+const fmtSlot = (iso: string) => `${fmtDayShort(iso)}, ${fmtTime(iso)} Uhr`;
 
 const fmtTag = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  new Date(iso).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit' });
 
 function waitingLabel(hours: number): string {
   const days = Math.floor(hours / 24);
@@ -51,19 +53,26 @@ export function TerminSheet({
   open,
   onOpenChange,
   onEdit,
+  onNewRequest,
+  onConfirmAlternative,
+  confirming,
   onRemind,
   onCancel,
-  onRespondCounter,
   onFeedback,
 }: {
   interview: AgendaInterview | null;
   variant: TerminVariant;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Termindaten bearbeiten (Link, Notizen) – nur noch für Termine ohne Teams-Link */
   onEdit: (iv: AgendaInterview) => void;
+  /** neue Anfrage über „Interview anfragen“ (Neue Termine, Umbuchen) */
+  onNewRequest: (iv: AgendaInterview) => void;
+  /** angefragte andere Zeit des Kandidaten bestätigen */
+  onConfirmAlternative: (iv: AgendaInterview) => void;
+  confirming?: boolean;
   onRemind: (iv: AgendaInterview) => void;
   onCancel: (iv: AgendaInterview) => void;
-  onRespondCounter: (iv: AgendaInterview) => void;
   onFeedback: (iv: AgendaInterview) => void;
 }) {
   const { t } = useTranslation();
@@ -81,12 +90,15 @@ export function TerminSheet({
           ? 'no_show'
           : 'completed';
 
-  const pill: { key: string; tone: string } =
+  const requested = variant === 'counter' ? iv.counterSlots[0]?.datetime ?? null : null;
+  const requestedOpen = !!requested && new Date(requested).getTime() > Date.now();
+
+  const pill: { key: string; tone: string; label?: string } =
     variant === 'counter'
-      ? { key: 'counter', tone: 'warn' }
+      ? { key: 'counter', tone: 'warn', label: 'Andere Zeit angefragt' }
       : variant === 'awaiting'
         ? iv.slotsExpired
-          ? { key: 'expired', tone: 'crit' }
+          ? { key: 'expired', tone: 'neutral', label: 'Vorschläge verstrichen' }
           : { key: 'awaiting', tone: 'neutral' }
         : variant === 'agenda'
           ? iv.confirmed
@@ -98,7 +110,7 @@ export function TerminSheet({
 
   const ctx =
     variant === 'counter'
-      ? t('terminsheet.ctx_counter')
+      ? 'Keiner Ihrer Termine passte – der Kandidat fragt eine andere Zeit an. Sie sind am Zug.'
       : variant === 'awaiting'
         ? t(iv.slotsExpired ? 'terminsheet.ctx_awaiting_expired' : 'terminsheet.ctx_awaiting', {
             time: waitingLabel(iv.waitingHours),
@@ -152,7 +164,7 @@ export function TerminSheet({
                 PILL_CLASSES[pill.tone]
               )}
             >
-              {t(`terminsheet.pill.${pill.key}`)}
+              {pill.label ?? t(`terminsheet.pill.${pill.key}`)}
             </span>
           </div>
         </SheetHeader>
@@ -217,17 +229,16 @@ export function TerminSheet({
             </div>
           )}
 
-          {variant === 'counter' && iv.counterSlots.length > 0 && (
+          {variant === 'counter' && requested && (
             <div className="rounded-lg border border-warning/40 p-3">
-              <p className="mb-1.5 text-xs font-semibold text-warning">
-                {t('terminsheet.counter_title')}
-              </p>
-              {iv.counterSlots.map((s) => (
-                <div key={s.datetime} className="flex items-center gap-2 py-1 text-sm font-medium">
-                  <CalendarPlus className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
-                  {fmtSlot(s.datetime)}
-                </div>
-              ))}
+              <p className="mb-1.5 text-xs font-semibold text-warning">Angefragte Zeit</p>
+              <div className={cn('flex items-center gap-2 py-1 text-sm font-medium', !requestedOpen && 'text-muted-foreground line-through')}>
+                <CalendarPlus className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                {fmtRange(requested, iv.durationMinutes)}
+              </div>
+              {!requestedOpen && (
+                <p className="mt-1 text-xs text-muted-foreground">Die angefragte Zeit ist verstrichen. Schlagen Sie neue Termine vor.</p>
+              )}
             </div>
           )}
 
@@ -265,9 +276,9 @@ export function TerminSheet({
         <div className="mt-5 flex flex-col gap-2">
           {variant === 'awaiting' && (
             <>
-              <Button className="w-full gap-1.5" onClick={act(onEdit)}>
+              <Button className="w-full gap-1.5" onClick={act(onNewRequest)}>
                 <CalendarPlus className="h-4 w-4" />
-                {t('terminsheet.actions.new_slots')}
+                Neue Termine
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => onRemind(iv)}>
@@ -289,9 +300,20 @@ export function TerminSheet({
 
           {variant === 'counter' && (
             <>
-              <Button className="w-full gap-1.5" onClick={act(onRespondCounter)}>
-                <CalendarCheck className="h-4 w-4" />
-                {t('terminsheet.actions.respond')}
+              {requestedOpen ? (
+                <Button className="w-full gap-1.5" disabled={confirming} onClick={() => onConfirmAlternative(iv)}>
+                  {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}
+                  Zeit bestätigen
+                </Button>
+              ) : null}
+              <Button
+                variant={requestedOpen ? 'outline' : 'default'}
+                className="w-full gap-1.5"
+                disabled={confirming}
+                onClick={act(onNewRequest)}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Neue Termine
               </Button>
               <Button
                 variant="outline"
@@ -321,7 +343,7 @@ export function TerminSheet({
                 </Button>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={act(onEdit)}>
+                <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={act(onNewRequest)}>
                   <Pencil className="h-3.5 w-3.5" />
                   {t('terminsheet.actions.reschedule')}
                 </Button>

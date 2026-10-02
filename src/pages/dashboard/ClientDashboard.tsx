@@ -2,6 +2,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClientStartChecklist } from '@/components/dashboard/ClientStartChecklist';
+import { CalendarConnectCard } from '@/components/interview/calendar/CalendarConnectCard';
 import { PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
 import { AktiveJobsTile } from '@/components/dashboard/bento/AktiveJobsTile';
@@ -79,6 +80,10 @@ export default function ClientDashboard() {
             (lib/clientStart.ts). Ersetzt den alten Kasten „Verifikation
             erforderlich“, der AGB und KYC aus dem früheren Onboarding verlangte. */}
         <ClientStartChecklist onTour={() => guide.start()} />
+
+        {/* Kalender verbinden, bevor die ersten Kandidaten kommen -- nur solange
+            nicht verbunden (oder abgelaufen / wartet auf die IT), wegklickbar. */}
+        <CalendarConnectCard variant="dashboard" />
 
         {/* Header / Begrüßung */}
         <div className="flex flex-wrap items-start justify-between gap-3">

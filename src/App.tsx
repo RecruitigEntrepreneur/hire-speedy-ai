@@ -91,6 +91,7 @@ import { AppClientGuide, AppRecruiterGuide } from "./components/recruiter/guide/
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
 import InterviewResponsePage from "./pages/interview/InterviewResponsePage";
+import ClientConfirmAlternative from "./pages/interview/ClientConfirmAlternative";
 import ClientOffers from "./pages/dashboard/ClientOffers";
 import ViewOffer from "./pages/offer/ViewOffer";
 import OfferAccepted from "./pages/offer/OfferAccepted";
@@ -558,6 +559,8 @@ function AppRoutes() {
       <Route path="/aufnahme/:draftToken" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/interview/respond/:token" element={<InterviewResponsePage />} />
+      {/* Kunde bestätigt die vom Kandidaten angefragte Zeit direkt aus der Mail, ohne Login. */}
+      <Route path="/interview/bestaetigen/:token" element={<ClientConfirmAlternative />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />
       <Route path="/invite/:token" element={<AcceptInvite />} />
       <Route path="/reference/:token" element={<ProvideReference />} />

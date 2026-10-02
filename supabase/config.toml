@@ -377,3 +377,18 @@ verify_jwt = false
 # Cron every 15 minutes: fetch open customer envelopes from DocuSign. Checks the service key itself.
 [functions.docusign-sync]
 verify_jwt = false
+
+# Interview-Terminierung v2 (02.10.2026)
+[functions.interview-request]
+verify_jwt = true
+
+# Kunde bestätigt die angefragte Zeit aus der Mail, ohne Anmeldung (Token-Link).
+[functions.interview-client-link]
+verify_jwt = false
+
+[functions.calendar-connect]
+verify_jwt = true
+
+# Rücksprung von Microsoft; geschützt über den einmaligen state.
+[functions.calendar-oauth-callback]
+verify_jwt = false

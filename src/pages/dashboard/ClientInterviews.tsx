@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { interviewApi } from '@/lib/interviewScheduling';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,7 @@ import { ActionChips, type AgendaFocus } from '@/components/interview/agenda/Act
 import { CounterProposalDialog } from '@/components/interview/agenda/CounterProposalDialog';
 import { CancelInterviewDialog } from '@/components/interview/agenda/CancelInterviewDialog';
 import { TerminSheet, type TerminVariant } from '@/components/interview/agenda/TerminSheet';
+import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import { useClientInterviewAgenda, type AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { useInterviewKeyboardShortcuts } from '@/hooks/useInterviewKeyboardShortcuts';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -49,6 +52,7 @@ const toLegacyShape = (iv: AgendaInterview) => ({
 export default function ClientInterviews() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useClientInterviewAgenda();
 
   usePageViewTracking('client_interviews');
@@ -68,6 +72,9 @@ export default function ClientInterviews() {
   // statt ins Bewerberprofil zu springen — das bleibt als Ausstieg im Panel.
   const [terminFor, setTerminFor] = useState<{ iv: AgendaInterview; variant: TerminVariant } | null>(null);
   const [processing, setProcessing] = useState(false);
+  // „Interview anfragen“: neue Anfrage, neue Termine (ersetzt eine offene Anfrage) oder Umbuchen
+  const [requestFor, setRequestFor] = useState<{ submissionId: string; replacesInterviewId: string | null } | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [companionOpen, setCompanionOpen] = useState(false);
   const [companionInterview, setCompanionInterview] = useState<any>(null);
 
@@ -80,6 +87,7 @@ export default function ClientInterviews() {
       setCounterFor(null);
       setCancelFor(null);
       setTerminFor(null);
+      setRequestFor(null);
     },
     enabled: true,
   });
@@ -125,6 +133,25 @@ export default function ClientInterviews() {
   // ---- Aktionen ----------------------------------------------------------
 
   const openTermin = (variant: TerminVariant) => (iv: AgendaInterview) => setTerminFor({ iv, variant });
+
+  // Neue Termine / Umbuchen: der Kandidat bestätigt neu, die alte Anfrage wird ersetzt
+  const openNewRequest = (iv: AgendaInterview) =>
+    setRequestFor({ submissionId: iv.submissionId, replacesInterviewId: iv.id });
+
+  // Kandidat hat eine andere Zeit angefragt → Kunde bestätigt sie direkt
+  const handleConfirmAlternative = async (iv: AgendaInterview) => {
+    setConfirmingId(iv.id);
+    try {
+      await interviewApi.confirmAlternative(iv.id);
+      toast.success('Termin steht. Einladungen mit Teams-Link sind unterwegs.');
+      setTerminFor(null);
+      queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Der Termin konnte nicht bestätigt werden.');
+    } finally {
+      setConfirmingId(null);
+    }
+  };
 
   const handleOpenGuide = async (iv: AgendaInterview) => {
     if (!iv.identityUnlocked) return;
@@ -327,7 +354,7 @@ export default function ClientInterviews() {
           <>
             {/* Als Nächstes */}
             {focus === null && viewMode === 'agenda' && data?.nextUp && (
-              <NextInterviewHero interview={data.nextUp} onOpenGuide={handleOpenGuide} onEdit={setEditing} />
+              <NextInterviewHero interview={data.nextUp} onOpenGuide={handleOpenGuide} onEdit={openNewRequest} />
             )}
 
             {/* Filterleiste */}
@@ -392,11 +419,11 @@ export default function ClientInterviews() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Gegenvorschläge */}
+                {/* Sie sind am Zug: Kandidat fragt eine andere Zeit an */}
                 {sectionVisible('counter') && counter.length > 0 && (
                   <section>
                     <h2 className="mb-1 px-2.5 text-sm font-semibold">
-                      Gegenvorschläge <span className="font-normal text-muted-foreground">· {counter.length}</span>
+                      Sie sind am Zug <span className="font-normal text-muted-foreground">· {counter.length}</span>
                     </h2>
                     <div className="space-y-0.5">
                       {counter.map((iv) => (
@@ -406,6 +433,9 @@ export default function ClientInterviews() {
                           variant="counter"
                           onDetails={openTermin('counter')}
                           onRespondCounter={setCounterFor}
+                          onConfirmAlternative={handleConfirmAlternative}
+                          confirming={confirmingId === iv.id}
+                          onNewRequest={openNewRequest}
                           onCancel={setCancelFor}
                           onOpenGuide={handleOpenGuide}
                         />
@@ -432,7 +462,7 @@ export default function ClientInterviews() {
                                 iv={iv}
                                 variant="agenda"
                                 onDetails={openTermin('agenda')}
-                                onEdit={setEditing}
+                                onNewRequest={openNewRequest}
                                 onCancel={setCancelFor}
                                 onOpenGuide={handleOpenGuide}
                               />
@@ -444,11 +474,11 @@ export default function ClientInterviews() {
                   </section>
                 )}
 
-                {/* Wartet auf Kandidaten-Antwort */}
+                {/* Wartet auf den Kandidaten */}
                 {sectionVisible('awaiting') && awaiting.length > 0 && (
                   <section>
                     <h2 className="mb-1 px-2.5 text-sm font-semibold">
-                      Wartet auf Kandidaten-Antwort{' '}
+                      Wartet auf den Kandidaten{' '}
                       <span className="font-normal text-muted-foreground">· {awaiting.length}</span>
                     </h2>
                     <div className="space-y-0.5">
@@ -458,7 +488,7 @@ export default function ClientInterviews() {
                           iv={iv}
                           variant="awaiting"
                           onDetails={openTermin('awaiting')}
-                          onEdit={setEditing}
+                          onNewRequest={openNewRequest}
                           onCancel={setCancelFor}
                           onRemind={handleRemind}
                         />
@@ -528,9 +558,11 @@ export default function ClientInterviews() {
         open={!!terminFor}
         onOpenChange={(o) => !o && setTerminFor(null)}
         onEdit={setEditing}
+        onNewRequest={openNewRequest}
+        onConfirmAlternative={handleConfirmAlternative}
+        confirming={!!terminFor && confirmingId === terminFor.iv.id}
         onRemind={handleRemind}
         onCancel={setCancelFor}
-        onRespondCounter={setCounterFor}
         onFeedback={setFeedbackFor}
       />
 
@@ -548,7 +580,7 @@ export default function ClientInterviews() {
         open={!!counterFor}
         onOpenChange={(o) => !o && setCounterFor(null)}
         onDone={() => refetch()}
-        onProposeNew={(iv) => setEditing(iv)}
+        onProposeNew={openNewRequest}
       />
 
       <CancelInterviewDialog
@@ -570,8 +602,21 @@ export default function ClientInterviews() {
             setFeedbackFor(null);
             refetch();
           }}
+          // „Weiter / Nächste Runde“: gleich die nächste Runde anfragen (die Runde ermittelt das Backend)
+          onNextRound={() => setRequestFor({ submissionId: feedbackFor.submissionId, replacesInterviewId: null })}
         />
       )}
+
+      <InterviewRequestDialog
+        open={!!requestFor}
+        onOpenChange={(o) => !o && setRequestFor(null)}
+        submissionId={requestFor?.submissionId ?? ''}
+        replacesInterviewId={requestFor?.replacesInterviewId ?? null}
+        onSent={() => {
+          setRequestFor(null);
+          refetch();
+        }}
+      />
     </DashboardLayout>
   );
 }

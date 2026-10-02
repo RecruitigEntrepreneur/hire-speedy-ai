@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matchunt · Kalender-Freigabe</title>
+<style>
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f6f7f9; color: #111827; }
+  main { max-width: 520px; margin: 12vh auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; }
+  .brand { font-weight: 700; margin-bottom: 20px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  p { line-height: 1.6; color: #374151; margin: 0 0 12px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">Matchunt</div>
+  <section id="ok">
+    <h1>Danke, die Freigabe ist erteilt</h1>
+    <p>Die Matchunt-Kalender-App ist für Ihre Firma freigegeben. Ihre Kollegen können Outlook jetzt mit einem Klick verbinden; wer Sie um die Freigabe gebeten hat, bekommt eine Mail.</p>
+    <p>Matchunt liest nur frei/belegt und trägt nur die Interviews ein, die über Matchunt geplant werden.</p>
+  </section>
+  <section id="fehler" class="hidden">
+    <h1>Die Freigabe hat nicht geklappt</h1>
+    <p>Microsoft hat die Freigabe nicht bestätigt, oder der Link ist abgelaufen. Bitten Sie Ihre Kollegin oder Ihren Kollegen, in Matchunt einen neuen Link an Sie zu senden.</p>
+    <p>Fragen: <a href="mailto:datenschutz@matchunt.ai">datenschutz@matchunt.ai</a></p>
+  </section>
+</main>
+<script>
+  if (new URLSearchParams(location.search).get('status') !== 'ok') {
+    document.getElementById('ok').classList.add('hidden');
+    document.getElementById('fehler').classList.remove('hidden');
+  }
+</script>
+</body>
+</html>

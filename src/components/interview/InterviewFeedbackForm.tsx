@@ -22,6 +22,8 @@ interface InterviewFeedbackFormProps {
   interviewId: string;
   candidateName: string;
   onSuccess?: () => void;
+  /** nach dem Speichern mit Empfehlung „Weiter / Nächste Runde“ */
+  onNextRound?: () => void;
 }
 
 export function InterviewFeedbackForm({
@@ -30,6 +32,7 @@ export function InterviewFeedbackForm({
   interviewId,
   candidateName,
   onSuccess,
+  onNextRound,
 }: InterviewFeedbackFormProps) {
   const { user } = useAuth();
   const [processing, setProcessing] = useState(false);
@@ -77,6 +80,7 @@ export function InterviewFeedbackForm({
       toast.success('Feedback erfolgreich gespeichert');
       onOpenChange(false);
       onSuccess?.();
+      if (formData.recommendation === 'proceed') onNextRound?.();
     } catch (error) {
       console.error('Error saving feedback:', error);
       toast.error('Fehler beim Speichern');

@@ -680,6 +680,54 @@ Datenkorrektur.
 
 ---
 
+## 12 — Interview-Terminierung v2: ein Fenster, Outlook, Teams (02.10.2026)
+
+Befund Live-Test Bluewater: Die Einladung zeigte in der Mail UTC (10:00 → 08:00), der
+Name blieb nach der Zusage gesperrt (falsche Spalte `identity_unlocked_at`), Benachrichtigungen
+scheiterten still (`notifications.metadata` gibt es nicht), Teams-Links wurden nie erzeugt, und
+Gegenvorschläge oder Absagen erreichten den Kunden nicht. Neu: ein Anfrage-Fenster mit festen
+Terminvorschlägen und Kollegen (Pflicht/optional), Outlook-Verbindung mit frei/belegt, andere
+Zeit durch den Kandidaten, echte Kalendereinladungen je Person, Teams-Link automatisch.
+
+### 12a — Migration
+> Bitte die Migration `supabase/migrations/20261002120000_interview_scheduling_v2.sql`
+> ausführen. Sie ergänzt Spalten an `interviews` (Runde, Antragsteller, gehashte Links,
+> Organisator, Teams-Quelle) und legt die Tabellen `interview_attendees`, `interview_invites`,
+> `client_interview_hours`, `calendar_connections`, `calendar_oauth_states` und
+> `calendar_it_requests` an, dazu einen nächtlichen Cron zum Aufräumen abgelaufener
+> OAuth-States. Bestehende Daten werden nicht verändert.
+
+### 12b — Edge Functions
+> Bitte diese Edge Functions deployen: `interview-request` (neu), `interview-client-link` (neu),
+> `calendar-connect` (neu), `calendar-oauth-callback` (neu), `get-interview-by-token`,
+> `process-interview-response`.
+> `interview-client-link`, `calendar-oauth-callback`, `get-interview-by-token` und
+> `process-interview-response` haben `verify_jwt = false` (steht in `supabase/config.toml`);
+> sie prüfen selbst über einmalige, gehashte Links bzw. den OAuth-state.
+
+### 12c — Secrets (für Outlook und Teams; ohne sie läuft alles außer Outlook/Teams-Link)
+- `MS_CLIENT_ID`, `MS_CLIENT_SECRET`: aus der App-Registrierung im Microsoft-Entra-Portal
+  (Anleitung: `INTERVIEW_KALENDER_EINRICHTUNG.md`).
+- `ENCRYPTION_KEY` muss gesetzt sein (64 Hex-Zeichen; existiert bereits für die CRM-Integrationen).
+- Optional für Kunden ohne Outlook-Verbindung: `MS_APP_TENANT_ID` und `MS_ORGANIZER_USER_ID`
+  (Matchunt-Konto mit Teams-Lizenz). Fehlen sie, steht in der Einladung „Den Teams-Link
+  bekommen Sie rechtzeitig vor dem Termin“.
+- Optional: `INTERVIEW_FROM_EMAIL` (Standard `termine@matchunt.ai`; die Adresse muss als
+  Postfach oder Weiterleitung existieren, sonst laufen Antworten aus Kalendern ins Leere).
+
+### 12d — Frontend
+Publish. Neu: Fenster „Interview anfragen“ (ersetzt den 4-Schritte-Assistenten),
+Einstellungen › „Kalender und Interview-Zeiten“ (`/dashboard/settings#kalender`), Karte
+„Kalender verbinden“ auf dem Dashboard, Kandidatenseite `/interview/respond/:token`,
+Bestätigen aus der Mail `/interview/bestaetigen/:token`, statische Seiten
+`/kalender-datenblatt.html` und `/kalender-freigabe.html`.
+
+**Reihenfolge: 12a → 12b → 12c → 12d.** Ohne 12a melden die neuen Functions „Die Migration
+für die Interview-Terminierung ist noch nicht installiert“; ohne 12b zeigt das neue Fenster
+beim Öffnen einen Ladefehler.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

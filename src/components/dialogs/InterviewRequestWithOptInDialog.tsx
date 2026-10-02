@@ -1,11 +1,14 @@
-import { ProfessionalInterviewWizard } from '@/components/dialogs/interview-wizard';
+import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 
 interface InterviewRequestWithOptInDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   submissionId: string;
+  /** nicht mehr genutzt – Name und Stelle lädt das Anfrage-Fenster selbst */
   candidateAnonymousId: string;
+  /** nicht mehr genutzt */
   jobTitle: string;
+  /** nicht mehr genutzt */
   jobIndustry?: string;
   onSuccess?: () => void;
 }
@@ -15,29 +18,23 @@ interface InterviewRequestWithOptInDialogProps {
  * JSON in submissions.client_notes (keine interviews-Zeile, kein Token, keine
  * E-Mail an den Kandidaten → "Geister-Anfragen", die nirgends auftauchten).
  *
- * Jetzt läuft JEDE Anfrage über den ProfessionalInterviewWizard und damit über
- * die send-interview-invitation Edge Function: echte interviews-Zeile mit
- * response_token, E-Mail an den Kandidaten, sichtbar in der Interview-Agenda.
- * Der Wrapper hält die alte Prop-Signatur stabil für alle Aufrufer.
+ * Jetzt läuft JEDE Anfrage über das Fenster „Interview anfragen“
+ * (InterviewRequestDialog → Edge Function interview-request): echte
+ * interviews-Zeile, Mail an Kandidat und Headhunter, sichtbar in der
+ * Interview-Agenda. Der Wrapper hält die alte Prop-Signatur stabil.
  */
 export function InterviewRequestWithOptInDialog({
   open,
   onOpenChange,
   submissionId,
-  candidateAnonymousId,
-  jobTitle,
-  jobIndustry,
   onSuccess,
 }: InterviewRequestWithOptInDialogProps) {
   return (
-    <ProfessionalInterviewWizard
+    <InterviewRequestDialog
       open={open}
       onOpenChange={onOpenChange}
       submissionId={submissionId}
-      candidateAnonymousId={candidateAnonymousId}
-      jobTitle={jobTitle}
-      companyDescription={jobIndustry ? `${jobIndustry}-Unternehmen` : undefined}
-      onSuccess={onSuccess}
+      onSent={() => onSuccess?.()}
     />
   );
 }

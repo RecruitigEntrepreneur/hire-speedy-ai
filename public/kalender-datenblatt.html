@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Matchunt · Datenblatt Kalender-Verbindung</title>
+<style>
+  :root { color-scheme: light; --text: #1a1f2b; --muted: #5b6475; --line: #dfe3ea; --soft: #f5f7fa; --accent: #2b4c9b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--text); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 20px 56px; }
+  header { border-bottom: 2px solid var(--text); padding-bottom: 14px; margin-bottom: 24px; }
+  .brand { font-weight: 700; letter-spacing: .02em; color: var(--accent); }
+  h1 { font-size: 24px; line-height: 1.25; margin: 6px 0 4px; }
+  .sub { color: var(--muted); margin: 0; }
+  h2 { font-size: 16px; margin: 28px 0 8px; }
+  p { margin: 0 0 10px; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin: 3px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; border: 1px solid var(--line); padding: 8px 10px; }
+  th { background: var(--soft); font-weight: 600; }
+  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--soft); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+  .box { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+  .no { color: var(--muted); }
+  footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  .print { float: right; font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  @media print {
+    body { font-size: 11pt; }
+    main { padding: 0; max-width: none; }
+    .print { display: none; }
+    h2 { break-after: avoid; }
+    table, .box { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <button class="print" type="button" onclick="window.print()">Drucken</button>
+    <div class="brand">Matchunt</div>
+    <h1>Datenblatt: Kalender-Verbindung mit Microsoft 365 / Outlook</h1>
+    <p class="sub">Für IT-Abteilung, Datenschutz und Betriebsrat · Stand: Oktober 2026</p>
+  </header>
+
+  <h2>1. Zweck</h2>
+  <p>
+    Matchunt vermittelt Kandidaten über Headhunter an Unternehmen. Wenn ein Unternehmen einen Kandidaten zum Interview
+    einladen möchte, schlägt Matchunt passende Termine vor. Mit der Kalender-Verbindung geschieht das auf Grundlage der
+    tatsächlich freien Zeiten der beteiligten Mitarbeiter, und vereinbarte Interviews werden direkt im Outlook-Kalender
+    eingetragen (mit Microsoft-Teams-Link).
+  </p>
+  <p>Die Verbindung richtet jeder Nutzer selbst ein. Die Zustimmung der IT ist nur nötig, wenn Ihr Microsoft-Mandant
+    Nutzern die eigene Zustimmung zu Apps nicht erlaubt. Sie gilt dann für alle Kollegen.</p>
+
+  <h2>2. Welche Microsoft-Berechtigungen angefragt werden</h2>
+  <p>Ausschließlich <strong>delegierte</strong> Berechtigungen. Matchunt handelt also immer im Namen des angemeldeten
+    Nutzers und nur mit dessen Rechten, nie mandantenweit als Anwendung.</p>
+  <table>
+    <thead><tr><th style="width:34%">Berechtigung</th><th>Wofür</th></tr></thead>
+    <tbody>
+      <tr><td><code>openid</code>, <code>email</code>, <code>profile</code></td><td>Anmeldung bei Microsoft und Anzeige, welches Konto verbunden ist.</td></tr>
+      <tr><td><code>offline_access</code></td><td>Damit die Verbindung bestehen bleibt, ohne dass sich der Nutzer bei jeder Terminplanung neu anmeldet.</td></tr>
+      <tr><td><code>Calendars.ReadWrite</code></td><td>
+        <strong>Lesen:</strong> nur ob der Nutzer und die Kollegen, die er zu einem Interview einlädt, zu einer Zeit frei oder belegt sind, um Terminvorschläge zu machen.<br />
+        <strong>Schreiben:</strong> Interviewtermine, die über Matchunt vereinbart werden, eintragen, ändern oder absagen.
+      </td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <strong>Nicht angefragt:</strong> keine Rechte auf E-Mails, Dateien (OneDrive, SharePoint), Kontakte oder Teams-Chats.
+  </div>
+  <p>
+    <code>Calendars.ReadWrite</code> ist die Berechtigung, die Microsoft für das Eintragen von Terminen vorsieht; technisch
+    umfasst sie auch das Lesen von Terminen. Matchunt fragt davon nur frei oder belegt ab und liest Titel, Inhalte, Orte und
+    Teilnehmer anderer Termine nicht aus.
+  </p>
+
+  <h2>3. Was gespeichert wird</h2>
+  <ul>
+    <li>das Zugriffstoken der Verbindung, <strong>verschlüsselt</strong>,</li>
+    <li>die E-Mail-Adresse des verbundenen Microsoft-Kontos,</li>
+    <li>zu jedem über Matchunt vereinbarten Interview: die Termin-ID in Outlook und den Teams-Link.</li>
+  </ul>
+  <p class="no"><strong>Nicht gespeichert</strong> wird, wann jemand frei oder belegt ist. Diese Angabe wird nur im Moment
+    der Terminplanung abgefragt und danach verworfen.</p>
+
+  <h2>4. Wo die Daten liegen</h2>
+  <p>In der Datenbank von Matchunt bei Supabase, Rechenzentrum in der EU.</p>
+
+  <h2>5. Widerruf</h2>
+  <ul>
+    <li>Jeder Nutzer kann die Verbindung jederzeit selbst trennen: in Matchunt unter <em>Einstellungen › Kalender</em>, Knopf „Trennen“.</li>
+    <li>Die IT kann die Freigabe für Matchunt jederzeit in Microsoft Entra ID (Unternehmensanwendungen) entziehen.
+      Danach hat Matchunt keinen Zugriff mehr auf die Kalender Ihres Unternehmens.</li>
+  </ul>
+
+  <h2>6. Hinweis für den Betriebsrat</h2>
+  <p>
+    Matchunt wertet keine Arbeitszeiten, Anwesenheiten oder Kalendernutzung aus und erstellt keine Profile oder Statistiken
+    über Mitarbeiter. Frei/belegt wird ausschließlich dann abgerufen, wenn ein Interview geplant wird, und nur für die
+    Personen, die zu diesem Interview eingeladen werden. Eine Leistungs- oder Verhaltenskontrolle ist nicht vorgesehen.
+  </p>
+
+  <h2>7. Kontakt</h2>
+  <p>Fragen zum Datenschutz: <a href="mailto:datenschutz@matchunt.ai">datenschutz@matchunt.ai</a></p>
+
+  <footer>Matchunt · Datenblatt Kalender-Verbindung · Dieses Blatt darf an IT, Datenschutz und Betriebsrat weitergegeben werden.</footer>
+</main>
+</body>
+</html>
