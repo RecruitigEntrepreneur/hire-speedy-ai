@@ -83,6 +83,143 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          account_email: string | null
+          connected_at: string
+          error_message: string | null
+          id: string
+          last_used_at: string | null
+          provider: string
+          refresh_token_encrypted: string | null
+          scopes: string | null
+          status: string
+          tenant_id: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          account_email?: string | null
+          connected_at?: string
+          error_message?: string | null
+          id?: string
+          last_used_at?: string | null
+          provider: string
+          refresh_token_encrypted?: string | null
+          scopes?: string | null
+          status?: string
+          tenant_id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          account_email?: string | null
+          connected_at?: string
+          error_message?: string | null
+          id?: string
+          last_used_at?: string | null
+          provider?: string
+          refresh_token_encrypted?: string | null
+          scopes?: string | null
+          status?: string
+          tenant_id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      calendar_it_requests: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          id: string
+          it_email: string
+          organization_id: string | null
+          provider: string
+          reminded_at: string | null
+          requested_by: string
+          sent_at: string
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          id?: string
+          it_email: string
+          organization_id?: string | null
+          provider?: string
+          reminded_at?: string | null
+          requested_by: string
+          sent_at?: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          id?: string
+          it_email?: string
+          organization_id?: string | null
+          provider?: string
+          reminded_at?: string | null
+          requested_by?: string
+          sent_at?: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_it_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_oauth_states: {
+        Row: {
+          code_verifier: string | null
+          created_at: string
+          expires_at: string
+          it_request_id: string | null
+          provider: string
+          purpose: string
+          return_path: string | null
+          state: string
+          user_id: string | null
+        }
+        Insert: {
+          code_verifier?: string | null
+          created_at?: string
+          expires_at: string
+          it_request_id?: string | null
+          provider?: string
+          purpose: string
+          return_path?: string | null
+          state: string
+          user_id?: string | null
+        }
+        Update: {
+          code_verifier?: string | null
+          created_at?: string
+          expires_at?: string
+          it_request_id?: string | null
+          provider?: string
+          purpose?: string
+          return_path?: string | null
+          state?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       candidate_activity_log: {
         Row: {
           activity_type: string
@@ -2428,6 +2565,24 @@ export type Database = {
             referencedColumns: ["package_key", "version"]
           },
         ]
+      }
+      client_interview_hours: {
+        Row: {
+          rules: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          rules?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          rules?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       client_notifications: {
         Row: {
@@ -5232,6 +5387,63 @@ export type Database = {
           },
         ]
       }
+      interview_attendees: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          interview_id: string
+          is_organizer: boolean
+          kind: string
+          name: string
+          required: boolean
+          response_status: string
+          title: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          interview_id: string
+          is_organizer?: boolean
+          kind: string
+          name: string
+          required?: boolean
+          response_status?: string
+          title?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          interview_id?: string
+          is_organizer?: boolean
+          kind?: string
+          name?: string
+          required?: boolean
+          response_status?: string
+          title?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_attendees_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_attendees_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_checklist_progress: {
         Row: {
           checklist_item: string
@@ -5453,6 +5665,60 @@ export type Database = {
           },
         ]
       }
+      interview_invites: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          interview_id: string
+          last_error: string | null
+          last_method: string | null
+          last_sent_at: string | null
+          recipient_key: string
+          sequence: number
+          uid: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          interview_id: string
+          last_error?: string | null
+          last_method?: string | null
+          last_sent_at?: string | null
+          recipient_key: string
+          sequence?: number
+          uid: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          interview_id?: string
+          last_error?: string | null
+          last_method?: string | null
+          last_sent_at?: string | null
+          recipient_key?: string
+          sequence?: number
+          uid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_invites_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_invites_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_notes: {
         Row: {
           content: string
@@ -5598,6 +5864,8 @@ export type Database = {
       }
       interviews: {
         Row: {
+          allow_alternative: boolean
+          alternative_rules: Json | null
           calendar_event_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -5608,6 +5876,9 @@ export type Database = {
           client_confirmed: boolean | null
           client_confirmed_at: string | null
           client_message: string | null
+          client_token_expires_at: string | null
+          client_token_hash: string | null
+          consent_given_at: string | null
           counter_slots: Json | null
           created_at: string
           decline_reason: string | null
@@ -5621,30 +5892,39 @@ export type Database = {
           live_session_started_at: string | null
           meeting_format: string | null
           meeting_link: string | null
+          meeting_provider: string | null
           meeting_type: string | null
           no_show_by: string | null
           no_show_reported: boolean | null
           no_show_reported_at: string | null
           notes: string | null
           onsite_address: string | null
+          organizer_user_id: string | null
           outlook_event_id: string | null
           pending_opt_in: boolean | null
           proposed_slots: Json | null
           quick_scores: Json | null
           reminder_1h_sent: boolean | null
           reminder_24h_sent: boolean | null
+          requested_by: string | null
           rescheduled_from: string | null
           response_token: string | null
+          response_token_expires_at: string | null
+          response_token_hash: string | null
+          round: number
           scheduled_at: string | null
           selected_slot_index: number | null
           selection_token: string | null
           status: string | null
           submission_id: string
+          superseded_by: string | null
           teams_join_url: string | null
           teams_meeting_id: string | null
           updated_at: string
         }
         Insert: {
+          allow_alternative?: boolean
+          alternative_rules?: Json | null
           calendar_event_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -5655,6 +5935,9 @@ export type Database = {
           client_confirmed?: boolean | null
           client_confirmed_at?: string | null
           client_message?: string | null
+          client_token_expires_at?: string | null
+          client_token_hash?: string | null
+          consent_given_at?: string | null
           counter_slots?: Json | null
           created_at?: string
           decline_reason?: string | null
@@ -5668,30 +5951,39 @@ export type Database = {
           live_session_started_at?: string | null
           meeting_format?: string | null
           meeting_link?: string | null
+          meeting_provider?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
           no_show_reported?: boolean | null
           no_show_reported_at?: string | null
           notes?: string | null
           onsite_address?: string | null
+          organizer_user_id?: string | null
           outlook_event_id?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           quick_scores?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
+          requested_by?: string | null
           rescheduled_from?: string | null
           response_token?: string | null
+          response_token_expires_at?: string | null
+          response_token_hash?: string | null
+          round?: number
           scheduled_at?: string | null
           selected_slot_index?: number | null
           selection_token?: string | null
           status?: string | null
           submission_id: string
+          superseded_by?: string | null
           teams_join_url?: string | null
           teams_meeting_id?: string | null
           updated_at?: string
         }
         Update: {
+          allow_alternative?: boolean
+          alternative_rules?: Json | null
           calendar_event_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -5702,6 +5994,9 @@ export type Database = {
           client_confirmed?: boolean | null
           client_confirmed_at?: string | null
           client_message?: string | null
+          client_token_expires_at?: string | null
+          client_token_hash?: string | null
+          consent_given_at?: string | null
           counter_slots?: Json | null
           created_at?: string
           decline_reason?: string | null
@@ -5715,25 +6010,32 @@ export type Database = {
           live_session_started_at?: string | null
           meeting_format?: string | null
           meeting_link?: string | null
+          meeting_provider?: string | null
           meeting_type?: string | null
           no_show_by?: string | null
           no_show_reported?: boolean | null
           no_show_reported_at?: string | null
           notes?: string | null
           onsite_address?: string | null
+          organizer_user_id?: string | null
           outlook_event_id?: string | null
           pending_opt_in?: boolean | null
           proposed_slots?: Json | null
           quick_scores?: Json | null
           reminder_1h_sent?: boolean | null
           reminder_24h_sent?: boolean | null
+          requested_by?: string | null
           rescheduled_from?: string | null
           response_token?: string | null
+          response_token_expires_at?: string | null
+          response_token_hash?: string | null
+          round?: number
           scheduled_at?: string | null
           selected_slot_index?: number | null
           selection_token?: string | null
           status?: string | null
           submission_id?: string
+          superseded_by?: string | null
           teams_join_url?: string | null
           teams_meeting_id?: string | null
           updated_at?: string
@@ -5793,6 +6095,20 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "interviews"
             referencedColumns: ["id"]
           },
         ]
@@ -12257,6 +12573,7 @@ export type Database = {
         Args: { _org_id: string }
         Returns: boolean
       }
+      purge_expired_calendar_oauth_states: { Args: never; Returns: undefined }
       purge_expired_capture_sources: { Args: never; Returns: number }
       recruiter_counter_deadline: {
         Args: { signed_at: string }
