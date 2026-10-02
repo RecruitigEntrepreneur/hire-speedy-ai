@@ -5391,8 +5391,11 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          function_key: string | null
           id: string
           interview_id: string
+          invited_at: string | null
+          is_decision_maker: boolean
           is_organizer: boolean
           kind: string
           name: string
@@ -5404,8 +5407,11 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          function_key?: string | null
           id?: string
           interview_id: string
+          invited_at?: string | null
+          is_decision_maker?: boolean
           is_organizer?: boolean
           kind: string
           name: string
@@ -5417,8 +5423,11 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          function_key?: string | null
           id?: string
           interview_id?: string
+          invited_at?: string | null
+          is_decision_maker?: boolean
           is_organizer?: boolean
           kind?: string
           name?: string
@@ -5867,6 +5876,7 @@ export type Database = {
           allow_alternative: boolean
           alternative_rules: Json | null
           calendar_event_id: string | null
+          call_phone: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -5890,6 +5900,7 @@ export type Database = {
           interview_type_id: string | null
           live_session_ended_at: string | null
           live_session_started_at: string | null
+          location_note: string | null
           meeting_format: string | null
           meeting_link: string | null
           meeting_provider: string | null
@@ -5926,6 +5937,7 @@ export type Database = {
           allow_alternative?: boolean
           alternative_rules?: Json | null
           calendar_event_id?: string | null
+          call_phone?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -5949,6 +5961,7 @@ export type Database = {
           interview_type_id?: string | null
           live_session_ended_at?: string | null
           live_session_started_at?: string | null
+          location_note?: string | null
           meeting_format?: string | null
           meeting_link?: string | null
           meeting_provider?: string | null
@@ -5985,6 +5998,7 @@ export type Database = {
           allow_alternative?: boolean
           alternative_rules?: Json | null
           calendar_event_id?: string | null
+          call_phone?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -6008,6 +6022,7 @@ export type Database = {
           interview_type_id?: string | null
           live_session_ended_at?: string | null
           live_session_started_at?: string | null
+          location_note?: string | null
           meeting_format?: string | null
           meeting_link?: string | null
           meeting_provider?: string | null

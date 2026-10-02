@@ -134,6 +134,13 @@
       "when": 1790942545418,
       "tag": "0018_interview_scheduling_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790945922834,
+      "tag": "0019_interview_formats_and_invites",
+      "breakpoints": true
     }
   ]
 }
