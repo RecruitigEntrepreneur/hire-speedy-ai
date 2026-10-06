@@ -769,6 +769,21 @@ unter jeder Tagesspalte, sofortige Prüfung über die neue Aktion `check_time`; 
 
 ---
 
+## 16 — Kandidaten-Mail: eine Firma, ein Gesprächspartner mit Namen (06.10.2026)
+
+Befund Live-Test (Mail-Vorschau): Betreff „… bei DataDriven GmbH“, Gesprächspartner „Bluewater &
+Bridge GmbH , Talent Acquisition Manager“. Jetzt: Firmenname überall aus den Firmendaten des
+Kunden (Vollständige Firmierung), Namen bereinigt; steht im Konto kein Personenname, fragt das
+Fenster „Ihr Name für die Einladung“ (Aktion `set_name`) und Senden wartet darauf. Dazu Hinweis
+zum Vorlauf unter dem Raster und Schritt 3 bei verbundenem Outlook. **Keine Migration.**
+Abschnitt 15 kann im selben Durchgang mit erledigt werden.
+
+> 1. Edge Functions deployen: `interview-request`, `get-interview-by-token`,
+>    `process-interview-response`, `interview-client-link`.
+> 2. Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

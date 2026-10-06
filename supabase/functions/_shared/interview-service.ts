@@ -92,7 +92,11 @@ const UUID = /^[0-9a-f-]{36}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CLOSED_STAGES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn', 'expired'];
 
-export interface TeamPerson { userId: string; name: string; email: string; title: string | null; role: string }
+export interface TeamPerson {
+  userId: string; name: string; email: string; title: string | null; role: string;
+  /** Im Konto steht kein Personenname (leer oder Firmenname): vor dem Senden nachfragen */
+  needsName?: boolean;
+}
 export interface AttendeeDraft {
   userId?: string | null; email: string; name: string; title?: string | null; required: boolean; kind: 'client_user' | 'external';
   decisionMaker?: boolean; functionKey?: FunctionKey | null; invited?: boolean;
@@ -115,25 +119,63 @@ async function loadSubmission(db: SupabaseClient, submissionId: string): Promise
     .eq('id', submissionId).maybeSingle();
   dbFail(error, 'Die Bewerbung');
   must(data, 'Bewerbung nicht gefunden.', 'not_found');
-  return { submission: data, job: (data as any).jobs, candidate: (data as any).candidates };
+  const job = (data as any).jobs;
+  // Kandidaten sehen die Firmierung aus den Firmendaten des Kunden; der Freitext an der Stelle ist nur Ersatz
+  job.company_name = (await clientCompanyNames(db, job.client_id))[0] ?? job.company_name;
+  return { submission: data, job, candidate: (data as any).candidates };
 }
 
-async function profileOf(db: SupabaseClient, userId: string | null | undefined): Promise<{ name: string; email: string | null; phone: string | null; title: string | null } | null> {
+/** Firmierung und Firmenname aus den Firmendaten (Einstellungen › Firmendaten), bereinigt. */
+async function clientCompanyNames(db: SupabaseClient, userId: string | null | undefined): Promise<string[]> {
+  if (!userId) return [];
+  const { data } = await db.from('company_profiles').select('legal_name, company_name').eq('user_id', userId).maybeSingle();
+  return [data?.legal_name, data?.company_name].map((n) => String(n ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+const LEGAL_FORMS = new Set(['gmbh', 'mbh', 'ag', 'ug', 'kg', 'ohg', 'gbr', 'se', 'kgaa', 'ltd', 'inc', 'llc', 'plc', 'co']);
+/** Steht im Namensfeld eine Firma statt einer Person (z. B. „Bluewater & Bridge GmbH“)? */
+export function looksLikeCompany(name: string, companies: string[] = []): boolean {
+  const norm = (v: string) => v.toLowerCase().replace(/\s+/g, ' ').trim();
+  const n = norm(name);
+  if (!n) return true;
+  if (companies.some((c) => norm(c) === n)) return true;
+  return n.split(/[\s.,&()/-]+/).some((t) => LEGAL_FORMS.has(t));
+}
+
+async function profileOf(db: SupabaseClient, userId: string | null | undefined): Promise<{ name: string; named: boolean; email: string | null; phone: string | null; title: string | null } | null> {
   if (!userId) return null;
   const { data } = await db.from('profiles').select('full_name, email, phone, role_title').eq('user_id', userId).maybeSingle();
   if (!data) return null;
-  return { name: data.full_name || (data.email ? data.email.split('@')[0] : 'Unbekannt'), email: data.email ?? null, phone: data.phone ?? null, title: data.role_title ?? null };
+  const fullName = String(data.full_name ?? '').replace(/\s+/g, ' ').trim();
+  return {
+    name: fullName || (data.email ? data.email.split('@')[0] : 'Unbekannt'),
+    named: !!fullName,
+    email: data.email ?? null, phone: data.phone ?? null, title: String(data.role_title ?? '').trim() || null,
+  };
 }
 
 async function personOf(db: SupabaseClient, user: User): Promise<TeamPerson> {
-  const prof = await profileOf(db, user.id);
+  const [prof, companies] = await Promise.all([profileOf(db, user.id), clientCompanyNames(db, user.id)]);
+  const metaName = String(user.user_metadata?.full_name ?? '').replace(/\s+/g, ' ').trim();
+  const realName = prof?.named ? prof.name : metaName;
   return {
     userId: user.id,
-    name: prof?.name || String(user.user_metadata?.full_name ?? '') || (user.email ?? '').split('@')[0],
+    name: realName || prof?.name || (user.email ?? '').split('@')[0],
     email: (prof?.email || user.email || '').toLowerCase(),
     title: prof?.title ?? null,
     role: 'owner',
+    needsName: !realName || looksLikeCompany(realName, companies),
   };
+}
+
+/** Eigenen Namen für Einladungen speichern (Kunde, aus dem Anfrage-Fenster). */
+export async function setMyName(ctx: ServiceCtx, user: User, body: any) {
+  const name = String(body?.name ?? '').replace(/\s+/g, ' ').trim();
+  must(name.length >= 3 && name.length <= 80 && name.includes(' '), 'Bitte Vor- und Nachnamen angeben.');
+  must(!looksLikeCompany(name, await clientCompanyNames(ctx.db, user.id)), 'Bitte Ihren eigenen Namen angeben, nicht den der Firma.');
+  const { error } = await ctx.db.from('profiles').update({ full_name: name }).eq('user_id', user.id);
+  dbFail(error, 'Ihr Profil');
+  return { name };
 }
 
 async function teamOf(db: SupabaseClient, job: any, me: TeamPerson): Promise<TeamPerson[]> {
@@ -500,7 +542,8 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
 }
 
 function interviewerRefs(me: TeamPerson, attendees: AttendeeDraft[]) {
-  return [{ name: me.name, title: me.title }, ...attendees.map((a) => ({ name: a.name, title: a.title ?? (a.functionKey ? FUNCTION_LABELS[a.functionKey] : null) }))];
+  // Ohne Personennamen nur die Funktion – nie die Firma als Gesprächspartner
+  return [{ name: me.needsName ? '' : me.name, title: me.title }, ...attendees.map((a) => ({ name: a.name, title: a.title ?? (a.functionKey ? FUNCTION_LABELS[a.functionKey] : null) }))];
 }
 
 const draftMeeting = (draft: SendDraft, companyName: string): mails.MeetingInfo =>
@@ -536,6 +579,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   must(!CLOSED_STAGES.includes(stage) && !CLOSED_STAGES.includes(String(bundle.submission.status ?? '')), 'Diese Bewerbung ist abgeschlossen.', 'conflict');
   must(bundle.candidate.email && EMAIL.test(bundle.candidate.email), 'Für diesen Kandidaten ist keine E-Mail-Adresse hinterlegt. Bitte den Headhunter kontaktieren.', 'conflict');
   const me = await personOf(ctx.db, user);
+  must(!me.needsName, 'Bitte tragen Sie zuerst Ihren Namen ein – er steht in der Einladung als Gesprächspartner.');
   const team = await teamOf(ctx.db, bundle.job, me);
   const draft = validateDraft(ctx, body, me, team);
   const recruiter = await profileOf(ctx.db, bundle.submission.recruiter_id);

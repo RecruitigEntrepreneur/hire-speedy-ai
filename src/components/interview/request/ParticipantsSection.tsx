@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Gavel, Mail, Plus, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, Gavel, Loader2, Mail, Plus, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,57 @@ interface Props {
   /** Ergebnis der Verfügbarkeit (wer ist im Kalender sichtbar) */
   people: AvailabilityResult['people'] | undefined;
   calendarConnected: boolean;
+  /** Im Konto steht kein Personenname: eigene Zeile fragt danach */
+  needsName: boolean;
+  onSaveName: (name: string) => Promise<void>;
+}
+
+/** „Ihr Name für die Einladung“, wenn im Konto nur die Firma steht. */
+function OwnNameField({ onSave }: { onSave: (name: string) => Promise<void> }) {
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    const name = value.replace(/\s+/g, ' ').trim();
+    if (!name.includes(' ')) return setError('Bitte Vor- und Nachnamen angeben.');
+    setBusy(true);
+    setError(null);
+    try {
+      await onSave(name);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Der Name konnte nicht gespeichert werden.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-1">
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <Label htmlFor="own-name" className="text-sm font-normal text-muted-foreground">Ihr Name für die Einladung</Label>
+        <Input
+          id="own-name"
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(null); }}
+          placeholder="Vor- und Nachname"
+          className="h-8 w-48"
+          maxLength={80}
+        />
+        <Button type="submit" size="sm" variant="outline" className="h-8 gap-1.5" disabled={busy}>
+          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Speichern
+        </Button>
+      </form>
+      <p className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
+        {error ?? 'Steht in der Einladung als Gesprächspartner und wird in Ihrem Profil gespeichert.'}
+      </p>
+    </div>
+  );
 }
 
 /** Kleine Kalender-Marke für „sichtbar über Outlook“. */
@@ -138,7 +189,7 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
   );
 }
 
-export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, attendees, onChange, people, calendarConnected }: Props) {
+export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, attendees, onChange, people, calendarConnected, needsName, onSaveName }: Props) {
   const [teamOpen, setTeamOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -168,11 +219,21 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
           return (
             <li key={key} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2">
               <div className="min-w-0 flex-1 basis-48">
-                <p className="truncate text-sm">
-                  {mine && <span className="font-medium">Sie · </span>}
-                  <span className={cn(!mine && 'font-medium')}>{a.name}</span>
-                  {a.title && <span className="text-muted-foreground">{mine ? ', ' : ' · '}{a.title}</span>}
-                </p>
+                {mine && needsName ? (
+                  <div className="space-y-1">
+                    <p className="text-sm">
+                      <span className="font-medium">Sie</span>
+                      {a.title && <span className="text-muted-foreground"> · {a.title}</span>}
+                    </p>
+                    <OwnNameField onSave={onSaveName} />
+                  </div>
+                ) : (
+                  <p className="truncate text-sm">
+                    {mine && <span className="font-medium">Sie · </span>}
+                    <span className={cn(!mine && 'font-medium')}>{a.name.trim()}</span>
+                    {a.title && <span className="text-muted-foreground">{mine ? ', ' : ' · '}{a.title.trim()}</span>}
+                  </p>
+                )}
                 {a.kind === 'external' && <p className="truncate text-xs text-muted-foreground">{a.email}</p>}
               </div>
               <button

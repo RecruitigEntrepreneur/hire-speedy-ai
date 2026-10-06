@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, checkTime, clientLink, confirmAlternative, inviteColleague, loadCandidateView, requestContext, send, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, inviteColleague, loadCandidateView, looksLikeCompany, preview, requestContext, send, setMyName, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -433,4 +433,45 @@ Deno.test({ name: 'Eigene Uhrzeit (z. B. 14:30): Prüfung gegen Outlook, Puffer,
   } finally {
     globalThis.fetch = realFetch;
   }
+}});
+
+Deno.test('Firma oder Person? Rechtsform oder gleich der Firmierung zählt als Firma', () => {
+  assert(looksLikeCompany('Bluewater & Bridge GmbH '));
+  assert(looksLikeCompany('Bluewater', ['Bluewater']));
+  assert(looksLikeCompany('Muster AG'));
+  assert(looksLikeCompany(''));
+  assert(!looksLikeCompany('Marko Benko', ['Bluewater & Bridge GmbH']));
+  assert(!looksLikeCompany('Agnes Seger'), 'kein Fehlalarm bei „Ag“ im Namen');
+});
+
+Deno.test({ name: 'Kandidaten-Mail: Firma aus den Firmendaten, ohne Personennamen nur die Funktion, Senden erst mit Namen', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  tables.jobs[0].company_name = 'DataDriven GmbH';
+  tables.company_profiles = [{ user_id: CLIENT, legal_name: ' Bluewater & Bridge GmbH ', company_name: 'Bluewater' }];
+  tables.profiles[0].full_name = 'Bluewater & Bridge GmbH ';
+  tables.profiles[0].role_title = 'Talent Acquisition Manager';
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  const body = { submissionId: SUB, durationMinutes: 60, slots: [at(6, 10)], attendees: [], allowAlternative: false, alternativeRules: {}, round: 1 };
+
+  const context = await requestContext(ctx, me, SUB);
+  eq([context.companyName, context.me.needsName], ['Bluewater & Bridge GmbH', true]);
+  const mail = await preview(ctx, me, body);
+  assert(mail.subject.endsWith('bei Bluewater & Bridge GmbH'), mail.subject);
+  assert(!mail.html.includes('DataDriven'), 'kein zweiter Firmenname');
+  assert(mail.html.includes('Gesprächspartner:</span> Talent Acquisition Manager') || mail.html.includes('Gesprächspartner: Talent Acquisition Manager') || /Gesprächspartner:[^<]*<\/span>\s*Talent Acquisition Manager/.test(mail.html), 'nur die Funktion');
+  let blocked = '';
+  try { await send(ctx, me, body); } catch (e) { blocked = e instanceof Error ? e.message : String(e); }
+  assert(blocked.includes('Namen'), 'ohne Namen wird nicht gesendet');
+
+  let rejected = '';
+  try { await setMyName(ctx, me, { name: 'Bluewater & Bridge GmbH' }); } catch (e) { rejected = e instanceof Error ? e.message : String(e); }
+  assert(rejected.includes('nicht den der Firma'));
+  eq(await setMyName(ctx, me, { name: '  Marko   Benko ' }), { name: 'Marko Benko' });
+  eq((await requestContext(ctx, me, SUB)).me.needsName, false);
+  await send(ctx, me, body);
+  const invite = sent.find((m) => m.template === 'interview_invitation_v2')!;
+  assert(invite.html.includes('Marko Benko, Talent Acquisition Manager'), 'Gesprächspartner mit Namen, ohne Leerzeichen vor dem Komma');
+  assert(invite.subject.endsWith('bei Bluewater & Bridge GmbH'));
 }});

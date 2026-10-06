@@ -30,6 +30,8 @@ interface Props {
   onAdd: (iso: string) => void;
   peopleCount: number;
   durationMinutes: number;
+  /** Vorlauf aus den Interview-Zeiten: kürzere Zeiten fehlen im Raster */
+  minNoticeHours: number;
   /** Eigene Uhrzeit prüfen wie eine Kachel (Outlook, Kollegen, Puffer) */
   onCheckTime: (iso: string) => Promise<CheckTimeResult>;
   calendar: CalendarStatus;
@@ -59,7 +61,7 @@ const normalizeDayKey = (date: string) => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? da
 
 export function ProposalGrid({
   weekStart, canGoBack, canGoForward, onWeekChange, data, isLoading, isFetching, error, onRetry,
-  selected, onToggle, onAdd, peopleCount, durationMinutes, onCheckTime, calendar, onConnectCalendar, onOpenHoursSettings,
+  selected, onToggle, onAdd, peopleCount, durationMinutes, minNoticeHours, onCheckTime, calendar, onConnectCalendar, onOpenHoursSettings,
 }: Props) {
   const [customDay, setCustomDay] = useState<string | null>(null);
   const byKey = new Map((data?.days ?? []).map((d) => [normalizeDayKey(d.date), d]));
@@ -316,6 +318,14 @@ export function ProposalGrid({
             <span>· deutsche Zeit</span>
           </p>
         </div>
+        {minNoticeHours > 0 && (
+          <p className="text-[11px] text-muted-foreground">
+            Zeiten mit weniger als {minNoticeHours % 24 === 0 && minNoticeHours > 24 ? `${minNoticeHours / 24} Tagen` : `${minNoticeHours} Std.`} Vorlauf sind ausgeblendet ·{' '}
+            <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
+              Ändern
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );

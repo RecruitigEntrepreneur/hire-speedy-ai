@@ -38,7 +38,11 @@ export const INTERVIEW_DURATIONS = [30, 45, 60, 90, 120] as const;
 export const MAX_PROPOSALS = 5;
 
 /** Person aus dem Team des Kunden. */
-export interface TeamPerson { userId: string; name: string; email: string; title: string | null; role: string }
+export interface TeamPerson {
+  userId: string; name: string; email: string; title: string | null; role: string;
+  /** Im Konto steht kein Personenname (leer oder Firmenname): im Fenster nachfragen */
+  needsName?: boolean;
+}
 
 export type MeetingFormat = 'teams' | 'phone' | 'onsite';
 export type FunctionKey = 'fachbereich' | 'fuehrungskraft' | 'geschaeftsfuehrung' | 'hr' | 'andere';
@@ -189,6 +193,7 @@ export const interviewApi = {
   context: (submissionId: string) => callFunction<RequestContext>('interview-request', { action: 'context', submissionId }),
   availability: (input: AvailabilityInput) => callFunction<AvailabilityResult>('interview-request', { action: 'availability', ...input }),
   checkTime: (input: CheckTimeInput) => callFunction<CheckTimeResult>('interview-request', { action: 'check_time', ...input }),
+  setName: (name: string) => callFunction<{ name: string }>('interview-request', { action: 'set_name', name }),
   preview: (input: SendInput) => callFunction<MailPreview>('interview-request', { action: 'preview', ...input }),
   send: (input: SendInput) => callFunction<SendResult>('interview-request', { action: 'send', ...input }),
   confirmAlternative: (interviewId: string) => callFunction<{ scheduledAt: string }>('interview-request', { action: 'confirm_alternative', interviewId }),

@@ -44,7 +44,7 @@ function locationHtml(m: MeetingInfo) {
 
 function interviewerLine(people: PersonRef[]) {
   if (!people.length) return '';
-  return people.map((x) => (x.title ? `${x.name}, ${x.title}` : x.name)).join(' · ');
+  return people.map((x) => [x.name?.trim(), x.title?.trim()].filter(Boolean).join(', ')).filter(Boolean).join(' · ');
 }
 
 // --- Kandidat ---------------------------------------------------------------

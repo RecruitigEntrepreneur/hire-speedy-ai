@@ -110,7 +110,16 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const [message, setMessage] = useState(ctx.defaultMessage ?? '');
   const [preview, setPreview] = useState<MailPreview | null>(null);
 
+  const [needsName, setNeedsName] = useState(!!ctx.me.needsName);
+
   const isMe = (a: AttendeeDraft) => sameAttendee(a, { userId: ctx.me.userId, email: ctx.me.email });
+  const saveName = async (name: string) => {
+    const saved = await interviewApi.setName(name);
+    setAttendees((cur) => cur.map((a) => (isMe(a) ? { ...a, name: saved.name } : a)));
+    setNeedsName(false);
+    queryClient.invalidateQueries({ queryKey: ['interview-request-context', ctx.submissionId] });
+    toast.success('Name gespeichert.');
+  };
   const calendarConnected = ctx.calendar.state === 'connected';
   const replaces = replacesInterviewId ?? ctx.openRequest?.interviewId ?? null;
   const recruiter = ctx.recruiterName?.trim() || null;
@@ -280,6 +289,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             onChange={(next) => setAttendees(next.some(isMe) ? next : attendees)}
             people={availability.data?.people}
             calendarConnected={calendarConnected}
+            needsName={needsName}
+            onSaveName={saveName}
           />
         </Section>
 
@@ -299,6 +310,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             onAdd={(iso) => setSelected((cur) => (cur.length >= MAX_PROPOSALS ? cur : [...cur, iso]))}
             peopleCount={attendees.length}
             durationMinutes={duration}
+            minNoticeHours={rules.minNoticeHours}
             onCheckTime={(iso) => interviewApi.checkTime({ submissionId: ctx.submissionId, durationMinutes: duration, start: iso, attendees })}
             calendar={ctx.calendar}
             onConnectCalendar={goSettings}
@@ -325,11 +337,14 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             {[
               recruiter ? `Kandidat und Headhunter ${recruiter} werden benachrichtigt` : 'Kandidat und Headhunter werden benachrichtigt',
               'Der Kandidat bestätigt einen Ihrer Termine, wählt eine andere Zeit oder lehnt ab',
-              format === 'teams'
-                ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit Teams-Link, der Kandidat seine eigene`
-                : format === 'phone'
-                  ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Nummer des Kandidaten, der Kandidat seine eigene`
-                  : `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Adresse, der Kandidat seine eigene`,
+              calendarConnected
+                // Mit Outlook legt Matchunt den Termin im Kalender des Organisators an; Kollegen lädt Outlook ein
+                ? `Steht der Termin: Er landet ${format === 'teams' ? 'mit Teams-Link' : format === 'phone' ? 'mit der Nummer des Kandidaten' : 'mit der Adresse'} direkt in Ihrem Outlook${attendees.length > 1 ? ', Kollegen bekommen die Einladung von Ihnen' : ''}, der Kandidat seine eigene`
+                : format === 'teams'
+                  ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit Teams-Link, der Kandidat seine eigene`
+                  : format === 'phone'
+                    ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Nummer des Kandidaten, der Kandidat seine eigene`
+                    : `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Adresse, der Kandidat seine eigene`,
             ].map((text, i) => (
               <li key={i} className="flex gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
@@ -353,7 +368,9 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           Mail ansehen, so wie der Kandidat sie bekommt
         </button>
         <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-3">
-          {selected.length === 0 ? (
+          {needsName ? (
+            <span className="text-xs text-muted-foreground sm:text-right">Bitte oben Ihren Namen eintragen.</span>
+          ) : selected.length === 0 ? (
             <span className="text-xs text-muted-foreground sm:text-right">Wählen Sie mindestens einen Termin.</span>
           ) : addressMissing ? (
             <span className="text-xs text-muted-foreground sm:text-right">Bitte die Adresse angeben.</span>
@@ -361,7 +378,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           <Button
             type="button"
             onClick={() => send.mutate(buildInput())}
-            disabled={selected.length === 0 || addressMissing || send.isPending}
+            disabled={needsName || selected.length === 0 || addressMissing || send.isPending}
             className="gap-1.5"
           >
             {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
