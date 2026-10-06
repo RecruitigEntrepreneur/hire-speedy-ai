@@ -69,6 +69,7 @@ serve(async (req) => {
     // gegengezeichnet hat, HAT entschieden; ein zweiter Klick "annehmen"
     // waere eine Formalie, die vergessen werden kann.
     let adminId: string | null;
+    let adminEmail: string | undefined;
     if (isServiceRole(req)) {
       // Die Gegenzeichnung kam ueber DocuSign, oft per Mail und damit ohne
       // Sitzung bei uns. Dann steht hier niemand -- und das ist ehrlicher,
@@ -78,6 +79,7 @@ serve(async (req) => {
       const admin = await requireAdmin(req, supabase);
       if (!admin.ok) return fail('not_allowed', admin.message ?? 'Keine Berechtigung.');
       adminId = admin.userId!;
+      adminEmail = admin.email;
     }
 
     const body = await req.json().catch(() => ({}));
@@ -376,7 +378,7 @@ serve(async (req) => {
           subject: isReject ? 'Zu Ihrer Beauftragungsanfrage' : 'Rückfrage zu Ihrer Beauftragungsanfrage',
           html,
           template: isReject ? 'intake_rejected' : 'intake_changes_requested',
-          replyTo: admin.email,
+          replyTo: adminEmail,
           meta: { draft_id: draftId },
         });
       }

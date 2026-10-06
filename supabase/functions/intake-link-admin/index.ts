@@ -362,7 +362,7 @@ serve(async (req) => {
       return fail('internal_error', error.message);
     }
 
-    const ids = (links ?? []).map((l: Record<string, unknown>) => l.id);
+    const ids = ((links ?? []) as unknown as Array<{ id: string }>).map((l) => l.id);
     const counters = new Map<string, Record<string, Set<unknown>>>();
     if (ids.length > 0) {
       const { data: evts } = await supabase

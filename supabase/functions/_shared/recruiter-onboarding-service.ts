@@ -67,7 +67,7 @@ export async function patchEnvelope(db: SupabaseClient, e: RecruiterEnvelope, pa
     .eq('id', e.id).eq('revision', e.revision).select('*').maybeSingle();
   dbError(error); must(data, 'Der Vertragsvorgang wurde inzwischen geändert. Bitte neu laden.', 'conflict'); return data as RecruiterEnvelope;
 }
-export const sha256 = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map(b => b.toString(16).padStart(2, '0')).join('');
+export const sha256 = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes)))).map(b => b.toString(16).padStart(2, '0')).join('');
 export function signatureConfig(): DocuSignConfig {
   const config = docusignConfig();
   must(Deno.env.get('RECRUITER_DOCUSIGN_ENABLED') !== 'false' && config, 'DocuSign für Recruiter ist noch nicht eingerichtet.', 'not_deployed');

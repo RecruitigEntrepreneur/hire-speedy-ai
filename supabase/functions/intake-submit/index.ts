@@ -595,7 +595,6 @@ serve(async (req) => {
       snapshot_sha256: snapshotSha,
       agb_version: contractTpl.agb_version,
       agb_sha256: contractTpl.agb_sha256 ?? null,
-      status: 'client_confirmed',
       client_confirmed_at: now,
       client_confirmed_name: signerName,
       client_confirmed_email: draft.contact_email,
@@ -624,6 +623,7 @@ serve(async (req) => {
             // Erster Vorgang dieses Kunden: hier entsteht der Rahmenvertrag,
             // und der wird unterschrieben. Er geht erst nach der Admin-Freigabe
             // raus, deshalb 'pending' und nicht 'sent'.
+            status: 'client_confirmed',
             signature_status: 'pending',
           }),
     };
