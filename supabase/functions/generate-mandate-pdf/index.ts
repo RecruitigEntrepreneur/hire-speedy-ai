@@ -71,7 +71,7 @@ serve(async (req) => {
     // Echter SHA-256 ueber das vollstaendige Dokument. Ein Hash ueber die
     // ersten Kilobytes wuerde die Spalte document_sha256 zur Falschaussage
     // machen -- gerade bei einem Vertragsdokument.
-    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
     const documentSha = Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');

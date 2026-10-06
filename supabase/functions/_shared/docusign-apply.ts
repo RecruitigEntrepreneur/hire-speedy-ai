@@ -208,7 +208,7 @@ export async function saveSignedDocument(
     await supabase.storage.from('mandate-documents')
       .upload(pfad, bytes, { contentType: 'application/pdf', upsert: true });
 
-    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
     const sha = Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, '0')).join('');
 

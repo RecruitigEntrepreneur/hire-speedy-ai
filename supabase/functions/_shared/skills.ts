@@ -23,10 +23,10 @@
  * importiert und landet damit im tsc-Programm der App -- dort ist ein
  * URL-Import kein aufloesbares Modul. Deno stoert das nicht, tsc schon.
  */
-interface SynonymSource {
+export interface SynonymSource {
   from(table: string): {
     select(columns: string): {
-      eq(column: string, value: unknown): Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+      eq(column: string, value: unknown): PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
     };
   };
 }

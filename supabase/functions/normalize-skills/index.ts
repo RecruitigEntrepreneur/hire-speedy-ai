@@ -64,8 +64,8 @@ serve(async (req) => {
         const key = String(row.canonical_name ?? '').trim();
         if (!key) continue;
         const entry = grouped.get(key) ?? {
-          canonical_name: key, aliases: [], category: row.category ?? null,
-          related_skills: [], transferability_from: [],
+          canonical_name: key, aliases: [] as string[], category: row.category ?? null,
+          related_skills: [] as string[], transferability_from: [] as string[],
         };
         if (row.synonym) entry.aliases.push(String(row.synonym));
         grouped.set(key, entry);

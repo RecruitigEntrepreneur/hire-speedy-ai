@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   loadSynonymMap, normalizeSkillList, routeRequirements,
-  type ClassifiedRequirement,
+  type ClassifiedRequirement, type SynonymSource,
 } from "../_shared/skills.ts";
 
 const corsHeaders = {
@@ -740,7 +740,18 @@ required: ["title", "company_name", "description", "requirements", "location",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         { auth: { persistSession: false } },
       );
-      const synonyms = await loadSynonymMap(supabase);
+      // Die Synonymtabelle liegt hinter einer duennen Schicht: der
+      // strukturelle Typ aus skills.ts darf nicht gegen den voll
+      // instantiierten Supabase-Client geprueft werden, sonst bricht die
+      // Typpruefung mit "Type instantiation is excessively deep".
+      const synonymSource: SynonymSource = {
+        from: (table: string) => ({
+          select: (columns: string) => ({
+            eq: (column: string, value: unknown) => supabase.from(table).select(columns).eq(column, value),
+          }),
+        }),
+      };
+      const synonyms = await loadSynonymMap(synonymSource);
 
       const classified = Array.isArray(parsedJob.requirements_classified)
         ? parsedJob.requirements_classified

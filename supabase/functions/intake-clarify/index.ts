@@ -91,6 +91,7 @@ serve(async (req) => {
         template: 'intake_clarification',
         meta: { draft_id: draft.id, clarification_id: rf.id },
         html: layout({
+          preheader: 'Wir haben eine kurze Rückfrage zu Ihrer Anfrage.',
           heading: 'Eine kurze Rückfrage',
           body: `
             <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name ?? '')},</p>
