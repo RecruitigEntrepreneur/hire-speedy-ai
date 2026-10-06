@@ -77,6 +77,16 @@ export function berlinWeekday(iso: string): number {
 }
 
 /** Kalendertag + n Tage (YYYY-MM-DD). */
+/** „heute“, „morgen“, „übermorgen“, „in 5 Tagen“ – nach Kalendertagen in deutscher Zeit. */
+export function relativeDay(iso: string, nowIso: string = new Date().toISOString()): string {
+  const days = Math.round((Date.parse(berlinDateKey(iso)) - Date.parse(berlinDateKey(nowIso))) / 86_400_000);
+  if (days < 0) return 'vorbei';
+  if (days === 0) return 'heute';
+  if (days === 1) return 'morgen';
+  if (days === 2) return 'übermorgen';
+  return `in ${days} Tagen`;
+}
+
 export function addDays(dateKey: string, days: number): string {
   const [y, m, d] = dateKey.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);

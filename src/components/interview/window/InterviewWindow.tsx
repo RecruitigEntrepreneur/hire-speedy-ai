@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  CalendarClock, Copy, ExternalLink, Loader2, Lock, MapPin, MoreHorizontal, Phone, RefreshCw, Video,
+  CalendarClock, Copy, ExternalLink, Loader2, Lock, MapPin, MoreHorizontal, Phone, RefreshCw, Video, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import * as PanelPrimitive from '@radix-ui/react-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { useInterviewSession } from '@/hooks/useInterviewSession';
 import { useLiveInterviewNotes } from '@/hooks/useLiveInterviewNotes';
 import { fmtDayLong, fmtDayShort, fmtRange, fmtTime, interviewApi, type InterviewDetails } from '@/lib/interviewScheduling';
+import { relativeDay } from '@/lib/interviewRequestUtils';
 import { InterviewTimer } from '../InterviewTimer';
 import { LiveNotesPanel } from '../LiveNotesPanel';
 import { CandidateFacts } from './CandidateFacts';
@@ -51,26 +52,35 @@ function initials(name: string) {
 
 function relative(iso: string) {
   const diff = Date.parse(iso) - Date.now();
-  const days = Math.round(diff / 86_400_000);
-  if (diff < 0) return 'vorbei';
-  if (diff < 3_600_000) return `in ${Math.max(1, Math.round(diff / 60_000))} Min.`;
-  if (days === 0) return 'heute';
-  if (days === 1) return 'morgen';
-  return `in ${days} Tagen`;
+  if (diff > 0 && diff < 3_600_000) return `in ${Math.max(1, Math.round(diff / 60_000))} Min.`;
+  return relativeDay(iso);
 }
 
 const FORMAT_LABEL = { teams: 'Teams', phone: 'Telefon', onsite: 'Vor Ort' } as const;
 const timeRange = (iso: string, minutes: number) => `${fmtTime(iso)}–${fmtTime(new Date(Date.parse(iso) + minutes * 60_000).toISOString())} Uhr`;
 
-/** Ein Fenster für alles zu einem Interview: Termin, Leute, Kandidat, Leitfaden, Notizen, Feedback, Verschieben. */
+/**
+ * Ein Panel rechts für alles zu einem Interview: Termin, Leute, Kandidat, Leitfaden,
+ * Notizen, Feedback, Verschieben. Die Agenda bleibt sichtbar und klickbar – ein Klick
+ * auf eine andere Zeile wechselt nur den Inhalt.
+ */
 export function InterviewWindow(props: Props) {
   const { interview: iv, open, onOpenChange } = props;
   return (
-    <Dialog open={open && !!iv} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[88vh] max-w-6xl flex-col gap-0 overflow-hidden p-0">
-        {iv && <WindowBody key={iv.id} {...props} interview={iv} />}
-      </DialogContent>
-    </Dialog>
+    <PanelPrimitive.Root open={open && !!iv} onOpenChange={onOpenChange} modal={false}>
+      <PanelPrimitive.Portal>
+        <PanelPrimitive.Content
+          onInteractOutside={(e) => e.preventDefault()}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="fixed inset-y-0 right-0 z-40 flex w-full max-w-full flex-col border-l bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:w-[46rem]"
+        >
+          {iv && <WindowBody key={iv.id} {...props} interview={iv} />}
+          <PanelPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring" aria-label="Schließen">
+            <X className="h-4 w-4" />
+          </PanelPrimitive.Close>
+        </PanelPrimitive.Content>
+      </PanelPrimitive.Portal>
+    </PanelPrimitive.Root>
   );
 }
 
@@ -137,13 +147,13 @@ function WindowBody({
             {iv.identityUnlocked ? initials(name) : <Lock className="h-4 w-4 text-muted-foreground" />}
           </div>
           <div className="min-w-0 flex-1">
-            <DialogTitle className={cn('truncate text-base', !iv.identityUnlocked && 'font-mono')}>{name}</DialogTitle>
-            <DialogDescription className="truncate text-xs">
+            <PanelPrimitive.Title className={cn('truncate text-base font-semibold', !iv.identityUnlocked && 'font-mono')}>{name}</PanelPrimitive.Title>
+            <PanelPrimitive.Description className="truncate text-xs text-muted-foreground">
               {iv.jobTitle}{d ? ` · Runde ${d.round}` : ''}
               {iv.scheduledAt ? ` · ${fmtDayLong(iv.scheduledAt)} · ${timeRange(iv.scheduledAt, iv.durationMinutes)}` : ''}
               {` · ${FORMAT_LABEL[format]}`}
               {future && iv.scheduledAt ? ` · ${relative(iv.scheduledAt)}` : ''}
-            </DialogDescription>
+            </PanelPrimitive.Description>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {live && (
@@ -270,13 +280,9 @@ function WindowBody({
             </TabsContent>
 
             <TabsContent value="guide">
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_minmax(0,20rem)]">
-                <div className="hidden lg:block">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kandidat</p>
-                  <CandidateFacts submissionId={iv.submissionId} compact />
-                </div>
+              <div className="space-y-6">
                 <GuideChecklist interviewId={iv.id} active={tab === 'guide'} />
-                <div className="min-h-[16rem]">
+                <div className="min-h-[14rem] border-t pt-4">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notizen</p>
                   <LiveNotesPanel
                     notes={notes.notes}
@@ -291,7 +297,7 @@ function WindowBody({
             </TabsContent>
 
             <TabsContent value="notes">
-              <div className="mx-auto max-w-3xl">
+              <div>
                 <LiveNotesPanel
                   notes={notes.notes}
                   pinnedNotes={notes.pinnedNotes}
@@ -304,7 +310,7 @@ function WindowBody({
             </TabsContent>
 
             <TabsContent value="feedback">
-              <div className="mx-auto max-w-3xl">
+              <div>
                 <FeedbackPanel
                   interviewId={iv.id}
                   candidateName={name}
@@ -345,7 +351,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Overview({ d, name }: { d: InterviewDetails; name: string }) {
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-2">
       <Section title="Termin">
         {d.scheduledAt ? (
           <p className="text-sm">{fmtDayLong(d.scheduledAt)} · {timeRange(d.scheduledAt, d.durationMinutes)} <span className="text-muted-foreground">(deutsche Zeit)</span></p>
@@ -385,7 +391,7 @@ function Overview({ d, name }: { d: InterviewDetails; name: string }) {
         </ul>
       </Section>
 
-      <Section title="Verlauf">
+      <div className="sm:col-span-2"><Section title="Verlauf">
         <ul className="space-y-1.5 text-sm">
           {d.timeline.map((t, i) => (
             <li key={i} className="flex gap-2">
@@ -395,7 +401,7 @@ function Overview({ d, name }: { d: InterviewDetails; name: string }) {
           ))}
         </ul>
         {d.clientMessage && <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Ihre Nachricht: „{d.clientMessage}“</p>}
-      </Section>
+      </Section></div>
     </div>
   );
 }

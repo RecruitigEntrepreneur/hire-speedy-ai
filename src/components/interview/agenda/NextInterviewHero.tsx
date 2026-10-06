@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { CandidateAvatar, CandidateName } from './CandidateIdentity';
 import { buildIcs, downloadIcs } from '@/lib/ics';
+import { relativeDay } from '@/lib/interviewRequestUtils';
 import { meetingTypeLabel, MeetingTypeIcon } from './meetingType';
 import { CalendarPlus, Clock, Sparkles, Video } from 'lucide-react';
 
@@ -23,8 +24,8 @@ function countdownLabel(iv: AgendaInterview, now: number): string {
   if (mins < 60) return `beginnt in ${mins} Min`;
   const h = Math.floor(mins / 60);
   if (h < 24) return `beginnt in ${h} Std ${mins % 60} Min`;
-  const d = Math.floor(h / 24);
-  return `beginnt in ${d} ${d === 1 ? 'Tag' : 'Tagen'}`;
+  // Ab einem Tag nach Kalendertagen, wie im Interview-Fenster
+  return `beginnt ${relativeDay(iv.scheduledAt!, new Date(now).toISOString())}`;
 }
 
 const dayLabel = (iso: string) => {

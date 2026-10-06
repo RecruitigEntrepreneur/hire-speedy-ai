@@ -153,7 +153,7 @@ export function LiveNotesPanel({
               <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
               <p>Noch keine Notizen</p>
               <p className="text-xs mt-1">
-                Drücke <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">N</kbd> für neue Notiz
+                Taste <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">N</kbd> für eine neue Notiz
               </p>
             </div>
           ) : (
