@@ -5896,6 +5896,8 @@ export type Database = {
           feedback: string | null
           google_event_id: string | null
           google_meet_link: string | null
+          guide: Json | null
+          guide_generated_at: string | null
           id: string
           interview_type_id: string | null
           live_session_ended_at: string | null
@@ -5919,6 +5921,7 @@ export type Database = {
           reminder_24h_sent: boolean | null
           requested_by: string | null
           rescheduled_from: string | null
+          reschedules_interview_id: string | null
           response_token: string | null
           response_token_expires_at: string | null
           response_token_hash: string | null
@@ -5957,6 +5960,8 @@ export type Database = {
           feedback?: string | null
           google_event_id?: string | null
           google_meet_link?: string | null
+          guide?: Json | null
+          guide_generated_at?: string | null
           id?: string
           interview_type_id?: string | null
           live_session_ended_at?: string | null
@@ -5980,6 +5985,7 @@ export type Database = {
           reminder_24h_sent?: boolean | null
           requested_by?: string | null
           rescheduled_from?: string | null
+          reschedules_interview_id?: string | null
           response_token?: string | null
           response_token_expires_at?: string | null
           response_token_hash?: string | null
@@ -6018,6 +6024,8 @@ export type Database = {
           feedback?: string | null
           google_event_id?: string | null
           google_meet_link?: string | null
+          guide?: Json | null
+          guide_generated_at?: string | null
           id?: string
           interview_type_id?: string | null
           live_session_ended_at?: string | null
@@ -6041,6 +6049,7 @@ export type Database = {
           reminder_24h_sent?: boolean | null
           requested_by?: string | null
           rescheduled_from?: string | null
+          reschedules_interview_id?: string | null
           response_token?: string | null
           response_token_expires_at?: string | null
           response_token_hash?: string | null
@@ -6073,6 +6082,20 @@ export type Database = {
           {
             foreignKeyName: "interviews_rescheduled_from_fkey"
             columns: ["rescheduled_from"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_reschedules_interview_id_fkey"
+            columns: ["reschedules_interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_reschedules_interview_id_fkey"
+            columns: ["reschedules_interview_id"]
             isOneToOne: false
             referencedRelation: "interviews"
             referencedColumns: ["id"]
