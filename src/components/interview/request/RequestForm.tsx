@@ -298,6 +298,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             onToggle={toggleSlot}
             onAdd={(iso) => setSelected((cur) => (cur.length >= MAX_PROPOSALS ? cur : [...cur, iso]))}
             peopleCount={attendees.length}
+            durationMinutes={duration}
+            onCheckTime={(iso) => interviewApi.checkTime({ submissionId: ctx.submissionId, durationMinutes: duration, start: iso, attendees })}
             calendar={ctx.calendar}
             onConnectCalendar={goSettings}
             onOpenHoursSettings={goSettings}

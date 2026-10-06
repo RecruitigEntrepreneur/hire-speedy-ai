@@ -5,7 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import {
-  authUser, availability, confirmAlternative, defaultCtx, interviewFailure, inviteColleague, must, preview, requestContext, send, withdraw,
+  authUser, availability, checkTime, confirmAlternative, defaultCtx, interviewFailure, inviteColleague, must, preview, requestContext, send, withdraw,
 } from '../_shared/interview-service.ts';
 
 serve(async (req) => {
@@ -19,6 +19,7 @@ serve(async (req) => {
     switch (body.action) {
       case 'context': return json(await requestContext(ctx, user, body.submissionId));
       case 'availability': return json(await availability(ctx, user, body));
+      case 'check_time': return json(await checkTime(ctx, user, body));
       case 'preview': return json(await preview(ctx, user, body));
       case 'send': return json(await send(ctx, user, body));
       case 'confirm_alternative': return json(await confirmAlternative(ctx, user, body.interviewId));

@@ -1,4 +1,5 @@
-import { AlertTriangle, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -8,10 +9,11 @@ import {
   fmtTime,
   type AvailabilityResult,
   type CalendarStatus,
+  type CheckTimeResult,
   type ScheduleSlot,
 } from '@/lib/interviewScheduling';
 import { addDays, berlinDateKey, dayHeaderLabel, slotText, weekRangeLabel } from '@/lib/interviewRequestUtils';
-import { FreeTimePopover } from './FreeTimePopover';
+import { CustomTimeRow } from './CustomTimeRow';
 
 interface Props {
   weekStart: string;
@@ -27,6 +29,9 @@ interface Props {
   onToggle: (iso: string) => void;
   onAdd: (iso: string) => void;
   peopleCount: number;
+  durationMinutes: number;
+  /** Eigene Uhrzeit prüfen wie eine Kachel (Outlook, Kollegen, Puffer) */
+  onCheckTime: (iso: string) => Promise<CheckTimeResult>;
   calendar: CalendarStatus;
   onConnectCalendar: () => void;
   onOpenHoursSettings: () => void;
@@ -50,12 +55,13 @@ const DOT: Record<ScheduleSlot['status'], string> = {
 // Freie Zeit ohne gelesenen eigenen Kalender: wählbar, aber nicht grün
 const UNCHECKED_TILE = 'border-dashed border-muted-foreground/50 bg-transparent text-foreground hover:bg-muted/40';
 
-const normalizeDayKey =(date: string) => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : berlinDateKey(date));
+const normalizeDayKey = (date: string) => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : berlinDateKey(date));
 
 export function ProposalGrid({
   weekStart, canGoBack, canGoForward, onWeekChange, data, isLoading, isFetching, error, onRetry,
-  selected, onToggle, onAdd, peopleCount, calendar, onConnectCalendar, onOpenHoursSettings,
+  selected, onToggle, onAdd, peopleCount, durationMinutes, onCheckTime, calendar, onConnectCalendar, onOpenHoursSettings,
 }: Props) {
+  const [customDay, setCustomDay] = useState<string | null>(null);
   const byKey = new Map((data?.days ?? []).map((d) => [normalizeDayKey(d.date), d]));
   const columns = [0, 1, 2, 3, 4, 5, 6]
     .map((i) => {
@@ -65,6 +71,19 @@ export function ProposalGrid({
     // Sa/So nur, wenn es dort Zeiten gibt
     .filter((c, i) => i < 5 || c.slots.length > 0);
   const lastKey = columns[columns.length - 1].key;
+  const todayKey = berlinDateKey(new Date().toISOString());
+  const customColumn = columns.find((c) => c.key === customDay) ?? null;
+  // Selbst eingegebene Zeiten (keine Kachel im Raster) als gewählte Kachel in ihrer Spalte zeigen
+  const customFor = (dayKey: string) => {
+    const starts = new Set((byKey.get(dayKey)?.slots ?? []).map((s) => Date.parse(s.start)));
+    return selected.filter((iso) => berlinDateKey(iso) === dayKey && !starts.has(Date.parse(iso)));
+  };
+  type Item = { kind: 'slot'; at: number; slot: ScheduleSlot } | { kind: 'custom'; at: number; iso: string };
+  const itemsFor = (dayKey: string, slots: ScheduleSlot[]): Item[] =>
+    [
+      ...slots.map((slot): Item => ({ kind: 'slot', at: Date.parse(slot.start), slot })),
+      ...customFor(dayKey).map((iso): Item => ({ kind: 'custom', at: Date.parse(iso), iso })),
+    ].sort((a, b) => a.at - b.at);
   const totalSlots = columns.reduce((n, c) => n + c.slots.length, 0);
   const selectable = columns.reduce((n, c) => n + c.slots.filter((s) => s.status === 'all' || s.status === 'required').length, 0);
 
@@ -157,29 +176,42 @@ export function ProposalGrid({
             </div>
           ))}
         </div>
-      ) : totalSlots === 0 ? (
-        <div className="rounded-lg border border-dashed px-4 py-6 text-center">
-          <p className="text-sm font-medium">Keine passenden Zeiten in dieser Woche</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Blättern Sie zur nächsten Woche, geben Sie eine Uhrzeit frei ein oder{' '}
-            <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
-              ändern Sie Ihre Interview-Zeiten
-            </button>
-            .
-          </p>
-        </div>
       ) : (
         <>
-          {selectable === 0 && (
-            <p className="text-xs text-muted-foreground">In dieser Woche ist alles belegt. Blättern Sie weiter oder geben Sie eine Uhrzeit frei ein.</p>
+          {totalSlots === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Keine passenden Zeiten in dieser Woche. Blättern Sie weiter, wählen Sie „+ Uhrzeit“ unter einem Tag oder{' '}
+              <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
+                ändern Sie Ihre Interview-Zeiten
+              </button>
+              .
+            </p>
+          ) : selectable === 0 && (
+            <p className="text-xs text-muted-foreground">In dieser Woche ist alles belegt. Blättern Sie weiter oder wählen Sie „+ Uhrzeit“ unter einem Tag.</p>
           )}
           <div className={cn('-mx-1 overflow-x-auto px-1 pb-1 transition-opacity', isFetching && 'opacity-60')}>
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(8rem, 1fr))` }}>
               {columns.map((col) => (
                 <div key={col.key} className="space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground">{col.label}</p>
-                  {col.slots.length === 0 && <p className="py-2 text-xs text-muted-foreground/60">–</p>}
-                  {col.slots.map((slot) => {
+                  {col.slots.length === 0 && !customFor(col.key).length && <p className="py-2 text-xs text-muted-foreground/60">–</p>}
+                  {itemsFor(col.key, col.slots).map((item) => {
+                    if (item.kind === 'custom') {
+                      return (
+                        <button
+                          key={item.iso}
+                          type="button"
+                          aria-pressed
+                          onClick={() => onToggle(item.iso)}
+                          title="Eigene Zeit · zum Entfernen klicken"
+                          className="flex w-full items-center gap-1.5 rounded-md border border-foreground bg-foreground px-2 py-1.5 text-left text-xs font-medium tabular-nums text-background transition-colors hover:bg-foreground/90"
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-background" />
+                          <span className="truncate">{fmtTime(item.iso)} · eigene Zeit</span>
+                        </button>
+                      );
+                    }
+                    const slot = item.slot;
                     const clickable = slot.status === 'all' || slot.status === 'required';
                     const isSelected = selectedSet.has(Date.parse(slot.start));
                     const blocked = clickable && !isSelected && full;
@@ -209,10 +241,34 @@ export function ProposalGrid({
                       </button>
                     );
                   })}
+                  {col.key >= todayKey && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomDay(customDay === col.key ? null : col.key)}
+                      aria-expanded={customDay === col.key}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs transition-colors hover:text-foreground',
+                        customDay === col.key ? 'font-medium text-foreground' : 'text-muted-foreground',
+                      )}
+                    >
+                      <Plus className="h-3 w-3" /> Uhrzeit
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           </div>
+          {customColumn && (
+            <CustomTimeRow
+              dayKey={customColumn.key}
+              dayLabel={customColumn.label}
+              durationMinutes={durationMinutes}
+              selected={selected}
+              onAdd={onAdd}
+              onClose={() => setCustomDay(null)}
+              onCheckTime={onCheckTime}
+            />
+          )}
         </>
       )}
 
@@ -237,7 +293,6 @@ export function ProposalGrid({
           ))}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <FreeTimePopover selected={selected} onAdd={onAdd} />
           <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-success" /> grün = alle frei

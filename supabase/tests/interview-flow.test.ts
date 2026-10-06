@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, clientLink, confirmAlternative, inviteColleague, loadCandidateView, requestContext, send, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, inviteColleague, loadCandidateView, requestContext, send, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -390,6 +390,46 @@ Deno.test({ name: 'Mit Outlook: Login-Adresse ≠ Outlook-Adresse, Puffer des Ku
     const blind = await availability(ctx, me, { submissionId: SUB, durationMinutes: 60, weekStart: '2026-10-05', attendees: [] });
     eq(blind.connected, true);
     eq(blind.selfVisible, false);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}});
+
+Deno.test({ name: 'Eigene Uhrzeit (z. B. 14:30): Prüfung gegen Outlook, Puffer, Interview-Zeiten und Vorlauf', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const ms = { clientId: 'cid', clientSecret: 'sec', redirectUri: 'https://x/cb', encryptionKey: KEY };
+  tables.calendar_connections = [{
+    id: 'conn1', user_id: CLIENT, provider: 'microsoft', status: 'connected', account_email: 'marko@example.test',
+    access_token_encrypted: await encryptToken('ACCESS', KEY), refresh_token_encrypted: await encryptToken('REFRESH', KEY),
+    token_expires_at: new Date(Date.now() + 3600000).toISOString(),
+  }];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: any, init?: any) => {
+    if (!String(input).endsWith('/me/calendar/getSchedule')) return new Response('{}', { status: 404 });
+    const schedules: string[] = JSON.parse(init.body).schedules;
+    // Steuerberater Do 8.10. 15:00–16:30
+    return new Response(JSON.stringify({ value: schedules.map((id) => ({ scheduleId: id, scheduleItems: id === 'marko@example.test'
+      ? [{ status: 'busy', start: { dateTime: at(8, 15).replace('Z', '') }, end: { dateTime: at(8, 16, 30).replace('Z', '') } }]
+      : [] })) }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    const ctx = ctxFor(db, [], ms);
+    const me = user(CLIENT, 'marko@example.test');
+    const check = (start: string) => checkTime(ctx, me, { submissionId: SUB, durationMinutes: 60, start, attendees: [] });
+
+    const di = await check(at(6, 14, 30));
+    eq([di.status, di.inHours, di.shortNotice, di.selfVisible], ['all', true, false, true], 'Di 14:30 frei');
+    eq((await check(at(8, 14, 30))).status, 'busy', 'Do 14:30–15:30 überschneidet sich mit 15:00');
+    const late = await check(at(8, 17, 30));
+    eq([late.status, late.inHours], ['all', false], 'frei, aber außerhalb der Interview-Zeiten');
+    eq((await check(at(2, 16))).shortNotice, true, 'weniger als 24 h Vorlauf');
+    let pastError = '';
+    try { await check(at(2, 14, 10)); } catch (e) { pastError = e instanceof Error ? e.message : String(e); }
+    assert(pastError.includes('Zukunft'), 'Vergangenheit wird abgelehnt');
+
+    eq((await check(at(8, 14))).status, 'all', 'ohne Puffer endet 14:00–15:00 direkt vor dem Termin');
+    tables.client_interview_hours = [{ user_id: CLIENT, rules: { bufferMinutes: 15 } }];
+    eq((await check(at(8, 14))).status, 'busy', 'mit 15 Min. Puffer zu knapp');
   } finally {
     globalThis.fetch = realFetch;
   }

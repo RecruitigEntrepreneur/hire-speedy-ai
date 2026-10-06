@@ -758,6 +758,17 @@ Gmail — Matchunt fragte frei/belegt mit der Login-Adresse ab, alle Zeiten ware
 
 ---
 
+## 15 — Interview anfragen: eigene Uhrzeit je Tag, geprüft gegen Outlook (06.10.2026)
+
+Kunde will z. B. 14:30 anbieten (Raster zeigt bei 60 Min. nur volle Stunden). Neu: „+ Uhrzeit“
+unter jeder Tagesspalte, sofortige Prüfung über die neue Aktion `check_time`; der alte Link
+„Uhrzeit frei eingeben“ (Monatskalender ohne Prüfung) entfällt. **Keine Migration.**
+
+> 1. Edge Functions deployen: `interview-request`, `process-interview-response`.
+> 2. Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

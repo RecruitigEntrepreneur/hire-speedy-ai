@@ -15,7 +15,7 @@ import { canUserActOnJob } from './team-access.ts';
 import { generateToken, hashToken, sha256Hex } from './tokens.ts';
 import { getPublicAppUrl } from './app-url.ts';
 import {
-  alternativeSlots, isSlotStillFree, normalizeRules, scheduleSlots, stepFor,
+  alternativeSlots, isSlotStillFree, normalizeRules, scheduleSlots, stepFor, windowIntervals,
   type Interval, type InterviewHoursRules, type ScheduleParticipant,
 } from './interview-availability.ts';
 import { berlinDateKey, berlinLocalToUtc, formatBerlinDateShort, nextDateKey } from './interview-time.ts';
@@ -155,6 +155,12 @@ async function teamOf(db: SupabaseClient, job: any, me: TeamPerson): Promise<Tea
 const anonCode = (candidateId: string) => `PR-${String(candidateId ?? '').slice(0, 6).toUpperCase()}`;
 const candidateLabel = (b: SubmissionBundle) => (b.submission.identity_unlocked ? b.candidate.full_name : `${b.candidate.job_title || 'Kandidat'} · ${anonCode(b.candidate.id)}`);
 const firstName = (full: string | null | undefined) => (full ? full.trim().split(/\s+/)[0] : null);
+
+/** Rund um die Uhr, ohne Vorlauf: zum Prüfen einer einzelnen, frei gewählten Zeit. */
+const allDayRules = (bufferMinutes: number): InterviewHoursRules => ({
+  weekly: Object.fromEntries(['1', '2', '3', '4', '5', '6', '7'].map((d) => [d, [['00:00', '23:59']]])) as InterviewHoursRules['weekly'],
+  bufferMinutes, minNoticeHours: 0, horizonDays: 60, skipHolidays: false, absences: [],
+});
 
 async function hoursOf(db: SupabaseClient, userId: string): Promise<InterviewHoursRules> {
   const { data } = await db.from('client_interview_hours').select('rules').eq('user_id', userId).maybeSingle();
@@ -412,6 +418,38 @@ export async function availability(ctx: ServiceCtx, user: User, body: any) {
     stepMinutes: stepFor(duration),
     days,
     people: participants.map((p) => ({ key: p.key, name: p.name, required: p.required, visible: p.visible })),
+  };
+}
+
+/**
+ * Prüft eine frei eingegebene Uhrzeit (z. B. 14:30) wie eine Kachel im Raster:
+ * Outlook, Kollegen, gebuchte Interviews, Puffer. Dazu, ob sie in den
+ * Interview-Zeiten liegt und den Vorlauf einhält – beides nur als Hinweis.
+ */
+export async function checkTime(ctx: ServiceCtx, user: User, body: any) {
+  const bundle = await requireClient(ctx, user, body.submissionId);
+  const duration = Number(body.durationMinutes);
+  must([30, 45, 60, 90, 120].includes(duration), 'Ungültige Dauer.');
+  const startMs = Date.parse(String(body.start ?? ''));
+  must(Number.isFinite(startMs), 'Ungültige Uhrzeit.');
+  must(startMs > ctx.now() + 30 * 60000, 'Termine müssen in der Zukunft liegen.');
+  const endMs = startMs + duration * 60000;
+  const me = await personOf(ctx.db, user);
+  const team = await teamOf(ctx.db, bundle.job, me);
+  const attendees = cleanAttendees(body.attendees, me, team);
+  const rules = await hoursOf(ctx.db, user.id);
+  const { connected, participants } = await participantsFor(ctx, { organizerId: user.id, organizer: me, attendees, fromMs: startMs - 3 * 3600000, toMs: endMs + 3 * 3600000 });
+  const slot = scheduleSlots({ rules: allDayRules(rules.bufferMinutes), durationMinutes: duration, fromMs: startMs - 3600000, toMs: endMs + 3600000, nowMs: ctx.now(), participants, stepMinutes: 1 })
+    .find((s) => Date.parse(s.start) === startMs);
+  return {
+    start: new Date(startMs).toISOString(),
+    status: slot?.status ?? 'busy',
+    missing: slot?.missing ?? [],
+    unknown: slot?.unknown ?? [],
+    inHours: windowIntervals(rules, startMs - 86400000, endMs + 86400000).some((w) => w.start <= startMs && endMs <= w.end),
+    shortNotice: startMs < ctx.now() + rules.minNoticeHours * 3600000,
+    connected,
+    selfVisible: participants[0]?.visible === true,
   };
 }
 
@@ -898,7 +936,7 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
     const attendees: AttendeeDraft[] = b.attendees.filter((a: any) => !a.is_organizer).map((a: any) => ({ userId: a.user_id, email: a.email, name: a.name, title: a.title, required: a.required, kind: a.kind }));
     const { connected, participants } = await participantsFor(ctx, { organizerId, organizer: { email: b.organizer?.email ?? '', name: b.organizer?.name ?? '' }, attendees, fromMs: startMs - 3 * 3600000, toMs: startMs + 6 * 3600000, excludeInterviewId: iv.id });
     if (connected) {
-      const free = isSlotStillFree({ rules: { weekly: { '1': [['00:00', '23:59']], '2': [['00:00', '23:59']], '3': [['00:00', '23:59']], '4': [['00:00', '23:59']], '5': [['00:00', '23:59']], '6': [['00:00', '23:59']], '7': [['00:00', '23:59']] }, bufferMinutes: 0, minNoticeHours: 0, horizonDays: 60, skipHolidays: false, absences: [] }, durationMinutes: duration, fromMs: 0, toMs: 0, nowMs: ctx.now(), participants, stepMinutes: 5 }, new Date(startMs).toISOString());
+      const free = isSlotStillFree({ rules: allDayRules(0), durationMinutes: duration, fromMs: 0, toMs: 0, nowMs: ctx.now(), participants, stepMinutes: 5 }, new Date(startMs).toISOString());
       must(free, 'Dieser Termin ist inzwischen belegt. Bitte einen anderen wählen.', 'conflict');
     }
   }

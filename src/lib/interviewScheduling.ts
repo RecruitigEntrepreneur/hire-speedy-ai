@@ -129,6 +129,26 @@ export interface AvailabilityInput {
   attendees: AttendeeDraft[];
 }
 
+export interface CheckTimeInput {
+  submissionId: string;
+  durationMinutes: number;
+  /** frei eingegebene Startzeit (ISO) */
+  start: string;
+  attendees: AttendeeDraft[];
+}
+
+/** Ergebnis wie eine Kachel im Raster, plus Hinweise zu Interview-Zeiten und Vorlauf */
+export interface CheckTimeResult {
+  start: string;
+  status: ScheduleSlot['status'];
+  missing: string[];
+  unknown: string[];
+  inHours: boolean;
+  shortNotice: boolean;
+  connected: boolean;
+  selfVisible: boolean;
+}
+
 export interface SendInput {
   submissionId: string;
   meetingFormat: MeetingFormat;
@@ -168,6 +188,7 @@ export async function callFunction<T>(name: string, body: Record<string, unknown
 export const interviewApi = {
   context: (submissionId: string) => callFunction<RequestContext>('interview-request', { action: 'context', submissionId }),
   availability: (input: AvailabilityInput) => callFunction<AvailabilityResult>('interview-request', { action: 'availability', ...input }),
+  checkTime: (input: CheckTimeInput) => callFunction<CheckTimeResult>('interview-request', { action: 'check_time', ...input }),
   preview: (input: SendInput) => callFunction<MailPreview>('interview-request', { action: 'preview', ...input }),
   send: (input: SendInput) => callFunction<SendResult>('interview-request', { action: 'send', ...input }),
   confirmAlternative: (interviewId: string) => callFunction<{ scheduledAt: string }>('interview-request', { action: 'confirm_alternative', interviewId }),
