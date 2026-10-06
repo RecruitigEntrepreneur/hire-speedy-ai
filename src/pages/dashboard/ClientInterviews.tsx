@@ -10,14 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InterviewCalendarView } from '@/components/interview/InterviewCalendarView';
 import { InterviewFeedbackForm } from '@/components/interview/InterviewFeedbackForm';
-import { InterviewEditDialog } from '@/components/interview/InterviewEditDialog';
-import { LiveInterviewCompanion } from '@/components/interview/LiveInterviewCompanion';
 import { NextInterviewHero } from '@/components/interview/agenda/NextInterviewHero';
 import { AgendaRow } from '@/components/interview/agenda/AgendaRow';
 import { ActionChips, type AgendaFocus } from '@/components/interview/agenda/ActionChips';
 import { CounterProposalDialog } from '@/components/interview/agenda/CounterProposalDialog';
 import { CancelInterviewDialog } from '@/components/interview/agenda/CancelInterviewDialog';
-import { TerminSheet, type TerminVariant } from '@/components/interview/agenda/TerminSheet';
+import { InterviewWindow, type WindowTab, type WindowVariant } from '@/components/interview/window/InterviewWindow';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import { useClientInterviewAgenda, type AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { useInterviewKeyboardShortcuts } from '@/hooks/useInterviewKeyboardShortcuts';
@@ -30,7 +28,7 @@ import { cn } from '@/lib/utils';
 
 type MeetingTypeFilter = 'all' | 'video' | 'phone' | 'onsite';
 
-/** Adapter für Bestandskomponenten (EditDialog, Kalender), die das alte
+/** Adapter für den Kalender (Bestandskomponente), der das alte
  *  Interview-Shape mit submission.candidate erwarten – Name ist hier bereits
  *  reveal-sicher (anonymer Code bis Opt-In). */
 const toLegacyShape = (iv: AgendaInterview) => ({
@@ -64,29 +62,24 @@ export default function ClientInterviews() {
   const [showPast, setShowPast] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const [editing, setEditing] = useState<AgendaInterview | null>(null);
   const [feedbackFor, setFeedbackFor] = useState<AgendaInterview | null>(null);
   const [counterFor, setCounterFor] = useState<AgendaInterview | null>(null);
   const [cancelFor, setCancelFor] = useState<AgendaInterview | null>(null);
-  // Termin-Panel: Klick auf eine Zeile zeigt den TERMIN (Slots, Status, Aktionen)
-  // statt ins Bewerberprofil zu springen — das bleibt als Ausstieg im Panel.
-  const [terminFor, setTerminFor] = useState<{ iv: AgendaInterview; variant: TerminVariant } | null>(null);
+  // Interview-Fenster: Klick auf ein Interview (Zeile, Kasten oben, Kalender) zeigt ALLES zum Termin
+  const [windowFor, setWindowFor] = useState<{ iv: AgendaInterview; variant: WindowVariant; start?: WindowTab | 'reschedule' } | null>(null);
   const [processing, setProcessing] = useState(false);
   // „Interview anfragen“: neue Anfrage, neue Termine (ersetzt eine offene Anfrage) oder Umbuchen
   const [requestFor, setRequestFor] = useState<{ submissionId: string; replacesInterviewId: string | null } | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const [companionOpen, setCompanionOpen] = useState(false);
-  const [companionInterview, setCompanionInterview] = useState<any>(null);
 
   useInterviewKeyboardShortcuts({
     onToggleView: () => setViewMode((p) => (p === 'agenda' ? 'calendar' : 'agenda')),
     onFocusSearch: () => searchInputRef.current?.focus(),
     onCloseDialog: () => {
-      setEditing(null);
       setFeedbackFor(null);
       setCounterFor(null);
       setCancelFor(null);
-      setTerminFor(null);
+      setWindowFor(null);
       setRequestFor(null);
     },
     enabled: true,
@@ -132,7 +125,23 @@ export default function ClientInterviews() {
 
   // ---- Aktionen ----------------------------------------------------------
 
-  const openTermin = (variant: TerminVariant) => (iv: AgendaInterview) => setTerminFor({ iv, variant });
+  const openTermin = (variant: WindowVariant, start?: WindowTab | 'reschedule') => (iv: AgendaInterview) => setWindowFor({ iv, variant, start });
+  const variantOf = (iv: AgendaInterview): WindowVariant =>
+    data?.counterProposals.some((x) => x.id === iv.id) ? 'counter'
+      : data?.awaitingCandidate.some((x) => x.id === iv.id) ? 'awaiting'
+        : data?.feedbackDue.some((x) => x.id === iv.id) ? 'feedback'
+          : data?.past.some((x) => x.id === iv.id) ? 'past' : 'agenda';
+  const openWindow = (iv: AgendaInterview, start?: WindowTab | 'reschedule') => setWindowFor({ iv, variant: variantOf(iv), start });
+
+  // Link aus dem Outlook-Termin bzw. aus Mails: /dashboard/interviews?interview=<id>
+  const linkedInterview = new URLSearchParams(location.search).get('interview');
+  useEffect(() => {
+    if (!linkedInterview || !data) return;
+    const iv = data.all.find((x) => x.id === linkedInterview);
+    if (iv) openWindow(iv);
+    navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedInterview, data]);
 
   // Neue Termine / Umbuchen: der Kandidat bestätigt neu, die alte Anfrage wird ersetzt
   const openNewRequest = (iv: AgendaInterview) =>
@@ -144,7 +153,7 @@ export default function ClientInterviews() {
     try {
       await interviewApi.confirmAlternative(iv.id);
       toast.success('Termin steht. Einladungen mit Teams-Link sind unterwegs.');
-      setTerminFor(null);
+      setWindowFor(null);
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Der Termin konnte nicht bestätigt werden.');
@@ -153,28 +162,8 @@ export default function ClientInterviews() {
     }
   };
 
-  const handleOpenGuide = async (iv: AgendaInterview) => {
-    if (!iv.identityUnlocked) return;
-    // Reveal-sicher: Kandidatendaten kommen aus der gated View, nie aus candidates(*)
-    const { data: row, error: e } = await supabase
-      .from('client_candidate_view')
-      .select('*')
-      .eq('submission_id', iv.submissionId)
-      .maybeSingle();
-    if (e || !row) {
-      toast.error('Guide konnte nicht geladen werden.');
-      return;
-    }
-    setCompanionInterview({
-      ...toLegacyShape(iv),
-      submission: {
-        id: iv.submissionId,
-        candidate: { ...row, id: row.candidate_id },
-        job: { title: iv.jobTitle, company_name: '' },
-      },
-    });
-    setCompanionOpen(true);
-  };
+  // „Leitfaden“: dasselbe Fenster, direkt auf dem Leitfaden
+  const handleOpenGuide = (iv: AgendaInterview) => openWindow(iv, 'guide');
 
   const notifyRecruiter = async (iv: AgendaInterview, type: string, title: string, message: string) => {
     const { data: sub } = await supabase.from('submissions').select('recruiter_id').eq('id', iv.submissionId).single();
@@ -223,55 +212,6 @@ export default function ClientInterviews() {
     }
     await notifyRecruiter(iv, 'interview_no_show', 'No-Show gemeldet', `Der Kandidat ist zum Interview für "${iv.jobTitle}" nicht erschienen.`);
     toast.success('No-Show gemeldet.');
-    refetch();
-  };
-
-  const handleEditSave = async (form: {
-    scheduled_at: string;
-    duration_minutes: number;
-    meeting_type: string;
-    meeting_link: string;
-    notes: string;
-  }) => {
-    if (!editing) return;
-    setProcessing(true);
-
-    const dateChanged =
-      !editing.scheduledAt || new Date(form.scheduled_at).getTime() !== new Date(editing.scheduledAt).getTime();
-
-    const update: Record<string, unknown> = {
-      scheduled_at: form.scheduled_at,
-      duration_minutes: form.duration_minutes,
-      meeting_type: form.meeting_type,
-      meeting_link: form.meeting_link,
-      notes: form.notes,
-    };
-    // Status nur bei echter (Um-)Terminierung setzen – Notiz-Edits
-    // reanimieren keine No-Shows/Absagen mehr.
-    if (dateChanged) {
-      update.status = 'scheduled';
-      update.client_confirmed = true;
-      update.client_confirmed_at = new Date().toISOString();
-    }
-
-    const { error: e } = await supabase.from('interviews').update(update).eq('id', editing.id);
-    setProcessing(false);
-    if (e) {
-      toast.error('Fehler beim Speichern');
-      return;
-    }
-    if (dateChanged) {
-      await notifyRecruiter(
-        editing,
-        'interview_rescheduled',
-        'Interview umgebucht',
-        `Der Kunde hat das Interview für "${editing.jobTitle}" auf ${new Date(form.scheduled_at).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' })} gelegt. Bitte den Kandidaten informieren.`,
-      );
-      toast.success('Termin gespeichert – der Recruiter informiert den Kandidaten.');
-    } else {
-      toast.success('Interview aktualisiert');
-    }
-    setEditing(null);
     refetch();
   };
 
@@ -354,7 +294,7 @@ export default function ClientInterviews() {
           <>
             {/* Als Nächstes */}
             {focus === null && viewMode === 'agenda' && data?.nextUp && (
-              <NextInterviewHero interview={data.nextUp} onOpenGuide={handleOpenGuide} onEdit={openNewRequest} />
+              <NextInterviewHero interview={data.nextUp} onOpen={(iv) => openWindow(iv)} onOpenGuide={handleOpenGuide} onEdit={(iv) => openWindow(iv, 'reschedule')} />
             )}
 
             {/* Filterleiste */}
@@ -413,7 +353,7 @@ export default function ClientInterviews() {
                     .map(toLegacyShape) as any}
                   onSelectInterview={(legacy: any) => {
                     const iv = data?.all.find((x) => x.id === legacy.id);
-                    if (iv) setEditing(iv);
+                    if (iv) openWindow(iv);
                   }}
                 />
               </div>
@@ -551,30 +491,23 @@ export default function ClientInterviews() {
         )}
       </div>
 
-      {/* Termin-Panel */}
-      <TerminSheet
-        interview={terminFor?.iv ?? null}
-        variant={terminFor?.variant ?? 'agenda'}
-        open={!!terminFor}
-        onOpenChange={(o) => !o && setTerminFor(null)}
-        onEdit={setEditing}
-        onNewRequest={openNewRequest}
+      {/* Interview-Fenster */}
+      <InterviewWindow
+        interview={windowFor?.iv ?? null}
+        variant={windowFor?.variant ?? 'agenda'}
+        start={windowFor?.start}
+        open={!!windowFor}
+        onOpenChange={(o) => !o && setWindowFor(null)}
         onConfirmAlternative={handleConfirmAlternative}
-        confirming={!!terminFor && confirmingId === terminFor.iv.id}
+        confirming={!!windowFor && confirmingId === windowFor.iv.id}
         onRemind={handleRemind}
+        onNewRequest={openNewRequest}
         onCancel={setCancelFor}
-        onFeedback={setFeedbackFor}
+        onNextRound={(iv) => setRequestFor({ submissionId: iv.submissionId, replacesInterviewId: null })}
+        onChanged={() => refetch()}
       />
 
       {/* Dialoge */}
-      <InterviewEditDialog
-        interview={editing ? (toLegacyShape(editing) as any) : null}
-        open={!!editing}
-        onOpenChange={(o) => !o && setEditing(null)}
-        onSave={handleEditSave}
-        isProcessing={processing}
-      />
-
       <CounterProposalDialog
         interview={counterFor}
         open={!!counterFor}
@@ -590,7 +523,6 @@ export default function ClientInterviews() {
         onDone={() => refetch()}
       />
 
-      <LiveInterviewCompanion open={companionOpen} onOpenChange={setCompanionOpen} interview={companionInterview} />
 
       {feedbackFor && (
         <InterviewFeedbackForm

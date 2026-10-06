@@ -63,25 +63,33 @@ export function candidateInvitation(o: {
   allowAlternative: boolean;
   consentRequired: boolean;
   meeting?: MeetingInfo;
+  /** Verschieben: der gebuchte Termin, der bis zur neuen Wahl bestehen bleibt */
+  reschedule?: { previousStart: string } | null;
 }): MailContent {
   const meeting: MeetingInfo = o.meeting ?? { format: 'teams', companyName: o.companyName };
   const roundWord = o.round > 1 ? `zu einem ${o.round}. Gespräch` : '';
-  const subject = `Interview-Einladung: ${o.jobTitle} bei ${o.companyName}`;
+  const moved = o.reschedule ? `${formatBerlinDateLong(o.reschedule.previousStart)}, ${formatBerlinTime(o.reschedule.previousStart)} Uhr` : null;
+  const subject = moved ? `Neuer Terminvorschlag: ${o.jobTitle} bei ${o.companyName}` : `Interview-Einladung: ${o.jobTitle} bei ${o.companyName}`;
+  const heading = moved ? `${o.companyName} möchte Ihren Termin verschieben` : `${o.companyName} möchte Sie kennenlernen`;
   const slotRows = o.slots.map((s) =>
     `<tr><td style="padding:8px 0;border-top:1px solid #e5e7eb;">${esc(formatBerlinRange(s, o.durationMinutes))}</td>` +
     `<td style="padding:8px 0;border-top:1px solid #e5e7eb;text-align:right;"><a href="${esc(`${o.link}?slot=${encodeURIComponent(s)}`)}" style="color:#111827;font-weight:600;">wählen</a></td></tr>`).join('');
   const body = [
     p(`Hallo${o.firstName ? ` ${esc(o.firstName)}` : ''},`),
-    p(`${esc(o.companyName)} möchte Sie ${roundWord ? `${roundWord} ` : ''}für die Stelle <strong>${esc(o.jobTitle)}</strong> kennenlernen. ${esc(formatSentence(meeting, o.durationMinutes))}`),
+    moved
+      ? p(`${esc(o.companyName)} muss Ihren Termin für die Stelle <strong>${esc(o.jobTitle)}</strong> am <strong>${esc(moved)}</strong> leider verschieben. Bitte wählen Sie eine neue Zeit – bis dahin bleibt der bisherige Termin bestehen. ${esc(formatSentence(meeting, o.durationMinutes))}`)
+      : p(`${esc(o.companyName)} möchte Sie ${roundWord ? `${roundWord} ` : ''}für die Stelle <strong>${esc(o.jobTitle)}</strong> kennenlernen. ${esc(formatSentence(meeting, o.durationMinutes))}`),
     locationHtml(meeting),
     o.interviewers.length ? p(`${muted('Gesprächspartner:')} ${esc(interviewerLine(o.interviewers))}`) : '',
     o.message ? quote(o.message) : '',
-    `<div style="font-weight:600;margin:16px 0 4px 0;">Wählen Sie einen Termin</div>`,
+    `<div style="font-weight:600;margin:16px 0 4px 0;">${moved ? 'Wählen Sie eine neue Zeit' : 'Wählen Sie einen Termin'}</div>`,
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;">${slotRows}</table>`,
     p(muted(`Alle Zeiten in ${zone(o.slots[0] ?? new Date().toISOString())}.`)),
   ].join('');
   const after = [
-    o.allowAlternative ? `Keiner passt? Über den Knopf können Sie eine andere Zeit wählen oder das Interview ablehnen.` : 'Über den Knopf können Sie auch absagen.',
+    moved
+      ? (o.allowAlternative ? 'Keine passt? Über den Knopf können Sie eine andere Zeit wählen oder beim bisherigen Termin bleiben.' : 'Passt keine? Über den Knopf können Sie beim bisherigen Termin bleiben.')
+      : o.allowAlternative ? `Keiner passt? Über den Knopf können Sie eine andere Zeit wählen oder das Interview ablehnen.` : 'Über den Knopf können Sie auch absagen.',
     o.recruiter ? `<br><br>Fragen? Ihr Headhunter ${esc(o.recruiter.name)}${o.recruiter.phone ? `, ${esc(o.recruiter.phone)}` : ''}.` : '',
   ].join('');
   const footnote = o.consentRequired
@@ -89,10 +97,12 @@ export function candidateInvitation(o: {
     : 'Diese Einladung kommt über Matchunt.';
   return {
     subject,
-    html: layout({ preheader: `${o.companyName} möchte Sie kennenlernen`, heading: `${o.companyName} möchte Sie kennenlernen`, body, cta: { label: 'Termin wählen und bestätigen', url: o.link }, after, footnote }),
+    html: layout({ preheader: heading, heading, body, cta: { label: moved ? 'Neue Zeit wählen' : 'Termin wählen und bestätigen', url: o.link }, after, footnote }),
     text: plain(
       `Hallo${o.firstName ? ` ${o.firstName}` : ''},`, '',
-      `${o.companyName} möchte Sie für die Stelle ${o.jobTitle} kennenlernen. ${formatSentence(meeting, o.durationMinutes)}`,
+      moved
+        ? `${o.companyName} muss Ihren Termin am ${moved} verschieben. Bis Sie eine neue Zeit wählen, bleibt er bestehen. ${formatSentence(meeting, o.durationMinutes)}`
+        : `${o.companyName} möchte Sie für die Stelle ${o.jobTitle} kennenlernen. ${formatSentence(meeting, o.durationMinutes)}`,
       meeting.format === 'onsite' && meeting.note && `Hinweis: ${meeting.note}`,
       o.interviewers.length > 0 && `Gesprächspartner: ${interviewerLine(o.interviewers)}`,
       o.message && `Nachricht: „${o.message}“`, '',
@@ -148,18 +158,22 @@ export function candidateWithdrawn(o: { firstName: string | null; companyName: s
 
 // --- Headhunter ---------------------------------------------------------------
 
-export function recruiterRequested(o: { recruiterFirstName: string | null; candidateName: string; candidatePhone: string | null; companyName: string; jobTitle: string; slots: string[]; durationMinutes: number; round: number; detailUrl: string; format?: MeetingInfo['format'] }): MailContent {
+export function recruiterRequested(o: { recruiterFirstName: string | null; candidateName: string; candidatePhone: string | null; companyName: string; jobTitle: string; slots: string[]; durationMinutes: number; round: number; detailUrl: string; format?: MeetingInfo['format']; previousStart?: string | null }): MailContent {
   const first = o.slots[0];
+  const moved = o.previousStart ? `${formatBerlinDateLong(o.previousStart)}, ${formatBerlinTime(o.previousStart)} Uhr` : null;
+  const heading = moved ? `${o.companyName} möchte den Termin mit ${o.candidateName} verschieben` : `${o.companyName} möchte ${o.candidateName} sprechen`;
   const body = [
     p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
-    p(`${esc(o.companyName)} möchte <strong>${esc(o.candidateName)}</strong> ${o.round > 1 ? `zu einem ${o.round}. Gespräch ` : ''}für <strong>${esc(o.jobTitle)}</strong> sprechen. Die Einladung ist gerade an ${esc(o.candidateName.split(' ')[0])} gegangen.`),
+    moved
+      ? p(`${esc(o.companyName)} möchte den Termin mit <strong>${esc(o.candidateName)}</strong> für <strong>${esc(o.jobTitle)}</strong> am <strong>${esc(moved)}</strong> verschieben. Neue Vorschläge sind an ${esc(o.candidateName.split(' ')[0])} gegangen; der bisherige Termin bleibt bis zur Wahl bestehen.`)
+      : p(`${esc(o.companyName)} möchte <strong>${esc(o.candidateName)}</strong> ${o.round > 1 ? `zu einem ${o.round}. Gespräch ` : ''}für <strong>${esc(o.jobTitle)}</strong> sprechen. Die Einladung ist gerade an ${esc(o.candidateName.split(' ')[0])} gegangen.`),
     p(`${muted(`${formatLabel(o.format ?? 'teams')} · `)}${o.durationMinutes} Min${first ? ` · ${o.slots.length} Vorschläge ab ${esc(formatBerlinRange(first, o.durationMinutes))}` : ''}`),
     p(`Ein kurzer Anruf hilft: ${o.candidatePhone ? `<a href="tel:${esc(o.candidatePhone)}">${esc(o.candidatePhone)}</a>` : 'Telefonnummer steht in der Kandidatenakte'}. Bestätigen kann nur ${esc(o.candidateName.split(' ')[0])} selbst.`),
   ].join('');
   return {
-    subject: `${o.companyName} möchte ${o.candidateName} sprechen`,
-    html: layout({ preheader: `Interview-Anfrage für ${o.jobTitle}`, heading: `${o.companyName} möchte ${o.candidateName} sprechen`, body, cta: { label: 'Einreichung öffnen', url: o.detailUrl } }),
-    text: plain(`${o.companyName} möchte ${o.candidateName} für ${o.jobTitle} sprechen.`, ...o.slots.map((s) => `- ${formatBerlinRange(s, o.durationMinutes)}`), `Einreichung: ${o.detailUrl}`),
+    subject: heading,
+    html: layout({ preheader: moved ? `Verschiebung für ${o.jobTitle}` : `Interview-Anfrage für ${o.jobTitle}`, heading, body, cta: { label: 'Einreichung öffnen', url: o.detailUrl } }),
+    text: plain(moved ? `${heading} (bisher ${moved}).` : `${o.companyName} möchte ${o.candidateName} für ${o.jobTitle} sprechen.`, ...o.slots.map((s) => `- ${formatBerlinRange(s, o.durationMinutes)}`), `Einreichung: ${o.detailUrl}`),
   };
 }
 
@@ -175,6 +189,18 @@ export function recruiterUpdate(o: { kind: 'booked' | 'alternative' | 'declined'
 }
 
 // --- Kunde --------------------------------------------------------------------
+
+/** Kandidat bleibt beim bisherigen Termin (keine der neuen Zeiten passt). */
+export function clientRescheduleDeclined(o: { candidateLabel: string; jobTitle: string; previousStart: string; durationMinutes: number; reason: string | null; agendaUrl: string }): MailContent {
+  const when = formatBerlinRange(o.previousStart, o.durationMinutes);
+  const heading = `${o.candidateLabel} bleibt beim bisherigen Termin`;
+  const body = [
+    p(`Keine der neuen Zeiten passt ${esc(o.candidateLabel)}. Der bisherige Termin für <strong>${esc(o.jobTitle)}</strong> bleibt bestehen: <strong>${esc(when)}</strong>.`),
+    o.reason ? p(`${muted('Nachricht:')} ${esc(o.reason)}`) : '',
+    p('Möchten Sie trotzdem verschieben, schlagen Sie im Interview-Fenster neue Zeiten vor.'),
+  ].join('');
+  return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Interviews öffnen', url: o.agendaUrl } }), text: plain(heading, when, o.reason && `Nachricht: ${o.reason}`, o.agendaUrl) };
+}
 
 export function clientBooked(o: { candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; inOutlook: boolean; profileUrl: string; meeting?: MeetingInfo }): MailContent {
   const meeting: MeetingInfo = o.meeting ?? { format: 'teams', companyName: '' };

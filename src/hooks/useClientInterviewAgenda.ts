@@ -35,6 +35,10 @@ export interface AgendaInterview {
   candidateRole: string | null;
   jobTitle: string;
   jobId: string | null;
+  /** Verschiebe-Anfrage: gebuchter Termin, der bis zur neuen Wahl gilt */
+  reschedulesInterviewId: string | null;
+  /** Zu diesem gebuchten Termin läuft eine Verschiebe-Anfrage */
+  rescheduleRequested: boolean;
 }
 
 export interface AgendaDay {
@@ -97,7 +101,7 @@ export function useClientInterviewAgenda() {
         supabase
           .from('interviews')
           .select(
-            'id, submission_id, scheduled_at, duration_minutes, status, meeting_type, meeting_format, meeting_link, teams_join_url, google_meet_link, onsite_address, call_phone, notes, feedback, proposed_slots, counter_slots, candidate_message, created_at',
+            'id, submission_id, scheduled_at, duration_minutes, status, meeting_type, meeting_format, meeting_link, teams_join_url, google_meet_link, onsite_address, call_phone, notes, feedback, proposed_slots, counter_slots, candidate_message, created_at, reschedules_interview_id',
           )
           .order('scheduled_at', { ascending: true }),
         supabase
@@ -151,8 +155,15 @@ export function useClientInterviewAgenda() {
           candidateRole: cand?.candidate_role ?? null,
           jobTitle: cand?.job_title || 'Position',
           jobId: cand?.job_id ?? null,
+          reschedulesInterviewId: r.reschedules_interview_id ?? null,
+          rescheduleRequested: false,
         };
       });
+
+      // Laufende Verschiebungen: am gebuchten Termin markieren statt als eigene Anfrage zu zeigen
+      const OPEN = ['pending_response', 'pending', 'counter_proposed'];
+      const moving = new Set(all.filter((iv) => iv.reschedulesInterviewId && OPEN.includes(iv.status)).map((iv) => iv.reschedulesInterviewId!));
+      for (const iv of all) iv.rescheduleRequested = moving.has(iv.id);
 
       const counterProposals: AgendaInterview[] = [];
       const awaitingCandidate: AgendaInterview[] = [];
@@ -161,6 +172,8 @@ export function useClientInterviewAgenda() {
       const past: AgendaInterview[] = [];
 
       for (const iv of all) {
+        // Offene Verschiebe-Anfrage ohne Handlungsbedarf: steht als Hinweis am gebuchten Termin
+        if (iv.reschedulesInterviewId && (iv.status === 'pending_response' || iv.status === 'pending')) continue;
         if (TERMINAL.includes(iv.status)) {
           past.push(iv);
         } else if (iv.status === 'counter_proposed') {

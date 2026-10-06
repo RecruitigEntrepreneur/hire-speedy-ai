@@ -144,6 +144,12 @@ export function AgendaRow({
       {variant === 'agenda' && !iv.confirmed && (
         <Badge variant="outline" className="shrink-0 text-xs text-amber-600">unbestätigt</Badge>
       )}
+      {iv.rescheduleRequested && (
+        <Badge variant="outline" className="shrink-0 text-xs">Verschiebung angefragt</Badge>
+      )}
+      {variant === 'counter' && iv.reschedulesInterviewId && (
+        <Badge variant="outline" className="shrink-0 text-xs">Verschiebung</Badge>
+      )}
       {variant === 'counter' && (
         <span className="hidden shrink-0 text-xs text-muted-foreground lg:inline">{waitLabel(iv.waitingHours)}</span>
       )}

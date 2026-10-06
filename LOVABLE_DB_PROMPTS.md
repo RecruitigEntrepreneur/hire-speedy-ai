@@ -784,6 +784,24 @@ Abschnitt 15 kann im selben Durchgang mit erledigt werden.
 
 ---
 
+## 17 — Interview-Fenster: alles zum Termin, Verschieben, KI-Leitfaden (06.10.2026)
+
+Ein Klick auf ein Interview öffnet ein großes Fenster (Überblick, Kandidat, Leitfaden, Notizen,
+Feedback). „Verschieben“ läuft im Fenster; der gebuchte Termin bleibt, bis der Kandidat eine neue
+Zeit bestätigt. Leitfaden per KI aus Muss-Kriterien und Headhunter-Notiz. `generate-interview-prep`
+prüft jetzt, ob der Aufrufer zum Interview gehört.
+
+> 1. Migration `supabase/migrations/20261006120000_interview_reschedule_and_guide.sql` ausführen
+>    (`interviews`: `reschedules_interview_id`, `guide`, `guide_generated_at`; keine Daten werden verändert).
+> 2. Edge Functions deployen: `interview-request`, `get-interview-by-token`,
+>    `process-interview-response`, `interview-client-link`, `generate-interview-prep`.
+> 3. Publish.
+
+**Reihenfolge einhalten: erst 1, dann 2, dann 3.** Die Interview-Agenda liest ab dem Publish die
+neue Spalte `reschedules_interview_id`; ohne Migration bleibt die Seite leer.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

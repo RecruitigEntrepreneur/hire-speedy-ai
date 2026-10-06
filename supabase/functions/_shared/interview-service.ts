@@ -19,6 +19,8 @@ import {
   type Interval, type InterviewHoursRules, type ScheduleParticipant,
 } from './interview-availability.ts';
 import { berlinDateKey, berlinLocalToUtc, formatBerlinDateShort, nextDateKey } from './interview-time.ts';
+import { aiChat, type AiCall, type AiResult } from './ai.ts';
+import { GUIDE_SYSTEM, GUIDE_TOOL, fallbackGuide, guidePrompt, normalizeGuide, type GuideInput } from './interview-guide.ts';
 import { buildIcs, inviteUid } from './interview-ics.ts';
 import { sendInterviewMail, type InterviewMail, type MailResult } from './interview-mailer.ts';
 import * as mails from './interview-mails.ts';
@@ -62,6 +64,8 @@ export interface ServiceCtx {
   ms: MsConfig | null;
   fromEmail: string;
   mail: (mail: InterviewMail, log: { template: string; meta: Record<string, unknown> }) => Promise<MailResult>;
+  /** KI für den Leitfaden; fehlt sie, entsteht er aus den Muss-Kriterien */
+  ai?: (call: AiCall) => Promise<AiResult>;
 }
 
 export function defaultCtx(db: SupabaseClient): ServiceCtx {
@@ -72,6 +76,7 @@ export function defaultCtx(db: SupabaseClient): ServiceCtx {
     appUrl: getPublicAppUrl,
     ms: msConfig(),
     fromEmail,
+    ai: aiChat,
     mail: async (mail, log) => {
       const { data: row } = await db.from('email_events').insert({ to_email: mail.to, template_name: log.template, subject: mail.subject, status: 'pending', metadata: log.meta }).select('id').maybeSingle();
       const result = await sendInterviewMail(mail);
@@ -585,10 +590,16 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   const recruiter = await profileOf(ctx.db, bundle.submission.recruiter_id);
 
   // Offene Anfrage ersetzen (oder gezielt die angegebene)
-  const open: { id: string; status: string; round: number | null; submission_id: string } | null = draft.replacesInterviewId
-    ? (await ctx.db.from('interviews').select('id, status, round, submission_id').eq('id', draft.replacesInterviewId).maybeSingle()).data
+  const open: { id: string; status: string; round: number | null; submission_id: string; scheduled_at?: string | null } | null = draft.replacesInterviewId
+    ? (await ctx.db.from('interviews').select('id, status, round, submission_id, scheduled_at').eq('id', draft.replacesInterviewId).maybeSingle()).data
     : await openInterviewOf(ctx.db, bundle.submission.id);
   if (draft.replacesInterviewId) must(open && open.submission_id === bundle.submission.id, 'Die zu ersetzende Anfrage gehört nicht zu dieser Bewerbung.');
+  // Verschieben: der gebuchte Termin bleibt, bis der Kandidat eine neue Zeit bestätigt
+  const moving = body.reschedule === true;
+  if (moving) {
+    must(open && open.status === 'scheduled' && !!open.scheduled_at && Date.parse(open.scheduled_at) > ctx.now(),
+      'Nur ein künftiger, gebuchter Termin lässt sich verschieben.', 'conflict');
+  }
   const round = open?.round ?? (await nextRound(ctx.db, bundle.submission.id));
 
   const token = generateToken();
@@ -612,6 +623,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     response_token_hash: await hashToken(token),
     response_token_expires_at: new Date(expires).toISOString(),
     pending_opt_in: !bundle.submission.identity_unlocked,
+    ...(moving ? { reschedules_interview_id: open!.id } : {}),
   }).select('id').single();
   dbFail(error, 'Die Anfrage');
 
@@ -627,11 +639,15 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   const { error: attErr } = await ctx.db.from('interview_attendees').insert(attendeeRows);
   dbFail(attErr, 'Die Teilnehmer');
 
-  if (open) {
-    await supersede(ctx, open.id, iv!.id, user.id);
+  if (moving) {
+    // Frühere, noch offene Verschiebe-Anfragen zum selben Termin ersetzen; der Termin selbst bleibt
+    const { data: earlier } = await ctx.db.from('interviews').select('id')
+      .eq('reschedules_interview_id', open!.id).in('status', ['pending_response', 'counter_proposed']);
+    for (const e of (earlier ?? []) as any[]) if (e.id !== iv!.id) await supersede(ctx, e.id, iv!.id, user.id);
+  } else {
+    if (open) await supersede(ctx, open.id, iv!.id, user.id);
+    await ctx.db.from('submissions').update({ stage: 'interview_requested', opt_in_requested_at: new Date(ctx.now()).toISOString() }).eq('id', bundle.submission.id);
   }
-
-  await ctx.db.from('submissions').update({ stage: 'interview_requested', opt_in_requested_at: new Date(ctx.now()).toISOString() }).eq('id', bundle.submission.id);
 
   const link = `${ctx.appUrl()}/interview/respond/${token}`;
   const fromName = recruiter ? `${recruiter.name} über Matchunt` : 'Matchunt';
@@ -649,6 +665,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     allowAlternative: draft.allowAlternative,
     consentRequired: !bundle.submission.identity_unlocked,
     meeting: draftMeeting(draft, bundle.job.company_name),
+    reschedule: moving ? { previousStart: open!.scheduled_at! } : null,
   });
   const candidateMail = await ctx.mail({ fromEmail: ctx.fromEmail, fromName, to: bundle.candidate.email, replyTo: recruiter?.email ?? undefined, ...invitation }, { template: 'interview_invitation_v2', meta: { interview_id: iv!.id, submission_id: bundle.submission.id } });
 
@@ -665,10 +682,13 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
       round,
       detailUrl: `${ctx.appUrl()}/recruiter/submissions/${bundle.submission.id}`,
       format: draft.meetingFormat,
+      previousStart: moving ? open!.scheduled_at : null,
     });
     recruiterMail = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: recruiter.email, ...content }, { template: 'interview_requested_recruiter', meta: { interview_id: iv!.id } });
   }
-  await notify(ctx, bundle.submission.recruiter_id, 'interview_requested', `${bundle.job.company_name} möchte ${bundle.candidate.full_name} sprechen`, `Interview-Anfrage für ${bundle.job.title}: ${draft.slots.length} Terminvorschläge.`, iv!.id);
+  await notify(ctx, bundle.submission.recruiter_id, 'interview_requested',
+    moving ? `${bundle.job.company_name} möchte den Termin mit ${bundle.candidate.full_name} verschieben` : `${bundle.job.company_name} möchte ${bundle.candidate.full_name} sprechen`,
+    `${moving ? 'Verschiebung' : 'Interview-Anfrage'} für ${bundle.job.title}: ${draft.slots.length} Terminvorschläge.`, iv!.id);
 
   return {
     interviewId: iv!.id,
@@ -678,14 +698,46 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   };
 }
 
+/**
+ * Gebuchten Termin verschieben: neue Zeiten mit gleicher Dauer, gleichem Format
+ * und gleichen Teilnehmern. Der alte Termin bleibt, bis der Kandidat bestätigt.
+ */
+export async function reschedule(ctx: ServiceCtx, user: User, body: any) {
+  must(typeof body?.interviewId === 'string' && UUID.test(body.interviewId), 'Ungültiges Interview.');
+  const b = await loadInterview(ctx.db, { id: body.interviewId });
+  must(b, 'Interview nicht gefunden.', 'not_found');
+  const iv = b.interview;
+  const attendees = b.attendees.map((a: any) => ({
+    userId: a.user_id, email: a.email, name: a.name, title: a.title, required: a.required, kind: a.kind,
+    decisionMaker: !!a.is_decision_maker, functionKey: a.function_key ?? null,
+  }));
+  return await send(ctx, user, {
+    submissionId: b.submission.id,
+    meetingFormat: formatOf(iv),
+    onsiteAddress: iv.onsite_address ?? null,
+    locationNote: iv.location_note ?? null,
+    durationMinutes: iv.duration_minutes ?? 60,
+    slots: body.slots,
+    attendees,
+    allowAlternative: body.allowAlternative !== false,
+    alternativeRules: iv.alternative_rules ?? {},
+    message: body.message,
+    round: iv.round ?? 1,
+    replacesInterviewId: iv.id,
+    reschedule: true,
+  });
+}
+
 /** Alte offene Anfrage durch eine neue ersetzen; war sie schon gebucht, Termin absagen. */
-async function supersede(ctx: ServiceCtx, oldId: string, newId: string, userId: string) {
+async function supersede(ctx: ServiceCtx, oldId: string, newId: string, userId: string | null, opts: { movedTo?: string } = {}) {
   const { data: old } = await ctx.db.from('interviews').select('*').eq('id', oldId).maybeSingle();
   if (!old) return;
-  if (old.status === 'scheduled') await cancelBookedMeeting(ctx, old, 'Der Termin wird neu abgestimmt.');
+  if (old.status === 'scheduled') {
+    await cancelBookedMeeting(ctx, old, opts.movedTo ? `Neuer Termin: ${formatBerlinDateShort(opts.movedTo)}.` : 'Der Termin wird neu abgestimmt.', opts.movedTo ? 'moved' : 'cancelled');
+  }
   await ctx.db.from('interviews').update({
     status: 'cancelled', cancelled_at: new Date(ctx.now()).toISOString(), cancelled_by: userId,
-    cancellation_reason: 'Durch neue Terminvorschläge ersetzt', superseded_by: newId,
+    cancellation_reason: opts.movedTo ? 'Verschoben' : 'Durch neue Terminvorschläge ersetzt', superseded_by: newId,
     response_token_expires_at: new Date(ctx.now()).toISOString(), client_token_hash: null,
   }).eq('id', oldId);
 }
@@ -809,6 +861,10 @@ export async function candidateView(ctx: ServiceCtx, b: InterviewBundle) {
   const iv = b.interview;
   const now = ctx.now();
   const state = stateOf(b, now);
+  // Verschiebe-Anfrage: bisheriger Termin, der bis zur neuen Wahl gilt
+  const previous = iv.reschedules_interview_id
+    ? (await ctx.db.from('interviews').select('status, scheduled_at').eq('id', iv.reschedules_interview_id).maybeSingle()).data
+    : null;
   const consentRequired = !b.submission.identity_unlocked && !iv.consent_given_at;
   let alternatives: { date: string; label: string; times: string[] }[] = [];
   let alternativeMode: 'book' | 'request' = 'request';
@@ -835,6 +891,7 @@ export async function candidateView(ctx: ServiceCtx, b: InterviewBundle) {
     interviewers: b.attendees.map((a: any) => ({ name: a.name, title: a.title ?? null })),
     recruiter: b.recruiter ? { name: b.recruiter.name, phone: b.recruiter.phone, email: b.recruiter.email } : null,
     candidateFirstName: firstName(b.candidate.full_name),
+    reschedule: previous?.scheduled_at ? { previousStart: previous.scheduled_at, stillValid: previous.status === 'scheduled' } : null,
     consentRequired,
     consentText: consentText(b.job.company_name),
     consentVersion: CONSENT_VERSION,
@@ -948,6 +1005,7 @@ async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: str
     .eq('id', iv.id).in('status', ['pending_response', 'counter_proposed']).select('id').maybeSingle();
   dbFail(error, 'Die Absage');
   must(updated, 'Diese Einladung wurde bereits beantwortet.', 'conflict');
+  if (iv.reschedules_interview_id) return await keepPreviousTerm(ctx, b, reason);
   await ctx.db.from('submissions').update({ stage: 'interview_declined' }).eq('id', b.submission.id);
   const label = candidateLabel(b);
   for (const r of await clientRecipients(ctx.db, b)) {
@@ -960,6 +1018,19 @@ async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: str
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_declined_recruiter', meta: { interview_id: iv.id } });
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_declined', `${b.candidate.full_name} hat das Interview abgelehnt`, reason ?? b.job.title, iv.id);
+}
+
+/** Verschiebe-Anfrage abgelehnt: der bisherige Termin bleibt, Bewerbung unverändert. */
+async function keepPreviousTerm(ctx: ServiceCtx, b: InterviewBundle, reason: string | null) {
+  const { data: prev } = await ctx.db.from('interviews').select('id, status, scheduled_at, duration_minutes').eq('id', b.interview.reschedules_interview_id).maybeSingle();
+  const label = candidateLabel(b);
+  if (!prev?.scheduled_at || prev.status !== 'scheduled') return;
+  for (const r of await clientRecipients(ctx.db, b)) {
+    const content = mails.clientRescheduleDeclined({ candidateLabel: label, jobTitle: b.job.title, previousStart: prev.scheduled_at, durationMinutes: prev.duration_minutes ?? 60, reason, agendaUrl: `${ctx.appUrl()}/dashboard/interviews?interview=${prev.id}` });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: r.email, ...content }, { template: 'interview_reschedule_declined_client', meta: { interview_id: b.interview.id } });
+    await notify(ctx, r.user_id, 'interview_reschedule_declined', `${label} bleibt beim bisherigen Termin`, b.job.title, prev.id);
+  }
+  await notify(ctx, b.submission.recruiter_id, 'interview_reschedule_declined', `${b.candidate.full_name} bleibt beim bisherigen Termin`, reason ?? b.job.title, prev.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -1067,6 +1138,12 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
   b.interview = { ...b.interview, ...patch, meeting_provider: provider };
 
   await sendBookingMails(ctx, b, startMs, joinUrl, provider);
+
+  // Verschiebung: erst jetzt den bisherigen Termin ersetzen (Absage in Outlook und an alle Eingeladenen)
+  if (b.interview.reschedules_interview_id) {
+    await supersede(ctx, b.interview.reschedules_interview_id, iv.id, b.interview.requested_by ?? opts.clientUserId ?? organizerId ?? null,
+      { movedTo: new Date(startMs).toISOString() });
+  }
 }
 
 function inviteDescription(m: mails.MeetingInfo, extra: string) {
@@ -1144,7 +1221,7 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
 }
 
 /** Gebuchten Termin absagen: Outlook-Termin bzw. Matchunt-Besprechung löschen und Absagen an alle Matchunt-Einladungen. */
-async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string) {
+async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string, kind: 'cancelled' | 'moved' = 'cancelled') {
   const b = await loadInterview(ctx.db, { id: iv.id });
   if (!b) return;
   if (iv.meeting_provider === 'client_calendar' && iv.outlook_event_id) {
@@ -1157,10 +1234,11 @@ async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string) {
   const { data: invites } = await ctx.db.from('interview_invites').select('recipient_key, email').eq('interview_id', iv.id).eq('last_method', 'REQUEST');
   const startMs = Date.parse(iv.scheduled_at);
   for (const inv of invites ?? []) {
+    const verb = kind === 'moved' ? 'verschoben' : 'abgesagt';
     const content: mails.MailContent = {
-      subject: `Abgesagt: Interview ${b.job.title}`,
-      html: `<p>Der Termin am ${formatBerlinDateShort(iv.scheduled_at)} wurde abgesagt. ${comment}</p>`,
-      text: `Der Termin am ${formatBerlinDateShort(iv.scheduled_at)} wurde abgesagt. ${comment}`,
+      subject: `${kind === 'moved' ? 'Verschoben' : 'Abgesagt'}: Interview ${b.job.title}`,
+      html: `<p>Der Termin am ${formatBerlinDateShort(iv.scheduled_at)} wurde ${verb}. ${comment}</p>`,
+      text: `Der Termin am ${formatBerlinDateShort(iv.scheduled_at)} wurde ${verb}. ${comment}`,
     };
     await sendInvite(ctx, b, { key: inv.recipient_key, email: inv.email, name: inv.email }, 'CANCEL', content,
       { summary: `Interview ${b.job.title}`, description: comment, startMs }, 'interview_cancelled');
@@ -1325,4 +1403,129 @@ export async function authUser(req: Request): Promise<User> {
   const { data, error } = await client.auth.getUser();
   must(!error && data.user, 'Bitte melden Sie sich an.', 'not_allowed');
   return data.user!;
+}
+
+// ---------------------------------------------------------------------------
+// Interview-Fenster: alles zu einem Termin, Leitfaden
+// ---------------------------------------------------------------------------
+
+async function clientInterview(ctx: ServiceCtx, user: User, interviewId: unknown): Promise<InterviewBundle> {
+  must(typeof interviewId === 'string' && UUID.test(interviewId), 'Ungültiges Interview.');
+  const b = await loadInterview(ctx.db, { id: interviewId });
+  must(b, 'Interview nicht gefunden.', 'not_found');
+  must(await canUserActOnJob(ctx.db, user.id, b.job.id), 'Dafür fehlt Ihnen die Berechtigung.', 'not_allowed');
+  return b;
+}
+
+/**
+ * Alles zum Termin für das Interview-Fenster: Termin, Teilnehmer, Verlauf,
+ * Verschiebung, Leitfaden. Kandidatendaten kommen reveal-sicher aus der View.
+ */
+export async function interviewDetails(ctx: ServiceCtx, user: User, body: any) {
+  const b = await clientInterview(ctx, user, body?.interviewId);
+  const iv = b.interview;
+  const { data: moving } = await ctx.db.from('interviews').select('id, status, proposed_slots, counter_slots, created_at')
+    .eq('reschedules_interview_id', iv.id).in('status', ['pending_response', 'counter_proposed'])
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const previous = iv.reschedules_interview_id
+    ? (await ctx.db.from('interviews').select('id, status, scheduled_at').eq('id', iv.reschedules_interview_id).maybeSingle()).data
+    : null;
+  const slots = (raw: unknown) => ((Array.isArray(raw) ? raw : []) as any[]).map((x) => (typeof x === 'string' ? x : x?.datetime)).filter(Boolean) as string[];
+  const timeline: { at: string; text: string }[] = [];
+  if (iv.created_at) timeline.push({ at: iv.created_at, text: previous ? `Verschiebung angefragt (${slots(iv.proposed_slots).length} neue Zeiten)` : `Anfrage gesendet (${slots(iv.proposed_slots).length} Termine)` });
+  if (iv.status === 'counter_proposed' && slots(iv.counter_slots)[0]) timeline.push({ at: iv.updated_at ?? iv.created_at, text: `Kandidat fragt ${formatBerlinDateShort(slots(iv.counter_slots)[0])} an` });
+  if (iv.candidate_confirmed_at && iv.scheduled_at) timeline.push({ at: iv.candidate_confirmed_at, text: `Kandidat hat ${formatBerlinDateShort(iv.scheduled_at)} bestätigt` });
+  if (moving?.created_at) timeline.push({ at: moving.created_at, text: `Verschiebung angefragt (${slots(moving.proposed_slots).length} neue Zeiten), der Termin bleibt bis zur Wahl` });
+  if (iv.cancelled_at) timeline.push({ at: iv.cancelled_at, text: iv.cancellation_reason ? `Abgesagt: ${iv.cancellation_reason}` : 'Abgesagt' });
+  timeline.sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
+  const meeting = meetingOf(b);
+  return {
+    id: iv.id,
+    status: iv.status,
+    round: iv.round ?? 1,
+    scheduledAt: iv.scheduled_at ?? null,
+    durationMinutes: iv.duration_minutes ?? 60,
+    format: formatOf(iv),
+    joinUrl: meeting.joinUrl ?? null,
+    onsite: meeting.address ? { address: meeting.address, note: meeting.note ?? null, mapsUrl: mails.mapsUrl(meeting.address) } : null,
+    callPhone: iv.call_phone ?? null,
+    inOutlook: iv.meeting_provider === 'client_calendar',
+    proposedSlots: slots(iv.proposed_slots),
+    counterSlot: slots(iv.counter_slots)[0] ?? null,
+    candidateMessage: iv.candidate_message ?? null,
+    clientMessage: iv.client_message ?? null,
+    jobTitle: b.job.title,
+    companyName: b.job.company_name,
+    candidateLabel: candidateLabel(b),
+    identityUnlocked: !!b.submission.identity_unlocked,
+    // Eigene Teilnehmer des Kunden (für Verschieben: frei/belegt aller Pflicht-Teilnehmer)
+    attendees: b.attendees.map((a: any) => ({
+      userId: a.user_id ?? null, email: a.email, name: a.name, title: a.title ?? null, required: !!a.required,
+      organizer: !!a.is_organizer, decisionMaker: !!a.is_decision_maker, external: a.kind === 'external',
+    })),
+    // Nur der Name: Kontakt zum Headhunter läuft über Matchunt
+    recruiterName: b.recruiter?.name ?? null,
+    reschedule: moving ? { requestId: moving.id, status: moving.status, slots: slots(moving.proposed_slots), createdAt: moving.created_at } : null,
+    movedFrom: previous?.scheduled_at ? { previousStart: previous.scheduled_at, stillValid: previous.status === 'scheduled' } : null,
+    guide: normalizeGuide(iv.guide, true),
+    guideGeneratedAt: iv.guide_generated_at ?? null,
+    timeline,
+  };
+}
+
+async function guideInput(ctx: ServiceCtx, b: InterviewBundle): Promise<GuideInput> {
+  const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x ?? '').trim()).filter(Boolean) : []);
+  const { data: job } = await ctx.db.from('jobs')
+    .select('title, must_have_criteria, must_haves, nice_to_have_criteria, nice_to_haves, skills, requirements, onsite_days_required')
+    .eq('id', b.job.id).maybeSingle();
+  const { data: sub } = await ctx.db.from('submissions').select('recruiter_notes').eq('id', b.submission.id).maybeSingle();
+  const { data: cand } = await ctx.db.from('candidates').select('job_title, experience_years, seniority, skills').eq('id', b.candidate.id).maybeSingle();
+  const must = list(job?.must_have_criteria);
+  const nice = list(job?.nice_to_have_criteria);
+  return {
+    jobTitle: job?.title ?? b.job.title,
+    round: b.interview.round ?? 1,
+    durationMinutes: b.interview.duration_minutes ?? 60,
+    mustHaves: must.length ? must : list(job?.must_haves),
+    niceToHaves: nice.length ? nice : list(job?.nice_to_haves),
+    skills: list(job?.skills),
+    requirements: job?.requirements ? String(job.requirements) : null,
+    onsiteDays: typeof job?.onsite_days_required === 'number' ? job.onsite_days_required : null,
+    recruiterNote: sub?.recruiter_notes ? String(sub.recruiter_notes) : null,
+    candidate: { role: cand?.job_title ?? null, experienceYears: cand?.experience_years ?? null, seniority: cand?.seniority ?? null, skills: list(cand?.skills) },
+  };
+}
+
+/** Leitfaden holen; fehlt er (oder „neu erzeugen“), aus Stelle und Notiz erzeugen und speichern. */
+export async function interviewGuide(ctx: ServiceCtx, user: User, body: any) {
+  const b = await clientInterview(ctx, user, body?.interviewId);
+  const existing = normalizeGuide(b.interview.guide, true);
+  if (existing && body?.regenerate !== true) return { guide: existing, generatedAt: b.interview.guide_generated_at ?? null, source: 'saved' };
+  const input = await guideInput(ctx, b);
+  let guide = null;
+  let source: 'ai' | 'fallback' = 'fallback';
+  if (ctx.ai) {
+    try {
+      const res = await ctx.ai({ system: GUIDE_SYSTEM, user: guidePrompt(input), tool: GUIDE_TOOL, temperature: 0.4 });
+      guide = normalizeGuide(res.toolArguments);
+      if (guide) source = 'ai';
+    } catch (e) {
+      console.warn('[interview] Leitfaden per KI gescheitert', e instanceof Error ? e.message : e);
+    }
+  }
+  guide ??= fallbackGuide(input);
+  const generatedAt = new Date(ctx.now()).toISOString();
+  const { error } = await ctx.db.from('interviews').update({ guide, guide_generated_at: generatedAt }).eq('id', b.interview.id);
+  dbFail(error, 'Der Leitfaden');
+  return { guide, generatedAt, source };
+}
+
+/** Bearbeiteten Leitfaden speichern (Fragen, Reihenfolge, abgehakt). */
+export async function saveInterviewGuide(ctx: ServiceCtx, user: User, body: any) {
+  const b = await clientInterview(ctx, user, body?.interviewId);
+  const guide = normalizeGuide(body?.guide, true);
+  must(guide, 'Der Leitfaden ist leer.');
+  const { error } = await ctx.db.from('interviews').update({ guide }).eq('id', b.interview.id);
+  dbFail(error, 'Der Leitfaden');
+  return { guide };
 }

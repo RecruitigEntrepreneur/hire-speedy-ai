@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, checkTime, clientLink, confirmAlternative, inviteColleague, loadCandidateView, looksLikeCompany, preview, requestContext, send, setMyName, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, interviewDetails, interviewGuide, inviteColleague, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveInterviewGuide, send, setMyName, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -474,4 +474,107 @@ Deno.test({ name: 'Kandidaten-Mail: Firma aus den Firmendaten, ohne Personenname
   const invite = sent.find((m) => m.template === 'interview_invitation_v2')!;
   assert(invite.html.includes('Marko Benko, Talent Acquisition Manager'), 'Gesprächspartner mit Namen, ohne Leerzeichen vor dem Komma');
   assert(invite.subject.endsWith('bei Bluewater & Bridge GmbH'));
+}});
+
+// Hilfen: Termin buchen lassen und den letzten Einladungslink lesen
+async function bookedInterview(ctx: ServiceCtx, sent: any[], slot: string) {
+  const me = user(CLIENT, 'marko@example.test');
+  await send(ctx, me, { submissionId: SUB, durationMinutes: 60, slots: [slot], attendees: [{ userId: JULIA, email: 'julia@example.test', name: 'Julia', required: true }], allowAlternative: true, alternativeRules: {}, round: 1 });
+  await candidateRespond(ctx, { action: 'accept', token: linkToken(sent), slotStart: slot, consentGiven: true });
+  return me;
+}
+const lastLink = (mails: any[]) => {
+  const html = [...mails].reverse().find((m) => m.template === 'interview_invitation_v2')!.html;
+  return decodeURIComponent(html.match(/interview\/respond\/([A-Za-z0-9_-]{20,})/)![1]);
+};
+
+Deno.test({ name: 'Verschieben: alter Termin bleibt bis zur neuen Wahl, dann ersetzt und abgesagt', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = await bookedInterview(ctx, sent, at(6, 10));
+  const old = tables.interviews[0];
+  eq(old.status, 'scheduled');
+
+  sent.length = 0;
+  await reschedule(ctx, me, { interviewId: old.id, slots: [at(8, 11), at(9, 9)], message: 'Leider müssen wir verschieben.' });
+  const req = tables.interviews.find((x: any) => x.reschedules_interview_id === old.id)!;
+  eq([old.status, req.status], ['scheduled', 'pending_response'], 'alter Termin bleibt');
+  eq(tables.interview_attendees.filter((a: any) => a.interview_id === req.id).map((a: any) => a.email).sort(), ['julia@example.test', 'marko@example.test'], 'gleiche Teilnehmer');
+  eq(tables.submissions[0].stage, 'interview_scheduled', 'Bewerbung bleibt im gebuchten Stand');
+  const mail = sent.find((m) => m.template === 'interview_invitation_v2')!;
+  assert(mail.subject.startsWith('Neuer Terminvorschlag'), mail.subject);
+  assert(mail.html.includes('bleibt der bisherige Termin bestehen'));
+  assert(!sent.some((m) => m.ics && m.ics.content.includes('METHOD:CANCEL')), 'noch keine Absage');
+
+  const detail = await interviewDetails(ctx, me, { interviewId: old.id });
+  eq(detail.reschedule?.slots, [at(8, 11), at(9, 9)]);
+  assert(detail.timeline.some((t: any) => t.text.startsWith('Verschiebung angefragt')));
+
+  const token = lastLink(sent);
+  const view = await loadCandidateView(ctx, token);
+  eq(view.reschedule, { previousStart: at(6, 10), stillValid: true });
+
+  sent.length = 0;
+  await candidateRespond(ctx, { action: 'accept', token, slotStart: at(8, 11) });
+  eq([req.status, req.scheduled_at], ['scheduled', at(8, 11)]);
+  eq([old.status, old.superseded_by, old.cancellation_reason], ['cancelled', req.id, 'Verschoben']);
+  const cancels = sent.filter((m) => m.ics && m.ics.content.includes('METHOD:CANCEL'));
+  assert(cancels.length > 0 && cancels.every((m) => m.subject.startsWith('Verschoben:')), 'Absage des alten Termins als „Verschoben“');
+  assert(sent.some((m) => m.ics && m.to === 'kandidat@example.test' && m.ics.content.includes('METHOD:REQUEST')), 'neue Einladung an den Kandidaten');
+}});
+
+Deno.test({ name: 'Verschieben: Kandidat bleibt beim bisherigen Termin', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = await bookedInterview(ctx, sent, at(6, 10));
+  const old = tables.interviews[0];
+  await reschedule(ctx, me, { interviewId: old.id, slots: [at(8, 11)] });
+  const token = lastLink(sent);
+  sent.length = 0;
+  await candidateRespond(ctx, { action: 'decline', token, reason: 'Passt beides nicht.' });
+  const req = tables.interviews.find((x: any) => x.reschedules_interview_id === old.id)!;
+  eq([old.status, req.status], ['scheduled', 'declined'], 'bisheriger Termin bleibt');
+  eq(tables.submissions[0].stage, 'interview_scheduled', 'keine Absage der Bewerbung');
+  assert(sent.some((m) => m.template === 'interview_reschedule_declined_client' && m.to === 'marko@example.test'), 'Kunde erfährt es');
+  assert(!sent.some((m) => m.template === 'interview_declined_client'), 'keine Mail „hat das Interview abgelehnt“');
+}});
+
+Deno.test({ name: 'Leitfaden: ohne KI aus den Muss-Kriterien, mit KI gespeichert, Bearbeitung bleibt', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  Object.assign(tables.jobs[0], { must_have_criteria: ['Python', 'SQL'], onsite_days_required: 5 });
+  tables.submissions[0].recruiter_notes = 'Modelle bisher bis zum Prototyp.';
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = await bookedInterview(ctx, sent, at(6, 10));
+  const iv = tables.interviews[0];
+
+  const plain = await interviewGuide(ctx, me, { interviewId: iv.id });
+  eq(plain.source, 'fallback');
+  assert(plain.guide.sections[0].items[0].text.includes('Python'));
+  assert(JSON.stringify(plain.guide).includes('5 Tage'), 'Rahmen aus der Stelle');
+
+  const prompts: string[] = [];
+  const withAi = { ...ctx, ai: async (call: any) => {
+    prompts.push(call.user);
+    return { content: null, provider: 'lovable' as const, model: 'test', toolArguments: { sections: [{ title: 'Muss-Kriterien der Stelle', items: [{ text: 'Welches Modell haben Sie in Betrieb gebracht?', hint: 'Eigener Anteil' }] }] } };
+  } };
+  const again = await interviewGuide(withAi, me, { interviewId: iv.id });
+  eq(again.source, 'saved', 'gespeicherter Leitfaden wird nicht überschrieben');
+  const fresh = await interviewGuide(withAi, me, { interviewId: iv.id, regenerate: true });
+  eq(fresh.source, 'ai');
+  assert(prompts[0].includes('Python; SQL') && prompts[0].includes('Prototyp'), 'Stelle und Notiz im Auftrag');
+  assert(!prompts[0].includes('Katharina') && !prompts[0].includes('kandidat@example.test'), 'kein Name, keine Mail an die KI');
+
+  const edited = structuredClone(fresh.guide);
+  edited.sections[0].items[0].done = true;
+  edited.sections[0].items.push({ id: 'eigen1', text: 'Eigene Frage', hint: null, done: false });
+  await saveInterviewGuide(ctx, me, { interviewId: iv.id, guide: edited });
+  const detail = await interviewDetails(ctx, me, { interviewId: iv.id });
+  eq(detail.guide!.sections[0].items.map((i: any) => [i.text, i.done]), [['Welches Modell haben Sie in Betrieb gebracht?', true], ['Eigene Frage', false]]);
+
+  let denied = '';
+  try { await interviewDetails(ctx, user('fremd-0000-0000-0000-000000000009', 'x@y.test'), { interviewId: iv.id }); } catch (e) { denied = e instanceof Error ? e.message : String(e); }
+  assert(denied.includes('Berechtigung'), 'fremder Nutzer sieht nichts');
 }});

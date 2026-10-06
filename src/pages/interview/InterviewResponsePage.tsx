@@ -123,7 +123,7 @@ export default function InterviewResponsePage() {
     case 'open': {
       const effective: Mode = mode === 'alternative' && !view.allowAlternative ? 'pick' : mode;
       content = effective === 'decline'
-        ? <DeclinePanel busy={busy} onBack={() => setMode('pick')} onDecline={(reason) => run(() => candidateApi.decline(token, reason))} />
+        ? <DeclinePanel busy={busy} view={view} onBack={() => setMode('pick')} onDecline={(reason) => run(() => candidateApi.decline(token, reason))} />
         : effective === 'alternative'
           ? <AlternativePanel
               view={view}
@@ -156,7 +156,11 @@ export default function InterviewResponsePage() {
       content = <RequestedPanel view={view} />;
       break;
     case 'declined':
-      content = (
+      content = view.reschedule ? (
+        <EndState icon={CheckCircle2} title="Ihr bisheriger Termin bleibt bestehen." recruiter={view.recruiter}>
+          {fmtDayLong(view.reschedule.previousStart)}, {fmtTime(view.reschedule.previousStart)} Uhr. {view.companyName} ist informiert.
+        </EndState>
+      ) : (
         <EndState icon={XCircle} title="Sie haben das Interview abgelehnt." recruiter={view.recruiter}>
           {view.companyName} und {view.recruiter?.name ?? 'Ihr Headhunter'} sind informiert.
         </EndState>
@@ -191,10 +195,17 @@ export default function InterviewResponsePage() {
 function InviteHeader({ view }: { view: CandidateView }) {
   return (
     <div className="space-y-2">
-      <h1 className="text-2xl font-semibold leading-tight tracking-tight">{view.companyName} möchte Sie kennenlernen</h1>
+      <h1 className="text-2xl font-semibold leading-tight tracking-tight">
+        {view.reschedule ? `${view.companyName} möchte Ihren Termin verschieben` : `${view.companyName} möchte Sie kennenlernen`}
+      </h1>
       <p className="text-sm text-muted-foreground">
         {view.jobTitle} · {view.durationMinutes} Min · {formatText(view)}
       </p>
+      {view.reschedule?.stillValid && (
+        <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+          Ihr bisheriger Termin am <strong>{fmtDayLong(view.reschedule.previousStart)}, {fmtTime(view.reschedule.previousStart)} Uhr</strong> bleibt bestehen, bis Sie eine neue Zeit wählen.
+        </p>
+      )}
       <OnsiteBlock view={view} />
       {view.interviewers.length > 0 && (
         <p className="text-sm">
@@ -308,7 +319,7 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
 
       <section className="space-y-3" aria-labelledby="slot-heading">
         <div>
-          <h2 id="slot-heading" className="text-base font-semibold">Wählen Sie einen Termin</h2>
+          <h2 id="slot-heading" className="text-base font-semibold">{view.reschedule ? 'Wählen Sie eine neue Zeit' : 'Wählen Sie einen Termin'}</h2>
           <p className="text-xs text-muted-foreground">Alle Zeiten: <GermanTime isos={view.slots.map((s) => s.start)} /></p>
         </div>
         <div role="radiogroup" aria-labelledby="slot-heading" className="space-y-2">
@@ -384,9 +395,9 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
             type="button"
             disabled={busy}
             onClick={onDecline}
-            className="min-h-11 px-3 text-sm font-medium text-destructive underline-offset-4 hover:underline disabled:opacity-50"
+            className={cn('min-h-11 px-3 text-sm font-medium underline-offset-4 hover:underline disabled:opacity-50', view.reschedule ? 'text-foreground' : 'text-destructive')}
           >
-            Interview ablehnen
+            {view.reschedule ? 'Keine passt – beim bisherigen Termin bleiben' : 'Interview ablehnen'}
           </button>
         </div>
       </div>
@@ -536,9 +547,32 @@ function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBa
   );
 }
 
-function DeclinePanel({ busy, onBack, onDecline }: { busy: boolean; onBack: () => void; onDecline: (reason: string) => void }) {
+function DeclinePanel({ busy, view, onBack, onDecline }: { busy: boolean; view: CandidateView; onBack: () => void; onDecline: (reason: string) => void }) {
   const [reason, setReason] = useState<string | null>(null);
   const [other, setOther] = useState('');
+
+  if (view.reschedule) {
+    // Verschiebung: Ablehnen heißt nur „beim bisherigen Termin bleiben“
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight">Beim bisherigen Termin bleiben?</h1>
+          <p className="text-sm text-muted-foreground">
+            Ihr Termin am {fmtDayLong(view.reschedule.previousStart)}, {fmtTime(view.reschedule.previousStart)} Uhr bleibt bestehen. {view.companyName} wird informiert.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <Button size="lg" className="h-12 w-full" disabled={busy} onClick={() => onDecline('Beim bisherigen Termin bleiben')}>
+            {busy && <Loader2 className="animate-spin" />}
+            Beim bisherigen Termin bleiben
+          </Button>
+          <Button variant="outline" size="lg" className="h-12 w-full" disabled={busy} onClick={onBack}>
+            Zurück
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const submit = () => {
     const text = other.trim();

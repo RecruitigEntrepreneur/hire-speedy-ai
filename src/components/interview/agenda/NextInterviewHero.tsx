@@ -11,6 +11,8 @@ import { CalendarPlus, Clock, Sparkles, Video } from 'lucide-react';
 interface Props {
   interview: AgendaInterview;
   onOpenGuide: (iv: AgendaInterview) => void;
+  /** Klick auf das Interview öffnet das Interview-Fenster */
+  onOpen: (iv: AgendaInterview) => void;
   onEdit: (iv: AgendaInterview) => void;
 }
 
@@ -38,7 +40,7 @@ const dayLabel = (iso: string) => {
 };
 
 /** Das nächste bestätigte Interview – groß, mit Live-Countdown, Beitreten und Guide. */
-export function NextInterviewHero({ interview: iv, onOpenGuide, onEdit }: Props) {
+export function NextInterviewHero({ interview: iv, onOpenGuide, onOpen, onEdit }: Props) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
@@ -74,7 +76,7 @@ export function NextInterviewHero({ interview: iv, onOpenGuide, onEdit }: Props)
             <p className="text-base font-bold leading-tight">{time}</p>
           </div>
           <CandidateAvatar iv={iv} className="h-10 w-10" />
-          <div className="min-w-0 flex-1 basis-48">
+          <button type="button" onClick={() => onOpen(iv)} className="min-w-0 flex-1 basis-48 rounded-md text-left hover:opacity-90" aria-label={`Interview mit ${iv.candidateName} öffnen`}>
             <div className="flex flex-wrap items-center gap-2">
               <CandidateName iv={iv} className="text-base" />
               {iv.identityUnlocked ? (
@@ -91,12 +93,15 @@ export function NextInterviewHero({ interview: iv, onOpenGuide, onEdit }: Props)
                   unbestätigt
                 </Badge>
               )}
+              {iv.rescheduleRequested && (
+                <Badge variant="outline" className="text-xs">Verschiebung angefragt</Badge>
+              )}
             </div>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
               <MeetingTypeIcon type={iv.meetingType} className="h-3.5 w-3.5" />
               {meetingTypeLabel(iv.meetingType)} · {iv.jobTitle} · {iv.durationMinutes} Min
             </p>
-          </div>
+          </button>
           <div className="flex flex-wrap items-center gap-2">
             {iv.joinUrl && (
               <Button asChild variant="hero" size="sm" className="gap-1.5">
@@ -106,12 +111,10 @@ export function NextInterviewHero({ interview: iv, onOpenGuide, onEdit }: Props)
                 </a>
               </Button>
             )}
-            {iv.identityUnlocked && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onOpenGuide(iv)}>
-                <Sparkles className="h-4 w-4" />
-                Interview-Guide
-              </Button>
-            )}
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onOpenGuide(iv)}>
+              <Sparkles className="h-4 w-4" />
+              Leitfaden
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -122,9 +125,11 @@ export function NextInterviewHero({ interview: iv, onOpenGuide, onEdit }: Props)
             >
               <CalendarPlus className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => onEdit(iv)}>
-              Umbuchen
-            </Button>
+            {iv.confirmed && !iv.rescheduleRequested && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => onEdit(iv)}>
+                Verschieben
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

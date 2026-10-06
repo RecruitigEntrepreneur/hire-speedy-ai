@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { canUserActOnJob } from "../_shared/team-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,6 +71,24 @@ serve(async (req) => {
       console.error('[generate-interview-prep] Interview not found:', interviewError);
       return new Response(JSON.stringify({ error: 'Interview not found' }), {
         status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Nur Beteiligte: Headhunter der Einreichung, Kundenteam der Stelle oder Admin
+    const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+    });
+    const { data: { user: caller } } = await authClient.auth.getUser();
+    const sub = (interview as any).submission;
+    const isRecruiter = !!caller && sub?.recruiter_id === caller.id;
+    const isClient = !!caller && !!sub?.job?.id && await canUserActOnJob(supabase, caller.id, sub.job.id);
+    const { data: adminRole } = caller
+      ? await supabase.from('user_roles').select('role').eq('user_id', caller.id).eq('role', 'admin').maybeSingle()
+      : { data: null };
+    if (!isRecruiter && !isClient && !adminRole) {
+      return new Response(JSON.stringify({ error: 'Not allowed' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

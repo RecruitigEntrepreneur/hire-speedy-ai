@@ -133,6 +133,41 @@ export interface AvailabilityInput {
   attendees: AttendeeDraft[];
 }
 
+export interface GuideItem { id: string; text: string; hint: string | null; done: boolean }
+export interface GuideSection { title: string; items: GuideItem[] }
+export interface InterviewGuideData { sections: GuideSection[] }
+
+/** Alles zu einem Termin für das Interview-Fenster (Kandidatendaten kommen aus der View). */
+export interface InterviewDetails {
+  id: string;
+  status: string;
+  round: number;
+  scheduledAt: string | null;
+  durationMinutes: number;
+  format: MeetingFormat;
+  joinUrl: string | null;
+  onsite: { address: string; note: string | null; mapsUrl: string } | null;
+  callPhone: string | null;
+  inOutlook: boolean;
+  proposedSlots: string[];
+  counterSlot: string | null;
+  candidateMessage: string | null;
+  clientMessage: string | null;
+  jobTitle: string;
+  companyName: string;
+  candidateLabel: string;
+  identityUnlocked: boolean;
+  attendees: { userId: string | null; email: string; name: string; title: string | null; required: boolean; organizer: boolean; decisionMaker: boolean; external: boolean }[];
+  recruiterName: string | null;
+  /** offene Verschiebe-Anfrage zu diesem Termin */
+  reschedule: { requestId: string; status: string; slots: string[]; createdAt: string } | null;
+  /** diese Anfrage verschiebt einen gebuchten Termin */
+  movedFrom: { previousStart: string; stillValid: boolean } | null;
+  guide: InterviewGuideData | null;
+  guideGeneratedAt: string | null;
+  timeline: { at: string; text: string }[];
+}
+
 export interface CheckTimeInput {
   submissionId: string;
   durationMinutes: number;
@@ -194,6 +229,13 @@ export const interviewApi = {
   availability: (input: AvailabilityInput) => callFunction<AvailabilityResult>('interview-request', { action: 'availability', ...input }),
   checkTime: (input: CheckTimeInput) => callFunction<CheckTimeResult>('interview-request', { action: 'check_time', ...input }),
   setName: (name: string) => callFunction<{ name: string }>('interview-request', { action: 'set_name', name }),
+  details: (interviewId: string) => callFunction<InterviewDetails>('interview-request', { action: 'details', interviewId }),
+  reschedule: (input: { interviewId: string; slots: string[]; message: string; allowAlternative: boolean }) =>
+    callFunction<SendResult>('interview-request', { action: 'reschedule', ...input }),
+  guide: (interviewId: string, regenerate = false) =>
+    callFunction<{ guide: InterviewGuideData; generatedAt: string | null; source: 'saved' | 'ai' | 'fallback' }>('interview-request', { action: 'guide', interviewId, regenerate }),
+  saveGuide: (interviewId: string, guide: InterviewGuideData) =>
+    callFunction<{ guide: InterviewGuideData }>('interview-request', { action: 'guide_save', interviewId, guide }),
   preview: (input: SendInput) => callFunction<MailPreview>('interview-request', { action: 'preview', ...input }),
   send: (input: SendInput) => callFunction<SendResult>('interview-request', { action: 'send', ...input }),
   confirmAlternative: (interviewId: string) => callFunction<{ scheduledAt: string }>('interview-request', { action: 'confirm_alternative', interviewId }),
@@ -247,6 +289,8 @@ export interface CandidateView {
   interviewers: { name: string; title: string | null }[];
   recruiter: { name: string; phone: string | null; email: string | null } | null;
   candidateFirstName: string | null;
+  /** Verschiebe-Anfrage: der bisherige Termin, der bis zur neuen Wahl gilt */
+  reschedule?: { previousStart: string; stillValid: boolean } | null;
   /** Einwilligung nötig (erste Runde) oder schon erteilt */
   consentRequired: boolean;
   consentText: string;
