@@ -16,6 +16,7 @@ import { useLiveInterviewNotes } from '@/hooks/useLiveInterviewNotes';
 import { fmtDayLong, fmtDayShort, fmtRange, fmtTime, interviewApi, type InterviewDetails } from '@/lib/interviewScheduling';
 import { relativeDay } from '@/lib/interviewRequestUtils';
 import { InterviewTimer } from '../InterviewTimer';
+import { meetingTypeLabel } from '../agenda/meetingType';
 import { LiveNotesPanel } from '../LiveNotesPanel';
 import { CandidateFacts } from './CandidateFacts';
 import { FeedbackPanel } from './FeedbackPanel';
@@ -72,7 +73,7 @@ export function InterviewWindow(props: Props) {
         <PanelPrimitive.Content
           onInteractOutside={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="fixed inset-y-0 right-0 z-40 flex w-full max-w-full flex-col border-l bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:w-[46rem]"
+          className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:w-[46rem]"
         >
           {iv && <WindowBody key={iv.id} {...props} interview={iv} />}
           <PanelPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring" aria-label="Schließen">
@@ -118,6 +119,8 @@ function WindowBody({
 
   const format = d?.format ?? (iv.meetingType === 'phone' || iv.meetingType === 'onsite' ? iv.meetingType : 'teams');
   const joinUrl = d?.joinUrl ?? iv.joinUrl;
+  // Alte Anfragen (Google Meet, Video-Call) mit ihrer echten Bezeichnung
+  const formatLabel = iv.meetingType ? meetingTypeLabel(iv.meetingType) : FORMAT_LABEL[format];
   const name = iv.candidateName;
   const first = iv.identityUnlocked ? name.split(' ')[0] : 'Der Kandidat';
 
@@ -151,7 +154,7 @@ function WindowBody({
             <PanelPrimitive.Description className="truncate text-xs text-muted-foreground">
               {iv.jobTitle}{d ? ` · Runde ${d.round}` : ''}
               {iv.scheduledAt ? ` · ${fmtDayLong(iv.scheduledAt)} · ${timeRange(iv.scheduledAt, iv.durationMinutes)}` : ''}
-              {` · ${FORMAT_LABEL[format]}`}
+              {` · ${formatLabel}`}
               {future && iv.scheduledAt ? ` · ${relative(iv.scheduledAt)}` : ''}
             </PanelPrimitive.Description>
           </div>
@@ -271,7 +274,7 @@ function WindowBody({
                   <Button size="sm" variant="outline" className="gap-1.5" onClick={() => details.refetch()}><RefreshCw className="h-3.5 w-3.5" /> Erneut versuchen</Button>
                 </div>
               ) : (
-                <Overview d={d} name={name} />
+                <Overview d={d} name={name} formatLabel={formatLabel} />
               )}
             </TabsContent>
 
@@ -349,7 +352,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Overview({ d, name }: { d: InterviewDetails; name: string }) {
+function Overview({ d, name, formatLabel }: { d: InterviewDetails; name: string; formatLabel: string }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2">
       <Section title="Termin">
@@ -363,7 +366,7 @@ function Overview({ d, name }: { d: InterviewDetails; name: string }) {
           <p className="text-sm text-muted-foreground">Noch kein Termin.</p>
         )}
         <p className="text-sm">
-          {FORMAT_LABEL[d.format]}
+          {formatLabel}
           {d.inOutlook && d.scheduledAt ? <span className="text-muted-foreground"> · steht in Ihrem Outlook</span> : ''}
         </p>
         {d.format === 'teams' && d.joinUrl && <p className="truncate text-xs text-muted-foreground">{d.joinUrl}</p>}
@@ -378,6 +381,8 @@ function Overview({ d, name }: { d: InterviewDetails; name: string }) {
 
       <Section title="Wer ist dabei">
         <ul className="space-y-1 text-sm">
+          {/* Alte Anfragen ohne Teilnehmerliste: mindestens Sie */}
+          {!d.attendees.some((a) => a.organizer) && <li>Sie</li>}
           {d.attendees.map((a) => (
             <li key={`${a.email}-${a.name}`}>
               {a.organizer ? 'Sie · ' : ''}{a.name}
