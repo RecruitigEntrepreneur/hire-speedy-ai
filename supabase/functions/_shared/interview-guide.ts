@@ -60,6 +60,7 @@ export const GUIDE_SYSTEM = [
   'Erstelle drei Abschnitte in dieser Reihenfolge: „Muss-Kriterien der Stelle“, „Offen aus der Headhunter-Notiz“, „Rahmen“.',
   'Je Abschnitt 2–4 konkrete, offene Fragen in Sie-Form, verhaltensbasiert („Erzählen Sie von einer Situation …“), passend zur Stelle.',
   'Zu jeder Frage ein kurzer Hinweis, worauf der Interviewer achten sollte.',
+  'Formuliere jede Frage so, dass der Interviewer sie wörtlich stellen kann – ohne Hinweis auf Headhunter, Notiz, Unterlagen oder „aus … geht hervor“. Die Quelle gehört höchstens in den Hinweis.',
   '„Rahmen“: Arbeitsort/Vor-Ort-Tage, Start und Kündigungsfrist, Gehaltsrahmen nur allgemein – keine Zahlen erfinden.',
   'Keine Fragen zu Alter, Herkunft, Religion, Familienplanung, Schwangerschaft, Gesundheit, Behinderung oder sexueller Identität (AGG).',
   'Erfinde keine Fakten über den Kandidaten. Ist ein Abschnitt ohne Grundlage, stelle allgemeine, gute Fragen dazu.',

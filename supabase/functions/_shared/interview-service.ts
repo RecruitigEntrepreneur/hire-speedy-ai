@@ -735,6 +735,11 @@ async function supersede(ctx: ServiceCtx, oldId: string, newId: string, userId: 
   if (old.status === 'scheduled') {
     await cancelBookedMeeting(ctx, old, opts.movedTo ? `Neuer Termin: ${formatBerlinDateShort(opts.movedTo)}.` : 'Der Termin wird neu abgestimmt.', opts.movedTo ? 'moved' : 'cancelled');
   }
+  if (opts.movedTo) {
+    // Verschoben: Leitfaden (mit Anpassungen und Haken) und Notizen gehören zum neuen Termin
+    if (old.guide) await ctx.db.from('interviews').update({ guide: old.guide, guide_generated_at: old.guide_generated_at ?? null }).eq('id', newId);
+    await ctx.db.from('interview_notes').update({ interview_id: newId }).eq('interview_id', oldId);
+  }
   await ctx.db.from('interviews').update({
     status: 'cancelled', cancelled_at: new Date(ctx.now()).toISOString(), cancelled_by: userId,
     cancellation_reason: opts.movedTo ? 'Verschoben' : 'Durch neue Terminvorschläge ersetzt', superseded_by: newId,

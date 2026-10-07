@@ -802,6 +802,17 @@ neue Spalte `reschedules_interview_id`; ohne Migration bleibt die Seite leer.
 
 ---
 
+## 18 — Verschieben: Leitfaden und Notizen ziehen mit um (07.10.2026)
+
+Live-Befund: nach der Verschiebung war der Leitfaden neu (Haken weg), und die KI-Fragen nannten
+„Aus der Headhunter-Notiz geht hervor …“. Jetzt wandern Leitfaden und Notizen beim Bestätigen der
+neuen Zeit mit, Fragen ohne Quellenverweis. **Keine Migration.**
+
+> 1. Edge Functions deployen: `interview-request`, `process-interview-response`, `interview-client-link`.
+> 2. Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

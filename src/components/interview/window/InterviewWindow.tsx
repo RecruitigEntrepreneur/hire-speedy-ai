@@ -151,7 +151,7 @@ function WindowBody({
           </div>
           <div className="min-w-0 flex-1">
             <PanelPrimitive.Title className={cn('truncate text-base font-semibold', !iv.identityUnlocked && 'font-mono')}>{name}</PanelPrimitive.Title>
-            <PanelPrimitive.Description className="truncate text-xs text-muted-foreground">
+            <PanelPrimitive.Description className="text-xs text-muted-foreground">
               {iv.jobTitle}{d ? ` · Runde ${d.round}` : ''}
               {iv.scheduledAt ? ` · ${fmtDayLong(iv.scheduledAt)} · ${timeRange(iv.scheduledAt, iv.durationMinutes)}` : ''}
               {` · ${formatLabel}`}

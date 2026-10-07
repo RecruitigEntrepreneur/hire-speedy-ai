@@ -496,6 +496,8 @@ Deno.test({ name: 'Verschieben: alter Termin bleibt bis zur neuen Wahl, dann ers
   const old = tables.interviews[0];
   eq(old.status, 'scheduled');
 
+  old.guide = { sections: [{ title: 'Muss-Kriterien der Stelle', items: [{ id: 'q1', text: 'Eigene Frage', hint: null, done: true }] }] };
+  tables.interview_notes = [{ id: 'n1', interview_id: old.id, user_id: CLIENT, content: 'Gute Vorbereitung', note_type: 'strength', is_pinned: false }];
   sent.length = 0;
   await reschedule(ctx, me, { interviewId: old.id, slots: [at(8, 11), at(9, 9)], message: 'Leider müssen wir verschieben.' });
   const req = tables.interviews.find((x: any) => x.reschedules_interview_id === old.id)!;
@@ -519,6 +521,8 @@ Deno.test({ name: 'Verschieben: alter Termin bleibt bis zur neuen Wahl, dann ers
   await candidateRespond(ctx, { action: 'accept', token, slotStart: at(8, 11) });
   eq([req.status, req.scheduled_at], ['scheduled', at(8, 11)]);
   eq([old.status, old.superseded_by, old.cancellation_reason], ['cancelled', req.id, 'Verschoben']);
+  eq(req.guide?.sections[0].items[0].done, true, 'Leitfaden mit Haken zieht mit um');
+  eq(tables.interview_notes[0].interview_id, req.id, 'Notizen ziehen mit um');
   const cancels = sent.filter((m) => m.ics && m.ics.content.includes('METHOD:CANCEL'));
   assert(cancels.length > 0 && cancels.every((m) => m.subject.startsWith('Verschoben:')), 'Absage des alten Termins als „Verschoben“');
   assert(sent.some((m) => m.ics && m.to === 'kandidat@example.test' && m.ics.content.includes('METHOD:REQUEST')), 'neue Einladung an den Kandidaten');
