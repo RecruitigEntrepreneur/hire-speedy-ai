@@ -19,7 +19,7 @@ export function MatchuntWordmark({ size = 'md', className }: MatchuntWordmarkPro
     <div className={cn('flex items-center gap-2', className)}>
       <MatchuntLogo size={s.icon} />
       <span className={cn(s.text, 'font-semibold tracking-tight')}>
-        Matchunt.ai
+        Matchunt
       </span>
     </div>
   );

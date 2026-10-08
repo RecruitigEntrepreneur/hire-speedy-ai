@@ -1,5 +1,6 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import NetworkCockpit from '@/components/admin/network/NetworkCockpit';
+import { AdminReviewQueues } from '@/components/admin/review/AdminReviewQueues';
 
 /**
  * Recruiterverwaltung. Einladungen, Onboarding-Vorgänge und Recruiter-Konten
@@ -9,8 +10,10 @@ import NetworkCockpit from '@/components/admin/network/NetworkCockpit';
  */
 export default function AdminRecruiters() {
   return <DashboardLayout>
-    <div className="container py-6">
+    <div className="container space-y-6 py-6">
       <NetworkCockpit/>
+      {/* Prüfungen: Direktkontakte, Pausen/Schließungen, Bestandskunden, Partnerstufen */}
+      <AdminReviewQueues/>
     </div>
   </DashboardLayout>;
 }

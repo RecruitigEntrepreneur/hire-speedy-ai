@@ -70,12 +70,12 @@ function Jobs() {
   return <Page title="Offene Jobs" subtitle="Finde deinen nächsten Top-Kandidaten">
     <div className="space-y-2 border-b border-border/30 pb-3" data-tour="jobs.filters">
       <div className="flex flex-wrap gap-2">{['Suche…', 'Remote', 'Level', 'Branche', 'Neueste zuerst'].map(f => <span key={f} className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground">{f}</span>)}</div>
-      <div className="flex gap-1.5">{['Alle', 'Dringend', 'Neu', 'Top', 'Enthüllt'].map((t, i) => <span key={t} className={cn('rounded-md px-3 py-1 text-xs', i === 0 ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{t}</span>)}</div>
+      <div className="flex gap-1.5">{['Alle', 'Dringend', 'Neu', 'Top', 'Meine Suchen'].map((t, i) => <span key={t} className={cn('rounded-md px-3 py-1 text-xs', i === 0 ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{t}</span>)}</div>
     </div>
     <div className="flex gap-4">
       <div className={cn('space-y-2', job ? 'w-full lg:w-1/2' : 'w-full')}>
         {JOBS.map((j, index) => <JobActionCard key={j.id} job={j} earning={earningOf(j)} isRevealed={false} isSelected={selected === j.id} tourId={index === 0 ? 'jobs.firstCard' : undefined}
-          isActive={false} recruiterCount={index === 0 ? 2 : 0} submittedCount={index === 0 ? 1 : 0}
+          isActive={false}
           onSelect={() => (selected === j.id ? navigate(`/recruiter/jobs/${j.id}`) : setSelected(j.id))} onToggleActive={e => e.stopPropagation()} />)}
       </div>
       {job && <div className="hidden w-1/2 lg:block" data-tour="jobs.preview"><Card className="h-full"><CardContent className="space-y-3 p-5">

@@ -291,7 +291,7 @@ export function Navbar() {
                   <SheetHeader className="p-6 border-b border-border">
                     <SheetTitle className="flex items-center gap-2">
                       <MatchuntLogo size={32} />
-                      <span>Matchunt.ai</span>
+                      <span>Matchunt</span>
                     </SheetTitle>
                   </SheetHeader>
                   

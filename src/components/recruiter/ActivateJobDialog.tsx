@@ -1,4 +1,3 @@
-import { useRecruiterTrustLevel } from '@/hooks/useRecruiterTrustLevel';
 import { useJobActivation } from '@/hooks/useJobActivation';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { ActivationConfirmDialog, SlotLimitDialog } from './ActivationConfirmDialog';
@@ -18,17 +17,16 @@ function earningOf(job: JobLike): number | null {
 }
 
 /**
- * Stelle aktivieren ("Ich suche") von überall, wo eingereicht wird: gleicher
- * Dialog und gleiche Platzregel wie in der Jobliste. Nach der Aktivierung
- * geht es direkt weiter (onActivated), ohne Umweg über die Jobliste.
+ * „Ich suche“ von überall, wo eingereicht wird: gleicher Dialog und gleiche
+ * Platzregel wie in der Jobliste. Plätze sind für alle gleich (die Datenbank
+ * rechnet sie); beim direkten Einreichen ist eine Suche über die Grenze erlaubt.
  */
 export function useActivationGate() {
-  const trust = useRecruiterTrustLevel();
   const activation = useJobActivation();
-  const maxSlots = trust.trustLevel?.max_active_slots ?? 5;
-  const activeCount = Math.max(trust.trustLevel?.active_count ?? 0, activation.activatedJobIds.length);
-  const canActivate = !!trust.trustLevel && trust.trustLevel.trust_level !== 'suspended' && activeCount < maxSlots;
-  return { ...activation, trust, maxSlots, activeCount, canActivate };
+  const maxSlots = activation.capacity.limit;
+  const activeCount = activation.capacity.used;
+  const canActivate = activeCount < maxSlots;
+  return { ...activation, maxSlots, activeCount, canActivate };
 }
 
 export function ActivateJobDialog({
@@ -36,24 +34,21 @@ export function ActivateJobDialog({
   onClose,
   onActivated,
   gate,
+  forSubmission = false,
 }: {
   job: JobLike | null;
   onClose: () => void;
   onActivated: (jobId: string) => void;
   gate: ReturnType<typeof useActivationGate>;
+  /** Aus der Akte oder dem Einreichen-Fenster: Suche startet zum Einreichen. */
+  forSubmission?: boolean;
 }) {
-  const { trust, activateJob, activeCount, maxSlots, canActivate, refetch } = gate;
-  if (!job || !trust.trustLevel) return null;
+  const { activateJob, activeCount, maxSlots, canActivate } = gate;
+  if (!job) return null;
 
-  if (!canActivate) {
+  if (!canActivate && !(forSubmission && activeCount < maxSlots + 1)) {
     return (
-      <SlotLimitDialog
-        open
-        onOpenChange={(o) => !o && onClose()}
-        activeCount={activeCount}
-        maxSlots={maxSlots}
-        levelInfo={trust.getLevelInfo()}
-      />
+      <SlotLimitDialog open onOpenChange={(o) => !o && onClose()} activeCount={activeCount} maxSlots={maxSlots} />
     );
   }
 
@@ -66,6 +61,7 @@ export function ActivateJobDialog({
     <ActivationConfirmDialog
       open
       onOpenChange={(o) => !o && onClose()}
+      jobId={job.id}
       jobTitle={job.title}
       anonymousLabel={formatAnonymousCompany({
         industry: str(job.industry),
@@ -79,20 +75,12 @@ export function ActivateJobDialog({
       earning={earningOf(job)}
       feePercentage={num(job.recruiter_fee_percentage)}
       hiringUrgency={str(job.hiring_urgency)}
-      recruiterCount={0}
       activeCount={activeCount}
       maxSlots={maxSlots}
-      companyName={str(job.company_name)}
-      companyLogoUrl={null}
-      companyIndustry={str(job.industry)}
-      companyLocation={str(job.location)}
+      forSubmission={forSubmission}
       onConfirm={async () => {
-        const result = await activateJob(job.id, trust.trustLevel!.trust_level);
-        if (!result.success) return false;
-        trust.refetch();
-        await refetch();
-        done();
-        return true;
+        const res = await activateJob(job.id, forSubmission);
+        return res.success && res.result ? { ok: true, result: res.result } : { ok: false, error: res.error || 'Das hat nicht geklappt.' };
       }}
       onSubmitCandidate={done}
       onGoToJob={done}

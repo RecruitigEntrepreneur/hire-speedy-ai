@@ -39,6 +39,7 @@ const INK = rgb(0.04, 0.04, 0.04);
 const MUTED = rgb(0.42, 0.42, 0.42);
 const LINE = rgb(0.894, 0.894, 0.906);
 const GOLD = rgb(0.784, 0.635, 0.29);
+const SILVER = rgb(0.6, 0.64, 0.7);
 
 /** Urkunde für den Headhunter. Gibt die PDF-Bytes zurück. */
 export async function generatePartnerCertificate(p: { name: string; company: string; number: string; since: string; tier: PartnerTier; issuedAt: string }): Promise<Uint8Array> {
@@ -76,7 +77,7 @@ export async function generatePartnerCertificate(p: { name: string; company: str
   const label = 'Partnerzertifikat';
   draw(label, W - M - width(label, 10), H - 80, 10, MUTED);
 
-  page.drawRectangle({ x: M, y: 438, width: 40, height: 2, color: p.tier === 'gold' ? GOLD : INK });
+  page.drawRectangle({ x: M, y: 438, width: 40, height: 2, color: p.tier === 'gold' ? GOLD : p.tier === 'silver' ? SILVER : INK });
   draw('Matchunt bestätigt', M, 412, 13, MUTED);
   draw(p.name, M, 366, 36);
   if (p.company) draw(p.company, M, 338, 14, MUTED);

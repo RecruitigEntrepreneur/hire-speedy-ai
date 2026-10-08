@@ -12,13 +12,13 @@ const de = {
       "owner": "Inhaber",
       "admin": "Administrator",
       "hr": "HR / Recruiting",
-      "hiring_manager": "Hiring Manager",
+      "hiring_manager": "Fachbereich",
       "viewer": "Betrachter",
       "finance": "Finanzen",
       "admin_desc": "Kann Nutzer verwalten und sieht alle Jobs & Kandidaten",
       "hr_desc": "Sieht alle Jobs & Kandidaten des Unternehmens, keine Nutzerverwaltung",
-      "hiring_manager_desc": "Sieht nur zugewiesene Jobs: Intake, Kandidaten-Review, Interviews",
-      "viewer_desc": "Nur Lesezugriff auf zugewiesene Jobs, darf kommentieren"
+      "hiring_manager_desc": "Nur ausgewählte Stellen, entscheidet mit",
+      "viewer_desc": "Nur ausgewählte Stellen, nur lesen"
     },
     "activate": {
       "title": "Team aktivieren",
@@ -793,7 +793,7 @@ const de = {
       "onsite": "Vor Ort"
     },
     "banner": {
-      "pausiert": "Pausiert seit {{date}} — Recruiter sehen diese Stelle nicht. Laufende Bewerbungen bleiben aktiv.",
+      "pausiert": "Pausiert seit {{date}} — Headhunter schlagen bis zum Ende der Pause keine neuen Kandidaten vor. Laufende Bewerbungen bleiben aktiv.",
       "ueberfaellig_single": "Überfällig: Ein Bewerber wartet seit über 21 Tagen auf Ihre Entscheidung.",
       "ueberfaellig_plural": "Überfällig: {{count}} Bewerber warten seit über 21 Tagen auf Ihre Entscheidung.",
       "dringend_single": "Ein Bewerber braucht dringend Ihre Entscheidung.",
@@ -821,7 +821,7 @@ const de = {
       "antworten": "Antworten",
       "pruefen": "Jetzt prüfen",
       "briefing": "Briefing schärfen",
-      "reaktivieren": "Reaktivieren"
+      "reaktivieren": "Jetzt weitersuchen"
     },
     "funnel": {
       "hint": "Punkt = wartet auf Sie · Klick öffnet die Bewerber-Inbox, gefiltert auf diese Stelle",
@@ -837,7 +837,7 @@ const de = {
       "edit": "Bearbeiten",
       "pause": "Pausieren",
       "resume": "Reaktivieren",
-      "invite": "Fachbereich einladen"
+      "invite": "Kollegen einladen"
     },
     "termine": {
       "title": "Termine & Feedback",
@@ -897,7 +897,7 @@ const de = {
       "hint": "Pausieren und Schließen erklären zuerst die Konsequenz — nichts passiert ohne Bestätigung.",
       "cancel": "Abbrechen",
       "pause_title": "Stelle pausieren?",
-      "pause_text": "Recruiter sehen die Stelle nicht mehr und schlagen keine neuen Kandidaten vor. Laufende Bewerbungen und Termine bleiben aktiv. Sie können jederzeit reaktivieren.",
+      "pause_text": "Headhunter schlagen keine neuen Kandidaten vor. Laufende Bewerbungen und Termine bleiben aktiv. Sie können jederzeit weitersuchen.",
       "close": "Stelle schließen",
       "close_title": "Stelle schließen?",
       "close_text": "Die Suche wird beendet und Recruiter sehen die Stelle nicht mehr. Laufende Bewerbungen bleiben für Sie einsehbar.",

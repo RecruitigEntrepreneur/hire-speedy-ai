@@ -355,10 +355,12 @@ export function JobKonditionen({
 export function JobTeam({
   organizationId,
   jobId,
+  jobTitle,
   isOrgAdmin,
 }: {
   organizationId: string;
   jobId: string;
+  jobTitle?: string;
   isOrgAdmin: boolean;
 }) {
   const { t } = useTranslation();
@@ -411,6 +413,7 @@ export function JobTeam({
           organizationId={organizationId}
           defaultRole="hiring_manager"
           defaultJobIds={[jobId]}
+          jobContext={jobTitle ? { id: jobId, title: jobTitle } : undefined}
           trigger={
             <Button variant="outline" size="sm" className="mt-1 gap-1.5">
               <UserPlus className="h-3.5 w-3.5" />
@@ -441,139 +444,6 @@ export function JobVerlauf({ events }: { events: VerlaufEvent[] }) {
           <span className="min-w-0 flex-1">{e.text}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-// Verwalten: Bearbeiten, Pausieren (mit Konsequenz-Erklärung) und der neue
-// Schließen-Flow — jede Aktion erklärt erst, was passiert.
-export function JobVerwalten({
-  isPaused,
-  isTerminal,
-  onEdit,
-  onPauseToggle,
-  onCloseJob,
-}: {
-  isPaused: boolean;
-  isTerminal: boolean;
-  onEdit: () => void;
-  onPauseToggle: () => void;
-  onCloseJob: (reason: string) => Promise<void>;
-}) {
-  const { t } = useTranslation();
-  const [pauseOpen, setPauseOpen] = useState(false);
-  const [closeOpen, setCloseOpen] = useState(false);
-  const [closeReason, setCloseReason] = useState('');
-  const [closing, setClosing] = useState(false);
-
-  const confirmClose = async () => {
-    setClosing(true);
-    try {
-      await onCloseJob(closeReason);
-      setCloseOpen(false);
-      setCloseReason('');
-    } finally {
-      setClosing(false);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-          <Pencil className="h-3.5 w-3.5" />
-          {t('jobdetail.actions.edit')}
-        </Button>
-        {!isTerminal &&
-          (isPaused ? (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onPauseToggle}>
-              <Play className="h-3.5 w-3.5" />
-              {t('jobdetail.actions.resume')}
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setPauseOpen(true)}>
-              <Pause className="h-3.5 w-3.5" />
-              {t('jobdetail.actions.pause')}
-            </Button>
-          ))}
-        {!isTerminal && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 border-destructive/40 text-destructive hover:text-destructive"
-            onClick={() => setCloseOpen(true)}
-          >
-            <Lock className="h-3.5 w-3.5" />
-            {t('jobdetail.verwalten.close')}
-          </Button>
-        )}
-      </div>
-      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        {t('jobdetail.verwalten.hint')}
-      </p>
-
-      {/* Pausieren: Konsequenz zuerst */}
-      <AlertDialog open={pauseOpen} onOpenChange={setPauseOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('jobdetail.verwalten.pause_title')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('jobdetail.verwalten.pause_text')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('jobdetail.verwalten.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setPauseOpen(false);
-                onPauseToggle();
-              }}
-            >
-              {t('jobdetail.actions.pause')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Schließen: Konsequenz + Grund */}
-      <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('jobdetail.verwalten.close_title')}</DialogTitle>
-            <DialogDescription>{t('jobdetail.verwalten.close_text')}</DialogDescription>
-          </DialogHeader>
-          <div>
-            <label htmlFor="job-close-reason" className="mb-1.5 block text-sm font-medium">
-              {t('jobdetail.verwalten.close_reason')}
-            </label>
-            <Select value={closeReason} onValueChange={setCloseReason}>
-              <SelectTrigger id="job-close-reason">
-                <SelectValue placeholder={t('jobdetail.verwalten.close_reason_placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="filled_via_matchunt">
-                  {t('jobdetail.verwalten.reason_filled_matchunt')}
-                </SelectItem>
-                <SelectItem value="filled_elsewhere">
-                  {t('jobdetail.verwalten.reason_filled_elsewhere')}
-                </SelectItem>
-                <SelectItem value="on_hold">{t('jobdetail.verwalten.reason_on_hold')}</SelectItem>
-                <SelectItem value="cancelled">{t('jobdetail.verwalten.reason_cancelled')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t('jobdetail.verwalten.close_pause_hint')}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCloseOpen(false)}>
-              {t('jobdetail.verwalten.cancel')}
-            </Button>
-            <Button variant="destructive" onClick={confirmClose} disabled={!closeReason || closing}>
-              {t('jobdetail.verwalten.close_confirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

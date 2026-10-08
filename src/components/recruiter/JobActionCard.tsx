@@ -3,12 +3,10 @@ import {
   Lock,
   CheckCircle,
   MapPin,
-  Users,
   Search,
   Check,
   Flame,
   Clock,
-  Sparkles,
 } from 'lucide-react';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
@@ -58,8 +56,8 @@ interface JobActionCardProps {
   /** Anker für den Rundgang (data-tour); nur an einer Karte gesetzt. */
   tourId?: string;
   isActive: boolean;
-  recruiterCount: number;
-  submittedCount: number;
+  /** Kunde hat pausiert: bis wann (oder seit wann, ohne Ende). */
+  pausedUntil?: string | null;
   onSelect: () => void;
   onToggleActive: (e: React.MouseEvent) => void;
 }
@@ -81,8 +79,7 @@ export function JobActionCard({
   isSelected,
   tourId,
   isActive,
-  recruiterCount,
-  submittedCount,
+  pausedUntil,
   onSelect,
   onToggleActive,
 }: JobActionCardProps) {
@@ -209,26 +206,20 @@ export function JobActionCard({
         </div>
       )}
 
-      {/* Row 5: Bottom — Competition + Freshness | Ich suche */}
+      {/* Row 5: Bottom — Frische | Ich suche (keine Zahl anderer Headhunter) */}
       <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-border/20">
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground min-w-0">
-          {recruiterCount === 0 ? (
-            <span className="flex items-center gap-1 text-amber-500 font-medium shrink-0">
-              <Sparkles className="h-3 w-3" />
-              Noch kein Recruiter — Erster!
+          {pausedUntil ? (
+            <span className="flex items-center gap-1 truncate text-amber-600">
+              <Clock className="h-3 w-3 shrink-0" />
+              Pausiert bis {new Date(pausedUntil).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
             </span>
-          ) : (
-            <span className="flex items-center gap-1 shrink-0">
-              <Users className="h-3 w-3" />
-              {recruiterCount} Recruiter · {submittedCount} {submittedCount === 1 ? 'Einreichung' : 'Einreichungen'}
-            </span>
-          )}
-          {freshness && (
-            <span className="hidden sm:flex items-center gap-1 truncate">
+          ) : freshness ? (
+            <span className="flex items-center gap-1 truncate">
               <Clock className="h-3 w-3 shrink-0" />
               Aktiv {freshness}
             </span>
-          )}
+          ) : null}
         </div>
 
         <Button
@@ -241,12 +232,13 @@ export function JobActionCard({
               ? 'text-emerald-500 cursor-default pointer-events-none'
               : 'text-muted-foreground hover:text-foreground',
           )}
+          disabled={!isActive && !!pausedUntil}
           onClick={isActive ? undefined : onToggleActive}
         >
           {isActive ? (
             <>
               <Check className="h-3 w-3 mr-1" />
-              Aktiv
+              Du suchst
             </>
           ) : (
             <>

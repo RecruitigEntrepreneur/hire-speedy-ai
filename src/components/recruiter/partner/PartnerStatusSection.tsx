@@ -1,3 +1,4 @@
+import { PartnerTierProgress } from './PartnerTierProgress';
 import { useState, type ReactNode } from 'react';
 import { Award, Check, ChevronRight, Copy, ExternalLink, FileText, Globe, Linkedin, Loader2, Lock, Mail, Megaphone, MessageSquare, Printer, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -153,10 +154,7 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
         </div>
       </Section>
       <Section title="Stufen">
-        <ul className="divide-y divide-border text-sm">
-          <li className="flex items-center justify-between py-2 first:pt-0"><span className="flex items-center gap-2"><Check className="h-4 w-4 text-success"/>{partner.tier === 'gold' ? 'Gold Partner' : 'Partner'}</span><span className="text-xs text-muted-foreground">aktiv</span></li>
-          {partner.tier !== 'gold' && <li className="flex items-center justify-between py-2"><span className="flex items-center gap-2 text-muted-foreground"><Lock className="h-4 w-4"/>Gold Partner</span><span className="text-xs text-muted-foreground">Kriterien folgen</span></li>}
-        </ul>
+        <PartnerTierProgress/>
       </Section>
     </div>
 

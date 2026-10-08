@@ -41,13 +41,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { JobActionCard } from '@/components/recruiter/JobActionCard';
 import { JobPreviewPanel } from '@/components/recruiter/JobPreviewPanel';
-import { ActivationConfirmDialog, SlotLimitDialog } from '@/components/recruiter/ActivationConfirmDialog';
+import { ActivationConfirmDialog, SlotLimitDialog, type ConfirmResult } from '@/components/recruiter/ActivationConfirmDialog';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { TrustLevelBadge } from '@/components/recruiter/TrustLevelBadge';
 import { useJobSubmissionStats } from '@/hooks/useJobSubmissionStats';
-import { useRecruiterTrustLevel } from '@/hooks/useRecruiterTrustLevel';
+import { MySearchesList } from '@/components/recruiter/search/MySearchesList';
 import { useJobActivation } from '@/hooks/useJobActivation';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
@@ -77,10 +76,14 @@ interface Job {
   funding_stage: string | null;
   hiring_urgency: string | null;
   tech_environment: string[] | null;
+  company_revealed?: boolean | null;
+  paused_at?: string | null;
+  pause_until?: string | null;
+  pause_reason?: string | null;
 }
 
-type TabKey = 'all' | 'urgent' | 'new' | 'top' | 'revealed';
-type SortKey = 'newest' | 'fee' | 'competition';
+type TabKey = 'all' | 'urgent' | 'new' | 'top' | 'mine';
+type SortKey = 'newest' | 'fee';
 
 const TOP_TAB_LIMIT = 10;
 
@@ -241,17 +244,11 @@ export default function RecruiterJobs() {
   const jobIds = useMemo(() => jobs.map(j => j.id), [jobs]);
   const { stats: submissionStats, kpis, computeKpis } = useJobSubmissionStats(jobIds);
 
-  // Trust level & job activations (DB-based, replaces localStorage)
-  const { trustLevel, refetch: refetchTrust, getLevelInfo } = useRecruiterTrustLevel();
-  const { isActivated, activateJob, activatedJobIds, refetch: refetchActivations } = useJobActivation(jobIds);
+  // Suchen („Ich suche“): Plätze für alle gleich, die Datenbank zählt sie.
+  const { isSearching, activateJob, activatedJobIds, capacity, refetch: refetchActivations } = useJobActivation(jobIds);
   const activeJobIds = useMemo(() => new Set(activatedJobIds), [activatedJobIds]);
-
-  // Fallback bis Repair-Migration deployed ist: active_count in der DB wird
-  // nicht gepflegt (Trigger fehlt live) — echte Aktivierungen zählen mit.
-  const effectiveActiveCount = Math.max(trustLevel?.active_count ?? 0, activatedJobIds.length);
-  const effectiveCanActivate = !!trustLevel
-    && trustLevel.trust_level !== 'suspended'
-    && effectiveActiveCount < (trustLevel.max_active_slots ?? 5);
+  const effectiveActiveCount = capacity.used;
+  const effectiveCanActivate = capacity.used < capacity.limit;
 
   // ─── Data Fetching ──────────────────────────────────────────────────────
 
@@ -333,30 +330,30 @@ export default function RecruiterJobs() {
   // ─── Actions ────────────────────────────────────────────────────────────
 
   const handleActivateClick = useCallback((jobId: string) => {
-    if (isActivated(jobId)) return; // Already activated, irreversible
+    if (isSearching(jobId)) return; // Sucht schon (beenden geht in „Meine Suchen“)
+    const job = jobs.find(j => j.id === jobId);
+    if (job?.paused_at) return; // Pausierte Stelle: kein „Ich suche“
     if (!effectiveCanActivate) {
       setSlotLimitOpen(true);
       return;
     }
     setActivationDialogJobId(jobId);
-  }, [isActivated, effectiveCanActivate]);
+  }, [isSearching, effectiveCanActivate, jobs]);
 
-  const handleConfirmActivation = useCallback(async (): Promise<boolean> => {
-    if (!activationDialogJobId || !trustLevel) return false;
-    const result = await activateJob(activationDialogJobId, trustLevel.trust_level);
-    if (result.success) {
-      refetchTrust();
-      return true;
+  const handleConfirmActivation = useCallback(async (): Promise<ConfirmResult> => {
+    if (!activationDialogJobId) return { ok: false, error: 'Keine Stelle gewählt.' };
+    const res = await activateJob(activationDialogJobId);
+    if (res.success && res.result) {
+      fetchJobs(); // Firmenname kommt ab „Ich suche“ aus der View
+      return { ok: true, result: res.result };
     }
-    return false;
-  }, [activationDialogJobId, trustLevel, activateJob, refetchTrust]);
+    return { ok: false, error: res.error || 'Das hat nicht geklappt.' };
+  }, [activationDialogJobId, activateJob]);
 
-  // Reveal ist ausschliesslich submission-basiert (company_revealed = true).
-  // Eine Aktivierung ist KEIN Reveal: sie sagt nur, dass der Recruiter an dem
-  // Job arbeitet, nicht dass der Kunde seine Identitaet freigegeben hat.
+  // Firmenname ab „Ich suche“ (View: company_revealed) oder wie früher nach Opt-in.
   const isJobRevealed = useCallback((jobId: string): boolean => {
-    return revealedJobIds.has(jobId);
-  }, [revealedJobIds]);
+    return revealedJobIds.has(jobId) || !!jobs.find(j => j.id === jobId)?.company_revealed;
+  }, [revealedJobIds, jobs]);
 
   const getRevealedCompanyName = useCallback((jobId: string): string | undefined => {
     return jobs.find(j => j.id === jobId)?.company_name ?? undefined;
@@ -392,7 +389,6 @@ export default function RecruiterJobs() {
 
       if (activeTab === 'urgent') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && job.hiring_urgency === 'urgent';
       if (activeTab === 'new') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && new Date(job.created_at) >= newSince;
-      if (activeTab === 'revealed') return matchesSearch && matchesRemote && matchesLevel && matchesIndustry && revealedJobIds.has(job.id);
 
       return matchesSearch && matchesRemote && matchesLevel && matchesIndustry;
     });
@@ -409,12 +405,9 @@ export default function RecruiterJobs() {
       const ub = b.hiring_urgency === 'urgent' ? 1 : 0;
       if (ua !== ub) return ub - ua;
       if (sortBy === 'fee') return earningOf(b) - earningOf(a);
-      if (sortBy === 'competition') {
-        return (submissionStats[a.id]?.recruiterCount ?? 0) - (submissionStats[b.id]?.recruiterCount ?? 0);
-      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [jobs, searchQuery, remoteFilter, levelFilter, industryFilter, activeTab, revealedJobIds, newSince, sortBy, submissionStats]);
+  }, [jobs, searchQuery, remoteFilter, levelFilter, industryFilter, activeTab, newSince, sortBy]);
 
   const myActiveJobsData = useMemo(() => {
     return jobs
@@ -440,7 +433,7 @@ export default function RecruiterJobs() {
           submittedCount: stats?.submissionCount || 0,
           stage: bestSub?.stage || null,
           submittedAt: bestSub?.submitted_at || null,
-          companyRevealed: bestSub?.company_revealed || revealedJobIds.has(j.id),
+          companyRevealed: bestSub?.company_revealed || revealedJobIds.has(j.id) || !!j.company_revealed,
           // Kommt aus recruiter_jobs_view und ist ohne Reveal bereits null.
           companyName: j.company_name,
         };
@@ -455,8 +448,8 @@ export default function RecruiterJobs() {
     urgent: jobs.filter(j => j.hiring_urgency === 'urgent').length,
     new: jobs.filter(j => new Date(j.created_at) >= newSince).length,
     top: Math.min(TOP_TAB_LIMIT, jobs.length),
-    revealed: revealedJobIds.size,
-  }), [jobs, revealedJobIds, newSince]);
+    mine: activatedJobIds.length,
+  }), [jobs, activatedJobIds, newSince]);
 
   const urgentCount = tabCounts.urgent;
 
@@ -489,7 +482,7 @@ export default function RecruiterJobs() {
     { key: 'urgent', label: 'Dringend', icon: <Flame className="h-3 w-3" />, count: tabCounts.urgent },
     { key: 'new', label: 'Neu', icon: <Sparkles className="h-3 w-3" />, count: tabCounts.new },
     { key: 'top', label: 'Top', icon: <Euro className="h-3 w-3" />, count: tabCounts.top },
-    { key: 'revealed', label: 'Enthüllt', icon: <CheckCircle className="h-3 w-3" />, count: tabCounts.revealed },
+    { key: 'mine', label: 'Meine Suchen', icon: <CheckCircle className="h-3 w-3" />, count: tabCounts.mine },
   ];
 
   return (
@@ -687,7 +680,6 @@ export default function RecruiterJobs() {
               <SelectContent>
                 <SelectItem value="newest">Neueste zuerst</SelectItem>
                 <SelectItem value="fee">Höchste Fee</SelectItem>
-                <SelectItem value="competition">Wenig Konkurrenz</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -723,7 +715,9 @@ export default function RecruiterJobs() {
               isPanelOpen ? 'w-1/2' : 'w-full',
             )}
           >
-            {filteredJobs.length === 0 ? (
+            {activeTab === 'mine' ? (
+              <MySearchesList onSubmit={(jobId, title) => setSubmitDialogJob({ jobId, title })} />
+            ) : filteredJobs.length === 0 ? (
               <Card className="border-border/30 bg-card">
                 <CardContent className="py-12 text-center">
                   <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/30" />
@@ -737,7 +731,6 @@ export default function RecruiterJobs() {
               </Card>
             ) : (
               filteredJobs.map((job, index) => {
-                const stats = submissionStats[job.id];
                 const earning = calculateEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
                 return (
                   <JobActionCard
@@ -748,9 +741,8 @@ export default function RecruiterJobs() {
                     revealedCompanyName={getRevealedCompanyName(job.id)}
                     isSelected={selectedJobId === job.id}
                     tourId={index === 0 ? 'jobs.firstCard' : undefined}
-                    isActive={isActivated(job.id)}
-                    recruiterCount={stats?.recruiterCount || 0}
-                    submittedCount={stats?.submissionCount || 0}
+                    isActive={isSearching(job.id)}
+                    pausedUntil={job.paused_at ? (job.pause_until ?? job.paused_at) : null}
                     onSelect={() => {
                       if (selectedJobId === job.id) {
                         navigate(`/recruiter/jobs/${job.id}`);
@@ -775,7 +767,8 @@ export default function RecruiterJobs() {
                     earning={calculateEarning(selectedJob.salary_min, selectedJob.salary_max, selectedJob.recruiter_fee_percentage)}
                     isRevealed={isJobRevealed(selectedJob.id)}
                     revealedCompanyName={getRevealedCompanyName(selectedJob.id)}
-                    isActive={isActivated(selectedJob.id)}
+                    isActive={isSearching(selectedJob.id)}
+                    pausedUntil={selectedJob.paused_at ? (selectedJob.pause_until ?? selectedJob.paused_at) : null}
                     onToggleActive={() => handleActivateClick(selectedJob.id)}
                     onClose={closePreview}
                   />
@@ -789,11 +782,12 @@ export default function RecruiterJobs() {
       {/* Activation Confirm Dialog */}
       {activationDialogJobId && (() => {
         const dialogJob = jobs.find(j => j.id === activationDialogJobId);
-        if (!dialogJob || !trustLevel) return null;
+        if (!dialogJob) return null;
         return (
           <ActivationConfirmDialog
             open={true}
             onOpenChange={(open) => { if (!open) setActivationDialogJobId(null); }}
+            jobId={dialogJob.id}
             jobTitle={dialogJob.title}
             anonymousLabel={formatAnonymousCompany({
               industry: dialogJob.industry,
@@ -808,13 +802,8 @@ export default function RecruiterJobs() {
             feePercentage={dialogJob.recruiter_fee_percentage}
             earningPerDay={verdienstJeTag(dialogJob)}
             hiringUrgency={dialogJob.hiring_urgency}
-            recruiterCount={submissionStats[dialogJob.id]?.recruiterCount || 0}
             activeCount={effectiveActiveCount}
-            maxSlots={trustLevel.max_active_slots}
-            companyName={dialogJob.company_name}
-            companyLogoUrl={null}
-            companyIndustry={dialogJob.industry}
-            companyLocation={dialogJob.location}
+            maxSlots={capacity.limit}
             onConfirm={handleConfirmActivation}
             onSubmitCandidate={(candidateId) => {
               setActivationDialogJobId(null);
@@ -828,16 +817,14 @@ export default function RecruiterJobs() {
         );
       })()}
 
-      {/* Slot Limit Dialog */}
-      {trustLevel && (
-        <SlotLimitDialog
-          open={slotLimitOpen}
-          onOpenChange={setSlotLimitOpen}
-          activeCount={effectiveActiveCount}
-          maxSlots={trustLevel.max_active_slots}
-          levelInfo={getLevelInfo()}
-        />
-      )}
+      {/* Alle Plätze belegt */}
+      <SlotLimitDialog
+        open={slotLimitOpen}
+        onOpenChange={setSlotLimitOpen}
+        activeCount={effectiveActiveCount}
+        maxSlots={capacity.limit}
+        onShowMine={() => setActiveTab('mine')}
+      />
 
       {/* Mobile: Preview als Sheet statt verstecktem Panel */}
       <Sheet open={isPanelOpen && !isLgUp} onOpenChange={(o) => { if (!o) closePreview(); }}>
@@ -849,7 +836,8 @@ export default function RecruiterJobs() {
                 earning={calculateEarning(selectedJob.salary_min, selectedJob.salary_max, selectedJob.recruiter_fee_percentage)}
                 isRevealed={isJobRevealed(selectedJob.id)}
                 revealedCompanyName={getRevealedCompanyName(selectedJob.id)}
-                isActive={isActivated(selectedJob.id)}
+                isActive={isSearching(selectedJob.id)}
+                pausedUntil={selectedJob.paused_at ? (selectedJob.pause_until ?? selectedJob.paused_at) : null}
                 onToggleActive={() => handleActivateClick(selectedJob.id)}
                 onClose={closePreview}
               />

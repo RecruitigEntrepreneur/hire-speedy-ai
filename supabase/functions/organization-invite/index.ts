@@ -11,9 +11,12 @@ const ALLOWED_ROLES = ['admin', 'hr', 'hiring_manager', 'viewer'];
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrator',
   hr: 'HR / Recruiting',
-  hiring_manager: 'Hiring Manager',
+  hiring_manager: 'Fachbereich',
   viewer: 'Betrachter',
 };
+
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Token: 32 Zufallsbytes, base64url. In der DB liegt NUR der SHA-256-Hash.
 function generateToken(): string {
@@ -63,7 +66,10 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const { organization_id, email, role, job_ids } = await req.json();
+    const { organization_id, email, role, job_ids, full_name, message } = await req.json();
+    // Optional: Name für die Anrede, persönliche Nachricht des Einladenden.
+    const inviteeName = typeof full_name === 'string' ? full_name.trim().slice(0, 120) : '';
+    const personalMessage = typeof message === 'string' ? message.trim().slice(0, 500) : '';
 
     if (!organization_id || !email || !role) {
       return jsonResponse({ error: 'Missing required fields' }, 400);
@@ -183,6 +189,14 @@ serve(async (req) => {
       .maybeSingle();
     const inviterName = inviterProfile?.full_name || 'Ihr Team';
 
+    // Stellennamen für die Mail (Fachbereich/Betrachter sehen nur diese Stellen).
+    let jobTitles: string[] = [];
+    if (jobIds.length) {
+      const { data: jobRows } = await supabase.from('jobs').select('title').in('id', jobIds).eq('organization_id', organization_id);
+      jobTitles = (jobRows ?? []).map((j: { title: string }) => j.title).filter(Boolean);
+    }
+    const greeting = inviteeName ? `Guten Tag ${escapeHtml(inviteeName)},` : 'Guten Tag,';
+
     let emailSent = false;
     if (resendApiKey) {
       try {
@@ -202,13 +216,15 @@ serve(async (req) => {
                   <h1 style="color: #ffffff; font-size: 22px; margin: 0;">Team-Einladung</h1>
                 </div>
                 <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
-                  <p>Guten Tag,</p>
-                  <p><strong>${inviterName}</strong> hat Sie eingeladen, dem Team von <strong>${org.name}</strong> auf Matchunt beizutreten.</p>
+                  <p>${greeting}</p>
+                  <p><strong>${escapeHtml(inviterName)}</strong> hat Sie eingeladen, dem Team von <strong>${escapeHtml(org.name)}</strong> auf Matchunt beizutreten.</p>
+                  ${personalMessage ? `<blockquote style="margin: 16px 0; padding: 12px 16px; background: #f8fafc; border-left: 3px solid #0f172a; color: #334155;">${escapeHtml(personalMessage).replace(/\n/g, '<br>')}</blockquote>` : ''}
                   <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
                     <tr>
                       <td style="padding: 8px 0; color: #64748b;">Ihre Rolle</td>
                       <td style="padding: 8px 0; text-align: right; font-weight: 600;">${ROLE_LABELS[role] ?? role}</td>
                     </tr>
+                    ${jobTitles.length ? `<tr><td style="padding: 8px 0; color: #64748b; vertical-align: top;">Stellen</td><td style="padding: 8px 0; text-align: right;">${jobTitles.map(escapeHtml).join('<br>')}</td></tr>` : ''}
                   </table>
                   <div style="text-align: center; margin: 24px 0;">
                     <a href="${inviteUrl}" style="display: inline-block; padding: 12px 28px; background: #0f172a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">

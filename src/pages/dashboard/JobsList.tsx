@@ -19,6 +19,8 @@ import { BriefingNotesDialog } from '@/components/jobs/BriefingNotesDialog';
 import { JobBoostDialog } from '@/components/jobs/JobBoostDialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { errorText, getJobsSearcherCounts, resumeJob } from '@/lib/jobSearch';
+import { PauseJobDialog } from '@/components/client/job-manage/PauseJobDialog';
 import { stellenVerlauf, verlaufDatum, type VerlaufJob } from '@/lib/stellenVerlauf';
 import { VerlaufPunkte } from '@/components/dashboard/StellenVerlauf';
 import {
@@ -43,6 +45,8 @@ interface JobRow {
   submissions_count: number;
   new_candidates: number;
   interviews_count: number;
+  /** Headhunter, die gerade suchen (laufend oder ruhend) */
+  searching: number;
   days_open: number;
   raw: Record<string, any>;
 }
@@ -80,6 +84,7 @@ export default function JobsList() {
     return t === 'review' || t === 'drafts' || t === 'archive' ? t : 'active';
   });
   const [chipFilter, setChipFilter] = useState<'returned' | 'stale' | 'waiting' | null>(null);
+  const [pauseFor, setPauseFor] = useState<JobRow | null>(null);
   const [boostDialog, setBoostDialog] = useState({ open: false, jobId: '', jobTitle: '' });
   const [briefingDialog, setBriefingDialog] = useState({ open: false, jobId: '', jobTitle: '', notes: '' });
 
@@ -102,12 +107,15 @@ export default function JobsList() {
       const ids = (jobsData || []).map((j: any) => j.id);
       const subsByJob = new Map<string, { total: number; fresh: number }>();
       const ivByJob = new Map<string, number>();
+      let searchingByJob: Record<string, number> = {};
 
       if (ids.length) {
-        const [{ data: subs }, { data: ivs }] = await Promise.all([
+        const [{ data: subs }, { data: ivs }, counts] = await Promise.all([
           supabase.from('submissions').select('job_id, status').in('job_id', ids),
           supabase.from('interviews').select('id, submissions!inner(job_id)').in('submissions.job_id', ids),
+          getJobsSearcherCounts(ids).catch(() => ({} as Record<string, number>)),
         ]);
+        searchingByJob = counts;
         for (const s of subs || []) {
           const e = subsByJob.get(s.job_id) || { total: 0, fresh: 0 };
           e.total += 1;
@@ -136,6 +144,7 @@ export default function JobsList() {
           submissions_count: subsByJob.get(j.id)?.total || 0,
           new_candidates: subsByJob.get(j.id)?.fresh || 0,
           interviews_count: ivByJob.get(j.id) || 0,
+          searching: searchingByJob[j.id] || 0,
           days_open: daysSince(j.created_at),
           raw: j,
         })),
@@ -187,26 +196,15 @@ export default function JobsList() {
     fetchJobs();
   };
 
-  /** Nur für published: Pause/Weiter toggelt NUR paused_at — nie den Status.
-   *  (Vorher konnte Reaktivieren jeden Status auf 'published' zwingen = Freigabe-Bypass.) */
-  const handlePauseToggle = async (j: JobRow) => {
-    const { error } = await supabase
-      .from('jobs')
-      .update({ paused_at: j.paused_at ? null : new Date().toISOString() })
-      .eq('id', j.id);
-    if (error) {
-      toast({ title: 'Fehler', variant: 'destructive' });
-      return;
-    }
-    toast({ title: j.paused_at ? 'Stelle reaktiviert' : 'Stelle pausiert' });
-    fetchJobs();
-  };
-
-  const handleClose = async (j: JobRow) => {
-    const { error } = await supabase.from('jobs').update({ status: 'closed' }).eq('id', j.id);
-    if (!error) {
-      toast({ title: 'Stelle geschlossen' });
+  // Pausieren mit Ende und Grund (Fenster), Weitersuchen direkt; Schließen fragt
+  // auf der Stellenseite nach dem Grund (dort sind die Kandidaten für „besetzt“).
+  const handleResume = async (j: JobRow) => {
+    try {
+      await resumeJob(j.id);
+      toast({ title: 'Stelle läuft wieder' });
       fetchJobs();
+    } catch (e) {
+      toast({ title: errorText(e), variant: 'destructive' });
     }
   };
 
@@ -401,7 +399,9 @@ export default function JobsList() {
                         <Badge variant="outline" className="h-5 border-emerald-500/40 px-1.5 text-[10px] text-emerald-600">Aktiv</Badge>
                       )}
                       {lifecycle === 'active' && j.paused_at && (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">Pausiert seit {formatDate(j.paused_at)}</Badge>
+                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                          {j.raw?.pause_until ? `Pausiert bis ${formatDate(j.raw.pause_until)}` : `Pausiert seit ${formatDate(j.paused_at)}`}
+                        </Badge>
                       )}
                       {lifecycle === 'active' && !j.paused_at && j.submissions_count === 0 && j.days_open > 14 && (
                         <Badge variant="outline" className="h-5 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
@@ -432,8 +432,16 @@ export default function JobsList() {
                       )}
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {lifecycle === 'active' &&
-                        `${j.submissions_count} Kandidaten · ${j.interviews_count} Interviews${j.new_candidates > 0 ? ` · ${j.new_candidates} neu zu prüfen` : ''}`}
+                      {lifecycle === 'active' && (
+                        <>
+                          {j.searching > 0 ? (
+                            <span className="text-emerald-600">{j.searching === 1 ? '1 Headhunter sucht' : `${j.searching} Headhunter suchen`}</span>
+                          ) : (
+                            <span>Noch kein Headhunter aktiv</span>
+                          )}
+                          {` · ${j.submissions_count} Kandidaten · ${j.interviews_count} Interviews${j.new_candidates > 0 ? ` · ${j.new_candidates} neu zu prüfen` : ''}`}
+                        </>
+                      )}
                       {lifecycle === 'review' && verlauf?.aktuell &&
                         [
                           `${verlauf.aktuell.label} · ${verlauf.aktuell.hinweis ?? ''}`,
@@ -483,10 +491,15 @@ export default function JobsList() {
                     <DropdownMenuContent align="end" className="w-52">
                       {lifecycle === 'active' && (
                         <>
-                          <DropdownMenuItem onClick={() => handlePauseToggle(j)}>
-                            {j.paused_at ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-                            {j.paused_at ? 'Reaktivieren' : 'Pausieren'}
-                          </DropdownMenuItem>
+                          {j.paused_at ? (
+                            <DropdownMenuItem onClick={() => handleResume(j)}>
+                              <Play className="mr-2 h-4 w-4" /> Jetzt weitersuchen
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => setPauseFor(j)}>
+                              <Pause className="mr-2 h-4 w-4" /> Pausieren …
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => setBriefingDialog({ open: true, jobId: j.id, jobTitle: j.title, notes: j.briefing_notes || '' })}>
                             <FileText className="mr-2 h-4 w-4" /> Briefing-Notizen
                           </DropdownMenuItem>
@@ -503,8 +516,8 @@ export default function JobsList() {
                       {lifecycle === 'active' && (
                         <>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleClose(j)} className="text-destructive focus:text-destructive">
-                            <XCircle className="mr-2 h-4 w-4" /> Schließen
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/jobs/${j.id}?schliessen=1`)} className="text-destructive focus:text-destructive">
+                            <XCircle className="mr-2 h-4 w-4" /> Stelle schließen …
                           </DropdownMenuItem>
                         </>
                       )}
@@ -541,6 +554,15 @@ export default function JobsList() {
         />
 
       </div>
+      {pauseFor && (
+        <PauseJobDialog
+          open
+          onOpenChange={(o) => { if (!o) setPauseFor(null); }}
+          jobId={pauseFor.id}
+          jobTitle={pauseFor.title}
+          onDone={fetchJobs}
+        />
+      )}
     </DashboardLayout>
   );
 }

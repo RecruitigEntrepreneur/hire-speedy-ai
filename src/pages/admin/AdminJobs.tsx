@@ -25,6 +25,8 @@ import { AnzeigeNeuDialog } from '@/components/admin/AnzeigeNeuDialog';
 interface Job {
   id: string;
   title: string;
+  /** Vertrauliche Suche: nur Gold Partner sehen die Stelle (setzt nur Matchunt). */
+  confidential_search?: boolean | null;
   company_name: string;
   location: string | null;
   status: string | null;
@@ -127,6 +129,20 @@ export default function AdminJobs() {
       toast.error('Fehler beim Aktualisieren');
     } else {
       toast.success('Status aktualisiert');
+      fetchJobs();
+    }
+    setProcessing(null);
+  };
+
+  const toggleConfidential = async (job: Job) => {
+    setProcessing(job.id);
+    const { error } = await supabase
+      .from('jobs')
+      .update({ confidential_search: !job.confidential_search } as never)
+      .eq('id', job.id);
+    if (error) toast.error('Fehler beim Aktualisieren');
+    else {
+      toast.success(job.confidential_search ? 'Vertrauliche Suche aufgehoben' : 'Vertrauliche Suche: nur Gold Partner sehen die Stelle');
       fetchJobs();
     }
     setProcessing(null);
@@ -445,6 +461,17 @@ export default function AdminJobs() {
                               {job.status === 'published' && (
                                 <Button size="sm" variant="outline" onClick={() => setAnzeigeJob(job)}>
                                   Anzeige neu erzeugen
+                                </Button>
+                              )}
+                              {job.status === 'published' && (
+                                <Button
+                                  size="sm"
+                                  variant={job.confidential_search ? 'default' : 'outline'}
+                                  disabled={processing === job.id}
+                                  onClick={() => toggleConfidential(job)}
+                                  title="Vertrauliche Suche: nur Gold Partner sehen die Stelle"
+                                >
+                                  {job.confidential_search ? 'Vertraulich · nur Gold' : 'Vertraulich'}
                                 </Button>
                               )}
                               </div>

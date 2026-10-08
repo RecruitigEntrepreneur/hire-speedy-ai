@@ -66,6 +66,8 @@ interface JobPreviewPanelProps {
   revealedCompanyName?: string;
   profile?: CompanyProfile;
   isActive: boolean;
+  /** Kunde hat pausiert: bis wann. */
+  pausedUntil?: string | null;
   onToggleActive: () => void;
   onClose: () => void;
 }
@@ -111,6 +113,7 @@ export function JobPreviewPanel({
   revealedCompanyName,
   profile,
   isActive,
+  pausedUntil,
   onToggleActive,
   onClose,
 }: JobPreviewPanelProps) {
@@ -213,10 +216,12 @@ export function JobPreviewPanel({
               isActive && 'border-emerald-500/30 text-emerald-500 cursor-default pointer-events-none',
             )}
             onClick={isActive ? undefined : onToggleActive}
-            disabled={false}
+            disabled={!isActive && !!pausedUntil}
           >
             {isActive ? (
-              <><Check className="h-3.5 w-3.5 mr-1" />Aktiv</>
+              <><Check className="h-3.5 w-3.5 mr-1" />Du suchst</>
+            ) : pausedUntil ? (
+              <>Pausiert bis {new Date(pausedUntil).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</>
             ) : (
               <><Search className="h-3.5 w-3.5 mr-1" />Ich suche</>
             )}

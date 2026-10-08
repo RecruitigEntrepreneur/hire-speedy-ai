@@ -12,6 +12,7 @@ import { JobCandidateProcessCards, type JobSubmission } from '@/components/recru
 import { RecruiterJobWorkspace, type WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
 import { getRecruiterCriteria } from '@/lib/recruiterBriefing';
 import { ActivateJobDialog, useActivationGate } from '@/components/recruiter/ActivateJobDialog';
+import { SearchStatusBar } from '@/components/recruiter/search/SearchStatusBar';
 
 type RecruiterJob = WorkspaceJob & { company_revealed?: boolean };
 type Submission = JobSubmission & { company_revealed: boolean; full_access_granted: boolean };
@@ -78,6 +79,7 @@ export default function JobDetail() {
   const fullAccess = submissions.some(submission => submission.full_access_granted);
   return <DashboardLayout fluid>
     {/* Bereich für den Rundgang (Kopf, Reiter, Aktionen); „contents“ lässt das Layout unberührt. */}
+    <SearchStatusBar key={`${job.id}-${revision}`} jobId={job.id} jobTitle={job.title} onChanged={() => { gate.refetch(); reload(); }} />
     <div data-tour-scope="job" className="contents">
       <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={openSubmit} onExpose={() => setShowExpose(true)} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={openSubmit} />} />
     </div>
@@ -88,6 +90,6 @@ export default function JobDetail() {
       </DialogContent>
     </Dialog>
     <AnonymousExposeDialog open={showExpose} onOpenChange={setShowExpose} jobId={job.id} />
-    <ActivateJobDialog job={showActivate ? (job as unknown as Record<string, unknown> & { id: string; title: string }) : null} gate={gate} onClose={() => setShowActivate(false)} onActivated={() => setShowSubmit(true)} />
+    <ActivateJobDialog job={showActivate ? (job as unknown as Record<string, unknown> & { id: string; title: string }) : null} gate={gate} onClose={() => setShowActivate(false)} onActivated={() => { reload(); setShowSubmit(true); }} forSubmission />
   </DashboardLayout>;
 }

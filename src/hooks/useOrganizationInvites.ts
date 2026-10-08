@@ -61,6 +61,8 @@ export function useOrganizationInvites(organizationId: string | undefined) {
       email: string;
       role: string;
       job_ids?: string[];
+      full_name?: string;
+      message?: string;
     }): Promise<SendInviteResult> => {
       const { data: result, error } = await supabase.functions.invoke('organization-invite', {
         body: data,

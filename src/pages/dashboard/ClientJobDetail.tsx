@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +29,6 @@ import {
   JobKonditionen,
   JobTeam,
   JobVerlauf,
-  JobVerwalten,
   type VerlaufEvent,
 } from '@/components/client/JobDetailSections';
 import {
@@ -62,6 +61,12 @@ import { stellenVerlauf, verlaufDatum } from '@/lib/stellenVerlauf';
 import { VerlaufLeiste } from '@/components/dashboard/StellenVerlauf';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { cn } from '@/lib/utils';
+import { JobManageMenu } from '@/components/client/job-manage/JobManageMenu';
+import { PauseJobDialog } from '@/components/client/job-manage/PauseJobDialog';
+import { CloseJobDialog } from '@/components/client/job-manage/CloseJobDialog';
+import { JobSearchersCard } from '@/components/client/searchers/JobSearchersCard';
+import { DirectPositionBanner } from '@/components/client/searchers/DirectPositionBanner';
+import { errorText, resumeJob } from '@/lib/jobSearch';
 
 interface JobSummary {
   key_facts: { icon: string; label: string; value: string }[];
@@ -102,6 +107,8 @@ interface Job {
   requirements: string | null;
   fee_percentage: number | null;
   paused_at: string | null;
+  pause_until?: string | null;
+  pause_reason?: string | null;
   skills: string[] | null;
   must_haves: string[] | null;
   nice_to_haves: string[] | null;
@@ -146,6 +153,9 @@ export default function ClientJobDetail() {
 
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [pauseOpen, setPauseOpen] = useState(searchParams.get('pausieren') === '1');
+  const [closeOpen, setCloseOpen] = useState(searchParams.get('schliessen') === '1');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [decidingIntake, setDecidingIntake] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -195,61 +205,26 @@ export default function ClientJobDetail() {
   // Opt-In-Gate vorbei (Triple-Blind-Bypass). Alle Aktionen laufen über die
   // Bewerber-Inbox bzw. die Kandidaten-Detailseite mit den sicheren Flows.
 
-  const handlePauseToggle = async () => {
+  // Weitersuchen nach einer Pause: über die Datenbankfunktion (Rechte, Suchen der
+  // Headhunter laufen weiter, alle werden informiert).
+  const handleResume = async () => {
     if (!job) return;
     try {
-      const isPaused = !!job.paused_at;
-      // Nur paused_at toggeln — vorher zwang "Reaktivieren" JEDEN Status auf
-      // 'published' (Freigabe-Bypass: Entwurf → pausieren → reaktivieren = live).
-      // .select() verifiziert das Update: RLS-blockierte Schreibversuche treffen
-      // 0 Zeilen OHNE Fehler — die dürfen keinen Erfolgs-Toast zeigen.
-      const { data: rows, error } = await supabase
-        .from('jobs')
-        .update({ paused_at: isPaused ? null : new Date().toISOString() })
-        .eq('id', job.id)
-        .select('id');
-
-      if (error) throw error;
-      if (!rows || rows.length === 0) throw new Error('update blocked (0 rows)');
-
-      toast({ title: isPaused ? t('jobdetail.toast.resumed') : t('jobdetail.toast.paused') });
+      await resumeJob(job.id);
+      toast({ title: t('jobdetail.toast.resumed') });
       fetchJobData();
     } catch (error) {
-      console.error('Error toggling pause:', error);
-      toast({ title: t('jobdetail.error_save'), variant: 'destructive' });
+      toast({ title: errorText(error), variant: 'destructive' });
     }
   };
 
-  // Schließen-Flow: "besetzt" (egal wo) → status filled, sonst closed.
-  // closed_reason/closed_at sind additiv (Migration 20260716120000); bei noch
-  // nicht deployter Spalte fällt das Update auf den reinen Status zurück.
-  const handleCloseJob = async (reason: string) => {
-    if (!job) return;
-    const newStatus =
-      reason === 'filled_via_matchunt' || reason === 'filled_elsewhere' ? 'filled' : 'closed';
-    let { data: rows, error } = await supabase
-      .from('jobs')
-      .update({
-        status: newStatus,
-        closed_reason: reason,
-        closed_at: new Date().toISOString(),
-      } as never)
-      .eq('id', job.id)
-      .select('id');
-    if (error && isMissingColumnError(error)) {
-      ({ data: rows, error } = await supabase
-        .from('jobs')
-        .update({ status: newStatus })
-        .eq('id', job.id)
-        .select('id'));
+  const clearManageParam = () => {
+    if (searchParams.get('pausieren') || searchParams.get('schliessen')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('pausieren');
+      next.delete('schliessen');
+      setSearchParams(next, { replace: true });
     }
-    if (error || !rows || rows.length === 0) {
-      console.error('Error closing job:', error ?? 'update blocked (0 rows)');
-      toast({ title: t('jobdetail.error_save'), variant: 'destructive' });
-      return;
-    }
-    toast({ title: t('jobdetail.toast_closed') });
-    fetchJobData();
   };
 
   if (loading) {
@@ -595,6 +570,8 @@ export default function ClientJobDetail() {
     !orgLoading && (!myOrg || ['owner', 'admin', 'finance'].includes(myOrgRole ?? ''));
   // Viewer sind lesend unterwegs: keine Verwaltungs-Aktionen anbieten.
   const isViewer = myOrgRole === 'viewer';
+  // Pausieren/Schließen: Owner, Admin, HR (Kundenvertrag § 3 Abs. 2); ohne Organisation der Ersteller.
+  const canManage = !myOrg || ['owner', 'admin', 'hr'].includes(myOrgRole ?? '');
   // Auch der Banner bietet Viewern keine Job-Verwaltung an (Briefing/Reaktivieren).
   const shownDiagnose =
     isViewer && (diagnose.action.type === 'edit' || diagnose.action.type === 'resume')
@@ -654,9 +631,11 @@ export default function ClientJobDetail() {
     isTerminal
       ? null
       : job.paused_at
-        ? t('jobdetail.meta.paused_since', {
-            date: new Date(job.paused_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
-          })
+        ? job.pause_until
+          ? `Pausiert bis ${new Date(job.pause_until).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}${job.pause_reason ? ` · ${job.pause_reason}` : ''}`
+          : t('jobdetail.meta.paused_since', {
+              date: new Date(job.paused_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+            })
         : liveDays === 0
           ? t('jobdetail.meta.live_today')
           : liveDays === 1
@@ -680,7 +659,7 @@ export default function ClientJobDetail() {
         {/* Kopf: Titel + Zustandspille + Meta + Verwalten-Aktionen */}
         <div className="rounded-xl border bg-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-72">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-bold md:text-2xl">{job.title}</h1>
                 <JobStatePill state={jobState} />
@@ -699,12 +678,22 @@ export default function ClientJobDetail() {
                   organizationId={myOrg.id}
                   defaultRole="hiring_manager"
                   defaultJobIds={[job.id]}
+                  jobContext={{ id: job.id, title: job.title, location: job.location }}
                   trigger={
-                    <Button variant="ghost" size="sm" className="gap-1.5">
+                    <Button variant="outline" size="sm" className="gap-1.5">
                       <UserPlus className="h-3.5 w-3.5" />
                       {t('jobdetail.actions.invite')}
                     </Button>
                   }
+                />
+              )}
+              {!isViewer && !isTerminal && ['published', 'paused'].includes(job.status ?? '') && (
+                <JobManageMenu
+                  canManage={canManage}
+                  isPaused={!!job.paused_at}
+                  onPause={() => setPauseOpen(true)}
+                  onResume={handleResume}
+                  onClose={() => setCloseOpen(true)}
                 />
               )}
             </div>
@@ -734,7 +723,7 @@ export default function ClientJobDetail() {
                   diagnose={shownDiagnose}
                   jobId={job.id}
                   onEdit={() => setShowEditDialog(true)}
-                  onResume={handlePauseToggle}
+                  onResume={handleResume}
                 />
               </div>
               <div className="mt-3">
@@ -743,6 +732,14 @@ export default function ClientJobDetail() {
             </>
           )}
         </div>
+
+        {/* Rückfrage „Stelle schon direkt vergeben?“ (Bestandskunde eines Headhunters) */}
+        <DirectPositionBanner jobId={job.id} jobTitle={job.title} canAnswer={canManage} />
+
+        {/* Wer für die Stelle sucht und gesucht hat (mit Namen) */}
+        {['published', 'paused', 'closed', 'filled'].includes(job.status ?? '') && (
+          <JobSearchersCard key={`${job.paused_at ?? 'live'}-${job.status}`} jobId={job.id} jobTitle={job.title} closed={isTerminal} />
+        )}
 
         {/* Wartet auf Sie — reine Navigation, Entscheidungen fallen in Inbox/Detail */}
         {!bewerberLoading && !bewerberError && <JobWaitList items={bewerberItems} jobId={job.id} />}
@@ -786,7 +783,7 @@ export default function ClientJobDetail() {
                 {t('jobdetail.sections.team')}
               </AccordionTrigger>
               <AccordionContent>
-                <JobTeam organizationId={myOrg.id} jobId={job.id} isOrgAdmin={isOrgAdmin} />
+                <JobTeam organizationId={myOrg.id} jobId={job.id} jobTitle={job.title} isOrgAdmin={isOrgAdmin} />
               </AccordionContent>
             </AccordionItem>
           )}
@@ -800,24 +797,27 @@ export default function ClientJobDetail() {
             </AccordionContent>
           </AccordionItem>
 
-          {!isViewer && (
-            <AccordionItem value="verwalten" className="rounded-xl border bg-card px-4">
-              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
-                {t('jobdetail.sections.verwalten')}
-              </AccordionTrigger>
-              <AccordionContent>
-                <JobVerwalten
-                  isPaused={!!job.paused_at}
-                  isTerminal={isTerminal}
-                  onEdit={() => setShowEditDialog(true)}
-                  onPauseToggle={handlePauseToggle}
-                  onCloseJob={handleCloseJob}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          )}
         </Accordion>
       </div>
+
+      <PauseJobDialog
+        open={pauseOpen}
+        onOpenChange={(o) => { setPauseOpen(o); if (!o) clearManageParam(); }}
+        jobId={job.id}
+        jobTitle={job.title}
+        onDone={fetchJobData}
+      />
+      <CloseJobDialog
+        open={closeOpen}
+        onOpenChange={(o) => { setCloseOpen(o); if (!o) clearManageParam(); }}
+        jobId={job.id}
+        jobTitle={job.title}
+        candidates={bewerberItems
+          .filter((i) => i.archiveKind !== 'abgelehnt')
+          .map((i) => ({ submissionId: i.submissionId, label: `${i.fullName || i.anonymizedName}${i.currentRole ? ` · ${i.currentRole}` : ''}` }))}
+        onClosed={fetchJobData}
+        onPauseInstead={() => setPauseOpen(true)}
+      />
 
       {/* Edit Dialog */}
       <JobEditDialog

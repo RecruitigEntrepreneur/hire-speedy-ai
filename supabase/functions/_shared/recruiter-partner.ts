@@ -28,7 +28,7 @@ export const MIN_CONTRACT_VERSION = '2.1';
 export const ENDED_VISIBLE_DAYS = 183;
 const DAY = 86_400_000;
 
-export type PartnerTier = 'partner' | 'gold';
+export type PartnerTier = 'partner' | 'silver' | 'gold';
 export type PartnerChannel = 'linkedin' | 'signature' | 'post';
 export const PARTNER_CHANNELS: readonly PartnerChannel[] = ['linkedin', 'signature', 'post'];
 export type Lang = 'de' | 'en';
@@ -48,7 +48,11 @@ export interface PartnerStatusRow {
   website_seen_at: string | null;
 }
 
-export const TIER_LABEL: Record<PartnerTier, string> = { partner: 'Matchunt Partner', gold: 'Matchunt Gold Partner' };
+export const TIER_LABEL: Record<PartnerTier, string> = {
+  partner: 'Matchunt Partner',
+  silver: 'Matchunt Silber Partner',
+  gold: 'Matchunt Gold Partner',
+};
 
 /** Neue Partnernummer. Zufall ohne Verzerrung: Bytes ab 240 werden verworfen (240 = 8 × 30). */
 export function partnerNumber(random: (n: number) => Uint8Array = n => crypto.getRandomValues(new Uint8Array(n))): string {
@@ -114,9 +118,9 @@ export function linkedinAddUrl(p: { number: string; grantedAt: string; tier?: Pa
  * sonst würde das Bild in Mails wie ein Zählpixel wirken.
  */
 export const badgeImage = (tier: PartnerTier, theme: 'light' | 'dark' = 'light') =>
-  `${APP_ORIGIN}/badges/${tier === 'gold' ? 'gold' : `partner-${theme}`}@2x.png`;
+  `${APP_ORIGIN}/badges/${tier === 'partner' ? `partner-${theme}` : tier}@2x.png`;
 export const BADGE_SIZE: Record<PartnerTier, { width: number; height: number }> = {
-  partner: { width: 150, height: 44 }, gold: { width: 176, height: 44 },
+  partner: { width: 150, height: 44 }, silver: { width: 188, height: 44 }, gold: { width: 176, height: 44 },
 };
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

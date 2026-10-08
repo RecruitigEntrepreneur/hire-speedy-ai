@@ -34,6 +34,7 @@
     + '.active .state{color:#15803D}.active .dot{background:#16A34A}.off{opacity:.62}'
     + '.dark{background:#0A0A0A;border-color:#2A2A2A;color:#fff}.dark .line{background:#3F3F46}.dark .top{color:#A1A1AA}.dark.active .state{color:#86EFAC}'
     + '.gold{background:#0A0A0A;border-color:#0A0A0A;color:#fff}.gold svg,.gold .top{color:#C8A24A}.gold .line{background:#3F3F46}.gold.active .state{color:#86EFAC}'
+    + '.silver{background:#0A0A0A;border-color:#0A0A0A;color:#fff}.silver svg,.silver .top{color:#C3CAD4}.silver .line{background:#3F3F46}.silver.active .state{color:#86EFAC}'
     + '.s{padding:5px 10px 5px 7px}.s .state{display:none}.s .main{font-size:12px}.s svg{width:24px;height:14px}.s .line{height:18px}';
 
   var TEXT = { active: 'aktiv · geprüft', paused: 'derzeit nicht aktiv', ended: 'nicht mehr aktiv', invalid: 'Nummer ungültig', pending: 'wird geprüft …' };
@@ -45,8 +46,8 @@
     draw(n, state, tier) {
       var root = this.shadowRoot || this.attachShadow({ mode: 'open' });
       var cls = ['card', this.getAttribute('size') === 's' ? 's' : '', state === 'active' ? 'active' : '', state === 'ended' || state === 'invalid' ? 'off' : '',
-        tier === 'gold' ? 'gold' : this.getAttribute('theme') === 'dark' ? 'dark' : ''].filter(Boolean).join(' ');
-      var label = tier === 'gold' ? 'Gold Partner' : 'Partner';
+        tier === 'gold' ? 'gold' : tier === 'silver' ? 'silver' : this.getAttribute('theme') === 'dark' ? 'dark' : ''].filter(Boolean).join(' ');
+      var label = tier === 'gold' ? 'Gold Partner' : tier === 'silver' ? 'Silber Partner' : 'Partner';
       root.innerHTML = '<style>' + CSS + '</style>'
         + '<a class="' + cls + '" href="' + CHECK + encodeURIComponent(n) + '" target="_blank" rel="noopener" aria-label="Matchunt ' + label + ', Status prüfen">'
         + '<span class="row">' + MARK + '<span class="line"></span><span><span class="top">Matchunt</span><span class="main">' + label + '</span></span></span>'
@@ -60,7 +61,7 @@
       this.draw(n, 'pending', 'partner');
       status(n).then(function (r) {
         if (String(self.getAttribute('partner') || '').trim().toUpperCase() !== n) return;
-        self.draw(n, r && TEXT[r.state] ? r.state : 'unknown', r && r.tier === 'gold' ? 'gold' : 'partner');
+        self.draw(n, r && TEXT[r.state] ? r.state : 'unknown', r && (r.tier === 'gold' || r.tier === 'silver') ? r.tier : 'partner');
       });
     }
   }

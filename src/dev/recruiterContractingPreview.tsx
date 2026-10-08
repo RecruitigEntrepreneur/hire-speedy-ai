@@ -61,16 +61,16 @@ function Ansicht() {
   }
   if (screen === 'aktivieren') {
     return (
-      <ActivationConfirmDialog open onOpenChange={nichts} jobTitle={stelle.title} anonymousLabel="[Telemedizin | 1–50 MA | Hybrid München]"
-        earning={null} feePercentage={11} earningPerDay={verdienstJeTag(stelle)} hiringUrgency={null} recruiterCount={2}
-        activeCount={1} maxSlots={5} companyName={null} companyLogoUrl={null} companyIndustry="Telemedizin" companyLocation="München"
-        onConfirm={async () => false} onSubmitCandidate={nichts} onGoToJob={nichts} />
+      <ActivationConfirmDialog open onOpenChange={nichts} jobId={stelle.id} jobTitle={stelle.title} anonymousLabel="[Telemedizin | 1–50 MA | Hybrid München]"
+        earning={null} feePercentage={11} earningPerDay={verdienstJeTag(stelle)} hiringUrgency={null}
+        activeCount={1} maxSlots={10}
+        onConfirm={async () => ({ ok: false, error: 'Vorschau' })} onSubmitCandidate={nichts} onGoToJob={nichts} />
     );
   }
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <JobActionCard job={{ ...stelle, company_name: '', location: stelle.location }} earning={null} isRevealed={false} isSelected
-        isActive={false} recruiterCount={2} submittedCount={0} onSelect={nichts} onToggleActive={nichts} />
+        isActive={false} onSelect={nichts} onToggleActive={nichts} />
       <div className="h-[560px] rounded-lg border"><JobPreviewPanel job={{ ...stelle, company_name: '' }} earning={null} isRevealed={false} isActive={false} onToggleActive={nichts} onClose={nichts} /></div>
     </div>
   );

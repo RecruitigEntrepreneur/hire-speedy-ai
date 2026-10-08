@@ -123,7 +123,7 @@ export default function RecruiterLogin() {
 
   return <div className="mh-ui mh-onboarding">
     <header className="mh-header">
-      <div className="mh-actions"><a href="/" className="mh-brand" aria-label="Matchunt.ai – Startseite"><MatchuntWordmark size="md"/></a><span className="mh-header-tag">ANMELDUNG FÜR HEADHUNTER</span></div>
+      <div className="mh-actions"><a href="/" className="mh-brand" aria-label="Matchunt – Startseite"><MatchuntWordmark size="md"/></a><span className="mh-header-tag">ANMELDUNG FÜR HEADHUNTER</span></div>
       <div className="mh-header-account"><ThemeToggle/></div>
     </header>
     <main className="mh-main mh-login">

@@ -4,7 +4,7 @@ import { TIER_LABEL, type PartnerTier } from '../../../../supabase/functions/_sh
 
 /**
  * Das Abzeichen „Karte“ (Entscheidung 22.09.2026): weiß mit schwarzem Zeichen für
- * Partner, schwarz mit Gold für Gold Partner. Feste Farben wie auf Signatur, Website
+ * Partner, schwarz mit Silber bzw. Gold für Silber und Gold Partner. Feste Farben wie auf Signatur, Website
  * und Urkunde, deshalb unabhängig vom Farbschema der Plattform.
  */
 const SIZES = {
@@ -18,14 +18,16 @@ export function PartnerCard({ tier = 'partner', theme = 'light', size = 'md', cl
 }) {
   const s = SIZES[size];
   const gold = tier === 'gold';
-  const dark = gold || theme === 'dark';
+  const silver = tier === 'silver';
+  const accent = gold ? 'text-[#C8A24A]' : silver ? 'text-[#C3CAD4]' : undefined;
+  const dark = gold || silver || theme === 'dark';
   return <span role="img" aria-label={TIER_LABEL[tier]}
     className={cn('inline-flex shrink-0 items-center border', dark ? 'border-[#0A0A0A] bg-[#0A0A0A] text-white' : 'border-[#E4E4E7] bg-white text-[#0A0A0A]', s.box, className)}>
-    <MatchuntLogo size={s.logo} className={gold ? 'text-[#C8A24A]' : undefined}/>
+    <MatchuntLogo size={s.logo} className={accent}/>
     <span aria-hidden className={cn('w-px', s.line, dark ? 'bg-[#3F3F46]' : 'bg-[#E4E4E7]')}/>
     <span aria-hidden className="text-left leading-tight">
-      <span className={cn('block tracking-wide', s.top, gold ? 'text-[#C8A24A]' : dark ? 'text-[#A1A1AA]' : 'text-[#6B6B6B]')}>Matchunt</span>
-      <span className={cn('block font-semibold', s.main)}>{gold ? 'Gold Partner' : 'Partner'}</span>
+      <span className={cn('block tracking-wide', s.top, accent ?? (dark ? 'text-[#A1A1AA]' : 'text-[#6B6B6B]'))}>Matchunt</span>
+      <span className={cn('block font-semibold', s.main)}>{gold ? 'Gold Partner' : silver ? 'Silber Partner' : 'Partner'}</span>
     </span>
   </span>;
 }
@@ -37,7 +39,7 @@ export function PartnerCard({ tier = 'partner', theme = 'light', size = 'md', cl
 export function LiveBadge({ tier = 'partner', theme = 'light', size = 'l', state = 'active' }: {
   tier?: PartnerTier; theme?: 'light' | 'dark'; size?: 's' | 'l'; state?: 'active' | 'paused';
 }) {
-  const dark = tier === 'gold' || theme === 'dark';
+  const dark = tier !== 'partner' || theme === 'dark';
   if (size === 's') return <PartnerCard tier={tier} theme={theme} size="sm"/>;
   return <span className={cn('inline-flex flex-col items-start gap-1 rounded-[10px] border py-1.5 pl-2 pr-3', dark ? 'border-[#0A0A0A] bg-[#0A0A0A]' : 'border-[#E4E4E7] bg-white')}>
     <PartnerCard tier={tier} theme={theme} size="md" className="border-0 p-0"/>

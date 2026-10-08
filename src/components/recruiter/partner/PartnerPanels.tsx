@@ -236,7 +236,6 @@ function PostPanel({ partner, person, a }: { partner: PartnerStatusRow; person: 
 function PrintPanel({ partner, a }: { partner: PartnerStatusRow; a: PanelActions }) {
   const offer = offerText(partner.partner_number);
   const file = (path: string) => `/badges/${path}`;
-  const tierFile = partner.tier === 'gold' ? 'gold' : 'partner';
   return <>
     <Header title="Druck und Unterlagen" description="Für Angebote, Präsentationen und Visitenkarte"/>
     <div className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-x-3 gap-y-4 text-sm">
@@ -246,10 +245,10 @@ function PrintPanel({ partner, a }: { partner: PartnerStatusRow; a: PanelActions
       <PartnerCard tier={partner.tier} size="sm"/>
       <div className="flex flex-wrap items-center justify-between gap-2"><span><span className="block font-medium">Abzeichen</span><span className="text-xs text-muted-foreground">PNG in Druckgröße, SVG</span></span>
         <span className="flex flex-wrap gap-1.5">
-          {partner.tier === 'gold'
-            ? <Button size="sm" variant="outline" asChild><a href={file('gold.png')} download>PNG</a></Button>
+          {partner.tier !== 'partner'
+            ? <Button size="sm" variant="outline" asChild><a href={file(`${partner.tier}.png`)} download>PNG</a></Button>
             : <><Button size="sm" variant="outline" asChild><a href={file('partner-light.png')} download>PNG hell</a></Button><Button size="sm" variant="outline" asChild><a href={file('partner-dark.png')} download>PNG dunkel</a></Button></>}
-          <Button size="sm" variant="outline" asChild><a href={file(`${tierFile === 'gold' ? 'gold' : 'partner-light'}.svg`)} download>SVG</a></Button>
+          <Button size="sm" variant="outline" asChild><a href={file(`${partner.tier === 'partner' ? 'partner-light' : partner.tier}.svg`)} download>SVG</a></Button>
         </span></div>
       <div className="grid h-12 w-12 grid-cols-3 gap-0.5 rounded border border-[#E4E4E7] bg-white p-1.5" aria-hidden>{[1, 0, 1, 0, 1, 0, 1, 1, 0].map((d, i) => <span key={i} className={d ? 'bg-[#0A0A0A]' : ''}/>)}</div>
       <div className="flex flex-wrap items-center justify-between gap-2"><span><span className="block font-medium">QR-Code zur Prüfseite</span><span className="text-xs text-muted-foreground">Für Visitenkarte und Folien</span></span>

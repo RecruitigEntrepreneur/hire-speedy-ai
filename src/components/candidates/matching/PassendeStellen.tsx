@@ -51,13 +51,13 @@ function NextStep({ row, gate, onSubmit, onActivate, onOpen }: {
   if (effectiveTier(row) === 'ausgeschlossen' || effectiveTier(row) === 'ausgeblendet') {
     return <Button size="sm" variant="ghost" className="h-7 shrink-0 px-2 text-xs" onClick={() => onOpen(row)}>Warum?</Button>;
   }
-  if (gate.isActivated(row.job_id)) {
-    return <Button size="sm" className="h-7 shrink-0 px-2.5 text-xs" onClick={() => onSubmit(row.job_id)}>Einreichen</Button>;
-  }
-  if (gate.canActivate) {
-    return <Button size="sm" variant="outline" className="h-7 shrink-0 px-2.5 text-xs" onClick={() => onActivate(row)}>Aktivieren</Button>;
-  }
-  return <span className="shrink-0 text-xs text-muted-foreground">Kein Platz frei ({gate.activeCount}/{gate.maxSlots})</span>;
+  // Sucht er noch nicht, startet die Suche beim Einreichen mit (und belegt sofort
+  // keinen Platz) – ein passender Kandidat wird nie durch die Platzgrenze blockiert.
+  return (
+    <Button size="sm" className="h-7 shrink-0 px-2.5 text-xs" onClick={() => (gate.isActivated(row.job_id) ? onSubmit(row.job_id) : onActivate(row))}>
+      Einreichen
+    </Button>
+  );
 }
 
 function MatchLine({ row, gate, onSubmit, onActivate, onOpen }: {
@@ -178,8 +178,9 @@ export function PassendeStellenCard({ candidateId, firstName, onSubmit, onEditDo
       <ActivateJobDialog
         job={activateFor ? { id: activateFor.job_id, title: activateFor.job?.title ?? 'Stelle' } : null}
         onClose={() => setActivateFor(null)}
-        onActivated={() => { setActivateFor(null); gate.refetch(); }}
+        onActivated={(jobId) => { setActivateFor(null); gate.refetch(); onSubmit(jobId); }}
         gate={gate}
+        forSubmission
       />
     </Card>
   );
@@ -207,7 +208,7 @@ function PassendeStellenSheet({ open, onOpenChange, firstName, match, gate, onSu
     eingereicht: match.rows.filter((r) => !!r.submittedAt),
     ausgeschlossen: match.rows.filter((r) => !isVisible(r)),
   };
-  const LABEL: Record<Filter, string> = { alle: 'Alle', einreichbar: 'Einreichbar', aktivierbar: 'Aktivierbar', eingereicht: 'Eingereicht', ausgeschlossen: 'Ausgeschlossen' };
+  const LABEL: Record<Filter, string> = { alle: 'Alle', einreichbar: 'Du suchst', aktivierbar: 'Noch nicht gesucht', eingereicht: 'Eingereicht', ausgeschlossen: 'Ausgeschlossen' };
   const list = groups[filter];
 
   return (
@@ -405,12 +406,10 @@ function WarumPasstSheet({ row, firstName, gate, onClose, onSubmit, onActivate, 
             <div className="flex justify-end">
               {row.submittedAt ? (
                 <span className="text-sm text-muted-foreground">Eingereicht am {format(new Date(row.submittedAt), 'd. MMMM yyyy', { locale: de })}</span>
-              ) : gate.isActivated(row.job_id) ? (
-                <Button onClick={() => onSubmit(row.job_id)}>Einreichen</Button>
-              ) : gate.canActivate ? (
-                <Button variant="outline" onClick={() => onActivate(row)}>Stelle aktivieren</Button>
               ) : (
-                <span className="text-sm text-muted-foreground">Kein Platz frei ({gate.activeCount}/{gate.maxSlots})</span>
+                <Button onClick={() => (gate.isActivated(row.job_id) ? onSubmit(row.job_id) : onActivate(row))}>
+                  {firstName} einreichen
+                </Button>
               )}
             </div>
           </div>

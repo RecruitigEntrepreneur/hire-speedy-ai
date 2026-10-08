@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { Briefcase, Building2, UserCheck, Shield, Loader2, ArrowLeft } from 'lucide-react';
+import { Building2, UserCheck, Shield, Loader2, ArrowLeft } from 'lucide-react';
+import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email address');
@@ -153,9 +154,9 @@ export default function Auth() {
 
         <Card className="border-border/50 shadow-xl animate-scale-in">
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-navy">
-              <Briefcase className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <Link to="/" aria-label="Matchunt – Startseite" className="mx-auto mb-4">
+              <MatchuntWordmark size="lg" />
+            </Link>
             <CardTitle className="text-2xl">
               {mode === 'signup' ? t('auth.signupTitle') : t('auth.signinTitle')}
             </CardTitle>

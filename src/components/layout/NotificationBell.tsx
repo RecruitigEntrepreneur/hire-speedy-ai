@@ -47,6 +47,9 @@ export function NotificationBell() {
           : `/dashboard/placements`;
       case "payout":
         return `/recruiter/payouts`;
+      case "admin_review":
+        // Prüfungen in der Recruiterverwaltung (Direktkontakte, Bestandskunden, Schließungen)
+        return `/admin/recruiters#pruefungen`;
       default:
         return null;
     }

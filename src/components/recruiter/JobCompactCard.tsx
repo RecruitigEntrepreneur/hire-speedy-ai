@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Lock, CheckCircle, Users, Search, Check } from 'lucide-react';
+import { Lock, CheckCircle, Search, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface JobCompactCardProps {
@@ -15,7 +15,6 @@ interface JobCompactCardProps {
   isRevealed: boolean;
   revealedCompanyName?: string;
   isActive: boolean;
-  recruiterCount: number;
   onSelect: () => void;
   onToggleActive: (e: React.MouseEvent) => void;
 }
@@ -27,7 +26,6 @@ export function JobCompactCard({
   isRevealed,
   revealedCompanyName,
   isActive,
-  recruiterCount,
   onSelect,
   onToggleActive,
 }: JobCompactCardProps) {
@@ -65,12 +63,6 @@ export function JobCompactCard({
       {/* Earning */}
       <span className="text-sm font-bold text-emerald-500 tabular-nums shrink-0 w-16 text-right">
         {earning ? `€${(earning / 1000).toFixed(1)}k` : `${feePercentage}%`}
-      </span>
-
-      {/* Recruiter count */}
-      <span className="text-xs text-muted-foreground shrink-0 w-14 text-right flex items-center justify-end gap-1">
-        <Users className="h-3 w-3" />
-        {recruiterCount === 0 ? 'Erster!' : recruiterCount}
       </span>
 
       {/* Active toggle */}

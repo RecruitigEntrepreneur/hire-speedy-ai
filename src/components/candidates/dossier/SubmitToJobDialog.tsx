@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Loader2, Lock, MapPin, Search } from 'lucide-react';
+import { ArrowLeft, Loader2, MapPin, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
 import { ActivateJobDialog, useActivationGate } from '@/components/recruiter/ActivateJobDialog';
 import { getRecruiterCriteria } from '@/lib/recruiterBriefing';
+import { mySearches, type MySearch } from '@/lib/jobSearch';
+import { ClientQuestionFlow } from '@/components/recruiter/search/ClientQuestionFlow';
 
 type JobRow = Record<string, unknown> & { id: string; title: string };
 
@@ -38,8 +40,8 @@ function JobLine({ job, action }: { job: JobRow; action: React.ReactNode }) {
 
 /**
  * Einreichen aus dem Kandidatenprofil: erst Stelle wählen, dann das bestehende
- * Einreichformular mit vorausgewähltem Kandidaten. Wählbar sind nur aktivierte
- * Stellen ("Ich suche"); die übrigen lassen sich hier direkt aktivieren.
+ * Einreichformular mit vorausgewähltem Kandidaten. Bei Stellen ohne Suche startet
+ * die Suche beim Einreichen mit; vor der ersten Einreichung kommt die Kundenfrage.
  */
 export function SubmitToJobDialog({
   open,
@@ -65,6 +67,8 @@ export function SubmitToJobDialog({
   const [query, setQuery] = useState('');
   const [job, setJob] = useState<JobRow | null>(null);
   const [activateFor, setActivateFor] = useState<JobRow | null>(null);
+  const [questionFor, setQuestionFor] = useState<JobRow | null>(null);
+  const [searches, setSearches] = useState<Map<string, MySearch>>(new Map());
 
   const preselected = useRef(false);
 
@@ -72,9 +76,11 @@ export function SubmitToJobDialog({
     if (!open || !user) return;
     preselected.current = false;
     setJob(null);
+    setQuestionFor(null);
     setQuery('');
     setLoading(true);
     gate.refetch();
+    mySearches().then((rows) => setSearches(new Map((rows ?? []).map((r) => [r.job_id, r])))).catch(() => undefined);
     Promise.all([
       supabase.from('recruiter_jobs_view').select('*').eq('status', 'published').order('created_at', { ascending: false }),
       supabase.from('submissions').select('job_id').eq('candidate_id', candidateId).eq('recruiter_id', user.id),
@@ -100,6 +106,11 @@ export function SubmitToJobDialog({
     return jobs.filter((j) => [j.title, j.location, j.industry].some((v) => typeof v === 'string' && v.toLowerCase().includes(q)));
   }, [jobs, query]);
 
+  // Vor der ersten Einreichung muss „Ist das schon dein Kunde?“ beantwortet sein.
+  const choose = (j: JobRow) => {
+    if (!searches.get(j.id)?.client_declaration) setQuestionFor(j);
+    else setJob(j);
+  };
   const active = filtered.filter((j) => gate.isActivated(j.id));
   const others = filtered.filter((j) => !gate.isActivated(j.id));
   const firstName = candidateName.split(' ')[0] || candidateName;
@@ -108,11 +119,30 @@ export function SubmitToJobDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-          {!job ? (
+          {questionFor && !job ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{questionFor.title}</DialogTitle>
+                <DialogDescription>Bitte vor der ersten Einreichung beantworten.</DialogDescription>
+              </DialogHeader>
+              <ClientQuestionFlow
+                jobId={questionFor.id}
+                jobTitle={questionFor.title}
+                companyName={typeof questionFor.company_name === 'string' ? questionFor.company_name : searches.get(questionFor.id)?.company_name ?? null}
+                onDone={(answer) => {
+                  const next = questionFor;
+                  setQuestionFor(null);
+                  setSearches((m) => new Map(m).set(next.id, { ...(m.get(next.id) as MySearch), client_declaration: answer === 'no' ? 'no:none' : 'client:pending' }));
+                  if (answer === 'direct_position') return; // Suche ruht während der Prüfung
+                  setJob(next);
+                }}
+              />
+            </>
+          ) : !job ? (
             <>
               <DialogHeader>
                 <DialogTitle>{firstName} auf eine Stelle einreichen</DialogTitle>
-                <DialogDescription>Einreichen geht nur auf Stellen, die du aktiviert hast.</DialogDescription>
+                <DialogDescription>Bei Stellen, für die du noch nicht suchst, startet die Suche beim Einreichen mit.</DialogDescription>
               </DialogHeader>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -126,11 +156,11 @@ export function SubmitToJobDialog({
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">
-                      Meine aktiven Stellen · {gate.activeCount} von {gate.maxSlots} Plätzen belegt
+                      Meine Suchen · {gate.activeCount} von {gate.maxSlots} offenen Suchen ohne Einreichung
                     </p>
                     {active.length === 0 ? (
                       <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                        {query ? 'Keine aktive Stelle passt zur Suche.' : 'Du hast noch keine Stelle aktiviert.'}
+                        {query ? 'Keine deiner Suchen passt.' : 'Du suchst noch für keine Stelle.'}
                       </p>
                     ) : (
                       <ul className="divide-y divide-border rounded-md border border-border">
@@ -142,7 +172,7 @@ export function SubmitToJobDialog({
                               submittedJobIds.has(j.id) ? (
                                 <Badge variant="secondary" className="shrink-0 text-xs">Schon eingereicht</Badge>
                               ) : (
-                                <Button size="sm" onClick={() => setJob(j)}>Wählen</Button>
+                                <Button size="sm" onClick={() => choose(j)}>Wählen</Button>
                               )
                             }
                           />
@@ -153,21 +183,16 @@ export function SubmitToJobDialog({
                   {others.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-xs font-semibold text-muted-foreground">Weitere offene Stellen</p>
-                      {!gate.canActivate && (
-                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Lock className="h-3 w-3" /> Alle Plätze belegt. Eine weitere Stelle kannst du aktivieren, sobald ein Platz frei wird.
-                        </p>
-                      )}
                       <ul className="divide-y divide-border rounded-md border border-border">
                         {others.map((j) => (
                           <JobLine
                             key={j.id}
                             job={j}
                             action={
-                              gate.canActivate ? (
-                                <Button size="sm" variant="outline" onClick={() => setActivateFor(j)}>Aktivieren</Button>
+                              typeof j.paused_at === 'string' && j.paused_at ? (
+                                <span className="shrink-0 text-xs text-muted-foreground">pausiert</span>
                               ) : (
-                                <span className="shrink-0 text-xs text-muted-foreground">Keine Plätze frei</span>
+                                <Button size="sm" variant="outline" onClick={() => setActivateFor(j)}>Suche starten</Button>
                               )
                             }
                           />
@@ -208,8 +233,13 @@ export function SubmitToJobDialog({
         onClose={() => setActivateFor(null)}
         onActivated={(jobId) => {
           const activated = jobs.find((j) => j.id === jobId);
-          if (activated) setJob(activated);
+          // Die Kundenfrage kam schon im „Ich suche“-Dialog.
+          if (activated) {
+            setSearches((m) => new Map(m).set(jobId, { ...(m.get(jobId) as MySearch), client_declaration: m.get(jobId)?.client_declaration ?? 'no:none' }));
+            setJob(activated);
+          }
         }}
+        forSubmission
       />
     </>
   );
