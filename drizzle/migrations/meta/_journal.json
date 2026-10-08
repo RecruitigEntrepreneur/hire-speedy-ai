@@ -148,6 +148,13 @@
       "when": 1791291426895,
       "tag": "0020_interview_reschedule_and_guide",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791467090119,
+      "tag": "0021_suchen_kundenschutz_stufen",
+      "breakpoints": true
     }
   ]
 }
