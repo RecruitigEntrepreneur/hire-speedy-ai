@@ -2385,6 +2385,63 @@ export type Database = {
         }
         Relationships: []
       }
+      client_contact_reports: {
+        Row: {
+          admin_note: string | null
+          channel: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          job_id: string | null
+          note: string | null
+          recruiter_id: string
+          reported_by: string
+          status: string
+        }
+        Insert: {
+          admin_note?: string | null
+          channel: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          job_id?: string | null
+          note?: string | null
+          recruiter_id: string
+          reported_by: string
+          status?: string
+        }
+        Update: {
+          admin_note?: string | null
+          channel?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          job_id?: string | null
+          note?: string | null
+          recruiter_id?: string
+          reported_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contact_reports_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contact_reports_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_framework_agreements: {
         Row: {
           agb_sha256: string | null
@@ -6456,6 +6513,7 @@ export type Database = {
           benefits: string[] | null
           bonus_structure: string | null
           briefing_notes: string | null
+          callback_requested_at: string | null
           candidates_dropped_reason: string | null
           candidates_in_pipeline: number | null
           career_example: string | null
@@ -6465,12 +6523,18 @@ export type Database = {
           client_approved_by: string | null
           client_id: string
           closed_at: string | null
+          closed_hire_salary: number | null
+          closed_hire_start: string | null
+          closed_hire_submission_id: string | null
+          closed_not_matchunt_confirmed: boolean | null
+          closed_note: string | null
           closed_reason: string | null
           commute_flexibility: string | null
           company_culture: string | null
           company_headcount: number | null
           company_name: string
           company_size_band: string | null
+          confidential_search: boolean
           contract_creation_days: number | null
           contract_duration_months: number | null
           contract_limitation: string | null
@@ -6529,6 +6593,9 @@ export type Database = {
           organization_id: string | null
           overtime_policy: string | null
           owner_user_id: string | null
+          pause_reason: string | null
+          pause_reminder_sent_at: string | null
+          pause_until: string | null
           paused_at: string | null
           position_advantages: string[] | null
           recruiter_fee_percentage: number | null
@@ -6578,6 +6645,7 @@ export type Database = {
           benefits?: string[] | null
           bonus_structure?: string | null
           briefing_notes?: string | null
+          callback_requested_at?: string | null
           candidates_dropped_reason?: string | null
           candidates_in_pipeline?: number | null
           career_example?: string | null
@@ -6587,12 +6655,18 @@ export type Database = {
           client_approved_by?: string | null
           client_id: string
           closed_at?: string | null
+          closed_hire_salary?: number | null
+          closed_hire_start?: string | null
+          closed_hire_submission_id?: string | null
+          closed_not_matchunt_confirmed?: boolean | null
+          closed_note?: string | null
           closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
           company_headcount?: number | null
           company_name: string
           company_size_band?: string | null
+          confidential_search?: boolean
           contract_creation_days?: number | null
           contract_duration_months?: number | null
           contract_limitation?: string | null
@@ -6651,6 +6725,9 @@ export type Database = {
           organization_id?: string | null
           overtime_policy?: string | null
           owner_user_id?: string | null
+          pause_reason?: string | null
+          pause_reminder_sent_at?: string | null
+          pause_until?: string | null
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
@@ -6700,6 +6777,7 @@ export type Database = {
           benefits?: string[] | null
           bonus_structure?: string | null
           briefing_notes?: string | null
+          callback_requested_at?: string | null
           candidates_dropped_reason?: string | null
           candidates_in_pipeline?: number | null
           career_example?: string | null
@@ -6709,12 +6787,18 @@ export type Database = {
           client_approved_by?: string | null
           client_id?: string
           closed_at?: string | null
+          closed_hire_salary?: number | null
+          closed_hire_start?: string | null
+          closed_hire_submission_id?: string | null
+          closed_not_matchunt_confirmed?: boolean | null
+          closed_note?: string | null
           closed_reason?: string | null
           commute_flexibility?: string | null
           company_culture?: string | null
           company_headcount?: number | null
           company_name?: string
           company_size_band?: string | null
+          confidential_search?: boolean
           contract_creation_days?: number | null
           contract_duration_months?: number | null
           contract_limitation?: string | null
@@ -6773,6 +6857,9 @@ export type Database = {
           organization_id?: string | null
           overtime_policy?: string | null
           owner_user_id?: string | null
+          pause_reason?: string | null
+          pause_reminder_sent_at?: string | null
+          pause_until?: string | null
           paused_at?: string | null
           position_advantages?: string[] | null
           recruiter_fee_percentage?: number | null
@@ -6817,6 +6904,41 @@ export type Database = {
           works_council_meeting_schedule?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
+            columns: ["closed_hire_submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
+            columns: ["closed_hire_submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
+            columns: ["closed_hire_submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
+            columns: ["closed_hire_submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
+            columns: ["closed_hire_submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_intake_draft_id_fkey"
             columns: ["intake_draft_id"]
@@ -9674,6 +9796,87 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_client_declarations: {
+        Row: {
+          answer: string
+          assignment_path: string | null
+          client_answer: string | null
+          client_answered_at: string | null
+          client_answered_by: string | null
+          client_key: string
+          client_user_id: string | null
+          contract_path: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          job_id: string | null
+          organization_id: string | null
+          recruiter_id: string
+          reject_reason: string | null
+          status: string
+          stichtag: string | null
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          assignment_path?: string | null
+          client_answer?: string | null
+          client_answered_at?: string | null
+          client_answered_by?: string | null
+          client_key: string
+          client_user_id?: string | null
+          contract_path?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          job_id?: string | null
+          organization_id?: string | null
+          recruiter_id: string
+          reject_reason?: string | null
+          status: string
+          stichtag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          assignment_path?: string | null
+          client_answer?: string | null
+          client_answered_at?: string | null
+          client_answered_by?: string | null
+          client_key?: string
+          client_user_id?: string | null
+          contract_path?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          job_id?: string | null
+          organization_id?: string | null
+          recruiter_id?: string
+          reject_reason?: string | null
+          status?: string
+          stichtag?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_client_declarations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_client_declarations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiter_contract_envelopes: {
         Row: {
           approved_at: string
@@ -9970,29 +10173,59 @@ export type Database = {
       recruiter_job_activations: {
         Row: {
           activated_at: string
+          company_revealed_at: string | null
+          end_reason: string | null
+          ended_at: string | null
+          ends_at: string | null
           first_submission_at: string | null
           has_submitted: boolean | null
           id: string
           job_id: string
+          over_limit: boolean
+          paused_at: string | null
           recruiter_id: string
+          reminder_sent_at: string | null
+          review_hold: boolean
+          slot_until: string | null
+          status: string
           trust_level_at: string
         }
         Insert: {
           activated_at?: string
+          company_revealed_at?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          ends_at?: string | null
           first_submission_at?: string | null
           has_submitted?: boolean | null
           id?: string
           job_id: string
+          over_limit?: boolean
+          paused_at?: string | null
           recruiter_id: string
+          reminder_sent_at?: string | null
+          review_hold?: boolean
+          slot_until?: string | null
+          status?: string
           trust_level_at: string
         }
         Update: {
           activated_at?: string
+          company_revealed_at?: string | null
+          end_reason?: string | null
+          ended_at?: string | null
+          ends_at?: string | null
           first_submission_at?: string | null
           has_submitted?: boolean | null
           id?: string
           job_id?: string
+          over_limit?: boolean
+          paused_at?: string | null
           recruiter_id?: string
+          reminder_sent_at?: string | null
+          review_hold?: boolean
+          slot_until?: string | null
+          status?: string
           trust_level_at?: string
         }
         Relationships: []
@@ -10173,6 +10406,14 @@ export type Database = {
           partner_number: string
           show_expertise_at: string | null
           tier: string
+          tier_checked_at: string | null
+          tier_metrics: Json | null
+          tier_override: string | null
+          tier_override_at: string | null
+          tier_override_by: string | null
+          tier_override_reason: string | null
+          tier_since: string | null
+          tier_valid_until: string | null
           updated_at: string
           user_id: string
           website_domain: string | null
@@ -10188,6 +10429,14 @@ export type Database = {
           partner_number?: string
           show_expertise_at?: string | null
           tier?: string
+          tier_checked_at?: string | null
+          tier_metrics?: Json | null
+          tier_override?: string | null
+          tier_override_at?: string | null
+          tier_override_by?: string | null
+          tier_override_reason?: string | null
+          tier_since?: string | null
+          tier_valid_until?: string | null
           updated_at?: string
           user_id: string
           website_domain?: string | null
@@ -10203,6 +10452,14 @@ export type Database = {
           partner_number?: string
           show_expertise_at?: string | null
           tier?: string
+          tier_checked_at?: string | null
+          tier_metrics?: Json | null
+          tier_override?: string | null
+          tier_override_at?: string | null
+          tier_override_by?: string | null
+          tier_override_reason?: string | null
+          tier_since?: string | null
+          tier_valid_until?: string | null
           updated_at?: string
           user_id?: string
           website_domain?: string | null
@@ -12379,6 +12636,7 @@ export type Database = {
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
+          confidential_search: boolean | null
           contract_creation_days: number | null
           contract_duration_months: number | null
           contract_limitation: string | null
@@ -12417,6 +12675,9 @@ export type Database = {
           onsite_days_required: number | null
           onsite_required: boolean | null
           overtime_policy: string | null
+          pause_reason: string | null
+          pause_until: string | null
+          paused_at: string | null
           position_advantages: string[] | null
           recruiter_briefing_answers: Json | null
           recruiter_day_earning_max: number | null
@@ -12520,9 +12781,105 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_contact_reports: {
+        Args: never
+        Returns: {
+          admin_note: string
+          channel: string
+          company_name: string
+          created_at: string
+          id: string
+          job_id: string
+          job_title: string
+          name_shown_at: string
+          note: string
+          recruiter_id: string
+          recruiter_name: string
+          reporter_name: string
+          status: string
+        }[]
+      }
+      admin_decide_declaration: {
+        Args: {
+          p_decision: string
+          p_declaration_id: string
+          p_reason?: string
+        }
+        Returns: undefined
+      }
+      admin_declarations: {
+        Args: never
+        Returns: {
+          answer: string
+          assignment_path: string
+          client_answer: string
+          company_name: string
+          contract_path: string
+          created_at: string
+          id: string
+          job_id: string
+          job_title: string
+          recruiter_id: string
+          recruiter_name: string
+          reject_reason: string
+          status: string
+          stichtag: string
+        }[]
+      }
+      admin_job_changes: {
+        Args: never
+        Returns: {
+          callback_requested_at: string
+          closed_at: string
+          closed_note: string
+          closed_reason: string
+          company_name: string
+          hire_candidate: string
+          hire_salary: number
+          hire_start: string
+          job_id: string
+          not_matchunt_confirmed: boolean
+          pause_reason: string
+          pause_until: string
+          paused_at: string
+          state: string
+          title: string
+        }[]
+      }
+      admin_partner_tiers: {
+        Args: never
+        Returns: {
+          company_name: string
+          full_name: string
+          metrics: Json
+          partner_number: string
+          tier: string
+          tier_override: string
+          tier_override_reason: string
+          tier_since: string
+          tier_valid_until: string
+          user_id: string
+        }[]
+      }
+      admin_set_partner_tier: {
+        Args: { p_reason: string; p_tier: string; p_user_id: string }
+        Returns: string
+      }
+      admin_set_report_status: {
+        Args: { p_id: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
       anon_experience_band: { Args: { years: number }; Returns: string }
       anon_region_broad: { Args: { city: string }; Returns: string }
       anon_salary_band: { Args: { salary: number }; Returns: string }
+      answer_client_question: {
+        Args: { p_answer: string; p_job_id: string }
+        Returns: Json
+      }
+      attach_declaration_proof: {
+        Args: { p_declaration_id: string; p_kind: string; p_path: string }
+        Returns: undefined
+      }
       can_access_job: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
@@ -12532,10 +12889,44 @@ export type Database = {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
       }
+      can_manage_job: {
+        Args: { p_job_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      client_answer_direct_position: {
+        Args: { p_answer: string; p_declaration_id: string }
+        Returns: undefined
+      }
+      client_close_job: {
+        Args: {
+          p_hire_salary?: number
+          p_hire_start?: string
+          p_hire_submission_id?: string
+          p_job_id: string
+          p_not_matchunt?: boolean
+          p_note?: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      client_pause_job: {
+        Args: { p_job_id: string; p_reason?: string; p_until: string }
+        Returns: undefined
+      }
+      client_request_callback: {
+        Args: { p_job_id: string; p_note?: string }
+        Returns: undefined
+      }
+      client_resume_job: { Args: { p_job_id: string }; Returns: undefined }
+      client_sees_recruiter: {
+        Args: { p_recruiter_id: string }
+        Returns: boolean
+      }
       cron_token_valid: {
         Args: { _name: string; _token: string }
         Returns: boolean
       }
+      end_job_search: { Args: { p_job_id: string }; Returns: Json }
       find_similar_candidates: {
         Args: {
           exclude_id?: string
@@ -12560,6 +12951,40 @@ export type Database = {
           job_title: string
           similarity: number
           skills: string[]
+        }[]
+      }
+      get_job_direct_position_requests: {
+        Args: { p_job_id: string }
+        Returns: {
+          client_answer: string
+          created_at: string
+          declaration_id: string
+          recruiter_name: string
+        }[]
+      }
+      get_job_searchers: {
+        Args: { p_job_id: string }
+        Returns: {
+          activation_id: string
+          avatar_path: string
+          candidates: number
+          company_name: string
+          ended_at: string
+          full_name: string
+          is_new: boolean
+          last_submission_at: string
+          partner_number: string
+          recruiter_id: string
+          started_at: string
+          status: string
+          tier: string
+        }[]
+      }
+      get_jobs_searcher_counts: {
+        Args: { p_job_ids: string[] }
+        Returns: {
+          job_id: string
+          searching: number
         }[]
       }
       get_org_role: {
@@ -12595,6 +13020,8 @@ export type Database = {
         Args: { _org_id: string; _user_id?: string }
         Returns: boolean
       }
+      job_client_audience: { Args: { p_job_id: string }; Returns: string[] }
+      job_client_key: { Args: { p_job_id: string }; Returns: string }
       jsonb_text_arrays_disjoint: {
         Args: { a: Json; b: Json }
         Returns: boolean
@@ -12607,17 +13034,81 @@ export type Database = {
         | { Args: { _envelope: Json; _text: string }; Returns: string }
         | { Args: { _envelope: Json; _werte: string[] }; Returns: string[] }
       maskiere_json: { Args: { _envelope: Json; _wert: Json }; Returns: Json }
+      my_partner_progress: { Args: never; Returns: Json }
+      my_search_capacity: { Args: never; Returns: Json }
+      my_searches: {
+        Args: never
+        Returns: {
+          client_declaration: string
+          client_declaration_id: string
+          company_name: string
+          direct_declaration: string
+          direct_declaration_id: string
+          end_reason: string
+          ended_at: string
+          ends_at: string
+          in_process: number
+          job_id: string
+          job_pause_reason: string
+          job_paused_until: string
+          job_status: string
+          last_submission_at: string
+          location: string
+          review_hold: boolean
+          slot_until: string
+          started_at: string
+          status: string
+          submissions: number
+          title: string
+        }[]
+      }
+      notify_admins: {
+        Args: {
+          p_message: string
+          p_related_id?: string
+          p_related_type?: string
+          p_title: string
+          p_type: string
+        }
+        Returns: undefined
+      }
+      notify_users: {
+        Args: {
+          p_message: string
+          p_related_id?: string
+          p_related_type?: string
+          p_title: string
+          p_type: string
+          p_users: string[]
+        }
+        Returns: undefined
+      }
       org_intake_approval_required: {
         Args: { _org_id: string }
         Returns: boolean
       }
+      partner_tier_target: { Args: { p_metrics: Json }; Returns: string }
       purge_expired_calendar_oauth_states: { Args: never; Returns: undefined }
       purge_expired_capture_sources: { Args: never; Returns: number }
+      recalculate_all_partner_tiers: { Args: never; Returns: number }
+      recalculate_partner_tier: { Args: { p_user_id: string }; Returns: string }
       recruiter_counter_deadline: {
         Args: { signed_at: string }
         Returns: string
       }
+      recruiter_display_name: { Args: { p_user_id: string }; Returns: string }
       recruiter_partner_number: { Args: never; Returns: string }
+      recruiter_tier_metrics: { Args: { p_user_id: string }; Returns: Json }
+      report_direct_contact: {
+        Args: {
+          p_channel: string
+          p_job_id: string
+          p_note?: string
+          p_recruiter_id: string
+        }
+        Returns: string
+      }
+      run_search_maintenance: { Args: never; Returns: undefined }
       scrub_identity_tokens: {
         Args: { p_repl: string; p_text: string; p_tokens: string[] }
         Returns: string
@@ -12640,6 +13131,15 @@ export type Database = {
           semantic_score: number
           skills: string[]
         }[]
+      }
+      search_slot_limit: { Args: { p_recruiter: string }; Returns: number }
+      search_slots_used: {
+        Args: { p_exclude_job?: string; p_recruiter: string }
+        Returns: number
+      }
+      start_job_search: {
+        Args: { p_for_submission?: boolean; p_job_id: string }
+        Returns: Json
       }
       submissions_status_from_stage: {
         Args: { p_stage: string }
