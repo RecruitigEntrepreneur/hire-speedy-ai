@@ -187,7 +187,9 @@ export function useInterviewNotes(candidateId?: string) {
     }
   };
 
-  const getFormData = (): InterviewNotesFormData => {
+  // Memoisiert: der Slider hängt getFormData in Effekt-Deps; eine neue Funktion
+  // je Render löste dort "Maximum update depth exceeded" aus.
+  const getFormData = useCallback((): InterviewNotesFormData => {
     if (!notes) return emptyFormData;
     
     const { id, candidate_id, recruiter_id, created_at, updated_at, ...formFields } = notes;
@@ -197,7 +199,7 @@ export function useInterviewNotes(candidateId?: string) {
       change_motivation_tags: formFields.change_motivation_tags || [],
       offer_requirements: formFields.offer_requirements || [],
     };
-  };
+  }, [notes]);
 
   return {
     notes,

@@ -20,7 +20,6 @@ import {
   ChevronRight,
   ChevronDown,
   Calendar,
-  Settings2,
   UserPlus,
   Euro,
   Building2,
@@ -143,6 +142,7 @@ const calculatePotentialEarning = (
 const getAlertTypeLabel = (alertType: string): { label: string; color: string } => {
   const map: Record<string, { label: string; color: string }> = {
     'opt_in_pending': { label: 'Opt-In', color: 'bg-primary/10 text-primary' },
+    'rejected_inform': { label: 'Absage', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
     'opt_in_pending_48h': { label: 'Opt-In', color: 'bg-destructive/10 text-destructive' },
     'opt_in_pending_24h': { label: 'Opt-In', color: 'bg-destructive/10 text-destructive' },
     'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-primary/10 text-primary' },
@@ -232,59 +232,13 @@ export default function RecruiterDashboard() {
       fetchDashboardData();
       fetchPipelineData();
       fetchRevealedJobs();
-      ensureInterviewAlerts();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
 
-  const ensureInterviewAlerts = async () => {
-    if (!user) return;
-    try {
-      const { data: irSubmissions } = await supabase
-        .from('submissions')
-        .select('id, candidate_id, job_id, candidates(full_name)')
-        .eq('recruiter_id', user.id)
-        .eq('stage', 'interview_requested');
-
-      if (!irSubmissions || irSubmissions.length === 0) return;
-
-      // Job-Titel separat: Recruiter lesen Jobs nur ueber recruiter_jobs_view.
-      const irJobIds = [...new Set(irSubmissions.map((s: any) => s.job_id).filter(Boolean))] as string[];
-      let irJobTitles: Record<string, string> = {};
-      if (irJobIds.length > 0) {
-        const { data: jobRows } = await supabase
-          .from('recruiter_jobs_view')
-          .select('id, title')
-          .in('id', irJobIds);
-        irJobTitles = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j.title]));
-      }
-
-      const { data: existingAlerts } = await supabase
-        .from('influence_alerts')
-        .select('submission_id')
-        .eq('recruiter_id', user.id)
-        .eq('alert_type', 'opt_in_pending');
-
-      const existingSubmissionIds = new Set((existingAlerts || []).map(a => a.submission_id));
-
-      const missing = irSubmissions.filter(s => !existingSubmissionIds.has(s.id));
-      for (const s of missing) {
-        const candidateName = (s as any).candidates?.full_name || 'Kandidat';
-        const jobTitle = irJobTitles[(s as any).job_id] || 'Position';
-        await supabase.from('influence_alerts').insert({
-          submission_id: s.id,
-          recruiter_id: user.id,
-          alert_type: 'opt_in_pending',
-          priority: 'critical' as any,
-          title: `Interview-Anfrage: ${candidateName} – ${jobTitle}`,
-          message: `Ein Kunde möchte ${candidateName} für "${jobTitle}" interviewen. Opt-In einholen.`,
-          recommended_action: 'Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung (Opt-In) ein.',
-        });
-      }
-    } catch (err) {
-      console.error('Error ensuring interview alerts:', err);
-    }
-  };
+  // Opt-In-Aufgaben entstehen jetzt im Inbox-Hook aus dem Zustand (stage =
+  // interview_requested); das Dashboard schreibt keine Alerts mehr.
 
   const fetchRevealedJobs = async () => {
     if (!user) return;
@@ -437,7 +391,11 @@ export default function RecruiterDashboard() {
   // ─── Actions ────────────────────────────────────────────────────────────
 
   const handleMarkDone = async (item: UnifiedTaskItem) => {
-    await taskMarkDone(item.itemType, item.itemId);
+    const { error } = await taskMarkDone(item.itemType, item.itemId);
+    if (error) {
+      toast.error('Konnte nicht als erledigt markiert werden.');
+      return;
+    }
 
     if (item.candidateId) {
       await logActivity(
@@ -459,25 +417,26 @@ export default function RecruiterDashboard() {
   };
 
   const handleViewTask = (item: UnifiedTaskItem) => {
-    if (item.candidateId) {
-      const taskParam = item.itemType === 'alert' ? `?task=${item.itemId}` : '';
-      navigate(`/recruiter/candidates/${item.candidateId}${taskParam}`);
-    } else if (item.submissionId) {
-      navigate(`/recruiter/submissions/${item.submissionId}`);
-    } else {
-      navigate('/recruiter/influence');
+    // Klick öffnet die Aufgabe selbst — nicht das Profil, in dem man sie erneut suchen müsste.
+    if (item.itemId.startsWith('derived-debrief-')) {
+      navigate(`/recruiter/interviews?interview=${item.itemId.replace('derived-debrief-', '')}`);
+      return;
     }
+    navigate(`/recruiter/influence?item=${encodeURIComponent(item.itemId)}`);
   };
 
   // ─── Derived Data ───────────────────────────────────────────────────────
 
-  const topTasks = useMemo(() => taskItems.slice(0, 5), [taskItems]);
+  // Deals ohne Bewegung (> 21 Tage) gehören nicht auf die Karte; sie stehen auf
+  // der Aufgabenseite unten, eingeklappt.
+  const activeTaskItems = useMemo(() => taskItems.filter(i => !i.isStale), [taskItems]);
+  const topTasks = useMemo(() => activeTaskItems.slice(0, 5), [activeTaskItems]);
 
   const urgentCount = useMemo(() => {
-    return taskItems.filter(i => i.priority === 'critical').length;
-  }, [taskItems]);
+    return activeTaskItems.filter(i => i.priority === 'critical').length;
+  }, [activeTaskItems]);
 
-  const totalPendingAlerts = useMemo(() => taskItems.length, [taskItems]);
+  const totalPendingAlerts = useMemo(() => activeTaskItems.length, [activeTaskItems]);
 
   const maxPipelineCount = useMemo(() => {
     return Math.max(...pipelineStages.map(s => s.count), 1);
@@ -661,14 +620,13 @@ export default function RecruiterDashboard() {
                     </Badge>
                   )}
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground">
-                      <Settings2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Alert-Einstellungen</TooltipContent>
-                </Tooltip>
+                <Button
+                  variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                  onClick={() => navigate('/recruiter/influence')}
+                >
+                  Alle Aufgaben
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
               </div>
 
               {totalPendingAlerts === 0 && isNewcomer ? (
@@ -732,7 +690,7 @@ export default function RecruiterDashboard() {
                           </span>
                         )}
 
-                        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 shrink-0">
                           {item.candidatePhone && (
                             <Tooltip>
                               <TooltipTrigger asChild>

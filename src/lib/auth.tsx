@@ -26,7 +26,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        // Nur ein neues user-Objekt, wenn sich der Nutzer wirklich ändert.
+        // Sonst löst jeder TOKEN_REFRESHED/SIGNED_IN (z. B. Tab-Rückkehr) in
+        // allen Hooks mit [user]-Abhängigkeit einen Refetch-Sturm aus.
+        setUser((prev) => (prev?.id === session?.user?.id ? prev : (session?.user ?? null)));
         
         if (session?.user) {
           setTimeout(() => {

@@ -58,7 +58,7 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess }: R
 
       if (error) throw error;
 
-      toast.success('Kandidat wurde abgelehnt und benachrichtigt');
+      toast.success('Absage gespeichert. Der Headhunter informiert den Kandidaten.');
       handleClose();
       onSuccess();
     } catch (error: any) {
@@ -142,7 +142,7 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess }: R
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Der Recruiter wird per E-Mail über die Ablehnung informiert.
+                  Der Headhunter wird informiert und übernimmt die Absage an den Kandidaten.
                 </AlertDescription>
               </Alert>
             </div>

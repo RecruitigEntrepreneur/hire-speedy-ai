@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -954,6 +951,8 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px] max-h-[85vh] p-0 gap-0 overflow-hidden">
+        <DialogTitle className="sr-only">{item.title}</DialogTitle>
+        <DialogDescription className="sr-only">{item.description || item.recommendedAction || 'Aufgabe'}</DialogDescription>
         <div className="flex flex-col md:flex-row h-full max-h-[85vh]">
           {/* LEFT: Task + Inline Actions + Playbook */}
           <div className="flex-1 flex flex-col min-w-0 md:border-r">

@@ -1,22 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { PerformanceIntel } from '@/components/influence/PerformanceIntel';
 import { TodayInterviewsRail } from '@/components/influence/TodayInterviewsRail';
 import { PlaybookViewer } from '@/components/influence/PlaybookViewer';
-import { InfluenceScoreBadge } from '@/components/influence/InfluenceScoreBadge';
 import { TaskCard } from '@/components/influence/TaskCard';
 import { TaskDetailDialog, type TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
-import { SessionStartDialog } from '@/components/influence/SessionStartDialog';
-import { ActionSession } from '@/components/influence/ActionSession';
-import { SessionSummary } from '@/components/influence/SessionSummary';
-import { useUnifiedTaskInbox, type TaskFilter } from '@/hooks/useUnifiedTaskInbox';
-import { useRecruiterInfluenceScore } from '@/hooks/useRecruiterInfluenceScore';
+import { useUnifiedTaskInbox } from '@/hooks/useUnifiedTaskInbox';
 import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
-import { useActionSession } from '@/hooks/useActionSession';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
-import { CheckSquare, Plus, Play, AlertCircle, Circle, CalendarDays, CalendarRange, ChevronDown, Loader2, Check } from 'lucide-react';
+import { CheckSquare, Plus, AlertCircle, Circle, CalendarDays, CalendarRange, ChevronDown, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 export default function RecruiterInfluence() {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     items,
     allItems,
@@ -40,8 +33,7 @@ export default function RecruiterInfluence() {
     filterCounts,
     pendingCount,
     refetch,
-  } = useUnifiedTaskInbox(activeFilter);
-  const { score, loading: scoreLoading } = useRecruiterInfluenceScore();
+  } = useUnifiedTaskInbox('all');
   const { logActivity } = useActivityLogger();
 
   // Playbook state
@@ -52,20 +44,21 @@ export default function RecruiterInfluence() {
   // Create Task dialog
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
-  // Session state
-  const [sessionStartOpen, setSessionStartOpen] = useState(false);
-  const actionSession = useActionSession();
-
   // Task detail dialog
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
   const [taskDetailItem, setTaskDetailItem] = useState<TaskDetailItem | null>(null);
 
   // Completed section
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [staleOpen, setStaleOpen] = useState(false);
 
   // Handlers
   const handleMarkDone = async (item: typeof items[0]) => {
-    await markDone(item.itemType, item.itemId);
+    const { error } = await markDone(item.itemType, item.itemId);
+    if (error) {
+      toast.error('Konnte nicht als erledigt markiert werden.');
+      return;
+    }
 
     // Log activity
     if (item.candidateId) {
@@ -88,12 +81,20 @@ export default function RecruiterInfluence() {
   };
 
   const handleSnooze = async (item: typeof items[0], until: Date) => {
-    await snooze(item.itemType, item.itemId, until);
-    toast.success('Gesnoozed');
+    const { error } = await snooze(item.itemType, item.itemId, until);
+    if (error) {
+      toast.error('Konnte nicht vertagt werden.');
+      return;
+    }
+    toast.success('Vertagt');
   };
 
   const handleDelete = async (item: typeof items[0]) => {
-    await dismiss(item.itemType, item.itemId);
+    const { error } = await dismiss(item.itemType, item.itemId);
+    if (error) {
+      toast.error('Konnte nicht gelöscht werden.');
+      return;
+    }
     toast.success('Gelöscht');
   };
 
@@ -107,6 +108,11 @@ export default function RecruiterInfluence() {
   };
 
   const handleClickItem = (item: typeof items[0]) => {
+    // Debrief: das Formular existiert im Termin-Sheet der Interviews-Seite.
+    if (item.itemId.startsWith('derived-debrief-')) {
+      navigate(`/recruiter/interviews?interview=${item.itemId.replace('derived-debrief-', '')}`);
+      return;
+    }
     // Open the task detail dialog
     setTaskDetailItem({
       itemType: item.itemType,
@@ -132,48 +138,19 @@ export default function RecruiterInfluence() {
     setTaskDetailOpen(true);
   };
 
-  // Session handlers
-  const handleStartSession = (selectedItems: typeof items) => {
-    setSessionStartOpen(false);
-    actionSession.startSession(selectedItems);
-  };
-
-  const handleSessionEnd = () => {
-    refetch();
-  };
-
-  // Keyboard shortcuts (page level)
-  const handlePageKeyDown = useCallback((e: KeyboardEvent) => {
-    // Don't trigger when typing in inputs
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    // Don't trigger when session or dialog is active
-    if (actionSession.isActive || sessionStartOpen || createTaskOpen) return;
-
-    if (e.key === 'S' && e.shiftKey) {
-      e.preventDefault();
-      if (pendingCount > 0) {
-        setSessionStartOpen(true);
-      }
-    }
-  }, [actionSession.isActive, sessionStartOpen, createTaskOpen, pendingCount]);
-
+  // Deeplink vom Dashboard: /recruiter/influence?item=<id> öffnet die Aufgabe direkt.
+  const deepLinkItem = searchParams.get('item');
   useEffect(() => {
-    window.addEventListener('keydown', handlePageKeyDown);
-    return () => window.removeEventListener('keydown', handlePageKeyDown);
-  }, [handlePageKeyDown]);
-
-  // Filter config
-  const filters: { key: TaskFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'Alle', count: filterCounts.all },
-    { key: 'opt_in', label: 'Opt-In', count: filterCounts.opt_in },
-    { key: 'follow_up', label: 'Follow-up', count: filterCounts.follow_up },
-    { key: 'interview', label: 'Interview', count: filterCounts.interview },
-    { key: 'manual', label: 'Manuell', count: filterCounts.manual },
-    { key: 'other', label: 'Sonstige', count: filterCounts.other },
-  ];
-
-  // Estimated session duration (3 min per task)
-  const estimatedMinutes = Math.ceil(pendingCount * 3);
+    if (!deepLinkItem || loading) return;
+    const target = allItems.find(i => i.itemId === deepLinkItem);
+    if (target) {
+      handleClickItem(target);
+      const next = new URLSearchParams(searchParams);
+      next.delete('item');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkItem, loading, allItems]);
 
   // Zeit-Gruppierung: Überfällig/Dringend → Heute → Diese Woche → Später.
   // Items ohne dueAt landen bei "Später", außer sie sind kritisch.
@@ -187,10 +164,14 @@ export default function RecruiterInfluence() {
     const today: typeof items = [];
     const week: typeof items = [];
     const later: typeof items = [];
+    // Älter als drei Wochen ist keine Dringlichkeit mehr, sondern ein Deal ohne
+    // Bewegung: unten, grau, eingeklappt — bis „Zurückziehen“ gebaut ist.
+    const stale: typeof items = [];
 
     for (const item of items) {
       const due = item.dueAt ? new Date(item.dueAt) : null;
-      if ((due && due < now) || item.priority === 'critical') overdue.push(item);
+      if (item.isStale) stale.push(item);
+      else if ((due && due < now) || item.priority === 'critical') overdue.push(item);
       else if (due && due <= endOfToday) today.push(item);
       else if (due && due <= endOfWeek) week.push(item);
       else later.push(item);
@@ -201,8 +182,11 @@ export default function RecruiterInfluence() {
       { key: 'today', label: `Heute fällig (${today.length})`, items: today, icon: <CalendarDays className="h-3 w-3" />, tone: 'text-amber-600 dark:text-amber-400' },
       { key: 'week', label: `Diese Woche (${week.length})`, items: week, icon: <CalendarRange className="h-3 w-3" />, tone: 'text-muted-foreground' },
       { key: 'later', label: `Später & ohne Termin (${later.length})`, items: later, icon: <Circle className="h-3 w-3" />, tone: 'text-muted-foreground' },
+      { key: 'stale', label: `Ohne Bewegung seit über 3 Wochen (${stale.length})`, items: stale, icon: <Circle className="h-3 w-3" />, tone: 'text-muted-foreground', collapsed: true },
     ].filter(g => g.items.length > 0);
   }, [items]);
+
+  const activeCount = timeGroups.filter(g => g.key !== 'stale').reduce((n, g) => n + g.items.length, 0);
 
   return (
     <DashboardLayout>
@@ -215,67 +199,17 @@ export default function RecruiterInfluence() {
               Aufgaben
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Dein Arbeitsmodus — priorisiert nach Impact
+              {activeCount > 0 ? `${activeCount} Deals brauchen dich.` : 'Nichts braucht dich gerade.'}
             </p>
           </div>
-          {!scoreLoading && score && (
-            <InfluenceScoreBadge score={score.influence_score} size="lg" />
-          )}
-        </div>
-
-        {/* Session CTA */}
-        {pendingCount > 0 && (
-          <Card className="border-primary/20 bg-primary/[0.03]">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Play className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-sm">
-                      Session starten ({pendingCount} Aufgaben)
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Arbeite deine Top-Aufgaben fokussiert ab · ~{estimatedMinutes} min
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => setSessionStartOpen(true)}
-                  size="sm"
-                  className="gap-1.5"
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  Starten
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Filter Tabs + Create Button */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {filters.map(f => (
-            <Button
-              key={f.key}
-              variant={activeFilter === f.key ? 'default' : 'outline'}
-              size="sm"
-              className="text-xs h-7"
-              onClick={() => setActiveFilter(f.key)}
-            >
-              {f.label} ({f.count})
-            </Button>
-          ))}
-          <div className="flex-1" />
           <Button
             variant="outline"
             size="sm"
-            className="text-xs h-7 gap-1"
+            className="text-xs h-8 gap-1"
             onClick={() => setCreateTaskOpen(true)}
           >
             <Plus className="h-3 w-3" />
-            Aufgabe
+            Eigene Erinnerung
           </Button>
         </div>
 
@@ -314,11 +248,23 @@ export default function RecruiterInfluence() {
               <>
                 {timeGroups.map(group => (
                   <div key={group.key} className="space-y-2">
-                    <p className={cn('text-xs font-medium uppercase tracking-wider flex items-center gap-1', group.tone)}>
-                      {group.icon}
-                      {group.label}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {'collapsed' in group && group.collapsed ? (
+                      <button
+                        type="button"
+                        className={cn('text-xs font-medium uppercase tracking-wider flex items-center gap-1', group.tone)}
+                        onClick={() => setStaleOpen(o => !o)}
+                      >
+                        {group.icon}
+                        {group.label}
+                        <ChevronDown className={cn('h-3 w-3 transition-transform', staleOpen && 'rotate-180')} />
+                      </button>
+                    ) : (
+                      <p className={cn('text-xs font-medium uppercase tracking-wider flex items-center gap-1', group.tone)}>
+                        {group.icon}
+                        {group.label}
+                      </p>
+                    )}
+                    <div className={cn('grid grid-cols-1 sm:grid-cols-2 gap-2', 'collapsed' in group && group.collapsed && !staleOpen && 'hidden')}>
                       {group.items.map(item => (
                         <TaskCard
                           key={`${item.itemType}-${item.itemId}`}
@@ -340,7 +286,6 @@ export default function RecruiterInfluence() {
           {/* Sidebar: Interviews → Performance → Erledigt */}
           <div className="space-y-6">
             <TodayInterviewsRail />
-            <PerformanceIntel score={score} loading={scoreLoading} />
 
             {/* Completed — echte Liste der letzten Erledigungen */}
             <Card>
@@ -351,7 +296,7 @@ export default function RecruiterInfluence() {
                       <span className="flex items-center gap-2">
                         Erledigt
                         <Badge variant="secondary" className="text-[10px]">
-                          {score?.alerts_actioned || 0}
+                          {completedItems.length}
                         </Badge>
                       </span>
                       <ChevronDown className={cn('h-4 w-4 transition-transform', completedOpen && 'rotate-180')} />
@@ -407,40 +352,6 @@ export default function RecruiterInfluence() {
           open={createTaskOpen}
           onOpenChange={setCreateTaskOpen}
         />
-
-        {/* Session Start Dialog */}
-        <SessionStartDialog
-          open={sessionStartOpen}
-          onOpenChange={setSessionStartOpen}
-          items={allItems}
-          onStartSession={handleStartSession}
-        />
-
-        {/* Action Session Overlay */}
-        {actionSession.isActive && actionSession.currentItem && (
-          <ActionSession
-            session={actionSession}
-            onOpenPlaybook={(item) => handleOpenPlaybook(item)}
-            onEnd={handleSessionEnd}
-          />
-        )}
-
-        {/* Session Summary */}
-        {actionSession.isFinished && (
-          <SessionSummary
-            session={actionSession}
-            score={score}
-            onClose={() => {
-              actionSession.clearSession();
-              refetch();
-            }}
-            onNewSession={() => {
-              actionSession.clearSession();
-              refetch();
-              setSessionStartOpen(true);
-            }}
-          />
-        )}
 
         {/* Task Detail Dialog */}
         <TaskDetailDialog

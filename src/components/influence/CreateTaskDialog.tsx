@@ -119,8 +119,8 @@ export function CreateTaskDialog({
         description: description.trim() || undefined,
         task_type: taskType as CreateTaskInput['task_type'],
         priority: priority as CreateTaskInput['priority'],
-        candidate_id: selectedCandidateId || undefined,
-        job_id: selectedJobId || undefined,
+        candidate_id: selectedCandidateId && selectedCandidateId !== 'none' ? selectedCandidateId : undefined,
+        job_id: selectedJobId && selectedJobId !== 'none' ? selectedJobId : undefined,
         due_at: dueAt ? new Date(dueAt).toISOString() : undefined,
       };
 
@@ -223,7 +223,7 @@ export function CreateTaskDialog({
                     <SelectValue placeholder="Optional..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Keiner</SelectItem>
+                    <SelectItem value="none">Keiner</SelectItem>
                     {candidates.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.full_name}
@@ -243,7 +243,7 @@ export function CreateTaskDialog({
                     <SelectValue placeholder="Optional..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Keiner</SelectItem>
+                    <SelectItem value="none">Keiner</SelectItem>
                     {jobs.map((j) => (
                       <SelectItem key={j.id} value={j.id}>
                         {j.title} · {j.company_name}

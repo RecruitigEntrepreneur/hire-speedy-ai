@@ -120,7 +120,7 @@ interface SubmissionBundle {
 async function loadSubmission(db: SupabaseClient, submissionId: string): Promise<SubmissionBundle> {
   must(typeof submissionId === 'string' && UUID.test(submissionId), 'Ungültige Bewerbung.');
   const { data, error } = await db.from('submissions')
-    .select('id, stage, status, identity_unlocked, recruiter_id, candidate_id, job_id, jobs!inner(id, title, company_name, client_id, organization_id, industry), candidates!inner(id, full_name, email, phone, job_title)')
+    .select('id, stage, status, identity_unlocked, company_revealed, recruiter_id, candidate_id, job_id, jobs!inner(id, title, company_name, client_id, organization_id, industry), candidates!inner(id, full_name, email, phone, job_title)')
     .eq('id', submissionId).maybeSingle();
   dbFail(error, 'Die Bewerbung');
   must(data, 'Bewerbung nicht gefunden.', 'not_found');
@@ -203,6 +203,8 @@ const anonCode = (candidateId: string) => `PR-${String(candidateId ?? '').slice(
 const candidateLabel = (b: SubmissionBundle) => (b.submission.identity_unlocked ? b.candidate.full_name : `${b.candidate.job_title || 'Kandidat'} · ${anonCode(b.candidate.id)}`);
 const firstName = (full: string | null | undefined) => (full ? full.trim().split(/\s+/)[0] : null);
 
+/** Firmenname für den Recruiter nur nach Reveal; sonst Branchen-Label. Triple-Blind gilt auch in Mails und Benachrichtigungen. */
+const recruiterCompanyLabel = (b: SubmissionBundle) => (b.submission.company_revealed ? b.job.company_name : (b.job.industry ? `${b.job.industry}-Unternehmen` : 'Unternehmen'));
 /** Rund um die Uhr, ohne Vorlauf: zum Prüfen einer einzelnen, frei gewählten Zeit. */
 const allDayRules = (bufferMinutes: number): InterviewHoursRules => ({
   weekly: Object.fromEntries(['1', '2', '3', '4', '5', '6', '7'].map((d) => [d, [['00:00', '23:59']]])) as InterviewHoursRules['weekly'],
@@ -675,7 +677,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
       recruiterFirstName: firstName(recruiter.name),
       candidateName: bundle.candidate.full_name,
       candidatePhone: bundle.candidate.phone ?? null,
-      companyName: bundle.job.company_name,
+      companyName: recruiterCompanyLabel(bundle),
       jobTitle: bundle.job.title,
       slots: draft.slots,
       durationMinutes: draft.durationMinutes,
@@ -687,7 +689,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     recruiterMail = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: recruiter.email, ...content }, { template: 'interview_requested_recruiter', meta: { interview_id: iv!.id } });
   }
   await notify(ctx, bundle.submission.recruiter_id, 'interview_requested',
-    moving ? `${bundle.job.company_name} möchte den Termin mit ${bundle.candidate.full_name} verschieben` : `${bundle.job.company_name} möchte ${bundle.candidate.full_name} sprechen`,
+    moving ? `${recruiterCompanyLabel(bundle)} möchte den Termin mit ${bundle.candidate.full_name} verschieben` : `${recruiterCompanyLabel(bundle)} möchte ${bundle.candidate.full_name} sprechen`,
     `${moving ? 'Verschiebung' : 'Interview-Anfrage'} für ${bundle.job.title}: ${draft.slots.length} Terminvorschläge.`, iv!.id);
 
   return {
@@ -998,7 +1000,7 @@ async function requestAlternative(ctx: ServiceCtx, b: InterviewBundle, start: st
   const receipt = mails.candidateRequestReceived({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, startIso: start, durationMinutes: duration, recruiterName: b.recruiter?.name ?? null });
   await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.candidate.email, ...receipt }, { template: 'interview_alternative_candidate', meta: { interview_id: iv.id } });
   if (b.recruiter?.email) {
-    const content = mails.recruiterUpdate({ kind: 'alternative', candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title, startIso: start, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
+    const content = mails.recruiterUpdate({ kind: 'alternative', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso: start, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_alternative_recruiter', meta: { interview_id: iv.id } });
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_alternative', `${b.candidate.full_name} fragt eine andere Zeit an`, b.job.title, iv.id);
@@ -1019,7 +1021,7 @@ async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: str
     await notify(ctx, r.user_id, 'interview_declined', `${label} hat das Interview abgelehnt`, reason ?? b.job.title, iv.id);
   }
   if (b.recruiter?.email) {
-    const content = mails.recruiterUpdate({ kind: 'declined', candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title, reason, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
+    const content = mails.recruiterUpdate({ kind: 'declined', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, reason, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_declined_recruiter', meta: { interview_id: iv.id } });
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_declined', `${b.candidate.full_name} hat das Interview abgelehnt`, reason ?? b.job.title, iv.id);
@@ -1198,7 +1200,7 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   // Headhunter
   if (b.recruiter?.email) {
     await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name }, 'REQUEST',
-      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format }),
+      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format }),
       { summary: `Interview ${candidateName} · ${b.job.company_name}`, description: inviteDescription(meeting, `Kandidat: ${candidateName}\nStelle: ${b.job.title}`), startMs },
       'interview_booked_recruiter');
   }

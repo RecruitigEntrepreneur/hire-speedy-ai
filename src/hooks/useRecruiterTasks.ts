@@ -108,10 +108,9 @@ export function useRecruiterTasks() {
           due_at: input.due_at || null,
           reminder_at: input.reminder_at || null,
           priority: input.priority || 'normal',
-          source: input.source || 'manual',
-          related_alert_id: input.related_alert_id || null,
-          playbook_id: input.playbook_id || null,
-        } as any)
+          // source / related_alert_id / playbook_id existieren in der Live-DB nicht
+          // (Migration 20260225 nie angewendet) — mitsenden lässt den Insert scheitern.
+        })
         .select()
         .single();
 

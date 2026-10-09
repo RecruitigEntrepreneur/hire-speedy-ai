@@ -31,6 +31,8 @@ export interface UnifiedTaskItem {
   candidateEmail: string | null;
   jobTitle: string | null;
   companyName: string | null;
+  /** Älter als 21 Tage ohne Bewegung: kein Alarm mehr, sondern ein Deal ohne Bewegung. */
+  isStale: boolean;
 }
 
 export type TaskFilter = 'all' | 'opt_in' | 'follow_up' | 'interview' | 'manual' | 'other';
@@ -150,6 +152,7 @@ function mapAlertToItem(alert: any): UnifiedTaskItem {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, submission?.company_revealed),
+    isStale: false,
   };
 }
 
@@ -186,6 +189,7 @@ function mapTaskToItem(task: any, job: any): UnifiedTaskItem {
     jobTitle: job?.title || null,
     // Reveal ist ohne Submission-Verknüpfung nicht verifizierbar → immer Branchen-Label
     companyName: safeCompany(job, false),
+    isStale: false,
   };
 }
 
@@ -229,6 +233,7 @@ function mapStalledSubmission(sub: any, now: number): UnifiedTaskItem | null {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    isStale: false,
   };
 }
 
@@ -273,6 +278,86 @@ function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    isStale: false,
+  };
+}
+
+// Abgeleitete Aufgabe: Interview angefragt, Kandidat hat noch nicht reagiert
+function mapOptInDue(sub: any, now: number): UnifiedTaskItem {
+  const anchorIso = sub.opt_in_requested_at || sub.updated_at;
+  const hours = anchorIso ? Math.floor((now - new Date(anchorIso).getTime()) / 3_600_000) : 0;
+  const job = sub.jobs;
+  const candidate = sub.candidates;
+  const fee = calcFee(job?.salary_min ?? null, job?.salary_max ?? null, job?.recruiter_fee_percentage ?? null);
+  const priority: 'critical' | 'high' | 'medium' = hours >= 48 ? 'critical' : hours >= 24 ? 'high' : 'medium';
+  const since = hours < 48 ? `${hours} Std.` : `${Math.floor(hours / 24)} Tagen`;
+
+  return {
+    itemType: 'derived',
+    itemId: `derived-optin-${sub.id}`,
+    recruiterId: sub.recruiter_id,
+    title: 'Opt-In einholen — Kunde wartet',
+    description: `${candidate?.full_name || 'Kandidat'} hat die Interview-Einladung seit ${since} nicht beantwortet.`,
+    recommendedAction: 'Kandidat anrufen, Termin wählen lassen oder Opt-In bestätigen.',
+    taskCategory: 'opt_in_pending',
+    sortPriority: ALERT_PRIORITY_MAP[priority],
+    priority,
+    submissionId: sub.id,
+    candidateId: sub.candidate_id || null,
+    jobId: sub.job_id || null,
+    playbookId: null,
+    createdAt: anchorIso || new Date(now).toISOString(),
+    dueAt: anchorIso ? new Date(new Date(anchorIso).getTime() + 24 * 3_600_000).toISOString() : null,
+    isRead: false,
+    isArchived: false,
+    isCompleted: false,
+    completedAt: null,
+    snoozedUntil: null,
+    impactScore: fee ? Math.min(95, 70 + Math.round(fee / 1000)) : 75,
+    feeValue: fee,
+    candidateName: candidate?.full_name || null,
+    candidatePhone: candidate?.phone || null,
+    candidateEmail: candidate?.email || null,
+    jobTitle: job?.title || null,
+    companyName: safeCompany(job, sub.company_revealed),
+    isStale: false,
+  };
+}
+
+// Abgeleitete Aufgabe: Kunde hat abgesagt, Kandidat weiß es noch nicht
+function mapRejectedInform(sub: any): UnifiedTaskItem {
+  const job = sub.jobs;
+  const candidate = sub.candidates;
+  const reason = typeof sub.rejection_reason === 'string' && sub.rejection_reason ? sub.rejection_reason : null;
+  return {
+    itemType: 'derived',
+    itemId: `derived-rejected-${sub.id}`,
+    recruiterId: sub.recruiter_id,
+    title: 'Kunde hat abgesagt — Kandidat informieren',
+    description: `${candidate?.full_name || 'Kandidat'} weiß noch nicht, dass der Kunde abgesagt hat${reason ? ` (Grund: ${reason})` : ''}.`,
+    recommendedAction: 'Kandidat informieren, Grund neutral, andere Stellen anbieten.',
+    taskCategory: 'rejected_inform',
+    sortPriority: ALERT_PRIORITY_MAP.high,
+    priority: 'high',
+    submissionId: sub.id,
+    candidateId: sub.candidate_id || null,
+    jobId: sub.job_id || null,
+    playbookId: null,
+    createdAt: sub.rejected_at || sub.updated_at,
+    dueAt: new Date(new Date(sub.rejected_at || sub.updated_at).getTime() + DAY_MS).toISOString(),
+    isRead: false,
+    isArchived: false,
+    isCompleted: false,
+    completedAt: null,
+    snoozedUntil: null,
+    impactScore: 40,
+    feeValue: null,
+    candidateName: candidate?.full_name || null,
+    candidatePhone: candidate?.phone || null,
+    candidateEmail: candidate?.email || null,
+    jobTitle: job?.title || null,
+    companyName: safeCompany(job, sub.company_revealed),
+    isStale: false,
   };
 }
 
@@ -343,10 +428,39 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           )
         `)
         .eq('submissions.recruiter_id', user.id)
-        .not('status', 'in', '("declined","cancelled","no_show")')
+        .in('status', ['scheduled', 'confirmed', 'completed'])
         .not('scheduled_at', 'is', null)
         .lt('scheduled_at', now)
-        .is('feedback', null);
+        .gte('scheduled_at', new Date(nowMs - 60 * DAY_MS).toISOString());
+
+      // Debrief-Wahrheit: das Debrief des Recruiters liegt in interview_feedback
+      // (evaluator = er selbst), nicht in interviews.feedback (Kunde).
+      const myFeedbackQuery = supabase
+        .from('interview_feedback')
+        .select('interview_id')
+        .eq('evaluator_id', user.id);
+
+      // Opt-In einholen: Kunde hat ein Interview angefragt, Kandidat hat noch
+      // nicht reagiert. Aus dem Zustand (stage), nicht aus Alerts.
+      const optInQuery = supabase
+        .from('submissions')
+        .select(`
+          id, recruiter_id, candidate_id, job_id, opt_in_requested_at, updated_at, company_revealed,
+          candidates(full_name, phone, email)
+        `)
+        .eq('recruiter_id', user.id)
+        .eq('stage', 'interview_requested');
+
+      // Kunde hat abgesagt, Kandidat noch nicht informiert (abgeleitet aus
+      // Benachrichtigung + Zustand + fehlendem Beleg im Aktivitätslog)
+      const rejectedNotifQuery = supabase
+        .from('notifications')
+        .select('related_id, created_at')
+        .eq('user_id', user.id)
+        .eq('type', 'candidate_rejected')
+        .eq('related_type', 'submission')
+        .gte('created_at', new Date(nowMs - 30 * DAY_MS).toISOString())
+        .order('created_at', { ascending: false });
 
       // Query 5+6: zuletzt Erledigtes für die Sidebar
       const completedAlertsQuery = supabase
@@ -374,8 +488,39 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .order('completed_at', { ascending: false })
         .limit(10);
 
-      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult] =
-        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery]);
+      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult] =
+        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery]);
+      const debriefed = new Set((myFeedbackResult.data || []).map((f: any) => f.interview_id as string));
+
+      // Absagen: Einreichung laden, Beleg (Anruf/Mail nach der Absage) prüfen
+      const rejectedNotifs = (rejectedNotifResult.data || []) as { related_id: string; created_at: string }[];
+      const rejectedBySub = new Map<string, string>();
+      for (const n of rejectedNotifs) if (n.related_id && !rejectedBySub.has(n.related_id)) rejectedBySub.set(n.related_id, n.created_at);
+      let rejectedRows: any[] = [];
+      if (rejectedBySub.size > 0) {
+        const ids = [...rejectedBySub.keys()];
+        const [subsRes, logRes] = await Promise.all([
+          supabase
+            .from('submissions')
+            .select('id, recruiter_id, candidate_id, job_id, stage, status, rejection_reason, updated_at, company_revealed, candidates(full_name, phone, email)')
+            .in('id', ids)
+            .eq('recruiter_id', user.id),
+          supabase
+            .from('candidate_activity_log')
+            .select('related_submission_id, activity_type, created_at')
+            .eq('recruiter_id', user.id)
+            .in('related_submission_id', ids)
+            .in('activity_type', ['call', 'email']),
+        ]);
+        const informed = new Set<string>();
+        for (const l of (logRes.data || []) as any[]) {
+          const since = rejectedBySub.get(l.related_submission_id);
+          if (since && l.created_at > since) informed.add(l.related_submission_id);
+        }
+        rejectedRows = ((subsRes.data || []) as any[])
+          .filter(r => (r.stage === 'client_rejected' || r.status === 'rejected') && !informed.has(r.id))
+          .map(r => ({ ...r, rejected_at: rejectedBySub.get(r.id) }));
+      }
 
       for (const [label, res] of [
         ['alerts', alertsResult],
@@ -384,6 +529,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         ['debrief interviews', debriefResult],
         ['completed alerts', completedAlertsResult],
         ['completed tasks', completedTasksResult],
+        ['my feedback', myFeedbackResult],
+        ['opt-in submissions', optInResult],
       ] as const) {
         if (res.error) console.error(`Error fetching ${label}:`, res.error);
       }
@@ -403,6 +550,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
             ...(tasksResult.data || []).map((t: any) => t.job_id),
             ...(completedTasksResult.data || []).map((t: any) => t.job_id),
             ...(stalledResult.data || []).map((s: any) => s.job_id),
+            ...(optInResult.data || []).map((s: any) => s.job_id),
+            ...rejectedRows.map((s: any) => s.job_id),
             ...rowsWithSubmission.map((r: any) => r.submissions?.job_id),
           ].filter(Boolean)
         ),
@@ -424,6 +573,12 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         if (r.submissions?.job_id) r.submissions.jobs = taskJobsById[r.submissions.job_id] ?? null;
       });
       (stalledResult.data || []).forEach((s: any) => {
+        if (s.job_id) s.jobs = taskJobsById[s.job_id] ?? null;
+      });
+      (optInResult.data || []).forEach((s: any) => {
+        if (s.job_id) s.jobs = taskJobsById[s.job_id] ?? null;
+      });
+      rejectedRows.forEach((s: any) => {
         if (s.job_id) s.jobs = taskJobsById[s.job_id] ?? null;
       });
 
@@ -451,14 +606,22 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
 
       const derivedItems: UnifiedTaskItem[] = [
         ...(stalledResult.data || []).map((s: any) => mapStalledSubmission(s, nowMs)),
-        ...(debriefResult.data || []).map((iv: any) => mapDebriefDue(iv, nowMs)),
+        ...(debriefResult.data || [])
+          .filter((iv: any) => !debriefed.has(iv.id))
+          .map((iv: any) => mapDebriefDue(iv, nowMs)),
+        ...(optInResult.data || []).map((s: any) => mapOptInDue(s, nowMs)),
+        ...rejectedRows.map((s: any) => mapRejectedInform(s)),
       ]
         .filter((i): i is UnifiedTaskItem => i !== null)
         .filter(i => !alertKeys.has(`${i.taskCategory}:${i.submissionId}`))
         .filter(i => !suppressions[i.itemId]);
 
       // Merge + sort: by sortPriority ASC, then impact DESC, then createdAt DESC
-      const merged = [...alertItems, ...taskItems, ...derivedItems].sort((a, b) => {
+      const staleBefore = nowMs - 21 * DAY_MS;
+      const merged = [...alertItems, ...taskItems, ...derivedItems].map(i => ({
+        ...i,
+        isStale: i.itemType !== 'task' && new Date(i.dueAt ?? i.createdAt).getTime() < staleBefore,
+      })).sort((a, b) => {
         if (a.sortPriority !== b.sortPriority) return a.sortPriority - b.sortPriority;
         if (a.impactScore !== b.impactScore) return b.impactScore - a.impactScore;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -483,7 +646,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     fetchItems();
@@ -523,7 +687,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         supabase.removeChannel(taskChannel);
       };
     }
-  }, [user, fetchItems]);
+  }, [user?.id, fetchItems]);
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -577,10 +741,11 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     [filteredItems]
   );
 
-  // Actions
-  const markDone = async (itemType: 'alert' | 'task' | 'derived', itemId: string) => {
+  // Actions — geben { error } zurück; die Oberfläche toastet nur bei Erfolg.
+  const markDone = async (itemType: 'alert' | 'task' | 'derived', itemId: string): Promise<{ error: string | null }> => {
+    let error: string | null = null;
     if (itemType === 'alert') {
-      await supabase
+      const res = await supabase
         .from('influence_alerts')
         .update({
           action_taken: 'completed',
@@ -588,57 +753,73 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           is_read: true,
         })
         .eq('id', itemId);
+      error = res.error?.message ?? null;
     } else if (itemType === 'task') {
-      await supabase
+      const res = await supabase
         .from('recruiter_tasks')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
         })
         .eq('id', itemId);
+      error = res.error?.message ?? null;
     } else {
       // Abgeleitet: 3 Tage unterdrücken — kommt wieder, wenn der Zustand anhält
       suppressDerivedItem(itemId, new Date(Date.now() + 3 * DAY_MS));
     }
 
-    setItems(prev => prev.filter(i => i.itemId !== itemId));
+    if (!error) setItems(prev => prev.filter(i => i.itemId !== itemId));
+    return { error };
   };
 
-  const snooze = async (itemType: 'alert' | 'task' | 'derived', itemId: string, until: Date) => {
+  const snooze = async (itemType: 'alert' | 'task' | 'derived', itemId: string, until: Date): Promise<{ error: string | null }> => {
+    let error: string | null = null;
     if (itemType === 'alert') {
-      await supabase
+      // snoozed_until existiert live nicht (Migration 20260225 nie angewendet);
+      // expires_at wird von der Lese-Query bereits beachtet und trägt den Snooze.
+      const res = await supabase
         .from('influence_alerts')
-        .update({ snoozed_until: until.toISOString() } as any)
+        .update({ expires_at: until.toISOString() })
         .eq('id', itemId);
+      error = res.error?.message ?? null;
     } else if (itemType === 'task') {
-      // For tasks, we shift the due_at
-      await supabase
+      // Eigene Aufgabe: Fälligkeit verschieben; sie bleibt sichtbar und rückt in
+      // die spätere Zeitgruppe (statt kurz zu verschwinden und wiederzukommen).
+      const res = await supabase
         .from('recruiter_tasks')
         .update({ due_at: until.toISOString() })
         .eq('id', itemId);
+      error = res.error?.message ?? null;
+      if (!error) await fetchItems();
+      return { error };
     } else {
       suppressDerivedItem(itemId, until);
     }
 
-    setItems(prev => prev.filter(i => i.itemId !== itemId));
+    if (!error) setItems(prev => prev.filter(i => i.itemId !== itemId));
+    return { error };
   };
 
-  const dismiss = async (itemType: 'alert' | 'task' | 'derived', itemId: string) => {
+  const dismiss = async (itemType: 'alert' | 'task' | 'derived', itemId: string): Promise<{ error: string | null }> => {
+    let error: string | null = null;
     if (itemType === 'alert') {
-      await supabase
+      const res = await supabase
         .from('influence_alerts')
         .update({ is_dismissed: true })
         .eq('id', itemId);
+      error = res.error?.message ?? null;
     } else if (itemType === 'task') {
-      await supabase
+      const res = await supabase
         .from('recruiter_tasks')
         .update({ status: 'cancelled' })
         .eq('id', itemId);
+      error = res.error?.message ?? null;
     } else {
       suppressDerivedItem(itemId, new Date(Date.now() + 30 * DAY_MS));
     }
 
-    setItems(prev => prev.filter(i => i.itemId !== itemId));
+    if (!error) setItems(prev => prev.filter(i => i.itemId !== itemId));
+    return { error };
   };
 
   return {

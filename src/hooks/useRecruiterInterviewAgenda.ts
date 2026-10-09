@@ -132,6 +132,15 @@ export function useRecruiterInterviewAgenda() {
 
       if (error) throw error;
 
+      // Debrief-Wahrheit: der Recruiter schreibt sein Debrief in interview_feedback
+      // (evaluator = er selbst). interviews.feedback gehört dem Kunden und sagt
+      // nichts darüber, ob der Headhunter debrieft hat.
+      const { data: myFeedback } = await supabase
+        .from('interview_feedback')
+        .select('interview_id')
+        .eq('evaluator_id', user!.id);
+      const debriefed = new Set((myFeedback ?? []).map((f: any) => f.interview_id as string));
+
       // Job-Infos separat ueber recruiter_jobs_view: Recruiter duerfen
       // public.jobs nicht mehr direkt lesen, ein eingebetteter jobs(...)-Join
       // liefert deshalb nichts mehr. Die View maskiert die Firmenidentitaet
@@ -225,7 +234,9 @@ export function useRecruiterInterviewAgenda() {
           agenda.push(iv);
         } else if (iv.status === 'pending_response' || iv.status === 'pending') {
           awaitingScheduling.push({ ...iv, slotsExpired: true });
-        } else if (!iv.feedback) {
+        } else if (!debriefed.has(iv.id) && (iv.endsAt ?? 0) > now - 60 * 86_400_000) {
+          // Ohne eigenes Debrief, höchstens 60 Tage alt; ältere Termine sind kein
+          // Debrief mehr, sondern ein Deal ohne Bewegung.
           debriefDue.push(iv);
         } else {
           past.push(iv);

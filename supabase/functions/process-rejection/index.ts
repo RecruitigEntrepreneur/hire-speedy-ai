@@ -47,6 +47,28 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // Nur der Kunde der Stelle (Inhaber oder aktives Teammitglied der Organisation)
+    // darf absagen. Ohne diese Prüfung konnte jeder Eingeloggte per Submission-ID
+    // jede Einreichung "als Kunde" ablehnen.
+    const job = submission.job;
+    let allowed = job?.client_id === user.id;
+    if (!allowed && job?.organization_id) {
+      const { data: member } = await supabase
+        .from('organization_members')
+        .select('user_id')
+        .eq('organization_id', job.organization_id)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      allowed = !!member;
+    }
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Keine Berechtigung für diese Einreichung.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Find matching rejection template
     const { data: template } = await supabase
       .from('rejection_templates')
@@ -104,26 +126,9 @@ serve(async (req) => {
         related_id: submission_id
       });
 
-    // Send rejection notification email to recruiter
-    try {
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to: submission.candidate.email,
-          template: 'rejection_notification',
-          data: {
-            recruiter_email: submission.candidate.email,
-            candidate_name: submission.candidate.full_name,
-            job_title: submission.job.title,
-            company_name: submission.job.company_name,
-            reason_category,
-            custom_feedback: custom_feedback || ''
-          }
-        }
-      });
-    } catch (emailError) {
-      console.error('Error sending email:', emailError);
-      // Don't fail the whole process if email fails
-    }
+    // Keine automatische Mail an den Kandidaten: der Headhunter informiert ihn
+    // persönlich (Aufgabe "Kunde hat abgesagt"), und ein Firmenname darf vor dem
+    // Reveal ohnehin nicht an den Kandidaten gehen.
 
     // Log activity
     await supabase

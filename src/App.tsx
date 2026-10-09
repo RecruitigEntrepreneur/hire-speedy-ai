@@ -6,6 +6,7 @@ import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { loginPathFor } from "@/lib/recruiterLogin";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -38,7 +39,7 @@ import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
-import RecruiterInfluence from "./pages/recruiter/RecruiterInfluence";
+import RecruiterHeute from "./pages/recruiter/RecruiterHeute";
 import RecruiterInterviews from "./pages/recruiter/RecruiterInterviews";
 import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
 import RecruiterIntegrations from "./pages/recruiter/RecruiterIntegrations";
@@ -362,7 +363,7 @@ function AppRoutes() {
       } />
       <Route path="/recruiter/influence" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterInfluence />
+          <RecruiterHeute />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/talent-pool" element={
@@ -589,7 +590,9 @@ const App = () => (
           <AppRecruiterGuide>
             {/* Dasselbe für Kunden: Rundgang beim ersten Öffnen des Dashboards. */}
             <AppClientGuide>
-              <AppRoutes />
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
               <CookieConsentBanner />
             </AppClientGuide>
           </AppRecruiterGuide>
