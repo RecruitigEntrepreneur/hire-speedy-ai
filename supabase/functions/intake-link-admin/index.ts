@@ -19,6 +19,76 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 
 const LINK_TYPES = ['personal', 'campaign', 'public'] as const;
 
+/** Einladungsmail zum Aufnahme-Link – beim Anlegen und beim späteren Versand gleich. */
+function invitationMail(prefill: Record<string, any>, message: string, url: string, subjectOverride?: string) {
+  const title = prefill?.seed_title ? String(prefill.seed_title) : '';
+  const subject = subjectOverride?.trim()
+    || (title ? `Ihre Position aufnehmen: ${title}` : 'Ihre offene Position bei Matchunt aufnehmen');
+  const html = layout({
+    preheader: 'Ihre Position in wenigen Minuten aufnehmen — ohne Registrierung.',
+    heading: title ? `Ihre Position aufnehmen: ${title}` : 'Ihre Position aufnehmen',
+    body: `
+      <p style="margin:0 0 16px 0;">Guten Tag${prefill?.contact_name ? ' ' + esc(String(prefill.contact_name)) : ''},</p>
+      ${message ? `<p style="margin:0 0 16px 0;">${esc(message).replace(/\n/g, '<br/>')}</p>` : `
+      <p style="margin:0 0 16px 0;">
+        über den folgenden Link nehmen wir Ihre offene Position auf — Stellenanzeige einfügen,
+        Link oder PDF hochladen, oder einfach beschreiben. Der Rest geht automatisch.
+        Eine Registrierung ist dafür nicht nötig.
+      </p>`}
+      <p style="margin:0 0 16px 0;">
+        Die Konditionen sehen Sie von Anfang an: Erfolgshonorar, keine Fixkosten, kein Retainer.
+      </p>`,
+    cta: { label: 'Position aufnehmen', url },
+    footnote:
+      'Ihre Angaben werden fortlaufend gespeichert — Sie können jederzeit unterbrechen und später weitermachen.',
+  });
+  return { subject, html };
+}
+
+/** Trichter, Aufnahmen und Ereignisse eines Links (für 'stats' und 'detail'). */
+async function linkStats(supabase: ReturnType<typeof serviceClient>, linkId: string) {
+  const [{ data: funnelEvents }, { data: drafts }, { data: events }] = await Promise.all([
+    // NICHT ueber intake_link_funnel: die View traegt die Rollenpruefung
+    // has_role(auth.uid(),'admin') in sich, und aus einer Service-Role-
+    // Function ist auth.uid() NULL -- sie liefert dort immer leer.
+    supabase.from('intake_link_events').select('event_type, draft_id, anonymous_id').eq('link_id', linkId),
+    supabase
+      .from('intake_drafts')
+      .select('id, company_name, contact_name, contact_email, title, completeness, capture_state, identity_state, commercial_state, review_state, created_at, last_activity_at, submitted_at, job_id')
+      .eq('link_id', linkId)
+      .order('last_activity_at', { ascending: false })
+      .limit(100),
+    supabase
+      .from('intake_link_events')
+      .select('event_type, occurred_at, draft_id, meta')
+      .eq('link_id', linkId)
+      .order('occurred_at', { ascending: false })
+      .limit(100),
+  ]);
+  const distinct = (type: string, key: 'draft_id' | 'anonymous_id') =>
+    new Set(
+      (funnelEvents ?? [])
+        .filter((e: Record<string, unknown>) => e.event_type === type && e[key])
+        .map((e: Record<string, unknown>) => e[key]),
+    ).size;
+  return {
+    funnel: {
+      link_id: linkId,
+      opened: distinct('link_opened', 'anonymous_id'),
+      started: distinct('intake_started', 'draft_id'),
+      contacted: distinct('contact_provided', 'draft_id'),
+      verified: distinct('email_verified', 'draft_id'),
+      completed: distinct('intake_completed', 'draft_id'),
+      submitted: distinct('submitted', 'draft_id'),
+      accepted: distinct('accepted', 'draft_id'),
+      signed: distinct('contract_signed', 'draft_id'),
+      published: distinct('published', 'draft_id'),
+    },
+    drafts: drafts ?? [],
+    events: events ?? [],
+  };
+}
+
 /**
  * Den Token verschluesselt ablegen, damit der Admin ihn erneut anzeigen kann.
  *
@@ -159,32 +229,11 @@ serve(async (req) => {
         }
         const message = String(body?.message ?? '').trim().slice(0, 2000);
 
-        const html = layout({
-          preheader: 'Ihre Position in wenigen Minuten aufnehmen — ohne Registrierung.',
-          heading: prefill.seed_title
-            ? `Ihre Position aufnehmen: ${prefill.seed_title}`
-            : 'Ihre Position aufnehmen',
-          body: `
-            <p style="margin:0 0 16px 0;">Guten Tag${prefill.contact_name ? ' ' + esc(prefill.contact_name) : ''},</p>
-            ${message ? `<p style="margin:0 0 16px 0;">${esc(message).replace(/\n/g, '<br/>')}</p>` : `
-            <p style="margin:0 0 16px 0;">
-              über den folgenden Link nehmen wir Ihre offene Position auf — Stellenanzeige einfügen,
-              Link oder PDF hochladen, oder einfach beschreiben. Der Rest geht automatisch.
-              Eine Registrierung ist dafür nicht nötig.
-            </p>`}
-            <p style="margin:0 0 16px 0;">
-              Die Konditionen sehen Sie von Anfang an: Erfolgshonorar, keine Fixkosten, kein Retainer.
-            </p>`,
-          cta: { label: 'Position aufnehmen', url },
-          footnote:
-            'Ihre Angaben werden fortlaufend gespeichert — Sie können jederzeit unterbrechen und später weitermachen.',
-        });
+        const { subject, html } = invitationMail(prefill, message, url);
 
         const mail = await sendIntakeMail(supabase, {
           to: sendTo,
-          subject: prefill.seed_title
-            ? `Ihre Position aufnehmen: ${prefill.seed_title}`
-            : 'Ihre offene Position bei Matchunt aufnehmen',
+          subject,
           html,
           template: 'intake_link_invitation',
           replyTo: admin.email,
@@ -297,49 +346,69 @@ serve(async (req) => {
     if (action === 'stats') {
       const linkId = String(body?.link_id ?? '');
       if (!linkId) return fail('invalid_request', 'link_id fehlt.');
+      return json(await linkStats(supabase, linkId));
+    }
 
-      const [{ data: funnelEvents }, { data: drafts }, { data: events }] = await Promise.all([
-        // NICHT ueber intake_link_funnel: die View traegt die Rollenpruefung
-        // has_role(auth.uid(),'admin') in sich, und aus einer Service-Role-
-        // Function ist auth.uid() NULL -- sie liefert dort immer leer.
-        supabase.from('intake_link_events').select('event_type, draft_id, anonymous_id').eq('link_id', linkId),
-        supabase
-          .from('intake_drafts')
-          .select('id, company_name, contact_name, contact_email, title, completeness, capture_state, identity_state, commercial_state, review_state, created_at, last_activity_at, submitted_at, job_id')
-          .eq('link_id', linkId)
-          .order('last_activity_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('intake_link_events')
-          .select('event_type, occurred_at, draft_id, meta')
-          .eq('link_id', linkId)
-          .order('occurred_at', { ascending: false })
-          .limit(100),
+    // ---------------------------------------------------------------- detail
+    // Alles zu einem Link für das Panel: Link (ohne Token), Vorbelegung,
+    // Trichter, Aufnahmen, Ereignisse und die versendeten Einladungen.
+    if (action === 'detail') {
+      const linkId = String(body?.link_id ?? '');
+      if (!linkId) return fail('invalid_request', 'link_id fehlt.');
+      const { data: row, error } = await supabase.from('intake_links').select('*').eq('id', linkId).maybeSingle();
+      if (error) return fail('internal_error', error.message);
+      if (!row) return fail('not_found', 'Link nicht gefunden.');
+      const { token_hash: _h, token_encrypted, ...link } = row as Record<string, any>;
+      const [stats, owner, mails] = await Promise.all([
+        linkStats(supabase, linkId),
+        link.created_by
+          ? supabase.from('profiles').select('full_name').eq('user_id', link.created_by).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase.from('email_events')
+          .select('id, to_email, subject, status, error_message, created_at')
+          .eq('template_name', 'intake_link_invitation')
+          .eq('metadata->>link_id', linkId)
+          .order('created_at', { ascending: false })
+          .limit(50),
       ]);
-
-      const distinct = (type: string, key: 'draft_id' | 'anonymous_id') =>
-        new Set(
-          (funnelEvents ?? [])
-            .filter((e: Record<string, unknown>) => e.event_type === type && e[key])
-            .map((e: Record<string, unknown>) => e[key]),
-        ).size;
-
       return json({
-        funnel: {
-          link_id: linkId,
-          opened: distinct('link_opened', 'anonymous_id'),
-          started: distinct('intake_started', 'draft_id'),
-          contacted: distinct('contact_provided', 'draft_id'),
-          verified: distinct('email_verified', 'draft_id'),
-          completed: distinct('intake_completed', 'draft_id'),
-          submitted: distinct('submitted', 'draft_id'),
-          accepted: distinct('accepted', 'draft_id'),
-          signed: distinct('contract_signed', 'draft_id'),
-          published: distinct('published', 'draft_id'),
-        },
-        drafts: drafts ?? [],
-        events: events ?? [],
+        link: { ...link, link_id: link.id, can_reveal: Boolean(token_encrypted) },
+        created_by_name: (owner as any)?.data?.full_name ?? null,
+        ...stats,
+        mails: mails.data ?? [],
       });
+    }
+
+    // ------------------------------------------------------------------ send
+    // Bestehenden Link per Mail verschicken (jederzeit, nicht nur beim Anlegen).
+    // dry_run: nur Vorschau, nichts wird gesendet.
+    if (action === 'send') {
+      const linkId = String(body?.link_id ?? '');
+      if (!linkId) return fail('invalid_request', 'link_id fehlt.');
+      const to = String(body?.to ?? '').trim().toLowerCase();
+      if (!body?.dry_run && !isPlausibleEmail(to)) return fail('invalid_request', 'Bitte eine gültige E-Mail-Adresse angeben.');
+      const { data: row, error } = await supabase
+        .from('intake_links').select('id, link_type, token_encrypted, revoked_at, expires_at, prefill').eq('id', linkId).maybeSingle();
+      if (error) return fail('internal_error', error.message);
+      if (!row) return fail('not_found', 'Link nicht gefunden.');
+      if (row.revoked_at) return fail('conflict', 'Der Link ist deaktiviert. Bitte erst wieder aktivieren.');
+      if (row.expires_at && new Date(row.expires_at) < new Date()) return fail('conflict', 'Der Link ist abgelaufen.');
+      const token = await openToken(row.token_encrypted);
+      if (!token) {
+        return fail('conflict', 'Dieser Link lässt sich nicht verschicken, weil er nicht gespeichert ist. Erzeugen Sie über „Neuen Link erzeugen" einen Ersatz.');
+      }
+      const message = String(body?.message ?? '').trim().slice(0, 2000);
+      const { subject, html } = invitationMail(row.prefill ?? {}, message, intakeStartUrl(token), String(body?.subject ?? '').slice(0, 200));
+      if (body?.dry_run) return json({ subject, html });
+      const mail = await sendIntakeMail(supabase, {
+        to,
+        subject,
+        html,
+        template: 'intake_link_invitation',
+        replyTo: admin.email,
+        meta: { link_id: row.id, link_type: row.link_type, resend: true },
+      });
+      return json({ email_sent: mail.sent, error: mail.error ?? null });
     }
 
     // ------------------------------------------------------------------ list

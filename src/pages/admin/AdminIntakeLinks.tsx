@@ -25,14 +25,16 @@ import {
 } from 'lucide-react';
 import { LinkTypeBadge } from '@/components/admin/IntakeStateBadges';
 import { useIntakeLinks, useLinkAction, useTermsTemplates } from '@/hooks/useAdminIntakes';
+import { IntakeLinkPanel } from '@/components/admin/intake/IntakeLinkPanel';
+import { copyShortcut, copyText } from '@/lib/copyText';
 
 /**
  * Aufnahme-Links erzeugen und auswerten.
  *
- * Der Klartext-Token wird GENAU EINMAL angezeigt — direkt nach dem Anlegen. In
- * der Datenbank liegt nur sein SHA-256-Hash, ein späteres „nochmal anzeigen"
- * ist technisch unmöglich. Wer den Link verliert, legt einen neuen an; das ist
- * billiger als eine Datenbank voller wiederherstellbarer Zugänge.
+ * Der Token liegt verschlüsselt vor (ENCRYPTION_KEY) und lässt sich wieder
+ * anzeigen und per Mail versenden. Ein Klick auf eine Zeile öffnet das Panel
+ * mit allem zum Link. Fehlt der Schlüssel, bleibt nur der Hash – dann gilt
+ * „jetzt kopieren“, und das sagt der Anlegen-Dialog auch.
  */
 
 type LinkType = 'personal' | 'campaign' | 'public';
@@ -92,6 +94,8 @@ export default function AdminIntakeLinks() {
    * Hinweis über der Tabelle und gesperrte Menüpunkte.
    */
   const [backendOutdated, setBackendOutdated] = useState<string | null>(null);
+  /** Offenes Panel (Klick auf eine Zeile) */
+  const [selectedLink, setSelectedLink] = useState<string | null>(null);
 
   const activeTemplate = useMemo(
     () => templates.find((t) => t.id === form.terms_template_id) ?? templates.find((t) => t.is_active),
@@ -150,15 +154,17 @@ export default function AdminIntakeLinks() {
   };
 
   const copy = async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
+    if (await copyText(url)) {
       setCopiedOnce(true);
       toast.success('Link kopiert.');
       return true;
-    } catch {
-      toast.error('Kopieren nicht möglich — bitte den Text markieren und mit Strg+C kopieren.');
-      return false;
     }
+    // Zwischenablage gesperrt (z. B. eingebetteter Browser): Feld markieren, Tasten nennen
+    const field = document.querySelector<HTMLInputElement>('input[data-copy-field]');
+    field?.focus();
+    field?.select();
+    toast.message(`Link ist markiert – mit ${copyShortcut()} kopieren.`);
+    return false;
   };
 
   /** Fehler, die bedeuten "das Backend ist älter als die Oberfläche". */
@@ -187,20 +193,22 @@ export default function AdminIntakeLinks() {
   };
 
   /** Neuer Token auf denselben Link; der alte wird sofort ungültig. */
-  const rotate = async (id: string, label: string) => {
+  const rotate = async (id: string, label: string): Promise<string | null> => {
     if (!window.confirm(
       `Für „${label}" einen neuen Link erzeugen?\n\n` +
       'Der bisherige wird sofort ungültig. Bereits begonnene Aufnahmen bleiben erhalten — ' +
       'sie hängen an einem eigenen Zugang.',
-    )) return;
+    )) return null;
     try {
       const res = await action.mutateAsync({ action: 'rotate', link_id: id });
       setShown({ id, url: res.url as string, rotated: true });
       await copy(res.url as string);
+      return res.url as string;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Der Link konnte nicht erneuert werden.';
       if (looksUndeployed(message)) setBackendOutdated(message);
       else toast.error(message);
+      return null;
     }
   };
 
@@ -218,7 +226,8 @@ export default function AdminIntakeLinks() {
     // Kopieren schließt, kommt an den Link nicht mehr heran — solange die
     // Anzeigen-Funktion nicht deployt ist, endgültig nicht. Genau das ist
     // dreimal passiert, deshalb die Rückfrage.
-    if (!force && created && !copiedOnce) {
+    // Nur wenn der Link wirklich nicht wieder anzeigbar ist (kein ENCRYPTION_KEY)
+    if (!force && created && !copiedOnce && created.warning) {
       const ok = window.confirm(
         'Sie haben den Link noch nicht kopiert.\n\n' +
         'Er wird nicht erneut angezeigt. Trotzdem schließen?',
@@ -302,7 +311,11 @@ export default function AdminIntakeLinks() {
                 </TableHeader>
                 <TableBody>
                   {links.map((l) => (
-                    <TableRow key={l.link_id}>
+                    <TableRow
+                      key={l.link_id}
+                      onClick={() => setSelectedLink(l.link_id)}
+                      className={`cursor-pointer ${selectedLink === l.link_id ? 'bg-muted/50' : ''}`}
+                    >
                       <TableCell>
                         <div className="font-medium">{l.label}</div>
                         <div className="text-xs text-muted-foreground">
@@ -312,9 +325,10 @@ export default function AdminIntakeLinks() {
                           {l.token_rotated_at && <> · erneuert {format(new Date(l.token_rotated_at), 'dd.MM.yyyy', { locale: de })}</>}
                         </div>
                         {shown?.id === l.link_id && (
-                          <div className="mt-2 flex max-w-md items-center gap-2">
+                          <div className="mt-2 flex max-w-md items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Input
                               readOnly
+                              data-copy-field
                               value={shown.url}
                               className="h-8 font-mono text-xs"
                               onFocus={(e) => e.currentTarget.select()}
@@ -345,7 +359,7 @@ export default function AdminIntakeLinks() {
                           <Badge variant="outline" className="border-emerald-600/40 font-normal text-emerald-700">aktiv</Badge>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -403,12 +417,14 @@ export default function AdminIntakeLinks() {
               <DialogHeader>
                 <DialogTitle>Link angelegt</DialogTitle>
                 <DialogDescription>
-                  Kopieren Sie ihn jetzt. Er wird nicht noch einmal angezeigt — gespeichert ist nur sein Hashwert.
+                  {created.warning
+                    ? 'Kopieren Sie ihn jetzt. Er wird nicht noch einmal angezeigt — gespeichert ist nur sein Hashwert.'
+                    : 'Sie können ihn jederzeit wieder anzeigen und per Mail senden: Klick auf die Zeile in der Liste.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Input readOnly value={created.url} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+                  <Input readOnly data-copy-field value={created.url} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
                   <Button onClick={() => copy(created.url)} className="shrink-0 gap-2">
                     <Copy className="h-4 w-4" /> Kopieren
                   </Button>
@@ -434,13 +450,13 @@ export default function AdminIntakeLinks() {
                 )}
               </div>
               <DialogFooter>
-                {!copiedOnce && (
+                {!copiedOnce && created.warning && (
                   <span className="mr-auto self-center text-xs text-amber-600">
                     Noch nicht kopiert
                   </span>
                 )}
-                <Button onClick={() => close()} variant={copiedOnce ? 'default' : 'outline'}>
-                  {copiedOnce ? 'Fertig' : 'Ohne Kopieren schließen'}
+                <Button onClick={() => close()} variant={copiedOnce || !created.warning ? 'default' : 'outline'}>
+                  {copiedOnce || !created.warning ? 'Fertig' : 'Ohne Kopieren schließen'}
                 </Button>
               </DialogFooter>
             </>
@@ -579,6 +595,12 @@ export default function AdminIntakeLinks() {
           )}
         </DialogContent>
       </Dialog>
+      <IntakeLinkPanel
+        linkId={selectedLink}
+        onClose={() => setSelectedLink(null)}
+        onRotate={rotate}
+        onToggle={toggle}
+      />
     </DashboardLayout>
   );
 }
