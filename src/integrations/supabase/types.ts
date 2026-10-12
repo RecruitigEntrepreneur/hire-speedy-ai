@@ -6905,41 +6905,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "candidate_rankings"
-            referencedColumns: ["submission_id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "client_candidate_experiences_view"
-            referencedColumns: ["submission_id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "client_candidate_view"
-            referencedColumns: ["submission_id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "client_submissions_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "submissions"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "jobs_intake_draft_id_fkey"
             columns: ["intake_draft_id"]
             isOneToOne: false
