@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -6904,41 +6904,6 @@ export type Database = {
           works_council_meeting_schedule?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "candidate_rankings"
-            referencedColumns: ["submission_id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "client_candidate_experiences_view"
-            referencedColumns: ["submission_id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "client_candidate_view"
-            referencedColumns: ["submission_id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "client_submissions_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "jobs_closed_hire_submission_id_fkey"
-            columns: ["closed_hire_submission_id"]
-            isOneToOne: false
-            referencedRelation: "submissions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "jobs_intake_draft_id_fkey"
             columns: ["intake_draft_id"]
