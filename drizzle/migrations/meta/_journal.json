@@ -162,6 +162,20 @@
       "when": 1791800350330,
       "tag": "0022_fix_jobs_submissions_embed",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791848502833,
+      "tag": "0023_interview_pflicht_einreichen",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791848508480,
+      "tag": "0024_platz_frei_nach_einreichung",
+      "breakpoints": true
     }
   ]
 }
