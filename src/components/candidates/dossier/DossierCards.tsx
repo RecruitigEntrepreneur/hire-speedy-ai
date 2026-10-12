@@ -18,6 +18,7 @@ export function DossierReadinessCard({
   firstName,
   onEdit,
   onStartInterview,
+  onCompleteAndSubmit,
   onViewExpose,
   onSubmit,
 }: {
@@ -25,6 +26,8 @@ export function DossierReadinessCard({
   firstName: string;
   onEdit: (focus: EditFocus) => void;
   onStartInterview: () => void;
+  /** Fehlt nur noch das Interview: abschließen und danach direkt einreichen. */
+  onCompleteAndSubmit?: () => void;
   onViewExpose: () => void;
   onSubmit: () => void;
 }) {
@@ -48,8 +51,8 @@ export function DossierReadinessCard({
               {item.ok ? <Check className="h-3.5 w-3.5 shrink-0 text-success" /> : <Circle className="h-3.5 w-3.5 shrink-0 text-warning" />}
               <span className={item.ok ? '' : 'text-warning'}>{item.label}</span>
               {!item.ok && (
-                <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => onEdit({ section: item.section, field: item.field })}>
-                  eintragen
+                <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => (item.key === 'interview' ? onStartInterview() : onEdit({ section: item.section, field: item.field }))}>
+                  {item.key === 'interview' ? 'abschließen' : 'eintragen'}
                 </button>
               )}
             </li>
@@ -66,6 +69,13 @@ export function DossierReadinessCard({
                 <Send className="mr-1.5 h-3.5 w-3.5" /> Auf Stelle einreichen
               </Button>
             </div>
+          </div>
+        ) : readiness.missing.length === 1 && readiness.missing[0].key === 'interview' && onCompleteAndSubmit ? (
+          <div className="space-y-2.5">
+            <p className="text-sm text-warning">Das Interview mit {firstName} ist noch nicht abgeschlossen.</p>
+            <Button size="sm" onClick={onCompleteAndSubmit}>
+              <MessagesSquare className="mr-1.5 h-3.5 w-3.5" /> Interview abschließen und einreichen
+            </Button>
           </div>
         ) : (
           <Button size="sm" onClick={onStartInterview}>

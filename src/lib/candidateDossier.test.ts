@@ -6,6 +6,8 @@ import {
   computeReadiness,
   changeEvidence,
   fromRecords,
+  interviewCompleted,
+  interviewGaps,
   isMissingColumnError,
   mapNoticeText,
   mergeNoteRows,
@@ -102,15 +104,38 @@ describe('Kandidatenakte: speichern', () => {
 });
 
 describe('Bereit zum Einreichen', () => {
-  it('Lena steht nach dem alten Dialog bei 5 von 7, ohne dass ein CV nötig ist', () => {
+  it('Lena steht nach dem alten Dialog bei 5 von 8, ohne dass ein CV nötig ist', () => {
     const r = computeReadiness(fromRecords(lena, null));
     expect(r.done).toBe(5);
-    expect(r.missing.map((m) => m.key)).toEqual(['motivation', 'einschaetzung']);
+    expect(r.total).toBe(8);
+    expect(r.missing.map((m) => m.key)).toEqual(['motivation', 'einschaetzung', 'interview']);
   });
 
-  it('ist mit Motivation und Einschätzung vollständig', () => {
-    const r = computeReadiness({ ...fromRecords(lena, null), change_motivation: 'Feste Arbeitszeiten', recommendation: 'yes' });
-    expect(r.isReady).toBe(true);
+  const gefuehrt = {
+    change_motivation: 'Feste Arbeitszeiten', recommendation: 'yes', interview_date: '2026-10-12',
+    interview_type: 'phone', why_now: 'Neuer Dienstplan ab Januar',
+  };
+
+  it('ist erst mit abgeschlossenem Interview vollständig', () => {
+    const entwurf = computeReadiness({ ...fromRecords(lena, null), ...gefuehrt, interview_status: 'draft' });
+    expect(entwurf.isReady).toBe(false);
+    expect(entwurf.missing.map((m) => m.key)).toEqual(['interview']);
+    const fertig = computeReadiness({ ...fromRecords(lena, null), ...gefuehrt, interview_status: 'completed' });
+    expect(fertig.isReady).toBe(true);
+  });
+
+  it('zählt ein abgeschlossenes Interview ohne Mindestangaben nicht', () => {
+    const f = { ...fromRecords(lena, null), ...gefuehrt, why_now: '', interview_type: null, interview_status: 'completed' };
+    expect(interviewCompleted(f)).toBe(false);
+    expect(interviewGaps(f).map((g) => g.key)).toEqual(['interview_type', 'why_now']);
+  });
+
+  it('liest den Status aus den Notizen, ein Abschluss bleibt auch bei neuerem Entwurf', () => {
+    const merged = mergeNoteRows([
+      { id: 'neu', status: 'draft', why_now: null, updated_at: '2026-10-12' },
+      { id: 'alt', status: 'completed', why_now: 'x', updated_at: '2026-10-01' },
+    ]);
+    expect(fromRecords(lena, merged).interview_status).toBe('completed');
   });
 
   it('verlangt eine gültige E-Mail oder ein Telefon', () => {

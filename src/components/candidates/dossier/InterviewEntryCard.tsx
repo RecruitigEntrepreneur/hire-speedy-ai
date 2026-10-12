@@ -28,6 +28,7 @@ const KIND_LABEL: Record<string, string> = {
 export function InterviewEntryCard({
   candidateId,
   hasInterview,
+  completed = false,
   interviewDate,
   refreshKey,
   onImport,
@@ -36,6 +37,8 @@ export function InterviewEntryCard({
 }: {
   candidateId: string;
   hasInterview: boolean;
+  /** Mit „Interview abschließen“ beendet und alle Mindestangaben da (interviewCompleted). */
+  completed?: boolean;
   interviewDate: string | null;
   refreshKey?: number;
   onImport: () => void;
@@ -68,7 +71,9 @@ export function InterviewEntryCard({
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Interview</CardTitle>
           <span className="text-xs text-muted-foreground">
-            {hasInterview ? `erfasst${interviewDate ? ` am ${new Date(interviewDate).toLocaleDateString('de-DE')}` : ''}` : 'noch keins erfasst'}
+            {completed
+              ? `abgeschlossen${interviewDate ? ` am ${new Date(interviewDate).toLocaleDateString('de-DE')}` : ''}`
+              : hasInterview ? 'Entwurf · nicht abgeschlossen' : 'noch keins erfasst'}
           </span>
         </div>
       </CardHeader>

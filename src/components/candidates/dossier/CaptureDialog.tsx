@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, FileUp, Loader2, MessageCircle, Send, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { docxToText, isDocx } from '@/lib/docxText';
 import {
   CHANGE_READINESS_OPTIONS,
   DossierForm,
+  INTERVIEW_TYPE_OPTIONS,
   MOTIVATION_TAGS,
   NOTICE_OPTIONS,
   RECOMMENDATION_OPTIONS,
@@ -19,6 +22,7 @@ import {
   changeEvidence,
   computeReadiness,
   formatEuro,
+  interviewGaps,
 } from '@/lib/candidateDossier';
 import { quickExtract, type CaptureSuggestion } from '@/lib/quickExtract';
 import {
@@ -57,6 +61,8 @@ interface Props {
   onSave: (form: DossierForm) => Promise<DossierSaveResult>;
   onEdit?: (focus: EditFocus) => void;
   onSubmitToJob?: () => void;
+  /** Setzt das Interview auf abgeschlossen (useCandidateDossier.markInterviewCompleted). */
+  onComplete?: () => Promise<void>;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -69,7 +75,7 @@ const dots = (n: 1 | 2 | 3) => (
   </span>
 );
 
-export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onSave, onEdit, onSubmitToJob }: Props) {
+export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onSave, onEdit, onSubmitToJob, onComplete }: Props) {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('input');
   const [sources, setSources] = useState<Source[]>([]);
@@ -225,6 +231,23 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
       return false;
     }
     return true;
+  };
+
+  // Auch ein nachgetragenes Gespräch („Aus dem Kopf“, Notizen) kann das Interview
+  // abschließen -- mit denselben Mindestangaben wie das Live-Interview.
+  const finishInterview = async () => {
+    const next = { ...draft, interview_date: draft.interview_date ?? format(new Date(), 'yyyy-MM-dd') };
+    const gaps = interviewGaps(next);
+    if (gaps.length) {
+      toast.error('Zum Abschließen fehlt noch etwas', { description: `${gaps.map((g) => g.label).join(', ')}.` });
+      return;
+    }
+    if (!(await persist(next)) || !onComplete) return;
+    setSaving(true);
+    await onComplete();
+    setSaving(false);
+    setDraft({ ...next, interview_status: 'completed' });
+    toast.success('Interview abgeschlossen');
   };
 
   const acceptReview = async () => {
@@ -481,7 +504,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
             <div className="space-y-5">
               {readiness.isReady ? (
                 <div className="rounded-md bg-success/10 px-4 py-3 text-sm text-success">
-                  <Check className="mr-1.5 inline h-4 w-4" />7 von 7 · Alle Angaben komplett. {firstName} kann eingereicht werden.
+                  <Check className="mr-1.5 inline h-4 w-4" />{readiness.total} von {readiness.total} · Alle Angaben komplett. {firstName} kann eingereicht werden.
                 </div>
               ) : (
                 <p className="text-sm font-medium">Noch {readiness.missing.length} bis einreichbar</p>
@@ -496,6 +519,20 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                   {m.key === 'skills' && <TagInput values={draft.skills} onChange={(v) => set({ skills: v })} placeholder="mind. 3 Skills" />}
                   {m.key === 'rolle' && <RolleBlock form={draft} set={set} />}
                   {m.key === 'kontakt' && <KontaktBlock form={draft} set={set} />}
+                  {m.key === 'interview' && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input type="date" aria-label="Datum des Gesprächs" className="h-8 w-40" value={draft.interview_date ?? format(new Date(), 'yyyy-MM-dd')} onChange={(e) => set({ interview_date: e.target.value || null })} />
+                        <ChipGroup options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
+                      </div>
+                      <Textarea value={draft.why_now} onChange={(e) => set({ why_now: e.target.value })} rows={2} placeholder="Warum gerade jetzt? Was ist anders als vor einem Jahr?" />
+                      {onComplete && (
+                        <Button size="sm" variant="outline" onClick={() => void finishInterview()} disabled={saving}>
+                          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Interview abschließen
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {!readiness.isReady && whatsappLink() && (

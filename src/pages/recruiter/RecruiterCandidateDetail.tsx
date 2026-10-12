@@ -26,7 +26,7 @@ import { DossierFactsCard, DossierReadinessCard } from '@/components/candidates/
 import { SubmitToJobDialog } from '@/components/candidates/dossier/SubmitToJobDialog';
 import { CaptureDialog } from '@/components/candidates/dossier/CaptureDialog';
 import { InterviewEntryCard } from '@/components/candidates/dossier/InterviewEntryCard';
-import type { DossierForm } from '@/lib/candidateDossier';
+import { interviewCompleted, type DossierForm } from '@/lib/candidateDossier';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -57,6 +57,8 @@ export default function RecruiterCandidateDetail() {
   const [showFullInterview, setShowFullInterview] = useState(false);
   const [interviewSliderOpen, setInterviewSliderOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
+  // „Interview abschließen und einreichen“: nach dem Abschluss direkt weiter zum Einreichen.
+  const [submitAfterInterview, setSubmitAfterInterview] = useState(false);
   const [submitJobId, setSubmitJobId] = useState<string | null>(null);
   // Interview erfassen: schon geführt (einwerfen) oder aus dem Kopf
   const [captureMode, setCaptureMode] = useState<'import' | 'quick' | null>(null);
@@ -284,6 +286,7 @@ export default function RecruiterCandidateDetail() {
                 <InterviewEntryCard
                   candidateId={candidate.id}
                   hasInterview={dossier.hasNotes}
+                  completed={interviewCompleted(dossier.form)}
                   interviewDate={dossier.form.interview_date}
                   refreshKey={sourcesRefresh}
                   onImport={() => setCaptureMode('import')}
@@ -295,6 +298,7 @@ export default function RecruiterCandidateDetail() {
                   firstName={candidate.full_name.split(' ')[0] || candidate.full_name}
                   onEdit={openEdit}
                   onStartInterview={handleStartInterview}
+                  onCompleteAndSubmit={() => { setSubmitAfterInterview(true); handleStartInterview(); }}
                   onViewExpose={handleViewExpose}
                   onSubmit={() => setSubmitOpen(true)}
                 />
@@ -346,12 +350,16 @@ export default function RecruiterCandidateDetail() {
       />
       <CandidateInterviewDialog
         open={interviewSliderOpen}
-        onOpenChange={setInterviewSliderOpen}
+        onOpenChange={(o) => { setInterviewSliderOpen(o); if (!o && !submitOpen) setSubmitAfterInterview(false); }}
         candidateId={candidate.id}
         form={dossier.form}
         pendingColumns={dossier.pendingColumns}
         onSave={handleDossierSave}
-        onComplete={async () => { await dossier.markInterviewCompleted(); setSourcesRefresh((n) => n + 1); }}
+        onComplete={async () => {
+          await dossier.markInterviewCompleted();
+          setSourcesRefresh((n) => n + 1);
+          if (submitAfterInterview) { setSubmitAfterInterview(false); setSubmitOpen(true); }
+        }}
       />
       <CaptureDialog
         open={captureMode !== null}
@@ -362,6 +370,7 @@ export default function RecruiterCandidateDetail() {
         onSave={handleDossierSave}
         onEdit={openEdit}
         onSubmitToJob={() => setSubmitOpen(true)}
+        onComplete={async () => { await dossier.markInterviewCompleted(); setSourcesRefresh((n) => n + 1); }}
       />
     </DashboardLayout>
   );

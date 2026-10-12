@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/lib/auth';
@@ -30,7 +31,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileUpload } from '@/components/files/FileUpload';
-import { useMatchScoreV31 } from '@/hooks/useMatchScoreV31';
 import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
 import { fetchDossier } from '@/hooks/useCandidateDossier';
 import { DossierForm, isMissingColumnError, redactIdentity } from '@/lib/candidateDossier';
@@ -66,16 +66,17 @@ interface ExistingCandidate {
 export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCandidateId, job = null, onSuccess }: CandidateSubmitFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { calculateSingleMatch, loading: matchLoading } = useMatchScoreV31();
   const { parseCV, parsing: cvParsing } = useCvParsing();
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [existingCandidates, setExistingCandidates] = useState<ExistingCandidate[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [createNew, setCreateNew] = useState(false);
+  // Neue Kandidaten entstehen über die Kandidatenakte (Lebenslauf, Interview) und werden
+  // erst danach eingereicht. Der Dialog öffnet nach dem Anlegen das Profil.
+  const [cvImportOpen, setCvImportOpen] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [skillsMatch, setSkillsMatch] = useState<{ matched: string[]; missing: string[] }>({ matched: [], missing: [] });
-  const [calculatingScore, setCalculatingScore] = useState(false);
   const [cvTextForParsing, setCvTextForParsing] = useState('');
   const [showCvParser, setShowCvParser] = useState(false);
   const [selectedCandidateReadiness, setSelectedCandidateReadiness] = useState<{
@@ -197,22 +198,35 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
     setExistingCandidates(data || []);
   };
 
-  const checkDuplicate = async (email: string) => {
-    if (!email) return;
+  // Bei einem ausgewählten Kandidaten zählt die Person (wie der Unique-Index
+  // job_id + candidate_id), nicht die E-Mail. Vorher galt jeder Kandidat mit
+  // derselben Adresse als „bereits eingereicht“ (12.10.2026).
+  const checkDuplicate = async (email: string, candidateId?: string) => {
+    if (!email && !candidateId) return;
     setChecking(true);
 
-    // Check if this candidate was already submitted for this job
-    const { data: existingSub } = await supabase
-      .from('submissions')
-      .select(`
-        id,
-        candidates (email)
-      `)
-      .eq('job_id', jobId);
-
-    const alreadySubmitted = existingSub?.some(
-      (sub: any) => sub.candidates?.email?.toLowerCase() === email.toLowerCase()
-    );
+    let alreadySubmitted = false;
+    if (candidateId) {
+      const { data: sameCandidate } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('job_id', jobId)
+        .eq('candidate_id', candidateId)
+        .limit(1);
+      alreadySubmitted = (sameCandidate?.length ?? 0) > 0;
+    } else {
+      // Neu erfasster Kandidat (noch ohne ID): über die E-Mail.
+      const { data: existingSub } = await supabase
+        .from('submissions')
+        .select(`
+          id,
+          candidates (email)
+        `)
+        .eq('job_id', jobId);
+      alreadySubmitted = !!existingSub?.some(
+        (sub: any) => sub.candidates?.email?.toLowerCase() === email.toLowerCase()
+      );
+    }
 
     if (alreadySubmitted) {
       setDuplicateWarning('Dieser Kandidat wurde bereits für diesen Job eingereicht.');
@@ -342,7 +356,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
     const candidate = existingCandidates.find(c => c.id === candidateId);
     if (candidate) {
-      checkDuplicate(candidate.email);
+      checkDuplicate(candidate.email, candidateId);
       checkSkillsMatch(candidate.skills || []);
 
       // Gleiche Regel wie "Bereit zum Einreichen" im Kandidatenprofil (Kandidatenakte);
@@ -504,29 +518,13 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
 
       if (submissionError) throw submissionError;
 
-      // Calculate AI match score in background
-      setCalculatingScore(true);
-      try {
-        const matchResult = await calculateSingleMatch(candidateId, jobId);
-        if (matchResult) {
-          toast({
-            title: 'Erfolgreich eingereicht!',
-            description: `Der Kandidat wurde mit ${matchResult.overall}% Match-Score für "${jobTitle}" eingereicht.`
-          });
-        } else {
-          toast({
-            title: 'Erfolgreich eingereicht!',
-            description: `Der Kandidat wurde für "${jobTitle}" eingereicht. Match-Score wird berechnet...`
-          });
-        }
-      } catch {
-        toast({
-          title: 'Erfolgreich eingereicht!',
-          description: `Der Kandidat wurde für "${jobTitle}" eingereicht.`
-        });
-      } finally {
-        setCalculatingScore(false);
-      }
+      // Ohne Prozentzahl: Vorher rief das Formular hier den alten Matcher V3.1 auf und
+      // meldete z. B. „mit 0% Match-Score eingereicht“, obwohl alle Muss-Kriterien
+      // erfüllt waren (12.10.2026). Die Passung steht im Passungs-Check und in V4.1.
+      toast({
+        title: 'Eingereicht',
+        description: `${identityName || 'Der Kandidat'} für „${jobTitle}“. Der Kunde sieht das Profil jetzt anonym in seiner Inbox.`,
+      });
 
       onSuccess();
     } catch (error: any) {
@@ -563,21 +561,14 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
           </Select>
         )}
 
-        <Button 
-          type="button" 
-          variant={createNew ? "default" : "outline"} 
-          className="w-full"
-          onClick={() => {
-            setCreateNew(!createNew);
-            setSelectedCandidate(null);
-            setDuplicateWarning(null);
-            setSkillsMatch({ matched: [], missing: [] });
-            setSelectedCandidateReadiness(null);
-          }}
-        >
+        {/* Vorher legte dieser Knopf den Kandidaten an und reichte ihn im selben Schritt
+            ein -- ohne Akte und ohne Interview (12.10.2026). */}
+        <Button type="button" variant="outline" className="w-full" onClick={() => setCvImportOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" />
-          {createNew ? 'Bestehenden wählen' : 'Neuen Kandidaten anlegen'}
+          Neuen Kandidaten anlegen
         </Button>
+        <p className="text-xs text-muted-foreground">Danach führst du das Interview und reichst ihn aus seinem Profil ein.</p>
+        <CvUploadDialog open={cvImportOpen} onOpenChange={setCvImportOpen} />
       </div>
 
       {/* Readiness Gate for existing candidates */}
@@ -590,7 +581,9 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
                 Noch nicht bereit zum Einreichen ({selectedCandidateReadiness.done} von {selectedCandidateReadiness.total})
               </p>
               <p className="text-sm text-foreground">
-                Es fehlen noch Angaben. Du trägst sie im Kandidatenprofil unter „Bearbeiten“ oder im Interview ein.
+                {selectedCandidateReadiness.missingFields.length === 1 && selectedCandidateReadiness.missingFields[0] === 'Interview abgeschlossen'
+                  ? 'Das Interview ist noch nicht abgeschlossen. Der Kunde entscheidet über eine Einladung vor allem nach deinem Gespräch. Du schließt es im Kandidatenprofil ab.'
+                  : 'Es fehlen noch Angaben. Du trägst sie im Kandidatenprofil unter „Bearbeiten“ oder im Interview ein.'}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-1">
                 {selectedCandidateReadiness.missingFields.map((field) => (
@@ -968,10 +961,10 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
           (!!selectedCandidate && (selectedCandidateReadiness?.candidateId !== selectedCandidate || !selectedCandidateReadiness?.isReady))
         }
       >
-        {loading || calculatingScore ? (
+        {loading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            {calculatingScore ? 'Match-Score wird berechnet...' : 'Wird eingereicht...'}
+            Wird eingereicht...
           </>
         ) : selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady ? (
           <>
@@ -1001,7 +994,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCa
           criteria: mustHaves,
           createsCandidate: createNew,
         }}
-        busy={loading || calculatingScore}
+        busy={loading}
         onBack={() => setReviewing(false)}
       />}
     </form>

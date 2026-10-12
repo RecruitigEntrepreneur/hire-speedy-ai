@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -22,6 +23,7 @@ import {
   buildClientSummary,
   changeEvidence,
   computeReadiness,
+  interviewGaps,
   type ClientSummary,
 } from '@/lib/candidateDossier';
 import {
@@ -76,7 +78,8 @@ const NEXT_QUESTION: Record<string, string> = {
   einschaetzung: 'Deine Einschätzung fehlt noch (Phase 4).',
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Lokales Datum: toISOString wäre UTC und zeigte zwischen 0 und 2 Uhr den Vortag.
+const today = () => format(new Date(), 'yyyy-MM-dd');
 
 function Phase({ title, intro, children }: { title: string; intro?: string; children: ReactNode }) {
   return (
@@ -288,6 +291,18 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     setCompleting(true);
     const ok = await flush();
     if (!ok) { setCompleting(false); toast.error('Speichern hat nicht geklappt'); return; }
+    // Abschließen nur mit den Mindestangaben (gleiche Regel wie die Datenbank beim Einreichen).
+    const gaps = interviewGaps(draftRef.current);
+    if (gaps.length) {
+      setCompleting(false);
+      const keys = gaps.map((g) => g.key);
+      if (keys.includes('change_motivation') || keys.includes('why_now')) goTo(PHASES.findIndex((p) => p.key === 'situation'));
+      else if (keys.includes('expected_salary') || keys.includes('notice_period')) goTo(PHASES.findIndex((p) => p.key === 'rahmen'));
+      toast.error('Zum Abschließen fehlt noch etwas', {
+        description: `${gaps.map((g) => g.label).join(', ')}.${keys.includes('interview_date') || keys.includes('interview_type') ? ' Datum und Gesprächsart stehen oben im Kopf.' : ''}`,
+      });
+      return;
+    }
     await onComplete();
     const notes = draftRef.current.additional_notes.trim();
     if (user && notes) {
@@ -297,7 +312,8 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       } as never).then(() => undefined, () => undefined);
     }
     setCompleting(false);
-    toast.success('Interview gespeichert', { description: readiness.isReady ? `${firstName} ist bereit zum Einreichen.` : `Noch offen: ${readiness.missing.map((m) => m.label).join(', ')}` });
+    const nachher = computeReadiness({ ...draftRef.current, interview_status: 'completed' });
+    toast.success('Interview abgeschlossen', { description: nachher.isReady ? `${firstName} ist bereit zum Einreichen.` : `Noch offen: ${nachher.missing.map((m) => m.label).join(', ')}` });
     onOpenChange(false);
   };
 

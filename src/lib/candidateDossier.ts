@@ -266,6 +266,8 @@ export interface DossierForm {
   blocked_companies: string[];
   presentation_consent: boolean | null;
   presentation_consent_at: string | null;
+  /** Nur lesen: draft | completed (candidate_interview_notes.status). Wird nie geschrieben. */
+  interview_status: string | null;
 }
 
 /** Spalten, die erst nach der Migration existieren. */
@@ -489,6 +491,7 @@ export function fromRecords(candidate: Row, notes: Row, languages: Array<{ langu
     blocked_companies: strArray(n.blocked_companies),
     presentation_consent: n.presentation_consent === true ? true : n.presentation_consent === false ? false : null,
     presentation_consent_at: str(n.presentation_consent_at) || null,
+    interview_status: str(n.status) || null,
   };
 }
 
@@ -508,6 +511,9 @@ export function mergeNoteRows(rows: Array<Record<string, unknown>>): Record<stri
       if (isEmptyValue(merged[key]) && !isEmptyValue(value)) merged[key] = value;
     }
   }
+  // Ein abgeschlossenes Interview bleibt abgeschlossen, auch wenn später ein
+  // Entwurf dazukommt (etwa aus einem neuen Lebenslauf mit Notizen).
+  if (live.some((r) => r.status === 'completed')) merged.status = 'completed';
   return merged;
 }
 
@@ -632,6 +638,27 @@ export interface Readiness {
   missing: ReadinessItem[];
 }
 
+/**
+ * Was ein Interview mindestens enthalten muss, um als abgeschlossen zu gelten
+ * (Entscheidung 12.10.2026). Dieselbe Regel prüft die Datenbank beim Einreichen
+ * (enforce_submission_interview).
+ */
+export function interviewGaps(f: DossierForm): { key: string; label: string }[] {
+  const gaps: { key: string; label: string }[] = [];
+  if (!f.interview_date) gaps.push({ key: 'interview_date', label: 'Gesprächsdatum' });
+  if (!f.interview_type) gaps.push({ key: 'interview_type', label: 'Gesprächsart' });
+  if (!f.change_motivation.trim() && !f.change_motivation_tags.length) gaps.push({ key: 'change_motivation', label: 'Warum wechseln' });
+  if (!f.why_now.trim()) gaps.push({ key: 'why_now', label: 'Warum jetzt' });
+  if (!((f.expected_salary ?? 0) > 0)) gaps.push({ key: 'expected_salary', label: 'Wunschgehalt' });
+  if (!f.notice_period && !f.availability_date) gaps.push({ key: 'notice_period', label: 'Verfügbarkeit' });
+  return gaps;
+}
+
+/** Abgeschlossen = „Interview abschließen“ geklickt und alle Mindestangaben da. */
+export function interviewCompleted(f: DossierForm): boolean {
+  return f.interview_status === 'completed' && interviewGaps(f).length === 0;
+}
+
 export function computeReadiness(f: DossierForm): Readiness {
   const items: ReadinessItem[] = [
     { key: 'kontakt', label: 'Kontakt', ok: !!f.full_name.trim() && (isValidEmail(f.email) || !!f.phone.trim()), section: 'kontakt', field: 'email' },
@@ -641,6 +668,8 @@ export function computeReadiness(f: DossierForm): Readiness {
     { key: 'verfuegbarkeit', label: 'Kündigungsfrist', ok: !!(f.notice_period || f.availability_date), section: 'wechsel', field: 'notice_period' },
     { key: 'motivation', label: 'Wechselmotivation', ok: !!f.change_motivation.trim() || f.change_motivation_tags.length > 0, section: 'wechsel', field: 'change_motivation' },
     { key: 'einschaetzung', label: 'Deine Einschätzung', ok: !!f.recommendation, section: 'einschaetzung', field: 'recommendation' },
+    // Ohne geführtes Interview bleibt beim Kunden „Aus dem Gespräch mit dem Headhunter“ leer.
+    { key: 'interview', label: 'Interview abgeschlossen', ok: interviewCompleted(f), section: 'einschaetzung', field: 'interview' },
   ];
   const done = items.filter((i) => i.ok).length;
   return { items, done, total: items.length, isReady: done === items.length, missing: items.filter((i) => !i.ok) };
