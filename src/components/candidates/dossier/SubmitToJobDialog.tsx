@@ -16,13 +16,16 @@ type JobRow = Record<string, unknown> & { id: string; title: string };
 
 const REMOTE_LABELS: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
 
-function JobLine({ job, action }: { job: JobRow; action: React.ReactNode }) {
+function JobLine({ job, action, note }: { job: JobRow; action: React.ReactNode; note?: string | null }) {
   const remote = typeof job.remote_type === 'string' ? REMOTE_LABELS[job.remote_type] ?? null : null;
   const budget = typeof job.salary_max === 'number' ? `${typeof job.salary_min === 'number' ? `${Math.round(job.salary_min / 1000)}–` : 'bis '}${Math.round(job.salary_max / 1000)}k` : null;
   return (
     <li className="flex items-center justify-between gap-3 px-3 py-2.5">
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium">{job.title}</span>
+        <span className="block truncate text-sm font-medium">
+          {job.title}
+          {note && <span className="font-normal text-muted-foreground"> · {note}</span>}
+        </span>
         <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           {typeof job.location === 'string' && job.location && (
             <>
@@ -156,7 +159,7 @@ export function SubmitToJobDialog({
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground">
-                      Meine Suchen · {gate.activeCount} von {gate.maxSlots} offenen Suchen ohne Einreichung
+                      Meine Suchen · {gate.activeCount} von {gate.maxSlots} Plätzen belegt
                     </p>
                     {active.length === 0 ? (
                       <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
@@ -168,6 +171,7 @@ export function SubmitToJobDialog({
                           <JobLine
                             key={j.id}
                             job={j}
+                            note={(searches.get(j.id)?.submissions ?? 0) > 0 ? `${searches.get(j.id)?.submissions} eingereicht` : null}
                             action={
                               submittedJobIds.has(j.id) ? (
                                 <Badge variant="secondary" className="shrink-0 text-xs">Schon eingereicht</Badge>

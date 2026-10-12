@@ -161,7 +161,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
         )}
         {capacity && (
           <span className="text-muted-foreground">
-            {capacity.used} von {capacity.limit} offenen Suchen ohne Einreichung
+            {capacity.used} von {capacity.limit} Plätzen belegt
           </span>
         )}
       </div>
