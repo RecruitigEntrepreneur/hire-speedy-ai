@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,7 +8,6 @@ import {
   Info,
   Lock,
   Pause,
-  Pencil,
   Play,
   UserPlus,
 } from 'lucide-react';
@@ -150,154 +148,24 @@ export function JobTermineCard({ agenda }: { agenda: JobAgendaSlice }) {
   );
 }
 
-export interface StellendetailsJob {
-  location: string | null;
-  remote_type: string | null;
-  onsite_days_required: number | null;
-  employment_type: string | null;
-  industry: string | null;
-  must_haves: string[] | null;
-  nice_to_haves: string[] | null;
-  description: string | null;
-}
-
-// Stellendetails für den Kunden: Fakten zum Nachschlagen (er kennt seine eigene
-// Stelle) — keine Marketing-Kacheln. Der Bearbeiten-Einstieg ist der Zweck.
-export function JobStellendetails({
-  job,
-  onEdit,
-  isViewer,
-}: {
-  job: StellendetailsJob;
-  onEdit: () => void;
-  isViewer: boolean;
-}) {
-  const { t } = useTranslation();
-  const [descOpen, setDescOpen] = useState(false);
-
-  const standort = [
-    job.location,
-    job.remote_type ? t(`jobdetail.remote.${job.remote_type}`, { defaultValue: job.remote_type }) : null,
-    job.onsite_days_required ? t('jobdetail.stelle.onsite_days', { count: job.onsite_days_required }) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-  const rows: { label: string; value: string }[] = [
-    { label: t('jobdetail.stelle.standort'), value: standort },
-    {
-      label: t('jobdetail.stelle.anstellung'),
-      value: job.employment_type
-        ? t(`jobdetail.employment.${job.employment_type}`, { defaultValue: job.employment_type })
-        : '',
-    },
-    { label: t('jobdetail.stelle.branche'), value: job.industry || '' },
-  ].filter((r) => r.value);
-
-  const desc = (job.description || '').trim();
-
-  return (
-    <div className="space-y-3">
-      {rows.length > 0 && (
-        <table className="w-full text-sm">
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label}>
-                <td className="w-40 py-1 pr-3 align-top text-muted-foreground">{r.label}</td>
-                <td className="py-1">{r.value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {(job.must_haves?.length ?? 0) > 0 && (
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('jobdetail.stelle.muss')}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {(job.must_haves || []).map((s) => (
-              <Badge key={s} variant="secondary" className="font-normal">
-                {s}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(job.nice_to_haves?.length ?? 0) > 0 && (
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('jobdetail.stelle.wunsch')}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {(job.nice_to_haves || []).map((s) => (
-              <Badge key={s} variant="outline" className="font-normal text-muted-foreground">
-                {s}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {desc && (
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('jobdetail.stelle.beschreibung')}
-          </p>
-          <p
-            className={cn(
-              'whitespace-pre-line text-sm text-muted-foreground',
-              !descOpen && 'line-clamp-4'
-            )}
-          >
-            {desc}
-          </p>
-          {desc.length > 280 && (
-            <button
-              onClick={() => setDescOpen((v) => !v)}
-              className="mt-1 text-xs font-medium text-primary hover:underline"
-            >
-              {descOpen ? t('jobdetail.stelle.weniger') : t('jobdetail.stelle.mehr')}
-            </button>
-          )}
-        </div>
-      )}
-
-      {!isViewer && (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-          <Pencil className="h-3.5 w-3.5" />
-          {t('jobdetail.stelle.edit')}
-        </Button>
-      )}
-    </div>
-  );
-}
-
 // Konditionen & Anonymität: Gehaltsband, Honorar (rollenbasiert), Reveal-Regel
 // und die Recruiter-Vorschau — der Triple-Blind-USP, auch in der Live-Phase.
 export function JobKonditionen({
   salaryLabel,
   feePercentage,
   canSeeFee,
-  revealTrigger,
   descriptor,
 }: {
   salaryLabel: string | null;
   feePercentage: number | null;
   canSeeFee: boolean;
-  revealTrigger: string | null;
   descriptor: string | null;
 }) {
   const { t } = useTranslation();
 
-  const revealLabel =
-    revealTrigger === 'opt_in'
-      ? t('jobdetail.konditionen.reveal_opt_in')
-      : revealTrigger === 'offer'
-        ? t('jobdetail.konditionen.reveal_offer')
-        : t('jobdetail.konditionen.reveal_interview');
+  // Seit 08.10.2026 für alle Stufen gleich: start_job_search gibt den Namen bei
+  // „Ich suche“ frei. jobs.reveal_trigger wirkt nicht mehr.
+  const revealLabel = t('jobdetail.konditionen.reveal_search');
 
   return (
     <div className="space-y-3">

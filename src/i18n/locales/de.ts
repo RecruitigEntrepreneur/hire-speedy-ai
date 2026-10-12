@@ -873,13 +873,11 @@ const de = {
       "fee": "Honorar",
       "fee_value": "{{pct}} % vom Zieljahresgehalt — fällig erst bei Einstellung",
       "fee_hint": "Nur für Owner, Admin & Finance sichtbar",
-      "reveal": "Identitäts-Freigabe",
-      "reveal_opt_in": "Nach Zustimmung des Kandidaten (Opt-in)",
-      "reveal_offer": "Erst beim Angebot",
-      "reveal_interview": "Nach dem 1. Interview",
+      "reveal": "Firmenname für Headhunter",
+      "reveal_search": "Sichtbar, sobald ein Headhunter für Sie sucht",
       "preview_title": "So sehen Recruiter Ihre Firma",
       "preview_empty": "Anonymer Firmen-Descriptor noch offen",
-      "preview_hint": "Ihr Firmenname bleibt verborgen, bis Sie ihn freigeben."
+      "preview_hint": "Vorher sehen Headhunter nur diese anonyme Beschreibung."
     },
     "team": {
       "empty": "Noch keine Team-Mitglieder mit Zugriff auf diese Stelle.",

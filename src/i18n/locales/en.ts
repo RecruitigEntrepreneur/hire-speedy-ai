@@ -874,13 +874,11 @@ const en: typeof de = {
       "fee": "Fee",
       "fee_value": "{{pct}} % of target annual salary — due only upon hire",
       "fee_hint": "Visible to owner, admin & finance only",
-      "reveal": "Identity release",
-      "reveal_opt_in": "After the candidate opts in",
-      "reveal_offer": "Only at offer stage",
-      "reveal_interview": "After the first interview",
+      "reveal": "Company name for headhunters",
+      "reveal_search": "Visible once a headhunter searches for you",
       "preview_title": "How recruiters see your company",
       "preview_empty": "Anonymous company descriptor not set yet",
-      "preview_hint": "Your company name stays hidden until you release it."
+      "preview_hint": "Until then, headhunters only see this anonymous description."
     },
     "team": {
       "empty": "No team members with access to this position yet.",

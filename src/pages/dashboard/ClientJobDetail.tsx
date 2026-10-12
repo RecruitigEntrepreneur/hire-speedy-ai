@@ -24,7 +24,6 @@ import { JobEditDialog } from '@/components/jobs/JobEditDialog';
 // "Wartet auf Sie"-Liste — alles gespeist aus useBewerber({jobId}).
 import { JobStatePill, JobZugBanner, JobFunnel, JobWaitList } from '@/components/client/JobCockpit';
 import {
-  JobStellendetails,
   JobTermineCard,
   JobKonditionen,
   JobTeam,
@@ -55,6 +54,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog';
+import { HeadhunterVorschau, JobSummary } from '@/components/client/job/JobSummary';
+import { JobPrepChecklist } from '@/components/client/job/JobPrepChecklist';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, notifyCreatorOfDecision } from '@/lib/intakeApproval';
 import { stellenVerlauf, verlaufDatum } from '@/lib/stellenVerlauf';
@@ -366,9 +367,17 @@ export default function ClientJobDetail() {
     // Entwuerfe haben keinen -- sie stehen noch in der Aufnahme.
     const verlauf = stellenVerlauf(raw as unknown as Parameters<typeof stellenVerlauf>[0]);
     const eingereichtAm = verlaufDatum(verlauf?.schritte[0]?.datum ?? null);
-    const flex: Record<string, string> = raw.intake_payload?.flexibility ?? {};
     const descriptor: string | null = raw.reveal_envelope?.descriptor ?? null;
-    const flexLabel = (s: string) => (flex[s] === 'negotiable' ? 'verhandelbar' : flex[s] === 'flexible' ? 'flexibel' : 'fix');
+    const ortZeile = [
+      job.location,
+      [job.remote_type ? ({ remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' } as Record<string, string>)[job.remote_type] : null,
+        job.onsite_days_required ? `${job.onsite_days_required} Tage vor Ort` : null].filter(Boolean).join(', '),
+    ].filter(Boolean).join(' · ');
+    // Honorar nur für Owner/Admin/Finance (wie im Live-Cockpit).
+    const darfHonorar = !orgLoading && (!myOrg || ['owner', 'admin', 'finance'].includes(myOrgRole ?? ''));
+    const paketKey: string | undefined = raw.intake_payload?.commercial?.package_key;
+    const paketName = paketKey ? ({ core: 'Core', continuity_90: 'Continuity 90', continuity_180: 'Continuity 180' } as Record<string, string>)[paketKey] ?? paketKey : null;
+    const paket = paketName ? `Paket ${paketName}${darfHonorar && job.fee_percentage ? ` ${job.fee_percentage} %` : ''}` : null;
 
     return (
       <DashboardLayout>
@@ -401,27 +410,27 @@ export default function ClientJobDetail() {
                   <Clock className="h-3 w-3" /> {verlauf.kurz}
                 </Badge>
               ) : (
-                <>
-                  <Badge variant="secondary" className="text-xs">Entwurf</Badge>
-                  <Badge variant="outline" className="border-primary/40 text-xs text-primary">Reife {reife} %</Badge>
-                </>
+                <Badge variant="secondary" className="text-xs">Entwurf</Badge>
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {phase === 'review' || phase === 'client_approval'
-                ? eingereichtAm ? `Eingereicht am ${eingereichtAm}` : 'Eingereicht'
+                ? [eingereichtAm ? `Eingereicht am ${eingereichtAm}` : 'Eingereicht', ortZeile, paket].filter(Boolean).join(' · ')
                 : `zuletzt bearbeitet vor ${Math.max(0, Math.floor((Date.now() - new Date((raw.updated_at as string) || job.created_at).getTime()) / 86_400_000))} Tagen${job.location ? ` · ${job.location}` : ''}${job.remote_type ? ` · ${job.remote_type === 'remote' ? 'Remote' : job.remote_type === 'onsite' ? 'Vor Ort' : 'Hybrid'}` : ''}`}
             </p>
 
             {verlauf && <VerlaufLeiste verlauf={verlauf} className="mt-4" />}
 
-            {/* Aktionen je Phase */}
+            {/* In der Prüfung gibt es nichts zu tun: der Kunde will wissen, was jetzt
+                passiert. Korrekturen laufen über die Rückgabe mit Hinweis (JobApprovalDialog). */}
+            {phase === 'review' ? (
+              <div className="mt-4 flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-sm leading-6">
+                <Clock className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p>Wir prüfen Ihre Angaben und schreiben daraus die anonyme Anzeige für Headhunter. Fehlt etwas, geben wir Ihnen die Stelle mit einem Hinweis zurück. Sobald sie live ist, bekommen Sie Bescheid.</p>
+              </div>
+            ) : (
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
-              {phase === 'review' ? (
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={withdraw}>
-                  <XCircle className="h-4 w-4" /> Aus Prüfung zurückziehen
-                </Button>
-              ) : phase === 'client_approval' ? (
+              {phase === 'client_approval' ? (
                 canApproveIntake ? (
                   <>
                     <Button variant="hero" size="sm" className="gap-1.5" onClick={approveIntake} disabled={decidingIntake}>
@@ -453,58 +462,34 @@ export default function ClientJobDetail() {
                 </>
               )}
             </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Briefing-Reife — die eine Score-Wahrheit */}
-            <div className="rounded-xl border bg-card p-4">
-              <p className="mb-2 flex items-center justify-between text-sm font-semibold">
-                Briefing-Reife
-                <span className="font-bold text-primary">{reife}/100</span>
-              </p>
-              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${reife}%` }} />
-              </div>
-              {missing.map((m) => (
-                <p key={m} className="mb-1.5 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {m} fehlt
-                </p>
-              ))}
-              {(job.must_haves?.length ?? 0) === 0 && (
-                <p className="mb-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
-                  <Circle className="mt-0.5 h-3 w-3 shrink-0" /> Muss-Kriterien definieren
-                </p>
-              )}
-              {phase !== 'review' && phase !== 'client_approval' && (
-                <Button variant="ghost" size="sm" className="mt-1 h-7 gap-1 px-2 text-xs text-primary" onClick={openIntake}>
-                  In der Aufnahme vervollständigen <ArrowRight className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          {phase === 'review' && !orgLoading && (
+            <JobPrepChecklist
+              jobId={job.id}
+              jobTitle={job.title}
+              organizationId={myOrg?.id ?? null}
+              userId={user?.id}
+              canInvite={isOrgAdmin}
+              isOwner={myOrgRole ? myOrgRole === 'owner' : true}
+            />
+          )}
 
-            {/* Das sehen die Recruiter (Triple-Blind-Vorschau) */}
-            <div className="rounded-xl border bg-muted/30 p-4">
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                <Lock className="h-4 w-4 text-muted-foreground" /> Das sehen die Recruiter
-              </p>
-              <p className="mb-2 text-sm italic text-muted-foreground">
-                „{descriptor || [job.industry, job.location && `Region ${job.location}`].filter(Boolean).join(', ') || 'Anonymer Firmen-Descriptor noch offen'}“
-              </p>
-              {(job.must_haves?.length ?? 0) > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {(job.must_haves || []).slice(0, 6).map((s) => (
-                    <Badge key={s} variant="outline" className="text-[10px]">
-                      {s} · {flexLabel(s)}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Firmen-Reveal: {raw.reveal_trigger === 'opt_in' ? 'beim Kandidaten-Opt-In' : raw.reveal_trigger === 'offer' ? 'erst beim Angebot' : 'nach dem 1. Interview'}
-              </p>
-            </div>
-          </div>
+          {/* Alles aus der Aufnahme. Die frühere Kachel „Briefing-Reife“ zeigte seit der
+              gemeinsamen Aufnahme immer 0 (intake_completeness wird nicht mehr berechnet),
+              die Recruiter-Vorschau las die alte Skill-Spalte must_haves. */}
+          <JobSummary job={raw} />
+          <HeadhunterVorschau descriptor={descriptor} vertraulich={Boolean(raw.confidential_search)} />
 
+          {phase === 'review' && (
+            <p className="text-sm text-muted-foreground">
+              Etwas stimmt nicht oder die Stelle hat sich erledigt?{' '}
+              <a className="text-primary hover:underline" href={`mailto:support@matchunt.ai?subject=${encodeURIComponent(`Stelle in Prüfung: ${job.title}`)}`}>
+                E-Mail an Matchunt
+              </a>
+            </p>
+          )}
 
           {/* Interne Rückgabe mit Kommentar (Team-Freigabe) */}
           <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
@@ -562,7 +547,6 @@ export default function ClientJobDetail() {
   const rawJob = job as unknown as Record<string, unknown>;
   const revealEnvelope = rawJob.reveal_envelope as { descriptor?: string | null } | null;
   const descriptor = revealEnvelope?.descriptor ?? null;
-  const revealTrigger = (rawJob.reveal_trigger as string | null) ?? null;
   // Fee nur für den Hauptaccount: Solo-Kunden (ohne Org) sowie Owner/Admin/Finance.
   // Erst nach geladener Org-Info entscheiden — sonst blitzt das Honorar für
   // HM/Viewer im Ladefenster auf. (Serverseitige Spaltenabsicherung: eigener Task.)
@@ -754,11 +738,15 @@ export default function ClientJobDetail() {
               {t('jobdetail.sections.stelle')}
             </AccordionTrigger>
             <AccordionContent>
-              <JobStellendetails
-                job={job}
-                onEdit={() => setShowEditDialog(true)}
-                isViewer={isViewer}
-              />
+              <div className="space-y-4">
+                <JobSummary job={rawJob} ohneRahmen />
+                {!isViewer && (
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowEditDialog(true)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    {t('jobdetail.stelle.edit')}
+                  </Button>
+                )}
+              </div>
             </AccordionContent>
           </AccordionItem>
 
@@ -771,7 +759,6 @@ export default function ClientJobDetail() {
                 salaryLabel={salaryLabel}
                 feePercentage={job.fee_percentage}
                 canSeeFee={canSeeFee}
-                revealTrigger={revealTrigger}
                 descriptor={descriptor}
               />
             </AccordionContent>
