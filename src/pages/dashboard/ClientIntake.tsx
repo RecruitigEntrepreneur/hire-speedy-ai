@@ -84,6 +84,13 @@ export default function ClientIntake() {
     };
     const known = capture.dyn.catalog?.known ?? {};
     const beantwortet = Object.values(known).filter((k: any) => k?.from === 'answer').length;
+    // Muss/Kann nach der Einstufung des Kunden, nicht nach der ersten Liste der KI
+    // (built.must_haves): herabgestufte Kriterien standen sonst weiter unter Muss.
+    const flex = (capture.flexibility ?? {}) as Record<string, string>;
+    const alle = [...new Set([...b.must_haves, ...b.nice_to_haves].map((k) => String(k).trim()).filter(Boolean))];
+    const eingestuft = alle.some((k) => flex[k]);
+    const muss = eingestuft ? alle.filter((k) => flex[k] === 'fix') : b.must_haves;
+    const kann = eingestuft ? alle.filter((k) => flex[k] !== 'fix') : b.nice_to_haves;
     return [
       { label: 'Position', value: b.title || '—' },
       { label: 'Standort', value: [b.location, remoteLabel(b.remote_type)].filter(Boolean).join(' · ') || '—' },
@@ -94,8 +101,8 @@ export default function ClientIntake() {
           ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€ / Tag')
           : money(b.salary_min, b.salary_max, '€ p. a.'),
       },
-      { label: 'Muss', value: b.must_haves.length ? b.must_haves.join(' · ') : '—' },
-      { label: 'Kann', value: b.nice_to_haves.length ? b.nice_to_haves.join(' · ') : '—' },
+      { label: 'Muss', value: muss.length ? muss.join(' · ') : '—' },
+      { label: 'Kann', value: kann.length ? kann.join(' · ') : '—' },
       { label: 'Briefing', value: beantwortet ? `${beantwortet} Angaben beantwortet` : 'noch nicht beantwortet' },
       { label: 'Vertragsart', value: isFreelance ? 'Contracting' : 'Festanstellung' },
     ];

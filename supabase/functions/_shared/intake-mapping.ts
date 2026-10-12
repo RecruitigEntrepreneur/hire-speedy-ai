@@ -124,6 +124,7 @@ export function draftToJobRow(draft: Json): Json {
   */
   const ausKatalog = catalogToJobRow(dyn.catalog?.known, String(draft.contract_type ?? ''));
   const ausFlex = kriterienAusFlexibility(draft.flexibility);
+  const hatEinstufung = Object.keys((draft.flexibility ?? {}) as Record<string, unknown>).length > 0;
 
   return clean({
     ...ausKatalog,
@@ -170,11 +171,15 @@ export function draftToJobRow(draft: Json): Json {
     // Diese vier traegt der Katalog, sobald der Kunde sie bestaetigt hat.
     // `built` ist nur noch der Rueckfall fuer Entwuerfe, die vor dem Katalog
     // entstanden sind -- deshalb `??` gegen den Katalogwert.
-    /* Die Einstufung des Kunden. `??` wie bei den vier darunter: haette der
-       Katalog die Listen doch, gewinnt er -- sonst kommen sie aus der
-       Einstufung an der Kriterienliste, wo der Kunde sie vorgenommen hat. */
-    must_have_criteria: ausKatalog.must_have_criteria ?? ausFlex.must_have_criteria,
-    trainable_skills: ausKatalog.trainable_skills ?? ausFlex.trainable_skills,
+    /* Die Einstufung des Kunden an der Kriterienliste gewinnt.
+       BEFUND (12.10.2026, IT-Security Engineer): Jede Briefing-Antwort friert
+       die gespiegelte Muss-Liste als "answer" in dyn.catalog.known ein. Stufte
+       der Kunde danach ein KI-Muss auf "verhandelbar" herunter -- wozu die
+       Aufnahme selbst auffordert --, gewann der eingefrorene Stand: Sentinel,
+       Splunk und Elastic standen in Muss UND Verhandelbar. Der Katalog ist nur
+       noch der Rueckfall fuer Entwuerfe ohne Einstufung. */
+    must_have_criteria: hatEinstufung ? ausFlex.must_have_criteria : ausKatalog.must_have_criteria,
+    trainable_skills: hatEinstufung ? ausFlex.trainable_skills : ausKatalog.trainable_skills,
     /* Ohne Katalogseite: nice_to_have_criteria ist kein Slot -- die Einstufung
        an der Kriterienliste ist die einzige Quelle. */
     nice_to_have_criteria: ausFlex.nice_to_have_criteria,

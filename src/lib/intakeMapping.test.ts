@@ -689,13 +689,37 @@ describe('draftToJobRow: Einstufung der Kriterien', () => {
     expect(row.must_have_criteria).toBeUndefined();
   });
 
-  it('laesst den Katalog gewinnen, wo er die Liste selbst traegt', () => {
-    // Sonst wuerde eine spaetere Katalogantwort von der Einstufung
-    // ueberschrieben -- die Rangfolge ist dieselbe wie bei vacancy_reason.
+  it('laesst die Einstufung gewinnen, nicht den eingefrorenen Katalogstand', () => {
+    // 12.10.2026: Die Briefing-Antwort hatte die Muss-Liste eingefroren, danach
+    // stufte der Kunde Sentinel auf verhandelbar herunter.
     const row = draftToJobRow({
       contract_type: 'full-time',
       built: { title: 'T' },
-      flexibility: { Kubernetes: 'fix' },
+      flexibility: { SIEM: 'fix', Sentinel: 'negotiable', DORA: 'flexible' },
+      dyn: { catalog: { known: {
+        must_have_criteria: { value: ['SIEM', 'Sentinel'], from: 'answer' },
+        trainable_skills: { value: ['PCI DSS'], from: 'answer' },
+      } } },
+    } as any);
+    expect(row.must_have_criteria).toEqual(['SIEM']);
+    expect(row.nice_to_have_criteria).toEqual(['Sentinel']);
+    expect(row.trainable_skills).toEqual(['DORA']);
+  });
+
+  it('nimmt kein frueheres Muss wieder auf, wenn alles herabgestuft ist', () => {
+    const row = draftToJobRow({
+      contract_type: 'full-time',
+      built: { title: 'T' },
+      flexibility: { Sentinel: 'negotiable' },
+      dyn: { catalog: { known: { must_have_criteria: { value: ['Sentinel'], from: 'answer' } } } },
+    } as any);
+    expect(row.must_have_criteria).toBeUndefined();
+  });
+
+  it('faellt ohne Einstufung auf den Katalog zurueck', () => {
+    const row = draftToJobRow({
+      contract_type: 'full-time',
+      built: { title: 'T' },
       dyn: { catalog: { known: { must_have_criteria: { value: ['SPS'], from: 'answer' } } } },
     } as any);
     expect(row.must_have_criteria).toEqual(['SPS']);
