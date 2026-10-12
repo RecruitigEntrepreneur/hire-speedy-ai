@@ -17,7 +17,12 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export async function pdfToText(bytes: Uint8Array): Promise<{ text: string; model: string }> {
+/**
+ * `contactHeader`: Antwort beginnt mit „NAME: …“ und „WOHNORT: …“ (siehe
+ * splitContactHeader in cv-extraction.ts). Das Modell sieht das ganze PDF und
+ * erkennt den Namen auch in GROSSSCHRIFT, Seitenleisten oder mit Sonderzeichen.
+ */
+export async function pdfToText(bytes: Uint8Array, opts: { contactHeader?: boolean } = {}): Promise<{ text: string; model: string }> {
   const key = Deno.env.get('LOVABLE_API_KEY');
   if (!key) throw new PdfTextError('LOVABLE_API_KEY ist nicht gesetzt.');
   const data = `data:application/pdf;base64,${bytesToBase64(bytes)}`;
@@ -33,7 +38,10 @@ export async function pdfToText(bytes: Uint8Array): Promise<{ text: string; mode
         messages: [
           {
             role: 'system',
-            content: 'Gib den vollständigen Text dieses Lebenslaufs wieder, Wort für Wort, in Lesereihenfolge. '
+            content: (opts.contactHeader
+              ? 'Beginne mit genau zwei Zeilen: „NAME: <vollständiger Name der Person, wie im Dokument>“ und „WOHNORT: <Wohnort der Person, nur der Ort; leer, wenn keiner genannt ist>“. Danach eine Leerzeile. '
+              : '')
+              + 'Gib den vollständigen Text dieses Lebenslaufs wieder, Wort für Wort, in Lesereihenfolge. '
               + 'Jede Zeile des Dokuments als eigene Zeile, Tabellen als „Bezeichnung: Wert". Nichts weglassen, nichts zusammenfassen, keine Kommentare.',
           },
           { role: 'user', content: [{ type: 'text', text: 'Text des Lebenslaufs:' }, { type: 'image_url', image_url: { url: data } }] },

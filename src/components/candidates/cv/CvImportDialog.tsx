@@ -86,8 +86,9 @@ function display(key: keyof DossierForm, v: unknown): string {
 }
 
 const period = (s: CvStation) => {
-  const f = (ym: string | null) => (ym ? `${ym.slice(5, 7)}/${ym.slice(0, 4)}` : '?');
-  return `${f(s.start)} – ${s.is_current ? 'heute' : f(s.end)}`;
+  // Steht im Lebenslauf nur das Jahr, zeigen wir auch nur das Jahr (kein erfundenes „01/“).
+  const f = (ym: string | null, yearOnly?: boolean) => (ym ? (yearOnly ? ym.slice(0, 4) : `${ym.slice(5, 7)}/${ym.slice(0, 4)}`) : '?');
+  return `${f(s.start, s.start_year_only)} – ${s.is_current ? 'heute' : f(s.end, s.end_year_only)}`;
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -186,6 +187,7 @@ export function CvImportDialog({
       setForm(current);
     } else {
       setForm(fromCv.form); setOrigins(fromCv.origins); setStations(result?.stations ?? []);
+      setNameError(result && !fromCv.form.full_name.trim() ? 'Name nicht sicher erkannt · bitte eintragen' : null);
       setDuplicate(await findDuplicate(user.id, fromCv.form));
     }
     setStep('review');

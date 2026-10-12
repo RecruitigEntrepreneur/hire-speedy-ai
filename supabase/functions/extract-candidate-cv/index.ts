@@ -16,7 +16,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { aiChat, AiError } from '../_shared/ai.ts';
 import { fail, json, preflight } from '../_shared/http.ts';
-import { buildCvSystemPrompt, buildCvUserPrompt, CV_TOOL, prepareCvText, validateCv } from '../_shared/cv-extraction.ts';
+import { buildCvSystemPrompt, buildCvUserPrompt, CV_TOOL, type CvHints, prepareCvText, splitContactHeader, validateCv } from '../_shared/cv-extraction.ts';
 import { pdfToText, PdfTextError } from '../_shared/pdf-text.ts';
 
 const MAX_TEXT = 40000;
@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
 
     let raw = typeof body?.text === 'string' ? body.text : '';
     let pdfModel: string | null = null;
+    let hints: CvHints = {};
     if (!raw.trim() && body?.pdfPath) {
       const path = String(body.pdfPath);
       if (!path.startsWith(`${user.id}/`) && !isAdmin) return fail('not_allowed', 'Diese Datei gehört nicht zu deinem Konto.');
@@ -60,15 +61,17 @@ Deno.serve(async (req) => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (bytes.length > 10 * 1024 * 1024) return fail('invalid_request', 'Die Datei ist größer als 10 MB.');
       if (String.fromCharCode(...bytes.subarray(0, 4)) !== '%PDF') return fail('invalid_request', 'Das ist keine PDF-Datei.');
-      const r = await pdfToText(bytes);
-      raw = r.text;
+      const r = await pdfToText(bytes, { contactHeader: true });
+      const head = splitContactHeader(r.text);
+      raw = head.text;
+      hints = head.hints;
       pdfModel = r.model;
     }
     raw = raw.slice(0, MAX_TEXT);
     if (raw.trim().length < 40) return fail('invalid_request', 'Im Lebenslauf steht zu wenig Text zum Auslesen.');
 
     const notes = typeof body?.notes === 'string' ? body.notes.slice(0, 8000) : '';
-    const prepared = prepareCvText(raw);
+    const prepared = prepareCvText(raw, hints);
     const result = await aiChat({
       system: buildCvSystemPrompt(),
       user: buildCvUserPrompt(prepared.redacted, notes),

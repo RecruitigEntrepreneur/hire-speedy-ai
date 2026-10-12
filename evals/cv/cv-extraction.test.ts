@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { experienceYearsFrom, prepareCvText, quoteFound, validateCv } from '../../supabase/functions/_shared/cv-extraction';
+import { experienceFrom, experienceYearsFrom, nameFrom, prepareCvText, quoteFound, splitContactHeader, validateCv } from '../../supabase/functions/_shared/cv-extraction';
 
 const CV = `Katharina Brenner
 Finance Managerin · Rechnungswesen und Controlling · HGB, IFRS, SAP
@@ -183,5 +183,107 @@ describe('Berufsjahre', () => {
       { job_title: 'a', company_name: '', location: '', industry: '', start: '2018-01', end: '2020-12', is_current: false, description: '' },
       { job_title: 'b', company_name: '', location: '', industry: '', start: '2020-01', end: '2021-12', is_current: false, description: '' },
     ], '2026-10')).toBe(4);
+  });
+});
+
+// Befund 13.10.2026: sieben Test-PDFs (testdaten/lebenslaeufe). Name, Wohnort und
+// Schwärzung brachen bei GROSSSCHRIFT, Seitenleiste, „Anna-Lena“, „Yıldız“ und
+// Kopfzeilen ohne PLZ; Werkstudent und Ausbildung zählten als Berufsjahre.
+describe('Name, Wohnort und Schwärzung (Testlebensläufe 13.10.)', () => {
+  it('Namen in GROSSSCHRIFT, mit ı und mit Bindestrich werden erkannt', () => {
+    expect(nameFrom('JONAS ALBERS')).toBe('Jonas Albers');
+    expect(nameFrom('PRIYA RAMAN')).toBe('Priya Raman');
+    expect(nameFrom('Mehmet Yıldız')).toBe('Mehmet Yıldız');
+    expect(nameFrom('Anna-Lena Brückner')).toBe('Anna-Lena Brückner');
+    expect(nameFrom('Charlotte von Weyhe')).toBe('Charlotte von Weyhe');
+  });
+
+  it('Berufsbezeichnungen und Überschriften sind nie ein Name', () => {
+    expect(nameFrom('Cloud Security Engineer')).toBeNull();
+    expect(nameFrom('Key Account Managerin')).toBeNull();
+    expect(nameFrom('Persönliche Daten')).toBeNull();
+    expect(nameFrom('Tax Specialist · Konzernsteuern')).toBeNull();
+  });
+
+  it('englischer Lebenslauf: Name statt Berufstitel, Ort ohne PLZ, Titel bleibt lesbar', () => {
+    const p = prepareCvText('PRIYA RAMAN\nCloud Security Engineer\nFrankfurt am Main, Germany  •  marko.benko@bluewater-bridge.de  •  linkedin.com/in/priya-raman-sec\nSUMMARY\nSecurity engineer with 6+ years.\nCloud Engineer — Kestrel Data GmbH, Darmstadt');
+    expect(p.contact.full_name).toBe('Priya Raman');
+    expect(p.contact.city).toBe('Frankfurt am Main');
+    expect(p.redacted).not.toMatch(/priya|raman/i);
+    expect(p.redacted).toContain('Cloud Security Engineer');
+    expect(p.redacted).toContain('Cloud Engineer — Kestrel Data GmbH');
+  });
+
+  it('Seitenleiste: Hinweis des PDF-Lesers liefert den Namen, Schwärzung trifft die GROSSSCHRIFT', () => {
+    const raw = 'Foto\nKONTAKT\nmarko.benko@bluewater-bridge.de\nPERSÖNLICHES\nGeboren am 22.07.1996\nKENNTNISSE\n– Ertragsteuern\n– Umsatzsteuer\n– SAP FI\n– DATEV\nSPRACHEN\nDeutsch – Muttersprache\nEnglisch – fließend (C1)\nNiederländisch – Grundkenntnisse\nPROFIL\nJONAS ALBERS\nTax Specialist · Konzernsteuern';
+    const p = prepareCvText(raw, { name: 'Jonas Albers', city: '' });
+    expect(p.contact.full_name).toBe('Jonas Albers');
+    expect(p.redacted).not.toMatch(/jonas|albers/i);
+  });
+
+  it('erfundener Hinweis (Name steht nicht im Text) wird ignoriert', () => {
+    const p = prepareCvText('Thomas Krämer\nController  |  Würzburg  |  linkedin.com/in/thomas-kraemer-controlling', { name: 'Max Mustermann', city: 'Hamburg' });
+    expect(p.contact.full_name).toBe('Thomas Krämer');
+    expect(p.contact.city).toBe('Würzburg');
+  });
+
+  it('Doppelname: alle Teile werden geschwärzt, Ort aus der Kontaktzeile', () => {
+    const p = prepareCvText('Anna-Lena Brückner\nNürnberg, marko.benko@bluewater-bridge.de\nLena hat 2024 einen Rekord aufgestellt.');
+    expect(p.contact.full_name).toBe('Anna-Lena Brückner');
+    expect(p.contact.city).toBe('Nürnberg');
+    expect(p.redacted).not.toMatch(/anna|lena|brückner/i);
+  });
+
+  it('Arbeitsorte der Stationen sind kein Wohnort', () => {
+    const p = prepareCvText('Jonas Albers\nTax Specialist\nRheinkontor Handels AG, Mainz  |  04/2021 – heute');
+    expect(p.contact.city).toBe('');
+  });
+
+  it('Kopfzeilen des PDF-Lesers werden abgetrennt', () => {
+    expect(splitContactHeader('NAME: Martina Schöll\nWOHNORT: Regensburg\n\nMartina Schöll\nKey Account Managerin')).toEqual({
+      text: 'Martina Schöll\nKey Account Managerin', hints: { name: 'Martina Schöll', city: 'Regensburg' },
+    });
+    expect(splitContactHeader('**NAME:** Thomas Krämer\n**WOHNORT:** leer\nThomas Krämer').hints).toEqual({ name: 'Thomas Krämer', city: '' });
+    expect(splitContactHeader('Kein Kopf\nText')).toEqual({ text: 'Kein Kopf\nText', hints: {} });
+  });
+});
+
+describe('Stationen und Berufsjahre (Testlebensläufe 13.10.)', () => {
+  const st = (job_title: string, start: string, end: string | null, is_current = false) =>
+    ({ job_title, company_name: 'X', location: '', industry: '', start, end, is_current, description: '' });
+
+  it('Werkstudent zählt nicht, abgerundet (Florian: 9 statt 11)', () => {
+    const r = experienceFrom([
+      st('Projektingenieur Mittelspannung', '2020-02', null, true),
+      st('Elektrokonstrukteur', '2017-09', '2020-01'),
+      st('Werkstudent Elektroplanung', '2016-04', '2017-08'),
+    ], '2026-10');
+    expect(r).toEqual({ years: 9, counted: 2, skipped: ['Werkstudent'] });
+  });
+
+  it('Ausbildung als Station wandert zur Ausbildung, Jahreszahlen bleiben Jahreszahlen (Stefan)', () => {
+    const cvText = 'Stefan Weißhaupt\n2007 bis 2010: Ausbildung zum Elektroniker für Betriebstechnik\nKraus Elektro GmbH, Hallstadt\n2010 bis 2016: Elektroniker, ab 2013 Bauleiter\nKraus Elektro GmbH, Hallstadt\nseit März 2016: Projektleiter Elektrotechnik\nMain-Regnitz Elektroanlagen GmbH, Bamberg\n2013 bis 2015 (abends): Staatlich geprüfter Techniker\nFachschule für Technik Bamberg';
+    const p = prepareCvText(cvText);
+    const r = validateCv({
+      stations: [
+        { job_title: 'Projektleiter Elektrotechnik', company_name: 'Main-Regnitz Elektroanlagen GmbH', location: 'Bamberg', industry: '', start: '2016-03', end: '', is_current: true, description: '' },
+        { job_title: 'Elektroniker, ab 2013 Bauleiter', company_name: 'Kraus Elektro GmbH', location: 'Hallstadt', industry: '', start: '2010', end: '2016', is_current: false, description: '' },
+        { job_title: 'Ausbildung zum Elektroniker für Betriebstechnik', company_name: 'Kraus Elektro GmbH', location: 'Hallstadt', industry: '', start: '2007', end: '2010', is_current: false, description: '' },
+      ],
+      educations: [{ institution: 'Fachschule für Technik Bamberg', degree: 'Staatlich geprüfter Techniker', field_of_study: '', graduation_year: 2015, grade: '' }],
+    }, p, '', '2026-10');
+    expect(r.stations.map((s) => s.job_title)).toEqual(['Projektleiter Elektrotechnik', 'Elektroniker, ab 2013 Bauleiter']);
+    expect(r.stations[1]).toMatchObject({ start: '2010-01', end: '2016-01', start_year_only: true, end_year_only: true });
+    expect(r.educations.map((e) => e.degree)).toEqual(['Staatlich geprüfter Techniker', 'Ausbildung zum Elektroniker für Betriebstechnik']);
+    expect(r.educations[1].graduation_year).toBe(2010);
+    expect(r.fields.experience_years).toMatchObject({ value: 16, quote: 'aus 2 Stationen berechnet' });
+  });
+
+  it('Kurzprofil: Namensteile nur als ganze Wörter entfernen', () => {
+    const p = prepareCvText('Priya Raman\nSenior Security Engineer\nDetection Engineering mit Microsoft Sentinel.');
+    const r = validateCv({ summary: 'Erfahrene Ingenieurin im Cloud-Umfeld, stark im Detection Engineering. Priya Raman führt Incident Response.' }, p, '', '2026-10');
+    expect(r.suggestions.summary).toContain('Cloud-Umfeld');
+    expect(r.suggestions.summary).toContain('Detection Engineering');
+    expect(r.suggestions.summary).not.toMatch(/priya|raman/i);
   });
 });

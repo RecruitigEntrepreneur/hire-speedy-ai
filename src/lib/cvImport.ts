@@ -20,6 +20,9 @@ export interface CvStation {
   end: string | null;
   is_current: boolean;
   description: string;
+  /** Im Lebenslauf steht nur das Jahr; start/end tragen dann „YYYY-01“. */
+  start_year_only?: boolean;
+  end_year_only?: boolean;
 }
 
 export interface CvEducation {
