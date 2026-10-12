@@ -1,4 +1,3 @@
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { firmierungAus } from './firma-pflicht.ts';
 
 /**
@@ -17,6 +16,9 @@ import { firmierungAus } from './firma-pflicht.ts';
  */
 
 type Json = Record<string, any>;
+// Strukturtyp statt esm.sh-Import: die Datei läuft auch im Browser (Einreichen im
+// Dashboard, src/lib/firmenprofilAusAufnahme.ts).
+type SupabaseClient = { from: (table: string) => any };
 
 /** Die Felder, die still aus der Aufnahme kommen dürfen. */
 export const STAMMFELDER = [

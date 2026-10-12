@@ -8,6 +8,7 @@ import type { IntakeFailure } from '@/hooks/useGuestIntake';
 import { buildIntakePayload } from '@/lib/intakeMapping';
 import { ladeFirmendaten, joinAddress, firmendatenVollstaendig, type Firmendaten } from '@/lib/firmendaten';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, type IntakeSubmitTarget } from '@/lib/intakeApproval';
+import { profilAusAufnahme } from '@/lib/firmenprofilAusAufnahme';
 // Dieselbe Abbildung Entwurf -> Stelle wie beim Link (/start). Liegt in
 // _shared, weil Deno nicht aus src/ importieren kann; umgekehrt geht es.
 import { draftToJobRow } from '../../supabase/functions/_shared/intake-mapping';
@@ -456,9 +457,13 @@ export function useClientIntake(jobIdParam?: string) {
       if (t.status === 'pending_client_approval' && t.organizationId) {
         await notifyApproversOfIntake(t.organizationId, res.id, captureRef.current?.built?.title ?? 'Position', user.id);
       }
+      // Leere Felder im Firmenprofil gleich aus der Aufnahme füllen (z. B. Mitarbeiterzahl).
+      if (captureRef.current) {
+        await profilAusAufnahme(user.id, companyRef.current, buildRow(captureRef.current, companyRef.current) ?? {});
+      }
       return { ok: true as const, jobId: res.id, status: t.status };
     },
-    [user, target, framework, persist],
+    [user, target, framework, persist, buildRow],
   );
 
   return {
