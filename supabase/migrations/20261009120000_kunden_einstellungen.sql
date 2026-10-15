@@ -37,13 +37,9 @@ GRANT ALL ON public.client_notification_preferences TO service_role;
 
 -- ----------------------------------------------------------------------------
 -- 2. Firmenlogo: öffentlicher Bucket, jeder schreibt nur in seinen Ordner.
---    Lovable: INSERT INTO storage.buckets ist im Migrationsweg ggf. gesperrt --
---    dann den Bucket „company-logos“ (öffentlich) vorab über die Storage-API anlegen.
+--    Den Bucket „company-logos“ (öffentlich) legt Lovable über Storage an –
+--    INSERT INTO storage.buckets ist im Migrationsweg gesperrt.
 -- ----------------------------------------------------------------------------
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('company-logos', 'company-logos', true)
-ON CONFLICT (id) DO NOTHING;
-
 DROP POLICY IF EXISTS "Firmenlogo lesen (eigener Ordner)" ON storage.objects;
 CREATE POLICY "Firmenlogo lesen (eigener Ordner)" ON storage.objects
   FOR SELECT TO authenticated

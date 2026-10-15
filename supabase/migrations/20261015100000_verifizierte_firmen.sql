@@ -329,9 +329,8 @@ REVOKE ALL ON FUNCTION public.admin_decide_company(uuid, text, text) FROM PUBLIC
 GRANT EXECUTE ON FUNCTION public.admin_decide_company(uuid, text, text) TO authenticated;
 
 -- Beleg (optional): eigener Ordner je Kundenkonto, nur Matchunt und der Kunde lesen.
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('company-proofs', 'company-proofs', false)
-ON CONFLICT (id) DO NOTHING;
+-- Den Bucket „company-proofs“ (privat) legt Lovable über Storage an –
+-- INSERT INTO storage.buckets ist im Migrationsweg gesperrt.
 DROP POLICY IF EXISTS "Kunden laden Firmenbelege hoch" ON storage.objects;
 CREATE POLICY "Kunden laden Firmenbelege hoch" ON storage.objects
   FOR INSERT TO authenticated
