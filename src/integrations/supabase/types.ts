@@ -13093,6 +13093,13 @@ export type Database = {
         Returns: string
       }
       recruiter_display_name: { Args: { p_user_id: string }; Returns: string }
+      recruiter_interview_attendee_roles: {
+        Args: { p_interview_id: string }
+        Returns: {
+          is_decision_maker: boolean
+          title: string
+        }[]
+      }
       recruiter_partner_number: { Args: never; Returns: string }
       recruiter_tier_metrics: { Args: { p_user_id: string }; Returns: Json }
       report_direct_contact: {
