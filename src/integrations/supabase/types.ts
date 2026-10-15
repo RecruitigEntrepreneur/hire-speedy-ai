@@ -2641,6 +2641,33 @@ export type Database = {
         }
         Relationships: []
       }
+      client_notification_preferences: {
+        Row: {
+          decision_reminder: boolean
+          interview_updates: boolean
+          new_candidate: string
+          searcher_started: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          decision_reminder?: boolean
+          interview_updates?: boolean
+          new_candidate?: string
+          searcher_started?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          decision_reminder?: boolean
+          interview_updates?: boolean
+          new_candidate?: string
+          searcher_started?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_notifications: {
         Row: {
           action_url: string | null
@@ -12861,6 +12888,10 @@ export type Database = {
       client_answer_direct_position: {
         Args: { p_answer: string; p_declaration_id: string }
         Returns: undefined
+      }
+      client_can_read_agreement_document: {
+        Args: { p_name: string }
+        Returns: boolean
       }
       client_close_job: {
         Args: {

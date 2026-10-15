@@ -176,6 +176,13 @@
       "when": 1791848508480,
       "tag": "0024_platz_frei_nach_einreichung",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792074218260,
+      "tag": "0025_kunden_einstellungen",
+      "breakpoints": true
     }
   ]
 }
