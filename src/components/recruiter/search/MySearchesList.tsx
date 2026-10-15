@@ -217,7 +217,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                   {note && <span className="block text-muted-foreground">{note}</span>}
                   {openQuestion && (
                     <button type="button" className="block text-left text-primary underline-offset-2 hover:underline" onClick={() => setQuestion(s)}>
-                      Frage offen: Ist {s.company_name || 'das Unternehmen'} schon dein Kunde?
+                      Frage offen: Kennst du {s.company_name || 'das Unternehmen'} schon?
                     </button>
                   )}
                 </div>

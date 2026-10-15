@@ -47,6 +47,11 @@ export function NotificationBell() {
           : `/dashboard/placements`;
       case "payout":
         return `/recruiter/payouts`;
+      case "client_company":
+        // Firma beantragt (an Matchunt) bzw. entschieden (an den Kunden)
+        return role === "admin"
+          ? `/admin?firma=${notification.related_id}`
+          : `/dashboard/settings#firmendaten`;
       case "admin_review":
         // Prüfungen in der Recruiterverwaltung (Direktkontakte, Bestandskunden, Schließungen)
         return `/admin/recruiters#pruefungen`;

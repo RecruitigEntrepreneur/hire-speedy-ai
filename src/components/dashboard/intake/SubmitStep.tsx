@@ -38,13 +38,15 @@ interface Props {
   onBack: () => void;
   onDelegate: () => void;
   onSubmit: (choice: CommercialChoice | null) => Promise<void>;
+  /** Warum noch nicht eingereicht werden kann (Firma nicht verifiziert) -- oder null. */
+  sperre?: string | null;
 }
 
 const eur = (n: number) => `${Math.round(n).toLocaleString('de-DE')} €`;
 
 export function SubmitStep({
   rows, framework, frameworkLoading, frameworkReadable, packages, isFreelance, needsInternalApproval,
-  exampleSalary, openQuestions, signerName, onBack, onDelegate, onSubmit,
+  exampleSalary, openQuestions, signerName, onBack, onDelegate, onSubmit, sperre = null,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [upOpen, setUpOpen] = useState(false);
@@ -83,6 +85,9 @@ export function SubmitStep({
           </div>
         ))}
       </dl>
+      {sperre && (
+        <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">{sperre}</p>
+      )}
       {openQuestions > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
           {openQuestions} Angaben sind noch offen. Sie können trotzdem einreichen, Lücken lassen sich später ergänzen.{' '}
@@ -106,7 +111,7 @@ export function SubmitStep({
         {summary}
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
-          <Button onClick={() => run(null)} disabled={busy} className="gap-2">
+          <Button onClick={() => run(null)} disabled={busy || !!sperre} className="gap-2">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Zur Freigabe senden
           </Button>
         </div>
@@ -222,7 +227,7 @@ export function SubmitStep({
           <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
           <Button
             onClick={() => run({ package_key: selectedKey ?? 'core', upgraded: isUpgrade })}
-            disabled={busy || (isUpgrade && !upgradeConfirmed)}
+            disabled={busy || !!sperre || (isUpgrade && !upgradeConfirmed)}
             className="gap-2"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -292,7 +297,7 @@ export function SubmitStep({
         <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
         <Button
           onClick={() => run({ package_key: chosen!, upgraded: false })}
-          disabled={busy || !chosen || !consent}
+          disabled={busy || !!sperre || !chosen || !consent}
           className="gap-2"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Beauftragung anfragen

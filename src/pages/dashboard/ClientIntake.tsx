@@ -92,6 +92,9 @@ export default function ClientIntake() {
     const muss = eingestuft ? alle.filter((k) => flex[k] === 'fix') : b.must_haves;
     const kann = eingestuft ? alle.filter((k) => flex[k] !== 'fix') : b.nice_to_haves;
     return [
+      ...(intake.firmaFest?.name
+        ? [{ label: 'Firma', value: `${intake.firmaFest.name}${intake.firmaFest.inPruefung ? ' · in Prüfung' : ''}` }]
+        : []),
       { label: 'Position', value: b.title || '—' },
       { label: 'Standort', value: [b.location, remoteLabel(b.remote_type)].filter(Boolean).join(' · ') || '—' },
       { label: 'Erfahrung', value: levelLabel(b.experience_level) },
@@ -106,7 +109,7 @@ export default function ClientIntake() {
       { label: 'Briefing', value: beantwortet ? `${beantwortet} Angaben beantwortet` : 'noch nicht beantwortet' },
       { label: 'Vertragsart', value: isFreelance ? 'Contracting' : 'Festanstellung' },
     ];
-  }, [capture]);
+  }, [capture, intake.firmaFest?.name, intake.firmaFest?.inPruefung]);
 
   const openQuestions = useMemo(() => {
     if (!capture?.built) return 0;
@@ -380,6 +383,9 @@ export default function ClientIntake() {
                 autoBuildFile={seed.seedFile ?? null}
             fertigesProfil
             firmaFest={intake.firmaFest}
+            firmen={intake.firmen}
+            firmaId={intake.firmaId}
+            onFirma={intake.waehleFirma}
               />
             )}
 
@@ -398,6 +404,7 @@ export default function ClientIntake() {
                 onBack={() => setStep('capture')}
                 onDelegate={() => setDelegateOpen(true)}
                 onSubmit={doSubmit}
+                sperre={vorschau ? null : intake.firmaSperre}
               />
             )}
 

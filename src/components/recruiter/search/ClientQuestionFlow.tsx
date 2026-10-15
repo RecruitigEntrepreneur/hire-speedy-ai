@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Building2, CheckCircle2, FileUp, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ChevronRight, FileUp, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { answerClientQuestion, errorText, uploadDeclarationProof, type ClientAnswer } from '@/lib/jobSearch';
 import { cn } from '@/lib/utils';
 
-type Step = 'ask' | 'position' | 'proof_client' | 'proof_direct' | 'done';
+type Step = 'ask' | 'proof_client' | 'proof_direct' | 'done';
 
 /**
- * „Ist das schon dein Kunde?“ – direkt nach „Ich suche“, vor der ersten
- * Einreichung (Vertrag § 17 Abs. 1b/1c). Ja verlangt einen unterschriebenen
- * Vertrag von vor dem ersten „Ich suche“; „Stelle schon direkt“ zusätzlich die
- * Beauftragung, und Matchunt fragt den Kunden. Belege sieht nur Matchunt.
+ * „Kennst du X schon?“ – direkt nach „Ich suche“, vor der ersten Einreichung
+ * (Vertrag § 17 Abs. 1b/1c), einmal je Firma. Drei Antworten auf einen Blick
+ * (Variante 3, 15.10.2026): Nein · Ja, Kunde (Vertrag als Beleg) · Ja, und
+ * genau diese Stelle schon direkt (Vertrag + Beauftragung, Matchunt fragt den
+ * Kunden). Belege sieht nur Matchunt.
  */
 export function ClientQuestionFlow({
   jobId,
@@ -77,41 +78,33 @@ export function ClientQuestionFlow({
     <div className={cn('space-y-3 text-sm', compact && 'space-y-2.5')}>
       {step === 'ask' && (
         <>
-          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/30 p-3">
-            <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="font-medium">{company}</span>
-          </div>
           <div>
-            <p className="font-medium">Ist {company} schon dein Kunde?</p>
+            <p className="font-medium">Kennst du {company} schon?</p>
             <p className="text-xs text-muted-foreground">
-              Also: Hast du mit dem Unternehmen einen unterschriebenen Vertrag (Rahmen- oder Einzelvertrag) von vor heute?
+              Kunde heißt: Du hast mit {company} einen unterschriebenen Vertrag (Rahmen- oder Einzelvertrag) von vor heute.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" className="flex-1" disabled={busy} onClick={() => finish('no')}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Nein'}
-            </Button>
-            <Button variant="outline" className="flex-1" disabled={busy} onClick={() => setStep('position')}>
-              Ja, ich habe einen Vertrag mit ihnen
-            </Button>
-          </div>
-        </>
-      )}
-
-      {step === 'position' && (
-        <>
-          <p className="font-medium">Hat dir {company} genau diese Stelle „{jobTitle}“ schon direkt gegeben, vor deinem „Ich suche“?</p>
           <div className="flex flex-col gap-2">
-            <Button variant="outline" className="justify-start" onClick={() => setStep('proof_client')}>
-              Nein. Ich bearbeite sie über Matchunt
-            </Button>
-            <Button variant="outline" className="justify-start" onClick={() => setStep('proof_direct')}>
-              Ja, diese Stelle habe ich schon direkt
-            </Button>
+            {([
+              { a: 'no', title: 'Nein, kenne ich nicht', hint: 'weiter zu deinen passenden Kandidaten' },
+              { a: 'client', title: 'Ja, ist mein Kunde – diese Stelle läuft über Matchunt', hint: 'Vertrag als Beleg, 5 Werktage Zeit · Suche läuft normal' },
+              { a: 'direct_position', title: 'Ja, und genau diese Stelle habe ich schon direkt', hint: 'Vertrag + Beauftragung · Matchunt fragt den Kunden · Suche ruht bis dahin' },
+            ] as const).map((o) => (
+              <button
+                key={o.a}
+                type="button"
+                disabled={busy}
+                onClick={() => (o.a === 'no' ? finish('no') : setStep(o.a === 'client' ? 'proof_client' : 'proof_direct'))}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted/50 disabled:opacity-60"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">{o.title}</span>
+                  <span className="block text-xs text-muted-foreground">{o.hint}</span>
+                </span>
+                {busy && o.a === 'no' ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              </button>
+            ))}
           </div>
-          <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setStep('ask')}>
-            Zurück
-          </button>
         </>
       )}
 
@@ -129,6 +122,9 @@ export function ClientQuestionFlow({
             </Button>
             <span className="text-xs text-muted-foreground">Frist für den Beleg: 5 Werktage</span>
           </div>
+          <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setStep('ask')}>
+            Zurück
+          </button>
         </>
       )}
 
@@ -144,6 +140,9 @@ export function ClientQuestionFlow({
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Einreichen
           </Button>
+          <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setStep('ask')}>
+            Zurück
+          </button>
         </>
       )}
 

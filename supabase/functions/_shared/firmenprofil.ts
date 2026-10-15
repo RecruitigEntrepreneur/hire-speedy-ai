@@ -107,3 +107,33 @@ export async function firmenprofilAusAufnahme(
     return { gefuellt: [], fehler: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/**
+ * Bei der Annahme: die Firma der Stelle (client_companies, entsteht beim
+ * Anlegen der Stelle durch Matchunt gleich verifiziert) mit Firmierung,
+ * Anschrift und Register aus der Aufnahme füllen -- nur leere Felder.
+ * Fehlt die Tabelle live noch, passiert nichts.
+ */
+export async function firmaAusAufnahme(
+  db: SupabaseClient, jobId: string | null, draft: Json, jobRow: Json = {},
+): Promise<{ gefuellt: string[]; fehler?: string }> {
+  if (!jobId) return { gefuellt: [] };
+  try {
+    const { data: job } = await db.from('jobs').select('company_id').eq('id', jobId).maybeSingle();
+    const companyId = (job as Json | null)?.company_id as string | undefined;
+    if (!companyId) return { gefuellt: [] };
+    const { data: firma, error } = await db.from('client_companies').select('*').eq('id', companyId).maybeSingle();
+    if (error || !firma) return { gefuellt: [], fehler: error?.message };
+    const s = stammdatenAusAufnahme(draft, jobRow);
+    const patch = nurLeereFelder(firma as Json, {
+      legal_name: s.legal_name, street: s.street, postal_code: s.postal_code, city: s.city,
+      registration_number: s.registration_number, vat_id: s.tax_id, website: s.website,
+    }) as Json;
+    const gefuellt = Object.keys(patch);
+    if (!gefuellt.length) return { gefuellt };
+    const res = await db.from('client_companies').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', companyId);
+    return res.error ? { gefuellt: [], fehler: res.error.message } : { gefuellt };
+  } catch (e) {
+    return { gefuellt: [], fehler: e instanceof Error ? e.message : String(e) };
+  }
+}

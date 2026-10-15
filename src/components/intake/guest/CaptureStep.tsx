@@ -32,7 +32,7 @@ import {
 import { isFailure } from '@/hooks/useGuestIntake';
 import { docxToText, isDocx } from '@/lib/docxText';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ArrowLeft, ArrowRight, FileText, FileUp, Link2, Loader2, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, FileText, FileUp, Link2, Loader2, Sparkles } from 'lucide-react';
 
 /**
  * Die Aufnahme selbst — dieselben Bausteine wie im Dashboard-Studio.
@@ -125,7 +125,16 @@ interface Props {
     adresse?: string;
     register?: string;
     verifiziertAm: string | null;
+    /** Firma beantragt, Matchunt prüft noch: ausfüllen ja, einreichen nein. */
+    inPruefung?: boolean;
   } | null;
+  /**
+   * Die Firmen des Kontos (Dashboard). Mehr als eine: der Firmenname in der
+   * Kopfzeile wird zur Auswahl „Für welche Firma suchen Sie?“.
+   */
+  firmen?: { id: string; name: string; verifiziert: boolean; haupt: boolean }[];
+  firmaId?: string | null;
+  onFirma?: (id: string) => void;
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
@@ -139,9 +148,10 @@ export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
   nextLabel = 'Weiter zu Ihren Kontaktdaten', entrySub, entryExtras, autoBuildText, autoBuildFile,
-  fertigesProfil = false, firmaFest = null,
+  fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma,
 }: Props) {
   const [text, setText] = useState(seedText ?? autoBuildText ?? '');
+  const [firmaWahlOffen, setFirmaWahlOffen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState('');
   // Kennt der Link die gesuchte Position, beginnen wir mit der Bestätigung.
@@ -1022,8 +1032,54 @@ export function CaptureStep({
                ist, und Anschrift, Register und USt-ID gibt es auf Klick --
                beim Beschreiben der Stelle braucht sie niemand staendig. */
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span>{firmaFest.name || company.company_legal_name || company.company_name}</span>
-              {firmaFest.verifiziertAm && (
+              {firmen.length > 1 && onFirma ? (
+                /* Mehrere Firmen im Konto: hier wählen, für welche die Stelle ist.
+                   Beantragte sind wählbar (ausfüllen ja), einreichen geht erst
+                   nach der Prüfung durch Matchunt. */
+                <Popover open={firmaWahlOffen} onOpenChange={setFirmaWahlOffen}>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 hover:bg-muted">
+                      für {firmaFest.name || company.company_legal_name || company.company_name}
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-80 p-1.5">
+                    <p className="px-2 pb-1.5 pt-1 text-xs font-medium text-muted-foreground">Für welche Firma suchen Sie?</p>
+                    {firmen.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => { onFirma(f.id); setFirmaWahlOffen(false); }}
+                        className={cn(
+                          'flex w-full items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted',
+                          f.id === firmaId && 'bg-muted',
+                        )}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">{f.name}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {f.haupt ? 'Hauptfirma' : 'weitere Firma'}
+                            {!f.verifiziert && ' · in Prüfung, Einreichen erst danach'}
+                          </span>
+                        </span>
+                        {f.id === firmaId ? <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                          : f.verifiziert ? <span className="mt-0.5 shrink-0 text-xs text-emerald-600">✓</span> : null}
+                      </button>
+                    ))}
+                    <a
+                      href="/dashboard/settings#firmendaten"
+                      className="mt-1 block border-t border-border px-2 pb-1 pt-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      Weitere Firma beantragen
+                    </a>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <span>{firmaFest.name || company.company_legal_name || company.company_name}</span>
+              )}
+              {firmaFest.inPruefung ? (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">in Prüfung durch Matchunt</span>
+              ) : firmaFest.verifiziertAm && (
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">✓ verifiziert</span>
               )}
               {built.location && <span className="text-muted-foreground">· {built.location}</span>}
@@ -1045,8 +1101,11 @@ export function CaptureStep({
                       ✓ von Matchunt verifiziert am {new Date(firmaFest.verifiziertAm).toLocaleDateString('de-DE')}
                     </p>
                   )}
+                  {firmaFest.inPruefung && (
+                    <p className="mt-1.5 text-amber-600">In Prüfung durch Matchunt – Einreichen geht nach der Verifizierung.</p>
+                  )}
                   <a
-                    href="/dashboard/settings"
+                    href="/dashboard/settings#firmendaten"
                     className="mt-2 inline-block text-muted-foreground underline underline-offset-2 hover:text-foreground"
                   >
                     In den Einstellungen ändern

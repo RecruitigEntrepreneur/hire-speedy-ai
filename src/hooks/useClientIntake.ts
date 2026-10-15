@@ -9,6 +9,7 @@ import { buildIntakePayload } from '@/lib/intakeMapping';
 import { ladeFirmendaten, joinAddress, firmendatenVollstaendig, type Firmendaten } from '@/lib/firmendaten';
 import { resolveIntakeSubmitTarget, notifyApproversOfIntake, type IntakeSubmitTarget } from '@/lib/intakeApproval';
 import { profilAusAufnahme } from '@/lib/firmenprofilAusAufnahme';
+import { companyAddress, companyLabel, useClientCompanies, type ClientCompany } from '@/hooks/useClientCompanies';
 // Dieselbe Abbildung Entwurf -> Stelle wie beim Link (/start). Liegt in
 // _shared, weil Deno nicht aus src/ importieren kann; umgekehrt geht es.
 import { draftToJobRow } from '../../supabase/functions/_shared/intake-mapping';
@@ -114,6 +115,10 @@ export function useClientIntake(jobIdParam?: string) {
   const companyRef = useRef(company);
   captureRef.current = capture;
   companyRef.current = company;
+  /** Für welche Firma die Stelle ist (client_companies). Gespeichert als jobs.company_id. */
+  const [firmaId, setFirmaId] = useState<string | null>(null);
+  const firmaIdRef = useRef<string | null>(null);
+  firmaIdRef.current = firmaId;
 
   // ---- Stammdaten ----------------------------------------------------------
 
@@ -171,10 +176,44 @@ export function useClientIntake(jobIdParam?: string) {
     },
   });
 
+  // Firmen des Kontos: Stellen nur für verifizierte (Migration 20261015100000).
+  // Fehlt die Tabelle live noch, gilt das bisherige Firmenprofil.
+  const { companies, unavailable: firmenFehlen, loading: firmenLaden, request: beantrageFirma } = useClientCompanies();
+  const mitFirmen = !firmenFehlen && !firmenLaden;
+  const waehlbar = companies.filter((c) => c.status !== 'rejected');
+  const gewaehlt: ClientCompany | null = mitFirmen ? waehlbar.find((c) => c.id === firmaId) ?? null : null;
+
+  // Vorwahl: die verifizierte Hauptfirma, sonst die erste verifizierte, sonst die beantragte.
+  // Eine fortgesetzte Stelle behält ihre Firma (außer sie wurde abgelehnt).
+  useEffect(() => {
+    if (!mitFirmen || (firmaId && waehlbar.some((c) => c.id === firmaId))) return;
+    const vorwahl = waehlbar.find((c) => c.role === 'main' && c.status === 'verified')
+      ?? waehlbar.find((c) => c.status === 'verified')
+      ?? waehlbar.find((c) => c.role === 'main')
+      ?? waehlbar[0];
+    if (vorwahl) setFirmaId(vorwahl.id);
+  }, [mitFirmen, waehlbar, firmaId]);
+
   // Die Firma kommt aus dem Konto und ueberschreibt, was ein Entwurf mitbringt:
   // ein verifizierter Kunde traegt sie nicht je Position neu ein.
   useEffect(() => {
-    if (!firma) return;
+    if (gewaehlt) {
+      const haupt = gewaehlt.role === 'main';
+      setCompany({
+        company_name: companyLabel(gewaehlt),
+        company_legal_name: companyLabel(gewaehlt),
+        company_website: gewaehlt.website ?? (haupt ? firma?.website : '') ?? '',
+        // Branche kennt nur das Firmenprofil -- und das beschreibt die Hauptfirma.
+        company_industry: haupt ? firma?.industry ?? '' : '',
+        company_street: gewaehlt.street ?? '',
+        company_postal_code: gewaehlt.postal_code ?? '',
+        company_city: gewaehlt.city ?? '',
+        company_vat_id: gewaehlt.vat_id ?? '',
+        company_registration_number: gewaehlt.registration_number ?? '',
+      });
+      return;
+    }
+    if (!firma || (mitFirmen && waehlbar.length)) return;
     setCompany({
       company_name: firma.company_name || firma.legal_name,
       company_legal_name: firma.legal_name,
@@ -186,7 +225,13 @@ export function useClientIntake(jobIdParam?: string) {
       company_vat_id: firma.vat_id,
       company_registration_number: firma.registration_number,
     });
-  }, [firma]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firma, gewaehlt?.id, gewaehlt?.status, mitFirmen]);
+
+  const waehleFirma = useCallback((id: string) => {
+    dirty.current = true;
+    setFirmaId(id);
+  }, []);
 
   // ---- Entwurf laden (Fortsetzen) -----------------------------------------
 
@@ -202,6 +247,7 @@ export function useClientIntake(jobIdParam?: string) {
         return;
       }
       const row = data as Record<string, any>;
+      if (row.company_id) setFirmaId(row.company_id);
       statusRef.current = row.status ?? 'draft';
       setStatus(statusRef.current);
       const ds = row.intake_payload?.draft_state;
@@ -264,6 +310,8 @@ export function useClientIntake(jobIdParam?: string) {
         },
         ...(extra ?? {}),
       };
+      // Die Firma der Stelle; den Firmennamen setzt die Datenbank aus ihr.
+      if (firmaIdRef.current) row.company_id = firmaIdRef.current;
       return row;
     },
     [],
@@ -409,9 +457,53 @@ export function useClientIntake(jobIdParam?: string) {
 
   // ---- Einreichen ----------------------------------------------------------
 
+  /**
+   * Warum (noch) nicht eingereicht werden kann -- oder null. Ohne jede Firma
+   * bleibt Einreichen klickbar: dann wird die Firma aus der Aufnahme beantragt.
+   */
+  const firmaSperre: string | null = !mitFirmen || !gewaehlt
+    ? null
+    : gewaehlt.status !== 'verified'
+        ? `„${companyLabel(gewaehlt)}“ wird noch von Matchunt geprüft. Einreichen geht, sobald die Firma verifiziert ist – Ihre Aufnahme bleibt gespeichert.`
+        : null;
+
+  /**
+   * Vor dem Einreichen: Hat das Konto noch gar keine Firma, wird die aus der
+   * Aufnahme (Firmenblock) als Hauptfirma beantragt -- der Kunde tippt sie nicht
+   * zweimal. Eingereicht wird trotzdem erst nach der Prüfung.
+   */
+  const firmaVorEinreichen = useCallback(async (): Promise<string | null> => {
+    if (!mitFirmen) return null;
+    if (gewaehlt) return firmaSperre;
+    const co = companyRef.current;
+    const name = (co.company_legal_name || co.company_name || '').trim();
+    if (!name || !co.company_street || !co.company_postal_code || !co.company_city) {
+      return 'Bitte tragen Sie unter „Ihr Unternehmen“ Firmierung und Anschrift ein. Matchunt prüft die Firma, danach können Sie einreichen.';
+    }
+    try {
+      const id = await beantrageFirma({
+        name, legal_name: name, street: co.company_street ?? null, postal_code: co.company_postal_code ?? null,
+        city: co.company_city ?? null, country: 'DE', registration_number: co.company_registration_number ?? null,
+        vat_id: co.company_vat_id ?? null, website: co.company_website ?? null, role: 'main',
+      });
+      setFirmaId(id);
+      firmaIdRef.current = id;
+      return `„${name}“ ist jetzt zur Prüfung bei Matchunt. Einreichen geht, sobald die Firma verifiziert ist – Ihre Aufnahme bleibt gespeichert.`;
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Die Firma konnte nicht zur Prüfung gesendet werden.';
+    }
+  }, [mitFirmen, gewaehlt, firmaSperre, beantrageFirma]);
+
   const submit = useCallback(
     async (choice: CommercialChoice | null) => {
       if (!user) return { ok: false as const, message: 'Nicht angemeldet.' };
+      const sperre = await firmaVorEinreichen();
+      if (sperre) {
+        if (inFlight.current) await inFlight.current;
+        dirty.current = true;
+        await saveDraft();
+        return { ok: false as const, message: sperre };
+      }
       const t = target ?? (await resolveIntakeSubmitTarget(user.id));
       const commercial = choice
         ? {
@@ -437,9 +529,13 @@ export function useClientIntake(jobIdParam?: string) {
         const msg = String((res.error as any)?.message ?? '');
         return {
           ok: false as const,
-          message: /row-level security|permission/i.test(msg)
-            ? 'Ihre Rolle darf keine Positionen einreichen. Bitte wenden Sie sich an Ihren Admin.'
-            : 'Die Position konnte nicht eingereicht werden.',
+          message: /verifizierte Firma/i.test(msg)
+            ? 'Stellen können nur für eine von Matchunt verifizierte Firma eingereicht werden. Ihre Aufnahme bleibt gespeichert.'
+            : /gehört nicht zu Ihrem Konto/i.test(msg)
+              ? 'Diese Firma gehört nicht zu Ihrem Konto.'
+              : /row-level security|permission/i.test(msg)
+                ? 'Ihre Rolle darf keine Positionen einreichen. Bitte wenden Sie sich an Ihren Admin.'
+                : 'Die Position konnte nicht eingereicht werden.',
         };
       }
       dirty.current = false;
@@ -463,7 +559,7 @@ export function useClientIntake(jobIdParam?: string) {
       }
       return { ok: true as const, jobId: res.id, status: t.status };
     },
-    [user, target, framework, persist, buildRow],
+    [user, target, framework, persist, buildRow, firmaVorEinreichen, saveDraft],
   );
 
   return {
@@ -472,8 +568,26 @@ export function useClientIntake(jobIdParam?: string) {
     zumVorhandenen,
     capture, company, jobId, status, saving, lastSavedAt, saveError, loadError,
     profile, target, framework, frameworkLoading, packages,
-    /** Feste Firmenzeile, wenn das Konto vollstaendige Firmendaten hat. */
-    firmaFest: firma && firmendatenVollstaendig(firma)
+    /** Firmen zur Auswahl (ohne abgelehnte); leer, solange es die Tabelle live nicht gibt. */
+    firmen: mitFirmen
+      ? waehlbar.map((c) => ({ id: c.id, name: companyLabel(c), verifiziert: c.status === 'verified', haupt: c.role === 'main' }))
+      : [],
+    firmaId: gewaehlt?.id ?? null,
+    waehleFirma,
+    firmaSperre,
+    /** Feste Firmenzeile: die gewählte Firma, sonst (alt) das vollständige Firmenprofil. */
+    firmaFest: gewaehlt
+      ? {
+          zeile: [companyLabel(gewaehlt), companyAddress(gewaehlt), gewaehlt.registration_number, gewaehlt.vat_id].filter(Boolean).join(' · '),
+          name: companyLabel(gewaehlt),
+          adresse: companyAddress(gewaehlt),
+          register: [gewaehlt.registration_number, gewaehlt.vat_id ? `USt-IdNr. ${gewaehlt.vat_id}` : '']
+            .filter(Boolean).join(' · '),
+          verifiziertAm: gewaehlt.status === 'verified' ? gewaehlt.decided_at ?? gewaehlt.requested_at : null,
+          inPruefung: gewaehlt.status !== 'verified',
+        }
+      : mitFirmen && waehlbar.length ? null
+      : firma && firmendatenVollstaendig(firma)
       ? {
           zeile: [firma.legal_name, joinAddress(firma), firma.registration_number, firma.vat_id].filter(Boolean).join(' · '),
           name: firma.legal_name,

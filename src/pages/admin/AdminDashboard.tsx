@@ -9,6 +9,7 @@ import { useFraudSignals } from '@/hooks/useFraudSignals';
 import { useDealHealthList } from '@/hooks/useDealHealth';
 import { FraudAlertBanner } from '@/components/fraud/FraudAlertBanner';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
+import { FirmenPruefen } from '@/components/admin/companies/FirmenPruefen';
 import { 
   Building2, 
   Users, 
@@ -393,6 +394,9 @@ export default function AdminDashboard() {
               </Card>
             </Link>
           )}
+
+          {/* Firmen prüfen: Stellen gibt es nur für verifizierte Firmen */}
+          <FirmenPruefen />
 
           {/* Pending KYC Widget */}
           {pendingKycClients.length > 0 && (

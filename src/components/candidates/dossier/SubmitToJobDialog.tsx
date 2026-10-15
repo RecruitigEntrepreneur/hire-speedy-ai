@@ -125,7 +125,7 @@ export function SubmitToJobDialog({
     return jobs.filter((j) => [j.title, j.location, j.industry].some((v) => typeof v === 'string' && v.toLowerCase().includes(q)));
   }, [jobs, query]);
 
-  // Vor der ersten Einreichung muss „Ist das schon dein Kunde?“ beantwortet sein.
+  // Vor der ersten Einreichung muss „Kennst du X schon?“ beantwortet sein.
   const choose = (j: JobRow) => {
     if (!searches.get(j.id)?.client_declaration) setQuestionFor(j);
     else setJob(j);

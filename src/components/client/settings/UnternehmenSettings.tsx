@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { companyAddress, companyLabel, useClientCompanies } from '@/hooks/useClientCompanies';
 import { AusAufnahme, Fehlt, SettingsBlock, SettingsSubpage } from './SettingsShell';
+import { FirmenBlock } from './FirmenBlock';
 import type { useCompanyProfile } from './useCompanyProfile';
 
 const INDUSTRIES = [
@@ -22,6 +24,10 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
   const { profile, update, saveState, ausAufnahme, verifiedAt } = company;
   const { user } = useAuth();
   const { toast } = useToast();
+  // Firmierung, Anschrift und Register gehören zur Hauptfirma; geändert werden
+  // sie nur über „Änderung beantragen“ (Matchunt prüft), nicht frei im Profil.
+  const { companies, unavailable } = useClientCompanies();
+  const main = unavailable ? null : companies.find((c) => c.role === 'main') ?? null;
   const [impressumLaedt, setImpressumLaedt] = useState(false);
   const [logoLaedt, setLogoLaedt] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -70,6 +76,8 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
 
   return (
     <SettingsSubpage title="Unternehmen" description="Ihre Firmendaten für Vertrag und Rechnungen." saveState={saveState} onBack={onBack}>
+      <FirmenBlock />
+
       <SettingsBlock title="Über Ihr Unternehmen">
         <div className="flex items-center gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
@@ -116,6 +124,28 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
       </SettingsBlock>
 
       <div id="firmendaten" className="scroll-mt-24">
+        {main ? (
+          <SettingsBlock
+            title="Rechnungsanschrift"
+            aside={main.status === 'verified' && (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-500">
+                ✓ von Matchunt verifiziert{main.decided_at ? ` am ${new Date(main.decided_at).toLocaleDateString('de-DE')}` : ''}
+              </span>
+            )}
+          >
+            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs text-muted-foreground">Firmierung</dt><dd>{companyLabel(main)}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Anschrift</dt><dd>{companyAddress(main) || '–'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Handelsregister</dt><dd>{main.registration_number || '–'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">USt-IdNr.</dt><dd>{main.vat_id || '–'}</dd></div>
+            </dl>
+            <div className="space-y-2 md:w-1/2">
+              <Label htmlFor="billing_email">Rechnungs-E-Mail<AusAufnahme show={ausAufnahme('billing_email')} /><Fehlt show={!profile.billing_email?.trim()} /></Label>
+              <Input id="billing_email" type="email" value={profile.billing_email || ''} placeholder="buchhaltung@firma.de" onChange={(e) => update({ billing_email: e.target.value })} />
+            </div>
+            <p className="flex items-start gap-1.5 text-xs text-muted-foreground"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />Kommt aus Ihrer Hauptfirma und steht auf dem Rahmenvertrag. Ändern über „Änderung beantragen“ oben, Matchunt prüft.</p>
+          </SettingsBlock>
+        ) : (
         <SettingsBlock
           title="Rechnungsanschrift"
           aside={
@@ -161,6 +191,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
           </div>
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />Stehen auf Ihrem Rahmenvertrag. Ändern Sie sie nur, wenn sich Firmierung oder Anschrift geändert haben.</p>
         </SettingsBlock>
+        )}
       </div>
 
     </SettingsSubpage>

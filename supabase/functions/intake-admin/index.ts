@@ -9,7 +9,7 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeResumeUrl } from '../_shared/app-url.ts';
 import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess } from '../_shared/client-access.ts';
 import { linkFramework, notifyFrameworkConflict } from '../_shared/framework-link.ts';
-import { firmenprofilAusAufnahme } from '../_shared/firmenprofil.ts';
+import { firmenprofilAusAufnahme, firmaAusAufnahme } from '../_shared/firmenprofil.ts';
 
 type Db = ReturnType<typeof serviceClient>;
 
@@ -250,6 +250,9 @@ serve(async (req) => {
       // Nur leere Felder, nie ueberschreiben (firmenprofil.ts).
       const profilRes = await firmenprofilAusAufnahme(supabase, clientUserId!, draft, jobRow);
       if (profilRes.fehler) console.warn('[intake-admin] Firmenprofil nicht gefuellt:', profilRes.fehler);
+      // Die Firma der Stelle (mit der Annahme verifiziert) bekommt Anschrift und Register.
+      const firmaRes = await firmaAusAufnahme(supabase, jobId as string | null, draft, jobRow);
+      if (firmaRes.fehler) console.warn('[intake-admin] Firma nicht gefuellt:', firmaRes.fehler);
 
       // ---- Zugang des Kunden --------------------------------------------------
       // Neu angelegt oder schon vorhanden: der Kunde bekommt denselben Weg
