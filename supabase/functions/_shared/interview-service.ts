@@ -23,6 +23,7 @@ import { aiChat, type AiCall, type AiResult } from './ai.ts';
 import { GUIDE_SYSTEM, GUIDE_TOOL, fallbackGuide, guidePrompt, normalizeGuide, type GuideInput } from './interview-guide.ts';
 import { buildIcs, inviteUid } from './interview-ics.ts';
 import { sendInterviewMail, type InterviewMail, type MailResult } from './interview-mailer.ts';
+import { clientMailAllowed } from './client-mail-prefs.ts';
 import * as mails from './interview-mails.ts';
 import {
   cancelEvent, createMatchuntMeeting, createTeamsEvent, deleteMatchuntMeeting, getBusy, msConfig,
@@ -78,6 +79,8 @@ export function defaultCtx(db: SupabaseClient): ServiceCtx {
     fromEmail,
     ai: aiChat,
     mail: async (mail, log) => {
+      // Reine Mitteilungen an Kunden lassen sich in „Mein Konto“ abschalten.
+      if (!(await clientMailAllowed(db, mail.to, log.template, !!mail.ics))) return { sent: false, error: 'Vom Empfänger abbestellt' };
       const { data: row } = await db.from('email_events').insert({ to_email: mail.to, template_name: log.template, subject: mail.subject, status: 'pending', metadata: log.meta }).select('id').maybeSingle();
       const result = await sendInterviewMail(mail);
       if (row?.id) {
