@@ -148,18 +148,16 @@ interface ActivityItem {
 function OptInActionForm({
   item,
   candidateData,
-  onConfirmOptIn,
   onSaveField,
   saving,
 }: {
   item: TaskDetailItem;
   candidateData: CandidateData | null;
-  onConfirmOptIn: () => void;
   onSaveField: (field: string, value: unknown) => void;
   saving: boolean;
 }) {
   const [salary, setSalary] = useState('');
-  const [checks, setChecks] = useState({ optIn: false, cvPresent: false, salaryConfirmed: false });
+  const [checks, setChecks] = useState({ cvPresent: false, salaryConfirmed: false });
 
   useEffect(() => {
     if (candidateData?.expected_salary) {
@@ -179,16 +177,9 @@ function OptInActionForm({
         Aufgabe erledigen — Opt-In Checkliste
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-3">
-        <label className="flex items-center gap-2.5 cursor-pointer">
-          <Checkbox
-            checked={checks.optIn}
-            onCheckedChange={(v) => {
-              setChecks(c => ({ ...c, optIn: !!v }));
-              if (v) onConfirmOptIn();
-            }}
-          />
-          <span className="text-sm">Opt-In vom Kandidaten bestätigt</span>
-        </label>
+        <p className="text-sm text-muted-foreground">
+          Zusagen kann nur der Kandidat selbst, per Klick in der Einladung.
+        </p>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.cvPresent} disabled />
           <span className={cn('text-sm', checks.cvPresent ? 'text-foreground' : 'text-muted-foreground')}>
@@ -856,32 +847,6 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
     }
   };
 
-  const handleConfirmOptIn = async () => {
-    if (!item.submissionId) return;
-    try {
-      await supabase
-        .from('submissions')
-        .update({ stage: 'candidate_opted_in' })
-        .eq('id', item.submissionId);
-
-      toast.success('Opt-In bestätigt');
-
-      if (item.candidateId) {
-        await logActivity(
-          item.candidateId,
-          'note' as any,
-          'Opt-In vom Recruiter bestätigt',
-          undefined,
-          { submission_id: item.submissionId },
-          item.submissionId,
-          item.itemType === 'alert' ? item.itemId : undefined
-        );
-      }
-    } catch {
-      toast.error('Fehler beim Bestätigen');
-    }
-  };
-
   const handleSaveNoteAndDone = async (text: string) => {
     await handleSaveNote(text);
     onMarkDone(item.itemId);
@@ -1010,7 +975,6 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                     <OptInActionForm
                       item={item}
                       candidateData={candidateData}
-                      onConfirmOptIn={handleConfirmOptIn}
                       onSaveField={handleSaveCandidateField}
                       saving={savingField}
                     />

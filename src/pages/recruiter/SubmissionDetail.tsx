@@ -276,33 +276,6 @@ export default function SubmissionDetail() {
     }
   };
 
-  // ── Handle opt-in confirm ──
-  const handleConfirmOptIn = async () => {
-    if (!submissionId) return;
-    try {
-      await supabase
-        .from('submissions')
-        .update({ stage: 'candidate_opted_in' })
-        .eq('id', submissionId);
-
-      // Mark related alert as actioned
-      const optInAlert = data?.alerts?.find(
-        a => a.alert_type === 'opt_in_pending' && !a.action_taken
-      );
-      if (optInAlert) {
-        await supabase
-          .from('influence_alerts')
-          .update({ action_taken: 'opt_in_confirmed', action_taken_at: new Date().toISOString(), is_read: true })
-          .eq('id', optInAlert.id);
-      }
-
-      refetch();
-      toast.success('Opt-In bestätigt');
-    } catch {
-      toast.error('Fehler beim Bestätigen');
-    }
-  };
-
   // ── Mark alert done ──
   const handleMarkAlertDone = async (alertId: string) => {
     try {
@@ -519,13 +492,9 @@ export default function SubmissionDetail() {
             <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <Clock className="h-5 w-5 text-amber-600 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Wartet auf Kandidaten-Opt-In</p>
-                <p className="text-xs text-muted-foreground">Kontaktieren Sie den Kandidaten und holen Sie die Zustimmung ein.</p>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Wartet auf die Zusage des Kandidaten</p>
+                <p className="text-xs text-muted-foreground">Zusagen kann nur der Kandidat selbst, per Klick in der Einladung. Ein Anruf hilft.</p>
               </div>
-              <Button size="sm" onClick={handleConfirmOptIn}>
-                <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-                Opt-In bestätigen
-              </Button>
             </div>
           )}
         </CardContent>

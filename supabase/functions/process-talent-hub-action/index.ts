@@ -129,59 +129,19 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case "confirm_opt_in": {
-        // Update submission to reveal identity
-        await supabase
-          .from("submissions")
-          .update({
-            identity_revealed: true,
-            revealed_at: new Date().toISOString(),
-          })
-          .eq("id", submissionId);
-
-        // Update interview status
-        const { data: interview } = await supabase
-          .from("interviews")
-          .update({
-            pending_opt_in: false,
-            status: "pending_slot_selection",
-          })
-          .eq("submission_id", submissionId)
-          .eq("status", "pending_opt_in")
-          .select()
-          .single();
-
-        // Notify client
-        await supabase.from("notifications").insert({
-          user_id: submission.job?.client_id,
-          type: "opt_in_confirmed",
-          title: "Kandidat hat zugestimmt",
-          message: `Der Kandidat hat dem Interview zugestimmt. Sie können jetzt den Termin finalisieren.`,
-          metadata: {
-            submission_id: submissionId,
-            interview_id: interview?.id,
-            candidate_name: submission.candidate?.full_name,
-          },
-        });
-
-        // Send email to client with candidate details
-        await sendEmail(supabase, {
-          to: submission.job?.client_id,
-          template: "opt_in_confirmed_to_client",
-          data: {
-            candidateName: submission.candidate?.full_name,
-            candidateEmail: submission.candidate?.email,
-            candidatePhone: submission.candidate?.phone,
-            jobTitle: submission.job?.title,
-            interviewId: interview?.id,
-          },
-        });
-
-        result = { ...result, revealed: true };
-        break;
+        // Das Opt-In gibt nur der Kandidat selbst (Klick in der Einladung,
+        // interview-service). Früher setzte diese Aktion identity_revealed und
+        // gab damit Name und Kontakt frei — ohne Einwilligung (14.10.2026).
+        throw new Error("Das Opt-In kann nur der Kandidat selbst geben (Klick in der Einladung).");
       }
 
       case "move_candidate": {
         const newStage = data?.newStage || getNextStage(submission.stage);
+        // Stufen ab dem Opt-In geben über trg_sync_identity_unlock die Identität
+        // frei. Ohne Einwilligung des Kandidaten nicht dorthin verschieben.
+        if (!submission.identity_unlocked && OPTED_IN_STAGES.includes(newStage)) {
+          throw new Error("Das Opt-In kann nur der Kandidat selbst geben (Klick in der Einladung).");
+        }
         
         // Update submission stage
         await supabase
@@ -444,6 +404,12 @@ async function sendEmail(
 }
 
 // Helper functions for stage management
+// Wie in sync_identity_unlock_with_stage (Migration 20260710100000), dazu das
+// alte Stufen-Vokabular dieser Function.
+const OPTED_IN_STAGES = [
+  "candidate_opted_in", "interview_scheduled", "second_interview", "offer", "hired", "placed", "interview",
+];
+
 function getNextStage(currentStage: string): string {
   const stageOrder = ["new", "screening", "interview", "offer", "hired"];
   const currentIndex = stageOrder.indexOf(currentStage);

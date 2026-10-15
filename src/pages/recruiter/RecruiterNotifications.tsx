@@ -23,8 +23,6 @@ import {
   Unlock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useIdentityUnlock } from '@/hooks/useIdentityUnlock';
-import { OptInResponseDialog } from '@/components/dialogs/OptInResponseDialog';
 
 interface Notification {
   id: string;
@@ -66,12 +64,9 @@ const NOTIFICATION_COLORS: Record<string, string> = {
 export default function RecruiterNotifications() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { respondToOptIn, loading: optInLoading } = useIdentityUnlock();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const [optInDialogOpen, setOptInDialogOpen] = useState(false);
-  const [selectedOptInNotification, setSelectedOptInNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -160,25 +155,6 @@ export default function RecruiterNotifications() {
       default:
         return null;
     }
-  };
-
-  const handleOptInClick = (notification: Notification) => {
-    setSelectedOptInNotification(notification);
-    setOptInDialogOpen(true);
-  };
-
-  const handleOptInApprove = async (submissionId: string) => {
-    await respondToOptIn(submissionId, true);
-    setOptInDialogOpen(false);
-    setSelectedOptInNotification(null);
-    fetchNotifications();
-  };
-
-  const handleOptInDeny = async (submissionId: string, reason: string) => {
-    await respondToOptIn(submissionId, false, reason);
-    setOptInDialogOpen(false);
-    setSelectedOptInNotification(null);
-    fetchNotifications();
   };
 
   const filteredNotifications = notifications.filter(n => 
@@ -284,22 +260,10 @@ export default function RecruiterNotifications() {
                           </div>
                         </div>
                         
-                        {/* Opt-In Action Buttons */}
                         {notification.type === 'opt_in_request' && (
-                          <div className="mt-3 flex gap-2">
-                            <Button 
-                              size="sm" 
-                              className="bg-emerald hover:bg-emerald/90"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleOptInClick(notification);
-                              }}
-                            >
-                              <Check className="h-3 w-3 mr-1" />
-                              Bearbeiten
-                            </Button>
-                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Zusagen kann nur der Kandidat selbst, per Klick in der Einladung.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -320,18 +284,6 @@ export default function RecruiterNotifications() {
           </CardContent>
         </Card>
 
-        {/* Opt-In Response Dialog */}
-        {selectedOptInNotification && (
-          <OptInResponseDialog
-            open={optInDialogOpen}
-            onOpenChange={setOptInDialogOpen}
-            submissionId={selectedOptInNotification.related_id || ''}
-            candidateName="Kandidat"
-            jobIndustry="Branche"
-            onApprove={handleOptInApprove}
-            onDeny={handleOptInDeny}
-          />
-        )}
       </div>
     </DashboardLayout>
   );

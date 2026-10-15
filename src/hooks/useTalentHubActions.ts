@@ -6,8 +6,7 @@ export type TalentHubActionType =
   | 'request_interview' 
   | 'move_candidate' 
   | 'reject_candidate' 
-  | 'give_feedback' 
-  | 'confirm_opt_in';
+  | 'give_feedback';
 
 interface ActionData {
   proposedSlots?: string[];
@@ -69,10 +68,6 @@ export function useTalentHubActions() {
           title: 'Feedback gespeichert',
           description: getFeedbackDescription(data?.feedbackRating),
         },
-        confirm_opt_in: {
-          title: 'Zustimmung bestätigt',
-          description: 'Die Kandidaten-Details sind jetzt verfügbar.',
-        },
       };
 
       toast(toastMessages[action]);
@@ -123,10 +118,6 @@ export function useTalentHubActions() {
     return executeAction('give_feedback', submissionId, { feedbackRating, feedbackNote });
   }, [executeAction]);
 
-  const confirmOptIn = useCallback(async (submissionId: string) => {
-    return executeAction('confirm_opt_in', submissionId);
-  }, [executeAction]);
-
   return {
     loading,
     actionInProgress,
@@ -135,7 +126,6 @@ export function useTalentHubActions() {
     moveCandidate,
     rejectCandidate,
     giveFeedback,
-    confirmOptIn,
   };
 }
 
