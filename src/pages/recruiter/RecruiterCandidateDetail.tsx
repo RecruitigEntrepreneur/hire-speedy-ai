@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { CandidateTaskWindow } from '@/components/recruiter/tasks/CandidateTaskWindow';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -235,6 +236,9 @@ export default function RecruiterCandidateDetail() {
             onCvUpload={() => setCvUploadOpen(true)}
             onStartInterview={handleStartInterview}
           />
+
+        {/* Aufgaben-Fenster: öffnet sich über ?aufgabe= (Dashboard, Aufgaben-Block im Profilkopf) */}
+        <CandidateTaskWindow candidateId={candidate.id} />
 
         {playbook && (
           <CandidatePlaybookPanel

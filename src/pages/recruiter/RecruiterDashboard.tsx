@@ -417,9 +417,13 @@ export default function RecruiterDashboard() {
   };
 
   const handleViewTask = (item: UnifiedTaskItem) => {
-    // Klick öffnet die Aufgabe selbst — nicht das Profil, in dem man sie erneut suchen müsste.
     if (item.itemId.startsWith('derived-debrief-')) {
       navigate(`/recruiter/interviews?interview=${item.itemId.replace('derived-debrief-', '')}`);
+      return;
+    }
+    // Ins Kandidatenprofil, dort öffnet sich die Aufgabe (14.10.2026). Ohne Kandidat: Seite „Aufgaben“.
+    if (item.candidateId) {
+      navigate(`/recruiter/candidates/${item.candidateId}?aufgabe=${encodeURIComponent(item.itemId)}`);
       return;
     }
     navigate(`/recruiter/influence?item=${encodeURIComponent(item.itemId)}`);

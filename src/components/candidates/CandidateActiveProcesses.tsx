@@ -21,6 +21,7 @@ import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-f
 import { de } from 'date-fns/locale';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { ScrollMoreHint } from './ScrollMoreHint';
 import { useRef, useState, useEffect } from 'react';
 import { SubmissionDetailDialog } from '@/components/influence/SubmissionDetailDialog';
 
@@ -237,8 +238,8 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
           </span>
         </div>
         <div className="flex gap-2">
-          <div className="h-[88px] w-52 bg-muted/30 rounded-lg animate-pulse shrink-0" />
-          <div className="h-[88px] w-52 bg-muted/30 rounded-lg animate-pulse shrink-0" />
+          <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
+          <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
         </div>
       </div>
     );
@@ -261,7 +262,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="flex items-center gap-2">
+      <div className="flex h-6 items-center gap-2">
         <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Aktive Prozesse ({processes.length})
@@ -279,9 +280,10 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
           <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-card to-transparent z-10 pointer-events-none rounded-r-lg" />
         )}
 
+        <ScrollMoreHint scrollRef={scrollRef} />
         <div
           ref={scrollRef}
-          className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
+          className="flex snap-x snap-mandatory scroll-pl-10 gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {processes.map((process) => {
@@ -313,7 +315,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                 key={process.id}
                 onClick={() => openSubmissionDialog(process.id)}
                 className={cn(
-                  'shrink-0 w-52 rounded-lg border p-2.5 transition-all hover:shadow-sm group cursor-pointer',
+                  'shrink-0 snap-start h-[110px] w-[200px] rounded-lg border p-2.5 transition-all hover:shadow-sm group cursor-pointer',
                   isAwaitingOptIn && 'border-amber-500/30 bg-amber-500/5',
                   interviewInfo?.urgent && 'border-primary/30 bg-primary/5',
                   !isAwaitingOptIn && !interviewInfo?.urgent && 'hover:border-muted-foreground/30'

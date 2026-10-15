@@ -14,7 +14,6 @@ import {
   Clock,
   Phone,
   Mail,
-  ShieldCheck,
   Info,
   MessageSquare,
   Edit,
@@ -24,12 +23,14 @@ import {
   Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ScrollMoreHint } from './ScrollMoreHint';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { useRecruiterTasks } from '@/hooks/useRecruiterTasks';
+import { useSearchParams } from 'react-router-dom';
 import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
@@ -233,6 +234,15 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   // /recruiter/influence und das Dashboard — sonst behauptet die Sektion
   // "Alles erledigt", während die Inbox offene Aufgaben zum Kandidaten zeigt.
   const { allItems: inboxItems, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
+  const [searchParams, setSearchParams] = useSearchParams();
+  /** Steht die Aufgabe in der Inbox, öffnet das neue Fenster (?aufgabe=); sonst das alte Detail. */
+  const openInTaskWindow = (itemId: string) => {
+    if (!inboxItems.some((i) => i.itemId === itemId)) return false;
+    const next = new URLSearchParams(searchParams);
+    next.set('aufgabe', itemId);
+    setSearchParams(next, { replace: true });
+    return true;
+  };
 
   // Horizontal scroll
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -382,48 +392,6 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     await handleMarkDone(taskId);
   };
 
-  const handleConfirmOptIn = async (taskId: string, submissionId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    try {
-      const { error: subError } = await supabase
-        .from('submissions')
-        .update({ stage: 'candidate_opted_in' })
-        .eq('id', submissionId);
-
-      if (subError) throw subError;
-
-      const { error: alertError } = await supabase
-        .from('influence_alerts')
-        .update({
-          action_taken: 'opt_in_confirmed',
-          action_taken_at: new Date().toISOString(),
-          is_read: true
-        })
-        .eq('id', taskId);
-
-      if (alertError) throw alertError;
-
-      setTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, action_taken: 'opt_in_confirmed' } : t
-      ));
-
-      await logActivity(
-        candidateId,
-        'note' as any,
-        'Opt-In vom Recruiter bestätigt',
-        undefined,
-        { submission_id: submissionId },
-        submissionId,
-        taskId
-      );
-
-      toast.success('Opt-In bestätigt – Kunde wird benachrichtigt');
-    } catch (error) {
-      console.error('Error confirming opt-in:', error);
-      toast.error('Fehler beim Bestätigen');
-    }
-  };
-
   const pendingTasks = tasks.filter(t => !t.action_taken);
   const completedTasks = tasks.filter(t => t.action_taken);
   const exposeTasks = showExposeTasks ? buildExposeTasks(candidate, hasInterview) : [];
@@ -448,6 +416,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   };
 
   const openDerivedDetail = (item: UnifiedTaskItem) => {
+    // Neues Aufgaben-Fenster (wie auf der Seite „Aufgaben“), geöffnet von CandidateTaskWindow.
+    if (openInTaskWindow(item.itemId)) return;
     setDetailItem({
       itemType: 'derived',
       itemId: item.itemId,
@@ -489,6 +459,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   };
 
   const openTaskDetail = (task: CandidateTask) => {
+    if (openInTaskWindow(task.id)) return;
     setDetailItem(toDetailItem(
       task,
       candidateId,
@@ -564,8 +535,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
           </span>
         </div>
         <div className="flex gap-2">
-          <div className="h-[100px] w-64 bg-muted/30 rounded-lg animate-pulse shrink-0" />
-          <div className="h-[100px] w-64 bg-muted/30 rounded-lg animate-pulse shrink-0" />
+          <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
+          <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
         </div>
       </div>
     );
@@ -621,9 +592,10 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-card to-transparent z-10 pointer-events-none rounded-r-lg" />
           )}
 
+          <ScrollMoreHint scrollRef={scrollRef} />
           <div
             ref={scrollRef}
-            className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
+            className="flex snap-x snap-mandatory scroll-pl-10 gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {/* Abgeleitete Aufgaben (Nachfassen/Debrief) aus der Unified Inbox */}
@@ -634,7 +606,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   key={item.itemId}
                   onClick={() => openDerivedDetail(item)}
                   className={cn(
-                    'shrink-0 w-64 rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
+                    'shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
                     config.borderColor
                   )}
                 >
@@ -653,18 +625,17 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 2: Title (2 lines) */}
                   <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{item.title}</p>
 
-                  {/* Row 3: Job context */}
-                  {(item.jobTitle || item.companyName) && (
-                    <div className="flex items-center gap-1 mt-1 min-w-0">
-                      <Shield className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      <span className="text-[10px] text-muted-foreground truncate">
-                        {item.companyName || ''}{item.jobTitle ? ` · ${item.jobTitle}` : ''}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Row 4: Quick actions */}
-                  <div className="flex items-center justify-end mt-1.5 gap-0.5">
+                  {/* Row 3: Job context + quick actions */}
+                  <div className="mt-auto flex items-center gap-1 min-w-0">
+                    {(item.jobTitle || item.companyName) && (
+                      <>
+                        <Shield className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {item.companyName || ''}{item.jobTitle ? ` · ${item.jobTitle}` : ''}
+                        </span>
+                      </>
+                    )}
+                    <div className="ml-auto flex shrink-0 items-center gap-0.5">
                     {contact.phone && (
                       <Button
                         variant="ghost"
@@ -683,6 +654,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     >
                       <Check className="h-2.5 w-2.5" />
                     </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -691,7 +663,6 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
             {/* DB-based tasks (Influence Alerts) — enhanced cards */}
             {pendingTasks.map(task => {
               const config = priorityConfig[task.priority];
-              const isOptInPending = task.alert_type === 'opt_in_pending';
               const timeAgo = formatDistanceToNow(new Date(task.created_at), { locale: de, addSuffix: true });
 
               return (
@@ -699,7 +670,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   key={task.id}
                   onClick={() => openTaskDetail(task)}
                   className={cn(
-                    'shrink-0 w-64 rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
+                    'shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
                     config.borderColor,
                     task.id === activeTaskId && 'ring-2 ring-primary bg-primary/5'
                   )}
@@ -715,28 +686,17 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 2: Title (2 lines) */}
                   <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{task.title}</p>
 
-                  {/* Row 3: Job context */}
-                  {(task.jobTitle || task.companyName) && (
-                    <div className="flex items-center gap-1 mt-1 min-w-0">
-                      <Shield className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      <span className="text-[10px] text-muted-foreground truncate">
-                        {task.companyName ? `${task.companyName}` : ''}{task.jobTitle ? ` · ${task.jobTitle}` : ''}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Row 4: Quick actions */}
-                  <div className="flex items-center justify-end mt-1.5 gap-0.5">
-                    {isOptInPending && (
-                      <Button
-                        variant="default"
-                        size="icon"
-                        className="h-5 w-5"
-                        onClick={(e) => handleConfirmOptIn(task.id, task.submission_id, e)}
-                      >
-                        <ShieldCheck className="h-2.5 w-2.5" />
-                      </Button>
+                  {/* Row 3: Job context + quick actions */}
+                  <div className="mt-auto flex items-center gap-1 min-w-0">
+                    {(task.jobTitle || task.companyName) && (
+                      <>
+                        <Shield className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {task.companyName ? `${task.companyName}` : ''}{task.jobTitle ? ` · ${task.jobTitle}` : ''}
+                        </span>
+                      </>
                     )}
+                    <div className="ml-auto flex shrink-0 items-center gap-0.5">
                     {contact.phone && (
                       <Button
                         variant="ghost"
@@ -755,6 +715,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     >
                       <Check className="h-2.5 w-2.5" />
                     </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -765,7 +726,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               <div
                 key={task.id}
                 onClick={() => openExposeDetail(task)}
-                className="shrink-0 w-64 rounded-lg border border-l-[3px] border-l-blue-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
+                className="shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-blue-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
               >
                 {/* Row 1: Badge + label */}
                 <div className="flex items-center gap-1.5 mb-1">
@@ -778,13 +739,12 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                 {/* Row 2: Title (2 lines) */}
                 <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{task.title}</p>
 
-                {/* Row 3: Description */}
-                <p className="text-[10px] text-muted-foreground truncate mt-1">
-                  {task.description}
-                </p>
-
-                {/* Row 4: Actions */}
-                <div className="flex items-center justify-end mt-1.5 gap-0.5">
+                {/* Row 3: Description + actions */}
+                <div className="mt-auto flex items-center gap-1 min-w-0">
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {task.description}
+                  </p>
+                  <div className="ml-auto flex shrink-0 items-center gap-0.5">
                   {task.actions.includes('cv_upload') && onCvUpload && (
                     <Button
                       variant="ghost"
@@ -815,6 +775,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                       <Edit className="h-2.5 w-2.5" />
                     </Button>
                   )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -826,7 +787,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                 <div
                   key={task.id}
                   onClick={() => openManualTaskDetail(task)}
-                  className="shrink-0 w-64 rounded-lg border border-l-[3px] border-l-violet-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
+                  className="shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-violet-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
                 >
                   {/* Row 1: Badge + Time */}
                   <div className="flex items-center gap-1.5 mb-1">
@@ -839,19 +800,17 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 2: Title (2 lines) */}
                   <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{task.title}</p>
 
-                  {/* Row 3: Description */}
-                  {task.description && (
-                    <p className="text-[10px] text-muted-foreground truncate mt-1">
-                      {task.description}
-                    </p>
-                  )}
-
-                  {/* Row 4: Done action */}
-                  <div className="flex items-center justify-end mt-1.5">
+                  {/* Row 3: Description + done action */}
+                  <div className="mt-auto flex items-center gap-1 min-w-0">
+                    {task.description && (
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {task.description}
+                      </p>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      className="ml-auto h-5 w-5 shrink-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
                       onClick={(e) => handleCompleteManualTask(task.id, e)}
                     >
                       <Check className="h-2.5 w-2.5" />

@@ -224,13 +224,14 @@ export function CandidateHeroHeader({
             </div>
           )}
 
-          {/* Active Processes */}
-          <div className="mt-4 pt-3 border-t">
+          {/* Aktive Prozesse und Aufgaben nebeneinander: halbe Höhe, je Block 2–3 Karten,
+              der Rest seitlich mit „+N ›“ (14.10.2026) */}
+          <div className="mt-4 grid gap-4 border-t pt-3 md:grid-cols-2">
+          <div className="min-w-0">
             <CandidateActiveProcesses candidateId={candidateId} />
           </div>
 
-          {/* Tasks */}
-          <div className="mt-4 pt-3 border-t">
+          <div className="min-w-0">
             <CandidateTasksSection
               candidateId={candidateId}
               activeTaskId={activeTaskId}
@@ -253,6 +254,7 @@ export function CandidateHeroHeader({
               onStartInterview={onStartInterview}
               showExposeTasks={false}
             />
+          </div>
           </div>
         </div>
       </div>
