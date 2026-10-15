@@ -38,7 +38,8 @@ export function ActivateJobDialog({
 }: {
   job: JobLike | null;
   onClose: () => void;
-  onActivated: (jobId: string) => void;
+  /** `wantsSubmit`: im Erfolgsschritt „Einreichen“ statt „Zur Stelle“ gewählt. */
+  onActivated: (jobId: string, wantsSubmit: boolean) => void;
   gate: ReturnType<typeof useActivationGate>;
   /** Aus der Akte oder dem Einreichen-Fenster: Suche startet zum Einreichen. */
   forSubmission?: boolean;
@@ -52,9 +53,9 @@ export function ActivateJobDialog({
     );
   }
 
-  const done = () => {
+  const done = (wantsSubmit: boolean) => {
     onClose();
-    onActivated(job.id);
+    onActivated(job.id, wantsSubmit);
   };
 
   return (
@@ -73,7 +74,6 @@ export function ActivateJobDialog({
         remoteType: str(job.remote_type),
       })}
       earning={earningOf(job)}
-      feePercentage={num(job.recruiter_fee_percentage)}
       hiringUrgency={str(job.hiring_urgency)}
       activeCount={activeCount}
       maxSlots={maxSlots}
@@ -82,8 +82,8 @@ export function ActivateJobDialog({
         const res = await activateJob(job.id, forSubmission);
         return res.success && res.result ? { ok: true, result: res.result } : { ok: false, error: res.error || 'Das hat nicht geklappt.' };
       }}
-      onSubmitCandidate={done}
-      onGoToJob={done}
+      onSubmitCandidate={() => done(true)}
+      onGoToJob={() => done(false)}
     />
   );
 }

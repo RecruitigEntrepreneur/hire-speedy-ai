@@ -83,7 +83,7 @@ export async function fetchMatchV41(candidateId: string, opts: { force?: boolean
 export const TIER_STYLE: Record<MatchTier, { label: string; className: string }> = {
   sehr_passend: { label: 'Sehr passend', className: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900' },
   passend: { label: 'Passend', className: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-900' },
-  pruefen: { label: 'Prüfen', className: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900' },
+  pruefen: { label: 'Teilweise', className: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900' },
   ausgeschlossen: { label: 'Ausgeschlossen', className: 'bg-muted text-muted-foreground border-border' },
 };
 

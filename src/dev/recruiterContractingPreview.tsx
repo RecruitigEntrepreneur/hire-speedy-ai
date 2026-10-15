@@ -62,7 +62,7 @@ function Ansicht() {
   if (screen === 'aktivieren') {
     return (
       <ActivationConfirmDialog open onOpenChange={nichts} jobId={stelle.id} jobTitle={stelle.title} anonymousLabel="[Telemedizin | 1–50 MA | Hybrid München]"
-        earning={null} feePercentage={11} earningPerDay={verdienstJeTag(stelle)} hiringUrgency={null}
+        earning={null} earningPerDay={verdienstJeTag(stelle)} hiringUrgency={null}
         activeCount={1} maxSlots={10}
         onConfirm={async () => ({ ok: false, error: 'Vorschau' })} onSubmitCandidate={nichts} onGoToJob={nichts} />
     );

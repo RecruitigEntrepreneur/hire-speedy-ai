@@ -13,7 +13,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Lock, Loader2, Flame, ArrowRight, UserPlus, Search, Eye, ShieldCheck, Clock, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import type { StartSearchResult } from '@/lib/jobSearch';
+import { mySearches, type StartSearchResult } from '@/lib/jobSearch';
+import { FIT_LABEL, byFit, isFitting } from '@/lib/matchFit';
+import { usePoolFit } from '@/hooks/usePoolFit';
+import { Badge } from '@/components/ui/badge';
 import { ClientQuestionFlow } from './search/ClientQuestionFlow';
 
 interface MiniCandidate {
@@ -31,8 +34,7 @@ interface ActivationConfirmDialogProps {
   jobTitle: string;
   anonymousLabel: string;
   earning: number | null;
-  feePercentage: number | null;
-  /** Contracting: Verdienst je Einsatztag, z. B. "44–110 €" -- ersetzt die Fee-Zeile. */
+  /** Contracting: Verdienst je Einsatztag, z. B. "44–110 €" -- ersetzt den Verdienst. */
   earningPerDay?: string | null;
   hiringUrgency: string | null;
   /** Offene Suchen ohne Einreichung / Plätze */
@@ -44,8 +46,6 @@ interface ActivationConfirmDialogProps {
   onSubmitCandidate: (candidateId?: string) => void;
   onGoToJob: () => void;
 }
-
-const formatEuroShort = (n: number) => (n >= 1000 ? `€${Math.round(n / 1000)}k` : `€${n}`);
 
 /**
  * „Ich suche“: Hinweise zuerst (der Kunde sieht dich, Kontakt nur über Matchunt,
@@ -59,7 +59,6 @@ export function ActivationConfirmDialog({
   jobTitle,
   anonymousLabel,
   earning,
-  feePercentage,
   earningPerDay,
   hiringUrgency,
   activeCount,
@@ -77,9 +76,11 @@ export function ActivationConfirmDialog({
   const [result, setResult] = useState<StartSearchResult | null>(null);
   const [candidates, setCandidates] = useState<MiniCandidate[]>([]);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [clientInfo, setClientInfo] = useState<string | null>(null);
 
   const isUrgent = hiringUrgency === 'urgent';
 
+  // Nur Kandidaten, die laut Matching passen (14.10.2026) – nicht einfach die neuesten.
   useEffect(() => {
     if (step !== 'success' || !user || forSubmission) return;
     setCandidatesLoading(true);
@@ -88,12 +89,39 @@ export function ActivationConfirmDialog({
       .select('id, full_name, job_title')
       .eq('recruiter_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(3)
+      .limit(30)
       .then(({ data }) => {
         setCandidates((data as MiniCandidate[]) || []);
         setCandidatesLoading(false);
       });
   }, [step, user, forSubmission]);
+  const pool = usePoolFit(step === 'success' && !forSubmission ? jobId : null, candidates.map((c) => c.id));
+  const fitting = candidates
+    .filter((c) => isFitting(pool.fit.get(c.id)))
+    .sort((a, b) => byFit(pool.fit.get(a.id)!, pool.fit.get(b.id)!))
+    .slice(0, 3);
+
+  // Kundenangabe: einmal je Kunde beantwortet, danach nur noch als Hinweis.
+  useEffect(() => {
+    if (step !== 'success') return;
+    mySearches()
+      .then(async (rows) => {
+        const s = (rows ?? []).find((r) => r.job_id === jobId);
+        if (!s?.client_declaration) return setClientInfo(null);
+        const label = s.client_declaration.startsWith('no') ? 'kein Bestandskunde'
+          : s.client_declaration === 'client:confirmed' ? 'Bestandskunde (bestätigt)'
+          : s.client_declaration === 'client:rejected' ? 'kein Bestandskunde (nicht bestätigt)'
+          : 'Bestandskunde (wird geprüft)';
+        let since = '';
+        if (s.client_declaration_id) {
+          const { data } = await supabase.from('recruiter_client_declarations' as never).select('created_at').eq('id', s.client_declaration_id).maybeSingle();
+          const at = (data as { created_at?: string } | null)?.created_at;
+          if (at) since = ` (deine Angabe vom ${new Date(at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })})`;
+        }
+        setClientInfo(`Kunde: ${label}${since}`);
+      })
+      .catch(() => setClientInfo(null));
+  }, [step, jobId]);
 
   const afterQuestion = () => {
     if (forSubmission) {
@@ -135,7 +163,8 @@ export function ActivationConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent className="max-w-md">
+      {/* Die Kundenfrage kommt direkt nach „Ich suche“ und wird beantwortet, nicht weggedrückt. */}
+      <AlertDialogContent className="max-w-md" onEscapeKeyDown={(e) => { if (step === 'question') e.preventDefault(); }}>
         {step === 'confirm' && (
           <>
             <AlertDialogHeader>
@@ -145,26 +174,22 @@ export function ActivationConfirmDialog({
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-4">
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-                    <p className="font-medium text-foreground text-sm">{jobTitle}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{anonymousLabel}</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {earningPerDay ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-xs font-medium">
-                        Verdienst ca. {earningPerDay} je Einsatztag
-                      </span>
-                    ) : earning !== null && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-xs font-medium">
-                        Fee {feePercentage ? `${feePercentage} % ` : ''}≈ {formatEuroShort(earning)}
-                      </span>
-                    )}
-                    {isUrgent && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-destructive/10 text-destructive text-xs font-medium">
-                        <Flame className="h-3 w-3" />
-                        Dringend
-                      </span>
+                  {/* Stelle mit Verdienst rechts, wie auf der Stellenkarte */}
+                  <div className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                        {isUrgent && <Flame className="h-3.5 w-3.5 shrink-0 text-destructive" aria-label="Dringend" />}
+                        {jobTitle}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{anonymousLabel}</p>
+                    </div>
+                    {(earningPerDay || earning !== null) && (
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold tabular-nums text-emerald-500">
+                          {earningPerDay ?? `≈ €${earning!.toLocaleString('de-DE')}`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{earningPerDay ? 'je Einsatztag' : 'dein Verdienst'}</p>
+                      </div>
                     )}
                   </div>
 
@@ -238,7 +263,7 @@ export function ActivationConfirmDialog({
 
         {step === 'success' && (
           <>
-            <AlertDialogHeader>
+            <AlertDialogHeader className="min-w-0">
               <AlertDialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-500">
                 <Search className="h-5 w-5" />
                 Du suchst jetzt
@@ -251,35 +276,40 @@ export function ActivationConfirmDialog({
                     </div>
                     <div className="min-w-0">
                       <p className="font-medium text-foreground text-sm truncate">{company || jobTitle}</p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">
                         {[jobTitle, result?.location].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                   </div>
+                  {clientInfo && <p className="-mt-2 text-xs text-muted-foreground">{clientInfo}</p>}
 
                   <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Direkt loslegen — deine Kandidaten:</p>
-                    {candidatesLoading ? (
-                      <div className="flex justify-center py-3">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : candidates.length > 0 ? (
+                    <p className="text-xs font-medium text-muted-foreground">Passend aus deinem Pool:</p>
+                    {fitting.length > 0 ? (
                       <div className="space-y-1.5">
-                        {candidates.map((c) => (
-                          <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-foreground truncate">{c.full_name}</p>
-                              {c.job_title && <p className="text-[11px] text-muted-foreground truncate">{c.job_title}</p>}
+                        {fitting.map((c) => {
+                          const f = pool.fit.get(c.id);
+                          return (
+                            <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-foreground truncate">{c.full_name}</p>
+                                {c.job_title && <p className="text-[11px] text-muted-foreground truncate">{c.job_title}</p>}
+                              </div>
+                              {isFitting(f) && <Badge variant="outline" className="shrink-0 text-[10px]">{FIT_LABEL[f]}</Badge>}
+                              <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => onSubmitCandidate(c.id)}>
+                                Einreichen
+                              </Button>
                             </div>
-                            <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => onSubmitCandidate(c.id)}>
-                              Einreichen
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
+                      </div>
+                    ) : candidatesLoading || pool.checking ? (
+                      <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Passende Kandidaten werden gesucht …
                       </div>
                     ) : (
                       <div className="p-3 rounded-lg border border-dashed border-border/50 text-center">
-                        <p className="text-xs text-muted-foreground">Noch keine Kandidaten angelegt.</p>
+                        <p className="text-xs text-muted-foreground">{candidates.length ? 'Noch kein passender Kandidat in deinem Pool.' : 'Noch keine Kandidaten angelegt.'}</p>
                         <Button size="sm" variant="outline" className="mt-2 h-7 text-xs gap-1" onClick={() => onSubmitCandidate()}>
                           <UserPlus className="h-3 w-3" />
                           Kandidat anlegen &amp; einreichen

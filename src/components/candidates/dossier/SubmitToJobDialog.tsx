@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Loader2, MapPin, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, ChevronRight, Loader2, MapPin, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,16 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
-import { ActivateJobDialog, useActivationGate } from '@/components/recruiter/ActivateJobDialog';
+import { useActivationGate } from '@/components/recruiter/ActivateJobDialog';
 import { getRecruiterCriteria } from '@/lib/recruiterBriefing';
 import { mySearches, type MySearch } from '@/lib/jobSearch';
+import { earningFor } from '@/lib/submissionNotify';
 import { ClientQuestionFlow } from '@/components/recruiter/search/ClientQuestionFlow';
+import { useMatchV41 } from '@/hooks/useMatchV41';
+import { FIT_LABEL, fitLine, fitOf, isFitting, type Fit } from '@/lib/matchFit';
 
 type JobRow = Record<string, unknown> & { id: string; title: string };
 
 const REMOTE_LABELS: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
 
-function JobLine({ job, action, note }: { job: JobRow; action: React.ReactNode; note?: string | null }) {
+function JobLine({ job, action, note, badge, detail }: { job: JobRow; action: ReactNode; note?: string | null; badge?: ReactNode; detail?: string | null }) {
   const remote = typeof job.remote_type === 'string' ? REMOTE_LABELS[job.remote_type] ?? null : null;
   const budget = typeof job.salary_max === 'number' ? `${typeof job.salary_min === 'number' ? `${Math.round(job.salary_min / 1000)}–` : 'bis '}${Math.round(job.salary_max / 1000)}k` : null;
   return (
@@ -24,8 +28,10 @@ function JobLine({ job, action, note }: { job: JobRow; action: React.ReactNode; 
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">
           {job.title}
+          {badge && <> {badge}</>}
           {note && <span className="font-normal text-muted-foreground"> · {note}</span>}
         </span>
+        {detail && <span className="block truncate text-xs text-foreground/80">{detail}</span>}
         <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           {typeof job.location === 'string' && job.location && (
             <>
@@ -63,17 +69,27 @@ export function SubmitToJobDialog({
   initialJobId?: string | null;
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const gate = useActivationGate();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [submittedJobIds, setSubmittedJobIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [job, setJob] = useState<JobRow | null>(null);
-  const [activateFor, setActivateFor] = useState<JobRow | null>(null);
   const [questionFor, setQuestionFor] = useState<JobRow | null>(null);
   const [searches, setSearches] = useState<Map<string, MySearch>>(new Map());
 
   const preselected = useRef(false);
+  // Nur Stellen, zu denen der Kandidat laut Matching passt – dieselben wie unter
+  // „Passende Stellen“ im Profil (14.10.2026). Fällt das Matching aus, alle zeigen.
+  const match = useMatchV41(open ? candidateId : undefined);
+  const fitByJob = useMemo(
+    () => new Map<string, Fit>(match.rows.map((r) => [r.job_id, fitOf(r.tier, r.override?.decision)])),
+    [match.rows],
+  );
+  const matchDown = match.unavailable || !!match.error;
+  const rowByJob = useMemo(() => new Map(match.rows.map((r) => [r.job_id, r])), [match.rows]);
+  const shows = (j: JobRow) => matchDown || submittedJobIds.has(j.id) || isFitting(fitByJob.get(j.id));
 
   useEffect(() => {
     if (!open || !user) return;
@@ -114,14 +130,27 @@ export function SubmitToJobDialog({
     if (!searches.get(j.id)?.client_declaration) setQuestionFor(j);
     else setJob(j);
   };
-  const active = filtered.filter((j) => gate.isActivated(j.id));
-  const others = filtered.filter((j) => !gate.isActivated(j.id));
+  const active = filtered.filter((j) => gate.isActivated(j.id) && shows(j));
+  const others = filtered.filter((j) => !gate.isActivated(j.id) && shows(j));
+  const fitBadge = (j: JobRow) => {
+    const f = fitByJob.get(j.id);
+    return isFitting(f) ? <Badge variant="outline" className="align-middle text-[10px] font-normal">{FIT_LABEL[f]}</Badge> : null;
+  };
+  const fitDetail = (j: JobRow) => {
+    const r = rowByJob.get(j.id);
+    return r ? fitLine(r) || null : null;
+  };
+  // Neue Stelle: erst ansehen (Stellenseite mit diesem Kandidaten), dann suchen (15.10.2026)
+  const view = (j: JobRow) => {
+    onOpenChange(false);
+    navigate(`/recruiter/jobs/${j.id}?fuer=${candidateId}`);
+  };
   const firstName = candidateName.split(' ')[0] || candidateName;
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl grid-cols-[minmax(0,1fr)] overflow-y-auto">
           {questionFor && !job ? (
             <>
               <DialogHeader>
@@ -145,15 +174,15 @@ export function SubmitToJobDialog({
             <>
               <DialogHeader>
                 <DialogTitle>{firstName} auf eine Stelle einreichen</DialogTitle>
-                <DialogDescription>Bei Stellen, für die du noch nicht suchst, startet die Suche beim Einreichen mit.</DialogDescription>
+                <DialogDescription>Nur Stellen, zu denen {firstName} laut Matching passt. Neue Stellen erst ansehen, dann suchen.</DialogDescription>
               </DialogHeader>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Stelle suchen, z. B. Support" className="pl-8" autoFocus />
               </div>
-              {loading || gate.loading ? (
+              {loading || gate.loading || (match.loading && !matchDown) ? (
                 <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Stellen werden geladen …
+                  <Loader2 className="h-4 w-4 animate-spin" /> Passende Stellen werden geladen …
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -163,7 +192,7 @@ export function SubmitToJobDialog({
                     </p>
                     {active.length === 0 ? (
                       <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                        {query ? 'Keine deiner Suchen passt.' : 'Du suchst noch für keine Stelle.'}
+                        {query ? 'Keine deiner Suchen passt.' : filtered.some((j) => gate.isActivated(j.id)) ? `Keine deiner Suchen passt zu ${firstName}.` : 'Du suchst noch für keine Stelle.'}
                       </p>
                     ) : (
                       <ul className="divide-y divide-border rounded-md border border-border">
@@ -171,6 +200,8 @@ export function SubmitToJobDialog({
                           <JobLine
                             key={j.id}
                             job={j}
+                            badge={fitBadge(j)}
+                            detail={submittedJobIds.has(j.id) ? null : fitDetail(j)}
                             note={(searches.get(j.id)?.submissions ?? 0) > 0 ? `${searches.get(j.id)?.submissions} eingereicht` : null}
                             action={
                               submittedJobIds.has(j.id) ? (
@@ -192,11 +223,13 @@ export function SubmitToJobDialog({
                           <JobLine
                             key={j.id}
                             job={j}
+                            badge={fitBadge(j)}
+                            detail={fitDetail(j)}
                             action={
                               typeof j.paused_at === 'string' && j.paused_at ? (
                                 <span className="shrink-0 text-xs text-muted-foreground">pausiert</span>
                               ) : (
-                                <Button size="sm" variant="outline" onClick={() => setActivateFor(j)}>Suche starten</Button>
+                                <Button size="sm" variant="outline" className="shrink-0 gap-0.5" onClick={() => view(j)}>Ansehen<ChevronRight className="h-3.5 w-3.5" /></Button>
                               )
                             }
                           />
@@ -210,8 +243,11 @@ export function SubmitToJobDialog({
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Vorstellung vorbereiten</DialogTitle>
-                <DialogDescription>{job.title} · Angaben prüfen und anschließend einreichen.</DialogDescription>
+                <DialogTitle>{firstName} bei „{job.title}“ vorstellen</DialogTitle>
+                <DialogDescription>
+                  {[typeof job.industry === 'string' ? job.industry : null, typeof job.location === 'string' ? job.location : null,
+                    earningFor(job) ? `≈ ${earningFor(job)!.toLocaleString('de-DE')} € für dich` : null].filter(Boolean).join(' · ')}
+                </DialogDescription>
               </DialogHeader>
               <Button variant="ghost" size="sm" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-foreground" onClick={() => setJob(null)}>
                 <ArrowLeft className="mr-1 h-4 w-4" /> Andere Stelle wählen
@@ -231,20 +267,6 @@ export function SubmitToJobDialog({
           )}
         </DialogContent>
       </Dialog>
-      <ActivateJobDialog
-        job={activateFor}
-        gate={gate}
-        onClose={() => setActivateFor(null)}
-        onActivated={(jobId) => {
-          const activated = jobs.find((j) => j.id === jobId);
-          // Die Kundenfrage kam schon im „Ich suche“-Dialog.
-          if (activated) {
-            setSearches((m) => new Map(m).set(jobId, { ...(m.get(jobId) as MySearch), client_declaration: m.get(jobId)?.client_declaration ?? 'no:none' }));
-            setJob(activated);
-          }
-        }}
-        forSubmission
-      />
     </>
   );
 }

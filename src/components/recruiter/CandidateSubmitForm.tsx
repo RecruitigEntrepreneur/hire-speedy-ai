@@ -1,1002 +1,281 @@
-import { useState, useEffect, useMemo } from 'react';
-import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
+// „Kandidat vorstellen“ (Entscheidung 13./14.10.2026, Variante 1).
+//
+// Vorher: Kandidat wählen, 7 Muss-Kriterien je „erfüllt/teilweise/nicht“ + Beleg,
+// Pflichttext „Warum passt“, danach ein eigener Prüfschritt. Jetzt:
+//   - Die Muss-Kriterien prüft die KI unsichtbar im Hintergrund (Match V4.1) und
+//     das Ergebnis wird mitgespeichert. Angezeigt wird nur ein echter Stolperstein
+//     (Gehalt über Budget, Muss-Kriterium fehlt), gesperrt wird nichts
+//     (DSGVO Art. 22, EU AI Act).
+//   - Keine Argumente für den Kunden mehr (Entscheidung 14.10.2026: der Kunde sieht sie
+//     nirgends); der Kunde bekommt eine Mail mit Eckdaten (submission-notify).
+//   - Harte Fakten-Warnungen (Schmerzgrenze über Budget, nur Remote bei Vor-Ort-
+//     Stelle) bestätigt der Headhunter mit einem Klick statt mit einem Text.
+//   - Ein Fenster, kein Prüfschritt: Häkchen setzen, vorstellen.
+//   - Unpassende Kandidaten (Matching „ausgeschlossen“) werden nicht angeboten; kommt
+//     doch einer an, ist Vorstellen gesperrt (Ausnahme: „Trotzdem vorschlagen“ im Profil).
+
+import { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Loader2, Lock, Shield, UserPlus, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/lib/auth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Loader2,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  UserPlus,
-  Shield,
-  Sparkles,
-  Wand2,
-  Lock,
-  Info
-} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { FileUpload } from '@/components/files/FileUpload';
-import { useCvParsing, ParsedCVData } from '@/hooks/useCvParsing';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { fetchDossier } from '@/hooks/useCandidateDossier';
-import { DossierForm, isMissingColumnError, redactIdentity } from '@/lib/candidateDossier';
-import { CRITERION_RATING_OPTIONS, CriterionAssessment, FitCandidate, OVERRIDE_MIN_LENGTH, computeFitCheck, toCriteriaPayload, toOverridesPayload } from '@/lib/fitCheck';
-import { CandidateSubmissionReview } from './CandidateSubmissionReview';
+import { DossierForm, NOTICE_OPTIONS, formatEuro, isMissingColumnError, optionLabel, redactIdentity } from '@/lib/candidateDossier';
+import { FitCandidate, computeFitCheck, toOverridesPayload } from '@/lib/fitCheck';
+import { fetchMatchV41, type MatchRequirementRow } from '@/lib/matchV41';
+import { FIT_LABEL, byFit, fitOf, isFitting, type Fit } from '@/lib/matchFit';
+import { usePoolFit } from '@/hooks/usePoolFit';
+import { notifyClientAboutSubmission } from '@/lib/submissionNotify';
 
 interface CandidateSubmitFormProps {
   jobId: string;
   jobTitle: string;
+  /** Nicht mehr genutzt (die KI prüft die Muss-Kriterien); bleibt für die Aufrufer. */
   mustHaves?: string[];
+  /** Aus dem Kandidatenprofil: Kandidat steht fest, keine Auswahl. */
   initialCandidateId?: string;
   /** Stelle aus recruiter_jobs_view für den Passungs-Check (Budget, Arbeitsmodell, Ort, Sprachen). */
   job?: Record<string, unknown> | null;
   onSuccess: () => void;
 }
 
-interface ExistingCandidate {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  job_title: string | null;
-  skills: string[] | null;
-  experience_years: number | null;
-  expected_salary: number | null;
-  availability_date: string | null;
-  notice_period: string | null;
-  city: string | null;
-  cv_ai_summary: string | null;
-  cv_ai_bullets: Json | null;
-}
+type Load = 'loading' | 'ready' | 'failed';
 
-export function CandidateSubmitForm({ jobId, jobTitle, mustHaves = [], initialCandidateId, job = null, onSuccess }: CandidateSubmitFormProps) {
+const CONFIRMED = 'per Klick bestätigt';
+
+export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job = null, onSuccess }: CandidateSubmitFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { parseCV, parsing: cvParsing } = useCvParsing();
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [existingCandidates, setExistingCandidates] = useState<ExistingCandidate[]>([]);
-  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
-  const [createNew, setCreateNew] = useState(false);
-  // Neue Kandidaten entstehen über die Kandidatenakte (Lebenslauf, Interview) und werden
-  // erst danach eingereicht. Der Dialog öffnet nach dem Anlegen das Profil.
-  const [cvImportOpen, setCvImportOpen] = useState(false);
-  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const [skillsMatch, setSkillsMatch] = useState<{ matched: string[]; missing: string[] }>({ matched: [], missing: [] });
-  const [cvTextForParsing, setCvTextForParsing] = useState('');
-  const [showCvParser, setShowCvParser] = useState(false);
-  const [selectedCandidateReadiness, setSelectedCandidateReadiness] = useState<{
-    candidateId: string;
-    isReady: boolean;
-    done: number;
-    total: number;
-    missingFields: string[];
-  } | null>(null);
-  const [selectedDossier, setSelectedDossier] = useState<DossierForm | null>(null);
-  const [criteria, setCriteria] = useState<CriterionAssessment[]>([]);
-  // Begründungen zum Übergehen von Warnungen (Regel → Text), werden mitgespeichert
-  const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [options, setOptions] = useState<Array<{ id: string; full_name: string; job_title: string | null }>>([]);
+  const [candidateId, setCandidateId] = useState<string | null>(initialCandidateId ?? null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [dossier, setDossier] = useState<DossierForm | null>(null);
+  const [readiness, setReadiness] = useState<{ isReady: boolean; done: number; total: number; missing: string[] } | null>(null);
+  const [duplicate, setDuplicate] = useState(false);
+  const [musts, setMusts] = useState<MatchRequirementRow[]>([]);
+  const [mustLoad, setMustLoad] = useState<Load>('loading');
+  const [matchFit, setMatchFit] = useState<{ fit: Fit; reason: string | null } | null>(null);
+  const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
+  const [consent, setConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // Auswahl nur, wenn das Fenster von der Stellenseite kommt.
+  useEffect(() => {
+    if (initialCandidateId || !user) return;
+    supabase.from('candidates').select('id, full_name, job_title').eq('recruiter_id', user.id).order('created_at', { ascending: false }).limit(60)
+      .then(({ data }) => setOptions((data ?? []) as Array<{ id: string; full_name: string; job_title: string | null }>));
+  }, [user, initialCandidateId]);
+  // Auswahl nur mit passenden Kandidaten (Matching je Stelle, fehlende im Hintergrund geprüft).
+  const pool = usePoolFit(initialCandidateId ? null : jobId, options.map((o) => o.id));
+  const fittingOptions = options
+    .filter((o) => isFitting(pool.fit.get(o.id)))
+    .sort((a, b) => byFit(pool.fit.get(a.id)!, pool.fit.get(b.id)!));
 
   useEffect(() => {
-    setCriteria(mustHaves.map((criterion) => ({ criterion, rating: null, evidence: '' })));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mustHaves.join('|')]);
+    if (!candidateId) return;
+    let alive = true;
+    setDossier(null); setReadiness(null); setDuplicate(false); setMusts([]); setMustLoad('loading'); setMatchFit(null);
+    setConfirmed(new Set()); setConsent(false);
 
-  // New candidate form
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    linkedin_url: '',
-    cv_url: '',
-    current_salary: '',
-    expected_salary: '',
-    notice_period: '',
-    availability_date: '',
-    skills: '',
-    summary: ''
-  });
+    supabase.from('submissions').select('id').eq('job_id', jobId).eq('candidate_id', candidateId).limit(1)
+      .then(({ data }) => { if (alive) setDuplicate((data?.length ?? 0) > 0); });
 
-  const [recruiterNotes, setRecruiterNotes] = useState('');
-  const [gdprConsent, setGdprConsent] = useState(false);
-  const [reviewing, setReviewing] = useState(false);
-
-  useEffect(() => {
-    setReviewing(false);
-  }, [selectedCandidate, createNew, formData, recruiterNotes, gdprConsent]);
-
-  const handleCvUpload = (url: string) => {
-    setFormData({ ...formData, cv_url: url });
-  };
-
-  const handleParseCv = async () => {
-    if (!cvTextForParsing.trim()) {
-      toast({
-        title: 'Kein Text',
-        description: 'Bitte füge den CV-Text ein oder lade einen CV hoch.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const parsedData = await parseCV(cvTextForParsing);
-    if (parsedData) {
-      applyParsedCvData(parsedData);
-      setShowCvParser(false);
-      setCvTextForParsing('');
-    }
-  };
-
-  const applyParsedCvData = (data: ParsedCVData) => {
-    const skillNames = data.skills?.map(s => s.name) || [];
-    
-    setFormData(prev => ({
-      ...prev,
-      full_name: data.full_name || prev.full_name,
-      email: data.email || prev.email,
-      phone: data.phone || prev.phone,
-      linkedin_url: data.linkedin_url || prev.linkedin_url,
-      current_salary: data.current_salary?.toString() || prev.current_salary,
-      expected_salary: data.salary_expectation_max?.toString() || prev.expected_salary,
-      notice_period: data.notice_period || prev.notice_period,
-      skills: skillNames.join(', ') || prev.skills,
-      summary: data.cv_ai_summary || prev.summary
-    }));
-
-    // Update skills match
-    if (skillNames.length > 0) {
-      checkSkillsMatch(skillNames);
-    }
-
-    // Check for duplicate
-    if (data.email) {
-      checkDuplicate(data.email);
-    }
-
-    toast({
-      title: 'CV analysiert',
-      description: `${data.skills?.length || 0} Skills erkannt, Daten übernommen.`
+    fetchDossier(candidateId).then(({ form, readiness: r }) => {
+      if (!alive) return;
+      setDossier(form);
+      setReadiness({ isReady: r.isReady, done: r.done, total: r.total, missing: r.missing.map((m) => m.label) });
+      if (!r.isReady) return;
+      // KI-Prüfung im Hintergrund: Zusatz, nie Sperre.
+      fetchMatchV41(candidateId, { jobIds: [jobId] })
+        .then((res) => {
+          if (!alive) return;
+          const item = res.results.find((x) => x.job_id === jobId);
+          setMusts(item ? item.requirements.filter((q) => q.class === 'must') : []);
+          setMatchFit(item ? { fit: fitOf(item.tier, item.override?.decision), reason: item.exclusion?.text ?? null } : null);
+          setMustLoad(item ? 'ready' : 'failed');
+        })
+        .catch(() => { if (alive) setMustLoad('failed'); });
     });
+    return () => { alive = false; };
+  }, [candidateId, jobId]);
+
+  const fitCandidate: FitCandidate = {
+    expected_salary: dossier?.expected_salary ?? null,
+    salary_minimum: dossier?.salary_minimum ?? null,
+    remote_preference: dossier?.remote_preference ?? null,
+    city: dossier?.city || null,
+    relocation_willing: dossier?.relocation_willing ?? null,
+    languages: dossier?.languages ?? [],
+    work_permit: dossier?.work_permit ?? null,
   };
-
-  useEffect(() => {
-    fetchExistingCandidates();
-  }, []);
-
-  // Preselect candidate when opened from quick-submit (activation success step)
-  useEffect(() => {
-    if (!initialCandidateId || selectedCandidate || createNew) return;
-    if (existingCandidates.some(c => c.id === initialCandidateId)) {
-      handleCandidateSelect(initialCandidateId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCandidateId, existingCandidates]);
-
-  const fetchExistingCandidates = async () => {
-    if (!user) return;
-    
-    const { data } = await supabase
-      .from('candidates')
-      .select('id, full_name, email, phone, job_title, skills, experience_years, expected_salary, availability_date, notice_period, city, cv_ai_summary, cv_ai_bullets')
-      .eq('recruiter_id', user.id)
-      .order('created_at', { ascending: false });
-
-    setExistingCandidates(data || []);
-  };
-
-  // Bei einem ausgewählten Kandidaten zählt die Person (wie der Unique-Index
-  // job_id + candidate_id), nicht die E-Mail. Vorher galt jeder Kandidat mit
-  // derselben Adresse als „bereits eingereicht“ (12.10.2026).
-  const checkDuplicate = async (email: string, candidateId?: string) => {
-    if (!email && !candidateId) return;
-    setChecking(true);
-
-    let alreadySubmitted = false;
-    if (candidateId) {
-      const { data: sameCandidate } = await supabase
-        .from('submissions')
-        .select('id')
-        .eq('job_id', jobId)
-        .eq('candidate_id', candidateId)
-        .limit(1);
-      alreadySubmitted = (sameCandidate?.length ?? 0) > 0;
-    } else {
-      // Neu erfasster Kandidat (noch ohne ID): über die E-Mail.
-      const { data: existingSub } = await supabase
-        .from('submissions')
-        .select(`
-          id,
-          candidates (email)
-        `)
-        .eq('job_id', jobId);
-      alreadySubmitted = !!existingSub?.some(
-        (sub: any) => sub.candidates?.email?.toLowerCase() === email.toLowerCase()
-      );
-    }
-
-    if (alreadySubmitted) {
-      setDuplicateWarning('Dieser Kandidat wurde bereits für diesen Job eingereicht.');
-    } else {
-      setDuplicateWarning(null);
-    }
-
-    setChecking(false);
-  };
-
-  // Keyword-Liste für Extraktion aus Sätzen
-  const SKILL_KEYWORDS = [
-    // Finance/Accounting
-    'buchhaltung', 'finanzbuchhaltung', 'lohnbuchhaltung', 'bilanzbuchhaltung',
-    'debitorenbuchhaltung', 'kreditorenbuchhaltung', 'anlagenbuchhaltung',
-    'rechnungswesen', 'rechnungslegung', 'bilanzierung', 'jahresabschluss',
-    'controlling', 'finanzcontrolling', 'kostenrechnung', 'budgetierung',
-    'datev', 'lexware', 'sage', 'sap', 'excel', 'hgb', 'ifrs',
-    'steuerrecht', 'umsatzsteuer', 'lohnsteuer',
-    // IT
-    'java', 'python', 'react', 'javascript', 'typescript', 'aws', 'docker',
-    'kubernetes', 'postgresql', 'node.js', 'angular', 'vue', 'c#', '.net'
+  const overrides = useMemo(() => Object.fromEntries([...confirmed].map((k) => [k, CONFIRMED])), [confirmed]);
+  const fit = useMemo(() => computeFitCheck(fitCandidate, job ?? {}, [], overrides), [JSON.stringify(fitCandidate), job, overrides]);
+  // Nur echte Stolpersteine zeigen (Entscheidung 14.10.2026): „nicht eingetragen“ und
+  // „steht nirgends“ sind kein Problem für den Headhunter, nur Rauschen.
+  const salary = fit.items.find((i) => i.key === 'gehalt');
+  const notMet = musts.filter((m) => m.status === 'not_met').map((m) => m.text);
+  const problems = [
+    ...(salary?.status === 'hint' && salary.message.startsWith('Wunschgehalt über') ? [`Wunschgehalt über dem Budget (${salary.detail}).`] : []),
+    ...(notMet.length ? [`Nicht belegt: ${notMet.join(' · ')}`] : []),
   ];
+  const excluded = !!matchFit && !isFitting(matchFit.fit);
 
-  // Synonym-Gruppen für bidirektionales Matching
-  const SYNONYM_GROUPS = [
-    ['buchhaltung', 'finanzbuchhaltung', 'lohnbuchhaltung', 'bilanzbuchhaltung', 
-     'debitorenbuchhaltung', 'kreditorenbuchhaltung', 'anlagenbuchhaltung', 
-     'fibu', 'buchführung', 'buchhalter', 'buchhalterin', 'accounting', 'bookkeeping'],
-    ['rechnungswesen', 'rechnungslegung', 'bilanzierung', 'jahresabschluss', 'monatsabschluss'],
-    ['controlling', 'finanzcontrolling', 'kostenrechnung', 'budgetierung', 'controller'],
-    ['datev', 'datev unternehmen online'],
-    ['lexware', 'lexware buchhaltung'],
-    ['sage', 'sage 50', 'sage 100'],
-    ['sap', 'sap fi', 'sap co', 'sap s/4hana'],
-    ['excel', 'ms excel', 'microsoft excel', 'pivot', 'pivottabellen'],
-    ['hgb', 'handelsgesetzbuch'],
-    ['ifrs', 'international financial reporting standards'],
-    // IT Synonyms
-    ['javascript', 'js', 'ecmascript'],
-    ['typescript', 'ts'],
-    ['kubernetes', 'k8s'],
-    ['postgresql', 'postgres', 'psql'],
-    ['react', 'reactjs', 'react.js'],
-    ['node.js', 'nodejs', 'node']
-  ];
+  const ready = !!readiness?.isReady && !duplicate;
+  const checkingFit = ready && mustLoad === 'loading';
+  const canSubmit = ready && consent && fit.canSubmit && !excluded && !checkingFit && !busy;
 
-  // Extrahiert Keywords aus langen Requirement-Sätzen
-  const extractKeywords = (sentence: string): string[] => {
-    const lower = sentence.toLowerCase();
-    return SKILL_KEYWORDS.filter(keyword => lower.includes(keyword));
-  };
-
-  // Prüft ob zwei Skills über Synonym-Gruppen matchen
-  const matchesViaSynonym = (skill1: string, skill2: string): boolean => {
-    const s1 = skill1.toLowerCase();
-    const s2 = skill2.toLowerCase();
-    
-    for (const group of SYNONYM_GROUPS) {
-      const s1InGroup = group.some(syn => s1.includes(syn) || syn.includes(s1));
-      const s2InGroup = group.some(syn => s2.includes(syn) || syn.includes(s2));
-      if (s1InGroup && s2InGroup) return true;
+  const submit = async () => {
+    if (!user || !candidateId || !dossier || !canSubmit) return;
+    setBusy(true);
+    const row = {
+      job_id: jobId,
+      candidate_id: candidateId,
+      recruiter_id: user.id,
+      status: 'submitted',
+      consent_confirmed: true,
+      consent_confirmed_at: new Date().toISOString(),
+      // KI-Prüfung der Muss-Kriterien als Protokoll (Quelle „ki“), nicht als Einschätzung des Headhunters.
+      criteria_assessment: musts.map((m) => ({ criterion: m.text, rating: m.status, evidence: m.evidence ? redactIdentity(m.evidence, dossier.full_name, dossier.company) : null, source: 'ki' })),
+      fit_overrides: toOverridesPayload(fit),
+    };
+    let { data, error } = await supabase.from('submissions').insert(row as never).select('id').single();
+    if (error && isMissingColumnError(error)) {
+      // Spalten noch nicht migriert: ohne Protokoll einreichen
+      const { criteria_assessment: _c, fit_overrides: _o, ...rest } = row;
+      ({ data, error } = await supabase.from('submissions').insert(rest as never).select('id').single());
     }
-    return false;
-  };
-
-  const checkSkillsMatch = (candidateSkills: string[]) => {
-    if (!mustHaves || mustHaves.length === 0) {
-      setSkillsMatch({ matched: [], missing: [] });
+    if (error) {
+      setBusy(false);
+      toast({ title: 'Vorstellen hat nicht geklappt', description: error.message, variant: 'destructive' });
       return;
     }
-
-    const normalizedCandidateSkills = candidateSkills.map(s => s.toLowerCase());
-    const matched: string[] = [];
-    const missing: string[] = [];
-
-    mustHaves.forEach(mh => {
-      const mhLower = mh.toLowerCase();
-      let isMatched = false;
-
-      // 1. Keywords aus Must-Have-Satz extrahieren
-      const keywords = extractKeywords(mh);
-      
-      // 2. Für jeden extrahierten Keyword prüfen
-      for (const keyword of keywords) {
-        // 2a. Direkter Match mit Kandidaten-Skills
-        if (normalizedCandidateSkills.some(cs => cs.includes(keyword) || keyword.includes(cs))) {
-          isMatched = true;
-          break;
-        }
-        
-        // 2b. Synonym-Match
-        if (normalizedCandidateSkills.some(cs => matchesViaSynonym(keyword, cs))) {
-          isMatched = true;
-          break;
-        }
-      }
-      
-      // 3. Fallback: Original-Substring-Logik (falls keine Keywords gefunden)
-      if (!isMatched && keywords.length === 0) {
-        if (normalizedCandidateSkills.some(cs => cs.includes(mhLower) || mhLower.includes(cs))) {
-          isMatched = true;
-        }
-      }
-      
-      // 4. Erweiterter Fallback: Synonym-Check auf ganzen Satz
-      if (!isMatched) {
-        if (normalizedCandidateSkills.some(cs => matchesViaSynonym(mhLower, cs))) {
-          isMatched = true;
-        }
-      }
-
-      if (isMatched) {
-        matched.push(mh);
-      } else {
-        missing.push(mh);
-      }
-    });
-
-    setSkillsMatch({ matched, missing });
+    const id = (data as { id?: string } | null)?.id;
+    if (id) void notifyClientAboutSubmission(id);
+    toast({ title: 'Vorgestellt', description: `${dossier.full_name} für „${jobTitle}“. Der Kunde sieht das Profil jetzt anonym und bekommt eine Mail.` });
+    setBusy(false);
+    onSuccess();
   };
 
-  const handleCandidateSelect = async (candidateId: string) => {
-    setSelectedCandidate(candidateId);
-    setSelectedCandidateReadiness(null);
-    setCreateNew(false);
-
-    const candidate = existingCandidates.find(c => c.id === candidateId);
-    if (candidate) {
-      checkDuplicate(candidate.email, candidateId);
-      checkSkillsMatch(candidate.skills || []);
-
-      // Gleiche Regel wie "Bereit zum Einreichen" im Kandidatenprofil (Kandidatenakte);
-      // ein Lebenslauf ist dafür keine Pflicht mehr.
-      const { form: dossier, readiness } = await fetchDossier(candidateId);
-      setSelectedDossier(dossier);
-      setSelectedCandidateReadiness({
-        candidateId,
-        isReady: readiness.isReady,
-        done: readiness.done,
-        total: readiness.total,
-        missingFields: readiness.missing.map((m) => m.label),
-      });
-    }
-  };
-
-  // Passungs-Check: harte Fakten aus Akte und Stelle, Muss-Kriterien vom Headhunter eingeschätzt
-  const fitCandidate: FitCandidate = selectedDossier && !createNew
-    ? {
-        expected_salary: selectedDossier.expected_salary,
-        salary_minimum: selectedDossier.salary_minimum,
-        remote_preference: selectedDossier.remote_preference,
-        city: selectedDossier.city || null,
-        relocation_willing: selectedDossier.relocation_willing,
-        languages: selectedDossier.languages,
-        work_permit: selectedDossier.work_permit,
-      }
-    : {
-        expected_salary: formData.expected_salary ? parseInt(formData.expected_salary) : null,
-        salary_minimum: null,
-        remote_preference: null,
-        city: null,
-        relocation_willing: null,
-        languages: [],
-        work_permit: null,
-      };
-  const fit = useMemo(() => computeFitCheck(fitCandidate, job ?? {}, criteria, overrides), [JSON.stringify(fitCandidate), job, criteria, overrides]);
-
-  const updateCriterion = (index: number, patch: Partial<CriterionAssessment>) =>
-    setCriteria((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
-
-  const handleEmailBlur = () => {
-    if (formData.email) {
-      checkDuplicate(formData.email);
-    }
-  };
-
-  const handleSkillsChange = (value: string) => {
-    setFormData({ ...formData, skills: value });
-    const skillsArray = value.split(',').map(s => s.trim()).filter(Boolean);
-    checkSkillsMatch(skillsArray);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    if (loading || checking || !gdprConsent || !recruiterNotes.trim() || (!selectedCandidate && !createNew) || (selectedCandidate && selectedCandidateReadiness?.candidateId !== selectedCandidate)) return;
-
-    if (duplicateWarning) {
-      toast({
-        title: 'Einreichung nicht möglich',
-        description: duplicateWarning,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // Readiness gate for existing candidates
-    if (selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady) {
-      toast({
-        title: 'Noch nicht bereit zum Einreichen',
-        description: `Fehlende Felder: ${selectedCandidateReadiness.missingFields.join(', ')}`,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!fit.canSubmit) {
-      const openWarnings = fit.warnings.filter((w) => w.reason.length < OVERRIDE_MIN_LENGTH);
-      toast({
-        title: fit.blocking.length ? 'Einreichen gesperrt' : openWarnings.length ? 'Begründung fehlt' : 'Muss-Kriterien einschätzen',
-        description: fit.blocking.length
-          ? fit.blocking.join(' ')
-          : openWarnings.length
-            ? `Bitte begründe, warum du trotzdem einreichst: ${openWarnings.map((w) => w.message).join(' ')}`
-            : `Noch offen: ${fit.criteriaMissing.join(', ')}`,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!reviewing) {
-      setReviewing(true);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      let candidateId = selectedCandidate;
-
-      // Create new candidate if needed
-      if (createNew) {
-        const skillsArray = formData.skills.split(',').map(s => s.trim()).filter(Boolean);
-        
-        const { data: newCandidate, error: candidateError } = await supabase
-          .from('candidates')
-          .insert({
-            recruiter_id: user.id,
-            full_name: formData.full_name,
-            email: formData.email,
-            phone: formData.phone || null,
-            linkedin_url: formData.linkedin_url || null,
-            cv_url: formData.cv_url || null,
-            current_salary: formData.current_salary ? parseInt(formData.current_salary) : null,
-            expected_salary: formData.expected_salary ? parseInt(formData.expected_salary) : null,
-            notice_period: formData.notice_period || null,
-            availability_date: formData.availability_date || null,
-            skills: skillsArray,
-            summary: formData.summary || null
-          })
-          .select()
-          .single();
-
-        if (candidateError) throw candidateError;
-        candidateId = newCandidate.id;
-      }
-
-      if (!candidateId) {
-        toast({
-          title: 'Fehler',
-          description: 'Bitte wähle einen Kandidaten aus oder erstelle einen neuen.',
-          variant: 'destructive'
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Create submission with GDPR consent and the must-have assessment (anonymised evidence)
-      const identityName = createNew ? formData.full_name : selectedDossier?.full_name || '';
-      const identityCompany = createNew ? '' : selectedDossier?.company || '';
-      const submissionRow = {
-        job_id: jobId,
-        candidate_id: candidateId,
-        recruiter_id: user.id,
-        recruiter_notes: recruiterNotes || null,
-        status: 'submitted',
-        consent_confirmed: gdprConsent,
-        consent_confirmed_at: gdprConsent ? new Date().toISOString() : null,
-        criteria_assessment: toCriteriaPayload(criteria, (text) => redactIdentity(text, identityName, identityCompany)),
-        fit_overrides: toOverridesPayload(fit),
-      };
-      let { error: submissionError } = await supabase.from('submissions').insert(submissionRow as never);
-      if (submissionError && isMissingColumnError(submissionError)) {
-        // Neue Spalten noch nicht migriert: ohne Einschätzung und Begründungen einreichen
-        const { criteria_assessment: _c, fit_overrides: _o, ...withoutNew } = submissionRow;
-        ({ error: submissionError } = await supabase.from('submissions').insert(withoutNew as never));
-      }
-
-      if (submissionError) throw submissionError;
-
-      // Ohne Prozentzahl: Vorher rief das Formular hier den alten Matcher V3.1 auf und
-      // meldete z. B. „mit 0% Match-Score eingereicht“, obwohl alle Muss-Kriterien
-      // erfüllt waren (12.10.2026). Die Passung steht im Passungs-Check und in V4.1.
-      toast({
-        title: 'Eingereicht',
-        description: `${identityName || 'Der Kandidat'} für „${jobTitle}“. Der Kunde sieht das Profil jetzt anonym in seiner Inbox.`,
-      });
-
-      onSuccess();
-    } catch (error: any) {
-      console.error('Error submitting candidate:', error);
-      toast({
-        title: 'Fehler',
-        description: error.message || 'Es ist ein Fehler aufgetreten.',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const notice = dossier?.notice_period ? optionLabel(NOTICE_OPTIONS, dossier.notice_period) ?? null : null;
+  const initials = (dossier?.full_name ?? '').split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div hidden={reviewing} className="space-y-6">
-      {/* Candidate Selection */}
-      <div className="space-y-4">
-        <Label>Kandidat auswählen</Label>
-        
-        {existingCandidates.length > 0 && !createNew && (
-          <Select value={selectedCandidate || ''} onValueChange={handleCandidateSelect}>
-            <SelectTrigger>
-              <SelectValue placeholder="Bestehenden Kandidaten wählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              {existingCandidates.map((candidate) => (
-                <SelectItem key={candidate.id} value={candidate.id}>
-                  {candidate.full_name} ({candidate.email})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+    <div className="space-y-4">
+      {!initialCandidateId && (
+        <div className="space-y-2">
+          <Label>Kandidat</Label>
+          {fittingOptions.length > 0 ? (
+            <Select value={candidateId ?? ''} onValueChange={setCandidateId}>
+              <SelectTrigger><SelectValue placeholder="Passenden Kandidaten wählen …" /></SelectTrigger>
+              <SelectContent>
+                {fittingOptions.map((c) => {
+                  const f = pool.fit.get(c.id);
+                  return (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.full_name}{c.job_title ? ` · ${c.job_title}` : ''}{isFitting(f) ? ` · ${FIT_LABEL[f]}` : ''}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="flex items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground">
+              {pool.checking ? <><Loader2 className="h-4 w-4 animate-spin" /> Passende Kandidaten werden gesucht …</> : 'Noch kein passender Kandidat in deinem Pool.'}
+            </p>
+          )}
+          {fittingOptions.length > 0 && pool.checking && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Weitere Kandidaten werden geprüft …</p>
+          )}
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground" onClick={() => setNewOpen(true)}>
+            <UserPlus className="h-4 w-4" /> Neuen Kandidaten anlegen (danach Interview, dann vorstellen)
+          </Button>
+          <CvUploadDialog open={newOpen} onOpenChange={setNewOpen} />
+        </div>
+      )}
 
-        {/* Vorher legte dieser Knopf den Kandidaten an und reichte ihn im selben Schritt
-            ein -- ohne Akte und ohne Interview (12.10.2026). */}
-        <Button type="button" variant="outline" className="w-full" onClick={() => setCvImportOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Neuen Kandidaten anlegen
-        </Button>
-        <p className="text-xs text-muted-foreground">Danach führst du das Interview und reichst ihn aus seinem Profil ein.</p>
-        <CvUploadDialog open={cvImportOpen} onOpenChange={setCvImportOpen} />
-      </div>
+      {candidateId && !dossier && (
+        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Akte wird geladen …</div>
+      )}
 
-      {/* Readiness Gate for existing candidates */}
-      {selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady && (
+      {dossier && (
+        <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials || '?'}</span>
+          <div className="min-w-0 text-sm">
+            <p className="font-medium">{dossier.full_name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {[dossier.job_title, dossier.experience_years ? `${dossier.experience_years} J.` : null, dossier.city || null,
+                dossier.expected_salary ? formatEuro(dossier.expected_salary) : null, notice].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {duplicate && (
+        <Alert variant="destructive"><XCircle className="h-4 w-4" /><AlertDescription>Dieser Kandidat ist für diese Stelle schon vorgestellt.</AlertDescription></Alert>
+      )}
+
+      {readiness && !readiness.isReady && (
         <Alert className="border-warning/40 bg-warning/10">
           <Lock className="h-4 w-4 text-warning" />
+          <AlertDescription className="space-y-1.5">
+            <p className="font-medium text-warning">Noch nicht bereit ({readiness.done} von {readiness.total})</p>
+            <p className="text-sm text-foreground">
+              {readiness.missing.length === 1 && readiness.missing[0] === 'Interview abgeschlossen'
+                ? 'Das Interview ist noch nicht abgeschlossen. Der Kunde entscheidet vor allem nach deinem Gespräch.'
+                : `Es fehlt noch: ${readiness.missing.join(', ')}. Du trägst es im Kandidatenprofil ein.`}
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {ready && excluded && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
           <AlertDescription>
-            <div className="space-y-2">
-              <p className="font-medium text-warning">
-                Noch nicht bereit zum Einreichen ({selectedCandidateReadiness.done} von {selectedCandidateReadiness.total})
-              </p>
-              <p className="text-sm text-foreground">
-                {selectedCandidateReadiness.missingFields.length === 1 && selectedCandidateReadiness.missingFields[0] === 'Interview abgeschlossen'
-                  ? 'Das Interview ist noch nicht abgeschlossen. Der Kunde entscheidet über eine Einladung vor allem nach deinem Gespräch. Du schließt es im Kandidatenprofil ab.'
-                  : 'Es fehlen noch Angaben. Du trägst sie im Kandidatenprofil unter „Bearbeiten“ oder im Interview ein.'}
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {selectedCandidateReadiness.missingFields.map((field) => (
-                  <Badge key={field} variant="outline" className="text-xs text-warning border-warning/40">
-                    <XCircle className="h-3 w-3 mr-1" />
-                    {field}
-                  </Badge>
-                ))}
-              </div>
+            <p className="font-medium">{dossier?.full_name.split(' ')[0] ?? 'Der Kandidat'} passt laut Matching nicht zu dieser Stelle{matchFit?.reason ? `: ${matchFit.reason}` : ''}.</p>
+            <p className="mt-0.5 text-sm">Vorstellen ist deshalb gesperrt. Wenn du es besser weißt: im Profil unter „Passende Stellen“ → „ausgeschlossen“ → „Trotzdem vorschlagen“.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {ready && !excluded && (
+        <>
+          {/* Stolpersteine: nur wenn es wirklich eins gibt */}
+          {(problems.length > 0 || fit.warnings.length > 0) && (
+            <div className="space-y-1.5">
+              {problems.map((p) => <p key={p} className="rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">{p}</p>)}
+              {fit.warnings.map((w) => (
+                <label key={w.rule} className="flex cursor-pointer items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  <Checkbox className="mt-0.5" checked={confirmed.has(w.rule)} onCheckedChange={(v) => setConfirmed((prev) => { const n = new Set(prev); if (v === true) n.add(w.rule); else n.delete(w.rule); return n; })} />
+                  <span>{w.message} Trotzdem vorstellen.</span>
+                </label>
+              ))}
             </div>
-          </AlertDescription>
-        </Alert>
-      )}
+          )}
 
-      {/* Readiness OK indicator for existing candidates */}
-      {selectedCandidate && selectedCandidateReadiness && selectedCandidateReadiness.isReady && (
-        <Alert className="border-success/40 bg-success/10">
-          <CheckCircle2 className="h-4 w-4 text-success" />
-          <AlertDescription className="text-sm text-success">
-            Bereit zum Einreichen ({selectedCandidateReadiness.done} von {selectedCandidateReadiness.total}).
-          </AlertDescription>
-        </Alert>
-      )}
+          {mustLoad === 'failed' && (
+            <p className="text-xs text-muted-foreground">Die Passung konnte gerade nicht geprüft werden.</p>
+          )}
 
-      {/* New Candidate Form */}
-      {createNew && (
-        <div className="space-y-4 border rounded-lg p-4">
-          {/* New candidate info hint */}
-          <Alert className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/30 dark:border-blue-800">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-sm text-blue-700 dark:text-blue-400">
-              Neue Kandidaten haben zunächst ein unvollständiges Profil.
-              Vervollständigen Sie es nach der Einreichung (CV hochladen, Interview),
-              um die Fit-Analyse zu verbessern.
-            </AlertDescription>
-          </Alert>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
+            <Checkbox className="mt-0.5" checked={consent} onCheckedChange={(v) => setConsent(v === true)} />
+            <span className="flex items-start gap-1.5"><Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Ich habe die ausdrückliche Einwilligung des Kandidaten zur Weitergabe seiner Daten (DSGVO Art. 6).</span>
+          </label>
 
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium">Neuer Kandidat</h4>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCvParser(!showCvParser)}
-              className="gap-2"
-            >
-              <Wand2 className="h-4 w-4" />
-              {showCvParser ? 'Parser schließen' : 'CV mit KI analysieren'}
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => void submit()} disabled={!canSubmit} className="gap-1.5">
+              {busy || checkingFit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {checkingFit ? 'Passung wird geprüft …' : 'Jetzt vorstellen'}
             </Button>
           </div>
-
-          {/* CV Parser Section */}
-          {showCvParser && (
-            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20">
-              <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                <Sparkles className="h-4 w-4" />
-                KI CV-Analyse
-              </div>
-              <Textarea
-                placeholder="CV-Text hier einfügen (Name, Kontakt, Skills, Erfahrung, etc.)..."
-                value={cvTextForParsing}
-                onChange={(e) => setCvTextForParsing(e.target.value)}
-                rows={6}
-                className="text-sm"
-              />
-              <Button
-                type="button"
-                onClick={handleParseCv}
-                disabled={cvParsing || !cvTextForParsing.trim()}
-                className="w-full"
-              >
-                {cvParsing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analysiere CV...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    CV analysieren & Felder ausfüllen
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Die KI extrahiert automatisch: Name, Kontakt, Skills, Gehalt, Kündigungsfrist und mehr.
-              </p>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Name *</Label>
-              <Input
-                id="full_name"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-Mail *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                onBlur={handleEmailBlur}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefon</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="linkedin_url">LinkedIn URL</Label>
-              <Input
-                id="linkedin_url"
-                value={formData.linkedin_url}
-                onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                placeholder="https://linkedin.com/in/..."
-              />
-            </div>
-          </div>
-
-          <FileUpload
-            label="Lebenslauf (CV)"
-            folder="candidates"
-            accept=".pdf,.doc,.docx"
-            maxSize={10}
-            onUploadComplete={handleCvUpload}
-            existingUrl={formData.cv_url || undefined}
-          />
-
-          <div className="space-y-2">
-            <Label htmlFor="cv_url">Oder CV URL / Link</Label>
-            <Input
-              id="cv_url"
-              value={formData.cv_url}
-              onChange={(e) => setFormData({ ...formData, cv_url: e.target.value })}
-              placeholder="Link zum CV oder Portfolio"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="current_salary">Aktuelles Gehalt (€)</Label>
-              <Input
-                id="current_salary"
-                type="number"
-                value={formData.current_salary}
-                onChange={(e) => setFormData({ ...formData, current_salary: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="expected_salary">Gehaltsvorstellung (€)</Label>
-              <Input
-                id="expected_salary"
-                type="number"
-                value={formData.expected_salary}
-                onChange={(e) => setFormData({ ...formData, expected_salary: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="notice_period">Kündigungsfrist</Label>
-              <Select 
-                value={formData.notice_period} 
-                onValueChange={(value) => setFormData({ ...formData, notice_period: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Wählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="immediate">Sofort verfügbar</SelectItem>
-                  <SelectItem value="2_weeks">2 Wochen</SelectItem>
-                  <SelectItem value="1_month">1 Monat</SelectItem>
-                  <SelectItem value="6_weeks">6 Wochen</SelectItem>
-                  <SelectItem value="2_months">2 Monate</SelectItem>
-                  <SelectItem value="3_months">3 Monate</SelectItem>
-                  <SelectItem value="3_months_eoq">3 Monate zum Quartalsende</SelectItem>
-                  <SelectItem value="6_months">6 Monate</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="availability_date">Verfügbar ab</Label>
-              <Input
-                id="availability_date"
-                type="date"
-                value={formData.availability_date}
-                onChange={(e) => setFormData({ ...formData, availability_date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="skills">Skills (kommagetrennt)</Label>
-            <Input
-              id="skills"
-              value={formData.skills}
-              onChange={(e) => handleSkillsChange(e.target.value)}
-              placeholder="z.B. React, TypeScript, Node.js"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="summary">Kurzprofil / Zusammenfassung</Label>
-            <Textarea
-              id="summary"
-              value={formData.summary}
-              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-              rows={3}
-            />
-          </div>
-        </div>
+        </>
       )}
-
-      {/* Duplicate Warning */}
-      {duplicateWarning && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{duplicateWarning}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Passungs-Check (ersetzt die Stichworthinweise) */}
-      {(selectedCandidate || createNew) && (job || criteria.length > 0) && (
-        <div className="space-y-3 rounded-lg border border-border p-4">
-          <div className="flex items-center justify-between">
-            <Label>Passungs-Check</Label>
-            <span className="text-xs text-muted-foreground">aus Akte und Stelle</span>
-          </div>
-          {job && (
-            <div className="space-y-0">
-              {fit.items.map((item) => (
-                <div key={item.key} className="flex items-start justify-between gap-3 border-b border-border py-1.5 text-sm last:border-b-0">
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-right text-xs">
-                    <span className="text-muted-foreground">{item.detail}</span>{' '}
-                    <span className={item.status === 'ok' ? 'text-success' : item.status === 'hint' ? 'text-warning' : 'text-destructive'}>
-                      {item.status === 'ok' ? `✓ ${item.message}` : item.status === 'hint' ? 'Hinweis' : '⚠ Ausschluss'}
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {criteria.length > 0 && (
-            <div className="space-y-3 pt-1">
-              <p className="text-xs font-semibold text-muted-foreground">Muss-Kriterien der Stelle, bitte je Kriterium einschätzen</p>
-              {criteria.map((c, i) => (
-                <div key={c.criterion} className="space-y-1.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm">{c.criterion}</span>
-                    <div className="flex gap-1">
-                      {CRITERION_RATING_OPTIONS.map((o) => {
-                        const active = c.rating === o.value;
-                        return (
-                          <button
-                            key={o.value}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() => updateCriterion(i, { rating: active ? null : o.value })}
-                            className={`rounded-md border px-2 py-0.5 text-xs transition-colors ${
-                              active
-                                ? o.value === 'not_met'
-                                  ? 'border-destructive bg-destructive text-destructive-foreground'
-                                  : 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border hover:bg-muted'
-                            }`}
-                          >
-                            {o.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <Input
-                    value={c.evidence}
-                    onChange={(e) => updateCriterion(i, { evidence: e.target.value })}
-                    placeholder="Beleg, z. B. konkrete Erfahrung (ohne Namen oder Arbeitgeber)"
-                    className="h-8 text-xs"
-                  />
-                </div>
-              ))}
-              <p className="text-xs text-muted-foreground">Deine Einschätzung und der Beleg gehen mit der Einreichung an den Kunden.</p>
-            </div>
-          )}
-          {fit.warnings.length > 0 && (
-            <div className="space-y-2 rounded-md bg-warning/10 px-3 py-2">
-              {fit.warnings.map((w) => (
-                <div key={w.rule} className="space-y-1.5">
-                  <p className="text-sm text-warning">{w.message}</p>
-                  <Input
-                    value={overrides[w.rule] ?? ''}
-                    onChange={(e) => setOverrides((prev) => ({ ...prev, [w.rule]: e.target.value }))}
-                    placeholder="Trotzdem einreichen, weil … (wird mit der Einreichung gespeichert)"
-                    className="h-8 text-xs"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          {fit.blocking.length > 0 ? (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Einreichen gesperrt: {fit.blocking.join(' ')}
-              {selectedCandidate && (
-                <a href={`/recruiter/candidates/${selectedCandidate}`} target="_blank" rel="noreferrer" className="ml-1 underline underline-offset-2">
-                  Profil prüfen
-                </a>
-              )}
-            </div>
-          ) : fit.hints.length > 0 ? (
-            <div className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-              {fit.hints.length === 1 ? '1 Hinweis' : `${fit.hints.length} Hinweise`}: {fit.hints.join(' ')} Einreichen ist möglich.
-            </div>
-          ) : null}
-          {fit.blocking.length === 0 && fit.criteriaMissing.length > 0 && (
-            <p className="text-xs text-muted-foreground">Noch einzuschätzen: {fit.criteriaMissing.join(', ')}</p>
-          )}
-        </div>
-      )}
-
-      {/* Recruiter Notes */}
-      <div className="space-y-2">
-        <Label htmlFor="recruiter_notes">Warum passt der Kandidat? *</Label>
-        <Textarea
-          id="recruiter_notes"
-          value={recruiterNotes}
-          onChange={(e) => setRecruiterNotes(e.target.value)}
-          rows={4}
-          placeholder="Beschreibe, warum dieser Kandidat gut für die Position geeignet ist..."
-          required
-        />
-      </div>
-
-      {/* GDPR Consent - Required for Triple-Blind Mode */}
-      <Alert className="border-primary/30 bg-primary/5">
-        <Shield className="h-4 w-4 text-primary" />
-        <AlertDescription>
-          <div className="flex items-start gap-3 mt-1">
-            <Checkbox 
-              id="gdpr_consent"
-              checked={gdprConsent}
-              onCheckedChange={(checked) => setGdprConsent(checked === true)}
-              className="mt-0.5"
-            />
-            <label htmlFor="gdpr_consent" className="text-sm cursor-pointer">
-              Ich bestätige, dass ich die ausdrückliche Einwilligung des Kandidaten zur Weitergabe seiner Daten habe (DSGVO Art. 6).
-            </label>
-          </div>
-        </AlertDescription>
-      </Alert>
-
-      {/* Submit Button */}
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={
-          loading || checking ||
-          (!selectedCandidate && !createNew) ||
-          !gdprConsent ||
-          fit.blocking.length > 0 ||
-          fit.warnings.some((w) => w.reason.length < OVERRIDE_MIN_LENGTH) ||
-          (!!selectedCandidate && (selectedCandidateReadiness?.candidateId !== selectedCandidate || !selectedCandidateReadiness?.isReady))
-        }
-      >
-        {loading ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Wird eingereicht...
-          </>
-        ) : selectedCandidate && selectedCandidateReadiness && !selectedCandidateReadiness.isReady ? (
-          <>
-            <Lock className="h-4 w-4 mr-2" />
-            Noch nicht bereit zum Einreichen
-          </>
-        ) : fit.blocking.length > 0 ? (
-          <>
-            <Lock className="h-4 w-4 mr-2" />
-            Einreichen gesperrt
-          </>
-        ) : (
-          <>
-            <Sparkles className="h-4 w-4 mr-2" />
-            Angaben prüfen
-          </>
-        )}
-      </Button>
-      </div>
-      {reviewing && <CandidateSubmissionReview
-        data={{
-          name: createNew ? formData.full_name : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.full_name || '',
-          email: createNew ? formData.email : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.email || '',
-          expectedSalary: createNew ? (formData.expected_salary ? Number(formData.expected_salary) : null) : selectedDossier?.expected_salary ?? existingCandidates.find(candidate => candidate.id === selectedCandidate)?.expected_salary ?? null,
-          availability: createNew ? formData.availability_date : existingCandidates.find(candidate => candidate.id === selectedCandidate)?.availability_date ?? null,
-          notes: recruiterNotes,
-          criteria: mustHaves,
-          createsCandidate: createNew,
-        }}
-        busy={loading}
-        onBack={() => setReviewing(false)}
-      />}
-    </form>
+    </div>
   );
 }

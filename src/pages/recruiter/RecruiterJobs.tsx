@@ -799,7 +799,6 @@ export default function RecruiterJobs() {
               remoteType: dialogJob.remote_type,
             })}
             earning={calculateEarning(dialogJob.salary_min, dialogJob.salary_max, dialogJob.recruiter_fee_percentage)}
-            feePercentage={dialogJob.recruiter_fee_percentage}
             earningPerDay={verdienstJeTag(dialogJob)}
             hiringUrgency={dialogJob.hiring_urgency}
             activeCount={effectiveActiveCount}
