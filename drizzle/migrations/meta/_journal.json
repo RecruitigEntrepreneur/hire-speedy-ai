@@ -183,6 +183,13 @@
       "when": 1792074218260,
       "tag": "0025_kunden_einstellungen",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792074246062,
+      "tag": "0026_opt_in_nur_kandidat",
+      "breakpoints": true
     }
   ]
 }
