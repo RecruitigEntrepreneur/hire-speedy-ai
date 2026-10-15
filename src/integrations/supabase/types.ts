@@ -2385,6 +2385,101 @@ export type Database = {
         }
         Relationships: []
       }
+      client_companies: {
+        Row: {
+          admin_question: string | null
+          check_report: Json | null
+          checked_at: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          legal_name: string | null
+          name: string
+          organization_id: string | null
+          owner_id: string
+          pending_change: Json | null
+          postal_code: string | null
+          proof_path: string | null
+          registration_number: string | null
+          reject_reason: string | null
+          requested_at: string
+          requested_by: string | null
+          role: string
+          status: string
+          street: string | null
+          updated_at: string
+          vat_id: string | null
+          website: string | null
+        }
+        Insert: {
+          admin_question?: string | null
+          check_report?: Json | null
+          checked_at?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          legal_name?: string | null
+          name: string
+          organization_id?: string | null
+          owner_id: string
+          pending_change?: Json | null
+          postal_code?: string | null
+          proof_path?: string | null
+          registration_number?: string | null
+          reject_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          role?: string
+          status?: string
+          street?: string | null
+          updated_at?: string
+          vat_id?: string | null
+          website?: string | null
+        }
+        Update: {
+          admin_question?: string | null
+          check_report?: Json | null
+          checked_at?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          legal_name?: string | null
+          name?: string
+          organization_id?: string | null
+          owner_id?: string
+          pending_change?: Json | null
+          postal_code?: string | null
+          proof_path?: string | null
+          registration_number?: string | null
+          reject_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          role?: string
+          status?: string
+          street?: string | null
+          updated_at?: string
+          vat_id?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_companies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_contact_reports: {
         Row: {
           admin_note: string | null
@@ -2636,6 +2731,33 @@ export type Database = {
         }
         Update: {
           rules?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_notification_preferences: {
+        Row: {
+          decision_reminder: boolean
+          interview_updates: boolean
+          new_candidate: string
+          searcher_started: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          decision_reminder?: boolean
+          interview_updates?: boolean
+          new_candidate?: string
+          searcher_started?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          decision_reminder?: boolean
+          interview_updates?: boolean
+          new_candidate?: string
+          searcher_started?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -6532,6 +6654,7 @@ export type Database = {
           commute_flexibility: string | null
           company_culture: string | null
           company_headcount: number | null
+          company_id: string | null
           company_name: string
           company_size_band: string | null
           confidential_search: boolean
@@ -6664,6 +6787,7 @@ export type Database = {
           commute_flexibility?: string | null
           company_culture?: string | null
           company_headcount?: number | null
+          company_id?: string | null
           company_name: string
           company_size_band?: string | null
           confidential_search?: boolean
@@ -6796,6 +6920,7 @@ export type Database = {
           commute_flexibility?: string | null
           company_culture?: string | null
           company_headcount?: number | null
+          company_id?: string | null
           company_name?: string
           company_size_band?: string | null
           confidential_search?: boolean
@@ -6904,6 +7029,13 @@ export type Database = {
           works_council_meeting_schedule?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "client_companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_intake_draft_id_fkey"
             columns: ["intake_draft_id"]
@@ -12764,6 +12896,10 @@ export type Database = {
           status: string
         }[]
       }
+      admin_decide_company: {
+        Args: { p_decision: string; p_id: string; p_note?: string }
+        Returns: undefined
+      }
       admin_decide_declaration: {
         Args: {
           p_decision: string
@@ -12858,9 +12994,21 @@ export type Database = {
         Args: { p_job_id: string; p_user_id?: string }
         Returns: boolean
       }
+      client_account_of: {
+        Args: { p_user_id: string }
+        Returns: {
+          can_manage: boolean
+          organization_id: string
+          owner_id: string
+        }[]
+      }
       client_answer_direct_position: {
         Args: { p_answer: string; p_declaration_id: string }
         Returns: undefined
+      }
+      client_can_read_agreement_document: {
+        Args: { p_name: string }
+        Returns: boolean
       }
       client_close_job: {
         Args: {
@@ -12882,9 +13030,34 @@ export type Database = {
         Args: { p_job_id: string; p_note?: string }
         Returns: undefined
       }
+      client_request_company: {
+        Args: {
+          p_city: string
+          p_country: string
+          p_id: string
+          p_legal_name: string
+          p_name: string
+          p_postal_code: string
+          p_proof_path?: string
+          p_registration_number: string
+          p_role: string
+          p_street: string
+          p_vat_id: string
+          p_website: string
+        }
+        Returns: string
+      }
       client_resume_job: { Args: { p_job_id: string }; Returns: undefined }
       client_sees_recruiter: {
         Args: { p_recruiter_id: string }
+        Returns: boolean
+      }
+      company_matches_job: {
+        Args: {
+          p_client_id: string
+          p_company: Database["public"]["Tables"]["client_companies"]["Row"]
+          p_org_id: string
+        }
         Returns: boolean
       }
       cron_token_valid: {
@@ -13062,6 +13235,13 @@ export type Database = {
         Returns: string
       }
       recruiter_display_name: { Args: { p_user_id: string }; Returns: string }
+      recruiter_interview_attendee_roles: {
+        Args: { p_interview_id: string }
+        Returns: {
+          is_decision_maker: boolean
+          title: string
+        }[]
+      }
       recruiter_partner_number: { Args: never; Returns: string }
       recruiter_tier_metrics: { Args: { p_user_id: string }; Returns: Json }
       report_direct_contact: {
