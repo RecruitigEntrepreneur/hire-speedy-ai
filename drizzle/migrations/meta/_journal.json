@@ -204,6 +204,13 @@
       "when": 1792074276953,
       "tag": "0028_einreichen_nur_passend",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792074402389,
+      "tag": "0029_verifizierte_firmen",
+      "breakpoints": true
     }
   ]
 }
