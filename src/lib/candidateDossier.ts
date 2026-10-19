@@ -5,6 +5,9 @@
 // damit bestehende Leser (Exposé-PDF, Kundenansicht, Matching) weiter
 // dieselben Werte sehen.
 
+import { hasBlockingClientText } from '@/lib/clientTextCheck';
+import { isOldAutoMotivation } from '@/lib/situationMotives';
+
 export interface Option<T extends string = string> {
   value: T;
   label: string;
@@ -175,6 +178,36 @@ export const CHANGE_READINESS_OPTIONS: Option[] = [
   { value: 'passive', label: 'Passiv' },
 ];
 
+export const SALARY_BASIS_OPTIONS: Option[] = [
+  { value: 'fix', label: 'fix' },
+  { value: 'total', label: 'mit Bonus' },
+];
+
+/** „Wie soll das neue Unternehmen sein?“ (Ziele) */
+export const COMPANY_SIZE_OPTIONS: Option[] = [
+  { value: 'corporate', label: 'Konzern' },
+  { value: 'midsize', label: 'Mittelstand' },
+  { value: 'startup', label: 'Start-up' },
+  { value: 'any', label: 'egal' },
+];
+
+export const INDUSTRY_CHANGE_OPTIONS: Option[] = [
+  { value: 'same', label: 'gleiche Branche' },
+  { value: 'open', label: 'offen für Wechsel' },
+];
+
+export const INTERNATIONAL_OPTIONS: Option[] = [
+  { value: 'yes', label: 'gern' },
+  { value: 'no', label: 'eher nicht' },
+];
+
+export const NON_COMPETE_OPTIONS: Option[] = [
+  { value: 'none', label: 'Nein' },
+  { value: 'non_compete', label: 'Wettbewerbsverbot' },
+  { value: 'garden_leave', label: 'Freistellung möglich' },
+  { value: 'negotiable', label: 'Aufhebung verhandelbar' },
+];
+
 export const INTERVIEW_TYPE_OPTIONS: Option[] = [
   { value: 'phone', label: 'Telefon' },
   { value: 'video', label: 'Video' },
@@ -266,6 +299,18 @@ export interface DossierForm {
   blocked_companies: string[];
   presentation_consent: boolean | null;
   presentation_consent_at: string | null;
+  // Migration 20261016100000
+  /** fix | total: Bezieht sich das Gehalt auf Fixum oder Gesamt mit Bonus? */
+  salary_basis: string | null;
+  /** none | non_compete | garden_leave | negotiable (nur intern) */
+  non_compete: string | null;
+  // Migration 20261019100000 – „Wie soll das neue Unternehmen sein?“
+  /** corporate | midsize | startup | any */
+  company_size_pref: string | null;
+  /** same | open */
+  industry_change: string | null;
+  /** yes | no */
+  international_pref: string | null;
   /** Nur lesen: draft | completed (candidate_interview_notes.status). Wird nie geschrieben. */
   interview_status: string | null;
 }
@@ -275,6 +320,8 @@ export const NEW_NOTE_COLUMNS = [
   'interview_type', 'leadership_scope', 'leadership_team_size', 'other_applications',
   'other_applications_notes', 'blocked_companies', 'presentation_consent', 'presentation_consent_at',
   'recommendation_level', 'would_stay_answer', 'change_readiness',
+  'salary_basis', 'non_compete',
+  'company_size_pref', 'industry_change', 'international_pref',
 ] as const;
 
 type Row = Record<string, unknown> | null | undefined;
@@ -491,6 +538,11 @@ export function fromRecords(candidate: Row, notes: Row, languages: Array<{ langu
     blocked_companies: strArray(n.blocked_companies),
     presentation_consent: n.presentation_consent === true ? true : n.presentation_consent === false ? false : null,
     presentation_consent_at: str(n.presentation_consent_at) || null,
+    salary_basis: str(n.salary_basis) || null,
+    non_compete: str(n.non_compete) || null,
+    company_size_pref: str(n.company_size_pref) || null,
+    industry_change: str(n.industry_change) || null,
+    international_pref: str(n.international_pref) || null,
     interview_status: str(n.status) || null,
   };
 }
@@ -611,6 +663,11 @@ export function toNotesPayload(f: DossierForm): { base: Record<string, unknown>;
     recommendation_level: f.recommendation,
     would_stay_answer: f.would_stay,
     change_readiness: f.change_readiness,
+    salary_basis: f.salary_basis,
+    non_compete: f.non_compete,
+    company_size_pref: f.company_size_pref,
+    industry_change: f.industry_change,
+    international_pref: f.international_pref,
   };
   return { base, extra };
 }
@@ -671,6 +728,9 @@ export function computeReadiness(f: DossierForm): Readiness {
     // Ohne geführtes Interview bleibt beim Kunden „Aus dem Gespräch mit dem Headhunter“ leer.
     { key: 'interview', label: 'Interview abgeschlossen', ok: interviewCompleted(f), section: 'einschaetzung', field: 'interview' },
   ];
+  // Nennt ein Kundentext aktuelles Gehalt, Schmerzgrenze, andere Bewerbungen, Name
+  // oder Arbeitgeber, wird nicht eingereicht (Punkt erscheint nur dann).
+  if (hasBlockingClientText(f)) items.push({ key: 'kundentexte', label: 'Kundentexte ohne interne Angaben', ok: false, section: 'kunde', field: 'summary_motivation' });
   const done = items.filter((i) => i.ok).length;
   return { items, done, total: items.length, isReady: done === items.length, missing: items.filter((i) => !i.ok) };
 }
@@ -715,7 +775,8 @@ export function buildClientSummary(f: DossierForm, today: Date = new Date()): Cl
     : f.change_motivation_tags.length ? `Wechselmotive: ${f.change_motivation_tags.join(', ')}` : '';
   // Nie die Schmerzgrenze und nie das aktuelle Gehalt: der Kunde verhandelt
   // sonst genau auf diese Grenze (Entgelttransparenz, Vertrauen des Kandidaten).
-  const salary = f.expected_salary ? `Wunschgehalt um ${formatEuro(f.expected_salary)} im Jahr` : '';
+  const basis = f.salary_basis === 'total' ? ' (gesamt mit Bonus)' : f.salary_basis === 'fix' ? ' (fix)' : '';
+  const salary = f.expected_salary ? `Wunschgehalt um ${formatEuro(f.expected_salary)} im Jahr${basis}` : '';
   const noticeLabel = optionLabel(NOTICE_OPTIONS, f.notice_period);
   const start = f.availability_date ?? (f.notice_period && f.notice_period !== 'immediate' ? earliestStart(f.notice_period, today) : null);
   const notice = [
@@ -830,6 +891,44 @@ export function isMissingColumnError(error: { code?: string; message?: string } 
   return error.code === 'PGRST204' || error.code === '42703' || /schema cache|column .* does not exist/i.test(error.message ?? '');
 }
 
+/** Name der fehlenden Spalte aus der Fehlermeldung (PostgREST oder Postgres), sonst null. */
+export function missingColumnOf(error: { message?: string } | null | undefined): string | null {
+  const msg = error?.message ?? '';
+  const m = /Could not find the '([^']+)' column/i.exec(msg) ?? /column "?([a-z0-9_]+)"? (?:of relation "?[a-z0-9_]+"? )?does not exist/i.exec(msg);
+  return m ? m[1] : null;
+}
+
+/**
+ * Schreibt und lässt dabei nur die Spalten weg, die es (live) noch nicht gibt –
+ * eine nach der anderen, genau wie die Fehlermeldung sie nennt. Vorher fielen beim
+ * ersten fehlenden Feld ALLE neueren Interview-Spalten weg (Führung, Sperrliste,
+ * Gesprächsart …), Durchklicken 16.10.2026. Nur wenn die Meldung keine Spalte
+ * nennt, bleibt der alte Rückfall (alle neueren Spalten weg).
+ */
+export async function writeDroppingMissingColumns<T extends { error: { code?: string; message?: string } | null }>(
+  write: (payload: Record<string, unknown>) => PromiseLike<T>,
+  payload: Record<string, unknown>,
+): Promise<{ result: T; dropped: string[] }> {
+  let current = { ...payload };
+  const dropped: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    const result = await write(current);
+    if (!result.error || !isMissingColumnError(result.error)) return { result, dropped };
+    const col = missingColumnOf(result.error);
+    if (col && col in current) {
+      delete current[col];
+      dropped.push(col);
+      continue;
+    }
+    const stripped = stripNewColumns(current);
+    const gone = Object.keys(current).filter((k) => !(k in stripped));
+    if (!gone.length) return { result, dropped };
+    dropped.push(...gone);
+    current = stripped;
+  }
+  return { result: await write(current), dropped };
+}
+
 export function stripNewColumns(payload: Record<string, unknown>): Record<string, unknown> {
   const out = { ...payload };
   for (const col of NEW_NOTE_COLUMNS) delete out[col];
@@ -851,7 +950,8 @@ export function autoClientSummary(
   const edited = new Set<keyof ClientSummary>();
   for (const key of CLIENT_SUMMARY_KEYS) {
     const value = current[key];
-    const isDraft = !value.trim() || value === lastGenerated[key] || value === next[key];
+    // Der frühere Automatik-Satz („Stört vor allem: …“) zählt als Entwurf, nicht als eigener Text.
+    const isDraft = !value.trim() || value === lastGenerated[key] || value === next[key] || (key === 'summary_motivation' && isOldAutoMotivation(value));
     if (!isDraft) { edited.add(key); continue; }
     if (value !== next[key]) patch[key] = next[key];
   }

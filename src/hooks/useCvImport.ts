@@ -1,8 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
   DossierForm,
-  isMissingColumnError,
-  stripNewColumns,
+  writeDroppingMissingColumns,
   toCandidatePayload,
   toNotesPayload,
 } from '@/lib/candidateDossier';
@@ -105,8 +104,7 @@ async function writeNotes(candidateId: string, userId: string, form: DossierForm
   const write = (p: Record<string, unknown>) => notesId
     ? supabase.from('candidate_interview_notes').update({ ...p, updated_at: new Date().toISOString() } as never).eq('id', notesId)
     : supabase.from('candidate_interview_notes').insert({ ...p, candidate_id: candidateId, recruiter_id: userId, status: 'draft' } as never);
-  let { error } = await write(payload);
-  if (error && isMissingColumnError(error)) ({ error } = await write(stripNewColumns(payload)));
+  const { result: { error } } = await writeDroppingMissingColumns(write, payload);
   return error ? 'Interviewangaben (Sperrliste, Motivation, Ziele)' : null;
 }
 

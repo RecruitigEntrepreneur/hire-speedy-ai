@@ -6,9 +6,8 @@ import {
   Readiness,
   computeReadiness,
   fromRecords,
-  isMissingColumnError,
+  writeDroppingMissingColumns,
   mergeNoteRows,
-  stripNewColumns,
   toCandidatePayload,
   toNotesPayload,
 } from '@/lib/candidateDossier';
@@ -142,11 +141,9 @@ export function useCandidateDossier(candidateId: string | undefined) {
               status: 'draft',
             } as never);
           };
-          let { error } = await write(notesId ? notesChanges : { ...nextNotes.base, ...nextNotes.extra });
-          if (error && isMissingColumnError(error)) {
-            pending = true;
-            ({ error } = await write(stripNewColumns(notesId ? notesChanges : nextNotes.base)));
-          }
+          const { result, dropped } = await writeDroppingMissingColumns(write, notesId ? notesChanges : { ...nextNotes.base, ...nextNotes.extra });
+          if (dropped.length) pending = true;
+          const { error } = result;
           if (error) throw error;
           if (consolidate) {
             const { error: supError } = await supabase

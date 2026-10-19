@@ -2,6 +2,9 @@
 // (Lebenslauf, bisherige Antworten) – keine KI, keine Bewertung der Person.
 
 import { DossierForm } from '@/lib/candidateDossier';
+import { goalsAsRoles } from '@/lib/careerGoals';
+import { FAMILY_CHIPS, belowLevel, detectRoleFamily } from '@/lib/roleFamily';
+import { evaluateMotiveFields } from '@/lib/situationMotives';
 
 const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').trim();
 const uniq = (list: string[]) => {
@@ -40,7 +43,7 @@ export function togglePhrase(text: string, phrase: string): string {
 
 export const POSITIVE_OPTIONS = ['Team', 'Aufgaben', 'Führungskraft', 'Flexibilität', 'Gehalt', 'Arbeitsweg', 'Stabilität', 'Weiterbildung'];
 export const NEGATIVE_OPTIONS = [
-  'Keine Entwicklung', 'Wenig Gestaltungsspielraum', 'Führungskraft', 'Arbeitslast', 'Gehalt', 'Übernahme oder Umstrukturierung',
+  'Keine Entwicklung', 'Wenig Gestaltungsspielraum', 'Führungskraft', 'Arbeitslast', 'Gehalt', 'Übernahme', 'Umstrukturierung',
   'Arbeitsweg', 'Unternehmenskultur', 'Kaum Wertschätzung',
 ];
 
@@ -51,7 +54,7 @@ export const NEGATIVE_OPTIONS = [
 const NEXT_STEP: Record<string, string[]> = {
   junior: ['Fachlich vertiefen', 'Mehr Verantwortung', 'Senior-Rolle'],
   mid: ['Senior-Rolle', 'Projektverantwortung', 'Erste Führungsrolle'],
-  senior: ['Teamleitung', 'Fachkarriere als Expertin oder Experte', 'Größerer Verantwortungsbereich'],
+  senior: ['Teamleitung', 'Fachkarriere', 'Größerer Verantwortungsbereich'],
   lead: ['Abteilungsleitung', 'Größeres Team', 'Fachkarriere statt Führung'],
   director: ['Bereichsleitung', 'Geschäftsführung', 'Größere Organisation'],
 };
@@ -65,6 +68,11 @@ const AREA: [RegExp, string][] = [
 
 /** Richtungen für „Wohin will sie oder er?": Lebenslauf-Ziel zuerst, dann übliche nächste Schritte. */
 export function careerDirections(f: DossierForm): string[] {
+  const family = detectRoleFamily(f);
+  // Geschäftsführung: eigene Richtungen, nie eine Ebene darunter („Bereichsleitung“).
+  if (family === 'clevel') {
+    return uniq([...f.target_roles.filter((r) => !belowLevel(family, r)).slice(0, 3), ...FAMILY_CHIPS.clevel.ziel]).slice(0, 8);
+  }
   const area = AREA.find(([re]) => re.test(f.job_title))?.[1];
   // Wer schon disziplinarisch führt, steht mindestens auf „Lead" – sonst würde „Teamleitung" vorgeschlagen.
   const base = f.seniority ?? ((f.experience_years ?? 0) >= 6 ? 'senior' : 'mid');
@@ -73,7 +81,8 @@ export function careerDirections(f: DossierForm): string[] {
   const lead = area && (level === 'senior' || level === 'lead') ? [`Leitung ${area}`] : [];
   const currentlyLeads = f.leadership_scope === 'disciplinary';
   const fromCv = f.target_roles.slice(0, 3);
-  return uniq([...fromCv, ...lead, ...steps, 'Wechsel in den Mittelstand', 'Wechsel in den Konzern', 'Internationale Aufgaben'])
+  const familyGoals = family === 'spezialist' || family === 'fuehrung' ? [] : FAMILY_CHIPS[family].ziel.slice(0, 3);
+  return uniq([...fromCv, ...lead, ...steps, ...familyGoals, 'Wechsel in den Mittelstand', 'Wechsel in den Konzern', 'Internationale Aufgaben'])
     .filter((d) => !(currentlyLeads && /^teamleitung$/i.test(d)))
     .slice(0, 8);
 }
@@ -88,10 +97,15 @@ export function actionsTaken(f: DossierForm): string[] {
 }
 
 export const WORKED_OPTIONS = ['Weiterbildung', 'Projekte übernommen', 'Unterstützung durch Vorgesetzte', 'Netzwerk', 'Stellenwechsel'];
-export const DIDNT_WORK_OPTIONS = ['Keine Stelle frei', 'Übernahme oder Umstrukturierung', 'Budget fehlte', 'Kein Rückhalt', 'Beförderung abgelehnt'];
+export const DIDNT_WORK_OPTIONS = ['Keine Stelle frei', 'Übernahme', 'Umstrukturierung', 'Budget fehlte', 'Kein Rückhalt', 'Beförderung abgelehnt'];
 
 export function roleSuggestions(f: DossierForm): string[] {
-  return uniq([...careerDirections(f).filter((d) => /leitung|head|lead|manager|senior/i.test(d)), f.job_title]).filter((r) => !f.target_roles.some((t) => norm(t) === norm(r))).slice(0, 4);
+  if (detectRoleFamily(f) === 'clevel') {
+    return uniq(['Geschäftsführer', 'CEO', 'Beirat', 'Operating Partner', 'Interim-Geschäftsführer'])
+      .filter((r) => !f.target_roles.some((t) => norm(t) === norm(r))).slice(0, 4);
+  }
+  // Angetippte Ziele, die eine Rolle sind („Engineering Manager“), stehen vorn.
+  return uniq([...goalsAsRoles(phrasesOf(f.career_ultimate_goal)), ...careerDirections(f).filter((d) => /leitung|head|lead|manager|senior/i.test(d)), f.job_title]).filter((r) => !f.target_roles.some((t) => norm(t) === norm(r))).slice(0, 4);
 }
 
 export function industrySuggestions(f: DossierForm): string[] {
@@ -127,12 +141,16 @@ const TAG_TO_OFFER: Record<string, string> = {
   Sicherheit: 'Stabiles Unternehmen',
 };
 
-/** Top-3-Vorschläge fürs Angebot aus Motivation, Stör-Punkten und Zielen; schon Gewähltes fällt raus. */
+/**
+ * Top-3-Vorschläge fürs Angebot: zuerst aus „Was gefällt, was stört“ (angetippte
+ * Knöpfe), dann aus Motivation, Stör-Punkten und Zielen; schon Gewähltes fällt raus.
+ */
 export function offerSuggestions(f: DossierForm): string[] {
+  const fromMotives = evaluateMotiveFields(detectRoleFamily(f), f.current_positive, f.current_negative).weiter.top3;
   const text = [f.change_motivation, f.current_negative, f.why_now, f.career_ultimate_goal, f.career_3_5_year_plan].join(' ');
   const fromText = OFFER_HINTS.filter(([re]) => re.test(text)).map(([, o]) => o);
   const fromTags = f.change_motivation_tags.map((t) => TAG_TO_OFFER[t]).filter(Boolean);
-  return uniq([...fromText, ...fromTags]).filter((o) => !f.offer_requirements.some((x) => norm(x) === norm(o))).slice(0, 3);
+  return uniq([...fromMotives, ...fromText, ...fromTags]).filter((o) => !f.offer_requirements.some((x) => norm(x) === norm(o))).slice(0, 3);
 }
 
 export const PROCESS_ISSUE_OPTIONS = ['Kein Feedback', 'Zu lange Prozesse', 'Gehalt zu niedrig', 'Stelle anders als beschrieben', 'Zu viele Runden', 'Absage ohne Grund'];

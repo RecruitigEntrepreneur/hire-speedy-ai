@@ -14,6 +14,18 @@ import { hasPhrase, togglePhrase } from '@/lib/interviewSuggestions';
  */
 export const FieldOriginContext = createContext<OriginMap | null>(null);
 
+/**
+ * Felder, die noch fehlen (Interview: zum Abschließen oder Einreichen). Ein Feld
+ * darin bekommt eine gelbe Kante und „fehlt“ am Label.
+ */
+export const FieldMissingContext = createContext<Set<string> | null>(null);
+
+/**
+ * Im Interview sind Labels Fragen, die vorgelesen werden: groß und hell wie
+ * „Rolle heute“. Bearbeiten-Panel und Prüfseite bleiben bei kleinen Formular-Labels.
+ */
+export const FieldQuestionContext = createContext(false);
+
 function OriginLine({ field }: { field?: string }) {
   const origins = useContext(FieldOriginContext);
   const o = field && origins ? origins[field as keyof OriginMap] : undefined;
@@ -49,10 +61,14 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
+  const missing = useContext(FieldMissingContext);
+  const isMissing = !!field && !!missing?.has(field);
+  const question = useContext(FieldQuestionContext);
   return (
-    <div className={cn('space-y-1.5', className)} data-dossier-field={field}>
-      <label htmlFor={field ? fieldId(field) : undefined} className="text-xs font-medium text-muted-foreground">
+    <div className={cn('space-y-1.5', isMissing && 'border-l-2 border-warning pl-3', className)} data-dossier-field={field}>
+      <label htmlFor={field ? fieldId(field) : undefined} className={question ? 'text-sm font-medium' : 'text-xs font-medium text-muted-foreground'}>
         {label}
+        {isMissing && <span className="ml-1.5 font-normal text-warning">fehlt</span>}
       </label>
       {children}
       <OriginLine field={field} />
@@ -74,27 +90,37 @@ export function ChipGroup({
   onChange,
   field,
   noneLabel,
+  suggested,
+  suggestedHint,
 }: {
   options: Option[];
   value: string | null;
   onChange: (value: string | null) => void;
   field?: string;
   noneLabel?: string;
+  /** Vorschlag (gestrichelt, nie vorausgewählt), z. B. aus dem Lebenslauf abgeleitet. */
+  suggested?: string | null;
+  /** Warum der Vorschlag, als Tooltip. */
+  suggestedHint?: string;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5" id={field ? fieldId(field) : undefined} role="radiogroup">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          className={chipClass(value === o.value)}
-          onClick={() => onChange(value === o.value ? null : o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
+      {options.map((o) => {
+        const isSuggested = value == null && suggested === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            title={isSuggested ? suggestedHint ?? 'Vorschlag' : undefined}
+            className={cn(chipClass(value === o.value), isSuggested && 'border-dashed border-primary text-primary')}
+            onClick={() => onChange(value === o.value ? null : o.value)}
+          >
+            {o.label}
+          </button>
+        );
+      })}
       {noneLabel && (
         <button type="button" role="radio" aria-checked={value == null} className={chipClass(value == null)} onClick={() => onChange(null)}>
           {noneLabel}

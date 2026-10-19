@@ -813,6 +813,135 @@ neuen Zeit mit, Fragen ohne Quellenverweis. **Keine Migration.**
 
 ---
 
+## 19 — Interview: Wechselmotivation versteht eigene Worte, Wunsch-Unternehmen, lernendes Wörterbuch (19.10.2026)
+
+„Was stört“ versteht beim Tippen eigene Worte („mein Chef entscheidet alles allein“ →
+Vorschläge), bei der Führungskraft gibt es „Wie genau?“. Der Kundentext „Warum wechseln“
+zeigt jedem Satz seine Herkunft und entsteht erst mit einem Wechselgrund. Die früheren
+Zusatzknöpfe (Mittelstand, Branchenwechsel, Umzug, international) sind jetzt die Frage
+„Wie soll das neue Unternehmen sein?“ in „Ziele“ und werden als Felder gespeichert.
+Bestätigte KI-Vorschläge landen im lernenden Wörterbuch (ohne Kandidatenbezug).
+**Zwei Migrationen, eine neue Edge Function.**
+
+> 1. Migration `supabase/migrations/20261016100000_interview_gehaltsbasis_wettbewerbsverbot.sql` ausführen
+>    (`candidate_interview_notes`: `salary_basis`, `non_compete`; keine Daten werden verändert).
+> 2. Migration `supabase/migrations/20261019100000_interview_umfeld_lernwoerterbuch.sql` ausführen
+>    (`candidate_interview_notes`: `company_size_pref`, `industry_change`, `international_pref`;
+>    neue Tabelle `interview_phrase_learnings` mit RLS; keine Daten werden verändert).
+> 3. Edge Function deployen: `interview-understand` (neu).
+> 4. Publish.
+
+**Reihenfolge: erst 1 und 2, dann 3, dann 4.** Ohne Migration speichert das Interview die
+neuen Felder nicht (es zeigt einen gelben Hinweis) und zieht alte Zusatz-Sätze nicht um; ohne
+Deploy von `interview-understand` bleibt es beim festen Wörterbuch, ohne KI-Rückfall.
+
+Falls Lovable die Dateien nicht findet, hier das SQL zum Einfügen:
+
+> ```sql
+> -- ============================================================================
+> -- Interview: Gehaltsbasis und Wettbewerbsverbot (16.10.2026)
+> -- ============================================================================
+> -- salary_basis: Bezieht sich das genannte Gehalt auf das Fixum oder das Gesamt
+> --   mit Bonus? Wichtig bei Geschäftsführung und Vertrieb, sonst werden Fix und
+> --   Gesamt vermischt.
+> -- non_compete: Gibt es ein Wettbewerbsverbot oder eine Freistellung? Kann den
+> --   Start um Monate verschieben. Nur intern, nie für den Kunden.
+> -- Fehlen die Spalten, speichert die App ohne sie (NEW_NOTE_COLUMNS).
+> -- ============================================================================
+>
+> ALTER TABLE public.candidate_interview_notes
+>   ADD COLUMN IF NOT EXISTS salary_basis text,
+>   ADD COLUMN IF NOT EXISTS non_compete text;
+>
+> ALTER TABLE public.candidate_interview_notes DROP CONSTRAINT IF EXISTS candidate_interview_notes_salary_basis_check;
+> ALTER TABLE public.candidate_interview_notes
+>   ADD CONSTRAINT candidate_interview_notes_salary_basis_check CHECK (salary_basis IS NULL OR salary_basis IN ('fix', 'total'));
+>
+> ALTER TABLE public.candidate_interview_notes DROP CONSTRAINT IF EXISTS candidate_interview_notes_non_compete_check;
+> ALTER TABLE public.candidate_interview_notes
+>   ADD CONSTRAINT candidate_interview_notes_non_compete_check CHECK (non_compete IS NULL OR non_compete IN ('none', 'non_compete', 'garden_leave', 'negotiable'));
+>
+> COMMENT ON COLUMN public.candidate_interview_notes.salary_basis IS 'fix | total – Gehaltsangaben als Fixum oder Gesamt mit Bonus';
+> COMMENT ON COLUMN public.candidate_interview_notes.non_compete IS 'none | non_compete | garden_leave | negotiable – nur intern';
+> ```
+
+> ```sql
+> -- ============================================================================
+> -- Interview: Wunsch-Unternehmen und lernendes Wörterbuch (19.10.2026)
+> -- ============================================================================
+> -- 1) „Wie soll das neue Unternehmen sein?“ (Phase Ziele) als echte Felder statt
+> --    Sätze in der Wechselmotivation. Daraus schreibt sich der Kundentext, später
+> --    nutzbar für Matching und Filter. Fehlen die Spalten, speichert die App ohne
+> --    sie (NEW_NOTE_COLUMNS).
+> --      company_size_pref   corporate | midsize | startup | any
+> --      industry_change     same | open
+> --      international_pref  yes | no
+> --
+> -- 2) interview_phrase_learnings: Bestätigt ein Headhunter einen KI-Vorschlag
+> --    („Jour fixes“ → „Mehr Termine als Arbeit“), wird nur dieses Paar gespeichert –
+> --    ohne Kandidat, ohne Namen, ohne Zahlen (die App kürzt auf höchstens 6 Wörter).
+> --    Danach erkennt das Interview die Wendung bei allen Headhuntern sofort.
+> -- ============================================================================
+>
+> ALTER TABLE public.candidate_interview_notes
+>   ADD COLUMN IF NOT EXISTS company_size_pref text,
+>   ADD COLUMN IF NOT EXISTS industry_change text,
+>   ADD COLUMN IF NOT EXISTS international_pref text;
+>
+> ALTER TABLE public.candidate_interview_notes DROP CONSTRAINT IF EXISTS candidate_interview_notes_company_size_pref_check;
+> ALTER TABLE public.candidate_interview_notes
+>   ADD CONSTRAINT candidate_interview_notes_company_size_pref_check CHECK (company_size_pref IS NULL OR company_size_pref IN ('corporate', 'midsize', 'startup', 'any'));
+>
+> ALTER TABLE public.candidate_interview_notes DROP CONSTRAINT IF EXISTS candidate_interview_notes_industry_change_check;
+> ALTER TABLE public.candidate_interview_notes
+>   ADD CONSTRAINT candidate_interview_notes_industry_change_check CHECK (industry_change IS NULL OR industry_change IN ('same', 'open'));
+>
+> ALTER TABLE public.candidate_interview_notes DROP CONSTRAINT IF EXISTS candidate_interview_notes_international_pref_check;
+> ALTER TABLE public.candidate_interview_notes
+>   ADD CONSTRAINT candidate_interview_notes_international_pref_check CHECK (international_pref IS NULL OR international_pref IN ('yes', 'no'));
+>
+> COMMENT ON COLUMN public.candidate_interview_notes.company_size_pref IS 'corporate | midsize | startup | any – gewünschte Unternehmensgröße';
+> COMMENT ON COLUMN public.candidate_interview_notes.industry_change IS 'same | open – in der Branche bleiben oder offen für einen Wechsel';
+> COMMENT ON COLUMN public.candidate_interview_notes.international_pref IS 'yes | no – internationale Aufgaben gewünscht';
+>
+> -- ----------------------------------------------------------------------------
+> -- Lernendes Wörterbuch
+> -- ----------------------------------------------------------------------------
+> CREATE TABLE IF NOT EXISTS public.interview_phrase_learnings (
+>   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+>   side text NOT NULL CHECK (side IN ('pos', 'neg', 'goal')),
+>   phrase text NOT NULL CHECK (char_length(phrase) BETWEEN 3 AND 60 AND phrase !~ '[0-9@]'),
+>   label text NOT NULL CHECK (char_length(label) BETWEEN 2 AND 80),
+>   family text,
+>   recruiter_id uuid NOT NULL DEFAULT auth.uid(),
+>   created_at timestamptz NOT NULL DEFAULT now(),
+>   UNIQUE (side, phrase, label, recruiter_id)
+> );
+>
+> COMMENT ON TABLE public.interview_phrase_learnings IS 'Vom Headhunter bestätigte Paare „Wendung → Knopf“ für gefällt, stört und Karriereziel im Interview. Kein Kandidatenbezug.';
+>
+> CREATE INDEX IF NOT EXISTS interview_phrase_learnings_side_idx ON public.interview_phrase_learnings (side);
+>
+> ALTER TABLE public.interview_phrase_learnings ENABLE ROW LEVEL SECURITY;
+>
+> DROP POLICY IF EXISTS "Headhunter lesen gelernte Wendungen" ON public.interview_phrase_learnings;
+> CREATE POLICY "Headhunter lesen gelernte Wendungen"
+>   ON public.interview_phrase_learnings FOR SELECT TO authenticated
+>   USING (public.has_role(auth.uid(), 'recruiter') OR public.has_role(auth.uid(), 'admin'));
+>
+> DROP POLICY IF EXISTS "Headhunter speichern eigene Wendungen" ON public.interview_phrase_learnings;
+> CREATE POLICY "Headhunter speichern eigene Wendungen"
+>   ON public.interview_phrase_learnings FOR INSERT TO authenticated
+>   WITH CHECK (recruiter_id = auth.uid() AND (public.has_role(auth.uid(), 'recruiter') OR public.has_role(auth.uid(), 'admin')));
+>
+> DROP POLICY IF EXISTS "Headhunter löschen eigene Wendungen" ON public.interview_phrase_learnings;
+> CREATE POLICY "Headhunter löschen eigene Wendungen"
+>   ON public.interview_phrase_learnings FOR DELETE TO authenticated
+>   USING (recruiter_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+> ```
+
+---
+
 ## 20 — Feedback-Lasche und Ticket-Eingang (19.10.2026)
 
 Alle Kunden, Headhunter und Aufnahme-Links bekommen am rechten Rand eine Lasche „Feedback“:

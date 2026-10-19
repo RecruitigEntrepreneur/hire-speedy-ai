@@ -16,7 +16,6 @@ import {
   DossierForm,
   INTERVIEW_TYPE_OPTIONS,
   MOTIVATION_TAGS,
-  NOTICE_OPTIONS,
   RECOMMENDATION_OPTIONS,
   buildExposeDraft,
   changeEvidence,
@@ -39,7 +38,7 @@ import {
 } from '@/lib/captureReview';
 import type { DossierSaveResult } from '@/hooks/useCandidateDossier';
 import { ChipGroup, Field, MoneyInput, MultiChips, TagInput } from './DossierFields';
-import { EmpfehlungBlock, KontaktBlock, KundeBlock, MotivationBlock, RolleBlock } from './DossierBlocks';
+import { EmpfehlungBlock, KontaktBlock, KundeBlock, MotivationBlock, RolleBlock, VerfuegbarkeitBlock } from './DossierBlocks';
 import type { EditFocus } from './CandidateEditSheet';
 
 type Step = 'input' | 'analyzing' | 'review' | 'close' | 'gaps' | 'quick';
@@ -483,9 +482,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                   <div className="w-36"><MoneyInput value={draft.expected_salary} onChange={(v) => set({ expected_salary: v })} placeholder="anderer Betrag" /></div>
                 </div>
               </Field>
-              <Field label="Kündigungsfrist" field="notice_period">
-                <ChipGroup field="notice_period" options={NOTICE_OPTIONS} value={draft.notice_period} onChange={(v) => set({ notice_period: v })} />
-              </Field>
+              <VerfuegbarkeitBlock form={draft} set={set} />
               <Field label="Wechselmotivation" field="change_motivation_tags">
                 <MultiChips options={MOTIVATION_TAGS} values={draft.change_motivation_tags} onChange={(v) => set({ change_motivation_tags: v })} />
               </Field>
@@ -513,7 +510,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                 <div key={m.key} className="space-y-2 rounded-md border border-border p-3">
                   <p className="text-sm font-medium">{m.label}</p>
                   {m.key === 'gehalt' && <MoneyInput value={draft.expected_salary} onChange={(v) => set({ expected_salary: v })} />}
-                  {m.key === 'verfuegbarkeit' && <ChipGroup options={NOTICE_OPTIONS} value={draft.notice_period} onChange={(v) => set({ notice_period: v })} />}
+                  {m.key === 'verfuegbarkeit' && <VerfuegbarkeitBlock form={draft} set={set} />}
                   {m.key === 'motivation' && <MotivationBlock form={draft} set={set} label="Wechselmotivation" />}
                   {m.key === 'einschaetzung' && <ChipGroup options={RECOMMENDATION_OPTIONS} value={draft.recommendation} onChange={(v) => set({ recommendation: v })} />}
                   {m.key === 'skills' && <TagInput values={draft.skills} onChange={(v) => set({ skills: v })} placeholder="mind. 3 Skills" />}

@@ -14,6 +14,7 @@ import {
   PERMIT_OPTIONS,
   RECOMMENDATION_OPTIONS,
   RELOCATION_OPTIONS,
+  SALARY_BASIS_OPTIONS,
   SENIORITY_OPTIONS,
   WORK_MODEL_OPTIONS,
   buildExposeDraft,
@@ -24,6 +25,8 @@ import {
 } from '@/lib/candidateDossier';
 import { blockedSuggestions, industrySuggestions, locationSuggestions, offerSuggestions, roleSuggestions } from '@/lib/interviewSuggestions';
 import { cn } from '@/lib/utils';
+import type { RoleFamily } from '@/lib/roleFamily';
+import { minimumChips, salaryWarnings, wishChips, type SalaryChip } from '@/lib/salaryChips';
 import { AreaField, ChipGroup, Field, MoneyInput, MultiChips, NumberField, TagInput, TextField, fieldId } from './DossierFields';
 
 // Bausteine der Kandidatenakte. Bearbeiten-Panel und Interview setzen sie
@@ -95,36 +98,79 @@ export function BerufBlock({ form, set }: BlockProps) {
   );
 }
 
-export function GehaltBlock({ form, set }: BlockProps) {
+function SalaryChipRow({ chips, value, onPick }: { chips: SalaryChip[]; value: number | null; onPick: (v: number) => void }) {
+  if (!chips.length) return null;
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Field label="Aktuelles Gehalt" field="current_salary">
-        <MoneyInput field="current_salary" value={form.current_salary} onChange={(v) => set({ current_salary: v })} />
-      </Field>
-      <Field label="Wunschgehalt" field="expected_salary">
-        <MoneyInput field="expected_salary" value={form.expected_salary} onChange={(v) => set({ expected_salary: v })} />
-      </Field>
-      <Field label="Schmerzgrenze" field="salary_minimum">
-        <MoneyInput field="salary_minimum" value={form.salary_minimum} onChange={(v) => set({ salary_minimum: v })} />
-      </Field>
+    <div className="flex flex-wrap gap-1">
+      {chips.map((c) => (
+        <button key={c.value} type="button" onClick={() => onPick(c.value)}
+          className={cn('rounded-md border px-2 py-0.5 text-xs transition-colors', value === c.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>
+          {c.label}
+        </button>
+      ))}
     </div>
   );
 }
 
-export function VerfuegbarkeitBlock({ form, set }: BlockProps) {
+/**
+ * Gehalt. Mit `family` (Interview): Wunsch und Schmerzgrenze per Klick relativ zum
+ * heutigen Gehalt, dazu fix oder mit Bonus und Hinweise bei Unstimmigem.
+ */
+export function GehaltBlock({ form, set, family }: BlockProps & { family?: RoleFamily }) {
+  const warnings = family ? salaryWarnings(form) : [];
+  return (
+    <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Aktuelles Gehalt" field="current_salary" hint={family ? 'Nur wenn freiwillig genannt.' : undefined}>
+          <MoneyInput field="current_salary" value={form.current_salary} onChange={(v) => set({ current_salary: v })} />
+        </Field>
+        <Field label="Wunschgehalt" field="expected_salary">
+          <MoneyInput field="expected_salary" value={form.expected_salary} onChange={(v) => set({ expected_salary: v })} />
+          {family && <SalaryChipRow chips={wishChips(form.current_salary, family)} value={form.expected_salary} onPick={(v) => set({ expected_salary: v })} />}
+        </Field>
+        <Field label="Schmerzgrenze" field="salary_minimum">
+          <MoneyInput field="salary_minimum" value={form.salary_minimum} onChange={(v) => set({ salary_minimum: v })} />
+          {family && <SalaryChipRow chips={minimumChips(form.expected_salary, form.current_salary)} value={form.salary_minimum} onPick={(v) => set({ salary_minimum: v })} />}
+        </Field>
+      </div>
+      {family && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>Beträge sind</span>
+          <ChipGroup field="salary_basis" options={SALARY_BASIS_OPTIONS} value={form.salary_basis} onChange={(v) => set({ salary_basis: v })} />
+        </div>
+      )}
+      {warnings.map((w) => (
+        <p key={w} className="flex items-start gap-1.5 text-xs text-warning"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}</p>
+      ))}
+    </div>
+  );
+}
+
+export function VerfuegbarkeitBlock({ form, set, hint }: BlockProps & { hint?: { duration: string; anchor: string | null; label: string } | null }) {
   const today = new Date();
   const { duration, anchor } = noticeParts(form.notice_period);
   const computed = earliestStart(form.notice_period, today);
   const choose = (d: string | null, a: string | null) => {
     const next = composeNotice(d, a);
-    // „Verfügbar ab" folgt der Frist, solange es niemand von Hand gesetzt hat.
-    const auto = !form.availability_date || form.availability_date === computed;
-    set({ notice_period: next, ...(auto ? { availability_date: earliestStart(next, today) } : {}) });
+    // „Verfügbar ab" springt bei jeder Wahl auf den frühesten Start (Durchklicken
+    // 15.10.2026). Bisher nur, solange es leer war -- ein älteres Datum blieb stehen.
+    // „Keine Angabe" lässt ein vorhandenes Datum stehen.
+    const start = earliestStart(next, today);
+    set({ notice_period: next, ...(start ? { availability_date: start } : {}) });
   };
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('de-DE');
+  const abweichend = !!computed && !!form.availability_date && form.availability_date !== computed;
+  const zuFrueh = abweichend && form.availability_date! < computed!;
   return (
     <div className="space-y-3">
-      <Field label="Kündigungsfrist" field="notice_period">
+      <Field label="Kündigungsfrist" field="notice_period" hint="Ergibt den frühesten Start beim neuen Arbeitgeber.">
         <div className="space-y-1.5">
+          {hint && !form.notice_period && (
+            <p className="flex flex-wrap items-center gap-2 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs text-primary">
+              {hint.label}
+              <button type="button" className="underline underline-offset-2" onClick={() => choose(hint.duration, hint.anchor)}>übernehmen</button>
+            </p>
+          )}
           <ChipGroup field="notice_period" options={NOTICE_DURATIONS} value={duration} onChange={(d) => choose(d, d === 'immediate' ? null : anchor)} noneLabel="Keine Angabe" />
           {duration && duration !== 'immediate' && (
             <ChipGroup options={NOTICE_ANCHORS} value={anchor} onChange={(a) => choose(duration, a)} />
@@ -132,8 +178,14 @@ export function VerfuegbarkeitBlock({ form, set }: BlockProps) {
         </div>
       </Field>
       {computed && duration !== 'immediate' && (
-        <p className="rounded-md bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground">
-          Frühester Start bei Kündigung heute: <span className="font-medium text-foreground">{new Date(computed).toLocaleDateString('de-DE')}</span>
+        <p className={cn('rounded-md px-2.5 py-1.5 text-xs', zuFrueh ? 'bg-warning/10 text-warning' : 'bg-muted/60 text-muted-foreground')}>
+          Frühester Start bei Kündigung heute: <span className={cn('font-medium', !zuFrueh && 'text-foreground')}>{fmt(computed)}</span>
+          {abweichend && (
+            <>
+              {' · '}„Verfügbar ab“ steht auf {fmt(form.availability_date!)}{zuFrueh && ', früher als möglich'}{' · '}
+              <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => set({ availability_date: computed })}>übernehmen</button>
+            </>
+          )}
         </p>
       )}
       <Field label="Verfügbar ab" field="availability_date">
@@ -218,7 +270,8 @@ export function MotivationBlock({ form, set, label = 'Wechselmotivation' }: Bloc
   );
 }
 
-export function ArbeitsortBlock({ form, set }: BlockProps) {
+/** hideRelocation: im Interview steht „Umzug“ schon bei „Wie soll das neue Unternehmen sein?“. */
+export function ArbeitsortBlock({ form, set, hideRelocation = false }: BlockProps & { hideRelocation?: boolean }) {
   return (
     <div className="space-y-4">
       <Field label="Arbeitsmodell" field="remote_preference">
@@ -237,15 +290,17 @@ export function ArbeitsortBlock({ form, set }: BlockProps) {
         <Field label="Beschäftigungsart" field="employment_type">
           <ChipGroup field="employment_type" options={EMPLOYMENT_OPTIONS} value={form.employment_type} onChange={(v) => set({ employment_type: v })} />
         </Field>
-        <Field label="Umzugsbereit" field="relocation_willing">
-          <ChipGroup
-            field="relocation_willing"
-            options={RELOCATION_OPTIONS}
-            value={form.relocation_willing == null ? null : form.relocation_willing ? 'yes' : 'no'}
-            onChange={(v) => set({ relocation_willing: v == null ? null : v === 'yes' })}
-            noneLabel="Keine Angabe"
-          />
-        </Field>
+        {!hideRelocation && (
+          <Field label="Umzugsbereit" field="relocation_willing">
+            <ChipGroup
+              field="relocation_willing"
+              options={RELOCATION_OPTIONS}
+              value={form.relocation_willing == null ? null : form.relocation_willing ? 'yes' : 'no'}
+              onChange={(v) => set({ relocation_willing: v == null ? null : v === 'yes' })}
+              noneLabel="Keine Angabe"
+            />
+          </Field>
+        )}
       </div>
     </div>
   );
