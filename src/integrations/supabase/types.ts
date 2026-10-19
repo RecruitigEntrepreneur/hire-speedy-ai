@@ -4467,27 +4467,6 @@ export type Database = {
         }
         Relationships: []
       }
-      feedback_settings: {
-        Row: {
-          enabled: boolean
-          id: number
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          enabled?: boolean
-          id?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          enabled?: boolean
-          id?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
       fraud_signals: {
         Row: {
           action_taken: string | null
@@ -9836,207 +9815,6 @@ export type Database = {
         }
         Relationships: []
       }
-      product_feedback: {
-        Row: {
-          ai_brief: Json | null
-          ai_error: string | null
-          ai_generated_at: string | null
-          ai_model: string | null
-          ai_status: string
-          app_version: string | null
-          area: string | null
-          assignee_id: string | null
-          blackout_count: number
-          breadcrumbs: Json
-          console_errors: Json
-          created_at: string
-          criteria_done: number[]
-          crop_paths: string[]
-          duplicate_of: string | null
-          id: string
-          intake_draft_id: string | null
-          intake_link_id: string | null
-          kind: string | null
-          marks: Json
-          message: string
-          network_errors: Json
-          page_path: string | null
-          page_title: string | null
-          priority: string | null
-          reporter_company: string | null
-          reporter_email: string | null
-          reporter_name: string | null
-          reporter_role: string | null
-          route_pattern: string | null
-          screenshot_deleted_at: string | null
-          screenshot_note: string | null
-          screenshot_path: string | null
-          severity: string | null
-          source: string
-          source_file: string | null
-          status: string
-          status_changed_at: string | null
-          ticket_no: number
-          title: string | null
-          user_agent: string | null
-          user_id: string | null
-          user_notified_at: string | null
-          viewport: Json | null
-        }
-        Insert: {
-          ai_brief?: Json | null
-          ai_error?: string | null
-          ai_generated_at?: string | null
-          ai_model?: string | null
-          ai_status?: string
-          app_version?: string | null
-          area?: string | null
-          assignee_id?: string | null
-          blackout_count?: number
-          breadcrumbs?: Json
-          console_errors?: Json
-          created_at?: string
-          criteria_done?: number[]
-          crop_paths?: string[]
-          duplicate_of?: string | null
-          id?: string
-          intake_draft_id?: string | null
-          intake_link_id?: string | null
-          kind?: string | null
-          marks?: Json
-          message: string
-          network_errors?: Json
-          page_path?: string | null
-          page_title?: string | null
-          priority?: string | null
-          reporter_company?: string | null
-          reporter_email?: string | null
-          reporter_name?: string | null
-          reporter_role?: string | null
-          route_pattern?: string | null
-          screenshot_deleted_at?: string | null
-          screenshot_note?: string | null
-          screenshot_path?: string | null
-          severity?: string | null
-          source?: string
-          source_file?: string | null
-          status?: string
-          status_changed_at?: string | null
-          ticket_no?: number
-          title?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-          user_notified_at?: string | null
-          viewport?: Json | null
-        }
-        Update: {
-          ai_brief?: Json | null
-          ai_error?: string | null
-          ai_generated_at?: string | null
-          ai_model?: string | null
-          ai_status?: string
-          app_version?: string | null
-          area?: string | null
-          assignee_id?: string | null
-          blackout_count?: number
-          breadcrumbs?: Json
-          console_errors?: Json
-          created_at?: string
-          criteria_done?: number[]
-          crop_paths?: string[]
-          duplicate_of?: string | null
-          id?: string
-          intake_draft_id?: string | null
-          intake_link_id?: string | null
-          kind?: string | null
-          marks?: Json
-          message?: string
-          network_errors?: Json
-          page_path?: string | null
-          page_title?: string | null
-          priority?: string | null
-          reporter_company?: string | null
-          reporter_email?: string | null
-          reporter_name?: string | null
-          reporter_role?: string | null
-          route_pattern?: string | null
-          screenshot_deleted_at?: string | null
-          screenshot_note?: string | null
-          screenshot_path?: string | null
-          severity?: string | null
-          source?: string
-          source_file?: string | null
-          status?: string
-          status_changed_at?: string | null
-          ticket_no?: number
-          title?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-          user_notified_at?: string | null
-          viewport?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_feedback_duplicate_of_fkey"
-            columns: ["duplicate_of"]
-            isOneToOne: false
-            referencedRelation: "product_feedback"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_feedback_intake_draft_id_fkey"
-            columns: ["intake_draft_id"]
-            isOneToOne: false
-            referencedRelation: "intake_drafts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_feedback_intake_link_id_fkey"
-            columns: ["intake_link_id"]
-            isOneToOne: false
-            referencedRelation: "intake_links"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      product_feedback_events: {
-        Row: {
-          actor_id: string | null
-          body: string | null
-          created_at: string
-          data: Json
-          feedback_id: string
-          id: string
-          kind: string
-        }
-        Insert: {
-          actor_id?: string | null
-          body?: string | null
-          created_at?: string
-          data?: Json
-          feedback_id: string
-          id?: string
-          kind: string
-        }
-        Update: {
-          actor_id?: string | null
-          body?: string | null
-          created_at?: string
-          data?: Json
-          feedback_id?: string
-          id?: string
-          kind?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_feedback_events_feedback_id_fkey"
-            columns: ["feedback_id"]
-            isOneToOne: false
-            referencedRelation: "product_feedback"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_path: string | null
@@ -13287,14 +13065,6 @@ export type Database = {
         Returns: boolean
       }
       end_job_search: { Args: { p_job_id: string }; Returns: Json }
-      feedback_team: {
-        Args: never
-        Returns: {
-          email: string
-          name: string
-          user_id: string
-        }[]
-      }
       find_similar_candidates: {
         Args: {
           exclude_id?: string
@@ -13404,15 +13174,6 @@ export type Database = {
       maskiere_json: { Args: { _envelope: Json; _wert: Json }; Returns: Json }
       my_partner_progress: { Args: never; Returns: Json }
       my_search_capacity: { Args: never; Returns: Json }
-      my_feedback: {
-        Args: never
-        Returns: {
-          created_at: string
-          status: string
-          summary: string
-          ticket_no: number
-        }[]
-      }
       my_searches: {
         Args: never
         Returns: {
