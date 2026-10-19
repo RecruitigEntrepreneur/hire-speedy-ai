@@ -1465,6 +1465,7 @@ export type Database = {
           interview_type: string | null
           leadership_scope: string | null
           leadership_team_size: number | null
+          non_compete: string | null
           notice_period: string | null
           offer_requirements: string[] | null
           other_applications: string | null
@@ -1475,6 +1476,7 @@ export type Database = {
           recommendation_level: string | null
           recommendation_notes: string | null
           recruiter_id: string
+          salary_basis: string | null
           salary_current: string | null
           salary_desired: string | null
           salary_minimum: string | null
@@ -1514,6 +1516,7 @@ export type Database = {
           interview_type?: string | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
+          non_compete?: string | null
           notice_period?: string | null
           offer_requirements?: string[] | null
           other_applications?: string | null
@@ -1524,6 +1527,7 @@ export type Database = {
           recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id: string
+          salary_basis?: string | null
           salary_current?: string | null
           salary_desired?: string | null
           salary_minimum?: string | null
@@ -1563,6 +1567,7 @@ export type Database = {
           interview_type?: string | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
+          non_compete?: string | null
           notice_period?: string | null
           offer_requirements?: string[] | null
           other_applications?: string | null
@@ -1573,6 +1578,7 @@ export type Database = {
           recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id?: string
+          salary_basis?: string | null
           salary_current?: string | null
           salary_desired?: string | null
           salary_minimum?: string | null
