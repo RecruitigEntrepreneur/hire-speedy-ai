@@ -9994,6 +9994,13 @@ export type Database = {
             foreignKeyName: "product_feedback_intake_link_id_fkey"
             columns: ["intake_link_id"]
             isOneToOne: false
+            referencedRelation: "intake_link_funnel"
+            referencedColumns: ["link_id"]
+          },
+          {
+            foreignKeyName: "product_feedback_intake_link_id_fkey"
+            columns: ["intake_link_id"]
+            isOneToOne: false
             referencedRelation: "intake_links"
             referencedColumns: ["id"]
           },
@@ -13402,8 +13409,6 @@ export type Database = {
         | { Args: { _envelope: Json; _text: string }; Returns: string }
         | { Args: { _envelope: Json; _werte: string[] }; Returns: string[] }
       maskiere_json: { Args: { _envelope: Json; _wert: Json }; Returns: Json }
-      my_partner_progress: { Args: never; Returns: Json }
-      my_search_capacity: { Args: never; Returns: Json }
       my_feedback: {
         Args: never
         Returns: {
@@ -13413,6 +13418,8 @@ export type Database = {
           ticket_no: number
         }[]
       }
+      my_partner_progress: { Args: never; Returns: Json }
+      my_search_capacity: { Args: never; Returns: Json }
       my_searches: {
         Args: never
         Returns: {
@@ -13465,6 +13472,13 @@ export type Database = {
         Returns: boolean
       }
       partner_tier_target: { Args: { p_metrics: Json }; Returns: string }
+      product_feedback_notify_done: {
+        Args: {
+          p_feedback: Database["public"]["Tables"]["product_feedback"]["Row"]
+          p_ticket_no: number
+        }
+        Returns: boolean
+      }
       purge_expired_calendar_oauth_states: { Args: never; Returns: undefined }
       purge_expired_capture_sources: { Args: never; Returns: number }
       recalculate_all_partner_tiers: { Args: never; Returns: number }
