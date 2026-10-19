@@ -52,6 +52,9 @@ export function NotificationBell() {
         return role === "admin"
           ? `/admin?firma=${notification.related_id}`
           : `/dashboard/settings#firmendaten`;
+      case "feedback":
+        // Feedback aus der Lasche: Admins landen im Eingang, Absender haben keine eigene Seite dafür.
+        return role === "admin" ? `/admin/feedback/${notification.related_id}` : null;
       case "admin_review":
         // Prüfungen in der Recruiterverwaltung (Direktkontakte, Bestandskunden, Schließungen)
         return `/admin/recruiters#pruefungen`;

@@ -23,6 +23,11 @@ export interface AiCall {
   model?: string;
   system?: string;
   user: string;
+  /**
+   * Bilder als data:-URLs (image/jpeg, image/png), hinter dem Text angehängt.
+   * Nur fuer Modelle mit Bildverstaendnis (Gemini ueber den Gateway: ja).
+   */
+  images?: string[];
   temperature?: number;
   /** Antwort als JSON-Objekt erzwingen. */
   json?: boolean;
@@ -107,7 +112,15 @@ export async function aiChat(call: AiCall): Promise<AiResult> {
   const model = call.model ?? envModel() ?? DEFAULT_MODEL;
   const messages = [
     ...(call.system ? [{ role: 'system', content: call.system }] : []),
-    { role: 'user', content: call.user },
+    {
+      role: 'user',
+      content: call.images?.length
+        ? [
+            { type: 'text', text: call.user },
+            ...call.images.map((url) => ({ type: 'image_url', image_url: { url } })),
+          ]
+        : call.user,
+    },
   ];
 
   const body: Record<string, unknown> = {

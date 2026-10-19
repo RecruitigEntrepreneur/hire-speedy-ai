@@ -390,6 +390,37 @@ const Datenschutz = () => {
           </section>
 
           <section>
+            <h2 className="text-xl font-semibold mb-4">16a. Feedback-Funktion</h2>
+            <p className="text-muted-foreground">
+              Über die Schaltfläche „Feedback“ können Sie uns Hinweise zur Plattform senden – im Nutzerkonto
+              und auf den Seiten unserer Jobaufnahme. Dabei verarbeiten wir Ihren Text, die gewählte Kategorie,
+              ein Bild des in Ihrem Browser sichtbaren Bildschirmbereichs mit Ihren Markierungen, Ausschnitte
+              der markierten Stellen, die Beschriftung der markierten Bedienelemente, die aufgerufene Seite
+              (ohne Zugangsschlüssel), den Zeitpunkt, Browser- und Geräteangaben (Browsertyp, Fenstergröße),
+              technische Fehlermeldungen des Browsers, fehlgeschlagene Serveraufrufe (Adresse ohne
+              Abfrageparameter, Statuscode) sowie die letzten Seitenwechsel und Klicks vor dem Absenden
+              (Beschriftungen von Knöpfen und Feldern, niemals eingegebene Werte). Soweit vorhanden, kommen
+              Name, E-Mail-Adresse, Rolle und Unternehmen aus Ihrem Nutzerkonto bzw. der Jobaufnahme hinzu.
+              Das Bild enthält alles, was beim Absenden sichtbar war, gegebenenfalls auch personenbezogene
+              Daten Dritter (etwa Kandidatendaten). Vor dem Absenden können Sie Bereiche schwärzen; die
+              Schwärzung geschieht in Ihrem Browser, die geschwärzten Inhalte werden nicht übertragen.<br /><br />
+              Aus Ihrem Hinweis erstellen wir mit Hilfe eines KI-Sprachmodells (Google Gemini über das
+              KI-Gateway von Lovable, siehe Abschnitte 5 und 7) eine Aufgabenbeschreibung für unser
+              Entwicklungsteam. Dafür werden Text, Seiten- und Technikangaben sowie nur die Ausschnitte der
+              markierten Stellen übermittelt, nicht das ganze Bild. Die KI trifft keine Entscheidung über
+              Personen; ihr Ergebnis prüfen und bearbeiten Mitarbeiter von Matchunt.<br /><br />
+              Zweck ist die Behebung von Fehlern und die Verbesserung der Plattform. Rechtsgrundlage ist unser
+              berechtigtes Interesse an einem funktionierenden, verständlichen Dienst (Art. 6 Abs. 1 lit. f
+              DSGVO), gegenüber Vertragspartnern auch Art. 6 Abs. 1 lit. b DSGVO. Die Nutzung ist freiwillig.
+              Zugriff haben nur Administratoren von Matchunt; Sie selbst sehen im Feedback-Fenster Nummer und
+              Bearbeitungsstand Ihrer eigenen Meldungen. Bilder und Ausschnitte liegen in einem nicht
+              öffentlichen Speicher (Supabase) und werden 90 Tage nach Eingang automatisch gelöscht; Text und
+              Begleitdaten löschen wir, sobald sie für die Bearbeitung nicht mehr erforderlich sind. Über
+              neues Feedback werden wir per E-Mail benachrichtigt (Versand über Resend, siehe Abschnitt 5).
+            </p>
+          </section>
+
+          <section>
             <h2 className="text-xl font-semibold mb-4">17. Speicherdauer und Löschung</h2>
             <p className="text-muted-foreground">
               Wir speichern personenbezogene Daten nur so lange, wie es für die jeweiligen Zwecke erforderlich
@@ -470,7 +501,7 @@ const Datenschutz = () => {
             <p className="text-muted-foreground">
               Wir passen diese Datenschutzerklärung an, wenn sich die Rechtslage, unsere Dienste oder die
               Datenverarbeitung ändern. Es gilt die jeweils auf dieser Seite veröffentlichte Fassung.<br /><br />
-              Stand: Juni 2026
+              Stand: Oktober 2026
             </p>
           </section>
         </div>

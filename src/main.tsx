@@ -1,3 +1,6 @@
+// Feedback-Lasche: Fehler, Klickpfad und Netzwerk ab dem ersten Skript mitschreiben.
+// Muss vor allem anderen stehen (supabase-js merkt sich fetch beim Anlegen).
+import "./lib/feedback/install";
 import { createRoot } from "react-dom/client";
 import { Suspense, lazy } from "react";
 import "./index.css";

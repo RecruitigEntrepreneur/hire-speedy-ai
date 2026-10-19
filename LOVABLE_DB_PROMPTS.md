@@ -813,6 +813,32 @@ neuen Zeit mit, Fragen ohne Quellenverweis. **Keine Migration.**
 
 ---
 
+## 20 — Feedback-Lasche und Ticket-Eingang (19.10.2026)
+
+Alle Kunden, Headhunter und Aufnahme-Links bekommen am rechten Rand eine Lasche „Feedback“:
+Rahmen ziehen (das Element darunter wird erkannt), Vertrauliches schwärzen, Satz schreiben, senden.
+Bild, Seite, Datei, Klickpfad, Netzwerk- und Konsolenfehler gehen mit. Jedes Feedback wird ein
+Ticket (FB-0001) mit KI-Briefing für das Entwickler-Team (die KI sieht nur die markierten
+Ausschnitte). Admin › Feedback: Kennzahlen, Ansichten, Tabelle, Ticketseite mit Status
+Neu → In Arbeit → Gebaut (wartet auf Deploy) → Live erledigt, Duplikate, Kommentare und
+„Für Claude Code kopieren“. Bei „Live erledigt“ bekommen alle Absender die Glocke.
+Schalter unter Admin › Feedback startet **an** (nur Notaus). Bilder werden nach 90 Tagen gelöscht.
+**Eine Migration, eine neue Edge Function, eine geänderte Shared-Datei.**
+
+> 1. Migration `supabase/migrations/20261019150000_feedback_lasche.sql` ausführen
+>    (neue Tabellen `product_feedback`, `product_feedback_events`, `feedback_settings` mit RLS,
+>    Funktionen `my_feedback()` und `feedback_team()`, Trigger für Verlauf und Glocke,
+>    Lese-Policy für den Bucket `feedback-screenshots`, Cron `feedback-screenshot-purge` täglich 03:50;
+>    keine bestehenden Daten werden verändert).
+> 2. Edge Function deployen: `product-feedback` (verify_jwt = false, prüft selbst).
+>    Optional Secret `FEEDBACK_NOTIFY_TO` setzen; ohne geht die Mail an marko.benko@bluewater-bridge.de.
+>    `_shared/ai.ts` kann jetzt Bilder mitschicken (rein additiv, andere Functions unverändert).
+> 3. Publish.
+
+Den privaten Bucket `feedback-screenshots` legt die Function beim ersten Bild selbst an.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

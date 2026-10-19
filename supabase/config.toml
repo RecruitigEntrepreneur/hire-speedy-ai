@@ -395,3 +395,8 @@ verify_jwt = true
 # Rücksprung von Microsoft; geschützt über den einmaligen state.
 [functions.calendar-oauth-callback]
 verify_jwt = false
+
+# Feedback-Lasche (19.10.2026): Gäste auf Aufnahme-Links haben kein Konto;
+# Prüfung (Nutzer-Token, Aufnahme-Token, Cron-Schlüssel) sitzt in der Function.
+[functions.product-feedback]
+verify_jwt = false

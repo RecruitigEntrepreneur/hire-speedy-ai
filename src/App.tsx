@@ -74,6 +74,8 @@ import AdminDealHealth from "./pages/admin/AdminDealHealth";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminInvoices from "./pages/admin/AdminInvoices";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminFeedback from "./pages/admin/AdminFeedback";
+import AdminFeedbackTicket from "./pages/admin/AdminFeedbackTicket";
 import OutreachSlim from "./pages/admin/OutreachSlim";
 import CompanyDetail from "./pages/admin/CompanyDetail";
 import AdminMatchingConfig from "./pages/admin/AdminMatchingConfig";
@@ -88,6 +90,7 @@ import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 // Onboarding
 import RecruiterAccessGate from "./components/verification/RecruiterAccessGate";
 import { AppClientGuide, AppRecruiterGuide } from "./components/recruiter/guide/RecruiterGuide";
+import { AppFeedback } from "./components/feedback/AppFeedback";
 
 // Public pages
 import SelectSlot from "./pages/interview/SelectSlot";
@@ -503,6 +506,16 @@ function AppRoutes() {
           <AdminInvoices />
         </ProtectedRoute>
       } />
+      <Route path="/admin/feedback" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminFeedback />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/feedback/:ticket" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminFeedbackTicket />
+        </ProtectedRoute>
+      } />
       <Route path="/admin/users" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminUsers />
@@ -594,6 +607,8 @@ const App = () => (
                 <AppRoutes />
               </ErrorBoundary>
               <CookieConsentBanner />
+              {/* Feedback-Lasche für den Live-Test (Schalter unter Admin › Feedback). */}
+              <AppFeedback />
             </AppClientGuide>
           </AppRecruiterGuide>
         </AuthProvider>

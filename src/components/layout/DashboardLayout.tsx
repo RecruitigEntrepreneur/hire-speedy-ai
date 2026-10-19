@@ -32,6 +32,7 @@ import {
   GraduationCap,
   Inbox,
   Link2,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -47,6 +48,7 @@ import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
 import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsHelp';
+import { useNewFeedbackCount } from '@/hooks/useAdminFeedback';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -58,6 +60,8 @@ interface NavItem {
   label: string;
   href: string;
   icon: ReactNode;
+  /** Zähler rechts neben dem Eintrag, z. B. neues Feedback. */
+  badge?: number;
 }
 
 export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
@@ -68,6 +72,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   
   // Initialize keyboard shortcuts
   const { shortcuts } = useDashboardKeyboardShortcuts(() => setShortcutsHelpOpen(true));
+  const { data: newFeedback = 0 } = useNewFeedbackCount(role === 'admin');
 
   const handleSignOut = async () => {
     await signOut();
@@ -123,6 +128,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Alle Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Jobaufnahmen', href: '/admin/intakes', icon: <Inbox className="h-4 w-4" /> },
     { label: 'Aufnahme-Links', href: '/admin/intake-links', icon: <Link2 className="h-4 w-4" /> },
+    { label: 'Feedback', href: '/admin/feedback', icon: <MessageSquareWarning className="h-4 w-4" />, badge: newFeedback },
     { label: 'Kandidaten', href: '/admin/candidates', icon: <FileText className="h-4 w-4" /> },
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
@@ -214,7 +220,17 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                   >
                     {item.icon}
                     {item.label}
-                    {isActive && <ChevronRight className="ml-auto h-4 w-4" />}
+                    {!!item.badge && (
+                      <span
+                        className={cn(
+                          'ml-auto rounded-full px-1.5 text-[11px] font-medium leading-5',
+                          isActive ? 'bg-primary-foreground text-primary' : 'bg-destructive text-destructive-foreground',
+                        )}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                    {isActive && <ChevronRight className={cn('h-4 w-4', !item.badge && 'ml-auto')} />}
                   </Link>
                 );
               })}

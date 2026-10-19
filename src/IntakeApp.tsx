@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import GuestIntake from './pages/intake/GuestIntake';
 import ClarifyAnswer from './pages/intake/ClarifyAnswer';
 import SignReturn from './pages/intake/SignReturn';
+import { GuestFeedback } from './components/feedback/GuestFeedback';
 
 /**
  * Eigener Einstiegspunkt für die login-freie Jobaufnahme.
@@ -39,6 +40,8 @@ export default function IntakeApp() {
                 Ein harter Reload, damit App.tsx sauber übernimmt. */}
             <Route path="*" element={<HardRedirect />} />
           </Routes>
+          {/* Feedback-Lasche für den Live-Test, nur wenn unter Admin › Feedback eingeschaltet. */}
+          <GuestFeedback />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
