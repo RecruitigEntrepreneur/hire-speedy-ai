@@ -1454,6 +1454,7 @@ export type Database = {
           change_motivation: string | null
           change_motivation_tags: string[] | null
           change_readiness: string | null
+          company_size_pref: string | null
           created_at: string | null
           current_negative: string | null
           current_positive: string | null
@@ -1461,10 +1462,13 @@ export type Database = {
           earliest_start_date: string | null
           frequency_of_issues: string | null
           id: string
+          industry_change: string | null
+          international_pref: string | null
           interview_date: string | null
           interview_type: string | null
           leadership_scope: string | null
           leadership_team_size: number | null
+          non_compete: string | null
           notice_period: string | null
           offer_requirements: string[] | null
           other_applications: string | null
@@ -1475,6 +1479,7 @@ export type Database = {
           recommendation_level: string | null
           recommendation_notes: string | null
           recruiter_id: string
+          salary_basis: string | null
           salary_current: string | null
           salary_desired: string | null
           salary_minimum: string | null
@@ -1503,6 +1508,7 @@ export type Database = {
           change_motivation?: string | null
           change_motivation_tags?: string[] | null
           change_readiness?: string | null
+          company_size_pref?: string | null
           created_at?: string | null
           current_negative?: string | null
           current_positive?: string | null
@@ -1510,10 +1516,13 @@ export type Database = {
           earliest_start_date?: string | null
           frequency_of_issues?: string | null
           id?: string
+          industry_change?: string | null
+          international_pref?: string | null
           interview_date?: string | null
           interview_type?: string | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
+          non_compete?: string | null
           notice_period?: string | null
           offer_requirements?: string[] | null
           other_applications?: string | null
@@ -1524,6 +1533,7 @@ export type Database = {
           recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id: string
+          salary_basis?: string | null
           salary_current?: string | null
           salary_desired?: string | null
           salary_minimum?: string | null
@@ -1552,6 +1562,7 @@ export type Database = {
           change_motivation?: string | null
           change_motivation_tags?: string[] | null
           change_readiness?: string | null
+          company_size_pref?: string | null
           created_at?: string | null
           current_negative?: string | null
           current_positive?: string | null
@@ -1559,10 +1570,13 @@ export type Database = {
           earliest_start_date?: string | null
           frequency_of_issues?: string | null
           id?: string
+          industry_change?: string | null
+          international_pref?: string | null
           interview_date?: string | null
           interview_type?: string | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
+          non_compete?: string | null
           notice_period?: string | null
           offer_requirements?: string[] | null
           other_applications?: string | null
@@ -1573,6 +1587,7 @@ export type Database = {
           recommendation_level?: string | null
           recommendation_notes?: string | null
           recruiter_id?: string
+          salary_basis?: string | null
           salary_current?: string | null
           salary_desired?: string | null
           salary_minimum?: string | null
@@ -6026,6 +6041,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      interview_phrase_learnings: {
+        Row: {
+          created_at: string
+          family: string | null
+          id: string
+          label: string
+          phrase: string
+          recruiter_id: string
+          side: string
+        }
+        Insert: {
+          created_at?: string
+          family?: string | null
+          id?: string
+          label: string
+          phrase: string
+          recruiter_id?: string
+          side: string
+        }
+        Update: {
+          created_at?: string
+          family?: string | null
+          id?: string
+          label?: string
+          phrase?: string
+          recruiter_id?: string
+          side?: string
+        }
+        Relationships: []
       }
       interview_types: {
         Row: {

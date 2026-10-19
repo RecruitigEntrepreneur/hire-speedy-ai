@@ -218,6 +218,20 @@
       "when": 1792419121779,
       "tag": "0030_feedback_lasche",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792421070217,
+      "tag": "0031_interview_gehaltsbasis_wettbewerbsverbot",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792421098783,
+      "tag": "0032_interview_umfeld_lernwoerterbuch",
+      "breakpoints": true
     }
   ]
 }
