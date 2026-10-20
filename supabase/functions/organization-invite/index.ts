@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getPublicAppUrl } from "../_shared/app-url.ts";
+import { esc, layout, sendIntakeMail } from "../_shared/intake-mail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,9 +16,6 @@ const ROLE_LABELS: Record<string, string> = {
   hiring_manager: 'Fachbereich',
   viewer: 'Betrachter',
 };
-
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Token: 32 Zufallsbytes, base64url. In der DB liegt NUR der SHA-256-Hash.
 function generateToken(): string {
@@ -49,7 +48,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -178,8 +176,9 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to create invite' }, 500);
     }
 
-    const origin = req.headers.get('origin') || Deno.env.get('SITE_URL') || '';
-    const inviteUrl = `${origin}/invite/${token}`;
+    // Kanonische Domain aus der Konfiguration, nie der origin-Header: eine Einladung
+    // aus dem lokalen Preview bekäme sonst einen localhost-Link (Fund 20.10.2026).
+    const inviteUrl = `${getPublicAppUrl()}/invite/${token}`;
 
     // Name des Einladenden für die E-Mail
     const { data: inviterProfile } = await supabase
@@ -195,59 +194,36 @@ serve(async (req) => {
       const { data: jobRows } = await supabase.from('jobs').select('title').in('id', jobIds).eq('organization_id', organization_id);
       jobTitles = (jobRows ?? []).map((j: { title: string }) => j.title).filter(Boolean);
     }
-    const greeting = inviteeName ? `Guten Tag ${escapeHtml(inviteeName)},` : 'Guten Tag,';
+    const greeting = inviteeName ? `Guten Tag ${esc(inviteeName)},` : 'Guten Tag,';
+    const rows = [
+      `<tr><td style="padding:6px 0;color:#6b7280;">Ihre Rolle</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(ROLE_LABELS[role] ?? role)}</td></tr>`,
+      jobTitles.length
+        ? `<tr><td style="padding:6px 0;color:#6b7280;vertical-align:top;">Stellen</td><td style="padding:6px 0;text-align:right;">${jobTitles.map(esc).join('<br>')}</td></tr>`
+        : '',
+    ].join('');
 
-    let emailSent = false;
-    if (resendApiKey) {
-      try {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: Deno.env.get('RESEND_FROM') || 'Matchunt <onboarding@resend.dev>',
-            to: [normalizedEmail],
-            subject: `${inviterName} lädt Sie zu ${org.name} ein`,
-            html: `
-              <div style="font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
-                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 12px 12px 0 0; padding: 32px; text-align: center;">
-                  <h1 style="color: #ffffff; font-size: 22px; margin: 0;">Team-Einladung</h1>
-                </div>
-                <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
-                  <p>${greeting}</p>
-                  <p><strong>${escapeHtml(inviterName)}</strong> hat Sie eingeladen, dem Team von <strong>${escapeHtml(org.name)}</strong> auf Matchunt beizutreten.</p>
-                  ${personalMessage ? `<blockquote style="margin: 16px 0; padding: 12px 16px; background: #f8fafc; border-left: 3px solid #0f172a; color: #334155;">${escapeHtml(personalMessage).replace(/\n/g, '<br>')}</blockquote>` : ''}
-                  <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                    <tr>
-                      <td style="padding: 8px 0; color: #64748b;">Ihre Rolle</td>
-                      <td style="padding: 8px 0; text-align: right; font-weight: 600;">${ROLE_LABELS[role] ?? role}</td>
-                    </tr>
-                    ${jobTitles.length ? `<tr><td style="padding: 8px 0; color: #64748b; vertical-align: top;">Stellen</td><td style="padding: 8px 0; text-align: right;">${jobTitles.map(escapeHtml).join('<br>')}</td></tr>` : ''}
-                  </table>
-                  <div style="text-align: center; margin: 24px 0;">
-                    <a href="${inviteUrl}" style="display: inline-block; padding: 12px 28px; background: #0f172a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
-                      Einladung annehmen
-                    </a>
-                  </div>
-                  <p style="color: #64748b; font-size: 13px;">
-                    Dieser Link ist 7 Tage gültig und kann nur einmal verwendet werden.
-                    Falls Sie diese Einladung nicht erwartet haben, können Sie diese E-Mail ignorieren.
-                  </p>
-                </div>
-              </div>
-            `,
-          }),
-        });
-        emailSent = res.ok;
-        if (!res.ok) {
-          console.error('Resend error:', await res.text());
-        }
-      } catch (emailError) {
-        console.error('Error sending email:', emailError);
-      }
-    }
+    // Gleicher Versandweg wie Aufnahme und Onboarding: bestätigter Absender,
+    // Protokoll in email_events, Fehlertext statt stillem Scheitern.
+    const mail = await sendIntakeMail(supabase, {
+      to: normalizedEmail,
+      subject: `${inviterName} lädt Sie zu ${org.name} ein`,
+      html: layout({
+        preheader: `${inviterName} lädt Sie ins Team von ${org.name} auf Matchunt ein.`,
+        heading: 'Einladung ins Team',
+        body: `<p style="margin:0 0 12px 0;">${greeting}</p>
+<p style="margin:0 0 12px 0;"><strong>${esc(inviterName)}</strong> hat Sie eingeladen, dem Team von <strong>${esc(org.name)}</strong> auf Matchunt beizutreten.</p>
+${personalMessage ? `<blockquote style="margin:12px 0;padding:10px 14px;background:#f8fafc;border-left:3px solid #111827;color:#334155;">${esc(personalMessage).replace(/\n/g, '<br>')}</blockquote>` : ''}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0;font-size:14px;">${rows}</table>`,
+        cta: { label: 'Einladung annehmen', url: inviteUrl },
+        after: 'Der Link ist 7 Tage gültig und kann einmal verwendet werden.',
+        footnote: 'Falls Sie diese Einladung nicht erwartet haben, können Sie diese E-Mail ignorieren.',
+      }),
+      template: 'organization_invite',
+      meta: { invite_id: invite.id, organization_id, role },
+      idempotencyKey: `org-invite-${invite.id}`,
+    });
+    const emailSent = mail.sent;
+    if (!mail.sent) console.error('[organization-invite] Mail nicht verschickt:', mail.error);
 
     return jsonResponse({
       success: true,

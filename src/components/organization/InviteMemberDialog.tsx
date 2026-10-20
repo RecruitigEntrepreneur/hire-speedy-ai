@@ -28,6 +28,9 @@ interface InviteMemberDialogProps {
   /** Eigener Trigger-Button (Standard: "Mitglied einladen") */
   trigger?: React.ReactNode;
   onSuccess?: () => void;
+  /** Von außen gesteuert (ohne Trigger), z. B. aus „Kollegen fragen“, damit kein Fenster über einem anderen liegt. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const ROLE_CARDS: { key: Role; label: string; text: string }[] = [
@@ -56,11 +59,16 @@ export function InviteMemberDialog({
   jobContext,
   trigger,
   onSuccess,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
 }: InviteMemberDialogProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = (v: boolean) => (controlled ? onOpenChangeProp?.(v) : setOpenState(v));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(jobContext ? 'hiring_manager' : defaultRole);
@@ -173,14 +181,16 @@ export function InviteMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button>
-            <UserPlus className="h-4 w-4 mr-2" />
-            {t('team.invite.button')}
-          </Button>
-        )}
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button>
+              <UserPlus className="h-4 w-4 mr-2" />
+              {t('team.invite.button')}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{jobContext ? 'Kollegen zu dieser Stelle einladen' : 'Teammitglied einladen'}</DialogTitle>

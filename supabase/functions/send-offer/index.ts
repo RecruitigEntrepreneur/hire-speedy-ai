@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getPublicAppUrl } from "../_shared/app-url.ts";
+import { mailFrom } from "../_shared/intake-mail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +57,8 @@ serve(async (req) => {
     }
 
     // Generate candidate link
-    const candidateLink = `${supabaseUrl.replace('supabase.co', 'lovable.app')}/offer/view/${offer.access_token}`;
+    // Kanonische Domain statt einer aus der Supabase-URL gebauten (die führte ins Leere).
+    const candidateLink = `${getPublicAppUrl()}/offer/view/${offer.access_token}`;
 
     // Format expiry date
     const expiresAt = new Date(offer.expires_at).toLocaleDateString('de-DE', {
@@ -96,7 +99,7 @@ Mit freundlichen Grüßen
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: 'noreply@lovable.app',
+          from: mailFrom(),
           to: offer.candidates.email,
           subject: `Jobangebot: ${offer.position_title}`,
           text: emailBody

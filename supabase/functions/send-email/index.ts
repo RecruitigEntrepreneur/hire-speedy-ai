@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { mailFrom } from "../_shared/intake-mail.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -331,12 +332,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email
     const emailResponse = await resend.emails.send({
-      from: "Recruiting Platform <onboarding@resend.dev>",
+      from: mailFrom(),
       to: [to],
       subject,
       html,
     });
 
+    // Resend wirft nicht, sondern liefert { error } -- vorher galt jede Mail als verschickt.
+    if (emailResponse.error) {
+      console.error("Resend lehnte die Mail ab:", emailResponse.error);
+      if (emailEventId) {
+        await supabase.from("email_events").update({ status: "failed", error_message: String(emailResponse.error.message ?? emailResponse.error).slice(0, 400) }).eq("id", emailEventId);
+      }
+      throw new Error("E-Mail konnte nicht verschickt werden");
+    }
     console.log("Email sent successfully:", emailResponse);
 
     // Update email event with success

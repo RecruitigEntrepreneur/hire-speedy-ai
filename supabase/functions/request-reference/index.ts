@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getPublicAppUrl } from "../_shared/app-url.ts";
+import { mailFrom } from "../_shared/intake-mail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -111,7 +113,7 @@ serve(async (req) => {
 
     // Send email to reference person
     if (resendApiKey) {
-      const referenceUrl = `${req.headers.get('origin')}/reference/${accessToken}`;
+      const referenceUrl = `${getPublicAppUrl()}/reference/${accessToken}`;
       
       try {
         await fetch('https://api.resend.com/emails', {
@@ -121,7 +123,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'RecruitFlow <noreply@recruitflow.app>',
+            from: mailFrom(),
             to: [reference_email],
             subject: `Referenzanfrage für ${candidate.full_name}`,
             html: `

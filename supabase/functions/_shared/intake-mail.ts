@@ -20,6 +20,13 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 const from = (): string => Deno.env.get('RESEND_FROM') ?? 'Matchunt <noreply@matchunt.ai>';
 
+/**
+ * Der eine bestätigte Absender für alle Functions, die selbst bei Resend senden.
+ * Nie die Resend-Testadresse oder fremde Domains (lovable.app, recruitflow.app):
+ * darüber stellt Resend an Kunden und Kandidaten nicht zu (Fund 20.10.2026).
+ */
+export const mailFrom = from;
+
 /** HTML-Escaping. send-email interpoliert Freitext ungefiltert (Z. 128) — hier nicht. */
 export const esc = (value: unknown): string =>
   String(value ?? '')
