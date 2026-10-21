@@ -10,6 +10,8 @@ import {
   APP_ORIGIN, checkLabel, checkUrl, dayDate, embedCode, LINKEDIN_ORGANIZATION_ID, linkedinAddUrl, linkedinShareUrl, monthYear, offerText, outreachText, postText,
   PRIVACY_SENTENCE, signatureHtml, signatureText, TIER_LABEL, type Lang, type PartnerChannel, type PartnerStatusRow,
 } from '../../../../supabase/functions/_shared/recruiter-partner';
+import { AWARD_LABEL, type LigaAwardBadge } from '../../../../supabase/functions/_shared/liga';
+import { awardPostText } from '../liga/ligaShare';
 
 /**
  * Die Klickseiten des Partnerstatus (Wireframe 22.09.2026). Jedes Fenster hat denselben
@@ -116,12 +118,12 @@ const MAIL_STEPS: Record<'gmail' | 'outlook' | 'apple', string[]> = {
   apple: ['Mail, dann „Einstellungen“ und „Signaturen“', 'Signatur wählen, „Immer meiner Standardschrift entsprechen“ abwählen', 'Unter deinen Namen einfügen, Fenster schließen'],
 };
 
-function SignaturePanel({ partner, person, a }: { partner: PartnerStatusRow; person: PartnerPerson; a: PanelActions }) {
+function SignaturePanel({ partner, person, award, a }: { partner: PartnerStatusRow; person: PartnerPerson; award: LigaAwardBadge | null; a: PanelActions }) {
   const [client, setClient] = useState<'gmail' | 'outlook' | 'apple'>('gmail');
   const [dark, setDark] = useState<'light' | 'dark'>('light');
   const [lang, setLang] = useState<Lang>('de');
   const [code, setCode] = useState(false);
-  const html = signatureHtml({ number: partner.partner_number, tier: partner.tier, lang });
+  const html = signatureHtml({ number: partner.partner_number, tier: partner.tier, lang, award });
   return <>
     <Header title="E-Mail-Signatur" description="Ein Baustein unter deiner eigenen Signatur"/>
     <div className="flex flex-wrap gap-2">
@@ -136,7 +138,7 @@ function SignaturePanel({ partner, person, a }: { partner: PartnerStatusRow; per
       <div dangerouslySetInnerHTML={{ __html: html.split(`${APP_ORIGIN}/badges/`).join('/badges/') }}/>
     </Paper>
     <div className="flex flex-wrap gap-2">
-      <Button onClick={() => a.copyRich(html, signatureText({ number: partner.partner_number, tier: partner.tier, lang }))}><Copy className="mr-2 h-4 w-4"/>Signatur kopieren</Button>
+      <Button onClick={() => a.copyRich(html, signatureText({ number: partner.partner_number, tier: partner.tier, lang, award }))}><Copy className="mr-2 h-4 w-4"/>Signatur kopieren</Button>
       <Button variant="outline" aria-expanded={code} onClick={() => setCode(!code)}>HTML-Code</Button>
       <Button variant="outline" disabled={a.busy === 'test'} onClick={() => a.testMail(lang)}>
         {a.busy === 'test' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}Test an mich
@@ -150,6 +152,7 @@ function SignaturePanel({ partner, person, a }: { partner: PartnerStatusRow; per
       <Segmented label="Mailprogramm" value={client} onChange={setClient} options={[['gmail', 'Gmail'], ['outlook', 'Outlook'], ['apple', 'Apple Mail']]}/>
       <ol className="space-y-1 text-sm">{MAIL_STEPS[client].map((s, i) => <li key={s} className="flex gap-2"><span className="text-muted-foreground">{i + 1}</span>{s}</li>)}</ol>
     </div>
+    {award && <p className="text-xs text-muted-foreground">Mit deiner Auszeichnung der Matchunt Liga. Hast du den Baustein schon eingerichtet, kopier ihn einmal neu.</p>}
     <Rule>Der Baustein kommt unter deine eigene Signatur. Matchunt ist nie Absender.</Rule>
     <Done label="Ist eingerichtet" checked={!!partner.channels.signature} disabled={a.busy === 'channel'} onChange={v => a.channel('signature', v)}/>
   </>;
@@ -205,12 +208,16 @@ function OutreachPanel({ partner, a }: { partner: PartnerStatusRow; a: PanelActi
   </>;
 }
 
-function PostPanel({ partner, person, a }: { partner: PartnerStatusRow; person: PartnerPerson; a: PanelActions }) {
+function PostPanel({ partner, person, award, a }: { partner: PartnerStatusRow; person: PartnerPerson; award: LigaAwardBadge | null; a: PanelActions }) {
   const [lang, setLang] = useState<Lang>('de');
-  const text = postText({ number: partner.partner_number, lang, focus: person.areas });
+  const [topic, setTopic] = useState<'award' | 'partner'>(award ? 'award' : 'partner');
+  const text = topic === 'award' && award
+    ? awardPostText({ award: award.award, season: award.season_label, rank: award.rank, participants: award.participants, number: partner.partner_number })
+    : postText({ number: partner.partner_number, lang, focus: person.areas });
   const initials = person.name.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || 'MP';
   return <>
     <Header title="LinkedIn-Beitrag" description="Deinen neuen Status bekannt machen"/>
+    {award && <Segmented label="Worüber" value={topic} onChange={setTopic} options={[['award', `${AWARD_LABEL[award.award]} ${award.season_label}`], ['partner', 'Partnerstatus']]}/>}
     <Paper className="space-y-3">
       <div className="flex items-center gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E4E4E7] text-xs font-semibold text-[#0A0A0A]">{initials}</span>
@@ -222,7 +229,7 @@ function PostPanel({ partner, person, a }: { partner: PartnerStatusRow; person: 
         <p className="px-3 py-1.5 text-[11px] text-[#71717A]">matchunt.ai · {checkLabel(partner.partner_number)}</p>
       </div>
     </Paper>
-    <Segmented label="Sprache" value={lang} onChange={setLang} options={[['de', 'Deutsch'], ['en', 'Englisch']]}/>
+    {topic === 'partner' && <Segmented label="Sprache" value={lang} onChange={setLang} options={[['de', 'Deutsch'], ['en', 'Englisch']]}/>}
     <div className="flex flex-wrap gap-2">
       <Button variant="outline" onClick={() => a.copy(text, 'Text')}><Copy className="mr-2 h-4 w-4"/>Text kopieren</Button>
       <Button onClick={() => window.open(linkedinShareUrl(partner.partner_number), '_blank', 'noopener')}><Linkedin className="mr-2 h-4 w-4"/>Auf LinkedIn teilen</Button>
@@ -260,13 +267,13 @@ function PrintPanel({ partner, a }: { partner: PartnerStatusRow; a: PanelActions
   </>;
 }
 
-export function PartnerPanel({ kind, partner, person, actions }: { kind: PanelKind; partner: PartnerStatusRow; person: PartnerPerson; actions: PanelActions }) {
+export function PartnerPanel({ kind, partner, person, actions, award = null }: { kind: PanelKind; partner: PartnerStatusRow; person: PartnerPerson; actions: PanelActions; award?: LigaAwardBadge | null }) {
   const body = {
     linkedin: <LinkedInPanel partner={partner} a={actions}/>,
-    signature: <SignaturePanel partner={partner} person={person} a={actions}/>,
+    signature: <SignaturePanel partner={partner} person={person} award={award} a={actions}/>,
     website: <WebsitePanel partner={partner} a={actions}/>,
     outreach: <OutreachPanel partner={partner} a={actions}/>,
-    post: <PostPanel partner={partner} person={person} a={actions}/>,
+    post: <PostPanel partner={partner} person={person} award={award} a={actions}/>,
     print: <PrintPanel partner={partner} a={actions}/>,
   }[kind];
   return <div className="grid gap-4">{body}</div>;

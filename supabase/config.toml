@@ -199,6 +199,9 @@ verify_jwt = true
 [functions.enrich-company-from-domain]
 verify_jwt = true
 
+[functions.firmenlogo-holen]
+verify_jwt = true
+
 [functions.generate-company-insights]
 verify_jwt = true
 
@@ -383,6 +386,10 @@ verify_jwt = false
 
 # Cron every 15 minutes: fetch open customer envelopes from DocuSign. Checks the service key itself.
 [functions.docusign-sync]
+verify_jwt = false
+
+# Matchunt Liga: Wochenstand montags per Cron (x-cron-token), Vorschau/Glückwunsch für Admins. Prüft selbst.
+[functions.liga-weekly]
 verify_jwt = false
 
 # Interview-Terminierung v2 (02.10.2026)

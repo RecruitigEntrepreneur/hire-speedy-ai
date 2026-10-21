@@ -6,7 +6,8 @@ import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { CONTRACT_FONTS } from './recruiter-contract-fonts.ts';
 import { markPathsYDown } from './matchunt-mark.ts';
 import { must } from './recruiter-onboarding-service.ts';
-import { ownStatus } from './recruiter-partner-service.ts';
+import { ligaAward, ownStatus } from './recruiter-partner-service.ts';
+import { AWARD_LABEL, type LigaAwardBadge } from './liga.ts';
 import { checkLabel, checkUrl, dayDate, monthYear, TIER_LABEL, type PartnerTier } from './recruiter-partner.ts';
 
 /**
@@ -42,7 +43,7 @@ const GOLD = rgb(0.784, 0.635, 0.29);
 const SILVER = rgb(0.6, 0.64, 0.7);
 
 /** Urkunde für den Headhunter. Gibt die PDF-Bytes zurück. */
-export async function generatePartnerCertificate(p: { name: string; company: string; number: string; since: string; tier: PartnerTier; issuedAt: string }): Promise<Uint8Array> {
+export async function generatePartnerCertificate(p: { name: string; company: string; number: string; since: string; tier: PartnerTier; issuedAt: string; award?: LigaAwardBadge | null }): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   doc.setTitle(`${TIER_LABEL[p.tier]} · ${p.name}`);
@@ -82,6 +83,12 @@ export async function generatePartnerCertificate(p: { name: string; company: str
   draw(p.name, M, 366, 36);
   if (p.company) draw(p.company, M, 338, 14, MUTED);
   draw(`ist ${TIER_LABEL[p.tier]} seit ${monthYear(p.since)}.`, M, 292, 18);
+  // Auszeichnung der Matchunt Liga: mit Saison, Platz und Kriterien, wie auf der Prüfseite.
+  if (p.award) {
+    page.drawRectangle({ x: M, y: 246, width: 3, height: 26, color: GOLD });
+    draw(`${AWARD_LABEL[p.award.award]} ${p.award.season_label} der Matchunt Liga`, M + 14, 258, 14);
+    draw(`Platz ${p.award.rank} von ${p.award.participants}. Gewertet: Ergebnisse beim Kunden im Quartal.`, M + 14, 242, 10, MUTED);
+  }
 
   draw(`Partnernummer ${p.number}`, M, 150, 10.5, MUTED);
   draw(`Status prüfen: ${checkLabel(p.number)}`, M, 134, 10.5, MUTED);
@@ -110,7 +117,8 @@ export async function partnerCertificate(db: SupabaseClient, user: User, now = (
   must(!row.ended_at, 'Dein Partnerstatus ist beendet.', 'conflict');
   const person = await personOf(db, user.id);
   must(person.name, 'Bitte trag zuerst deinen Namen unter „Über dich“ ein.', 'conflict');
-  const bytes = await generatePartnerCertificate({ ...person, number: row.partner_number, since: row.granted_at, tier: row.tier, issuedAt: new Date(now()).toISOString() });
+  const award = await ligaAward(db, user.id);
+  const bytes = await generatePartnerCertificate({ ...person, number: row.partner_number, since: row.granted_at, tier: row.tier, issuedAt: new Date(now()).toISOString(), award });
   return { file_name: `Matchunt-Partner-${row.partner_number}.pdf`, base64: encodeBase64(bytes) };
 }
 

@@ -10,6 +10,8 @@
  * Reine Funktionen; Frontend und Edge Functions importieren diese Datei.
  */
 
+import { awardLine, type LigaAwardBadge } from './liga.ts';
+
 export const APP_ORIGIN = 'https://matchunt.ai';
 
 /**
@@ -130,11 +132,17 @@ const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g,
  * echter Text. Tabellen und Inline-Stile, damit Outlook, Gmail und Apple Mail ihn gleich zeigen;
  * blockiert ein Programm Bilder, bleibt der Text lesbar.
  */
-export function signatureHtml(p: { number: string; tier?: PartnerTier; lang?: Lang }): string {
+export function signatureHtml(p: { number: string; tier?: PartnerTier; lang?: Lang; award?: LigaAwardBadge | null }): string {
   const tier = p.tier ?? 'partner';
   const { width, height } = BADGE_SIZE[tier];
   const url = checkUrl(p.number);
   const en = p.lang === 'en';
+  // Auszeichnung der Matchunt Liga als Text, nicht als Bild: Saison steht immer dabei.
+  const award = p.award
+    ? '<tr><td colspan="2" style="padding:6px 0 0 0;">'
+      + `<a href="${url}" style="display:inline-block;background:#0a0a0a;color:#c8a24a;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;line-height:1.3;padding:5px 10px;border-radius:6px;text-decoration:none;">`
+      + `${escapeHtml(awardLine(p.award))} <span style="color:#ffffff;font-weight:normal;">· Matchunt Liga</span></a></td></tr>`
+    : '';
   return '<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:12px;">'
     + '<tr>'
     + `<td style="padding:0 12px 0 0;vertical-align:middle;"><a href="${url}" style="text-decoration:none;border:0;">`
@@ -142,12 +150,12 @@ export function signatureHtml(p: { number: string; tier?: PartnerTier; lang?: La
     + '<td style="vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.45;color:#6b6b6b;">'
     + `${en ? 'No.' : 'Nr.'} ${escapeHtml(p.number)}<br>`
     + `<a href="${url}" style="color:#0a0a0a;text-decoration:underline;">${en ? 'Verify status' : 'Status prüfen'}</a>`
-    + '</td></tr></table>';
+    + '</td></tr>' + award + '</table>';
 }
 
 /** Dieselbe Signatur als reiner Text, für Programme ohne HTML. */
-export const signatureText = (p: { number: string; tier?: PartnerTier; lang?: Lang }) =>
-  `${TIER_LABEL[p.tier ?? 'partner']} · ${p.lang === 'en' ? 'No.' : 'Nr.'} ${p.number} · ${checkLabel(p.number)}`;
+export const signatureText = (p: { number: string; tier?: PartnerTier; lang?: Lang; award?: LigaAwardBadge | null }) =>
+  `${TIER_LABEL[p.tier ?? 'partner']}${p.award ? ` · ${awardLine(p.award)} (Matchunt Liga)` : ''} · ${p.lang === 'en' ? 'No.' : 'Nr.'} ${p.number} · ${checkLabel(p.number)}`;
 
 /** Website-Abzeichen, das den Status beim Laden abfragt. */
 export function embedCode(number: string, opts: { theme?: 'light' | 'dark'; size?: 's' | 'l' } = {}): string {
@@ -210,7 +218,7 @@ export function cleanChannels(input: unknown): Partial<Record<PartnerChannel, st
 }
 
 export type PublicPartner =
-  | { state: 'active'; number: string; name: string; company: string; tier: PartnerTier; since: string; checkedAt: string; expertise: string | null }
+  | { state: 'active'; number: string; name: string; company: string; tier: PartnerTier; since: string; checkedAt: string; expertise: string | null; award: LigaAwardBadge | null }
   | { state: 'paused'; number: string; checkedAt: string }
   | { state: 'ended'; number: string; endedAt: string }
   | { state: 'invalid' };
@@ -222,7 +230,7 @@ export type PublicPartner =
  */
 export function publicView(
   row: Pick<PartnerStatusRow, 'partner_number' | 'tier' | 'granted_at' | 'ended_at' | 'show_expertise_at'> | null,
-  person: { name: string; company: string; suspended: boolean; expertise: string | null } | null,
+  person: { name: string; company: string; suspended: boolean; expertise: string | null; award?: LigaAwardBadge | null } | null,
   now: number,
 ): PublicPartner {
   if (!row) return { state: 'invalid' };
@@ -236,6 +244,7 @@ export function publicView(
   return {
     state: 'active', number: row.partner_number, name: person.name, company: person.company, tier: row.tier,
     since: row.granted_at, checkedAt, expertise: row.show_expertise_at ? person.expertise || null : null,
+    award: person.award ?? null,
   };
 }
 

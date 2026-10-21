@@ -6,6 +6,7 @@ import {
   cleanChannels, expertiseLine, normalizeNumber, PARTNER_CHANNELS, PARTNER_NUMBER, publicView, signatureHtml, siteDomain, versionAtLeast,
   type Lang, type PartnerChannel, type PartnerStatusRow, type PublicPartner,
 } from './recruiter-partner.ts';
+import type { LigaAwardBadge } from './liga.ts';
 
 /**
  * Partnerstatus auf dem Server. Verliehen wird er bei der Freischaltung nach der
@@ -15,6 +16,20 @@ import {
  */
 export const PARTNER_TABLE = 'recruiter_partner_status';
 const HOUR = 3_600_000;
+
+/**
+ * Jüngste Auszeichnung der Matchunt Liga (liga_awards_of). Fehlt die Funktion noch
+ * (Migration nicht angestoßen) oder klappt die Abfrage nicht, gibt es eben keine.
+ */
+export async function ligaAward(db: SupabaseClient, userId: string): Promise<LigaAwardBadge | null> {
+  const { data, error } = await db.rpc('liga_awards_of', { p_recruiter_ids: [userId] });
+  if (error) {
+    if (error.code !== 'PGRST202' && error.code !== '42883') console.warn('[recruiter-partner] Liga-Auszeichnung nicht lesbar', error.code);
+    return null;
+  }
+  const row = (data as (LigaAwardBadge & { recruiter_id: string })[] | null)?.[0];
+  return row ? { award: row.award, season_label: row.season_label, rank: row.rank, participants: row.participants } : null;
+}
 
 /**
  * Status verleihen, einmal je Konto. Erst ab Vertrag 2.1 (Anlage 6 erlaubt Name und
@@ -116,6 +131,7 @@ export async function partnerCheck(db: SupabaseClient, input: { number?: unknown
     company: String(profile.company_name ?? '').trim(),
     suspended: role.status === 'suspended' || role.verified !== true,
     expertise,
+    award: await ligaAward(db, row.user_id),
   }, now);
 }
 
@@ -136,7 +152,7 @@ export async function partnerSignatureTest(db: SupabaseClient, user: User, body:
     + '<p>Hallo,</p><p>so sieht dein Signatur-Baustein in einer echten Mail aus. Er steht unter deiner eigenen Signatur; '
     + 'blockiert ein Mailprogramm Bilder, bleiben Nummer und Prüflink lesbar.</p>'
     + `<p style="margin:24px 0 0 0;">Beste Grüße<br><strong>${esc(name || 'Dein Name')}</strong>${company ? `<br><span style="color:#6b6b6b;">${esc(company)}</span>` : ''}</p>`
-    + signatureHtml({ number: row.partner_number, tier: row.tier, lang })
+    + signatureHtml({ number: row.partner_number, tier: row.tier, lang, award: await ligaAward(db, user.id) })
     + '</div></body></html>';
   const result = await deps.mail(db, {
     to: user.email!, subject: 'Test: dein Signatur-Baustein', html,

@@ -30,13 +30,13 @@ import DataPrivacy from "./pages/dashboard/DataPrivacy";
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import JobDetail from "./pages/recruiter/JobDetail";
-import JobPosting from "./pages/recruiter/JobPosting";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import RecruiterSubmissions from "./pages/recruiter/RecruiterSubmissions";
 import RecruiterEarnings from "./pages/recruiter/RecruiterEarnings";
 import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
 import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
+import RecruiterLiga from "./pages/recruiter/RecruiterLiga";
 import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 import RecruiterHeute from "./pages/recruiter/RecruiterHeute";
@@ -75,6 +75,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminInvoices from "./pages/admin/AdminInvoices";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminFeedback from "./pages/admin/AdminFeedback";
+import AdminLiga from "./pages/admin/AdminLiga";
 import AdminFeedbackTicket from "./pages/admin/AdminFeedbackTicket";
 import OutreachSlim from "./pages/admin/OutreachSlim";
 import CompanyDetail from "./pages/admin/CompanyDetail";
@@ -141,6 +142,12 @@ const queryClient = new QueryClient();
 function CommandRedirect() {
   const { jobId } = useParams<{ jobId: string }>();
   return <Navigate to={`/dashboard/candidates${jobId ? `?job=${jobId}&tab=alle` : ''}`} replace />;
+}
+
+// Alt-Route /recruiter/jobs/:id/anzeige → Mandatsbriefing mit „Zum Teilen“ (19.10.2026)
+function AnzeigeWeiterleitung() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/recruiter/jobs/${id}?teilen=1`} replace />;
 }
 
 /** Ladeanzeige für die lazy geladenen Seiten. */
@@ -307,13 +314,9 @@ function AppRoutes() {
           <JobDetail />
         </ProtectedRoute>
       } />
-      {/* Die Fassung fuer den Kandidaten -- eigene Adresse, damit sie sich
-          zeigen, drucken und merken laesst. */}
-      <Route path="/recruiter/jobs/:id/anzeige" element={
-        <ProtectedRoute allowedRoles={['recruiter']}>
-          <JobPosting />
-        </ProtectedRoute>
-      } />
+      {/* Alte Adresse der Anzeige: seit 19.10.2026 im Mandatsbriefing (Reiter
+          Stellenbeschreibung mit „Zum Teilen“). Gemerkte Links landen dort. */}
+      <Route path="/recruiter/jobs/:id/anzeige" element={<AnzeigeWeiterleitung />} />
       <Route path="/recruiter/candidates" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterCandidates />
@@ -352,6 +355,11 @@ function AppRoutes() {
       <Route path="/recruiter/profile/:section" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterProfile />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/liga" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterLiga />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/payouts" element={
@@ -504,6 +512,11 @@ function AppRoutes() {
       <Route path="/admin/invoices" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminInvoices />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/liga" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminLiga />
         </ProtectedRoute>
       } />
       <Route path="/admin/feedback" element={

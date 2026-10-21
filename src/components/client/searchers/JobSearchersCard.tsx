@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { awardLine, awardSentence, ligaAwardsOf, type LigaAwardBadge } from '@/lib/liga';
 import { Flag, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -36,7 +37,7 @@ const relDays = (iso: string) => {
   return d <= 0 ? 'heute' : d === 1 ? 'gestern' : `vor ${d} Tagen`;
 };
 
-function SearcherRow({ s, photo }: { s: JobSearcher; photo: string | null }) {
+function SearcherRow({ s, photo, award }: { s: JobSearcher; photo: string | null; award: LigaAwardBadge | null }) {
   const tier = s.tier ? TIER_LABEL[s.tier] : null;
   const tierClass = s.tier === 'gold' ? 'text-amber-500' : s.tier === 'silver' ? 'text-slate-400' : 'text-muted-foreground';
   const parts: string[] = [];
@@ -67,6 +68,7 @@ function SearcherRow({ s, photo }: { s: JobSearcher; photo: string | null }) {
           {s.company_name ? <span className="font-normal text-muted-foreground"> · {s.company_name}</span> : null}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
+          {award && <span className="font-medium text-[#A07F2C]" title={awardSentence(award)}>{awardLine(award)} · </span>}
           {tier && <span className={tierClass}>{tier.replace('Matchunt ', '')}</span>}
           {s.is_new && (!s.tier || s.tier === 'partner') && <span>{tier ? ' · ' : ''}neu bei Matchunt</span>}
           {parts.filter(Boolean).map((p) => ` · ${p}`)}
@@ -97,6 +99,8 @@ function SearcherRow({ s, photo }: { s: JobSearcher; photo: string | null }) {
 export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: string; jobTitle: string; closed?: boolean }) {
   const [rows, setRows] = useState<JobSearcher[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string | null>>({});
+  // Auszeichnung der Matchunt Liga (Zusatz 1, 20.10.2026): mit Saison, wie auf der Prüfseite.
+  const [awards, setAwards] = useState<Record<string, LigaAwardBadge>>({});
   const [reportOpen, setReportOpen] = useState(false);
   const [who, setWho] = useState('');
   const [channel, setChannel] = useState<ContactChannel | null>(null);
@@ -107,6 +111,7 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
     try {
       const list = await getJobSearchers(jobId);
       setRows(list ?? []);
+      void ligaAwardsOf([...new Set((list ?? []).filter((s) => s.partner_number).map((s) => s.recruiter_id))]).then(setAwards);
       const entries = await Promise.all((list ?? []).map(async (s) => [s.recruiter_id, await avatarUrl(s.avatar_path)] as const));
       setPhotos(Object.fromEntries(entries));
     } catch {
@@ -159,7 +164,7 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
       {current.length > 0 && (
         <div className="mt-1">
           {current.map((s) => (
-            <SearcherRow key={s.activation_id} s={s} photo={photos[s.recruiter_id] ?? null} />
+            <SearcherRow key={s.activation_id} s={s} photo={photos[s.recruiter_id] ?? null} award={awards[s.recruiter_id] ?? null} />
           ))}
         </div>
       )}
@@ -168,7 +173,7 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
           <p className={cn('text-sm font-semibold', !(closed && current.length === 0) && 'mt-3')}>Haben für diese Stelle gesucht · {former.length}</p>
           <div className="mt-1">
             {former.map((s) => (
-              <SearcherRow key={s.activation_id} s={s} photo={photos[s.recruiter_id] ?? null} />
+              <SearcherRow key={s.activation_id} s={s} photo={photos[s.recruiter_id] ?? null} award={awards[s.recruiter_id] ?? null} />
             ))}
           </div>
         </>

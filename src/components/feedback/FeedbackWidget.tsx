@@ -47,6 +47,10 @@ const MIN_BOX_PX = 8;
 const MAX_BOXES = 20;
 const PANEL_WIDTH = 380;
 
+/** Öffnet die Feedback-Lasche von außen. `dispatchEvent` liefert false, wenn sie da ist und aufgeht. */
+export const FEEDBACK_OPEN_EVENT = 'matchunt:feedback-open';
+export const openFeedback = () => !window.dispatchEvent(new CustomEvent(FEEDBACK_OPEN_EVENT, { cancelable: true }));
+
 export interface FeedbackWidgetProps {
   /** Anrede: Headhunter und Admins werden geduzt, Kunden und Gäste gesiezt. */
   du: boolean;
@@ -176,6 +180,15 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
     );
     setPhase('open');
   };
+
+  // Andere Stellen öffnen die Lasche per Ereignis, etwa „Eintrag stimmt nicht?“ in der Matchunt Liga.
+  const startRef = useRef(start);
+  startRef.current = start;
+  useEffect(() => {
+    const onOpen = (e: Event) => { e.preventDefault(); void startRef.current(); };
+    window.addEventListener(FEEDBACK_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(FEEDBACK_OPEN_EVENT, onOpen);
+  }, []);
 
   // Solange das Fenster offen ist: Seite nicht scrollen (ohne die Scrollleiste
   // wegzunehmen, sonst verrutscht die Seite unter dem Bild), Escape gehört uns.

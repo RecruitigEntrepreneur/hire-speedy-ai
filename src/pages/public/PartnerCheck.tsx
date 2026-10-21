@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { MatchuntLogo } from '@/components/ui/MatchuntLogo';
 import { supabase } from '@/integrations/supabase/client';
 import { PartnerCard } from '@/components/recruiter/partner/PartnerCard';
+import { LigaAwardCard } from '@/components/recruiter/liga/LigaAwardCard';
+import { AWARD_CRITERIA, awardSentence } from '../../../supabase/functions/_shared/liga';
 import { dayDate, monthYear, normalizeNumber, PARTNER_NUMBER, TIER_LABEL, type PublicPartner } from '../../../supabase/functions/_shared/recruiter-partner';
 
 /**
@@ -79,8 +81,15 @@ export default function PartnerCheck() {
               <p className="text-sm text-muted-foreground">Partner seit {monthYear(result.since)} · Nr. <span className="font-mono">{result.number}</span><br/>
                 Status aktiv, geprüft am {dayDate(result.checkedAt)} um {time(result.checkedAt)} Uhr</p>
               {result.expertise && <p className="border-t border-border pt-3 text-sm"><span className="text-muted-foreground">Schwerpunkte: </span>{result.expertise}</p>}
+              {result.award && <p className="border-t border-border pt-3 text-sm">
+                <span className="text-[#C8A24A]">✦ </span><span className="font-medium">{awardSentence(result.award)}</span>
+                <span className="block text-xs text-muted-foreground">{AWARD_CRITERIA} Stand heute.</span>
+              </p>}
             </div>
-            <PartnerCard tier={result.tier} size="lg" className="self-start sm:self-center"/>
+            <div className="flex shrink-0 flex-col items-start gap-2 self-start sm:items-end sm:self-center">
+              <PartnerCard tier={result.tier} size="lg"/>
+              {result.award && <LigaAwardCard award={result.award.award} season={result.award.season_label}/>}
+            </div>
           </div>}
 
           {(result?.state === 'paused' || result?.state === 'ended') && <div className="space-y-2">

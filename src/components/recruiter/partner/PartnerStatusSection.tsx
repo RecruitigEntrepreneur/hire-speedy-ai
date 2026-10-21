@@ -1,5 +1,7 @@
 import { PartnerTierProgress } from './PartnerTierProgress';
 import { useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Check, ChevronRight, Copy, ExternalLink, FileText, Globe, Linkedin, Loader2, Lock, Mail, Megaphone, MessageSquare, Printer, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { onboardingApi } from '@/lib/recruiterOnboardingApi';
 import { cn } from '@/lib/utils';
 import { PartnerCard } from './PartnerCard';
+import { LigaAwardCard } from '../liga/LigaAwardCard';
+import {
+  AWARD_LABEL, ligaAwardsOf, ligaHallOfFame, ligaMe, ligaName, ligaSetPreferences, ligaTable, quotePct,
+  type LigaAwardBadge, type LigaMe, type LigaTableRow,
+} from '@/lib/liga';
 import { LINKEDIN_READY, PartnerPanel, type PanelActions, type PanelKind, type PartnerPerson } from './PartnerPanels';
 import { copyRich, copyText, downloadBase64, downloadSvgAsPng, downloadText } from './partnerClient';
 import { checkUrl, dayDate, monthYear, type Lang, type PartnerChannel, type PartnerStatusRow } from '../../../../supabase/functions/_shared/recruiter-partner';
@@ -35,6 +42,14 @@ function Section({ title, icon: Icon, children }: { title: string; icon?: Lucide
   </CardContent></Card>;
 }
 
+/** Mit Auszeichnung der Matchunt Liga sagen Signatur und Beitrag, was neu ist. */
+function tilePurpose(kind: PanelKind, fallback: string, award: LigaAwardBadge | null): string {
+  if (!award) return fallback;
+  if (kind === 'signature') return 'Unter jeder Mail, mit Auszeichnung';
+  if (kind === 'post') return `Neu: „${AWARD_LABEL[award.award]} ${award.season_label}“ teilen`;
+  return fallback;
+}
+
 function tileState(kind: PanelKind, p: PartnerStatusRow): { text: string; done?: boolean; muted?: boolean } {
   switch (kind) {
     case 'linkedin': return !LINKEDIN_READY ? { text: 'kommt in Kürze', muted: true } : p.channels.linkedin ? { text: 'eingerichtet', done: true } : { text: '2 Minuten' };
@@ -48,8 +63,17 @@ function tileState(kind: PanelKind, p: PartnerStatusRow): { text: string; done?:
 
 export function PartnerStatusSection({ partner, person, onChange }: { partner: PartnerStatusRow; person: PartnerPerson; onChange: (row: PartnerStatusRow) => void }) {
   const { toast } = useToast();
-  const [open, setOpen] = useState<PanelKind | null>(null);
+  const qc = useQueryClient();
+  const [params] = useSearchParams();
+  // ?panel=signature öffnet ein Fenster direkt, etwa aus dem Glückwunsch-Fenster der Liga.
+  const [open, setOpen] = useState<PanelKind | null>(() => TILES.find(t => t.kind === params.get('panel'))?.kind ?? null);
   const [busy, setBusy] = useState('');
+  const awardQ = useQuery({ queryKey: ['liga', 'award', partner.user_id], queryFn: () => ligaAwardsOf([partner.user_id]), retry: false });
+  const award = awardQ.data?.[partner.user_id] ?? null;
+  const liga = useQuery({ queryKey: ['liga', 'me', null], queryFn: () => ligaMe(null), retry: false });
+  const ligaRows = useQuery({ queryKey: ['liga', 'table', null], queryFn: () => ligaTable(null), retry: false, enabled: !!liga.data?.season });
+  const hall = useQuery({ queryKey: ['liga', 'hall'], queryFn: ligaHallOfFame, retry: false, enabled: !!liga.data });
+  const myAwards = (hall.data ?? []).filter(r => r.is_me && r.awards.length > 0);
   const number = partner.partner_number;
   const fail = (e: unknown, fallback: string) => toast({ title: e instanceof Error ? e.message : fallback, variant: 'destructive' });
 
@@ -59,6 +83,10 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
   };
   const settings = (patch: Record<string, unknown>, key: string) => run(key, async () => {
     onChange(await onboardingApi<PartnerStatusRow>(false, { action: 'partner-settings', ...patch }));
+  }, 'Die Einstellung konnte nicht gespeichert werden.');
+  const ligaPref = (patch: { show_name?: boolean; weekly_mail?: boolean }, key: string) => run(key, async () => {
+    await ligaSetPreferences(patch);
+    await qc.invalidateQueries({ queryKey: ['liga'] });
   }, 'Die Einstellung konnte nicht gespeichert werden.');
 
   const actions: PanelActions = {
@@ -102,6 +130,7 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
     <Section title="Dein Nachweis">
       <div className="flex flex-wrap items-center gap-4">
         <PartnerCard tier={partner.tier} size="lg"/>
+        {award && <LigaAwardCard award={award.award} season={award.season_label} size="lg"/>}
         <div>
           <p className="font-medium">Aktiv seit {monthYear(partner.granted_at)}</p>
           <p className="text-sm text-muted-foreground">Nr. <span className="font-mono">{number}</span> · gilt, solange dein Vertrag läuft</p>
@@ -117,6 +146,8 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
       <p className="text-xs text-muted-foreground">Für alle, die fragen, ob du wirklich Partner bist: Die Prüfseite zeigt deinen Status immer aktuell.</p>
     </Section>
 
+    {liga.data?.participant && liga.data.season && liga.data.me && <LigaSection me={liga.data} rows={ligaRows.data ?? []}/>}
+
     <Section title="Einmal einrichten">
       <div className="grid gap-2 sm:grid-cols-2">
         {TILES.map(t => {
@@ -126,7 +157,7 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted"><t.icon className="h-4 w-4"/></span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium">{t.title}</span>
-              <span className="block text-xs text-muted-foreground">{t.purpose}</span>
+              <span className="block text-xs text-muted-foreground">{tilePurpose(t.kind, t.purpose, award)}</span>
               <span className={cn('mt-1.5 inline-flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px]',
                 s.done ? 'bg-success/15 text-success' : s.muted ? 'bg-muted text-muted-foreground' : 'border border-border text-muted-foreground')}>
                 {s.done && <Check className="h-3 w-3 shrink-0"/>}<span className="truncate">{s.text}</span>
@@ -151,17 +182,61 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
               <span className="block text-xs text-muted-foreground">{person.focus ? `Zeigt: ${person.focus}` : 'Zeigt deine Schwerpunkte aus dem Profil.'}</span></Label>
             <Switch id="partner-expertise" checked={!!partner.show_expertise_at} disabled={busy === 'expertise'} onCheckedChange={v => void settings({ expertise: v }, 'expertise')}/>
           </div>
+          {liga.data?.participant && <>
+            <div className="flex items-start justify-between gap-3">
+              <Label htmlFor="liga-name" className="space-y-1 font-normal"><span className="block text-sm font-medium">In der Liga-Tabelle mit Namen zeigen</span>
+                <span className="block text-xs text-muted-foreground">Sonst steht dort „Headhunter aus …“ mit dem Ort deiner Firmenadresse.</span></Label>
+              <Switch id="liga-name" checked={!!liga.data.prefs?.show_name} disabled={busy === 'liga-name'} onCheckedChange={v => void ligaPref({ show_name: v }, 'liga-name')}/>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <Label htmlFor="liga-mail" className="space-y-1 font-normal"><span className="block text-sm font-medium">Wochenstand der Liga per Mail</span>
+                <span className="block text-xs text-muted-foreground">Montags: dein Platz und deine Punkte.</span></Label>
+              <Switch id="liga-mail" checked={liga.data.prefs?.weekly_mail ?? true} disabled={busy === 'liga-mail'} onCheckedChange={v => void ligaPref({ weekly_mail: v }, 'liga-mail')}/>
+            </div>
+          </>}
         </div>
       </Section>
-      <Section title="Stufen">
+      <Section title="Stufen und Auszeichnungen">
         <PartnerTierProgress/>
+        <div className="space-y-2 border-t border-border pt-4 text-sm">
+          <p className="flex items-start gap-2"><span className="text-[#C8A24A]">✦</span>
+            <span><span className="font-medium">Top Performer</span><span className="block text-xs text-muted-foreground">Plätze 1–{liga.data?.season?.top_n ?? 10} einer Saison der Matchunt Liga. Bleibt mit der Saison sichtbar, etwa „Q3 2026“.</span></span></p>
+          {myAwards.length > 0 && <div className="flex flex-wrap gap-1.5">{myAwards.flatMap(r => r.awards.map(a => <LigaAwardCard key={`${r.season_id}-${a}`} award={a} season={r.season_label} size="sm"/>))}</div>}
+        </div>
       </Section>
     </div>
 
     <Sheet open={open !== null} onOpenChange={o => { if (!o) setOpen(null); }}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-        {open && <PartnerPanel kind={open} partner={partner} person={person} actions={actions}/>}
+        {open && <PartnerPanel kind={open} partner={partner} person={person} actions={actions} award={award}/>}
       </SheetContent>
     </Sheet>
   </div>;
+}
+
+/** Eigener Stand der laufenden Saison und die Spitze der Tabelle (Wireframe 20.10.2026). */
+function LigaSection({ me, rows }: { me: LigaMe; rows: LigaTableRow[] }) {
+  const s = me.season!;
+  const m = me.me!;
+  const head = rows.filter(r => r.rank <= 3);
+  const mine = rows.find(r => r.is_me && r.rank > 3);
+  return <Section title={`Matchunt Liga · Saison ${s.label}`}>
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-1">
+        <p className="text-xl font-semibold">{m.rank ? `Platz ${m.rank} von ${m.participants}` : 'Noch nicht platziert'}</p>
+        <p className="text-sm text-muted-foreground">{m.points} Punkte · {m.placements} {m.placements === 1 ? 'Einstellung' : 'Einstellungen'} · {m.interviews} {m.interviews === 1 ? 'Kunden-Interview' : 'Kunden-Interviews'} · Quote {quotePct(m.quote)}</p>
+        <p className="text-sm">
+          {m.rank && m.rank > 1 && m.gap_above !== null ? `Noch ${m.gap_above} ${m.gap_above === 1 ? 'Punkt' : 'Punkte'} bis Platz ${m.rank - 1}. ` : ''}
+          Plätze 1–{s.top_n} werden Top Performer der Saison.
+        </p>
+      </div>
+      {rows.length > 0 && <ol className="min-w-[14rem] space-y-1 text-sm">
+        {[...head, ...(mine ? [mine] : [])].map((r, i) => <li key={`${r.rank}-${i}`} className={cn('flex justify-between gap-4', r.is_me && 'font-medium')}>
+          <span><span className="mr-2 tabular-nums text-muted-foreground">{r.rank}</span>{r.is_me ? 'Du' : ligaName(r.name, r.city)}</span>
+          <span className="tabular-nums">{r.points}</span>
+        </li>)}
+      </ol>}
+    </div>
+    <p className="text-xs text-muted-foreground">Namen nur mit Einwilligung, sonst Ort. Die Liga ändert nichts an Plätzen und Konditionen. <Link to="/recruiter/liga" className="underline">Zur Liga</Link></p>
+  </Section>;
 }
