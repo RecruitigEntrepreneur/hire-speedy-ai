@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
+import { useCandidateInsights, verfuegbarAus } from '@/components/candidates/client/useCandidateInsights';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FrageSheet, initialsOf } from '@/components/candidates/client/FrageSheet';
+import { submitterName, useSubmitter } from '@/components/candidates/client/useSubmitter';
+import { NOTICE_OPTIONS, optionLabel } from '@/lib/candidateDossier';
 import {
   Calendar,
   X,
@@ -25,7 +30,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BewerberStatusPill } from './BewerberStatusPill';
+import { BewerberStatusPill, bewerberStateLabel } from './BewerberStatusPill';
 import { BewerberNotes } from './BewerberNotes';
 import type { BewerberItem } from '@/hooks/useBewerber';
 import type { CareerEntry } from '@/hooks/useBewerber';
@@ -108,7 +113,10 @@ function formatDuration(years: number | null): string {
 export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: BewerberPreviewPanelProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const score = item.matchScore || 0;
+  const fitRoh = useCandidateFitAssessment(item.submissionId).assessment?.executive_summary ?? null;
+  const fitText = fitRoh ? fitRoh.charAt(0).toUpperCase() + fitRoh.slice(1) : null;
+  // Gehaltswunsch und Verfügbarkeit wie im Profil: zuerst aus dem Gespräch mit dem Headhunter.
+  const gespraech = useCandidateInsights(item.submissionId).data?.interview ?? null;
   const displayName =
     item.fullName || item.currentRole || item.career[0]?.jobTitle || t('bewerber.card.no_role');
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -119,6 +127,15 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
   const PrimaryIcon = primary.icon;
   const [aiExpanded, setAiExpanded] = useState(false);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
+  const [showFrage, setShowFrage] = useState(false);
+  const { data: submitter } = useSubmitter(item.submissionId, item.jobId);
+  const hhName = submitterName(submitter);
+  // Nie den Rohwert („3_months_eoq“) zeigen
+  const verfuegbar =
+    verfuegbarAus(gespraech) ||
+    (item.noticePeriod ? optionLabel(NOTICE_OPTIONS, item.noticePeriod) : null) ||
+    (item.availabilityDate ? `ab ${new Date(item.availabilityDate).toLocaleDateString('de-DE')}` : null) ||
+    'Sofort';
 
   useEffect(() => {
     setAiExpanded(false);
@@ -178,7 +195,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </span>
           <span className="flex items-center gap-1">
             <Banknote className="h-3 w-3" />
-            {item.salaryBand || t('bewerber.chips.salary_locked')}
+            {gespraech?.salary_wish || item.salaryBand || t('bewerber.chips.salary_locked')}
           </span>
           <span className="flex items-center gap-1">
             <Laptop className="h-3 w-3" />
@@ -186,7 +203,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </span>
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {item.noticePeriod || item.availabilityDate || 'Sofort'}
+            {verfuegbar}
           </span>
           {item.seniority && (
             <span className="flex items-center gap-1">
@@ -196,13 +213,27 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           )}
         </div>
 
+        {/* Wer den Kandidaten eingereicht hat */}
+        {submitter && (
+          <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
+            <Avatar className="h-5 w-5">
+              {submitter.photo && <AvatarImage src={submitter.photo} alt="" />}
+              <AvatarFallback className="bg-primary/10 text-[9px] text-primary">{initialsOf(hhName)}</AvatarFallback>
+            </Avatar>
+            <span>
+              Eingereicht von <span className="font-medium text-foreground">{hhName}</span>
+              {` · ${new Date(item.submittedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+            </span>
+          </div>
+        )}
+
         {/* CTAs bzw. Archiv-Status */}
         {isArchived ? (
           <div className="rounded-lg border bg-muted/40 px-3 py-2.5 flex items-start gap-2">
             <Archive className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">
-                {t(`bewerber.archive.kind.${item.archiveKind || 'abgelehnt'}`)}
+                {bewerberStateLabel(item, t)}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {item.archiveKind === 'eingestellt'
@@ -232,10 +263,10 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               variant="ghost"
               size="sm"
               className="ml-auto text-muted-foreground"
-              onClick={() => navigate('/dashboard/messages')}
+              onClick={() => setShowFrage(true)}
             >
               <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-              {t('bewerber.actions.ask_recruiter')}
+              Frage an {hhName}
             </Button>
           </div>
         )}
@@ -283,26 +314,19 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
-                  Passung zur Stelle
+                  Einschätzung zur Stelle
                 </h4>
                 <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0">
-                  KI-gestützt
+                  KI-Text
                 </Badge>
               </div>
 
-              {/* Score */}
-              {score > 0 && (
-                <div className="bg-muted/40 rounded-lg p-3 mb-3 text-center">
-                  <span className="text-2xl font-bold text-foreground">{score}%</span>
-                  <span className="text-xs text-muted-foreground block mt-0.5">Übereinstimmung</span>
-                </div>
-              )}
-
               {/* AI Summary — auf 3 Zeilen verdichtet, Volltext auf Klick */}
-              {item.aiSummary && (
+              {/* Keine Zahl beim Kunden (EU AI Act, 09.10.2026): der Text der Einschätzung, sonst die Lebenslauf-Zusammenfassung. */}
+              {(fitText || item.aiSummary) && (
                 <div className="mb-3">
                   <p className={cn('text-xs text-muted-foreground leading-relaxed', !aiExpanded && 'line-clamp-3')}>
-                    {item.aiSummary}
+                    {fitText || item.aiSummary}
                   </p>
                   <button
                     type="button"
@@ -320,17 +344,16 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               </p>
             </div>
 
-            {/* Recruiter Note */}
-            {item.recruiterNotes && (
-              <div className="bg-card border rounded-lg p-3 border-l-2 border-l-blue-400">
+            {/* Empfehlung des Headhunters beim Einreichen */}
+            {item.recruiterNotes?.trim() && (
+              <div className="bg-card border rounded-lg p-3">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Recruiter-Notiz
+                  Empfehlung von {hhName}
                 </h4>
-                <p className="text-xs text-muted-foreground italic leading-relaxed">
-                  &ldquo;{item.recruiterNotes}&rdquo;
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">„{item.recruiterNotes.trim()}“</p>
               </div>
             )}
+
           </div>
 
           {/* ─── RIGHT: Werdegang ─── */}
@@ -399,6 +422,19 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </Link>
         </Button>
       </div>
+      <FrageSheet
+        open={showFrage}
+        onOpenChange={setShowFrage}
+        submitter={submitter}
+        submissionId={item.submissionId}
+        jobId={item.jobId}
+        candidateId={item.candidateId}
+        jobTitle={item.jobTitle}
+        code={item.anonymizedName}
+        role={item.currentRole}
+        identityUnlocked={item.identityUnlocked}
+        noticeFallback={item.noticePeriod}
+      />
     </div>
   );
 }

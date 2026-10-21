@@ -289,18 +289,13 @@ ${jobContextSection}
 - Primäre Domäne: ${primaryDomain}
 - Erfahrung: ${candidate.experience_years || 0} Jahre
 - Region: ${candidate.city ? "Angegeben" : "Nicht angegeben"} (NICHT den Ort nennen!)
-- Gehaltsvorstellung: ${candidate.expected_salary ? `${candidate.expected_salary.toLocaleString("de-DE")}€` : candidate.salary_expectation_min && candidate.salary_expectation_max ? `${candidate.salary_expectation_min.toLocaleString("de-DE")}€ - ${candidate.salary_expectation_max.toLocaleString("de-DE")}€` : "Nicht angegeben"}
+- Gehaltsvorstellung: ${candidate.expected_salary ? `${candidate.expected_salary.toLocaleString("de-DE")}€` : "Nicht angegeben"}
 - Verfügbarkeit: ${candidate.availability_date || "Nicht angegeben"}
 - Kündigungsfrist: ${candidate.notice_period || "Nicht angegeben"}
 - Arbeitsmodell: ${candidate.remote_preference || candidate.work_model || (candidate.remote_possible ? "Remote möglich" : "Nicht angegeben")}
 - Skills: ${(candidate.skills || []).join(", ") || "Keine angegeben"}
 - Zertifikate: ${Array.isArray(candidate.certifications) ? candidate.certifications.join(", ") : "Keine"}
 
-## Jobhopper-Analyse (bereits berechnet)
-- Durchschnittliche Verweildauer: ${jobHopperAnalysis.avg_tenure_months} Monate
-- Ist Jobhopper: ${jobHopperAnalysis.is_job_hopper ? "Ja" : "Nein"}
-- Bewertung: ${jobHopperAnalysis.concern_level}
-- Erklärung: ${jobHopperAnalysis.explanation}
 
 ## Berufserfahrung (Firmennamen NICHT im Output nennen - nur Branche!)
 ${experiences.map(exp => {

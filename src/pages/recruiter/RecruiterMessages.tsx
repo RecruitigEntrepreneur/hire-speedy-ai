@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -37,6 +38,12 @@ interface Conversation {
   lastMessageAt: string;
   unreadCount: number;
   jobTitle?: string;
+  /** Frage eines Kunden zu einem Kandidaten: Antworten laufen über client-question. */
+  submissionId?: string | null;
+  candidateId?: string | null;
+  candidateName?: string | null;
+  companyName?: string | null;
+  needsAnswer?: boolean;
 }
 
 export default function RecruiterMessages() {
@@ -50,6 +57,9 @@ export default function RecruiterMessages() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Link aus Glocke und Mail: /recruiter/messages?c=<Gespräch>
+  const [searchParams] = useSearchParams();
+  const linkedConversation = searchParams.get('c');
 
   useEffect(() => {
     if (user) {
@@ -110,7 +120,35 @@ export default function RecruiterMessages() {
         });
       }
 
+      // Kundenfragen: Kandidat, Stelle und Firma statt „Unbekannt“
+      const withContext = [...conversationMap.values()].map((m) => m[0]).filter((m) => m.job_id && m.candidate_id);
+      if (withContext.length) {
+        const jobIds = [...new Set(withContext.map((m) => m.job_id as string))];
+        const candIds = [...new Set(withContext.map((m) => m.candidate_id as string))];
+        const [jobsRes, candRes, subRes] = await Promise.all([
+          supabase.from('recruiter_jobs_view').select('id, title, company_name').in('id', jobIds),
+          supabase.from('candidates').select('id, full_name').in('id', candIds),
+          supabase.from('submissions').select('id, job_id, candidate_id').eq('recruiter_id', user!.id).in('job_id', jobIds),
+        ]);
+        for (const conv of convList) {
+          const first = conversationMap.get(conv.id)?.[0];
+          if (!first?.job_id || !first.candidate_id) continue;
+          const job = (jobsRes.data ?? []).find((j: any) => j.id === first.job_id);
+          const sub = (subRes.data ?? []).find((x: any) => x.job_id === first.job_id && x.candidate_id === first.candidate_id);
+          conv.jobTitle = job?.title ?? undefined;
+          conv.companyName = job?.company_name ?? null;
+          conv.candidateId = first.candidate_id;
+          conv.candidateName = (candRes.data ?? []).find((c: any) => c.id === first.candidate_id)?.full_name ?? null;
+          conv.submissionId = sub?.id ?? null;
+          conv.needsAnswer = first.sender_id !== user?.id;
+          if (conv.otherUserName === 'Unbekannt') conv.otherUserName = job?.company_name ? `Kunde · ${job.company_name}` : 'Kunde';
+        }
+      }
+
       setConversations(convList);
+      if (linkedConversation && convList.some((c) => c.id === linkedConversation)) {
+        setSelectedConversation(linkedConversation);
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
@@ -155,6 +193,22 @@ export default function RecruiterMessages() {
 
     setSending(true);
     try {
+      if (conversation.submissionId) {
+        // Antwort auf eine Kundenfrage: Glocke und Mail beim Kunden, Namen geschwärzt
+        const { data: res, error: fnError } = await supabase.functions.invoke('client-question', {
+          body: { action: 'answer', submission_id: conversation.submissionId, text: newMessage.trim() },
+        });
+        if (fnError || (res as { error?: string } | null)?.error) {
+          throw new Error((res as { error?: string } | null)?.error ?? fnError?.message);
+        }
+        if ((res as { scrubbed?: boolean } | null)?.scrubbed) {
+          toast({ title: 'Gesendet', description: 'Name oder Arbeitgeber des Kandidaten wurden entfernt, weil er noch nicht zugestimmt hat.' });
+        }
+        setNewMessage('');
+        await fetchMessages(selectedConversation);
+        setConversations((prev) => prev.map((c) => (c.id === selectedConversation ? { ...c, needsAnswer: false, lastMessage: newMessage.trim(), lastMessageAt: new Date().toISOString() } : c)));
+        return;
+      }
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -276,12 +330,20 @@ export default function RecruiterMessages() {
                                 {formatTime(conv.lastMessageAt)}
                               </span>
                             </div>
+                            {conv.jobTitle && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {conv.candidateName ?? 'Kandidat'} · {conv.jobTitle}
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground truncate">
                               {conv.lastMessage}
                             </p>
                           </div>
                           {conv.unreadCount > 0 && (
                             <Badge className="bg-primary">{conv.unreadCount}</Badge>
+                          )}
+                          {conv.needsAnswer && conv.unreadCount === 0 && (
+                            <Badge variant="outline" className="text-xs">Antwort offen</Badge>
                           )}
                         </div>
                       </div>
@@ -307,6 +369,22 @@ export default function RecruiterMessages() {
                       <CardTitle className="text-base">
                         {conversations.find(c => c.id === selectedConversation)?.otherUserName}
                       </CardTitle>
+                      {(() => {
+                        const c = conversations.find((x) => x.id === selectedConversation);
+                        return c?.jobTitle ? (
+                          <p className="text-xs text-muted-foreground">
+                            Frage zu{' '}
+                            {c.candidateId ? (
+                              <Link to={`/recruiter/candidates/${c.candidateId}`} className="underline underline-offset-2 hover:text-foreground">
+                                {c.candidateName ?? 'deinem Kandidaten'}
+                              </Link>
+                            ) : (
+                              c.candidateName ?? 'deinem Kandidaten'
+                            )}{' '}
+                            · {c.jobTitle}
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </CardHeader>
@@ -340,6 +418,11 @@ export default function RecruiterMessages() {
                     </div>
                   </ScrollArea>
                   <div className="border-t p-4">
+                    {conversations.find((c) => c.id === selectedConversation)?.submissionId && (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Die Antwort geht an den Kunden (Glocke und Mail). Name und Arbeitgeber des Kandidaten werden entfernt, solange er nicht zugestimmt hat.
+                      </p>
+                    )}
                     <div className="flex gap-2">
                       <Input
                         placeholder="Nachricht schreiben..."

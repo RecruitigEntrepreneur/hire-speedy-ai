@@ -7,16 +7,11 @@ import { BewerberStatusPill } from './BewerberStatusPill';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import type { BewerberItem } from '@/hooks/useBewerber';
+import { useSubmitterNames } from '@/components/candidates/client/useSubmitter';
 
 interface BewerberInboxViewProps {
   items: BewerberItem[];
   onRefresh?: () => void;
-}
-
-function getMatchBadgeColor(score: number) {
-  if (score >= 85) return 'bg-success/10 text-success border-success/20';
-  if (score >= 70) return 'bg-warning/10 text-warning border-warning/20';
-  return 'bg-muted text-muted-foreground border-border';
 }
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
@@ -29,17 +24,18 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
 
 function CandidateCard({
   item,
+  submitter,
   isSelected,
   onSelect,
   onOpen,
 }: {
   item: BewerberItem;
+  submitter?: string;
   isSelected: boolean;
   onSelect: () => void;
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const score = item.matchScore || 0;
   const title =
     item.fullName || item.currentRole || item.career[0]?.jobTitle || t('bewerber.card.no_role');
   const isArchived = item.tab === 'archiv';
@@ -56,14 +52,10 @@ function CandidateCard({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-sm truncate">{title}</span>
-        {score > 0 && (
-          <span className={cn('px-1.5 py-0.5 rounded text-xs font-bold border shrink-0', getMatchBadgeColor(score))}>
-            {score}%
-          </span>
-        )}
       </div>
       <p className="text-xs text-muted-foreground truncate mt-0.5">
         {item.fullName && item.currentRole ? `${item.currentRole} · ` : ''}für: {item.jobTitle}
+        {submitter ? ` · von ${submitter}` : ''}
       </p>
       <div className="flex items-center justify-between gap-2 mt-1.5">
         <BewerberStatusPill item={item} />
@@ -91,6 +83,9 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
   const [wizardFor, setWizardFor] = useState<BewerberItem | null>(null);
   const [rejectFor, setRejectFor] = useState<BewerberItem | null>(null);
 
+  // Wer den Kandidaten eingereicht hat, je Karte (über die Suchenden-Liste der Stellen)
+  const { data: submitterNames } = useSubmitterNames(items.map((i) => ({ submissionId: i.submissionId, jobId: i.jobId })));
+
   const displayNameOf = (item: BewerberItem) =>
     item.fullName || item.currentRole || item.career[0]?.jobTitle || item.anonymizedName;
 
@@ -98,6 +93,7 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
     <CandidateCard
       key={item.submissionId}
       item={item}
+      submitter={submitterNames?.[item.submissionId]}
       isSelected={selectedItem?.submissionId === item.submissionId}
       onSelect={() => setSelectedId(item.submissionId)}
       onOpen={() => navigate(`/dashboard/candidates/${item.submissionId}`)}

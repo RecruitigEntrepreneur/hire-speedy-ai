@@ -105,14 +105,12 @@ export function ClientCandidateSummaryCard({ candidateId, submissionId, classNam
     }
   };
 
+  // Nur die Verweildauer als Fakt, kein Etikett („Jobhopper“, „Stabil“): eine
+  // automatische Einstufung wäre Profiling (DSGVO Art. 22, KI-VO).
   const getJobHopperLabel = () => {
-    const { concern_level, avg_tenure_months } = summary.job_hopper_analysis;
+    const { avg_tenure_months } = summary.job_hopper_analysis;
     const years = (avg_tenure_months / 12).toFixed(1);
-    switch (concern_level) {
-      case 'high': return { label: 'Jobhopper', sub: `Ø ${years}J`, cls: 'text-destructive' };
-      case 'medium': return { label: 'Wechselfreudig', sub: `Ø ${years}J`, cls: 'text-amber-600 dark:text-amber-400' };
-      default: return { label: 'Stabil', sub: `Ø ${years}J`, cls: 'text-emerald-600 dark:text-emerald-400' };
-    }
+    return { label: 'Verweildauer', sub: `Ø ${years}J`, cls: 'text-muted-foreground' };
   };
 
   const recConfig = getRecommendationConfig(summary.recommendation);

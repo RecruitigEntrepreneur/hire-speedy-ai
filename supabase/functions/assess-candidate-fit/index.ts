@@ -23,23 +23,25 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const json = (body: unknown, status: number) =>
+      new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    if (!lovableApiKey) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Wer darf auslösen (09.10.2026): der Auslöser beim Einreichen und das Netz mit
+    // eigenem Schlüssel (x-cron-token, Migration 20261009140000) -- oder jemand, der
+    // die Einreichung sehen darf (Recruiter, Admin, Kunden-Team mit Zugriff auf die Stelle).
+    const authHeader = req.headers.get("Authorization");
+    const cronToken = req.headers.get("x-cron-token");
+    let viaCron = false;
+    if (cronToken) {
+      const admin = createClient(supabaseUrl, supabaseKey);
+      const { data: valid } = await admin.rpc("cron_token_valid", { _name: "fit-assessment", _token: cronToken });
+      if (valid !== true) return json({ error: "Invalid token" }, 401);
+      viaCron = true;
+    } else if (!authHeader) {
+      return json({ error: "Missing authorization" }, 401);
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -48,6 +50,19 @@ serve(async (req) => {
     if (!submissionId) {
       return new Response(JSON.stringify({ error: "submissionId is required" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!viaCron) {
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader! } } });
+      const { data: allowed } = await userClient.from("submissions").select("id").eq("id", submissionId).maybeSingle();
+      if (!allowed) return json({ error: "Kein Zugriff auf diese Einreichung" }, 403);
+    }
+
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -234,8 +249,8 @@ serve(async (req) => {
 
     // Get user id from auth header (skip if called via service role key / pg_net trigger)
     let generatedBy: string | null = null;
-    const token = authHeader.replace("Bearer ", "");
-    if (token !== supabaseKey) {
+    const token = (authHeader ?? "").replace("Bearer ", "");
+    if (!viaCron && token !== supabaseKey) {
       try {
         const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
         const { data: { user } } = await anonClient.auth.getUser(token);

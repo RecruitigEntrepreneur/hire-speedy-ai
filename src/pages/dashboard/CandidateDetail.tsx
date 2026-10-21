@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -36,11 +36,21 @@ import {
   GraduationCap,
   Building2,
   Globe,
+  Users,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-import { CandidateFitAssessmentCard } from '@/components/candidates/CandidateFitAssessmentCard';
+import { EducationCard, FitTextCard, InterviewInsightsCard, MussKriterienCard } from '@/components/candidates/client/ClientCandidateCards';
+import { AskColleaguesDialog } from '@/components/candidates/client/AskColleaguesDialog';
+import { FrageSheet, initialsOf } from '@/components/candidates/client/FrageSheet';
+import { QuestionThreadList } from '@/components/candidates/client/QuestionThreadList';
+import { useClientQuestions } from '@/components/candidates/client/useClientQuestions';
+import { submitterName, useSubmitter } from '@/components/candidates/client/useSubmitter';
+import { REJECTION_CATEGORIES } from '@/components/rejection/RejectionReasonSelector';
+import { useCandidateInsights, verfuegbarAus, fuehrung } from '@/components/candidates/client/useCandidateInsights';
+import { buildClientCandidatePdf, downloadPdf } from '@/lib/clientCandidatePdf';
+import type { TeamMember } from '@/hooks/useTeamData';
 import { CandidateExperienceTimeline } from '@/components/candidates/CandidateExperienceTimeline';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
@@ -115,9 +125,27 @@ export default function CandidateDetail() {
     null
   );
 
-  // Fallback-Quelle für die Match-Pille: die Fit-Analyse hat oft einen Score,
-  // wenn submissions.match_score (noch) leer ist — eine Zahl, eine Wahrheit im Kopf.
-  const { assessment: fitAssessment } = useCandidateFitAssessment(id);
+  // Einschätzung zur Stelle (Text, ohne Zahl) und Angaben aus dem Gespräch mit dem Headhunter.
+  // Keine Prozentzahl beim Kunden (EU AI Act, Entscheidung 09.10.2026).
+  const fit = useCandidateFitAssessment(id);
+  const { data: insights } = useCandidateInsights(id);
+  // Wer den Kandidaten eingereicht hat, und die Fragen des Kunden an ihn.
+  const { data: submitter } = useSubmitter(id, candidateView?.jobId);
+  const hhName = submitterName(submitter);
+  const questions = useClientQuestions(candidateView?.jobId, candidateView?.candidateId);
+  const [showFrage, setShowFrage] = useState(false);
+  // Großer Kopf scrollt mit; ist er weg, bleibt oben eine schmale Leiste mit Status und Knöpfen.
+  const headRef = useRef<HTMLDivElement | null>(null);
+  const [headVisible, setHeadVisible] = useState(true);
+  useEffect(() => {
+    const el = headRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setHeadVisible(e.isIntersecting), { rootMargin: '-64px 0px 0px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  });
+  const [showAsk, setShowAsk] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   // Team-Kontext: Viewer sind read-only; Mitgliederliste für @-Mentions
   const { organization: myOrg, myRole: myOrgRole } = useMyOrganization();
@@ -125,6 +153,8 @@ export default function CandidateDetail() {
   const teamQuery = useTeamData(myOrg?.id);
   const teamMembers = (teamQuery.data?.members ?? []).filter((m) => m.status === 'active');
   const memberName = (uid: string) => teamMembers.find((m) => m.user_id === uid)?.full_name ?? null;
+  // „von Ihnen“, „von Anna Weber“ oder „aus Ihrem Team“ (ältere Anfragen ohne Person: null)
+  const vonWem = (uid: string | null) => (!uid ? null : uid === user?.id ? 'von Ihnen' : memberName(uid) ? `von ${memberName(uid)}` : 'aus Ihrem Team');
 
   // DSGVO: Zugriff auf das Kandidatenprofil serverseitig protokollieren
   // (einmal pro Submission und Seitenaufruf, nicht pro Re-Render)
@@ -240,6 +270,48 @@ export default function CandidateDetail() {
     }
   };
 
+  // Notiz speichern; erwähnte Team-Mitglieder erhalten eine Benachrichtigung.
+  const addComment = async (content: string, mentionedIds: string[], title = 'Sie wurden in einem Kommentar erwähnt') => {
+    if (!user) return;
+    let { error } = await supabase
+      .from('candidate_comments')
+      .insert({ submission_id: id, user_id: user.id, content, mentioned_user_ids: mentionedIds });
+    if (error && /mentioned_user_ids/.test(error.message)) {
+      // Fallback für noch nicht migrierte DB
+      ({ error } = await supabase
+        .from('candidate_comments')
+        .insert({ submission_id: id, user_id: user.id, content }));
+    }
+    if (error) throw error;
+    if (mentionedIds.length) {
+      // Geprüft in der Datenbank (Migration 20261009140000): direkt anlegen durften Kunden Benachrichtigungen nie.
+      const { error: notifyError } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>)(
+        'notify_candidate_mention', { p_submission_id: id, p_user_ids: mentionedIds, p_title: title },
+      );
+      if (notifyError) console.warn('Erwähnung nicht benachrichtigt:', notifyError.message);
+    }
+  };
+
+  // „Kollegen fragen“: Zugriff auf die Stelle geben, wo er fehlt, dann Notiz mit Erwähnung.
+  const askColleagues = async ({ content, mentionedIds, grant }: { content: string; mentionedIds: string[]; grant: TeamMember[] }) => {
+    if (!user || !candidateView) return false;
+    try {
+      if (grant.length) {
+        const { error } = await supabase.from('job_collaborators').insert(
+          grant.map((m) => ({ job_id: candidateView.jobId, user_id: m.user_id, role: m.role === 'viewer' ? 'viewer' : 'hiring_manager', added_by: user.id })) as never,
+        );
+        if (error) throw error;
+      }
+      await addComment(content, mentionedIds, 'Ihre Meinung zu einem Kandidaten ist gefragt');
+      fetchComments();
+      toast({ title: 'Anfrage gesendet', description: 'Die Antworten erscheinen unter den Team-Notizen.' });
+      return true;
+    } catch {
+      toast({ title: 'Die Anfrage konnte nicht gesendet werden', variant: 'destructive' });
+      return false;
+    }
+  };
+
   const handleAddComment = async () => {
     if (!newComment.trim() || !user) return;
     setCommentLoading(true);
@@ -248,31 +320,7 @@ export default function CandidateDetail() {
       const mentionedIds = teamMembers
         .filter((m) => m.user_id !== user.id && m.full_name && newComment.includes(`@${m.full_name}`))
         .map((m) => m.user_id);
-
-      let { error } = await supabase
-        .from('candidate_comments')
-        .insert({ submission_id: id, user_id: user.id, content: newComment, mentioned_user_ids: mentionedIds });
-      if (error && /mentioned_user_ids/.test(error.message)) {
-        // Fallback für noch nicht migrierte DB
-        ({ error } = await supabase
-          .from('candidate_comments')
-          .insert({ submission_id: id, user_id: user.id, content: newComment }));
-      }
-      if (error) throw error;
-
-      if (mentionedIds.length) {
-        await supabase.from('notifications').insert(
-          mentionedIds.map((uid) => ({
-            user_id: uid,
-            type: 'comment_mention',
-            title: 'Sie wurden in einem Kommentar erwähnt',
-            message: `${memberName(user.id) ?? 'Ein Teammitglied'} hat Sie in einem Kommentar zu einem Kandidaten (${candidateView?.jobTitle ?? 'Job'}) erwähnt.`,
-            related_type: 'submission',
-            related_id: id,
-          }))
-        );
-      }
-
+      await addComment(newComment, mentionedIds);
       setNewComment('');
       fetchComments();
       toast({ title: 'Notiz gespeichert' });
@@ -318,7 +366,7 @@ export default function CandidateDetail() {
   const {
     displayName, identityUnlocked, currentRole, experience, seniority,
     salaryRange, availability, region, workModel, topSkills,
-    status, stage, jobTitle, jobId, recruiterNotes,
+    status, stage, jobTitle, jobId,
     email, phone, cvUrl, linkedinUrl,
     candidateId, submissionId, matchScore, fitLabel, dealProbability, motivationStatus,
     certifications, languageSkills, industryExperience, targetRoles,
@@ -341,11 +389,82 @@ export default function CandidateDetail() {
   // Nur „wartet auf Kandidat" nutzt den Pending-Baustein; beim Gegenvorschlag
   // ist der Kunde am Zug und bekommt die Primäraktion „Vorschlag prüfen".
   const isPendingCandidate = state.key === 'wartet_kandidat';
-  const headScore = matchScore > 0 ? matchScore : fitAssessment?.overall_score ?? 0;
+  const iv = insights?.interview ?? null;
+  const gehalt = iv?.salary_wish ?? salaryRange;
+  const tsd = (n: number) => Math.round(n / 1000);
+  const budget = jobReqs?.salary_min || jobReqs?.salary_max
+    ? jobReqs.salary_min && jobReqs.salary_max ? `${tsd(jobReqs.salary_min)}–${tsd(jobReqs.salary_max)} T€` : `${tsd((jobReqs.salary_min || jobReqs.salary_max)!)} T€`
+    : null;
+  const verfuegbar = verfuegbarAus(iv) ?? availability;
+
+  // Lebenslauf (PDF) aus genau den Daten, die der Kunde hier sieht.
+  const downloadCv = async () => {
+    setPdfBusy(true);
+    try {
+      // Über die reveal-gated Ansicht wie die Seite selbst (Firmen und Freitext anonym bis zur Freigabe).
+      const { data: exps } = await supabase.from('client_candidate_experiences_view').select('job_title, company_name, start_date, end_date, is_current, description').eq('submission_id', submissionId).order('sort_order');
+      const jahr = (d: string | null) => (d ? new Date(d).getFullYear() : '?');
+      const bytes = await buildClientCandidatePdf({
+        code: identityUnlocked ? displayName : anonCode,
+        role: currentRole,
+        jobTitle,
+        anonym: !identityUnlocked,
+        facts: [
+          { label: 'Seniorität', value: fmtSeniority(seniority) },
+          { label: 'Erfahrung', value: experience },
+          { label: 'Gehaltswunsch', value: gehalt },
+          { label: 'Verfügbar', value: verfuegbar },
+          { label: 'Region', value: region },
+          { label: 'Arbeitsmodell', value: enrichedWorkModel },
+        ].filter((r) => r.value && !isPlaceholder(r.value)),
+        gespraech: iv ? [
+          iv.change_motivation && { label: 'Warum wechseln', value: iv.change_motivation },
+          iv.why_now && { label: 'Warum jetzt', value: iv.why_now },
+          (iv.offer_requirements ?? []).length > 0 && { label: 'Wichtig ist', value: (iv.offer_requirements ?? []).join(', ') },
+          fuehrung(iv) && { label: 'Führung', value: fuehrung(iv)! },
+        ].filter(Boolean) as { label: string; value: string }[] : [],
+        werdegang: (exps ?? []).map((e) => ({
+          title: e.job_title ?? 'Position',
+          company: identityUnlocked ? e.company_name ?? 'Unternehmen' : 'Unternehmen',
+          period: `${jahr(e.start_date)} – ${e.is_current ? 'heute' : jahr(e.end_date)}`,
+          description: e.description,
+        })),
+        ausbildung: (insights?.education ?? []).map((e) => [e.degree, e.field_of_study, e.institution, e.graduation_year].filter(Boolean).join(' · ')),
+        skills: topSkills,
+        sprachen: (languageSkills ?? []).map((l: unknown) => (typeof l === 'string' ? l : [(l as { language?: string }).language, (l as { level?: string }).level].filter(Boolean).join(' '))).filter(Boolean),
+      });
+      downloadPdf(bytes, `Kandidatenprofil ${identityUnlocked ? displayName : anonCode}.pdf`);
+    } catch (e) {
+      console.error('PDF fehlgeschlagen', e);
+      toast({ title: 'Der Lebenslauf konnte nicht erstellt werden', variant: 'destructive' });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   const showAgendaLink = ['geplant', 'feedback', 'feedback_nodate', 'interview_phase', 'opted_in'].includes(state.key);
+
+  const tagMonat = (iso: string) => format(new Date(iso), 'dd.MM.', { locale: de });
+  const tageSeit = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
+  const lastRejection = subState?.rejections?.[0] ?? null;
+  const grundLabel = (c: string | null) => REJECTION_CATEGORIES.find((r) => r.value === c)?.label ?? null;
 
   const ctxFor = (): string => {
     const k = state.key;
+    // Angefragt: wann und von wem, und wer jetzt dran ist
+    const lastIv = subState?.latestInterview;
+    if (k === 'wartet_kandidat' && lastIv) {
+      const von = vonWem(lastIv.requestedBy);
+      const wer = von === 'von Ihnen' ? 'Sie haben' : von && von !== 'aus Ihrem Team' ? `${von.slice(4)} hat` : 'Ihr Team hat';
+      const tage = tageSeit(lastIv.createdAt);
+      return `${wer} am ${tagMonat(lastIv.createdAt)} ein Interview angefragt. Der Kandidat hat noch nicht zugesagt (${tage === 0 ? 'seit heute' : tage === 1 ? 'seit gestern' : `seit ${tage} Tagen`}). ${hhName} hält den Kontakt und meldet sich, sobald er zusagt.`;
+    }
+    // Abgelehnt: wann, von wem, welcher Grund
+    if (k === 'archiv' && subState?.archiveKind === 'abgelehnt' && lastRejection) {
+      const von = vonWem(lastRejection.rejectedBy);
+      const wer = von === 'von Ihnen' ? 'Sie haben' : von && von !== 'aus Ihrem Team' ? `${von.slice(4)} hat` : 'Ihr Team hat';
+      const grund = grundLabel(lastRejection.reasonCategory);
+      return `${wer} am ${tagMonat(lastRejection.createdAt)} abgelehnt.${grund ? ` Grund: ${grund}.` : ''} ${hhName} ist informiert.`;
+    }
     if (k === 'wait_today' || k === 'wait_yesterday' || k === 'wait_days') return t('bewerber.detail.ctx.wait_new');
     if (k === 'wait_warn' || k === 'wait_crit') return t('bewerber.detail.ctx.wait_old', { days: (state.params as any)?.days ?? '' });
     if (k === 'archiv') return t('bewerber.detail.ctx.archiv');
@@ -366,9 +485,10 @@ export default function CandidateDetail() {
 
   // Verlauf: Einreichung, Interviews und Angebote chronologisch — das Gedächtnis der Bewerbung
   const verlauf: { when: string; label: string }[] = [];
-  if (subState?.submittedAt) verlauf.push({ when: subState.submittedAt, label: t('bewerber.detail.verlauf_submitted') });
+  if (subState?.submittedAt) verlauf.push({ when: subState.submittedAt, label: submitter?.name ? `Eingereicht von ${submitter.name}` : t('bewerber.detail.verlauf_submitted') });
   for (const iv of subState?.interviews ?? []) {
-    verlauf.push({ when: iv.createdAt, label: t('bewerber.detail.verlauf_iv_requested') });
+    const von = vonWem(iv.requestedBy);
+    verlauf.push({ when: iv.createdAt, label: von ? `Interview angefragt ${von}` : t('bewerber.detail.verlauf_iv_requested') });
     if (iv.scheduledAt) {
       const past = new Date(iv.scheduledAt).getTime() < Date.now();
       verlauf.push({
@@ -387,6 +507,14 @@ export default function CandidateDetail() {
   for (const o of subState?.offers ?? []) {
     if (o.createdAt) verlauf.push({ when: o.createdAt, label: t('bewerber.detail.verlauf_offer_created') });
     if (o.sentAt) verlauf.push({ when: o.sentAt, label: t('bewerber.detail.verlauf_offer_sent') });
+  }
+  for (const r of subState?.rejections ?? []) {
+    const von = vonWem(r.rejectedBy);
+    const grund = REJECTION_CATEGORIES.find((c) => c.value === r.reasonCategory)?.label;
+    verlauf.push({ when: r.createdAt, label: `Abgelehnt${von ? ` ${von}` : ''}${grund ? ` · ${grund}` : ''}` });
+  }
+  for (const m of questions.data?.messages ?? []) {
+    verlauf.push({ when: m.createdAt, label: m.mine ? 'Frage an den Headhunter gestellt' : `Frage beantwortet von ${hhName}` });
   }
   if (subState?.latestInterview?.status === 'pending_response') {
     verlauf.push({ when: new Date().toISOString(), label: t('bewerber.detail.verlauf_iv_pending') });
@@ -408,7 +536,40 @@ export default function CandidateDetail() {
         {/* ================================================================ */}
         {/* ZONE 1 — WER & WIE GUT (bleibt beim Scrollen sichtbar)           */}
         {/* ================================================================ */}
-        <div className="sticky top-16 z-20">
+        {/* Schmale Leiste beim Scrollen: nimmt keinen Platz ein, solange der Kopf sichtbar ist */}
+        <div
+          className={cn(
+            'sticky top-16 z-30 -mb-[52px] h-[52px] transition-opacity',
+            headVisible ? 'pointer-events-none opacity-0' : 'opacity-100',
+          )}
+          aria-hidden={headVisible}
+        >
+          <div className="flex h-full items-center gap-3 rounded-xl border bg-card/95 px-4 shadow-md backdrop-blur">
+            <span className="font-semibold shrink-0">{identityUnlocked ? displayName : anonCode}</span>
+            <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0" />
+            <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">für: {jobTitle}</span>
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              {!isViewer && !isTerminal && !isPendingCandidate && (
+                <Button size="sm" onClick={runPrimary} className="gap-1.5 h-8">
+                  <PrimaryIcon className="h-3.5 w-3.5" />
+                  {t(primary.labelKey)}
+                </Button>
+              )}
+              {!isViewer && !isTerminal && (
+                <>
+                  <Button variant="outline" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowRejectDialog(true)}>
+                    {t('bewerber.actions.reject')}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowFrage(true)}>
+                    Frage an {hhName}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div ref={headRef}>
           <div className="rounded-xl border bg-card shadow-md p-5">
             <div className="flex items-start gap-4">
               <div className="relative shrink-0">
@@ -437,14 +598,6 @@ export default function CandidateDetail() {
                     {identityUnlocked ? displayName : anonCode}
                   </h1>
                   {!identityUnlocked && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
-                  {headScore > 0 && (
-                    <span className={cn(
-                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
-                      headScore >= 85 ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                    )}>
-                      {t('bewerber.detail.match', { score: headScore })}
-                    </span>
-                  )}
                   <StatePill state={state} archiveKind={subState?.archiveKind} />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -519,8 +672,9 @@ export default function CandidateDetail() {
             <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
               <KeyFactChip icon={GraduationCap} label="Seniorität" value={fmtSeniority(seniority)} faded={isPlaceholder(seniority)} />
               <KeyFactChip icon={Briefcase} label="Erfahrung" value={experience} faded={isPlaceholder(experience)} />
-              <KeyFactChip icon={Banknote} label="Gehalt" value={salaryRange} faded={isPlaceholder(salaryRange)} />
-              <KeyFactChip icon={Clock} label="Verfügbar" value={availability} faded={isPlaceholder(availability)} />
+              <KeyFactChip icon={Banknote} label="Gehaltswunsch" value={gehalt} faded={isPlaceholder(gehalt)} />
+              {budget && <KeyFactChip icon={Banknote} label="Ihre Stelle" value={budget} />}
+              <KeyFactChip icon={Clock} label="Verfügbar" value={verfuegbar} faded={isPlaceholder(verfuegbar)} />
               <KeyFactChip icon={MapPin} label="Region" value={region} faded={isPlaceholder(region)} />
               <KeyFactChip icon={Globe} label="Arbeitsmodell" value={enrichedWorkModel} faded={isPlaceholder(workModel)} />
             </div>
@@ -536,6 +690,28 @@ export default function CandidateDetail() {
                 <span className="text-[10px] text-muted-foreground ml-0.5">+{topSkills.length - 8} weitere</span>
               )}
             </div>
+
+            {/* Wer den Kandidaten eingereicht hat */}
+            {submitter && (
+              <div className="mt-3 pt-3 border-t flex items-center gap-2.5">
+                <Avatar className="h-7 w-7">
+                  {submitter.photo && <AvatarImage src={submitter.photo} alt="" />}
+                  <AvatarFallback className="bg-primary/10 text-[11px] text-primary">{initialsOf(hhName)}</AvatarFallback>
+                </Avatar>
+                <p className="text-sm text-muted-foreground flex-1 min-w-0">
+                  Eingereicht von <span className="font-medium text-foreground">{hhName}</span>
+                  {submitter.company ? ` · ${submitter.company}` : ' · Headhunter'}
+                  {submitter.tierLabel ? ` · ${submitter.tierLabel}` : ''}
+                  {subState?.submittedAt ? ` · am ${format(new Date(subState.submittedAt), 'dd.MM.yyyy', { locale: de })}` : ''}
+                  {submitter.candidates && submitter.candidates > 1 ? ` · hat ${submitter.candidates} Kandidaten für diese Stelle` : ''}
+                </p>
+                {!isViewer && !isTerminal && (
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowFrage(true)}>
+                    Frage stellen
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -584,12 +760,22 @@ export default function CandidateDetail() {
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground gap-1.5"
-                    onClick={() => navigate('/dashboard/messages')}
+                    onClick={() => setShowFrage(true)}
                   >
                     <MessageSquare className="h-3.5 w-3.5" />
-                    {t('bewerber.actions.ask_recruiter')}
+                    Frage an {hhName}
                   </Button>
                 </>
+              )}
+              <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => void downloadCv()} disabled={pdfBusy}>
+                {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                Lebenslauf (PDF)
+              </Button>
+              {!isViewer && user && (
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => setShowAsk(true)}>
+                  <Users className="h-3.5 w-3.5" />
+                  Kollegen fragen
+                </Button>
               )}
             </div>
           </div>
@@ -600,11 +786,20 @@ export default function CandidateDetail() {
         {/* Nebeneinander, damit der Werdegang ohne Scrollen sichtbar ist    */}
         {/* ================================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          <CandidateFitAssessmentCard
-            submissionId={submissionId}
-            recruiterNotes={recruiterNotes}
-            keySellingPoints={keySellingPoints}
-          />
+          {/* Links: Gespräch mit dem Headhunter, darunter die Einschätzung (Text, immer offen) */}
+          <div className="space-y-4">
+            {candidateView.recruiterNotes?.trim() && (
+              <Card>
+                <CardContent className="p-5">
+                  <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Empfehlung von {hhName}</h3>
+                  <p className="text-sm leading-6">„{candidateView.recruiterNotes.trim()}“</p>
+                </CardContent>
+              </Card>
+            )}
+            <InterviewInsightsCard interview={iv} recruiterNotes={null} recruiterName={submitter?.name ?? null} />
+            <FitTextCard fit={fit} />
+            <MussKriterienCard assessment={fit.assessment} />
+          </div>
 
           <div className="space-y-4">
           <Card>
@@ -621,9 +816,25 @@ export default function CandidateDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <CandidateExperienceTimeline candidateId={candidateId} anonymized={!identityUnlocked} />
+              <CandidateExperienceTimeline
+                candidateId={candidateId}
+                submissionId={submissionId}
+                anonymized={!identityUnlocked}
+                empty={{
+                  title: 'Noch keine Stationen hinterlegt',
+                  text: 'Der Headhunter hat den Werdegang noch nicht eingetragen. Fragen Sie gern nach.',
+                  action: (
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowFrage(true)}>
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Werdegang bei {hhName} anfragen
+                    </Button>
+                  ),
+                }}
+              />
             </CardContent>
           </Card>
+
+          <EducationCard education={insights?.education ?? []} />
 
           <Card>
             <CardHeader className="pb-3">
@@ -698,6 +909,25 @@ export default function CandidateDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Fragen an den Headhunter */}
+          {submitter && (
+            <Card>
+              <CardContent className="p-5">
+                <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Fragen an {hhName}</h3>
+                {(questions.data?.messages.length ?? 0) > 0 ? (
+                  <QuestionThreadList messages={questions.data!.messages} name={hhName} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Noch keine Fragen. {hhName} hat den Kandidaten eingereicht und kennt ihn aus dem Gespräch.</p>
+                )}
+                {!isViewer && !isTerminal && (
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowFrage(true)}>
+                    Frage stellen
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
           </div>
         </div>
 
@@ -809,6 +1039,31 @@ export default function CandidateDetail() {
       </div>
 
       {/* Dialogs */}
+      {user && (
+        <AskColleaguesDialog
+          open={showAsk}
+          onOpenChange={setShowAsk}
+          members={teamMembers as TeamMember[]}
+          currentUserId={user.id}
+          organizationId={myOrg?.id ?? null}
+          jobId={jobId}
+          jobTitle={jobTitle}
+          onSend={askColleagues}
+        />
+      )}
+      <FrageSheet
+        open={showFrage}
+        onOpenChange={setShowFrage}
+        submitter={submitter}
+        submissionId={submissionId}
+        jobId={jobId}
+        candidateId={candidateId}
+        jobTitle={jobTitle}
+        code={anonCode}
+        role={currentRole}
+        identityUnlocked={identityUnlocked}
+        noticeFallback={availability}
+      />
       <RejectionDialog
         open={showRejectDialog}
         onOpenChange={setShowRejectDialog}

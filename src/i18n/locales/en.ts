@@ -601,6 +601,9 @@ const en: typeof de = {
       "pruefung": "In review by recruiter",
       "opted_in": "Consented — pick a slot",
       "wartet_kandidat": "Waiting on candidate",
+      "angefragt": "Requested {{date}} · {{days}} days ago",
+      "angefragt_heute": "Requested {{date}} · today",
+      "angefragt_gestern": "Requested {{date}} · yesterday",
       "terminvorschlag": "New time proposal",
       "abgesagt": "Candidate declined",
       "termin_abgesagt": "Interview cancelled",
@@ -623,7 +626,10 @@ const en: typeof de = {
       "interview": "Interview",
       "angebot": "Offer",
       "alle": "All",
-      "archiv": "Archive"
+      "archiv": "Archive",
+      "angefragt": "Requested",
+      "abgelehnt": "Rejected",
+      "beendet": "Closed"
     },
     "filter": {
       "search": "Search …",
@@ -741,6 +747,12 @@ const en: typeof de = {
       "interview_text": "As soon as you choose “Request interview” for a new candidate, you will see date and status here.",
       "angebot_title": "No offer under way",
       "angebot_text": "Once you make a candidate an offer after the interviews, you can track its status here until acceptance.",
+      "angefragt_title": "No open request",
+      "angefragt_text": "When you request an interview, the candidate stays here until they accept — with the date of your request.",
+      "abgelehnt_title": "Nobody rejected yet",
+      "abgelehnt_text": "Rejected candidates appear here with date and reason.",
+      "beendet_title": "Nothing closed yet",
+      "beendet_text": "Hired and withdrawn candidates appear here.",
       "archiv_title": "The archive is empty",
       "archiv_text": "Rejected, hired and withdrawn candidates land here — nothing gets lost.",
       "alle_title": "No candidates yet",
@@ -749,6 +761,8 @@ const en: typeof de = {
     "archive": {
       "kind": {
         "abgelehnt": "Rejected",
+        "abgelehnt_dated": "Rejected {{date}}",
+        "abgelehnt_dated_grund": "Rejected {{date}} · {{grund}}",
         "eingestellt": "Hired",
         "zurueckgezogen": "Withdrawn",
         "abgelaufen": "Expired"

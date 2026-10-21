@@ -177,10 +177,13 @@ export type LLMView = {
     end_date: string | null;
     description: string | null;
   }[];
+  // Ohne Gehalt (09.10.2026): der Text geht an den Kunden, Gehalt steht dort als feste Spanne.
   interview: {
     change_motivation: string | null;
-    salary_current: string | null;
-    salary_desired: string | null;
+    why_now: string | null;
+    offer_requirements: string[];
+    notice_period: string | null;
+    leadership: string | null;
     career_ultimate_goal: string | null;
     would_recommend: boolean | null;
   } | null;
@@ -307,8 +310,12 @@ export function redactCandidateForLLM(
     interview: interviewNotes
       ? {
           change_motivation: rf(interviewNotes.change_motivation),
-          salary_current: rf(interviewNotes.salary_current),
-          salary_desired: rf(interviewNotes.salary_desired),
+          why_now: rf(interviewNotes.why_now),
+          offer_requirements: (Array.isArray(interviewNotes.offer_requirements) ? interviewNotes.offer_requirements : []).map((x: unknown) => rf(String(x)) ?? '').filter(Boolean),
+          notice_period: rf(interviewNotes.notice_period),
+          leadership: interviewNotes.leadership_scope && interviewNotes.leadership_scope !== 'none'
+            ? `${interviewNotes.leadership_scope === 'disciplinary' ? 'disziplinarisch' : 'fachlich'}${interviewNotes.leadership_team_size ? `, ${interviewNotes.leadership_team_size} Personen` : ''}`
+            : null,
           career_ultimate_goal: rf(interviewNotes.career_ultimate_goal),
           would_recommend: interviewNotes.would_recommend ?? null,
         }

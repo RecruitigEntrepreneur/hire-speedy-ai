@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import { REJECTION_CATEGORIES } from '@/components/rejection/RejectionReasonSelector';
 import type { ArchiveKind, BewerberItem, BewerberState, BewerberTone } from '@/hooks/useBewerber';
 
 const TONE_CLASSES: Record<BewerberTone, string> = {
@@ -9,11 +10,30 @@ const TONE_CLASSES: Record<BewerberTone, string> = {
   neutral: 'bg-muted text-muted-foreground',
 };
 
-export function bewerberStateLabel(item: BewerberItem, t: (key: string, opts?: Record<string, unknown>) => string): string {
-  if (item.tab === 'archiv') {
-    return t(`bewerber.archive.kind.${item.archiveKind || 'abgelehnt'}`);
+type T = (key: string, opts?: Record<string, unknown>) => string;
+
+/** Pillentext: mit Datum bei Anfrage („Angefragt 12.10. · seit 8 Tagen“) und Absage („Abgelehnt 23.07. · Gehaltsvorstellung“). */
+export function stateLabel(state: BewerberState, archiveKind: ArchiveKind | null | undefined, t: T): string {
+  const p = state.params ?? {};
+  if (state.key === 'archiv') {
+    const kind = archiveKind || 'abgelehnt';
+    if (kind === 'abgelehnt' && p.date) {
+      const grund = REJECTION_CATEGORIES.find((c) => c.value === p.grund)?.label;
+      return grund
+        ? t('bewerber.archive.kind.abgelehnt_dated_grund', { date: p.date, grund })
+        : t('bewerber.archive.kind.abgelehnt_dated', { date: p.date });
+    }
+    return t(`bewerber.archive.kind.${kind}`);
   }
-  return t(`bewerber.state.${item.state.key}`, item.state.params);
+  if (state.key === 'wartet_kandidat' && p.date) {
+    const days = Number(p.days ?? 0);
+    return t(days === 0 ? 'bewerber.state.angefragt_heute' : days === 1 ? 'bewerber.state.angefragt_gestern' : 'bewerber.state.angefragt', p);
+  }
+  return t(`bewerber.state.${state.key}`, p);
+}
+
+export function bewerberStateLabel(item: BewerberItem, t: T): string {
+  return stateLabel(item.state, item.archiveKind, t);
 }
 
 // Niedrigschwellige Pille für Stellen, an denen kein volles BewerberItem existiert
@@ -28,10 +48,7 @@ export function StatePill({
   className?: string;
 }) {
   const { t } = useTranslation();
-  const label =
-    state.key === 'archiv'
-      ? t(`bewerber.archive.kind.${archiveKind || 'abgelehnt'}`)
-      : t(`bewerber.state.${state.key}`, state.params);
+  const label = stateLabel(state, archiveKind, t);
   return (
     <span
       className={cn(

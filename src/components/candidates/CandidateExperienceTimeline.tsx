@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,14 @@ interface CandidateExperienceTimelineProps {
   onReparse?: () => void;
   isReparsing?: boolean;
   anonymized?: boolean;
+  /**
+   * Kundensicht: liest über die reveal-gated client_candidate_experiences_view
+   * (Firmen und Freitext anonym bis zur Freigabe). Der direkte Tabellenzugriff ist
+   * Kunden seit Triple-Blind Welle C entzogen.
+   */
+  submissionId?: string;
+  /** Leerzustand für Kunden: eigener Text und nächster Schritt statt des Hinweises auf die CV-Erkennung. */
+  empty?: { title: string; text: string; action?: React.ReactNode };
 }
 
 interface Experience {
@@ -29,7 +38,7 @@ interface Experience {
   sort_order: number;
 }
 
-export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing, anonymized = false }: CandidateExperienceTimelineProps) {
+export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing, anonymized = false, empty, submissionId }: CandidateExperienceTimelineProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (id: string) => {
@@ -45,13 +54,19 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
   };
 
   const { data: experiences, isLoading } = useQuery({
-    queryKey: ['candidate-experiences', candidateId],
+    queryKey: ['candidate-experiences', candidateId, submissionId ?? null],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('candidate_experiences')
-        .select('*')
-        .eq('candidate_id', candidateId)
-        .order('sort_order', { ascending: true });
+      const { data, error } = submissionId
+        ? await supabase
+            .from('client_candidate_experiences_view')
+            .select('*')
+            .eq('submission_id', submissionId)
+            .order('sort_order', { ascending: true })
+        : await supabase
+            .from('candidate_experiences')
+            .select('*')
+            .eq('candidate_id', candidateId)
+            .order('sort_order', { ascending: true });
 
       if (error) throw error;
       return data as Experience[];
@@ -88,11 +103,12 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
       <div className="text-center py-6 text-muted-foreground space-y-3">
         <Building2 className="h-10 w-10 mx-auto opacity-40" />
         <div className="space-y-1">
-          <p className="text-sm font-medium">Keine Berufserfahrung hinterlegt</p>
+          <p className="text-sm font-medium">{empty?.title ?? 'Keine Berufserfahrung hinterlegt'}</p>
           <p className="text-xs">
-            Die Karriere-Stationen wurden nicht aus dem CV extrahiert
+            {empty?.text ?? 'Die Karriere-Stationen wurden nicht aus dem CV extrahiert'}
           </p>
         </div>
+        {empty?.action}
         {onReparse && (
           <Button 
             variant="outline" 

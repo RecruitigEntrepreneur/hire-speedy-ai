@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { candidateAnonCode } from '@/lib/anonymization';
+import { getJobSearchers } from '@/lib/jobSearch';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -29,6 +32,8 @@ interface Message {
   recipient_id: string;
   is_read: boolean;
   conversation_id: string;
+  job_id?: string | null;
+  candidate_id?: string | null;
 }
 
 interface Conversation {
@@ -40,6 +45,10 @@ interface Conversation {
   };
   lastMessage: Message | null;
   unreadCount: number;
+  /** Frage zu einem Kandidaten: Einreichung, Kürzel, Stelle */
+  submissionId?: string | null;
+  code?: string | null;
+  jobTitle?: string | null;
 }
 
 export default function ClientMessages() {
@@ -55,6 +64,9 @@ export default function ClientMessages() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Link aus Glocke und Mail: /dashboard/messages?c=<Gespräch>
+  const [searchParams] = useSearchParams();
+  const linkedConversation = searchParams.get('c');
 
   useEffect(() => {
     if (user) {
@@ -130,7 +142,35 @@ export default function ClientMessages() {
         return dateB - dateA;
       });
 
+      // Fragen zu Kandidaten: Kürzel, Stelle, Einreichung und der Name des Headhunters
+      // (Profile anderer darf der Kunde nicht lesen, die Suchenden-Liste der Stelle schon).
+      const firstOf = (convId: string) => conversationMap.get(convId)?.messages.find((m) => m.job_id && m.candidate_id);
+      const ctx = convList.map((c) => firstOf(c.id)).filter(Boolean) as Message[];
+      if (ctx.length) {
+        const jobIds = [...new Set(ctx.map((m) => m.job_id as string))];
+        const [subsRes, jobsRes, searcherLists] = await Promise.all([
+          supabase.from('submissions').select('id, job_id, candidate_id').in('job_id', jobIds),
+          supabase.from('jobs').select('id, title').in('id', jobIds),
+          Promise.all(jobIds.map((j) => getJobSearchers(j).catch(() => null))),
+        ]);
+        const names = new Map<string, string>();
+        for (const list of searcherLists) for (const x of list ?? []) if (x.full_name) names.set(x.recruiter_id, x.full_name);
+        for (const conv of convList) {
+          const m = firstOf(conv.id);
+          if (!m) continue;
+          conv.code = candidateAnonCode(m.candidate_id);
+          conv.jobTitle = (jobsRes.data ?? []).find((j) => j.id === m.job_id)?.title ?? null;
+          conv.submissionId = (subsRes.data ?? []).find((x) => x.job_id === m.job_id && x.candidate_id === m.candidate_id)?.id ?? null;
+          if (!conv.participant.full_name) conv.participant.full_name = names.get(conv.participant.id) ?? 'Ihr Headhunter';
+        }
+      }
+
       setConversations(convList);
+      const linked = linkedConversation ? convList.find((c) => c.id === linkedConversation) : null;
+      if (linked) {
+        setSelectedConversation(linked);
+        fetchMessages(linked.id);
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast({ title: 'Fehler beim Laden', variant: 'destructive' });
@@ -179,6 +219,16 @@ export default function ClientMessages() {
     setSending(true);
 
     try {
+      if (selectedConversation.submissionId) {
+        // Frage zu einem Kandidaten: Glocke und Mail beim Headhunter
+        const { data, error: fnError } = await supabase.functions.invoke('client-question', {
+          body: { action: 'ask', submission_id: selectedConversation.submissionId, text: newMessage.trim() },
+        });
+        if (fnError || (data as { error?: string } | null)?.error) throw new Error((data as { error?: string } | null)?.error ?? fnError?.message);
+        setNewMessage('');
+        fetchMessages(selectedConversation.id);
+        return;
+      }
       const { error } = await supabase
         .from('messages')
         .insert({
@@ -201,8 +251,8 @@ export default function ClientMessages() {
   };
 
   const filteredConversations = conversations.filter(conv => {
-    const name = conv.participant.full_name || conv.participant.email;
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return [conv.participant.full_name, conv.participant.email, conv.code, conv.jobTitle].some((v) => (v ?? '').toLowerCase().includes(q));
   });
 
   if (loading) {
@@ -220,7 +270,7 @@ export default function ClientMessages() {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Nachrichten</h1>
-            <p className="text-muted-foreground">Kommuniziere mit Recruitern</p>
+            <p className="text-muted-foreground">Ihre Fragen an die Headhunter, je Kandidat</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-250px)]">
@@ -242,7 +292,8 @@ export default function ClientMessages() {
                   {filteredConversations.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                      <p className="text-muted-foreground mt-2">Keine Konversationen</p>
+                      <p className="text-muted-foreground mt-2">Noch keine Fragen</p>
+                      <p className="text-xs text-muted-foreground mt-1 px-6">Fragen stellen Sie im Bewerberprofil über „Frage an …“.</p>
                     </div>
                   ) : (
                     filteredConversations.map((conv) => (
@@ -272,6 +323,11 @@ export default function ClientMessages() {
                               <Badge className="bg-primary">{conv.unreadCount}</Badge>
                             )}
                           </div>
+                          {conv.code && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {conv.code}{conv.jobTitle ? ` · ${conv.jobTitle}` : ''}
+                            </p>
+                          )}
                           {conv.lastMessage && (
                             <>
                               <p className="text-sm text-muted-foreground truncate">
@@ -310,8 +366,16 @@ export default function ClientMessages() {
                         <CardTitle className="text-base">
                           {selectedConversation.participant.full_name || selectedConversation.participant.email}
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground">Recruiter</p>
+                        <p className="text-sm text-muted-foreground">
+                          Headhunter{selectedConversation.code ? ` · zu ${selectedConversation.code}` : ''}
+                          {selectedConversation.jobTitle ? ` · ${selectedConversation.jobTitle}` : ''}
+                        </p>
                       </div>
+                      {selectedConversation.submissionId && (
+                        <Button asChild variant="outline" size="sm" className="ml-auto">
+                          <Link to={`/dashboard/candidates/${selectedConversation.submissionId}`}>Zum Bewerberprofil</Link>
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 p-4 overflow-hidden">
@@ -354,7 +418,7 @@ export default function ClientMessages() {
                   <div className="p-4 border-t">
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Nachricht schreiben..."
+                        placeholder={selectedConversation.submissionId ? 'Weitere Frage …' : 'Nachricht schreiben …'}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -375,7 +439,7 @@ export default function ClientMessages() {
                   <div className="text-center">
                     <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground/50" />
                     <p className="text-muted-foreground mt-4">
-                      Wähle eine Konversation aus
+                      Wählen Sie links ein Gespräch aus
                     </p>
                   </div>
                 </div>

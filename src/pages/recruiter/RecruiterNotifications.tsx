@@ -146,6 +146,9 @@ export default function RecruiterNotifications() {
       case 'submission':
         // Direkt auf die Einreichung statt auf die Pipeline-Liste.
         return `/recruiter/submissions/${notification.related_id}`;
+      case 'conversation':
+        // Frage des Kunden zu einem Kandidaten
+        return `/recruiter/messages?c=${notification.related_id}`;
       case 'interview':
         // Fehlte komplett: Interview-Meldungen fielen in den default-Zweig und
         // waren dadurch nicht anklickbar.

@@ -9,6 +9,19 @@ export type BewerberTab = 'neu' | 'pruefung' | 'interview' | 'angebot' | 'archiv
 
 export type ArchiveKind = 'abgelehnt' | 'eingestellt' | 'zurueckgezogen' | 'abgelaufen';
 
+/**
+ * Reiter der Bewerberliste. Feiner als BewerberTab: „Angefragt“ (wartet auf den
+ * Kandidaten) steht neben „Interview“, das Archiv teilt sich in „Abgelehnt“ und „Beendet“.
+ * BewerberTab bleibt für Jobseite und Cockpit unverändert.
+ */
+export type BewerberListTab = 'neu' | 'pruefung' | 'angefragt' | 'interview' | 'angebot' | 'abgelehnt' | 'beendet';
+
+export function listTabOf(tab: BewerberTab, archiveKind: ArchiveKind | null, stateKey: string): BewerberListTab {
+  if (tab === 'archiv') return archiveKind === 'abgelehnt' ? 'abgelehnt' : 'beendet';
+  if (tab === 'interview' && stateKey === 'wartet_kandidat') return 'angefragt';
+  return tab;
+}
+
 export interface CareerEntry {
   jobTitle: string;
   companyAnonymized: string;
@@ -60,10 +73,20 @@ export interface BewerberItem {
   urgency: 'critical' | 'warning' | 'normal';
   isMyTurn: boolean;
   career: CareerEntry[];
+  listTab: BewerberListTab;
+  /** Letzte Interview-Anfrage: wann und von wem (ältere ohne Person). */
+  requestedAt: string | null;
+  requestedBy: string | null;
+  /** Letzte Absage des Kunden. */
+  rejectedAt: string | null;
+  rejectedBy: string | null;
+  rejectReason: string | null;
 }
 
 export interface BewerberFilters {
   tab: BewerberTab | null; // null = "Alle" (alle Nicht-Archiv)
+  /** Reiter der Bewerberliste; gesetzt, wenn die Liste nach den feinen Reitern filtert. */
+  listTab?: BewerberListTab | null;
   jobId: string | null;
   search: string;
   sort: BewerberSortOption;
@@ -120,6 +143,27 @@ export interface InterviewInfo {
   status: string | null;
   scheduledAt: string | null;
   feedback: string | null;
+  createdAt?: string | null;
+  requestedBy?: string | null;
+}
+
+const ddmm = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+const daysSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
+
+/** Datum und Grund in die Pille: „Angefragt 12.10. · seit 8 Tagen“, „Abgelehnt 23.07. · Gehaltsvorstellung“. */
+export function datedState(
+  state: BewerberState,
+  iv: { createdAt?: string | null } | null,
+  rejection: { createdAt: string; reasonCategory: string | null } | null,
+  archiveKind: ArchiveKind | null,
+): BewerberState {
+  if (state.key === 'wartet_kandidat' && iv?.createdAt) {
+    return { ...state, params: { ...state.params, date: ddmm(iv.createdAt), days: daysSince(iv.createdAt) } };
+  }
+  if (state.key === 'archiv' && archiveKind === 'abgelehnt' && rejection) {
+    return { ...state, params: { ...state.params, date: ddmm(rejection.createdAt), grund: rejection.reasonCategory ?? '' } };
+  }
+  return state;
 }
 
 export interface OfferInfo {
@@ -259,11 +303,12 @@ export function useBewerber(filters: BewerberFilters) {
       // Letzter Interview- und Angebots-Stand pro Submission für die Zustands-Pillen
       const ivBySubmission = new Map<string, InterviewInfo>();
       const offerBySubmission = new Map<string, OfferInfo>();
+      const rejBySubmission = new Map<string, { createdAt: string; reasonCategory: string | null; rejectedBy: string | null }>();
       if (submissionIds.length > 0) {
-        const [ivRes, offerRes] = await Promise.all([
+        const [ivRes, offerRes, rejRes] = await Promise.all([
           supabase
             .from('interviews')
-            .select('id, submission_id, status, scheduled_at, feedback, created_at')
+            .select('id, submission_id, status, scheduled_at, feedback, created_at, requested_by')
             .in('submission_id', submissionIds)
             .order('created_at', { ascending: false })
             .order('id', { ascending: false }),
@@ -273,13 +318,26 @@ export function useBewerber(filters: BewerberFilters) {
             .in('submission_id', submissionIds)
             .order('created_at', { ascending: false })
             .order('id', { ascending: false }),
+          // Absagen: wann, von wem, welcher Grund (Kunden-Team darf lesen)
+          supabase
+            .from('rejections')
+            .select('submission_id, created_at, reason_category, rejected_by')
+            .in('submission_id', submissionIds)
+            .order('created_at', { ascending: false }),
         ]);
+        for (const r of (rejRes.data || []) as any[]) {
+          if (!rejBySubmission.has(r.submission_id)) {
+            rejBySubmission.set(r.submission_id, { createdAt: r.created_at, reasonCategory: r.reason_category, rejectedBy: r.rejected_by });
+          }
+        }
         for (const iv of (ivRes.data || []) as any[]) {
           if (!ivBySubmission.has(iv.submission_id)) {
             ivBySubmission.set(iv.submission_id, {
               status: iv.status,
               scheduledAt: iv.scheduled_at,
               feedback: iv.feedback,
+              createdAt: iv.created_at,
+              requestedBy: iv.requested_by ?? null,
             });
           }
         }
@@ -324,7 +382,9 @@ export function useBewerber(filters: BewerberFilters) {
       const items: BewerberItem[] = rows.map((row) => {
         const hours = computeHoursWaiting(row.submitted_at);
         const { tab, archiveKind } = tabOf(row.stage, row.status);
-        const state = computeState(
+        const iv = ivBySubmission.get(row.submission_id) || null;
+        const rej = rejBySubmission.get(row.submission_id) || null;
+        const rawState = computeState(
           tab,
           archiveKind,
           row.stage || row.status || 'submitted',
@@ -332,6 +392,7 @@ export function useBewerber(filters: BewerberFilters) {
           ivBySubmission.get(row.submission_id) || null,
           offerBySubmission.get(row.submission_id) || null
         );
+        const state = datedState(rawState, iv, rej, archiveKind);
         const isMyTurn = state.turn === 'me';
         const career = (careerBySubmission.get(row.submission_id) || []).slice(0, 5);
 
@@ -368,6 +429,12 @@ export function useBewerber(filters: BewerberFilters) {
           urgency: state.tone === 'crit' ? 'critical' : state.tone === 'warn' ? 'warning' : 'normal',
           isMyTurn,
           career,
+          listTab: listTabOf(tab, archiveKind, state.key),
+          requestedAt: iv?.createdAt ?? null,
+          requestedBy: iv?.requestedBy ?? null,
+          rejectedAt: rej?.createdAt ?? null,
+          rejectedBy: rej?.rejectedBy ?? null,
+          rejectReason: rej?.reasonCategory ?? null,
         };
       });
 
@@ -415,12 +482,22 @@ export function useBewerber(filters: BewerberFilters) {
     tabCounts[item.tab] += 1;
   }
   const activeCount = allItems.length - tabCounts.archiv;
+  const listTabCounts: Record<BewerberListTab, number> = {
+    neu: 0, pruefung: 0, angefragt: 0, interview: 0, angebot: 0, abgelehnt: 0, beendet: 0,
+  };
+  for (const item of allItems) listTabCounts[item.listTab] += 1;
   const myTurnCount = allItems.filter((i) => i.isMyTurn).length;
 
   // Tab- und Suchfilter clientseitig (Datenmenge ist durch FETCH_LIMIT begrenzt;
   // truncated signalisiert der UI, dass serverseitig mehr existiert).
   const filteredItems = allItems.filter((item) => {
-    if (filters.tab === null) {
+    if (filters.listTab !== undefined) {
+      if (filters.listTab === null) {
+        if (item.tab === 'archiv') return false;
+      } else if (item.listTab !== filters.listTab) {
+        return false;
+      }
+    } else if (filters.tab === null) {
       if (item.tab === 'archiv') return false; // "Alle" = aktive Pipeline
     } else if (item.tab !== filters.tab) {
       return false;
@@ -441,6 +518,7 @@ export function useBewerber(filters: BewerberFilters) {
     items: filteredItems,
     allItems,
     tabCounts,
+    listTabCounts,
     activeCount,
     myTurnCount,
     totalCount: serverTotal,

@@ -15,7 +15,8 @@ REGELN:
 - Fehlende Daten sind KEINE negativen Signale — kennzeichne sie als "insufficient_data".
 - Sei direkt und ehrlich. Kein Marketing-Sprech.
 - Platzhalter wie [KANDIDAT], [Arbeitgeber A] oder [Region] sind anonymisierte, aber vollwertige Angaben — bewerte normal weiter und kennzeichne sie NICHT als "insufficient_data".
-- Antworte auf Deutsch.`;
+- Antworte auf Deutsch.
+- Der Text in executive_summary, evidence, reasoning und mitigation_suggestion geht an den Kunden: beschreibend, ohne Wertungen wie „starke“, „gute“ oder „schwache Passung“, ohne Prozente, Punktzahlen oder Noten, ohne Empfehlung zum Einladen oder Ablehnen, ohne Gehaltsangaben. Die Entscheidung trifft der Kunde.`;
 
 export function buildJobSection(job: any): string {
   return `## STELLE
@@ -24,7 +25,6 @@ Beschreibung: ${job.description || 'N/A'}
 Must-Haves: ${Array.isArray(job.must_haves) ? job.must_haves.join(', ') : job.must_haves || 'N/A'}
 Nice-to-Haves: ${Array.isArray(job.nice_to_haves) ? job.nice_to_haves.join(', ') : job.nice_to_haves || 'N/A'}
 Erfahrungslevel: ${job.experience_level || 'N/A'}
-Gehalt: ${job.salary_min ? `${job.salary_min}–${job.salary_max} EUR` : 'N/A'}
 Standort: ${job.location || 'N/A'}
 Remote: ${job.remote_policy || 'N/A'}`;
 }
@@ -40,7 +40,6 @@ Seniority: ${view.seniority || 'N/A'}
 Erfahrung: ${view.experience_years ?? 'N/A'} Jahre
 Region: ${view.region}
 Standort-Bezug zur Stelle: ${view.location_relation}
-Gehaltserwartung: ${view.salary_min ? `${view.salary_min}–${view.salary_max} EUR` : 'N/A'}
 Remote-Präferenz: ${view.remote_preference || 'N/A'}
 Skills: ${view.skills?.join(', ') || 'N/A'}
 Zertifizierungen: ${view.certifications?.join(', ') || 'N/A'}
@@ -59,10 +58,12 @@ ${view.cvSummary || 'Keine Zusammenfassung verfügbar'}
 
 ### Interview-Notizen
 ${view.interview ? `Wechselmotivation: ${view.interview.change_motivation || 'N/A'}
-Aktuelles Gehalt: ${view.interview.salary_current || 'N/A'}
-Wunschgehalt: ${view.interview.salary_desired || 'N/A'}
+Warum jetzt: ${view.interview.why_now || 'N/A'}
+Wichtig im neuen Job: ${view.interview.offer_requirements.length ? view.interview.offer_requirements.join(', ') : 'N/A'}
+Kündigungsfrist: ${view.interview.notice_period || 'N/A'}
+Führung: ${view.interview.leadership || 'N/A'}
 Karriereziel: ${view.interview.career_ultimate_goal || 'N/A'}
-Empfehlung: ${view.interview.would_recommend ? 'Ja' : 'Nein'}` : 'Keine Interview-Daten'}
+Empfehlung des Headhunters: ${view.interview.would_recommend == null ? 'N/A' : view.interview.would_recommend ? 'Ja' : 'Nein'}` : 'Keine Interview-Daten'}
 
 ${view.priorAssessment ? `### Bisherige AI-Einschätzung
 Overall Score: ${view.priorAssessment.overall_score}/100
@@ -117,8 +118,12 @@ export function buildRawView(
     interview: interviewNotes
       ? {
           change_motivation: interviewNotes.change_motivation ?? null,
-          salary_current: interviewNotes.salary_current ?? null,
-          salary_desired: interviewNotes.salary_desired ?? null,
+          why_now: interviewNotes.why_now ?? null,
+          offer_requirements: Array.isArray(interviewNotes.offer_requirements) ? interviewNotes.offer_requirements : [],
+          notice_period: interviewNotes.notice_period ?? null,
+          leadership: interviewNotes.leadership_scope && interviewNotes.leadership_scope !== 'none'
+            ? `${interviewNotes.leadership_scope === 'disciplinary' ? 'disziplinarisch' : 'fachlich'}${interviewNotes.leadership_team_size ? `, ${interviewNotes.leadership_team_size} Personen` : ''}`
+            : null,
           career_ultimate_goal: interviewNotes.career_ultimate_goal ?? null,
           would_recommend: interviewNotes.would_recommend ?? null,
         }
@@ -136,7 +141,7 @@ export const FIT_TOOL = {
     properties: {
       overall_verdict: { type: "string", enum: ["strong_fit", "good_fit", "partial_fit", "weak_fit", "no_fit"] },
       overall_score: { type: "integer", minimum: 0, maximum: 100 },
-      executive_summary: { type: "string", description: "2-4 Sätze Gesamtbewertung auf Deutsch" },
+      executive_summary: { type: "string", description: "2-4 Sätze auf Deutsch: wer der Kandidat ist, was er sucht und wie sich das zur Stelle verhält. Beschreibend, ohne Wertung, Zahlen oder Gehalt." },
       verdict_confidence: { type: "string", enum: ["high", "medium", "low"] },
       requirement_assessments: {
         type: "array",

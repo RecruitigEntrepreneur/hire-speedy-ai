@@ -100,6 +100,9 @@ verify_jwt = true
 [functions.recruiter-notify]
 verify_jwt = true
 
+[functions.client-question]
+verify_jwt = true
+
 [functions.detect-candidate-conflicts]
 verify_jwt = true
 
@@ -257,7 +260,8 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.assess-candidate-fit]
-verify_jwt = true
+# Prüft selbst: Auslöser-Schlüssel (x-cron-token) oder Zugriff auf die Einreichung.
+verify_jwt = false
 
 # ----------------------------------------------------------------------------
 # Kundenseitiger Einstieg über Jobaufnahme-Links

@@ -600,6 +600,9 @@ const de = {
       "pruefung": "In Prüfung durch Recruiter",
       "opted_in": "Hat zugestimmt — Termin wählen",
       "wartet_kandidat": "Wartet auf Kandidat",
+      "angefragt": "Angefragt {{date}} · seit {{days}} Tagen",
+      "angefragt_heute": "Angefragt {{date}} · heute",
+      "angefragt_gestern": "Angefragt {{date}} · seit gestern",
       "terminvorschlag": "Neuer Terminvorschlag",
       "abgesagt": "Kandidat hat abgesagt",
       "termin_abgesagt": "Termin abgesagt",
@@ -622,7 +625,10 @@ const de = {
       "interview": "Interview",
       "angebot": "Angebot",
       "alle": "Alle",
-      "archiv": "Archiv"
+      "archiv": "Archiv",
+      "angefragt": "Angefragt",
+      "abgelehnt": "Abgelehnt",
+      "beendet": "Beendet"
     },
     "filter": {
       "search": "Suchen …",
@@ -653,7 +659,7 @@ const de = {
       "ask_recruiter": "Rückfrage an Recruiter"
     },
     "notes": {
-      "title": "Team-Notizen",
+      "title": "Notizen und Meinungen aus Ihrem Team",
       "empty": "Noch keine Notizen.",
       "placeholder": "Notiz für Ihr Team schreiben …",
       "save": "Speichern",
@@ -740,6 +746,12 @@ const de = {
       "interview_text": "Sobald Sie bei einem neuen Bewerber „Interview anfragen“ wählen, sehen Sie hier Termin und Status.",
       "angebot_title": "Noch kein Angebot unterwegs",
       "angebot_text": "Wenn Sie einem Kandidaten nach den Interviews ein Angebot machen, verfolgen Sie hier den Status bis zur Zusage.",
+      "angefragt_title": "Keine offene Anfrage",
+      "angefragt_text": "Wenn Sie ein Interview anfragen, steht der Kandidat hier, bis er zusagt — mit Datum Ihrer Anfrage.",
+      "abgelehnt_title": "Noch niemand abgelehnt",
+      "abgelehnt_text": "Abgelehnte Bewerber stehen hier mit Datum und Grund.",
+      "beendet_title": "Noch nichts abgeschlossen",
+      "beendet_text": "Eingestellte und zurückgezogene Bewerber stehen hier.",
       "archiv_title": "Das Archiv ist leer",
       "archiv_text": "Abgelehnte, eingestellte und zurückgezogene Bewerber landen hier — nichts geht verloren.",
       "alle_title": "Noch keine Bewerber",
@@ -748,6 +760,8 @@ const de = {
     "archive": {
       "kind": {
         "abgelehnt": "Abgelehnt",
+        "abgelehnt_dated": "Abgelehnt {{date}}",
+        "abgelehnt_dated_grund": "Abgelehnt {{date}} · {{grund}}",
         "eingestellt": "Eingestellt",
         "zurueckgezogen": "Zurückgezogen",
         "abgelaufen": "Abgelaufen"

@@ -16,36 +16,45 @@ import { BewerberInboxView } from '@/components/candidates/BewerberInboxView';
 import {
   useBewerber,
   type BewerberFilters,
+  type BewerberListTab,
   type BewerberSortOption,
-  type BewerberTab,
 } from '@/hooks/useBewerber';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
-import { Search, RefreshCw, Users, Archive } from 'lucide-react';
+import { Search, RefreshCw, Users, Archive, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const VALID_TABS: BewerberTab[] = ['neu', 'pruefung', 'interview', 'angebot', 'archiv'];
+const VALID_TABS: BewerberListTab[] = ['neu', 'pruefung', 'angefragt', 'interview', 'angebot', 'abgelehnt', 'beendet'];
 
-const PIPELINE_TABS: { key: BewerberTab | null; labelKey: string }[] = [
+// „Angefragt“ (wartet auf den Kandidaten) steht neben „Interview“; das frühere Archiv
+// teilt sich in „Abgelehnt“ und „Beendet“. „In Prüfung“ nur, wenn dort jemand steht.
+const PIPELINE_TABS: { key: BewerberListTab | null; labelKey: string }[] = [
   { key: 'neu', labelKey: 'bewerber.tabs.neu' },
   { key: 'pruefung', labelKey: 'bewerber.tabs.pruefung' },
+  { key: 'angefragt', labelKey: 'bewerber.tabs.angefragt' },
   { key: 'interview', labelKey: 'bewerber.tabs.interview' },
   { key: 'angebot', labelKey: 'bewerber.tabs.angebot' },
   { key: null, labelKey: 'bewerber.tabs.alle' },
 ];
+const CLOSED_TABS: { key: BewerberListTab; labelKey: string }[] = [
+  { key: 'abgelehnt', labelKey: 'bewerber.tabs.abgelehnt' },
+  { key: 'beendet', labelKey: 'bewerber.tabs.beendet' },
+];
+
+/** Alte Links (?tab=archiv) führen zu „Abgelehnt“. */
+function tabFromParam(param: string | null): BewerberListTab | null {
+  if (param === 'alle') return null;
+  if (param === 'archiv') return 'abgelehnt';
+  return VALID_TABS.includes(param as BewerberListTab) ? (param as BewerberListTab) : 'neu';
+}
 
 export default function ClientBewerberPage() {
   const { t } = useTranslation();
   // Deep-Links von der Job-Detailseite: /dashboard/candidates?job=<id>&tab=<tab|alle>
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<BewerberFilters>(() => {
-    const tabParam = searchParams.get('tab');
     return {
-      tab:
-        tabParam === 'alle'
-          ? null
-          : VALID_TABS.includes(tabParam as BewerberTab)
-            ? (tabParam as BewerberTab)
-            : 'neu',
+      tab: null,
+      listTab: tabFromParam(searchParams.get('tab')),
       jobId: searchParams.get('job'),
       search: '',
       sort: 'newest',
@@ -57,7 +66,7 @@ export default function ClientBewerberPage() {
   const {
     items,
     allItems,
-    tabCounts,
+    listTabCounts,
     activeCount,
     myTurnCount,
     totalCount,
@@ -107,7 +116,7 @@ export default function ClientBewerberPage() {
           ? t('bewerber.header.your_turn_single', { rest: activeCount - myTurnCount })
           : t('bewerber.header.your_turn_plural', { count: myTurnCount, rest: activeCount - myTurnCount });
 
-  const emptyTabKey = filters.tab === null ? 'alle' : filters.tab;
+  const emptyTabKey = filters.listTab ?? 'alle';
 
   return (
     <DashboardLayout>
@@ -118,15 +127,15 @@ export default function ClientBewerberPage() {
           <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>
 
-        {/* Pipeline-Tabs + Archiv (abgesetzt) */}
+        {/* Reiter: laufende Bewerbungen | Abgelehnt und Beendet (abgesetzt) */}
         <div className="flex flex-wrap items-center gap-1">
-          {PIPELINE_TABS.map((tab) => {
-            const count = tab.key === null ? activeCount : tabCounts[tab.key];
-            const isActive = filters.tab === tab.key;
+          {PIPELINE_TABS.filter((tab) => tab.key !== 'pruefung' || listTabCounts.pruefung > 0 || filters.listTab === 'pruefung').map((tab) => {
+            const count = tab.key === null ? activeCount : listTabCounts[tab.key];
+            const isActive = filters.listTab === tab.key;
             return (
               <button
                 key={tab.key ?? 'alle'}
-                onClick={() => updateFilter('tab', tab.key)}
+                onClick={() => updateFilter('listTab', tab.key)}
                 className={cn(
                   'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
                   isActive
@@ -151,28 +160,29 @@ export default function ClientBewerberPage() {
 
           <span className="mx-1.5 h-4 w-px bg-border" aria-hidden="true" />
 
-          <button
-            onClick={() => updateFilter('tab', 'archiv')}
-            className={cn(
-              'px-3 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5',
-              filters.tab === 'archiv'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground/80 hover:bg-muted'
-            )}
-          >
-            <Archive className="h-3.5 w-3.5" />
-            {t('bewerber.tabs.archiv')}
-            {tabCounts.archiv > 0 && (
-              <span
+          {CLOSED_TABS.map((tab) => {
+            const isActive = filters.listTab === tab.key;
+            const count = listTabCounts[tab.key];
+            const Icon = tab.key === 'abgelehnt' ? XCircle : Archive;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => updateFilter('listTab', tab.key)}
                 className={cn(
-                  'px-1.5 py-0.5 rounded-full text-xs',
-                  filters.tab === 'archiv' ? 'bg-primary-foreground/20' : 'bg-background'
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5',
+                  isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground/80 hover:bg-muted'
                 )}
               >
-                {tabCounts.archiv}
-              </span>
-            )}
-          </button>
+                <Icon className="h-3.5 w-3.5" />
+                {t(tab.labelKey)}
+                {count > 0 && (
+                  <span className={cn('px-1.5 py-0.5 rounded-full text-xs', isActive ? 'bg-primary-foreground/20' : 'bg-background')}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Filters */}
@@ -216,7 +226,6 @@ export default function ClientBewerberPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">{t('bewerber.sort.newest')}</SelectItem>
-              <SelectItem value="match_score">{t('bewerber.sort.match')}</SelectItem>
               <SelectItem value="waiting_time">{t('bewerber.sort.waiting')}</SelectItem>
             </SelectContent>
           </Select>
@@ -231,7 +240,7 @@ export default function ClientBewerberPage() {
         {/* Active View */}
         {items.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
-            {filters.tab === 'archiv' ? (
+            {filters.listTab === 'abgelehnt' || filters.listTab === 'beendet' ? (
               <Archive className="h-12 w-12 text-muted-foreground mb-4" />
             ) : (
               <Users className="h-12 w-12 text-muted-foreground mb-4" />

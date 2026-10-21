@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
   computeState,
+  datedState,
   tabOf,
   type BewerberState,
   type BewerberTab,
@@ -15,6 +16,14 @@ export interface VerlaufInterview {
   createdAt: string;
   cancelledAt: string | null;
   feedback: string | null;
+  /** Wer auf Kundenseite angefragt hat (ältere Anfragen: null). */
+  requestedBy: string | null;
+}
+
+export interface VerlaufRejection {
+  createdAt: string;
+  rejectedBy: string | null;
+  reasonCategory: string | null;
 }
 
 export interface VerlaufOffer {
@@ -32,6 +41,7 @@ export interface SubmissionStateResult {
   offers: VerlaufOffer[];
   latestInterview: VerlaufInterview | null;
   submittedAt: string | null;
+  rejections: VerlaufRejection[];
 }
 
 // Ein Zustand für die Detailseite — dieselbe Pillen-/Zuständigkeits-Logik wie
@@ -58,10 +68,10 @@ export function useSubmissionState(
         effectiveSubmittedAt = (v as any)?.submitted_at ?? null;
       }
 
-      const [ivRes, offerRes] = await Promise.all([
+      const [ivRes, offerRes, rejRes] = await Promise.all([
         supabase
           .from('interviews')
-          .select('id, status, scheduled_at, created_at, cancelled_at, feedback')
+          .select('id, status, scheduled_at, created_at, cancelled_at, feedback, requested_by')
           .eq('submission_id', submissionId!)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false }),
@@ -71,6 +81,12 @@ export function useSubmissionState(
           .eq('submission_id', submissionId!)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false }),
+        // Absagen des Kunden: wer, wann, welcher Grund (Kunden-Team darf lesen).
+        supabase
+          .from('rejections')
+          .select('created_at, rejected_by, reason_category')
+          .eq('submission_id', submissionId!)
+          .order('created_at', { ascending: false }),
       ]);
 
       const interviews: VerlaufInterview[] = ((ivRes.data || []) as any[]).map((r) => ({
@@ -80,6 +96,12 @@ export function useSubmissionState(
         createdAt: r.created_at,
         cancelledAt: r.cancelled_at,
         feedback: r.feedback,
+        requestedBy: r.requested_by ?? null,
+      }));
+      const rejections: VerlaufRejection[] = ((rejRes.data || []) as any[]).map((r) => ({
+        createdAt: r.created_at,
+        rejectedBy: r.rejected_by ?? null,
+        reasonCategory: r.reason_category ?? null,
       }));
       const offers: VerlaufOffer[] = ((offerRes.data || []) as any[]).map((r) => ({
         id: r.id,
@@ -93,7 +115,7 @@ export function useSubmissionState(
         ? Math.floor((Date.now() - new Date(effectiveSubmittedAt).getTime()) / (1000 * 60 * 60))
         : 0;
       const latestInterview = interviews[0] || null;
-      const state = computeState(
+      const rawState = computeState(
         tab,
         archiveKind,
         stage || status || 'submitted',
@@ -103,8 +125,9 @@ export function useSubmissionState(
           : null,
         offers[0] ? { status: offers[0].status } : null
       );
+      const state = datedState(rawState, latestInterview, rejections[0] ?? null, archiveKind);
 
-      return { state, tab, archiveKind, interviews, offers, latestInterview, submittedAt: effectiveSubmittedAt };
+      return { state, tab, archiveKind, interviews, offers, latestInterview, submittedAt: effectiveSubmittedAt, rejections };
     },
   });
 }

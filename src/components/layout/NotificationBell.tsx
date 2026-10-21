@@ -34,6 +34,11 @@ export function NotificationBell() {
         return role === "recruiter"
           ? `/recruiter/jobs/${notification.related_id}`
           : `/dashboard/jobs/${notification.related_id}`;
+      case "conversation":
+        // Frage des Kunden bzw. Antwort des Headhunters: direkt ins Gespräch
+        return role === "recruiter"
+          ? `/recruiter/messages?c=${notification.related_id}`
+          : `/dashboard/messages?c=${notification.related_id}`;
       case "interview":
         // related_id ist die interview_id: ?interview= öffnet in der Recruiter-
         // Agenda das Termin-Sheet für genau diesen Termin. Die Client-Agenda
