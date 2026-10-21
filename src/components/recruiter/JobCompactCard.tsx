@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Lock, CheckCircle, Search, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Honorar } from './Honorar';
 
 interface JobCompactCardProps {
   job: {
@@ -62,7 +63,7 @@ export function JobCompactCard({
 
       {/* Earning */}
       <span className="text-sm font-bold text-emerald-500 tabular-nums shrink-0 w-16 text-right">
-        {earning ? `€${(earning / 1000).toFixed(1)}k` : `${feePercentage}%`}
+        <Honorar>{earning ? `€${(earning / 1000).toFixed(1)}k` : `${feePercentage}%`}</Honorar>
       </span>
 
       {/* Active toggle */}

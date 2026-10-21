@@ -968,6 +968,197 @@ Den privaten Bucket `feedback-screenshots` legt die Function beim ersten Bild se
 
 ---
 
+## 21 — Firmenlogo automatisch von der Website, Jobliste und Briefing neu (19.10.2026)
+
+Sobald die Website einer Firma bekannt ist (Firma beantragt/geändert, Aufnahme angenommen,
+Einstellungen, Admin › Firmen prüfen), holt Matchunt das Logo von dort und speichert es im
+Bucket `company-logos`. Hochgeladene Logos gehen immer vor. Headhunter sehen das Logo wie den
+Firmennamen erst nach „Ich suche“. Dazu: Jobliste ruhiger (Karte, Vorschau, Filter), „Anzeige &
+Ansprache“ im Mandatsbriefing statt auf eigener Seite (alter Link leitet weiter).
+**Eine Migration, eine neue Edge Function, zwei geänderte Shared-Dateien / Functions.**
+
+> 1. Migration `supabase/migrations/20261019170000_firmenlogo.sql` ausführen
+>    (neue Spalten `logo_url`, `logo_source`, `logo_checked_at`, `logo_check` an `client_companies`;
+>    übernimmt das schon hochgeladene Logo der Hauptfirma aus `company_profiles`;
+>    neue Funktion `client_set_company_logo(uuid, text)`; Storage-Policy „Admins laden Firmenlogos hoch“
+>    für den bestehenden Bucket `company-logos`; `recruiter_jobs_view` neu mit angehängter Spalte
+>    `company_logo_url` – sonst gleiche Spalten wie 20261008120000; keine Daten gehen verloren).
+>    Der Bucket `company-logos` existiert schon (öffentlich) – bitte NICHT neu anlegen.
+> 2. Edge Function deployen: `firmenlogo-holen` (neu, verify_jwt = true, prüft selbst Kunde/Admin).
+>    Nutzt das vorhandene Secret `FIRECRAWL_API_KEY` (nur wenn die Seite direkt nichts hergibt).
+> 3. Edge Function neu deployen: `intake-admin` (holt bei der Annahme das Logo im Hintergrund;
+>    `_shared/firmenprofil.ts` und neu `_shared/firmenlogo.ts`).
+> 4. Publish.
+
+Danach einmal: Admin › Dashboard › Kasten „Firmenlogos“ › **Logos holen** (Bestand nachholen).
+
+---
+
+## 24 — Aufgaben „Kunde prüft“: eine Mail für mehrere Kandidaten (20.10.2026)
+
+Die Aufgabenseite bündelt „Kunde prüft“ je Stelle; „Kunden erinnern“ schickt für alle wartenden
+Kandidaten (auch anderer Stellen desselben Kunden) EINE Mail je Teammitglied, je Stelle eine
+Benachrichtigung, je Einreichung weiter einen Beleg im Aktivitätslog. Sperre unverändert: je
+Einreichung höchstens einmal in 3 Tagen. **Keine Migration, nur eine Function.**
+
+> 1. Edge Function neu deployen: `recruiter-notify` (nimmt jetzt auch `submissionIds: string[]`;
+>    der bisherige Aufruf mit `submissionId` funktioniert unverändert).
+> 2. Publish.
+
+---
+
+## 22 — Einreichen nur mit Arbeitsmodell, Wohnort/Pendelzeit und Sprachen (19.10.2026)
+
+„Bereit zum Einreichen“ ist jetzt die eine Pflichtliste: Arbeitsmodell, Wohnort mit Pendelzeit
+(entfällt bei „nur remote“ oder Umzugsbereitschaft) und mindestens eine Sprache sind dazugekommen
+und Pflicht zum Abschließen des Interviews. Die Datenbank prüft dasselbe beim Einreichen.
+**Eine Migration, sonst nur Frontend.**
+
+> 1. Migration `supabase/migrations/20261019180000_einreichen_rahmen_pflicht.sql` ausführen
+>    (ersetzt die Funktion `enforce_submission_interview()` – Interview-Regel aus 20261012120000
+>    unverändert, dazu die Rahmenprüfung – und legt den Trigger `trg_enforce_submission_interview`
+>    auf `submissions` (BEFORE INSERT) neu an; bestehende Einreichungen bleiben unberührt,
+>    Admins und Hintergrundprozesse sind ausgenommen). Läuft auch, falls 20261012120000 live fehlt.
+> 2. Publish.
+
+---
+
+## 23 — Mails kommen an: Team-Einladung, Angebot, Referenz, Vorlagen (20.10.2026)
+
+Team-Einladungen, Angebote an Kandidaten, Referenzanfragen und die Vorlagen-Mails liefen über
+nicht bestätigte Absender (Resend-Testadresse, lovable.app, recruitflow.app) und kamen nicht an.
+Jetzt gehen alle über `Matchunt <noreply@matchunt.ai>` (oder das Secret `RESEND_FROM`) mit
+matchunt.ai-Links. Commit `ca0ad0d`. **Keine Migration.**
+
+> 1. Edge Functions neu deployen: `organization-invite`, `send-offer`, `request-reference`, `send-email`
+>    (gemeinsame Datei `_shared/intake-mail.ts` nur ergänzt, andere Functions unverändert).
+> 2. Publish.
+
+Danach: unter Team die alte Einladung an linn.orneskog@hotmail.com (Link auf localhost) zurückziehen und neu einladen.
+
+---
+
+## 25 — Nachgespräch statt Debrief, Aufgaben-Karte im Dashboard wie die Aufgabenseite (20.10.2026)
+
+Nach dem Interview ruft der Headhunter den Kandidaten an und hält fest: wie es lief, Bauchgefühl,
+Ansprechpartner, Gehalt (Kandidat/Firma genannt), wie ein Angebot aussehen müsste,
+Starttermin, ob er weiter will. Abgleich mit Akte und Stelle („Übernehmen“ in die Akte), danach
+die Frage an den Kunden nach seinem Eindruck. Gespeichert in einer eigenen Tabelle, die nur der
+Headhunter und Admins lesen – das alte Debrief (`interview_feedback`) durfte das Kundenteam lesen.
+Die Aufgabe wird ab dem Tag nach dem Interview rot (vorher nach 3 Tagen).
+
+> 1. Migration `supabase/migrations/20261020100000_nachgespraech.sql` ausführen (neue Tabelle
+>    `interview_nachgespraeche` mit RLS: lesen nur eigener Headhunter + Admin, anlegen/ändern nur
+>    eigene; Trigger `nachgespraech_zuordnen` setzt Einreichung und Kandidat aus dem Interview und
+>    lässt nur den Headhunter dieser Einreichung zu). Mehrfach ausführbar.
+> 2. Edge Function `recruiter-notify` neu deployen (deckt Nr. 24 mit ab; neu: Betreff und
+>    Schlusssatz für „Kunden nach Interview-Eindruck fragen“, `intent: 'interview_feedback'`).
+> 3. Publish.
+
+Ohne Schritt 1 lässt sich ein Nachgespräch nicht speichern (Hinweis im Fenster), alles andere läuft.
+
+---
+
+## 26 — Aufnahme: sieben Muss-Fragen für den Headhunter (20.10.2026)
+
+Die Kunden-Aufnahme fragt neu: Gehaltsspielraum (links, Vergütung), längste abwartbare Kündigungsfrist
+(Zeile an „Bis wann besetzt“), Arbeitserlaubnis/Visum und Abwerbeschutz (Rahmendaten, einmal je Kunde),
+Auswahlprozess (nach „An wen berichtet …“), Zielfirmen (neues Kapitel Sourcing nach „Wer hat Erfolg“) und
+was Kandidaten kritisch sehen samt Antwort des Kunden (nach „Sensible Themen“). Die Antworten landen in
+der Stelle und im Briefing des Headhunters; Zielfirmen, Abwerbeschutz und Einwände erst nach „Ich suche“.
+
+> 1. **Erst Nr. 21 (Firmenlogo)**, denn diese Migration baut die Headhunter-Sicht auf deren Fassung auf.
+> 2. Migration `supabase/migrations/20261020110000_aufnahme_mussfragen.sql` ausführen (fünf neue Spalten
+>    in `jobs`, `accept_intake_draft` neu mit diesen Spalten, `recruiter_jobs_view` mit acht angehängten
+>    Spalten). Mehrfach ausführbar.
+> 3. Edge Functions neu deployen: `intake-admin` (gemeinsame Dateien `_shared/brief-columns.ts` und
+>    `_shared/intake-mapping.ts` geändert; nimmt die neuen Antworten an und lässt die Kundenantwort zu
+>    Visum, Zielfirmen und Abwerbeschutz über dem alten KI-Wert stehen).
+> 4. Publish.
+
+Ohne Schritt 2 und 3 werden die neuen Fragen zwar gestellt, die Antworten gehen beim Annehmen der Stelle
+aber verloren.
+
+---
+
+## 27 — Matchunt Liga: Saisonwertung, Top-Performer-Abzeichen, Wochenstand (21.10.2026)
+
+Headhunter mit Partnerstatus sammeln je Quartal Punkte für Ergebnisse beim Kunden (Interview, Angebot,
+Einstellung, Einstellung hält) mit Abzügen (Nichterscheinen, Einstellung endet früh). Eigene Seite
+„Matchunt Liga“ mit Tabelle, Meine Punkte, Regeln, Preise, Ehrentafel; schmale Karte auf der Übersicht.
+Admin legt unter „Matchunt Liga“ Saisons, Preise und Punkteregeln fest, korrigiert mit Grund, nimmt bei
+Verstößen aus der Saison und schließt nach der Nachfrist ab. Danach: Glückwunsch-Fenster, Abzeichen im
+Partnerstatus, im Signatur-Baustein, auf Urkunde und Prüfseite und beim Kunden unter „Wer sucht für Sie“.
+Montags geht der Wochenstand per Mail raus (abbestellbar). Nur Anerkennung, keine Wirkung auf Plätze.
+
+> 1. Migration `supabase/migrations/20261021090000_matchunt_liga.sql` ausführen (Tabellen `liga_*` mit RLS,
+>    Rechenfunktionen, Cron „liga-daily“ 03:50 und „liga-weekly“ montags 06:00 UTC mit eigenem Schlüssel in
+>    `private.cron_tokens`). Mehrfach ausführbar. Legt **keine** Saison an; die erste Saison legt der Admin an.
+> 2. Edge Function **`liga-weekly` neu** deployen (Wochenstand, Vorschau, Glückwunsch-Mails).
+> 3. Edge Functions neu deployen, weil gemeinsame Dateien geändert sind (`_shared/recruiter-partner.ts`,
+>    `_shared/recruiter-partner-service.ts`, `_shared/recruiter-partner-pdf.ts`, neu `_shared/liga.ts`):
+>    `partner-check`, `recruiter-onboarding`, `recruiter-onboarding-admin`.
+> 4. Publish.
+
+Ohne Schritt 1 melden die Liga-Seiten „nicht erreichbar“; Karte, Abzeichen und Liga-Abschnitt im
+Partnerstatus bleiben still weg. Ohne Schritt 2 läuft der Montags-Cron ins Leere.
+
+---
+
+## 28 — Stellenseite neu: Anzeige & Ansprache, Briefing auf einer Seite, KI-Texte geprüft (21.10.2026)
+
+Der erste Reiter heißt „Anzeige & Ansprache“: die Anzeige allein in der Mitte, rechts Kacheln für LinkedIn,
+E-Mail und Telefon (öffnen ein Fenster von rechts, mit Vorname und Aufhänger), Anzeige kopieren, Exposé und
+Verdienst. Das Briefing zeigt nur Angaben des Kunden, geordnet nach den fünf Arbeitsschritten des Headhunters
+(Lohnt es sich · Wen und wo · Überzeugen · Gespräch · Abschluss), Vertrauliches mit Schloss, alle Benefits an
+einer Stelle; der Gesprächsleitfaden öffnet an Schritt 4. Die Dreier-Leiste oben ist weg. „Kunden fragen“
+schickt die offenen Fragen der Aufnahme an das Kundenteam. Der Kopf der Stellenseite sieht aus wie eine klassische
+Stellenanzeige (Fakten als Zeile, Verdienst als Spalte, Reiter als Unterstreichung). Neu für alle Headhunter:
+„Honorar ausblenden“ – das Auge oben in der Kopfleiste verdeckt jeden eigenen Betrag (Verdienst, Honorar, %,
+Auszahlungen), gemerkt pro Gerät; Gehalt und Tagessatz des Kandidaten bleiben sichtbar. Dafür reicht Publish.
+Der Anzeigen-Generator schreibt keine Marktstellung, keine geschätzten Zahlen und kein „von Vorteil“ als
+Pflicht mehr; was er doch schreibt, korrigiert er selbst und streicht den Rest.
+
+> 1. Keine Migration.
+> 2. Edge Functions neu deployen:
+>    - `format-job-for-recruiters` (schärfere Regeln, Korrekturdurchlauf, neue Prüfung in `_shared/recruiter-anzeige.ts`)
+>    - `recruiter-notify` (neu: `job_questions` für „Kunden fragen“; deckt Nr. 24 und 25 mit ab)
+>    - `parse-job-url` (neue Regel: echte Umlaute und ß in allen Textwerten der Aufnahme)
+> 3. Publish.
+> 4. Danach, nur mit Markos OK: bestehende Anzeigen einmal neu erzeugen (Admin › Jobs bzw. Freigabe-Dialog,
+>    „Neu erzeugen“), zuerst den Tax Manager. Bis dahin blendet die Seite KI-Zusätze schon beim Anzeigen aus.
+
+Ohne Schritt 2 sieht die Seite schon neu aus, aber „Kunden fragen“ meldet einen Fehler, neue Anzeigen
+werden noch nach den alten Regeln geschrieben, und neue Aufnahmen können noch „ue/oe/ae“ enthalten (bekannte
+Wörter repariert die Seite beim Anzeigen).
+
+---
+
+## 29 — Kunde: Bewerberprofil mit Gespräch und Frage an den Headhunter, Liste mit Angefragt/Abgelehnt (21.10.2026)
+
+Commit `a02e3f7`. Das Profil zeigt „Aus dem Gespräch mit <Headhunter>“, die Einschätzung zur Stelle
+entsteht von selbst (ohne Zahl, ohne Wertung, ohne Gehalt). Dazu kommen der Absender, die Empfehlung
+und „Frage an <Headhunter>“ mit Glocke und Mail; Antworten werden geschwärzt. Die Bewerberliste hat
+Reiter für Angefragt, Abgelehnt und Beendet.
+**Eine Migration, drei Edge Functions.**
+
+> 1. Migration `supabase/migrations/20261009140000_kandidatenprofil_kunde.sql` ausführen
+>    (private.app_settings mit functions_url, private.cron_tokens 'fit-assessment', Trigger
+>    `trg_generate_fit_assessment` auf submissions, Cron `fit-assessment-fill` alle 10 Minuten,
+>    Funktionen salary_wish_band / employer_tokens / notify_candidate_mention, Ansichten
+>    client_candidate_interview_view, client_candidate_education_view, client_candidate_experiences_view neu;
+>    bestehende Daten bleiben unverändert). Braucht die Erweiterungen pg_net und pg_cron.
+> 2. Edge Functions deployen:
+>    - `assess-candidate-fit` (jetzt **verify_jwt = false**, prüft selbst: Cron-Schlüssel oder Zugriff auf die Einreichung)
+>    - `client-candidate-summary` (ohne Mindestgehalt und ohne Jobhopper-Etikett)
+>    - `client-question` (neu, verify_jwt = true)
+> 3. Publish.
+
+Danach: Bestehende Einschätzungen bleiben, wie sie sind. Ältere Texte mit Wertungen
+(z. B. „passt hervorragend“) entstehen erst neu, wenn die Zeile in candidate_fit_assessments gelöscht wird.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

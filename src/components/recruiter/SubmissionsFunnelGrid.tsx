@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 import type { CanonicalStage } from '@/lib/submissionStage';
+import { Honorar } from './Honorar';
 
 export interface FunnelEntry {
   stage: CanonicalStage;
@@ -47,7 +48,7 @@ export function SubmissionsFunnelGrid({ breakdown }: { breakdown: FunnelEntry[] 
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">Übersicht</CardTitle>
         <p className="text-sm text-muted-foreground">
-          {laufend} laufend · offenes Honorar {formatEarning(offenesHonorar)}
+          {laufend} laufend · offenes Honorar <Honorar>{formatEarning(offenesHonorar)}</Honorar>
         </p>
       </CardHeader>
       <CardContent>
@@ -82,7 +83,7 @@ export function SubmissionsFunnelGrid({ breakdown }: { breakdown: FunnelEntry[] 
                       : 'text-muted-foreground',
                   )}
                 >
-                  {entry.closed ? ' ' : `~${formatEarning(entry.potentialEarning)}`}
+                  {entry.closed ? ' ' : <Honorar>{`~${formatEarning(entry.potentialEarning)}`}</Honorar>}
                 </p>
               </div>
             );

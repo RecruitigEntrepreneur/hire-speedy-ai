@@ -1,5 +1,6 @@
 import { ChevronDown, Euro } from 'lucide-react';
 import { recruiterFeeRange } from '@/lib/recruiterFee';
+import { Honorar } from './Honorar';
 
 interface Props { feePercentage: number | null; salaryMin: number | null; salaryMax: number | null }
 const money = (value: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
@@ -36,15 +37,15 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax }: Props
       <p className="mt-4 text-sm text-muted-foreground">Noch nicht berechenbar — es fehlen ein gültiger Provisionssatz und ein Gehaltswert.</p>
     ) : (
       <>
-        <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums">{money(mitte)}</p>
+        <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums"><Honorar>{money(mitte)}</Honorar></p>
         <p className="mt-1.5 text-xs leading-6 text-muted-foreground">Bei erfolgreicher Vermittlung</p>
         <dl className="mt-4 space-y-1.5 border-t border-emerald-500/20 pt-3 text-xs">
           {spanne && <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">Spanne</dt><dd className="tabular-nums">{spanne}</dd>
+            <dt className="text-muted-foreground">Spanne</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd>
           </div>}
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Dein Anteil</dt>
-            <dd className="tabular-nums">{range!.fee.toLocaleString('de-DE')} %</dd>
+            <dd className="tabular-nums"><Honorar>{`${range!.fee.toLocaleString('de-DE')} %`}</Honorar></dd>
           </div>
           {(salaryMin || salaryMax) && <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Fixgehalt</dt>

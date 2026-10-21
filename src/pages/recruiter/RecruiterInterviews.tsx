@@ -31,7 +31,9 @@ import {
   RecruiterTerminSheet,
   type RecruiterTerminVariant,
 } from '@/components/interview/agenda/RecruiterTerminSheet';
+import { NachgespraechWindow } from '@/components/recruiter/tasks/NachgespraechWindow';
 import { cn } from '@/lib/utils';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 const formatFee = (fee: number | null) => (fee ? `~€${Math.round(fee / 1000)}k` : null);
 
@@ -163,7 +165,7 @@ function InterviewRow({
       <div className="flex items-center gap-1.5 shrink-0">
         {formatFee(iv.potentialFee) && (
           <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums hidden sm:inline">
-            {formatFee(iv.potentialFee)}
+            <Honorar>{formatFee(iv.potentialFee)}</Honorar>
           </span>
         )}
         {/* Anrufen gilt in JEDEM Zustand: vor dem Termin ("kommst du?") ist der
@@ -208,6 +210,8 @@ export default function RecruiterInterviews() {
   const [pastOpen, setPastOpen] = useState(false);
   const [cancelledOpen, setCancelledOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  // Nachgespräch aus der Leiste heraus (20.10.2026)
+  const [nach, setNach] = useState<RecruiterInterview | null>(null);
   const [sheet, setSheet] = useState<{
     iv: RecruiterInterview | null;
     variant: RecruiterTerminVariant;
@@ -499,7 +503,16 @@ export default function RecruiterInterviews() {
         variant={sheet.variant}
         open={!!sheet.iv}
         onOpenChange={closeTermin}
-        onSaved={refetch}
+        onNachgespraech={(iv) => { closeTermin(false); setNach(iv); }}
+      />
+      <NachgespraechWindow
+        target={nach ? {
+          interviewId: nach.id, submissionId: nach.submissionId, candidateId: nach.candidateId, candidateName: nach.candidateName,
+          candidatePhone: nach.candidatePhone, jobId: nach.jobId, jobTitle: nach.jobTitle,
+          companyName: nach.companyRevealed ? nach.companyLabel : null, feeValue: nach.potentialFee, scheduledAt: nach.scheduledAt,
+        } : null}
+        onClose={() => setNach(null)}
+        onDone={refetch}
       />
     </DashboardLayout>
   );

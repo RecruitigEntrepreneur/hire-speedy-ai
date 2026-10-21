@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -13,16 +12,15 @@ import {
   MessageSquareQuote,
   NotebookPen,
   Phone,
-  Send,
   User,
   Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Textarea } from '@/components/ui/textarea';
-import { useInterviewFeedback, type FeedbackData } from '@/hooks/useInterviewFeedback';
+import { useInterviewFeedback } from '@/hooks/useInterviewFeedback';
 import type { RecruiterInterview } from '@/hooks/useRecruiterInterviewAgenda';
 import { cn } from '@/lib/utils';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 export type RecruiterTerminVariant =
   | 'agenda'
@@ -39,12 +37,6 @@ const PILL_CLASSES: Record<string, string> = {
   neutral: 'bg-muted text-muted-foreground',
 };
 
-const RECOMMENDATIONS: { key: NonNullable<FeedbackData['recommendation']>; tone: string }[] = [
-  { key: 'next_round', tone: 'default' },
-  { key: 'hire', tone: 'default' },
-  { key: 'undecided', tone: 'outline' },
-  { key: 'reject', tone: 'outline' },
-];
 
 const fmtSlot = (iso: string) =>
   `${new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}, ${new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
@@ -76,27 +68,19 @@ export function RecruiterTerminSheet({
   variant,
   open,
   onOpenChange,
-  onSaved,
+  onNachgespraech,
 }: {
   interview: RecruiterInterview | null;
   variant: RecruiterTerminVariant;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved?: () => void;
+  /** Öffnet das Nachgespräch (20.10.2026, ersetzt das Debrief-Feld hier). */
+  onNachgespraech?: (iv: RecruiterInterview) => void;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { myFeedback, submitFeedback } = useInterviewFeedback(interview?.id);
-  const [note, setNote] = useState('');
-  const [recommendation, setRecommendation] =
-    useState<FeedbackData['recommendation']>(undefined);
-
-  // Beim Wechsel des Termins den Entwurf auf das gespeicherte Feedback zurücksetzen,
-  // damit nicht der Text des vorigen Termins im Feld stehen bleibt.
-  useEffect(() => {
-    setNote(myFeedback?.notes ?? '');
-    setRecommendation(myFeedback?.recommendation ?? undefined);
-  }, [interview?.id, myFeedback?.notes, myFeedback?.recommendation]);
+  // Nur noch lesen: ein altes Debrief aus der Zeit vor dem Nachgespräch
+  const { myFeedback } = useInterviewFeedback(interview?.id);
 
   if (!interview) return null;
   const iv = interview;
@@ -164,14 +148,6 @@ export function RecruiterTerminSheet({
   const showTermin =
     (variant === 'agenda' || variant === 'debrief' || variant === 'past' || variant === 'cancelled') &&
     !!iv.scheduledAt;
-  const canSaveDebrief = note.trim().length > 0 || !!recommendation;
-
-  const saveDebrief = () => {
-    submitFeedback.mutate(
-      { interviewId: iv.id, feedback: { notes: note.trim() || undefined, recommendation } },
-      { onSuccess: () => onSaved?.() },
-    );
-  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -324,51 +300,33 @@ export function RecruiterTerminSheet({
             </div>
           )}
 
-          {/* Debrief: der Recruiter-Eindruck. Landet in interview_feedback unter
-              seiner evaluator_id — interviews.feedback gehört dem Kunden. */}
+          {/* Nachgespräch (20.10.2026): eigenes Fenster statt Eindruck-Feld. Das alte
+              Debrief lag in interview_feedback, das der Kunde lesen darf. */}
           {(variant === 'debrief' || variant === 'past') && (
             <div className="rounded-lg border p-3">
-              <p className="mb-2 text-xs font-semibold text-muted-foreground">
+              <p className="mb-1 text-xs font-semibold text-muted-foreground">
                 {t('recruiterTermin.debrief_title')}
               </p>
-              <Textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t('recruiterTermin.debrief_placeholder')}
-                rows={3}
-                className="text-sm"
-              />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {RECOMMENDATIONS.map((r) => (
-                  <Button
-                    key={r.key}
-                    type="button"
-                    size="sm"
-                    variant={recommendation === r.key ? 'default' : 'outline'}
-                    className="h-7 text-xs"
-                    onClick={() => setRecommendation(recommendation === r.key ? undefined : r.key)}
-                  >
-                    {t(`recruiterTermin.recommendation.${r.key}`)}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                size="sm"
-                className="mt-2 w-full gap-1.5"
-                disabled={!canSaveDebrief || submitFeedback.isPending}
-                onClick={saveDebrief}
-              >
-                <Send className="h-3.5 w-3.5" />
-                {myFeedback
-                  ? t('recruiterTermin.debrief_update')
-                  : t('recruiterTermin.debrief_save')}
-              </Button>
+              <p className="text-sm text-muted-foreground">
+                {t(variant === 'debrief' ? 'recruiterTermin.debrief_hint' : 'recruiterTermin.debrief_hint_past')}
+              </p>
+              {myFeedback?.notes && (
+                <p className="mt-2 text-xs italic text-muted-foreground">
+                  {t('recruiterTermin.debrief_old')}: „{myFeedback.notes}“
+                </p>
+              )}
+              {onNachgespraech && (
+                <Button size="sm" className="mt-2 w-full gap-1.5" onClick={() => onNachgespraech(iv)}>
+                  <NotebookPen className="h-3.5 w-3.5" />
+                  {t(variant === 'debrief' ? 'recruiterTermin.debrief_save' : 'recruiterTermin.debrief_update')}
+                </Button>
+              )}
             </div>
           )}
 
           {iv.potentialFee !== null && (
             <p className="text-xs text-muted-foreground">
-              {t('recruiterTermin.fee', { amount: Math.round(iv.potentialFee / 1000) })}
+              <Honorar>{t('recruiterTermin.fee', { amount: Math.round(iv.potentialFee / 1000) })}</Honorar>
             </p>
           )}
         </div>

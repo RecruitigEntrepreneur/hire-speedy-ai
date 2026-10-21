@@ -34,6 +34,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 interface CandidateTask {
   id: string;
@@ -233,7 +234,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   // Abgeleitete Aufgaben (Nachfassen/Debrief) aus derselben Quelle wie
   // /recruiter/influence und das Dashboard — sonst behauptet die Sektion
   // "Alles erledigt", während die Inbox offene Aufgaben zum Kandidaten zeigt.
-  const { allItems: inboxItems, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
+  const { allItems: inboxItems, waitingItems: inboxWaiting, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
   const [searchParams, setSearchParams] = useSearchParams();
   /** Steht die Aufgabe in der Inbox, öffnet das neue Fenster (?aufgabe=); sonst das alte Detail. */
   const openInTaskWindow = (itemId: string) => {
@@ -397,9 +398,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const exposeTasks = showExposeTasks ? buildExposeTasks(candidate, hasInterview) : [];
   const candidateManualTasks = manualTasks.filter(t => t.candidate_id === candidateId);
   const derivedTasks = inboxItems.filter(i => i.itemType === 'derived' && i.candidateId === candidateId);
+  // „Kunde prüft“, bei denen der Kunde dran ist: grau, ohne Knopf (20.10.2026)
+  const waitingTasks = inboxWaiting.filter(i => i.candidateId === candidateId);
 
   const derivedLabel = (category: string) =>
-    category === 'interview_debrief_due' ? 'Debrief' : 'Nachfassen';
+    category === 'interview_debrief_due' ? 'Nachgespräch' : category === 'client_review_stalled' ? 'Prüfung' : 'Nachfassen';
 
   const handleCompleteDerivedTask = async (item: UnifiedTaskItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -521,6 +524,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   };
 
   const totalPending = pendingTasks.length + exposeTasks.length + candidateManualTasks.length + derivedTasks.length;
+  const totalShown = totalPending + waitingTasks.length;
   const criticalCount =
     pendingTasks.filter(t => t.priority === 'critical').length +
     derivedTasks.filter(t => t.priority === 'critical').length;
@@ -542,7 +546,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     );
   }
 
-  if (totalPending === 0 && completedTasks.length === 0) {
+  if (totalShown === 0 && completedTasks.length === 0) {
     return null;
   }
 
@@ -553,14 +557,14 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         <div className="flex items-center gap-2">
           <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Aufgaben{totalPending > 0 ? ` (${totalPending})` : ''}
+            Aufgaben{totalPending > 0 ? ` (${totalPending})` : ''}{waitingTasks.length > 0 ? ` · Wartet (${waitingTasks.length})` : ''}
           </span>
           {criticalCount > 0 && (
             <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
               {criticalCount} kritisch
             </Badge>
           )}
-          {completedTasks.length > 0 && totalPending === 0 && (
+          {completedTasks.length > 0 && totalShown === 0 && (
             <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-600 border-emerald-500/50">
               <Check className="h-2.5 w-2.5 mr-0.5" />
               Alles erledigt
@@ -583,7 +587,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
       </div>
 
       {/* Horizontal scroll container */}
-      {totalPending > 0 && (
+      {totalShown > 0 && (
         <div className="relative">
           {canScrollLeft && (
             <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-card to-transparent z-10 pointer-events-none rounded-l-lg" />
@@ -598,7 +602,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
             className="flex snap-x snap-mandatory scroll-pl-10 gap-2 overflow-x-auto scrollbar-none pb-1 -mb-1"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {/* Abgeleitete Aufgaben (Nachfassen/Debrief) aus der Unified Inbox */}
+            {/* Abgeleitete Aufgaben (Nachfassen/Nachgespräch) aus der Unified Inbox */}
             {derivedTasks.map(item => {
               const config = priorityConfig[item.priority];
               return (
@@ -617,13 +621,17 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     </Badge>
                     {item.feeValue != null && item.feeValue > 0 && (
                       <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        ~€{Math.round(item.feeValue / 1000)}k
+                        <Honorar>{`~€${Math.round(item.feeValue / 1000)}k`}</Honorar>
                       </span>
                     )}
                   </div>
 
                   {/* Row 2: Title (2 lines) */}
-                  <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">{item.title}</p>
+                  <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">
+                    {item.taskCategory === 'client_review_stalled'
+                      ? `${item.jobTitle ?? 'Stelle'} · Kunde prüft seit ${Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 86_400_000)} Tagen`
+                      : item.title}
+                  </p>
 
                   {/* Row 3: Job context + quick actions */}
                   <div className="mt-auto flex items-center gap-1 min-w-0">
@@ -646,6 +654,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                         <Phone className="h-2.5 w-2.5" />
                       </Button>
                     )}
+                    {/* Abgeleitete Aufgaben erledigen sich durch die Handlung (Kunde erinnert,
+                        Nachgespräch festgehalten, Opt-In da) – kein Haken, der nur im Browser versteckt. */}
+                    {item.itemType !== 'derived' && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -654,11 +665,39 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     >
                       <Check className="h-2.5 w-2.5" />
                     </Button>
+                    )}
                     </div>
                   </div>
                 </div>
               );
             })}
+
+            {/* Wartet: Kunde erinnert oder Matchunt kümmert sich – grau, nichts zu tun */}
+            {waitingTasks.map(item => (
+              <div
+                key={`w-${item.itemId}`}
+                onClick={() => { if (item.waitState !== 'matchunt') { const next = new URLSearchParams(searchParams); next.set('aufgabe', item.itemId); setSearchParams(next, { replace: true }); } }}
+                className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-muted-foreground/30 p-2.5 opacity-80', item.waitState !== 'matchunt' && 'cursor-pointer hover:opacity-100')}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">
+                    {item.waitState === 'matchunt' ? 'Matchunt' : 'Wartet'}
+                  </Badge>
+                  {item.feeValue != null && item.feeValue > 0 && (
+                    <span className="text-[10px] font-medium text-muted-foreground tabular-nums"><Honorar>{`~€${Math.round(item.feeValue / 1000)}k`}</Honorar></span>
+                  )}
+                </div>
+                <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem] text-muted-foreground">
+                  {item.jobTitle ?? 'Stelle'} · Kunde erinnert {item.lastNudgeAt ? new Date(item.lastNudgeAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : ''}
+                </p>
+                <p className="mt-auto text-[10px] text-muted-foreground">
+                  {item.waitState === 'matchunt'
+                    ? 'Matchunt kümmert sich'
+                    : `${(item.nudgeCount ?? 0) >= 2 ? 'Matchunt übernimmt' : '2. Erinnerung'} ab ${item.nextNudgeAt ? new Date(item.nextNudgeAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : ''}`}
+                  {item.waitState !== 'matchunt' && <span className="block text-primary">Kandidat Bescheid geben →</span>}
+                </p>
+              </div>
+            ))}
 
             {/* DB-based tasks (Influence Alerts) — enhanced cards */}
             {pendingTasks.map(task => {

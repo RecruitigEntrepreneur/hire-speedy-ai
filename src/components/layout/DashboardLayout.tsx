@@ -33,6 +33,7 @@ import {
   Inbox,
   Link2,
   MessageSquareWarning,
+  Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -45,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from './NotificationBell';
+import { HonorarSchalter } from '@/components/recruiter/Honorar';
 import { GlobalSearch } from './GlobalSearch';
 import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsHelp';
@@ -111,6 +113,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
     { label: 'Talent Pool', href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
+    { label: 'Matchunt Liga', href: '/recruiter/liga', icon: <Trophy className="h-4 w-4" /> },
     { label: 'Verdienste', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Auszahlungen', href: '/recruiter/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Benachrichtigungen', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
@@ -124,6 +127,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Benutzer', href: '/admin/users', icon: <UsersRound className="h-4 w-4" /> },
     { label: 'Kunden', href: '/admin/clients', icon: <Building2 className="h-4 w-4" /> },
     { label: 'Recruiter', href: '/admin/recruiters', icon: <Users className="h-4 w-4" /> },
+    { label: 'Matchunt Liga', href: '/admin/liga', icon: <Trophy className="h-4 w-4" /> },
     { label: 'Akademie', href: '/admin/academy', icon: <GraduationCap className="h-4 w-4" /> },
     { label: 'Alle Jobs', href: '/admin/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Jobaufnahmen', href: '/admin/intakes', icon: <Inbox className="h-4 w-4" /> },
@@ -166,6 +170,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
           {/* Search */}
           <div className="flex items-center gap-3">
             <GlobalSearch />
+            {/* Honorar ausblenden (21.10.2026): nur für Headhunter, gemerkt auf diesem Gerät. */}
+            {role === 'recruiter' && <HonorarSchalter />}
             <NotificationBell />
             
             <DropdownMenu>

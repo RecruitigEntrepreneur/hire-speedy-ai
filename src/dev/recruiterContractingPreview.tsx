@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthProvider } from '@/lib/auth';
@@ -8,7 +8,6 @@ import { JobActionCard } from '@/components/recruiter/JobActionCard';
 import { JobPreviewPanel } from '@/components/recruiter/JobPreviewPanel';
 import { ActivationConfirmDialog } from '@/components/recruiter/ActivationConfirmDialog';
 import { RecruiterJobWorkspace } from '@/components/recruiter/RecruiterJobWorkspace';
-import JobPosting from '@/pages/recruiter/JobPosting';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { BEISPIEL_ANZEIGE } from './beispielAnzeige';
 import '@/index.css';
@@ -53,10 +52,8 @@ const stelle = {
 const nichts = () => undefined;
 
 function Ansicht() {
-  if (screen === 'anzeige') {
-    return <Routes><Route path="/recruiter/jobs/:id/anzeige" element={<JobPosting />} /></Routes>;
-  }
-  if (screen === 'arbeitsbereich') {
+  // Seit 19.10.2026 liegt „Anzeige & Ansprache" im Arbeitsbereich (Reiter Stellenbeschreibung).
+  if (screen === 'arbeitsbereich' || screen === 'anzeige') {
     return <RecruiterJobWorkspace job={stelle} companyRevealed={false} fullAccess={false} submissionCount={0} candidates={null} onSubmit={nichts} onExpose={nichts} />;
   }
   if (screen === 'aktivieren') {
@@ -79,8 +76,8 @@ function Ansicht() {
 createRoot(document.getElementById('root')!).render(
   <AuthProvider>
     <TooltipProvider>
-      <MemoryRouter initialEntries={[screen === 'anzeige' ? '/recruiter/jobs/job-1/anzeige' : '/']}>
-        {screen === 'anzeige' ? <Ansicht /> : <main className="mx-auto max-w-5xl p-6"><Ansicht /></main>}
+      <MemoryRouter initialEntries={['/']}>
+        <main className="mx-auto max-w-5xl p-6"><Ansicht /></main>
       </MemoryRouter>
     </TooltipProvider>
   </AuthProvider>,

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TaskDetailDialog, type TaskDetailItem } from '@/components/influence/TaskDetailDialog';
-import type { UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import { notifyTasksChanged, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { messageSetFor, composeClientText, composeCandidateText } from '@/lib/aufgabenTexte';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Lock, Mail, NotebookPen, Phone } from 'lucide-react';
+import { NachgespraechWindow, nachTargetFromItem, type NachTarget } from './NachgespraechWindow';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 export const DAY_MS = 86_400_000;
 
@@ -40,6 +42,8 @@ export const daysSince = (iso: string | null) => (iso ? Math.max(0, Math.floor((
 export const hoursSince = (iso: string | null) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000)) : 0);
 export const firstName = (name: string | null) => (name ? name.trim().split(/\s+/)[0] : 'der Kandidat');
 export const dateDe = (iso: string | null) => (iso ? format(new Date(iso), 'dd.MM.', { locale: de }) : '');
+/** Satzende ohne doppelten Punkt nach einem Datum („am 13.10.“). */
+const satz = (s: string) => (s.endsWith('.') ? s : `${s}.`);
 
 export function buildGuide(item: UnifiedTaskItem): Guide {
   const name = item.candidateName || 'Kandidat';
@@ -69,22 +73,23 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     };
   }
   if (cat === 'interview_debrief_due') {
+    // Nachgespräch statt Debrief (20.10.2026): zuerst hören, was der Kandidat sagt.
     const h = hoursSince(item.createdAt);
     return {
-      pill: 'Debrief',
-      advice: `Interview war ${h < 48 ? `vor ${h} Std.` : `am ${dateDe(item.createdAt)}`}. Dein Debrief fehlt.`,
+      pill: 'Nachgespräch',
+      advice: `${satz(`Interview war ${h < 48 ? `vor ${h} Std.` : `am ${dateDe(item.createdAt)}`}`)} Ruf ${first} an, solange es frisch ist.`,
       facts: [
         `Das Interview mit ${name} für ${job} ist vorbei.`,
-        'Der Kunde entscheidet nach deinem Eindruck; sein Feedback steht noch aus.',
+        'Wie es lief, Gehalt, Angebot und Start weißt du nur von ihm.',
         fee ? `Honorar bei Abschluss: ${fee}.` : '',
       ].filter(Boolean),
-      consequence: 'Ohne Debrief liegt der Deal still, und die Details verblassen.',
+      consequence: 'Ohne Nachgespräch fehlt dir das Bauchgefühl des Kandidaten, wenn der Kunde entscheidet.',
       steps: [
         { text: `${first} kurz anrufen.`, hint: 'Wie lief es, Zweifel, Gehalt, Stimmung?' },
         { text: 'Drei Sätze eintragen, Empfehlung wählen.', hint: 'Weiter · Unsicher · Nicht passend' },
       ],
-      goal: 'Debrief gespeichert',
-      primary: { label: 'Debrief', kind: 'debrief' },
+      goal: 'Nachgespräch festgehalten',
+      primary: { label: 'Nachgespräch', kind: 'debrief' },
       reachedOptions: [],
     };
   }
@@ -133,7 +138,7 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     return {
       pill: 'Eigene',
       advice: item.description || item.title,
-      facts: [item.dueAt ? `Fällig am ${dateDe(item.dueAt)}.` : 'Ohne Datum.'],
+      facts: [item.dueAt ? satz(`Fällig am ${dateDe(item.dueAt)}`) : 'Ohne Datum.'],
       consequence: null,
       steps: [{ text: item.title }],
       goal: 'Erledigt',
@@ -199,6 +204,15 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const [windowTab, setWindowTab] = useState<'client' | 'candidate'>('client');
   const [reached, setReached] = useState<{ item: UnifiedTaskItem; guide: Guide } | null>(null);
   const [detail, setDetail] = useState<TaskDetailItem | null>(null);
+  // Nachgespräch: eigenes Fenster, festgehalten, damit Schritt 3 nach dem Neuladen bleibt
+  const [nach, setNach] = useState<{ target: NachTarget; item: UnifiedTaskItem } | null>(null);
+
+  /** Personen-Fenster öffnen; steht ein Nachgespräch vorn, gleich dessen Fenster. */
+  const openGroupKey = (key: string | null) => {
+    const g = key ? groups.find(x => x.key === key) : null;
+    if (g && g.primary.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(g.primary), item: g.primary }); return; }
+    setWindowKey(key);
+  };
 
   const act = (item: UnifiedTaskItem, guide: Guide) => {
     switch (guide.primary.kind) {
@@ -209,7 +223,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         return;
       }
       case 'debrief':
-        navigate(`/recruiter/interviews?interview=${item.itemId.replace('derived-debrief-', '')}`);
+        setNach({ target: nachTargetFromItem(item), item });
         return;
       case 'call':
         if (item.candidatePhone) window.location.href = `tel:${item.candidatePhone}`;
@@ -249,6 +263,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
       else await snooze(item.itemType, item.itemId, new Date(Date.now() + DAY_MS));
     }
     refetch();
+    notifyTasksChanged();
     return true;
   };
 
@@ -294,8 +309,10 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
 
   /** Öffnet das Fenster der Person, zu der die Aufgabe gehört. */
   const openItem = (itemId: string) => {
+    const it = itemId.startsWith('derived-debrief-') ? allItems.find(i => i.itemId === itemId) : null;
+    if (it) { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
     const g = groups.find(x => x.primary.itemId === itemId || x.others.some(o => o.itemId === itemId));
-    if (g) setWindowKey(g.key);
+    if (g) openGroupKey(g.key);
     return !!g;
   };
 
@@ -318,10 +335,16 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         onDetail={item => { setWindowKey(null); openDetail(item); }}
       />
       <ReachedDialog state={reached} onClose={() => setReached(null)} onConfirm={confirmReached} />
+      <NachgespraechWindow
+        target={nach?.target ?? null}
+        onClose={() => setNach(null)}
+        onDone={refetch}
+        laterSlot={nach ? <LaterMenu onPick={until => { const it = nach.item; setNach(null); later(it, until); }} /> : null}
+      />
     </>
   );
 
-  return { act, later, openDetail, openItem, setWindowKey, host };
+  return { act, later, openDetail, openItem, setWindowKey: openGroupKey, host };
 }
 
 /** Die Aufgabe als Fenster: Grund, Deine Aufgabe, Ziel, Knöpfe. Die Liste bleibt kompakt. */
@@ -388,7 +411,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
               <DialogTitle className="flex flex-wrap items-center gap-x-2 text-base">
                 <span>{group.name}</span>
                 <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{guide.pill}</Badge>
-                {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums">{fee}</span>}
+                {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
               </DialogTitle>
               <DialogDescription className="flex items-center gap-1 text-xs">
                 {item.jobTitle}{item.companyName ? ` · ${item.companyName}` : ''}

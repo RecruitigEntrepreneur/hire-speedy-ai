@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { LigaDashboardCard } from '@/components/recruiter/liga/LigaDashboardCard';
+import { LigaAwardDialog } from '@/components/recruiter/liga/LigaAwardDialog';
 import {
   Briefcase,
   Users,
@@ -32,7 +34,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
-import { getCompanyLogoUrl, formatHeadcount } from '@/lib/companyLogo';
+import { formatHeadcount } from '@/lib/companyLogo';
+import { FirmenLogo } from '@/components/company/FirmenLogo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +52,8 @@ import {
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterStartChecklist } from '@/components/recruiter/RecruiterStartChecklist';
 import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import { buildGuide } from '@/components/recruiter/tasks/taskWindow';
+import { rowItem, splitJetzt, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
 import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
@@ -68,6 +73,7 @@ import { format, isToday, isTomorrow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -270,7 +276,10 @@ export default function RecruiterDashboard() {
         .limit(4);
       // Contracting: Verdienst je Einsatztag (Migration 20260929100000). Vor
       // deren Ausrollen fehlen die Spalten -- dann wie bisher ohne.
-      let { data: jobs, error: jobsError } = await neueJobs(`${basis}, employment_type, recruiter_day_earning_min, recruiter_day_earning_max`);
+      // Firmenlogo nach dem Reveal (Migration 20261019170000) -- vorher ohne.
+      const contracting = `${basis}, employment_type, recruiter_day_earning_min, recruiter_day_earning_max`;
+      let { data: jobs, error: jobsError } = await neueJobs(`${contracting}, company_logo_url`);
+      if (jobsError && isMissingColumnError(jobsError)) ({ data: jobs, error: jobsError } = await neueJobs(contracting));
       if (jobsError && isMissingColumnError(jobsError)) ({ data: jobs, error: jobsError } = await neueJobs(basis));
 
       if (!jobsError && jobs) {
@@ -416,12 +425,15 @@ export default function RecruiterDashboard() {
     );
   };
 
-  const handleViewTask = (item: UnifiedTaskItem) => {
-    if (item.itemId.startsWith('derived-debrief-')) {
-      navigate(`/recruiter/interviews?interview=${item.itemId.replace('derived-debrief-', '')}`);
+  const handleViewTask = (row: JetztRow) => {
+    const item = rowItem(row);
+    // „Kunde prüft“ je Stelle: das Stellen-Fenster auf der Seite „Aufgaben“
+    if (row.kind === 'bundle') {
+      navigate(`/recruiter/influence?item=${encodeURIComponent(item.itemId)}`);
       return;
     }
-    // Ins Kandidatenprofil, dort öffnet sich die Aufgabe (14.10.2026). Ohne Kandidat: Seite „Aufgaben“.
+    // Ins Kandidatenprofil, dort öffnet sich die Aufgabe (14.10.2026), auch das
+    // Nachgespräch (20.10.2026, vorher Sprung auf die Interview-Seite). Ohne Kandidat: „Aufgaben“.
     if (item.candidateId) {
       navigate(`/recruiter/candidates/${item.candidateId}?aufgabe=${encodeURIComponent(item.itemId)}`);
       return;
@@ -431,16 +443,12 @@ export default function RecruiterDashboard() {
 
   // ─── Derived Data ───────────────────────────────────────────────────────
 
-  // Deals ohne Bewegung (> 21 Tage) gehören nicht auf die Karte; sie stehen auf
-  // der Aufgabenseite unten, eingeklappt.
-  const activeTaskItems = useMemo(() => taskItems.filter(i => !i.isStale), [taskItems]);
-  const topTasks = useMemo(() => activeTaskItems.slice(0, 5), [activeTaskItems]);
-
-  const urgentCount = useMemo(() => {
-    return activeTaskItems.filter(i => i.priority === 'critical').length;
-  }, [activeTaskItems]);
-
-  const totalPendingAlerts = useMemo(() => activeTaskItems.length, [activeTaskItems]);
+  // Dieselben Zeilen und dieselbe Zahl wie „Jetzt“ auf der Seite „Aufgaben“ (20.10.2026).
+  // Deals ohne Bewegung und Opt-Ins unter 24 Stunden stehen dort unten bzw. unter „Wartet“.
+  const jetztRows = useMemo(() => splitJetzt(taskItems).rows, [taskItems]);
+  const topRows = useMemo(() => jetztRows.slice(0, 5), [jetztRows]);
+  const urgentCount = useMemo(() => jetztRows.filter(r => r.critical).length, [jetztRows]);
+  const totalPendingAlerts = jetztRows.length;
 
   const maxPipelineCount = useMemo(() => {
     return Math.max(...pipelineStages.map(s => s.count), 1);
@@ -482,16 +490,16 @@ export default function RecruiterDashboard() {
     }
     // No interviews, tasks pending → konkrete Top-Aufgabe nennen
     if (totalPendingAlerts > 0) {
-      const top = topTasks[0];
-      if (top?.candidateName) {
-        return `${totalPendingAlerts} Aufgaben offen — Top-Priorität: ${top.candidateName} (${getAlertTypeLabel(top.taskCategory).label}).`;
+      const top = topRows[0];
+      if (top?.kind === 'person') {
+        return `${totalPendingAlerts} Aufgaben offen — Top-Priorität: ${top.group.name} (${buildGuide(top.group.primary).pill}).`;
       }
       return `${totalPendingAlerts} Aufgaben warten – pack sie an!`;
     }
     if (isNewcomer) return 'Schön, dass du da bist. Such dir eine passende Position und stell deinen ersten Kandidaten vor.';
     // All clear
     return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
-  }, [urgentCount, upcomingInterviews, totalPendingAlerts, topTasks, isNewcomer]);
+  }, [urgentCount, upcomingInterviews, totalPendingAlerts, topRows, isNewcomer]);
 
   const inboundEmail = useMemo(() => {
     if (!user?.id) return '';
@@ -604,6 +612,9 @@ export default function RecruiterDashboard() {
           </CardContent>
         </Card>
 
+        <LigaDashboardCard />
+        <LigaAwardDialog />
+
         {/* ═══ BENTO GRID: 2x2 ═══ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -650,52 +661,59 @@ export default function RecruiterDashboard() {
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {topTasks.map((item) => {
-                    const typeInfo = getAlertTypeLabel(item.taskCategory);
-                    const isUrgent = item.priority === 'critical';
+                  {topRows.map((row) => {
+                    // Dieselben Zeilen wie die Seite „Aufgaben“ (20.10.2026): je Person eine
+                    // Zeile, „Kunde prüft“ je Stelle. Kein Haken bei Aufgaben, die sich durch
+                    // die Handlung erledigen; nur eigene Aufgaben hakt man ab.
+                    const item = rowItem(row);
+                    const person = row.kind === 'person' ? row.group : null;
+                    const pill = buildGuide(item).pill;
+                    const n = row.kind === 'bundle' ? row.bundle.items.length : 0;
+                    const title = person ? person.name : row.kind === 'bundle' ? row.bundle.jobTitle || 'Stelle' : item.title;
+                    const sub = person
+                      ? `${item.jobTitle ?? ''}${item.companyName ? ` · ${item.companyName}` : ''}`
+                      : row.kind === 'bundle'
+                        ? `${n} ${n === 1 ? 'Kandidat' : 'Kandidaten'} · ${row.bundle.erinnerung === 2 ? '2. Erinnerung' : `Kunde prüft seit ${row.bundle.days} Tagen`}`
+                        : '';
 
                     return (
                       <div
-                        key={`${item.itemType}-${item.itemId}`}
+                        key={row.key}
                         role="button"
                         tabIndex={0}
-                        onClick={() => handleViewTask(item)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleViewTask(item); }}
+                        onClick={() => handleViewTask(row)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleViewTask(row); }}
                         className={cn(
                           'flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition-all cursor-pointer group',
-                          isUrgent
+                          row.critical
                             ? 'bg-destructive/[0.04] hover:bg-destructive/[0.08]'
                             : 'hover:bg-accent/50'
                         )}
                       >
                         <div className={cn(
                           'w-1.5 h-1.5 rounded-full shrink-0',
-                          isUrgent ? 'bg-destructive' : 'bg-muted-foreground/30'
+                          row.critical ? 'bg-destructive' : 'bg-muted-foreground/30'
                         )} />
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium truncate">
-                              {item.candidateName || item.title}
-                            </span>
-                            <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border-0 shrink-0', typeInfo.color)}>
-                              {typeInfo.label}
-                            </Badge>
+                            <span className="text-sm font-medium truncate">{title}</span>
+                            <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px] font-medium">{pill}</Badge>
+                            {person && person.others.length > 0 && (
+                              <span className="text-[11px] text-muted-foreground shrink-0">+{person.others.length}</span>
+                            )}
                           </div>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {item.jobTitle}
-                            {item.companyName ? ` · ${item.companyName}` : ''}
-                          </p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{sub}</p>
                         </div>
 
-                        {item.feeValue != null && item.feeValue > 0 && (
+                        {row.fee > 0 && (
                           <span className="text-xs font-semibold text-emerald-600 shrink-0 tabular-nums">
-                            {formatEuro(item.feeValue)}
+                            <Honorar>{formatEuro(row.fee)}</Honorar>
                           </span>
                         )}
 
                         <div className="flex items-center gap-0.5 shrink-0">
-                          {item.candidatePhone && (
+                          {person && item.candidatePhone && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -708,18 +726,22 @@ export default function RecruiterDashboard() {
                               <TooltipContent>Anrufen</TooltipContent>
                             </Tooltip>
                           )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost" size="sm"
-                                className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                                onClick={(e) => { e.stopPropagation(); handleMarkDone(item); }}
-                              >
-                                <Check className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Erledigt</TooltipContent>
-                          </Tooltip>
+                          {item.itemType === 'task' ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost" size="sm"
+                                  className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                  onClick={(e) => { e.stopPropagation(); handleMarkDone(item); }}
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Erledigt</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
                         </div>
                       </div>
                     );
@@ -778,9 +800,9 @@ export default function RecruiterDashboard() {
                     <div className="flex items-center justify-between text-sm cursor-help">
                       <span className="text-muted-foreground">Erwartbar</span>
                       <div className="flex items-baseline gap-2">
-                        <span className="font-semibold text-emerald-600">{formatEuroFull(stats.pipelineRealCase)}</span>
+                        <span className="font-semibold text-emerald-600"><Honorar>{formatEuroFull(stats.pipelineRealCase)}</Honorar></span>
                         <span className="text-[11px] text-muted-foreground">
-                          ({formatEuro(stats.pipelineWorstCase)} – {formatEuro(stats.pipelineBestCase)})
+                          <Honorar>{`(${formatEuro(stats.pipelineWorstCase)} – ${formatEuro(stats.pipelineBestCase)})`}</Honorar>
                         </span>
                       </div>
                     </div>
@@ -792,7 +814,7 @@ export default function RecruiterDashboard() {
                 {stats.earnings > 0 && (
                   <div className="flex items-center justify-between text-sm pt-1 border-t border-border/30">
                     <span className="text-muted-foreground">Verdient</span>
-                    <span className="font-semibold">{formatEuroFull(stats.earnings)}</span>
+                    <span className="font-semibold"><Honorar>{formatEuroFull(stats.earnings)}</Honorar></span>
                   </div>
                 )}
               </div>
@@ -872,17 +894,8 @@ export default function RecruiterDashboard() {
                         to={`/recruiter/jobs/${job.id}`}
                         className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all group"
                       >
-                        {revealedJobIds.has(job.id) ? (
-                          <div className="h-8 w-8 rounded-md overflow-hidden bg-background border border-border/50 flex items-center justify-center shrink-0">
-                            <img
-                              src={getCompanyLogoUrl(undefined, undefined, job.company_name || '')}
-                              alt=""
-                              className="h-6 w-6 object-contain"
-                              onError={(e) => {
-                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_name || 'U')}&background=1e3a5f&color=fff&size=64&bold=true`;
-                              }}
-                            />
-                          </div>
+                        {revealedJobIds.has(job.id) || job.company_name ? (
+                          <FirmenLogo url={job.company_logo_url} name={job.company_name} size={32} />
                         ) : (
                           <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center shrink-0">
                             <Lock className="h-3.5 w-3.5 text-muted-foreground/50" />
@@ -909,7 +922,7 @@ export default function RecruiterDashboard() {
 
                         <div className="text-right shrink-0">
                           <p className="text-xs font-semibold text-emerald-600">
-                            {verdienstJeTag(job) ?? (earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`)}
+                            <Honorar>{verdienstJeTag(job) ?? (earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`)}</Honorar>
                           </p>
                           {verdienstJeTag(job) && <p className="text-[10px] text-muted-foreground">je Einsatztag</p>}
                         </div>
@@ -953,7 +966,7 @@ export default function RecruiterDashboard() {
                     <Euro className="h-3.5 w-3.5 text-emerald-600" />
                     <span className="text-xs text-emerald-600">Verdient</span>
                   </div>
-                  <p className="text-xl font-bold text-emerald-600">{formatEuroFull(stats.earnings)}</p>
+                  <p className="text-xl font-bold text-emerald-600"><Honorar>{formatEuroFull(stats.earnings)}</Honorar></p>
                 </div>
               </div>
 

@@ -6,6 +6,7 @@ import {
   verdienstImMonat,
   verdienstJeTag,
 } from '@/lib/recruiterContracting';
+import { Honorar } from './Honorar';
 
 /**
  * Projektkonditionen einer Contracting-Stelle als Gesprächskarte (Variante C,
@@ -37,9 +38,9 @@ export function ContractingKonditionen({ job }: { job: object }) {
       {jeTag && (
         <div className="space-y-1 rounded-lg bg-muted/40 p-3">
           <p className="text-xs text-muted-foreground">Nur für dich</p>
-          <p className="text-lg font-semibold text-emerald-600">ca. {jeTag}</p>
+          <p className="text-lg font-semibold text-emerald-600"><Honorar>{`ca. ${jeTag}`}</Honorar></p>
           <p className="text-xs leading-5 text-muted-foreground">
-            je Einsatztag{imMonat ? ` · bei ${tage} Tagen/Woche ca. ${imMonat} im Monat` : ''} · {AUSZAHLUNG_RECRUITER}
+            je Einsatztag{imMonat ? <> · bei {tage} Tagen/Woche ca. <Honorar>{imMonat}</Honorar> im Monat</> : ''} · {AUSZAHLUNG_RECRUITER}
           </p>
         </div>
       )}

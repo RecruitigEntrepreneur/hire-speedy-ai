@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Honorar } from './Honorar';
 import { 
   ArrowUpRight, 
   Phone, 
@@ -129,7 +130,7 @@ function PipelineCard({ submission }: PipelineCardProps) {
             <div className="flex items-center gap-1 text-emerald-600">
               <Euro className="h-3 w-3" />
               <span className="font-semibold">
-                {formatEarning(submission.potential_earning)}
+                <Honorar>{formatEarning(submission.potential_earning)}</Honorar>
               </span>
             </div>
           )}

@@ -18,6 +18,7 @@ import { FIT_LABEL, byFit, isFitting } from '@/lib/matchFit';
 import { usePoolFit } from '@/hooks/usePoolFit';
 import { Badge } from '@/components/ui/badge';
 import { ClientQuestionFlow } from './search/ClientQuestionFlow';
+import { Honorar } from './Honorar';
 
 interface MiniCandidate {
   id: string;
@@ -186,7 +187,7 @@ export function ActivationConfirmDialog({
                     {(earningPerDay || earning !== null) && (
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-bold tabular-nums text-emerald-500">
-                          {earningPerDay ?? `≈ €${earning!.toLocaleString('de-DE')}`}
+                          <Honorar>{earningPerDay ?? `≈ €${earning!.toLocaleString('de-DE')}`}</Honorar>
                         </p>
                         <p className="text-[10px] text-muted-foreground">{earningPerDay ? 'je Einsatztag' : 'dein Verdienst'}</p>
                       </div>

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Star, ArrowUpRight, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Honorar } from './Honorar';
 
 interface ActiveJob {
   id: string;
@@ -43,7 +44,7 @@ export function MyActiveJobs({ jobs, onSelectJob }: MyActiveJobsProps) {
               <p className="text-sm font-medium truncate max-w-[160px]">{job.title}</p>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs font-semibold text-emerald-500 tabular-nums">
-                  {job.earning ? `€${(job.earning / 1000).toFixed(1)}k` : 'k.A.'}
+                  {job.earning ? <Honorar>{`€${(job.earning / 1000).toFixed(1)}k`}</Honorar> : 'k.A.'}
                 </span>
                 <div className="w-12 h-1.5 rounded-full bg-muted/50 overflow-hidden">
                   <div

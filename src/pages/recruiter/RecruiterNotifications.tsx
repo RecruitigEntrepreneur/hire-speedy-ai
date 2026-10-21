@@ -23,6 +23,7 @@ import {
   Unlock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 interface Notification {
   id: string;
@@ -249,7 +250,7 @@ export default function RecruiterNotifications() {
                             </p>
                             {notification.message && (
                               <p className="text-sm text-muted-foreground mt-1">
-                                {notification.message}
+                                {notification.type === 'placement_created' ? <Honorar>{notification.message}</Honorar> : notification.message}
                               </p>
                             )}
                           </div>

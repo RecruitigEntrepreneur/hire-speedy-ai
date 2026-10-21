@@ -15,6 +15,7 @@ import { earningFor } from '@/lib/submissionNotify';
 import { ClientQuestionFlow } from '@/components/recruiter/search/ClientQuestionFlow';
 import { useMatchV41 } from '@/hooks/useMatchV41';
 import { FIT_LABEL, fitLine, fitOf, isFitting, type Fit } from '@/lib/matchFit';
+import { useVerdecke } from '@/lib/honorarVerdeckt';
 
 type JobRow = Record<string, unknown> & { id: string; title: string };
 
@@ -75,6 +76,7 @@ export function SubmitToJobDialog({
   const [submittedJobIds, setSubmittedJobIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const verdecke = useVerdecke();
   const [job, setJob] = useState<JobRow | null>(null);
   const [questionFor, setQuestionFor] = useState<JobRow | null>(null);
   const [searches, setSearches] = useState<Map<string, MySearch>>(new Map());
@@ -246,7 +248,7 @@ export function SubmitToJobDialog({
                 <DialogTitle>{firstName} bei „{job.title}“ vorstellen</DialogTitle>
                 <DialogDescription>
                   {[typeof job.industry === 'string' ? job.industry : null, typeof job.location === 'string' ? job.location : null,
-                    earningFor(job) ? `≈ ${earningFor(job)!.toLocaleString('de-DE')} € für dich` : null].filter(Boolean).join(' · ')}
+                    earningFor(job) ? verdecke(`≈ ${earningFor(job)!.toLocaleString('de-DE')} € für dich`) : null].filter(Boolean).join(' · ')}
                 </DialogDescription>
               </DialogHeader>
               <Button variant="ghost" size="sm" className="w-fit px-0 text-muted-foreground hover:bg-transparent hover:text-foreground" onClick={() => setJob(null)}>

@@ -13,6 +13,7 @@ import { maskIban } from "../../../supabase/functions/_shared/recruiter-billing"
 import { Loader2, Wallet, TrendingUp, Clock, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { Honorar } from '@/components/recruiter/Honorar';
 
 interface PlacementWithPayout {
   id: string;
@@ -171,7 +172,7 @@ export default function RecruiterPayouts() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.pending)}</div>
+              <div className="text-2xl font-bold"><Honorar>{formatCurrency(stats.pending)}</Honorar></div>
               <p className="text-xs text-muted-foreground">Warte auf Zahlung</p>
             </CardContent>
           </Card>
@@ -181,7 +182,7 @@ export default function RecruiterPayouts() {
               <Wallet className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.inEscrow)}</div>
+              <div className="text-2xl font-bold text-blue-600"><Honorar>{formatCurrency(stats.inEscrow)}</Honorar></div>
               <p className="text-xs text-muted-foreground">90-Tage Escrow</p>
             </CardContent>
           </Card>
@@ -191,7 +192,7 @@ export default function RecruiterPayouts() {
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.available)}</div>
+              <div className="text-2xl font-bold text-green-600"><Honorar>{formatCurrency(stats.available)}</Honorar></div>
               <p className="text-xs text-muted-foreground">Zur Auszahlung bereit</p>
             </CardContent>
           </Card>
@@ -201,7 +202,7 @@ export default function RecruiterPayouts() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.paid)}</div>
+              <div className="text-2xl font-bold"><Honorar>{formatCurrency(stats.paid)}</Honorar></div>
               <p className="text-xs text-muted-foreground">Gesamt erhalten</p>
             </CardContent>
           </Card>
@@ -255,7 +256,7 @@ export default function RecruiterPayouts() {
                           : "—"}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(placement.recruiter_payout || 0)}
+                        <Honorar>{formatCurrency(placement.recruiter_payout || 0)}</Honorar>
                       </TableCell>
                       <TableCell>
                         <EscrowStatusBadge

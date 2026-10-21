@@ -1,26 +1,12 @@
 import { Button } from '@/components/ui/button';
-import {
-  Lock,
-  CheckCircle,
-  MapPin,
-  Search,
-  Check,
-  Flame,
-  Clock,
-} from 'lucide-react';
-import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import { Lock, Search, Check } from 'lucide-react';
+import { formatAnonymousCompanyShort, formatWorkModel } from '@/lib/anonymousCompanyFormat';
 import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
-import { getCompanyLogoUrl } from '@/lib/companyLogo';
+import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
-
-interface CompanyProfile {
-  logo_url: string | null;
-  website: string | null;
-  headcount: number | null;
-  industry: string | null;
-}
+import { Honorar } from './Honorar';
 
 interface JobActionCardProps {
   job: {
@@ -28,7 +14,9 @@ interface JobActionCardProps {
     // client_id bewusst nicht Teil der Props: recruiter_jobs_view liefert die
     // Spalte seit Welle 1 nicht mehr aus (Identitaetsvektor).
     title: string;
-    company_name: string;
+    company_name: string | null;
+    /** Aus recruiter_jobs_view, wie der Name erst nach dem Reveal befüllt. */
+    company_logo_url?: string | null;
     location: string;
     remote_type: string;
     salary_min: number | null;
@@ -51,7 +39,6 @@ interface JobActionCardProps {
   earning: number | null;
   isRevealed: boolean;
   revealedCompanyName?: string;
-  profile?: CompanyProfile;
   isSelected: boolean;
   /** Anker für den Rundgang (data-tour); nur an einer Karte gesetzt. */
   tourId?: string;
@@ -63,19 +50,26 @@ interface JobActionCardProps {
 }
 
 const formatSalaryRange = (min: number | null, max: number | null): string | null => {
-  const k = (n: number) => `${Math.round(n / 1000)}k`;
-  if (min && max) return `€${k(min)}–${k(max)}`;
-  if (min) return `ab €${k(min)}`;
-  if (max) return `bis €${k(max)}`;
+  const k = (n: number) => `${Math.round(n / 1000)}`;
+  if (min && max) return `€${k(min)}–${k(max)}k`;
+  if (min) return `ab €${k(min)}k`;
+  if (max) return `bis €${k(max)}k`;
   return null;
 };
 
+/**
+ * Eine Stelle in der Liste „Offene Jobs" (Umbau 19.10.2026).
+ *
+ * Drei Zeilen statt fünf: Titel und Verdienst, dann wer/wo in einer Zeile, dann
+ * Gehalt und Skills als Text. Farbe nur mit Bedeutung — Grün ist Geld und „Du
+ * suchst", Rot ist dringend, alles andere grau. Die anonyme Firmenzeile nennt nur
+ * Branche und Größe; Ort, Arbeitsmodell und Dringlichkeit standen vorher doppelt.
+ */
 export function JobActionCard({
   job,
   earning,
   isRevealed,
   revealedCompanyName,
-  profile,
   isSelected,
   tourId,
   isActive,
@@ -86,11 +80,16 @@ export function JobActionCard({
   const salaryRange = formatSalaryRange(job.salary_min, job.salary_max);
   const tagVerdienst = verdienstJeTag(job);
   const tagessatz = spezialistenSatz(job);
-  const topSkills = (job.skills || []).slice(0, 3);
+  const skills = (job.skills || []).slice(0, 3);
   const moreSkills = Math.max((job.skills?.length || 0) - 3, 0);
   const freshness = job.updated_at
     ? formatDistanceToNow(new Date(job.updated_at), { locale: de, addSuffix: true })
     : null;
+  const urgent = job.hiring_urgency === 'urgent';
+  const facts = [
+    tagessatz ? `Contracting · ${tagessatz} / Tag` : salaryRange,
+    ...skills,
+  ].filter(Boolean) as string[];
 
   return (
     <div
@@ -101,152 +100,81 @@ export function JobActionCard({
       onClick={onSelect}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(); }}
       className={cn(
-        'rounded-lg border p-3.5 cursor-pointer transition-all group bg-card',
+        'group cursor-pointer rounded-lg border bg-card px-4 py-3 transition-colors',
         isSelected
-          ? 'border-l-[3px] border-l-primary border-t-border/50 border-r-border/50 border-b-border/50 shadow-sm'
-          : 'border-border/40 hover:border-border/70 hover:shadow-sm',
+          ? 'border-primary/60 ring-1 ring-primary/40'
+          : 'border-border hover:border-muted-foreground/40',
       )}
     >
-      {/* Row 1: Title + Earning */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            {job.hiring_urgency === 'urgent' && (
-              <Flame className="h-3.5 w-3.5 text-destructive shrink-0" />
-            )}
-            <h3 className="font-medium text-sm leading-snug">{job.title}</h3>
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          {tagVerdienst ? (
+      {/* Zeile 1: Titel | Verdienst */}
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="min-w-0 text-[15px] font-medium leading-snug">{job.title}</h3>
+        <span className="shrink-0 text-[15px] font-semibold tabular-nums text-emerald-500">
+          <Honorar>{tagVerdienst ?? (earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage} %`)}</Honorar>
+        </span>
+      </div>
+
+      {/* Zeile 2: Dringend · Firma · Ort · Arbeitsmodell | Honorar-Satz */}
+      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        {/* Firmenname kürzt mit „…“, statt unter den Honorar-Satz zu laufen (21.10.2026). */}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          {urgent && <span className="shrink-0 font-medium text-destructive">Dringend</span>}
+          {urgent && <span aria-hidden="true">·</span>}
+          {isRevealed ? (
             <>
-              <span className="block text-sm font-bold text-emerald-500 tabular-nums">{tagVerdienst}</span>
-              <span className="block text-[10px] text-muted-foreground">je Einsatztag</span>
+              <FirmenLogo url={job.company_logo_url} name={revealedCompanyName} size={16} />
+              <span className="min-w-0 truncate text-foreground/80">{revealedCompanyName}</span>
             </>
           ) : (
-          <>
-          <span className="block text-sm font-bold text-emerald-500 tabular-nums">
-            {earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage}%`}
-          </span>
-          {earning != null && (
-            <span className="block text-[10px] text-muted-foreground tabular-nums">
-              {job.recruiter_fee_percentage} % Fee
-            </span>
+            <>
+              <Lock className="h-3 w-3 shrink-0" aria-label="Firma anonym" />
+              <span className="truncate">{formatAnonymousCompanyShort({ industry: job.industry, companySize: job.company_size_band })}</span>
+            </>
           )}
-          </>
-          )}
+          {job.location && <><span aria-hidden="true">·</span><span className="truncate">{job.location}</span></>}
+          {job.remote_type && <><span aria-hidden="true" className="hidden sm:inline">·</span><span className="hidden shrink-0 sm:inline">{formatWorkModel(job.remote_type)}</span></>}
         </div>
+        {/* Am Handy genügt der Betrag oben; Satz und Arbeitsmodell ab sm. */}
+        <span className="hidden shrink-0 tabular-nums sm:inline">
+          {tagVerdienst ? 'je Einsatztag' : earning != null ? <Honorar>{`${job.recruiter_fee_percentage} % Honorar`}</Honorar> : null}
+        </span>
       </div>
 
-      {/* Row 2: Company */}
-      <div className="mt-1">
-        {isRevealed ? (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <div className="h-4 w-4 rounded overflow-hidden bg-background border border-border/50 flex items-center justify-center shrink-0">
-              <img
-                src={getCompanyLogoUrl(profile?.logo_url, profile?.website, revealedCompanyName || '')}
-                alt=""
-                className="h-3 w-3 object-contain"
-                onError={(e) => {
-                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(revealedCompanyName || 'U')}&background=1e3a5f&color=fff&size=32&bold=true`;
-                }}
-              />
-            </div>
-            <span>{revealedCompanyName}</span>
-            <CheckCircle className="h-3 w-3 text-emerald-500 shrink-0" />
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Lock className="h-3 w-3 shrink-0" />
-            {formatAnonymousCompany({
-              industry: job.industry,
-              companySize: job.company_size_band,
-              fundingStage: job.funding_stage,
-              techStack: job.tech_environment,
-              location: job.location,
-              urgency: job.hiring_urgency,
-              remoteType: job.remote_type,
-            })}
-          </p>
-        )}
-      </div>
-
-      {/* Row 3: Location */}
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-        <MapPin className="h-3 w-3 shrink-0" />
-        <span className="truncate">{job.location}</span>
-        <span className="text-border">·</span>
-        <span className="capitalize">{job.remote_type}</span>
-      </div>
-
-      {/* Row 4: Salary + Skills chips */}
-      {(salaryRange || tagessatz || topSkills.length > 0) && (
-        <div className="flex items-center gap-1.5 flex-wrap mt-2">
-          {tagessatz && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground tabular-nums">
-              Contracting · {tagessatz} / Tag
-            </span>
-          )}
-          {salaryRange && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground tabular-nums">
-              {salaryRange}
-            </span>
-          )}
-          {topSkills.map((skill) => (
-            <span
-              key={skill}
-              className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/50 text-[11px] text-muted-foreground max-w-[120px] truncate"
-            >
-              {skill}
-            </span>
-          ))}
-          {moreSkills > 0 && (
-            <span className="text-[11px] text-muted-foreground/70">+{moreSkills}</span>
-          )}
-        </div>
+      {/* Zeile 3: Gehalt · Skills */}
+      {facts.length > 0 && (
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {facts.join(' · ')}
+          {moreSkills > 0 && <span className="text-muted-foreground/70"> · +{moreSkills}</span>}
+        </p>
       )}
 
-      {/* Row 5: Bottom — Frische | Ich suche (keine Zahl anderer Headhunter) */}
-      <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-border/20">
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground min-w-0">
-          {pausedUntil ? (
-            <span className="flex items-center gap-1 truncate text-amber-600">
-              <Clock className="h-3 w-3 shrink-0" />
-              Pausiert bis {new Date(pausedUntil).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
-            </span>
-          ) : freshness ? (
-            <span className="flex items-center gap-1 truncate">
-              <Clock className="h-3 w-3 shrink-0" />
-              Aktiv {freshness}
-            </span>
-          ) : null}
-        </div>
+      {/* Fuß: Frische | Ich suche (keine Zahl anderer Headhunter) */}
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        {pausedUntil ? (
+          <span className="truncate text-[11px] text-amber-600">
+            Pausiert bis {new Date(pausedUntil).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+          </span>
+        ) : (
+          <span className="truncate text-[11px] text-muted-foreground">{freshness ? `${freshness} aktualisiert` : ''}</span>
+        )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          data-tour={tourId ? `${tourId}.activate` : undefined}
-          className={cn(
-            'h-6 text-[11px] px-2 shrink-0',
-            isActive
-              ? 'text-emerald-500 cursor-default pointer-events-none'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          disabled={!isActive && !!pausedUntil}
-          onClick={isActive ? undefined : onToggleActive}
-        >
-          {isActive ? (
-            <>
-              <Check className="h-3 w-3 mr-1" />
-              Du suchst
-            </>
-          ) : (
-            <>
-              <Search className="h-3 w-3 mr-1" />
-              Ich suche
-            </>
-          )}
-        </Button>
+        {isActive ? (
+          <span data-tour={tourId ? `${tourId}.activate` : undefined} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-500">
+            <Check className="h-3.5 w-3.5" />Du suchst
+          </span>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            data-tour={tourId ? `${tourId}.activate` : undefined}
+            className="h-7 shrink-0 px-2.5 text-xs"
+            disabled={!!pausedUntil}
+            onClick={onToggleActive}
+          >
+            <Search className="mr-1 h-3 w-3" />
+            Ich suche
+          </Button>
+        )}
       </div>
     </div>
   );

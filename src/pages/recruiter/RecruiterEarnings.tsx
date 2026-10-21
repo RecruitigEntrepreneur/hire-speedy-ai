@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RecruiterMetricsSection } from '@/components/recruiter/RecruiterMetricsSection';
 import { useRecruiterStats } from '@/hooks/useRecruiterStats';
+import { Honorar } from '@/components/recruiter/Honorar';
 import {
   Table,
   TableBody,
@@ -198,7 +199,7 @@ export default function RecruiterEarnings() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Ausstehend</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.pending)}</p>
+                  <p className="text-2xl font-bold"><Honorar>{formatCurrency(stats.pending)}</Honorar></p>
                 </div>
               </div>
             </CardContent>
@@ -212,7 +213,7 @@ export default function RecruiterEarnings() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Bestätigt</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.confirmed)}</p>
+                  <p className="text-2xl font-bold"><Honorar>{formatCurrency(stats.confirmed)}</Honorar></p>
                 </div>
               </div>
             </CardContent>
@@ -226,7 +227,7 @@ export default function RecruiterEarnings() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Ausgezahlt</p>
-                  <p className="text-2xl font-bold text-emerald">{formatCurrency(stats.paid)}</p>
+                  <p className="text-2xl font-bold text-emerald"><Honorar>{formatCurrency(stats.paid)}</Honorar></p>
                 </div>
               </div>
             </CardContent>
@@ -240,7 +241,7 @@ export default function RecruiterEarnings() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Gesamt</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.total)}</p>
+                  <p className="text-2xl font-bold"><Honorar>{formatCurrency(stats.total)}</Honorar></p>
                 </div>
               </div>
             </CardContent>
@@ -297,10 +298,10 @@ export default function RecruiterEarnings() {
                       </TableCell>
                       <TableCell>{formatCurrency(placement.agreed_salary || 0)}</TableCell>
                       <TableCell>
-                        {placement.submissions?.jobs?.recruiter_fee_percentage || 15}%
+                        <Honorar>{`${placement.submissions?.jobs?.recruiter_fee_percentage || 15}%`}</Honorar>
                       </TableCell>
                       <TableCell className="font-semibold text-emerald">
-                        {formatCurrency(placement.recruiter_payout || 0)}
+                        <Honorar>{formatCurrency(placement.recruiter_payout || 0)}</Honorar>
                       </TableCell>
                       <TableCell>{getStatusBadge(placement.payment_status)}</TableCell>
                       <TableCell>

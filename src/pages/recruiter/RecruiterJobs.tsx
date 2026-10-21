@@ -22,10 +22,6 @@ import {
   Search,
   Briefcase,
   Loader2,
-  Flame,
-  Sparkles,
-  Euro,
-  CheckCircle,
   Star,
   ArrowUpRight,
   Plus,
@@ -52,6 +48,7 @@ import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Honorar } from '@/components/recruiter/Honorar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +57,8 @@ interface Job {
   title: string;
   // Nur nach dem Reveal befuellt — recruiter_jobs_view liefert sonst null.
   company_name: string | null;
+  /** Wie company_name erst nach dem Reveal befuellt (client_companies.logo_url). */
+  company_logo_url?: string | null;
   description?: string | null;
   location: string;
   remote_type: string;
@@ -86,6 +85,12 @@ type TabKey = 'all' | 'urgent' | 'new' | 'top' | 'mine';
 type SortKey = 'newest' | 'fee';
 
 const TOP_TAB_LIMIT = 10;
+
+/** Filter als ruhige Textknöpfe; gesetzte Filter heben sich ab. */
+const FILTER_TRIGGER = 'h-8 w-auto gap-1 border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 [&>span]:truncate';
+const FILTER_ACTIVE = 'font-medium text-foreground';
+const REMOTE_FILTER_LABELS: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
+const LEVEL_FILTER_LABELS: Record<string, string> = { junior: 'Junior', mid: 'Mid', senior: 'Senior', lead: 'Lead', 'c-level': 'C-Level' };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -477,12 +482,12 @@ export default function RecruiterJobs() {
     );
   }
 
-  const tabs: { key: TabKey; label: string; icon?: React.ReactNode; count: number }[] = [
+  const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: 'all', label: 'Alle', count: tabCounts.all },
-    { key: 'urgent', label: 'Dringend', icon: <Flame className="h-3 w-3" />, count: tabCounts.urgent },
-    { key: 'new', label: 'Neu', icon: <Sparkles className="h-3 w-3" />, count: tabCounts.new },
-    { key: 'top', label: 'Top', icon: <Euro className="h-3 w-3" />, count: tabCounts.top },
-    { key: 'mine', label: 'Meine Suchen', icon: <CheckCircle className="h-3 w-3" />, count: tabCounts.mine },
+    { key: 'urgent', label: 'Dringend', count: tabCounts.urgent },
+    { key: 'new', label: 'Neu', count: tabCounts.new },
+    { key: 'top', label: 'Top', count: tabCounts.top },
+    { key: 'mine', label: 'Meine Suchen', count: tabCounts.mine },
   ];
 
   return (
@@ -490,36 +495,17 @@ export default function RecruiterJobs() {
       <div className="flex flex-col h-[calc(100vh-4rem)] max-w-7xl">
         {/* ── Hero: Compact KPI Strip + Process Cards ── */}
         <div className="shrink-0 py-3 space-y-3">
-          {/* KPI Strip — one line */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-base font-semibold truncate">
-                {getGreeting()}{capitalizedName ? `, ${capitalizedName}` : ''}
-                <span className="text-xs font-normal text-muted-foreground ml-2">
-                  {urgentCount > 0
-                    ? `· ${urgentCount} dringende Jobs warten`
-                    : '· Finde deinen nächsten Top-Kandidaten'
-                  }
-                </span>
-              </h1>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10">
-                <span className="text-xs font-bold text-emerald-600 tabular-nums">{formatEuroShort(kpis.totalPotential)}</span>
-                <span className="text-[10px] text-muted-foreground">Potenzial</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50">
-                <span className="text-xs font-bold tabular-nums">{jobs.length}</span>
-                <span className="text-[10px] text-muted-foreground">Jobs</span>
-              </div>
-              <div className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-md',
-                urgentCount > 0 ? 'bg-destructive/10' : 'bg-muted/50',
-              )}>
-                <span className={cn('text-xs font-bold tabular-nums', urgentCount > 0 && 'text-destructive')}>{urgentCount}</span>
-                <span className="text-[10px] text-muted-foreground">Dringend</span>
-              </div>
-            </div>
+          {/* Kopf: Begrüßung und eine ruhige Zeile statt drei bunter Pillen (19.10.2026).
+              Farbe nur mit Bedeutung: Rot dringend, Grün Geld. */}
+          <div>
+            <h1 className="truncate text-xl font-semibold tracking-tight">
+              {getGreeting()}{capitalizedName ? `, ${capitalizedName}` : ''}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {jobs.length} offene {jobs.length === 1 ? 'Stelle' : 'Stellen'}
+              {urgentCount > 0 && <> · <span className="text-destructive">{urgentCount} dringend</span></>}
+              {kpis.totalPotential > 0 && <> · <span className="font-medium text-emerald-500"><Honorar>{formatEuroShort(kpis.totalPotential)}</Honorar></span> mögliches Honorar</>}
+            </p>
           </div>
 
           {/* Active Jobs — Horizontal Process Cards */}
@@ -612,7 +598,7 @@ export default function RecruiterJobs() {
                             {timeSince || 'Noch nicht eingereicht'}
                           </span>
                           <span className="text-[10px] font-semibold text-emerald-500 tabular-nums shrink-0">
-                            {job.earning ? formatEuroShort(job.earning) : ''}
+                            {job.earning ? <Honorar>{formatEuroShort(job.earning)}</Honorar> : ''}
                           </span>
                         </div>
                       </div>
@@ -624,21 +610,22 @@ export default function RecruiterJobs() {
           )}
         </div>
 
-        {/* ── Filters + Tabs ── */}
-        <div className="shrink-0 space-y-2 pb-3 border-b border-border/30" data-tour="jobs.filters">
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[180px] max-w-sm">
+        {/* ── Filter + Reiter ── (19.10.2026: Filter ohne Rahmen, Reiter unterstrichen statt
+            schwarzer Knopf mit Symbolen — gleiche Reihenfolge wie vorher) */}
+        <div className="shrink-0 space-y-3 pb-0" data-tour="jobs.filters">
+          <div className="flex flex-wrap items-center gap-1">
+            <div className="relative mr-2 min-w-[180px] max-w-xs flex-1">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Suche..."
+                placeholder="Titel oder Skill"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm"
+                className="h-8 pl-8 text-sm"
               />
             </div>
             <Select value={remoteFilter} onValueChange={setRemoteFilter}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <SelectValue placeholder="Remote" />
+              <SelectTrigger className={cn(FILTER_TRIGGER, remoteFilter !== 'all' && FILTER_ACTIVE)}>
+                <SelectValue>{remoteFilter === 'all' ? 'Remote' : REMOTE_FILTER_LABELS[remoteFilter]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Remote: alle</SelectItem>
@@ -648,8 +635,8 @@ export default function RecruiterJobs() {
               </SelectContent>
             </Select>
             <Select value={levelFilter} onValueChange={setLevelFilter}>
-              <SelectTrigger className="w-[110px] h-8 text-xs">
-                <SelectValue placeholder="Level" />
+              <SelectTrigger className={cn(FILTER_TRIGGER, levelFilter !== 'all' && FILTER_ACTIVE)}>
+                <SelectValue>{levelFilter === 'all' ? 'Level' : LEVEL_FILTER_LABELS[levelFilter]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Level: alle</SelectItem>
@@ -662,8 +649,8 @@ export default function RecruiterJobs() {
             </Select>
             {industries.length > 0 && (
               <Select value={industryFilter} onValueChange={setIndustryFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue placeholder="Branche" />
+                <SelectTrigger className={cn(FILTER_TRIGGER, 'max-w-[220px]', industryFilter !== 'all' && FILTER_ACTIVE)}>
+                  <SelectValue>{industryFilter === 'all' ? 'Branche' : industryFilter}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Branche: alle</SelectItem>
@@ -674,7 +661,7 @@ export default function RecruiterJobs() {
               </Select>
             )}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-              <SelectTrigger className="w-[150px] h-8 text-xs">
+              <SelectTrigger className={cn(FILTER_TRIGGER, 'ml-auto')}>
                 <SelectValue placeholder="Sortierung" />
               </SelectTrigger>
               <SelectContent>
@@ -684,30 +671,30 @@ export default function RecruiterJobs() {
             </Select>
           </div>
 
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex flex-wrap gap-x-5 border-b border-border" role="tablist" aria-label="Jobs filtern">
             {tabs.map(tab => (
-              <Button
+              <button
                 key={tab.key}
-                variant={activeTab === tab.key ? 'default' : 'ghost'}
-                size="sm"
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
                 className={cn(
-                  'h-7 text-xs gap-1',
-                  activeTab !== tab.key && 'text-muted-foreground',
+                  '-mb-px inline-flex items-center gap-1.5 border-b-2 pb-2 pt-1 text-sm transition-colors',
+                  activeTab === tab.key
+                    ? 'border-foreground font-medium text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.icon}
                 {tab.label}
-                <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0 h-4">
-                  {tab.count}
-                </Badge>
-              </Button>
+                <span className="text-xs tabular-nums text-muted-foreground">{tab.count}</span>
+              </button>
             ))}
           </div>
         </div>
 
         {/* ── Main: Feed + Panel (fixed height, independent scroll) ── */}
-        <div className="flex gap-4 flex-1 min-h-0 pt-3">
+        <div className="flex gap-4 flex-1 min-h-0 pt-4">
           {/* Feed — scrolls independently */}
           <div
             className={cn(
@@ -760,7 +747,7 @@ export default function RecruiterJobs() {
           {/* Panel — scrolls independently, 50% width */}
           {isPanelOpen && selectedJob && (
             <div className="hidden lg:block w-1/2 overflow-hidden" data-tour="jobs.preview">
-              <Card className="border-border/30 shadow-sm h-full">
+              <Card className="h-full border-border shadow-none">
                 <CardContent className="p-0 h-full">
                   <JobPreviewPanel
                     job={selectedJob}

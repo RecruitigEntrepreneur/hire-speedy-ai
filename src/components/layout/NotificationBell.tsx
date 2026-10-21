@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 import { cn } from "@/lib/utils";
+import { Honorar } from '@/components/recruiter/Honorar';
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 
@@ -134,7 +135,8 @@ export function NotificationBell() {
                     <p className="text-sm font-medium truncate">{notification.title}</p>
                     {notification.message && (
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                        {notification.message}
+                        {/* „Provision: … €“ nach einer Platzierung folgt dem Auge in der Kopfleiste. */}
+                        {notification.type === 'placement_created' ? <Honorar>{notification.message}</Honorar> : notification.message}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-1">
