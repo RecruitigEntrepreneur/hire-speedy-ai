@@ -61,7 +61,7 @@ export function TodayInterviewsRail() {
               >
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span className="text-xs font-medium">
-                  {debriefCount} Debrief{debriefCount > 1 ? 's' : ''} fällig
+                  {debriefCount} {debriefCount > 1 ? 'Nachgespräche' : 'Nachgespräch'} fällig
                 </span>
               </Link>
             )}

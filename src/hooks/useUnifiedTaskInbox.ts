@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { anonymizeCompanyName } from '@/lib/anonymization';
+import { ERINNERUNG_AB_TAGEN, nudgeState, type WaitState } from '@/lib/kundePrueft';
 
 export interface UnifiedTaskItem {
   itemType: 'alert' | 'task' | 'derived';
@@ -33,6 +34,22 @@ export interface UnifiedTaskItem {
   companyName: string | null;
   /** Älter als 21 Tage ohne Bewegung: kein Alarm mehr, sondern ein Deal ohne Bewegung. */
   isStale: boolean;
+  // „Kunde prüft“ (20.10.2026), aus dem Aktivitätslog – auf jedem Gerät gleich
+  /** Erinnerungen an den Kunden zu dieser Einreichung. */
+  nudgeCount?: number;
+  lastNudgeAt?: string | null;
+  /** Ab wann die nächste Erinnerung dran ist bzw. Matchunt übernimmt. */
+  nextNudgeAt?: string | null;
+  /** jetzt = du bist dran · wartet = Kunde ist dran · matchunt = 2 Erinnerungen ohne Antwort */
+  waitState?: WaitState;
+  /** Letzter Anruf/letzte Mail an den Kandidaten (ohne Erinnerungen an den Kunden). */
+  lastCandidateContactAt?: string | null;
+  /** Letzter Zwischenstand an den Kandidaten. */
+  lastCandidateUpdateAt?: string | null;
+  /** Bitte der letzten Erinnerung (decision | question | remind) – für den Zwischenstand-Text. */
+  lastNudgeIntent?: string | null;
+  /** Firmenname bekannt (Reveal) – nur dann dürfen Stellen desselben Kunden gebündelt werden. */
+  companyRevealed?: boolean;
 }
 
 export type TaskFilter = 'all' | 'opt_in' | 'follow_up' | 'interview' | 'manual' | 'other';
@@ -62,7 +79,8 @@ const TASK_PRIORITY_TO_ALERT: Record<string, 'critical' | 'high' | 'medium' | 'l
 
 const DAY_MS = 86_400_000;
 // Client-Reaktion gilt nach so vielen Tagen ohne Bewegung als überfällig
-const STALLED_AFTER_DAYS = 3;
+// (Treppe 20.10.2026: Tag 5 → 1. Erinnerung, siehe lib/kundePrueft.ts)
+const STALLED_AFTER_DAYS = ERINNERUNG_AB_TAGEN;
 const STALLED_CRITICAL_DAYS = 7;
 
 // ---------------------------------------------------------------------------
@@ -113,9 +131,11 @@ const calcFee = (
 };
 
 // Firma nur zeigen, wenn die Submission den Reveal bestätigt — sonst Branchen-Label
+// recruiter_jobs_view liefert company_name erst nach dem Reveal (Opt-in oder „Ich
+// suche“) – steht er da, darf er gezeigt werden, wie in der Jobliste.
 const safeCompany = (job: any, revealed: boolean | null | undefined): string | null => {
   if (!job) return null;
-  return revealed === true ? job.company_name || null : anonymizeCompanyName(job.industry ?? null);
+  return revealed === true || job.company_name ? job.company_name || null : anonymizeCompanyName(job.industry ?? null);
 };
 
 function mapAlertToItem(alert: any): UnifiedTaskItem {
@@ -233,6 +253,7 @@ function mapStalledSubmission(sub: any, now: number): UnifiedTaskItem | null {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    companyRevealed: !!job?.company_name,
     isStale: false,
   };
 }
@@ -248,15 +269,17 @@ function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
   const candidate = sub.candidates;
   const fee = calcFee(job?.salary_min ?? null, job?.salary_max ?? null, job?.recruiter_fee_percentage ?? null);
   const hoursSince = Math.floor((now - endsAt) / 3_600_000);
-  const priority: 'critical' | 'high' = hoursSince >= 72 ? 'critical' : 'high';
+  // Nachgespräch am Interviewtag, ab dem nächsten Tag rot (20.10.2026, vorher nach 72 h)
+  const dayEnd = new Date(endsAt); dayEnd.setHours(23, 59, 59, 999);
+  const priority: 'critical' | 'high' = now > dayEnd.getTime() ? 'critical' : 'high';
 
   return {
     itemType: 'derived',
     itemId: `derived-debrief-${iv.id}`,
     recruiterId: sub.recruiter_id,
-    title: 'Debrief fällig — Interview ist vorbei',
-    description: `Das Interview mit ${candidate?.full_name || 'Kandidat'} war vor ${hoursSince < 48 ? `${hoursSince} Std.` : `${Math.floor(hoursSince / 24)} Tagen`} — Eindruck einholen, solange er frisch ist.`,
-    recommendedAction: 'Kandidat anrufen (Debrief) und Client-Feedback einholen.',
+    title: 'Nachgespräch fällig — Interview ist vorbei',
+    description: `Das Interview mit ${candidate?.full_name || 'Kandidat'} war vor ${hoursSince < 48 ? `${hoursSince} Std.` : `${Math.floor(hoursSince / 24)} Tagen`} — anrufen und hören, wie es lief, solange es frisch ist.`,
+    recommendedAction: 'Kandidat anrufen: Bauchgefühl, Gehalt, Angebot, Start. Danach den Kunden nach seinem Eindruck fragen.',
     taskCategory: 'interview_debrief_due',
     sortPriority: ALERT_PRIORITY_MAP[priority],
     priority,
@@ -265,7 +288,7 @@ function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
     jobId: sub.job_id || null,
     playbookId: null,
     createdAt: iv.scheduled_at,
-    dueAt: new Date(endsAt + 24 * 3_600_000).toISOString(),
+    dueAt: dayEnd.toISOString(),
     isRead: false,
     isArchived: false,
     isCompleted: false,
@@ -361,10 +384,18 @@ function mapRejectedInform(sub: any): UnifiedTaskItem {
   };
 }
 
+/** Alle Aufgaben-Listen auf der Seite neu laden (Seite, Profil-Block, Fenster). */
+const TASKS_CHANGED = 'matchunt:tasks-changed';
+export function notifyTasksChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(TASKS_CHANGED));
+}
+
 export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
   const { user } = useAuth();
   const [items, setItems] = useState<UnifiedTaskItem[]>([]);
   const [completedItems, setCompletedItems] = useState<UnifiedTaskItem[]>([]);
+  /** „Kunde prüft“, bei denen der Kunde dran ist (erinnert) oder Matchunt übernommen hat. */
+  const [waitingItems, setWaitingItems] = useState<UnifiedTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -439,6 +470,11 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .from('interview_feedback')
         .select('interview_id')
         .eq('evaluator_id', user.id);
+      // Nachgespräch (20.10.2026). Fehlt die Tabelle noch (Lovable Nr. 25), zählt nur das alte Debrief.
+      const nachQuery = (supabase as any)
+        .from('interview_nachgespraeche')
+        .select('interview_id')
+        .eq('recruiter_id', user.id);
 
       // Opt-In einholen: Kunde hat ein Interview angefragt, Kandidat hat noch
       // nicht reagiert. Aus dem Zustand (stage), nicht aus Alerts.
@@ -488,9 +524,20 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .order('completed_at', { ascending: false })
         .limit(10);
 
-      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult] =
-        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery]);
-      const debriefed = new Set((myFeedbackResult.data || []).map((f: any) => f.interview_id as string));
+      // Deine Schritte (Erinnerungen, Zwischenstände, Anrufe): Stand je Einreichung,
+      // „Wartet auf andere“ und „Erledigt“ – serverseitig statt nur im Browser.
+      const logQuery = supabase
+        .from('candidate_activity_log')
+        .select('id, candidate_id, related_submission_id, activity_type, title, metadata, created_at')
+        .eq('recruiter_id', user.id)
+        .gte('created_at', new Date(nowMs - 45 * DAY_MS).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult, logResult, nachResult] =
+        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery, logQuery, nachQuery]);
+      const logRows = (logResult.data || []) as { id: string; candidate_id: string | null; related_submission_id: string | null; activity_type: string; title: string | null; metadata: any; created_at: string }[];
+      const debriefed = new Set([...(myFeedbackResult.data || []), ...((nachResult as any).data || [])].map((f: any) => f.interview_id as string));
 
       // Absagen: Einreichung laden, Beleg (Anruf/Mail nach der Absage) prüfen
       const rejectedNotifs = (rejectedNotifResult.data || []) as { related_id: string; created_at: string }[];
@@ -522,6 +569,26 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           .map(r => ({ ...r, rejected_at: rejectedBySub.get(r.id) }));
       }
 
+      // Für „Erledigt“: Stelle und Name zu Log-Einträgen, die zu keiner offenen Aufgabe gehören
+      const DONE_KINDS = new Set(['client_nudge', 'candidate_message', 'nachgespraech']);
+      const doneLog = logRows.filter(l =>
+        l.created_at >= new Date(nowMs - 7 * DAY_MS).toISOString()
+        && (DONE_KINDS.has(l.metadata?.kind) || l.activity_type === 'call' || l.activity_type === 'alert_actioned'));
+      const knownSubJob = new Map<string, string>();
+      for (const r of [...(stalledResult.data || []), ...(optInResult.data || []), ...rejectedRows] as any[]) if (r.id && r.job_id) knownSubJob.set(r.id, r.job_id);
+      const missingSubs = [...new Set(doneLog.map(l => l.related_submission_id).filter((id): id is string => !!id && !knownSubJob.has(id)))];
+      if (missingSubs.length) {
+        const { data } = await supabase.from('submissions').select('id, job_id').in('id', missingSubs);
+        for (const r of (data || []) as any[]) if (r.job_id) knownSubJob.set(r.id, r.job_id);
+      }
+      const knownNames = new Map<string, string>();
+      for (const r of [...(stalledResult.data || []), ...(optInResult.data || []), ...rejectedRows] as any[]) if (r.candidate_id && r.candidates?.full_name) knownNames.set(r.candidate_id, r.candidates.full_name);
+      const missingCands = [...new Set(doneLog.map(l => l.candidate_id).filter((id): id is string => !!id && !knownNames.has(id)))];
+      if (missingCands.length) {
+        const { data } = await supabase.from('candidates').select('id, full_name').in('id', missingCands);
+        for (const r of (data || []) as any[]) if (r.full_name) knownNames.set(r.id, r.full_name);
+      }
+
       for (const [label, res] of [
         ['alerts', alertsResult],
         ['tasks', tasksResult],
@@ -531,6 +598,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         ['completed tasks', completedTasksResult],
         ['my feedback', myFeedbackResult],
         ['opt-in submissions', optInResult],
+        ['activity log', logResult],
       ] as const) {
         if (res.error) console.error(`Error fetching ${label}:`, res.error);
       }
@@ -553,6 +621,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
             ...(optInResult.data || []).map((s: any) => s.job_id),
             ...rejectedRows.map((s: any) => s.job_id),
             ...rowsWithSubmission.map((r: any) => r.submissions?.job_id),
+            ...knownSubJob.values(),
           ].filter(Boolean)
         ),
       ] as string[];
@@ -604,8 +673,31 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       const alertKeys = new Set(alertItems.map(a => `${a.taskCategory}:${a.submissionId}`));
       const suppressions = readSuppressions();
 
+      // „Kunde prüft“: Stand aus den Erinnerungen im Aktivitätslog. Erinnert und noch
+      // in der Frist → wartet (nicht in „Jetzt“), nach 2 Erinnerungen → Matchunt.
+      const nowDate = new Date(nowMs);
+      const stalledAll: UnifiedTaskItem[] = (stalledResult.data || [])
+        .map((s: any) => {
+          const item = mapStalledSubmission(s, nowMs);
+          if (!item) return null;
+          const mine = logRows.filter(l => l.related_submission_id === s.id && l.created_at >= (s.submitted_at ?? ''));
+          const nudgeRows = mine.filter(l => l.metadata?.kind === 'client_nudge');
+          const st = nudgeState(nudgeRows.map(l => l.created_at), nowDate);
+          const contact = logRows.filter(l => l.candidate_id === s.candidate_id && l.metadata?.kind !== 'client_nudge' && (l.activity_type === 'call' || l.activity_type === 'email'));
+          const updates = contact.filter(l => l.metadata?.kind === 'candidate_message');
+          return {
+            ...item,
+            ...st,
+            lastCandidateContactAt: contact[0]?.created_at ?? null,
+            lastCandidateUpdateAt: updates[0]?.created_at ?? null,
+            lastNudgeIntent: nudgeRows[0]?.metadata?.intent ?? null,
+          } as UnifiedTaskItem;
+        })
+        .filter((i): i is UnifiedTaskItem => i !== null);
+      setWaitingItems(stalledAll.filter(i => i.waitState !== 'jetzt'));
+
       const derivedItems: UnifiedTaskItem[] = [
-        ...(stalledResult.data || []).map((s: any) => mapStalledSubmission(s, nowMs)),
+        ...stalledAll.filter(i => i.waitState === 'jetzt'),
         ...(debriefResult.data || [])
           .filter((iv: any) => !debriefed.has(iv.id))
           .map((iv: any) => mapDebriefDue(iv, nowMs)),
@@ -629,15 +721,30 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
 
       setItems(merged);
 
+      // „Erledigt“: deine Schritte der letzten 7 Tage aus dem Aktivitätslog plus eigene
+      // Erinnerungen. Alte Engine-Hinweise („Ghosting-Risiko!“) zählen nicht mehr.
+      const doneFromLog: UnifiedTaskItem[] = doneLog.map(l => {
+        const jobId = l.related_submission_id ? knownSubJob.get(l.related_submission_id) ?? null : null;
+        return {
+          itemType: 'derived', itemId: `log-${l.id}`, recruiterId: user.id, title: l.title || 'Erledigt', description: null,
+          recommendedAction: null, taskCategory: l.metadata?.kind || l.activity_type, sortPriority: 9, priority: 'low',
+          submissionId: l.related_submission_id, candidateId: l.candidate_id, jobId, playbookId: null, createdAt: l.created_at,
+          dueAt: null, isRead: true, isArchived: false, isCompleted: true, completedAt: l.created_at, snoozedUntil: null,
+          impactScore: 0, feeValue: null, candidateName: l.candidate_id ? knownNames.get(l.candidate_id) ?? null : null,
+          candidatePhone: null, candidateEmail: null, jobTitle: jobId ? taskJobsById[jobId]?.title ?? null : null,
+          companyName: null, isStale: false,
+        } satisfies UnifiedTaskItem;
+      });
+      void completedAlertsResult;
       const completedMerged = [
-        ...(completedAlertsResult.data || []).map(mapAlertToItem),
+        ...doneFromLog,
         ...(completedTasksResult.data || []).map((t: any) =>
           mapTaskToItem(t, t.job_id ? taskJobsById[t.job_id] : null)
         ),
       ]
         .filter(i => i.isCompleted)
         .sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime())
-        .slice(0, 10);
+        .slice(0, 30);
 
       setCompletedItems(completedMerged);
     } catch (err) {
@@ -648,6 +755,13 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Ein Handgriff in einem Fenster lädt jede Liste neu, nicht nur die eigene.
+  useEffect(() => {
+    const onChange = () => { void fetchItems(); };
+    window.addEventListener(TASKS_CHANGED, onChange);
+    return () => window.removeEventListener(TASKS_CHANGED, onChange);
+  }, [fetchItems]);
 
   useEffect(() => {
     fetchItems();
@@ -825,6 +939,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
   return {
     items: filteredItems,
     allItems: items,
+    waitingItems,
     urgentItems,
     openItems,
     completedItems,

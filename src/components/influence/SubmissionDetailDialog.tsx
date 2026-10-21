@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { formatSimpleAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { earliestStart, mapNoticeText, NOTICE_OPTIONS, optionLabel } from '@/lib/candidateDossier';
+import { ausZeile, kurzzeile } from '@/lib/nachgespraech';
 import { isClosedStage, normalizeStage } from '@/lib/submissionStage';
 import {
   HOUSEKEEPING,
@@ -194,7 +195,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
         .limit(1);
       const interview = interviews?.[0] ?? null;
 
-      const [{ data: activities }, { data: notes }, { data: siblings }, roles] = await Promise.all([
+      const [{ data: activities }, { data: notes }, { data: siblings }, roles, nach] = await Promise.all([
         supabase
           .from('candidate_activity_log')
           .select('*')
@@ -216,6 +217,13 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
         interview
           ? (supabase.rpc as any)('recruiter_interview_attendee_roles', { p_interview_id: interview.id })
           : Promise.resolve({ data: [] }),
+        // Nachgespräch, nur für den Headhunter (20.10.2026); fehlt die Tabelle noch, bleibt es leer
+        (supabase as any)
+          .from('interview_nachgespraeche')
+          .select('*')
+          .eq('submission_id', submissionId)
+          .order('updated_at', { ascending: false })
+          .limit(1),
       ]);
 
       const otherOpen = (siblings ?? []).filter((s) => {
@@ -231,6 +239,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
         changeMotivation: (notes?.[0] as any)?.change_motivation as string | null ?? null,
         otherOpen,
         attendees: ((roles as any)?.data ?? []) as { title: string | null; is_decision_maker: boolean }[],
+        nachgespraech: (((nach as any)?.data ?? [])[0] ?? null) as Record<string, any> | null,
       };
     },
     enabled: !!submissionId && open,
@@ -476,6 +485,20 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
                         <Video className="h-3 w-3" />Meeting beitreten
                       </Button>
                     )}
+                  </div>
+                )}
+
+                {/* Nachgespräch mit dem Kandidaten, nur für den Headhunter */}
+                {data?.nachgespraech && (
+                  <div className="space-y-1.5">
+                    <SectionTitle icon={NotebookPen}>Nachgespräch · nur für dich</SectionTitle>
+                    <div className="rounded-lg border bg-card px-3 py-2 text-sm">
+                      <p>
+                        <span className="text-muted-foreground tabular-nums">{new Date(data.nachgespraech.updated_at ?? data.nachgespraech.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
+                        {' · '}{kurzzeile(ausZeile(data.nachgespraech)) || 'festgehalten'}
+                      </p>
+                      {data.nachgespraech.bedenken && <p className="mt-0.5 text-xs text-muted-foreground">Bedenken: {data.nachgespraech.bedenken}</p>}
+                    </div>
                   </div>
                 )}
 

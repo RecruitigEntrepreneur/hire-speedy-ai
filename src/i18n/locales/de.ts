@@ -978,13 +978,13 @@ const de = {
       "week": "Diese Woche",
       "unconfirmed": "Unbestätigt",
       "awaiting": "Ohne Termin",
-      "debrief": "Debrief fällig"
+      "debrief": "Nachgespräch fällig"
     },
     "next_up": "Nächster Termin · {{time}}",
     "open_submission": "Einreichung öffnen",
     "sections": {
       "counter": "Gegenvorschlag liegt vor ({{count}})",
-      "debrief": "Debrief fällig ({{count}})",
+      "debrief": "Nachgespräch fällig ({{count}})",
       "awaiting": "Warten auf Terminierung ({{count}})",
       "cancelled": "Abgesagt und nicht erschienen ({{count}})",
       "past": "Vergangene Interviews ({{count}})"
@@ -1009,7 +1009,7 @@ const de = {
       "awaiting": "Wartet auf Terminwahl",
       "expired": "Termine verstrichen",
       "counter": "Gegenvorschlag",
-      "debrief": "Debrief fällig",
+      "debrief": "Nachgespräch fällig",
       "cancelled": "Abgesagt",
       "no_show": "Nicht erschienen",
       "done": "Abgeschlossen"
@@ -1020,7 +1020,7 @@ const de = {
       "awaiting": "Dein Kandidat hat die Termine seit {{time}} nicht gewählt. Ein Anruf bringt mehr als eine weitere Mail.",
       "expired": "Alle vorgeschlagenen Termine sind verstrichen. Neue Termine kann nur der Kunde schicken — erreiche zuerst deinen Kandidaten.",
       "counter": "Es liegt ein Alternativtermin vor. Über die Annahme entscheidet der Kunde — sorge dafür, dass dein Kandidat verfügbar bleibt.",
-      "debrief": "Das Interview vom {{date}} ist gelaufen, dein Eindruck fehlt noch. Frisch ist er am wertvollsten.",
+      "debrief": "Das Interview vom {{date}} ist gelaufen. Ruf den Kandidaten an, solange es frisch ist.",
       "cancelled": "Der Termin wurde abgesagt. Prüfe, ob der Prozess weiterläuft oder du den Fall schliessen solltest.",
       "no_show": "Zum Termin ist niemand erschienen. Kläre mit deinem Kandidaten, was passiert ist.",
       "done": "Der Termin ist abgeschlossen."
@@ -1045,10 +1045,12 @@ const de = {
     "msg": "Nachricht deines Kandidaten",
     "notes": "Notizen zum Termin",
     "client_feedback": "Rückmeldung des Kunden",
-    "debrief_title": "Dein Eindruck",
-    "debrief_placeholder": "Wie ist das Gespräch gelaufen? Was hält den Kandidaten, was bremst ihn?",
-    "debrief_save": "Eindruck festhalten",
-    "debrief_update": "Eindruck aktualisieren",
+    "debrief_title": "Nachgespräch",
+    "debrief_hint": "Ruf den Kandidaten an: Bauchgefühl, Ansprechpartner, Gehalt, Angebot, Start.",
+    "debrief_hint_past": "Was der Kandidat nach dem Interview gesagt hat. Nur du und Matchunt sehen es.",
+    "debrief_old": "Früherer Eindruck",
+    "debrief_save": "Nachgespräch führen",
+    "debrief_update": "Nachgespräch öffnen",
     "recommendation": {
       "next_round": "Weiter",
       "hire": "Einstellen",

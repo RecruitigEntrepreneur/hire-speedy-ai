@@ -22,7 +22,7 @@ export interface MessageSet {
 
 // Frist in n Werktagen, nie am Wochenende; als Wochentag oder, wenn weiter
 // als sechs Tage weg, als Datum.
-const inDays = (n: number) => {
+export const inDays = (n: number) => {
   const d = new Date();
   let left = n;
   while (left > 0) {
@@ -100,7 +100,28 @@ export function messageSetFor(category: string, ctx: { jobTitle: string | null; 
   }
 }
 
-export function composeClientText(set: MessageSet, intentKey: string | null, hintKeys: string[]): string {
+/**
+ * Bitte an den Kunden für eine ganze Stelle (Zeile „Kunde prüft“, 20.10.2026): gleiche
+ * Wahl wie bei einem Kandidaten, die Sätze passen sich an mehrere Kandidaten an. Die
+ * Kandidaten selbst nennt der Server in der Mail (vor Opt-In nur als Kürzel).
+ */
+export function clientBundleSet(count: number): Pick<MessageSet, 'clientIntents' | 'clientHints'> {
+  const viele = count > 1;
+  return {
+    clientIntents: [
+      { key: 'decision', label: `Entscheidung bis ${inDays(2)}`, text: `Gibt es schon eine Einschätzung${viele ? ' zu den Kandidaten' : ''}? Eine Entscheidung bis ${inDays(2)} würde uns beiden helfen.` },
+      { key: 'question', label: 'Rückfrage: mehr Infos?', text: 'Fehlen Ihnen noch Informationen für die Einschätzung? Ich liefere gern nach.' },
+      { key: 'remind', label: 'Nur erinnern', text: viele ? 'Ich wollte die Einreichungen kurz in Erinnerung bringen.' : 'Ich wollte die Einreichung kurz in Erinnerung bringen.' },
+    ],
+    clientHints: [
+      { key: 'interested', label: viele ? 'Kandidaten weiterhin interessiert' : 'Kandidat weiterhin interessiert', text: viele ? 'Die Kandidaten sind weiterhin sehr interessiert.' : 'Der Kandidat ist weiterhin sehr interessiert.' },
+      { key: 'parallel', label: viele ? 'Mindestens einer führt parallel Gespräche' : 'Kandidat führt parallel ein Gespräch', text: viele ? 'Mindestens einer der Kandidaten führt parallel weitere Gespräche.' : 'Der Kandidat führt parallel ein weiteres Gespräch.' },
+      { key: 'available', label: viele ? 'Kurzfristig verfügbar' : 'Kandidat kurzfristig verfügbar', text: viele ? 'Die Kandidaten sind kurzfristig verfügbar.' : 'Der Kandidat ist kurzfristig verfügbar.' },
+    ],
+  };
+}
+
+export function composeClientText(set: Pick<MessageSet, 'clientIntents' | 'clientHints'>, intentKey: string | null, hintKeys: string[]): string {
   const intent = set.clientIntents.find(c => c.key === intentKey);
   const hints = set.clientHints.filter(c => hintKeys.includes(c.key)).map(c => c.text);
   return [intent?.text ?? '', ...hints].filter(Boolean).join(' ');

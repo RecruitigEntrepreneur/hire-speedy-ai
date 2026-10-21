@@ -979,13 +979,13 @@ const en: typeof de = {
       "week": "This week",
       "unconfirmed": "Unconfirmed",
       "awaiting": "No date yet",
-      "debrief": "Debrief due"
+      "debrief": "Follow-up call due"
     },
     "next_up": "Next appointment · {{time}}",
     "open_submission": "Open submission",
     "sections": {
       "counter": "Alternative date proposed ({{count}})",
-      "debrief": "Debrief due ({{count}})",
+      "debrief": "Follow-up call due ({{count}})",
       "awaiting": "Awaiting scheduling ({{count}})",
       "cancelled": "Cancelled and no-shows ({{count}})",
       "past": "Past interviews ({{count}})"
@@ -1010,7 +1010,7 @@ const en: typeof de = {
       "awaiting": "Awaiting date choice",
       "expired": "Dates expired",
       "counter": "Alternative date",
-      "debrief": "Debrief due",
+      "debrief": "Follow-up call due",
       "cancelled": "Cancelled",
       "no_show": "No-show",
       "done": "Completed"
@@ -1021,7 +1021,7 @@ const en: typeof de = {
       "awaiting": "Your candidate hasn't picked a date for {{time}}. A call beats another email.",
       "expired": "All proposed dates have passed. Only the client can send new ones — reach your candidate first.",
       "counter": "An alternative date is on the table. The client decides whether to accept — make sure your candidate stays available.",
-      "debrief": "The interview on {{date}} is done, your take is still missing. It's most valuable while fresh.",
+      "debrief": "The interview on {{date}} is done. Call the candidate while it's fresh.",
       "cancelled": "This appointment was cancelled. Check whether the process continues or you should close the case.",
       "no_show": "Nobody showed up. Find out from your candidate what happened.",
       "done": "This appointment is closed."
@@ -1046,10 +1046,12 @@ const en: typeof de = {
     "msg": "Message from your candidate",
     "notes": "Notes on this appointment",
     "client_feedback": "Client's feedback",
-    "debrief_title": "Your take",
-    "debrief_placeholder": "How did it go? What's keeping the candidate interested, what's holding them back?",
-    "debrief_save": "Save your take",
-    "debrief_update": "Update your take",
+    "debrief_title": "Follow-up call",
+    "debrief_hint": "Call the candidate: gut feeling, the people, salary, offer, start date.",
+    "debrief_hint_past": "What the candidate said after the interview. Only you and Matchunt can see it.",
+    "debrief_old": "Earlier take",
+    "debrief_save": "Start follow-up call",
+    "debrief_update": "Open follow-up call",
     "recommendation": {
       "next_round": "Proceed",
       "hire": "Hire",

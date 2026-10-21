@@ -135,11 +135,12 @@ export function useRecruiterInterviewAgenda() {
       // Debrief-Wahrheit: der Recruiter schreibt sein Debrief in interview_feedback
       // (evaluator = er selbst). interviews.feedback gehört dem Kunden und sagt
       // nichts darüber, ob der Headhunter debrieft hat.
-      const { data: myFeedback } = await supabase
-        .from('interview_feedback')
-        .select('interview_id')
-        .eq('evaluator_id', user!.id);
-      const debriefed = new Set((myFeedback ?? []).map((f: any) => f.interview_id as string));
+      const [{ data: myFeedback }, { data: nach }] = await Promise.all([
+        supabase.from('interview_feedback').select('interview_id').eq('evaluator_id', user!.id),
+        // Nachgespräch (20.10.2026); fehlt die Tabelle noch, bleibt es beim alten Debrief
+        (supabase as any).from('interview_nachgespraeche').select('interview_id').eq('recruiter_id', user!.id),
+      ]);
+      const debriefed = new Set([...(myFeedback ?? []), ...(nach ?? [])].map((f: any) => f.interview_id as string));
 
       // Job-Infos separat ueber recruiter_jobs_view: Recruiter duerfen
       // public.jobs nicht mehr direkt lesen, ein eingebetteter jobs(...)-Join

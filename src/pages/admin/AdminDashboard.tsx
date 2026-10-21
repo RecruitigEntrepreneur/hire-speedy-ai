@@ -10,6 +10,8 @@ import { useDealHealthList } from '@/hooks/useDealHealth';
 import { FraudAlertBanner } from '@/components/fraud/FraudAlertBanner';
 import { DealHealthBadge } from '@/components/health/DealHealthBadge';
 import { FirmenPruefen } from '@/components/admin/companies/FirmenPruefen';
+import { LogosNachholen } from '@/components/admin/companies/FirmenLogoAdmin';
+import { KundenOhneReaktion } from '@/components/admin/KundenOhneReaktion';
 import { 
   Building2, 
   Users, 
@@ -397,6 +399,10 @@ export default function AdminDashboard() {
 
           {/* Firmen prüfen: Stellen gibt es nur für verifizierte Firmen */}
           <FirmenPruefen />
+          {/* Einmalig: Firmenlogos für den Bestand von den Websites holen (19.10.2026) */}
+          <LogosNachholen />
+          {/* Kunden ohne Reaktion auf 2 Erinnerungen: ab hier kümmert sich Matchunt (20.10.2026) */}
+          <KundenOhneReaktion />
 
           {/* Pending KYC Widget */}
           {pendingKycClients.length > 0 && (
