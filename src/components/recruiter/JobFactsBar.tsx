@@ -100,8 +100,11 @@ function frist(iso: string | null | undefined): string | null {
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
 }
 
-export function JobFactsBar({ facts }: { facts: JobFacts }) {
-  const eintraege: { icon: typeof Euro; label: string; wert: string }[] = [];
+export type FactEntry = { icon: typeof Euro; label: string; wert: string };
+
+/** Die gefüllten Eckdaten als Liste -- für die Leiste und die Eckdaten-Spalte im Kopf der Stellenseite. */
+export function factEntries(facts: JobFacts): { eintraege: FactEntry[]; zertifikate: string[] } {
+  const eintraege: FactEntry[] = [];
 
   const rate = (value: number) => value.toLocaleString('de-DE');
   const tagessatz = facts.dayRateMin != null && facts.dayRateMax != null
@@ -144,8 +147,11 @@ export function JobFactsBar({ facts }: { facts: JobFacts }) {
   const bis = frist(facts.deadline);
   if (bis) eintraege.push({ icon: CalendarClock, label: 'Besetzt bis', wert: bis });
 
-  const zertifikate = alsListe(facts.requiredCertifications);
+  return { eintraege, zertifikate: alsListe(facts.requiredCertifications) };
+}
 
+export function JobFactsBar({ facts }: { facts: JobFacts }) {
+  const { eintraege, zertifikate } = factEntries(facts);
   if (eintraege.length === 0 && zertifikate.length === 0) return null;
 
   return (
