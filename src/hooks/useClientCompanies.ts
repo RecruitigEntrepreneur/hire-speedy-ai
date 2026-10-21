@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { isMissingColumnError } from '@/lib/intakeCapture';
 
 /**
  * Die Firmen eines Kundenkontos (Haupt-, Tochter-, Schwester-, Mutterfirma).
@@ -36,6 +37,20 @@ export interface ClientCompany extends CompanyData {
   admin_question: string | null;
   /** Beantragte Änderung einer verifizierten Firma; bis zur Freigabe gelten die alten Daten. */
   pending_change: (CompanyData & { role?: CompanyRole }) | null;
+  /** Firmenlogo (Migration 20261019170000): hochgeladen oder von der Website geholt. */
+  logo_url?: string | null;
+  logo_source?: 'upload' | 'website' | 'removed' | null;
+  logo_checked_at?: string | null;
+  logo_check?: { website?: string; gefunden?: boolean; quelle?: string; art?: string; grund?: string } | null;
+}
+
+/** Logo von der Website holen (Function firmenlogo-holen); still, wenn es scheitert. */
+export async function holeFirmenlogo(companyId: string): Promise<void> {
+  try {
+    await supabase.functions.invoke('firmenlogo-holen', { body: { company_id: companyId } });
+  } catch {
+    /* Function noch nicht live oder Website nicht lesbar: kein Logo, sonst nichts */
+  }
 }
 
 export const ROLE_LABEL: Record<CompanyRole, string> = {
@@ -78,10 +93,11 @@ export function useClientCompanies() {
     staleTime: 60_000,
     retry: false,
     queryFn: async (): Promise<ClientCompany[]> => {
-      const { data, error } = await (supabase as any)
-        .from('client_companies')
-        .select('id, owner_id, organization_id, role, name, legal_name, street, postal_code, city, country, registration_number, vat_id, website, status, proof_path, requested_at, decided_at, reject_reason, admin_question, pending_change')
-        .order('requested_at', { ascending: true });
+      const spalten = 'id, owner_id, organization_id, role, name, legal_name, street, postal_code, city, country, registration_number, vat_id, website, status, proof_path, requested_at, decided_at, reject_reason, admin_question, pending_change';
+      const lesen = (s: string) => (supabase as any).from('client_companies').select(s).order('requested_at', { ascending: true });
+      let { data, error } = await lesen(`${spalten}, logo_url, logo_source, logo_checked_at, logo_check`);
+      // Vor der Logo-Migration fehlen die Spalten -- dann wie bisher ohne.
+      if (error && isMissingColumnError(error)) ({ data, error } = await lesen(spalten));
       if (error) throw error;
       return ((data ?? []) as ClientCompany[]).sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
     },
@@ -113,6 +129,8 @@ export function useClientCompanies() {
     });
     if (error) throw new Error(error.message || 'Das hat nicht geklappt.');
     await qc.invalidateQueries({ queryKey: ['client-companies'] });
+    // Website bekannt: Logo im Hintergrund holen, danach die Liste neu laden.
+    if (data && input.website) void holeFirmenlogo(data as string).then(() => qc.invalidateQueries({ queryKey: ['client-companies'] }));
     return data as string;
   };
 

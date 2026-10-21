@@ -1,52 +1,29 @@
 /**
- * Company Logo Utilities
- * Provides logo URL generation with fallbacks for companies
+ * Firmenlogo: Kürzel für den Fall ohne Logo.
+ *
+ * Bis 19.10.2026 lief hier ein Ersatz über Clearbit (Dienst seit Dezember 2025
+ * abgeschaltet) und ui-avatars.com (bekam bei jedem Aufruf den Firmennamen).
+ * Das Logo kommt jetzt aus client_companies.logo_url — hochgeladen oder von der
+ * Website geholt (Function firmenlogo-holen); das Kürzel zeichnet FirmenLogo selbst.
  */
 
-/**
- * Generate a company logo URL with fallback options
- * 1. Uses logo_url if provided
- * 2. Falls back to Clearbit Logo API using website domain
- * 3. Falls back to UI-Avatar with company initials
- */
-export const getCompanyLogoUrl = (
-  logoUrl: string | null | undefined,
-  website: string | null | undefined,
-  companyName: string
-): string => {
-  // Use direct logo URL if available
-  if (logoUrl) {
-    return logoUrl;
-  }
-  
-  // Try Clearbit Logo API with website domain
-  if (website) {
-    try {
-      const url = new URL(website.startsWith('http') ? website : `https://${website}`);
-      const domain = url.hostname.replace('www.', '');
-      return `https://logo.clearbit.com/${domain}`;
-    } catch {
-      // Invalid URL, fall through to initials
-    }
-  }
-  
-  // Fallback: UI-Avatar with company initials
-  return getInitialsAvatarUrl(companyName);
-};
+/** Rechtsformen und Füllwörter zählen nicht als Anfangsbuchstabe. */
+const OHNE = new Set([
+  'gmbh', 'mbh', 'ag', 'kg', 'kgaa', 'se', 'ug', 'ohg', 'gbr', 'ev', 'e.v.', 'eg', 'co', 'co.', 'kg.',
+  'inc', 'inc.', 'ltd', 'ltd.', 'llc', 'bv', 'b.v.', 'sa', 's.a.', 'sarl', 'plc', 'und', 'and', 'the', 'der', 'die', 'das',
+]);
 
-/**
- * Generate an initials-based avatar URL for a company
- */
-export const getInitialsAvatarUrl = (companyName: string): string => {
-  const initials = companyName
-    .split(' ')
-    .filter(word => word.length > 0)
-    .map(word => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-  
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=1e3a5f&color=fff&size=96&bold=true`;
+/** „Bluewater & Bridge GmbH" → „BB", „ASMPT GmbH & Co. KG" → „AS", leer → „?". */
+export const firmenInitialen = (companyName: string | null | undefined): string => {
+  const woerter = (companyName ?? '')
+    .split(/[\s/,+&()-]+/)
+    .map(w => w.trim())
+    .filter(w => w && !OHNE.has(w.toLowerCase()))
+    .map(w => w.replace(/[^\p{L}\p{N}]/gu, ''))
+    .filter(Boolean);
+  if (woerter.length === 0) return '?';
+  if (woerter.length === 1) return woerter[0].slice(0, 2).toUpperCase();
+  return (woerter[0][0] + woerter[1][0]).toUpperCase();
 };
 
 /**
@@ -54,7 +31,7 @@ export const getInitialsAvatarUrl = (companyName: string): string => {
  */
 export const formatHeadcount = (count: number | null | undefined): string | null => {
   if (!count) return null;
-  
+
   if (count < 50) return '< 50 MA';
   if (count < 200) return '50-200 MA';
   if (count < 500) return '200-500 MA';

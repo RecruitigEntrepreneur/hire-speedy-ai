@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Building2, Globe, Info, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
-import { companyAddress, companyLabel, useClientCompanies } from '@/hooks/useClientCompanies';
+import { companyAddress, companyLabel, holeFirmenlogo, useClientCompanies } from '@/hooks/useClientCompanies';
+import { FirmenLogo } from '@/components/company/FirmenLogo';
+import { normalizeDomain } from '@/lib/domain';
 import { AusAufnahme, Fehlt, SettingsBlock, SettingsSubpage } from './SettingsShell';
 import { FirmenBlock } from './FirmenBlock';
 import type { useCompanyProfile } from './useCompanyProfile';
@@ -31,6 +34,25 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
   const [impressumLaedt, setImpressumLaedt] = useState(false);
   const [logoLaedt, setLogoLaedt] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+  const neuLaden = () => qc.invalidateQueries({ queryKey: ['client-companies'] });
+
+  // Das Logo gehört zur Hauptfirma (client_companies); die RPC spiegelt es ins
+  // Firmenprofil. Vor der Logo-Migration fehlt sie -- dann bleibt es beim Profil.
+  const logoDerFirma = async (url: string | null) => {
+    if (!main) return;
+    const { error } = await (supabase as any).rpc('client_set_company_logo', { p_company_id: main.id, p_logo_url: url });
+    if (error && !/client_set_company_logo|function/i.test(error.message ?? '')) console.warn('Logo der Firma:', error.message);
+    void neuLaden();
+  };
+  const logoUrl = profile.logo_url || main?.logo_url || null;
+  const vonWebsite = !!logoUrl && main?.logo_source === 'website' && main.logo_url === logoUrl;
+
+  // Website eingetragen: Logo holen, sobald das Profil gespeichert ist (die Function liest es von dort).
+  const websiteFertig = () => {
+    if (!main || !normalizeDomain(profile.website)) return;
+    setTimeout(() => void holeFirmenlogo(main.id).then(neuLaden), 1500);
+  };
 
   const uploadLogo = async (file: File) => {
     if (!user) return;
@@ -45,6 +67,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
       if (error) throw error;
       const { data } = supabase.storage.from('company-logos').getPublicUrl(pfad);
       update({ logo_url: data.publicUrl });
+      await logoDerFirma(data.publicUrl);
     } catch (err) {
       console.error('Logo-Upload fehlgeschlagen:', err);
       toast({ title: 'Logo konnte nicht hochgeladen werden', variant: 'destructive' });
@@ -80,16 +103,34 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
 
       <SettingsBlock title="Über Ihr Unternehmen">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
-            {profile.logo_url ? <img src={profile.logo_url} alt="Logo" className="h-full w-full object-contain" /> : <Building2 className="h-6 w-6 text-muted-foreground" />}
-          </div>
+          {logoUrl ? (
+            <FirmenLogo url={logoUrl} name={profile.company_name} size={64} className="rounded-lg" />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
           <div>
+            {vonWebsite && (
+              <p className="mb-1.5 text-xs text-muted-foreground">
+                Automatisch von {main?.logo_check?.website || 'Ihrer Website'} übernommen
+              </p>
+            )}
             <input ref={fileRef} type="file" accept={LOGO_TYPES.join(',')} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadLogo(f); e.target.value = ''; }} />
-            <Button variant="outline" size="sm" disabled={logoLaedt} onClick={() => fileRef.current?.click()}>
-              {logoLaedt ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {profile.logo_url ? 'Logo ersetzen' : 'Logo hochladen'}
-            </Button>
-            <p className="mt-1 text-xs text-muted-foreground">PNG, JPG oder WebP bis 2 MB. Headhunter sehen es erst nach „Ich suche“.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" disabled={logoLaedt} onClick={() => fileRef.current?.click()}>
+                {logoLaedt ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {logoUrl ? 'Logo ersetzen' : 'Logo hochladen'}
+              </Button>
+              {logoUrl && (
+                <Button variant="ghost" size="sm" disabled={logoLaedt} onClick={() => { update({ logo_url: null }); void logoDerFirma(null); }}>
+                  Entfernen
+                </Button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {logoUrl ? 'PNG, JPG oder WebP bis 2 MB.' : 'PNG, JPG oder WebP bis 2 MB. Mit Ihrer Website holen wir es automatisch.'} Headhunter sehen es erst nach „Ich suche“.
+            </p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -114,7 +155,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
           <Label htmlFor="website">Website<AusAufnahme show={ausAufnahme('website')} /></Label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="website" className="pl-9" value={profile.website || ''} onChange={(e) => update({ website: e.target.value })} placeholder="https://meinefirma.de" />
+            <Input id="website" className="pl-9" value={profile.website || ''} onChange={(e) => update({ website: e.target.value })} onBlur={websiteFertig} placeholder="https://meinefirma.de" />
           </div>
         </div>
         <div className="space-y-2">

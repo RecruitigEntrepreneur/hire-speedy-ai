@@ -116,7 +116,7 @@ export async function firmenprofilAusAufnahme(
  */
 export async function firmaAusAufnahme(
   db: SupabaseClient, jobId: string | null, draft: Json, jobRow: Json = {},
-): Promise<{ gefuellt: string[]; fehler?: string }> {
+): Promise<{ gefuellt: string[]; fehler?: string; firmaId?: string }> {
   if (!jobId) return { gefuellt: [] };
   try {
     const { data: job } = await db.from('jobs').select('company_id').eq('id', jobId).maybeSingle();
@@ -130,9 +130,9 @@ export async function firmaAusAufnahme(
       registration_number: s.registration_number, vat_id: s.tax_id, website: s.website,
     }) as Json;
     const gefuellt = Object.keys(patch);
-    if (!gefuellt.length) return { gefuellt };
+    if (!gefuellt.length) return { gefuellt, firmaId: companyId };
     const res = await db.from('client_companies').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', companyId);
-    return res.error ? { gefuellt: [], fehler: res.error.message } : { gefuellt };
+    return res.error ? { gefuellt: [], fehler: res.error.message, firmaId: companyId } : { gefuellt, firmaId: companyId };
   } catch (e) {
     return { gefuellt: [], fehler: e instanceof Error ? e.message : String(e) };
   }

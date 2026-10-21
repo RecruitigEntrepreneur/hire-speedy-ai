@@ -14,6 +14,7 @@ import {
   type ClientCompany, type CompanyData,
 } from '@/hooks/useClientCompanies';
 import { compareWithImpressum, type CheckReport, type FieldCheck } from '@/lib/companyCheck';
+import { LogoZeile } from './FirmenLogoAdmin';
 
 /**
  * Admin › Control Center: Firmen, die Kunden beantragt oder geändert haben.
@@ -266,6 +267,8 @@ function PruefDialog({ row, onClose }: { row: Row; onClose: () => void }) {
             <p className="px-3 pb-2 text-[11px] text-muted-foreground">USt-IdNr. nur auf Format und Impressum geprüft, nicht beim Bundeszentralamt.</p>
           )}
         </div>
+
+        <LogoZeile row={row} />
 
         {mode ? (
           <div className="space-y-2">

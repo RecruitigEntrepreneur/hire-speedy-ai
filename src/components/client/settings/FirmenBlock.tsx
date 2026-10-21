@@ -11,6 +11,7 @@ import {
   ROLE_LABEL, companyFacts, companyLabel, useClientCompanies,
   type ClientCompany, type CompanyRequest, type CompanyRole,
 } from '@/hooks/useClientCompanies';
+import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { SettingsBlock } from './SettingsShell';
 
 const fmt = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
@@ -71,12 +72,16 @@ export function FirmenBlock() {
             return (
               <li key={c.id} className="space-y-1.5 p-3.5">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{companyLabel(c)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {ROLE_LABEL[c.role]}
-                      {c.status !== 'verified' && ` · beantragt am ${fmt(c.requested_at)}`}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    {/* Je Firma ein eigenes Logo, auch für Töchter (automatisch von ihrer Website). */}
+                    <FirmenLogo url={c.logo_url} name={companyLabel(c)} size={32} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{companyLabel(c)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ROLE_LABEL[c.role]}
+                        {c.status !== 'verified' && ` · beantragt am ${fmt(c.requested_at)}`}
+                      </p>
+                    </div>
                   </div>
                   <StatusPill c={c} />
                 </div>

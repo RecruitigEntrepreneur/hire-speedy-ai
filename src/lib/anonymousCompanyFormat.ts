@@ -73,6 +73,17 @@ export function formatAnonymousCompany(params: AnonymousCompanyParams): string {
 }
 
 /**
+ * Kurz für Karten (19.10.2026): nur Branche und Größe. Ort, Arbeitsmodell und
+ * Dringlichkeit stehen auf der Karte ohnehin daneben — in der langen Fassung
+ * standen sie doppelt.
+ */
+export function formatAnonymousCompanyShort(params: Pick<AnonymousCompanyParams, 'industry' | 'companySize'>): string {
+  const parts = [params.industry || 'Unternehmen'];
+  if (params.companySize) parts.push(formatCompanySize(params.companySize));
+  return parts.join(' · ');
+}
+
+/**
  * Einfache anonyme Firmenbeschreibung (nur Industrie)
  */
 export function formatSimpleAnonymousCompany(industry: string | null): string {
@@ -99,7 +110,7 @@ function formatCompanySize(size: string): string {
 /**
  * Formatiert Remote-Type in deutsche Bezeichnung
  */
-function formatWorkModel(remoteType: string): string {
+export function formatWorkModel(remoteType: string): string {
   const modelMap: Record<string, string> = {
     'remote': 'Remote',
     'hybrid': 'Hybrid',
