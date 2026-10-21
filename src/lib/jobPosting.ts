@@ -2,6 +2,7 @@ import { briefingText, getRecruiterCriteria } from './recruiterBriefing';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
 import { setzePlatzhalter, type Ansprache, type Anzeige } from '../../supabase/functions/_shared/recruiter-anzeige.ts';
 import { ZAHLUNG_KANDIDAT } from './recruiterContracting';
+import { kiInhalt } from './kiInhalt';
 
 /**
  * Die Stellenanzeige — die Fassung, die der Headhunter dem Kandidaten zeigt.
@@ -52,10 +53,10 @@ export type Posting = {
 };
 
 type Formatted = {
-  role_summary?: unknown;
-  ideal_candidate?: unknown;
-  anonymous_company_pitch?: unknown;
-  highlights?: unknown;
+  role_summary?: string;
+  ideal_candidate?: string;
+  anonymous_company_pitch?: string;
+  highlights?: string[];
   anzeige?: Anzeige | null;
   ansprache?: Ansprache | null;
 };
@@ -165,7 +166,8 @@ function eckdatenVon(job: WorkspaceJob): Eckdatum[] {
 }
 
 export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Posting {
-  const formatted = (job.formatted_content ?? null) as Formatted | null;
+  // KI-Texte ohne Behauptungen, die der Kunde nicht gemacht hat (21.10.2026).
+  const formatted = kiInhalt<Formatted>(job as unknown as Record<string, unknown>);
   const anzeige: Anzeige = formatted?.anzeige ?? {};
   const criteria = getRecruiterCriteria(job);
   const freelance = job.employment_type === 'freelance';
@@ -198,7 +200,6 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
 
   const einleitung = ki(anzeige.einleitung) || briefingText(formatted?.role_summary);
   const firmaText = ki(anzeige.unternehmen) || briefingText(formatted?.anonymous_company_pitch);
-  const firmaKunde = [briefingText(job.unique_selling_points), briefingText(job.company_culture)].filter(Boolean);
 
   const zwingendKunde = criteria.required;
   const vorteilKunde = [...criteria.trainable, ...criteria.negotiable];
@@ -209,16 +210,22 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
      wie eine Anforderung liest, obwohl der Kunde es ausdruecklich als
      verhandelbar eingestuft hat. */
   const zertifikate = (() => {
-    const genannt = new Set([...zwingend, ...vorteil].map(schluessel));
-    const offen = list(job.required_certifications).filter(z => !genannt.has(schluessel(z)));
+    // Enthalten statt gleich: „Steuerberaterexamen von Vorteil“ nennt das Zertifikat schon (21.10.2026).
+    const genannt = [...zwingend, ...vorteil].map(schluessel);
+    const offen = list(job.required_certifications).filter(z => !genannt.some(g => g.includes(schluessel(z))));
     return offen.length ? `Zertifikate: ${offen.join(' · ')}` : null;
   })();
 
-  const angebotKunde = [
-    briefingText(job.career_path),
-    briefingText(job.position_advantages),
-    ohneDubletten(list(job.benefits)).join(' · ') || null,
-  ].filter((v): v is string => Boolean(v));
+  // Vorteile als einzelne Punkte, Benefits nur, wenn sie dort nicht schon stehen;
+  // das Karrierebeispiel als Beleg darunter (Doppelungen raus, 21.10.2026).
+  const vorteilePunkte = ohneDubletten(list(job.position_advantages).flatMap(v => v.split(/\s·\s/)).map(v => v.trim()).filter(Boolean));
+  const benefitsZeile = nichtSchonGenannt(ohneDubletten(list(job.benefits)), vorteilePunkte).join(' · ');
+  const angebotKunde = [...vorteilePunkte, ...(benefitsZeile ? [benefitsZeile] : [])];
+  // Besonderheiten der Firma ohne das, was schon im Angebot oder bei den Aufgaben steht (21.10.2026).
+  const usps = nichtSchonGenannt(list(job.unique_selling_points).flatMap(u => u.split(/\s·\s/)).map(u => u.trim()).filter(Boolean),
+    [...angebotKunde, ...aufgaben]);
+  const firmaKunde = [usps.join(' · '), briefingText(job.company_culture)].filter(Boolean);
+  const karriereBeleg = briefingText(job.career_example) || briefingText(job.career_path);
   const angebotKi = angebotKunde.length ? [] : kiListe(anzeige.angebot);
   // Contracting: was für jeden Einsatz über Matchunt gilt.
   const angebotSystem = freelance
@@ -259,6 +266,7 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
     }),
 
     block('angebot', freelance ? 'Das Projekt bietet' : 'Das bieten wir', [...angebotKunde, ...angebotKi, ...angebotSystem], undefined, {
+      nachsatz: karriereBeleg ? `Ein Beispiel: ${karriereBeleg}` : undefined,
       herkunft: [angebotKunde.length ? 'kunde' : null, angebotKi.length ? 'ki' : null, angebotSystem.length ? 'system' : null].filter(Boolean) as Herkunft[],
     }),
 
@@ -284,6 +292,26 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
 export function kontaktZeile(kontakt: Kontakt | null | undefined): string | null {
   if (!kontakt?.name) return null;
   return [kontakt.name, kontakt.email, kontakt.phone, kontakt.linkedin].filter(Boolean).join(' · ');
+}
+
+/**
+ * Was nicht schon in `schon` steckt: ein Punkt gilt als genannt, wenn er ein
+ * langes Wort (ab 9 Buchstaben) mit einem Punkt dort teilt oder darin enthalten ist
+ * („Gleitzeit ohne Kernzeit“ in „Gleitzeit ohne Kernzeit und 2 Tage Homeoffice“,
+ * „Übernahme der Kosten für das Steuerberaterexamen“ neben „Steuerberaterexamen komplett bezahlt“).
+ */
+export function nichtSchonGenannt(werte: string[], schon: string[]): string[] {
+  const klein = schon.map(t => t.toLocaleLowerCase('de-DE'));
+  const lang = new Set(klein.flatMap(t => t.split(/[^\p{L}]+/u).filter(w => w.length >= 9)));
+  // Gemeinsame Folge aus drei Wörtern zählt auch: „… zum Head of Tax“ ↔ „Perspektive Head of Tax …“.
+  const dreier = (t: string) => { const w = t.split(/[^\p{L}\d]+/u).filter(Boolean); return w.slice(2).map((_, i) => w.slice(i, i + 3).join(' ')); };
+  const folgen = new Set(klein.flatMap(dreier));
+  return werte.filter(w => {
+    const k = w.toLocaleLowerCase('de-DE');
+    if (klein.some(t => t.includes(k))) return false;
+    if (dreier(k).some(f => folgen.has(f))) return false;
+    return !k.split(/[^\p{L}]+/u).some(x => x.length >= 9 && lang.has(x));
+  });
 }
 
 /** Dieselbe Anzeige als Fliesstext -- zum Einfügen in Mail oder Chat. Ohne Herkunfts-Etiketten. */
@@ -318,7 +346,7 @@ export type AnspracheTexte = {
  * aus den Angaben -- lieber nüchtern als erfunden.
  */
 export function buildAnsprache(job: WorkspaceJob, posting: Posting, vorname?: string | null): AnspracheTexte {
-  const formatted = (job.formatted_content ?? null) as Formatted | null;
+  const formatted = kiInhalt<Formatted>(job as unknown as Record<string, unknown>);
   const s = formatted?.ansprache ?? {};
   const geld = verguetung(job);
   const setze = (t: string) => setzePlatzhalter(t, { vorname, verguetung: geld });
@@ -360,4 +388,22 @@ export function buildAnsprache(job: WorkspaceJob, posting: Posting, vorname?: st
       naechster: 'Profil anonym beim Kunden vorstellen',
     },
   };
+}
+
+/**
+ * Der Aufhänger des Headhunters („5 Jahre WP-Gesellschaft“) als Satz nach der
+ * Anrede; eine allgemeine Floskel wie „spannendes Profil!“ ersetzt er (21.10.2026).
+ */
+export function mitAufhaenger(text: string, aufhaenger: string | null | undefined): string {
+  const a = (aufhaenger ?? '').trim();
+  if (!a) return text;
+  const satz = `dein Hintergrund (${a}) passt.`;
+  const gruss = text.match(/^(Hallo[^,\n]*,)(\s*)/);
+  if (!gruss) return `${satz.charAt(0).toUpperCase()}${satz.slice(1)} ${text}`;
+  const ohneFloskel = text.slice(gruss[0].length).replace(/^(spannendes|interessantes|tolles|starkes|beeindruckendes) Profil!?\s*/i, '');
+  // Nach dem eingefügten Satz beginnt ein neuer: groß („ich bin …“ -> „Ich bin …“).
+  const rest = ohneFloskel.charAt(0).toUpperCase() + ohneFloskel.slice(1);
+  return gruss[2].includes('\n')
+    ? `${gruss[1]}${gruss[2]}${satz.charAt(0).toUpperCase()}${satz.slice(1)} ${rest}`
+    : `${gruss[1]} ${satz} ${rest}`;
 }

@@ -1,20 +1,34 @@
-import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Building2, Check, CheckCheck, ChevronDown, ClipboardList, Copy, FileText, HelpCircle, ListChecks, LockKeyhole, MapPin, MessageSquareText, Plus, Target, Users } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Banknote, Building2, Calculator, CalendarRange, Check, ChevronRight, ClipboardList, Clock, Copy, Eye, Factory, FileText, IdCard, Linkedin, ListChecks, LockKeyhole, LockKeyholeOpen, Mail, Megaphone, Phone, Plus, Share2, TrendingUp, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { JobFactsBar } from './JobFactsBar';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
+import { HeroEarning } from './JobDecisionStrip';
+import { StellenanzeigeAnsicht } from './StellenanzeigeAnsicht';
+import { FirmaSheet } from './FirmaSheet';
+import { kopfFakten, type KopfSymbol } from '@/lib/stellenKopf';
 import { FeeCalculatorCard } from './FeeCalculatorCard';
-import { CompanyRevealBadge } from './CompanyRevealBadge';
-import { buildBriefingSections, getRecruiterCriteria, narrativeAnswer, type BriefingJob, type BriefingRow } from '@/lib/recruiterBriefing';
+import { getRecruiterCriteria, type BriefingJob } from '@/lib/recruiterBriefing';
+import { buildMandatsBriefing, fragenAnKunden } from '@/lib/mandatsBriefing';
+import { buildArbeitsBriefing } from '@/lib/arbeitsBriefing';
 import { ContractingKonditionen } from './ContractingKonditionen';
+import { buildAnsprache, buildJobPosting, mitAufhaenger, postingAsText } from '@/lib/jobPosting';
+import { AnspracheTeilen, type Kanal } from './AnspracheTeilen';
+import { ArbeitsBriefingLeiste, ArbeitsBriefingView, WERKZEUG_SYMBOL } from './briefing/ArbeitsBriefingView';
+import { GespraechsleitfadenSheet } from './briefing/GespraechsleitfadenSheet';
+import { KundenFragenSheet } from './briefing/KundenFragenSheet';
+import { FirmenLogo } from '@/components/company/FirmenLogo';
+import { useRecruiterKontakt } from '@/hooks/useRecruiterKontakt';
 
 export interface WorkspaceJob extends BriefingJob {
   id: string;
   title: string;
   company_name?: string | null;
+  /** Wie company_name erst nach dem Reveal befüllt (client_companies.logo_url). */
+  company_logo_url?: string | null;
   industry?: string | null;
   location?: string | null;
   remote_type?: string | null;
@@ -43,118 +57,184 @@ interface Props {
   candidates: ReactNode;
   onSubmit: () => void;
   onExpose: () => void;
-}
-
-const SECTION_LABELS: Record<string, string> = {
-  profil: 'Suchprofil', aufgabe: 'Aufgabe', angebot: 'Angebot', unternehmen: 'Unternehmen', prozess: 'Prozess',
-};
-const CRITERIA_KEYS = new Set(['must_have_criteria', 'trainable_skills', 'nice_to_have_criteria', 'must_haves', 'nice_to_haves']);
-const EMPLOYMENT: Record<string, string> = { 'full-time': 'Vollzeit', full_time: 'Vollzeit', 'part-time': 'Teilzeit', part_time: 'Teilzeit', freelance: 'Freelance', contract: 'Projektvertrag', temporary: 'Befristet', internship: 'Praktikum' };
-const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-
-function Source({ source }: { source: BriefingRow['source'] }) {
-  return <span className="inline-flex items-center gap-1 text-[11px] font-normal text-muted-foreground"><FileText className="h-3 w-3" aria-hidden="true" />{source === 'intake' ? 'Aufnahmefeld' : 'Stellendaten'}</span>;
-}
-
-function Answer({ row }: { row: BriefingRow }) {
-  return <div className="grid gap-2 border-b border-border/50 py-4 last:border-0 sm:grid-cols-[minmax(120px,0.8fr)_minmax(0,2fr)] sm:gap-6">
-    <dt className="space-y-1"><span className="block text-sm text-muted-foreground">{row.label}</span><Source source={row.source} /></dt>
-    <dd className="min-w-0 whitespace-pre-line break-words text-sm leading-7">{row.value}</dd>
-  </div>;
+  /** Hauptknopf neben dem Verdienst im Kopf (Ich suche / Vorstellung vorbereiten / Pausiert). */
+  heroAction?: ReactNode;
+  /** Eine Zeile unter dem Kopf: Stand der Suche, offene Kundenfrage, Pause. */
+  heroStatus?: ReactNode;
+  /** Ersetzt den Hauptknopf der unteren Leiste am Handy. */
+  mobileAction?: ReactNode;
+  /** Zusätzlicher Hinweis in der Kopfzeile, etwa „Pausiert bis …“. */
+  headerBadge?: ReactNode;
 }
 
 function EmptyAnswer({ children }: { children: ReactNode }) {
-  return <p className="flex items-start gap-2 py-4 text-sm leading-6 text-muted-foreground"><HelpCircle className="mt-1 h-4 w-4 shrink-0" />{children}</p>;
+  return <p className="py-4 text-sm leading-6 text-muted-foreground">{children}</p>;
 }
 
-export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submissionCount, candidates, onSubmit, onExpose }: Props) {
-  const [tab, setTab] = useState('briefing');
+const KOPF_SYMBOL: Record<KopfSymbol, LucideIcon> = {
+  geld: Banknote, ort: Building2, zeit: Clock, level: TrendingUp, vertrag: FileText, leute: Users, branche: Factory, laufzeit: CalendarRange,
+};
+
+/** Eintrag in der rechten Leiste: ruhige Zeile ohne Rahmen, Fläche erst beim Darüberfahren (21.10.2026). */
+function Kachel({ icon: Icon, titel, hinweis, onClick, leise }: { icon: LucideIcon; titel: string; hinweis?: string; onClick?: () => void; leise?: boolean }) {
+  return <button type="button" onClick={onClick} disabled={!onClick}
+    className={cn('group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      onClick ? 'hover:bg-muted/60' : 'cursor-default', leise && 'opacity-55')}>
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+    <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5">{titel}</span>{hinweis && <span className="block truncate text-[11px] text-muted-foreground">{hinweis}</span>}</span>
+    {onClick && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />}
+  </button>;
+}
+
+function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
+  return <div className="space-y-0.5"><p className="px-2 pb-1 text-xs text-muted-foreground">{titel}</p>{children}</div>;
+}
+
+export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submissionCount, candidates, onSubmit, onExpose, heroAction, heroStatus, mobileAction, headerBadge }: Props) {
+  // Erst die Anzeige, dann das Briefing: so liest ein Headhunter eine neue Stelle.
+  const [tab, setTab] = useState('beschreibung');
+  const [showEarning, setShowEarning] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
-  const sections = buildBriefingSections(job);
+  const [fragenOffen, setFragenOffen] = useState(false);
+  const [firmaOffen, setFirmaOffen] = useState(false);
+  const fakten = kopfFakten(job);
+  // Die ganze Kandidatenfassung mit „So läuft es ab“ und dem Headhunter als Ansprechperson.
+  const kontakt = useRecruiterKontakt();
+  const posting = buildJobPosting(job, kontakt);
+  const [vorname, setVorname] = useState('');
+  const [aufhaenger, setAufhaenger] = useState('');
+  const [kanal, setKanal] = useState<Kanal>('linkedin');
+  const [teilenOffen, setTeilenOffen] = useState(false);
+  const [kopiert, setKopiert] = useState<'ok' | 'fehler' | null>(null);
+  const roh = buildAnsprache(job, posting, vorname);
+  // Der Aufhänger gilt für LinkedIn und E-Mail; Telefon bleibt Spickzettel.
+  const ansprache = { ...roh, linkedin: mitAufhaenger(roh.linkedin, aufhaenger), email: { ...roh.email, text: mitAufhaenger(roh.email.text, aufhaenger) } };
+  const hatAnzeige = posting.blocks.length > 0;
+  const briefing = useMemo(() => buildMandatsBriefing(job as never, companyRevealed), [job, companyRevealed]);
+  // Das Briefing nach den fünf Arbeitsschritten, nur Angaben des Kunden (21.10.2026).
+  const schritte = useMemo(() => buildArbeitsBriefing(job as never, companyRevealed), [job, companyRevealed]);
+  const offeneFragen = fragenAnKunden(briefing.fehlt).length;
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const ansprechen = (k: Kanal) => { setKanal(k); setTeilenOffen(true); };
+
+  // Aus der Jobliste („Anzeige & Ansprache") oder dem alten Link …/anzeige: ?teilen=1
+  useEffect(() => {
+    if (searchParams.get('teilen') !== '1') return;
+    setTab('beschreibung');
+    if (hatAnzeige) setTeilenOffen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('teilen');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const anzeigeKopieren = async () => {
+    try {
+      await navigator.clipboard.writeText(postingAsText(posting));
+      setKopiert('ok');
+      setTimeout(() => setKopiert(k => (k === 'ok' ? null : k)), 2000);
+    } catch {
+      setKopiert('fehler');
+    }
+  };
   const criteria = getRecruiterCriteria(job);
-  const answers = sections.flatMap(section => section.rows);
-  const intakeCount = answers.filter(row => row.source === 'intake').length;
-  const hasCriteria = criteria.required.length + criteria.trainable.length + criteria.negotiable.length > 0;
-
-
   const screening = Array.isArray(job.screening_questions)
     ? job.screening_questions.filter((item): item is string => typeof item === 'string')
     : job.screening_questions && typeof job.screening_questions === 'object'
       ? Object.values(job.screening_questions).filter((item): item is string => typeof item === 'string')
       : [];
+  const zeichen = ansprache.linkedin.length;
+
+  const werkzeuge = <Gruppe titel="Werkzeuge">
+    {tab === 'kandidaten' && hatAnzeige && <Kachel icon={Megaphone} titel="Anzeige & Ansprache" onClick={() => setTab('beschreibung')} />}
+    {tab !== 'beschreibung' && <Kachel icon={ListChecks} titel="Gesprächsleitfaden" onClick={() => setShowGuide(true)} />}
+    <Kachel icon={IdCard} titel="Anonymes Exposé" onClick={onExpose} />
+    <Kachel icon={Calculator} titel="Verdienst berechnen" onClick={() => setShowEarning(true)} />
+  </Gruppe>;
 
   return <div className="mx-auto max-w-[1440px] space-y-7 pb-24 min-[1180px]:pb-8">
     <Link to="/recruiter/jobs" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Alle offenen Jobs</Link>
 
-    <header className="space-y-5">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Dein Mandatsbriefing</span>
-        {intakeCount > 0 && <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs" title="Aus Aufnahmefeldern. Dort koennen auch aus einer Anzeige uebernommene Werte stehen."><ClipboardList className="h-3.5 w-3.5" />{intakeCount} Angaben aus Aufnahmefeldern</span>}
+    {/* Kopf: links die Stelle mit den Reitern, rechts Verdienst und nächster Schritt. Die
+        Dreier-Leiste darunter ist seit 21.10.2026 weg: Anzeige und Briefing zeigen alles selbst. */}
+    <Tabs value={tab} onValueChange={setTab} className="space-y-7">
+    <header>
+      <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5">
+        {/* Kopf wie eine klassische Stellenanzeige (Variante A, 21.10.2026): Logo, Titel,
+            Firma · Branche · Ort, Fakten als ruhige Textzeile; rechts Verdienst und nächster Schritt. */}
+        <div className="min-w-0 flex-1 basis-[26rem]">
+          <div className="flex items-start gap-4">
+            {companyRevealed && job.company_name
+              ? <FirmenLogo url={job.company_logo_url} name={job.company_name} size={56} />
+              : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted"><Building2 className="h-6 w-6 text-muted-foreground" /></span>}
+            <div className="min-w-0 space-y-1.5">
+              <h1 className="max-w-4xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{job.title}</h1>
+              <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
+                {companyRevealed && job.company_name
+                  ? <button type="button" onClick={() => setFirmaOffen(true)} className="font-medium text-foreground underline decoration-muted-foreground/50 decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{job.company_name}</button>
+                  : <span>Vertrauliches Unternehmen</span>}
+                {job.industry && <><span aria-hidden="true">·</span><span>{job.industry}</span></>}
+                {job.location && <><span aria-hidden="true">·</span><span>{job.location}</span></>}
+                <button type="button" onClick={() => setShowAccess(true)} aria-label="Informationen zur Unternehmensfreigabe"
+                  className={cn('ml-2 inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', companyRevealed || fullAccess ? 'text-emerald-600' : 'text-muted-foreground')}>
+                  {fullAccess ? <><Eye className="h-3.5 w-3.5" />voller Zugriff</> : companyRevealed ? <><LockKeyholeOpen className="h-3.5 w-3.5" />freigegeben</> : <><LockKeyhole className="h-3.5 w-3.5" />anonym</>}
+                </button>
+                {headerBadge}
+              </p>
+            </div>
+          </div>
+          {fakten.length > 0 && <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-sm" aria-label="Eckdaten">
+            {fakten.filter(f => f.symbol !== 'branche').map(f => { const Icon = KOPF_SYMBOL[f.symbol]; return <li key={f.symbol} className={cn('inline-flex items-center gap-1.5', f.symbol === 'geld' && 'font-medium')}><Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />{f.text}</li>; })}
+          </ul>}
+        </div>
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem] [&_button]:w-full">
+          <HeroEarning job={job} />
+          {/* Unter 1180 px steht der Knopf in der Leiste unten, nicht doppelt. */}
+          <div className="hidden min-[1180px]:block">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}</div>
+        </div>
       </div>
-      <h1 className="max-w-4xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl xl:text-4xl">{job.title}</h1>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" />{companyRevealed ? job.company_name || 'Unternehmen freigegeben' : job.industry || 'Vertrauliches Unternehmen'}{job.company_size_band && ` · ${job.company_size_band}`}</span>
-        <button onClick={() => setShowAccess(true)} className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring" aria-label="Informationen zur Unternehmensfreigabe"><CompanyRevealBadge companyRevealed={companyRevealed} fullAccess={fullAccess} /></button>
-        {job.location && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{job.location}</span>}
-        {job.employment_type && <span>{EMPLOYMENT[job.employment_type] || job.employment_type}</span>}
+      {/* Reiter als Unterstreichung, rechts der Stand der Suche. */}
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border">
+        <TabsList className="-mb-px h-auto flex-nowrap justify-start gap-5 rounded-none bg-transparent p-0 sm:gap-6">
+          {([['beschreibung', Megaphone, 'Anzeige & Ansprache', 'Anzeige'], ['briefing', ClipboardList, 'Briefing', 'Briefing'], ['kandidaten', Users, 'Meine Kandidaten', 'Kandidaten']] as const).map(([wert, Icon, label, kurz]) =>
+            <TabsTrigger key={wert} value={wert} className="gap-2 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              <Icon className="h-4 w-4" /><span className="sm:hidden">{kurz}</span><span className="hidden sm:inline">{label}</span>{wert === 'kandidaten' && <span className="rounded bg-muted px-1.5 text-xs tabular-nums">{submissionCount}</span>}
+            </TabsTrigger>)}
+        </TabsList>
+        {/* Am Handy über den Reitern, damit die Unterstreichung auf der Linie sitzt. */}
+        {heroStatus && <div className="order-first w-full pb-1 text-xs leading-5 text-muted-foreground sm:order-none sm:w-auto sm:pb-3 sm:text-right">{heroStatus}</div>}
       </div>
-      <JobFactsBar facts={{ salaryMin: job.salary_min ?? null, salaryMax: job.salary_max ?? null, dayRateMin: job.employment_type === 'freelance' ? job.day_rate_min : null, dayRateMax: job.employment_type === 'freelance' ? job.day_rate_max : null, onsiteRequired: job.onsite_required, onsiteDaysRequired: job.onsite_days_required, remoteDaysFlexible: job.remote_days_flexible, remotePolicy: job.remote_policy, remoteType: job.remote_type, requiredLanguages: job.required_languages, experienceLevel: job.experience_level, deadline: job.deadline, salaryMonths: job.salary_months ?? null }} />
     </header>
 
-    <Tabs value={tab} onValueChange={setTab} className="space-y-0">
-      <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-none border-b bg-transparent p-0 pb-3">
-        <TabsTrigger value="briefing" className="gap-2 rounded-md px-4 py-2.5 data-[state=active]:bg-secondary"><ClipboardList className="h-4 w-4" />Briefing</TabsTrigger>
-        <TabsTrigger value="kandidaten" className="gap-2 rounded-md px-4 py-2.5 data-[state=active]:bg-secondary"><Users className="h-4 w-4" />Meine Kandidaten <span className="rounded bg-muted px-1.5 text-xs tabular-nums">{submissionCount}</span></TabsTrigger>
-      </TabsList>
-
-      <div className="grid items-start gap-8 pt-6 min-[1180px]:grid-cols-[minmax(0,1fr)_270px]">
+      <div className="grid items-start gap-8 min-[1180px]:grid-cols-[minmax(0,1fr)_260px]">
         <div className="min-w-0">
-          <TabsContent value="briefing" className="m-0 space-y-7">
-            <nav aria-label="Abschnitte im Briefing" className="sticky top-16 z-20 -mx-1 flex flex-wrap gap-x-1 gap-y-1 border-b bg-background/95 px-1 py-3 backdrop-blur-sm">
-              {sections.map((section, index) => <a key={section.id} href={`#briefing-${section.id}`} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"><span className="opacity-60">0{index + 1}</span>{SECTION_LABELS[section.id]}</a>)}
-            </nav>
-            {!intakeCount && <div className="rounded-lg border border-border bg-card p-4 text-sm leading-6 text-muted-foreground">Für diese Stelle sind derzeit keine ausgefüllten Aufnahmefelder verfügbar. Vorhandene Stellendaten bleiben sichtbar; ihre Bestätigung durch den Kunden ist hier nicht dokumentiert.</div>}
+          {/* Die Anzeige allein in der Mitte (21.10.2026); Ansprache und Werkzeuge rechts als Kacheln. */}
+          <TabsContent value="beschreibung" className="m-0">
+            {hatAnzeige ? <div className="space-y-8">
+              <StellenanzeigeAnsicht posting={posting} />
+              <p className="flex max-w-[42rem] items-start gap-2 border-t border-border pt-5 text-xs leading-6 text-muted-foreground">
+                <LockKeyhole className="mt-1 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {(job.formatted_content as { anzeige?: unknown } | null)?.anzeige
+                    ? 'Texte von der KI aus den Angaben des Kunden formuliert und gegen sie geprüft, Beträge vom System eingesetzt. '
+                    : 'Aus den Angaben des Kunden erzeugt, ohne interne Notizen. '}
+                  Diese Fassung kannst du einem Kandidaten zeigen. Was du als Recruiter zusätzlich weißt, steht im Reiter Briefing.
+                </span>
+              </p>
+            </div>
+              : <EmptyAnswer>Für diese Stelle gibt es noch keine Anzeige. Alle Angaben des Kunden stehen im Briefing.</EmptyAnswer>}
+          </TabsContent>
 
-            {sections.map((section, index) => {
-              const rows = section.rows.filter(row => section.id !== 'profil' || !CRITERIA_KEYS.has(row.id));
-              const primary = rows.slice(0, section.id === 'profil' ? 2 : section.id === 'angebot' ? 6 : 3);
-              const remaining = rows.slice(primary.length);
-              return <section key={section.id} id={`briefing-${section.id}`} aria-labelledby={`heading-${section.id}`} className="scroll-mt-40 border-b border-border pb-8 last:border-0">
-                <div className="mb-5 flex items-start gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-xs tabular-nums text-muted-foreground">0{index + 1}</span>
-                  <div><h2 id={`heading-${section.id}`} className="text-lg font-semibold tracking-tight">{section.title}</h2><p className="mt-1 text-sm text-muted-foreground">{section.description}</p></div>
-                </div>
-                {section.id === 'profil' && <>
-                  {hasCriteria ? <div className="grid gap-5 rounded-xl border border-border bg-card p-5 sm:grid-cols-3">
-                    {[{ label: 'Unverzichtbar', values: criteria.required, source: criteria.sources.required, icon: Target }, { label: 'Erlernbar', values: criteria.trainable, source: criteria.sources.trainable, icon: Plus }, { label: 'Verhandelbar', values: criteria.negotiable, source: criteria.sources.negotiable, icon: CheckCheck }].map(({ label, values, source, icon: Icon }) => <div key={label} className="min-w-0 space-y-3">
-                      <h3 className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-muted-foreground" />{label}</h3>
-                      {values.length ? <><ul className="space-y-2">{values.map(value => <li key={value} className="flex gap-2 break-words text-sm leading-6"><span className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" />{value}</li>)}</ul><Source source={source} /></> : <p className="text-xs leading-5 text-muted-foreground">Keine Angabe verfügbar</p>}
-                    </div>)}
-                  </div> : <EmptyAnswer>Konkrete Auswahlkriterien sind in den verfügbaren Angaben noch nicht hinterlegt.</EmptyAnswer>}
-                  <Button variant="ghost" size="sm" className="my-3" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden öffnen<ArrowUpRight /></Button>
-                </>}
-                <dl>{primary.map(row => <Answer key={row.id} row={row} />)}</dl>
-                {remaining.length > 0 && <details className="group mt-3 rounded-lg border border-border/60 bg-card/30 px-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium">{remaining.length === 1 ? 'Eine weitere Angabe' : `Weitere ${remaining.length} Angaben`}<ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" /></summary>
-                  <dl>{remaining.map(row => <Answer key={row.id} row={row} />)}</dl>
-                </details>}
-                {!rows.length && section.id !== 'profil' && <EmptyAnswer>Zu diesem Bereich sind in der Recruiter-Ansicht keine strukturierten Antworten verfügbar.</EmptyAnswer>}
-                {section.id === 'aufgabe' && !rows.length && job.formatted_content?.role_summary && <div className="mt-3 border-l-2 border-border pl-4"><p className="mb-2 text-xs text-muted-foreground">KI-Zusammenfassung der Anzeige · nicht als Kundenbestätigung belegt</p><p className="text-sm leading-7">{job.formatted_content.role_summary}</p></div>}
-                {section.id === 'prozess' && <div className="mt-5 rounded-lg border border-border p-4">
-                  <h3 className="text-sm font-medium">Für eine gute Kandidatenvorstellung</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">Profil auswählen, Pflichtkriterien anhand konkreter Erfahrung prüfen, Gehalt und Verfügbarkeit abgleichen und die Einwilligung zur Weitergabe bestätigen.</p>
-                  <Button variant="outline" size="sm" className="mt-4" onClick={onSubmit}>Vorstellung vorbereiten<ArrowUpRight /></Button>
-                </div>}
-              </section>;
-            })}
-          
-            {/* Bis die eigene Anzeigenseite steht, haben Originalanzeige und
-                KI-Aufbereitung hier ihren Platz -- eingeklappt, damit sie das
-                Briefing nicht verduennen. Sie ersatzlos zu streichen hiesse,
-                Inhalt zu verlieren. */}
-            <details className="group rounded-xl border border-border p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium">Stellenbeschreibung & ursprüngliche Anforderungen<ChevronDown className="h-4 w-4 group-open:rotate-180" /></summary><div className="mt-5 space-y-5 whitespace-pre-wrap text-sm leading-7">{job.description ? <p>{job.description}</p> : <p className="text-muted-foreground">Die Originalbeschreibung ist nicht verfügbar oder noch nicht freigegeben.</p>}{job.requirements && <div><h4 className="mb-2 font-medium">Anforderungen aus den Stellendaten</h4><p>{job.requirements}</p></div>}{job.tech_environment?.length > 0 && <p>Technisches Umfeld: {job.tech_environment.join(' · ')}</p>}</div></details>
-            {job.formatted_content && <details className="group rounded-xl border border-border p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium">KI-Aufbereitung der Anzeige<ChevronDown className="h-4 w-4 group-open:rotate-180" /></summary><p className="mt-4 text-xs leading-6 text-muted-foreground">Diese Texte wurden aus der Anzeige generiert. Sie ersetzen weder die strukturierten Anforderungen noch eine Bestätigung durch den Kunden. Interne Provisionen gehören nicht in die Kandidatenansprache.</p><div className="mt-5 space-y-5 text-sm leading-7">{Object.entries(job.formatted_content).filter(([key, value]) => ['role_summary', 'ideal_candidate', 'anonymous_company_pitch', 'selling_points', 'highlights', 'urgency_note'].includes(key) && value).map(([key, value]) => <div key={key}><h4 className="mb-2 font-medium">{{ role_summary: 'Die Rolle', ideal_candidate: 'Profilentwurf', anonymous_company_pitch: 'Unternehmensentwurf', selling_points: 'Argumente aus der Anzeige', highlights: 'Highlights', urgency_note: 'Einschätzung zur Dringlichkeit' }[key]}</h4>{Array.isArray(value) ? <ul className="list-disc space-y-1 pl-5">{value.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>{value}</p>}</div>)}</div></details>}
+          <TabsContent value="briefing" className="m-0">
+            <ArbeitsBriefingView schritte={schritte} werkzeuge={{
+              lohnt: { label: 'Verdienst berechnen', icon: WERKZEUG_SYMBOL.verdienst, onClick: () => setShowEarning(true) },
+              suche: { label: 'Anonymes Exposé', icon: WERKZEUG_SYMBOL.expose, onClick: onExpose },
+              ueberzeugen: hatAnzeige ? { label: 'Ansprache schreiben', icon: WERKZEUG_SYMBOL.ansprache, onClick: () => { setTab('beschreibung'); setTeilenOffen(true); } } : undefined,
+              gespraech: { label: 'Gesprächsleitfaden', icon: WERKZEUG_SYMBOL.leitfaden, onClick: () => setShowGuide(true) },
+              abschluss: { label: 'Vorstellung vorbereiten', icon: WERKZEUG_SYMBOL.vorstellen, onClick: onSubmit },
+            }} />
           </TabsContent>
 
           <TabsContent value="kandidaten" className="m-0 space-y-6">
@@ -163,27 +243,44 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           </TabsContent>
         </div>
 
-
-        <aside aria-label="Aktionen zum Mandat" className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24">
-          {/* Der Verdienst zuerst. Ein Headhunter waehlt aus dutzenden
-              Stellen; woran er in dreissig Sekunden entscheidet, ist diese
-              Zahl. Vorher stand sie unter vier Knoepfen. */}
-          {job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="mb-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">Dein nächster Schritt</p>
-            <h2 className="text-lg font-semibold">Die passende Person vorstellen</h2>
-            <p className="mb-5 mt-2 text-sm leading-6 text-muted-foreground">Profil wählen, Passung begründen und Angaben vor dem Einreichen prüfen.</p>
-            <Button className="h-auto min-h-11 w-full whitespace-normal py-3" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>
-            <div className="mt-4 space-y-1 border-t border-border pt-3"><Button variant="ghost" className="w-full justify-start" asChild><Link to={`/recruiter/jobs/${job.id}/anzeige`}><FileText />Anzeige &amp; Ansprache</Link></Button><Button variant="ghost" className="w-full justify-start" onClick={onExpose}><FileText />Anonymes Exposé</Button><Button variant="ghost" className="w-full justify-start" onClick={() => setShowGuide(true)}><ListChecks />Screening-Leitfaden</Button></div>
-          </div>
-          <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? 'Unternehmensdaten sind für dich freigegeben.' : 'Unternehmensidentität geschützt. So funktioniert die Freigabe.'}</span></button>
+        <aside aria-label="Werkzeuge zum Mandat" className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24 min-[1180px]:border-l min-[1180px]:border-border min-[1180px]:pl-6">
+          {tab === 'beschreibung' && hatAnzeige && <>
+            <Gruppe titel="Ansprechen">
+              <Kachel icon={Linkedin} titel="LinkedIn" hinweis={`${zeichen} von 300 Zeichen`} onClick={() => ansprechen('linkedin')} />
+              <Kachel icon={Mail} titel="E-Mail" hinweis="mit Betreff und Anzeige" onClick={() => ansprechen('email')} />
+              <Kachel icon={Phone} titel="Telefon" hinweis="Einstieg, Argumente, Fragen" onClick={() => ansprechen('telefon')} />
+            </Gruppe>
+            <Gruppe titel="Teilen">
+              <button type="button" onClick={() => void anzeigeKopieren()} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">{kopiert === 'ok' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}</span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5">{kopiert === 'ok' ? 'Kopiert' : 'Anzeige kopieren'}</span><span className="block text-[11px] text-muted-foreground">sofort, als Text</span></span>
+              </button>
+              {kopiert === 'fehler' && <p role="alert" className="text-xs text-muted-foreground">Kopieren nicht möglich. Bitte den Text markieren und kopieren.</p>}
+              <Kachel icon={FileText} titel="One-Pager" hinweis="PDF oder Link · kommt bald" leise />
+            </Gruppe>
+          </>}
+          {tab === 'briefing' && <ArbeitsBriefingLeiste offen={offeneFragen} revealed={companyRevealed} onKundenFragen={() => setFragenOffen(true)} />}
+          {/* Im Briefing hängen die Werkzeuge am jeweiligen Schritt. */}
+          {tab !== 'briefing' && werkzeuge}
+          <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? 'Unternehmensdaten sind für dich freigegeben.' : 'Der Firmenname erscheint, sobald du „Ich suche“ drückst.'}</span></button>
         </aside>
       </div>
     </Tabs>
 
-    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden"><Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button><Button variant="outline" aria-label="Anonymes Exposé öffnen" onClick={onExpose}><FileText /></Button></div>
+    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}{hatAnzeige && <Button variant="outline" aria-label="Ansprechen" onClick={() => setTeilenOffen(true)}><Share2 /><span className="hidden min-[420px]:inline">Ansprechen</span></Button>}<Button variant="outline" aria-label="Anonymes Exposé öffnen" onClick={onExpose}><FileText /></Button></div>
 
-    <Dialog open={showGuide} onOpenChange={setShowGuide}><DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>Dein Screening-Leitfaden</DialogTitle><DialogDescription>{job.title} · Fragen für dein Gespräch, keine automatische Eignungsentscheidung.</DialogDescription></DialogHeader><div className="space-y-5">{criteria.required.map(value => <div key={value} className="border-b border-border pb-4"><h3 className="text-sm font-medium">{value}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">In welcher Situation haben Sie das angewendet? Was haben Sie selbst verantwortet und welches Ergebnis erreicht?</p></div>)}{screening.length > 0 && <div><h3 className="font-medium">Hinterlegte Screening-Fragen</h3><ul className="mt-3 list-disc space-y-3 pl-5 text-sm leading-6">{screening.map((question, index) => <li key={index}>{question}</li>)}</ul></div>}<div><h3 className="font-medium">Rahmenbedingungen abgleichen</h3><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground"><li>Welche Aufgabe und welches Umfeld suchen Sie als Nächstes?</li><li>Welche Gehaltsvorstellung und Verfügbarkeit haben Sie?</li><li>Passt das angegebene Arbeits- und Präsenzmodell?</li><li>Welche Punkte möchten Sie vor einer Vorstellung klären?</li></ul></div></div></DialogContent></Dialog>
-    <Dialog open={showAccess} onOpenChange={setShowAccess}><DialogContent><DialogHeader><DialogTitle>Unternehmensfreigabe</DialogTitle><DialogDescription>Die vorhandenen Freigabestufen dieses Mandats.</DialogDescription></DialogHeader><ol className="list-decimal space-y-4 pl-5 text-sm leading-7"><li>Anonymes Briefing für die erste Einschätzung.</li><li>Der Firmenname wird nach dem Kandidaten-Opt-in freigegeben.</li><li>Nach Interviewbestätigung werden weitere Firmeninformationen zugänglich.</li></ol><p className="text-sm text-muted-foreground">Aktueller Status: {fullAccess ? 'Voller Zugriff' : companyRevealed ? 'Firma freigegeben' : 'Firma anonym'}. Eine vorgezogene Freigabe ist im aktuellen Ablauf nicht vorgesehen.</p></DialogContent></Dialog>
+    {/* Ansprechen als Fenster von rechts; die Anzeige bleibt daneben lesbar. Am Handy über die ganze Breite. */}
+    <Sheet open={teilenOffen} onOpenChange={setTeilenOffen}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader><SheetTitle>Kandidaten ansprechen</SheetTitle><SheetDescription>Ohne Firmennamen und Honorar. Vorname und Aufhänger gelten für LinkedIn und E-Mail.</SheetDescription></SheetHeader>
+        <div className="mt-5"><AnspracheTeilen ansprache={ansprache} vorname={vorname} onVorname={setVorname} aufhaenger={aufhaenger} onAufhaenger={setAufhaenger} kanal={kanal} onKanal={setKanal} /></div>
+      </SheetContent>
+    </Sheet>
+    {companyRevealed && <FirmaSheet open={firmaOffen} onOpenChange={setFirmaOffen} job={job} />}
+    <KundenFragenSheet open={fragenOffen} onOpenChange={setFragenOffen} jobId={job.id} jobTitle={job.title} fehlt={briefing.fehlt} />
+
+    <GespraechsleitfadenSheet open={showGuide} onOpenChange={setShowGuide} jobTitle={job.title} anruf={briefing.anruf} muss={criteria.required} hinterlegt={screening} />
+    <Dialog open={showAccess} onOpenChange={setShowAccess}><DialogContent><DialogHeader><DialogTitle>Unternehmensfreigabe</DialogTitle><DialogDescription>Die vorhandenen Freigabestufen dieses Mandats.</DialogDescription></DialogHeader><ol className="list-decimal space-y-4 pl-5 text-sm leading-7"><li>Anonyme Stellenbeschreibung und Briefing für die erste Einschätzung.</li><li>Der Firmenname erscheint, sobald du „Ich suche“ drückst. Der Kunde sieht dann auch dich.</li><li>Nach Interviewbestätigung werden weitere Firmeninformationen zugänglich.</li></ol><p className="text-sm text-muted-foreground">Aktueller Status: {fullAccess ? 'Voller Zugriff' : companyRevealed ? 'Firma freigegeben' : 'Firma anonym'}. </p></DialogContent></Dialog>
+    <Dialog open={showEarning} onOpenChange={setShowEarning}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Verdienst berechnen</DialogTitle><DialogDescription>{job.title} · so rechnet sich deine Provision.</DialogDescription></DialogHeader>{job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}</DialogContent></Dialog>
   </div>;
 }

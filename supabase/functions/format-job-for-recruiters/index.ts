@@ -3,8 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { spezialistenTagessatz } from "../_shared/contracting-konditionen.ts";
 import { isServiceRole, requireAdmin } from "../_shared/admin-auth.ts";
 import {
-  ANZEIGE_FASSUNG, betragFunde, namensFunde, textDerAnzeige, verboteneBegriffe,
-  type Ansprache, type Anzeige,
+  ANZEIGE_FASSUNG, bereinigeInhalt, betragFunde, entferneSaetze, faktenText, namensFunde, regelFunde, textDerAnzeige,
+  verboteneBegriffe, vorteilBegriffe, type Ansprache, type Anzeige,
 } from "../_shared/recruiter-anzeige.ts";
 
 const corsHeaders = {
@@ -34,6 +34,103 @@ interface FormattedContent {
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+// Das Werkzeug-Schema für die Formatierung; der Korrekturdurchlauf nutzt dasselbe.
+const FORMAT_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "format_job",
+      description: "Formatiere die Stellenanzeige für Recruiter - OHNE Firmennamen zu nennen!",
+      parameters: {
+        type: "object",
+        properties: {
+          headline: { 
+            type: "string", 
+            description: "Catchy headline für die Stelle, max 60 Zeichen, OHNE Firmennamen!" 
+          },
+          highlights: { 
+            type: "array", 
+            items: { type: "string" },
+            description: "3-4 Key Highlights als kurze Bulletpoints" 
+          },
+          role_summary: { 
+            type: "string", 
+            description: "Prägnante Rollenbeschreibung, 2-3 Sätze, ANONYMISIERT ohne Firmennamen" 
+          },
+          ideal_candidate: { 
+            type: "string", 
+            description: "Beschreibung des idealen Kandidaten, 2-3 Sätze" 
+          },
+          selling_points: { 
+            type: "array", 
+            items: { type: "string" },
+            description: "3-5 Benefits/Selling Points" 
+          },
+          urgency_note: { 
+            type: "string", 
+            description: "Optionaler Urgency-Hinweis falls dringend" 
+          },
+          anonymous_company_pitch: {
+            type: "string",
+            description: "2-3 Sätze über das Unternehmen OHNE den Firmennamen zu nennen. Beispiel: 'Innovatives IT-Unternehmen im Benelux-Raum...'"
+          },
+          quick_facts: {
+            type: "object",
+            properties: {
+              team_size: { type: "string", description: "z.B. '5-10 Entwickler'" },
+              growth_stage: { type: "string", description: "z.B. 'Wachstumsphase', 'Etabliert', 'Startup'" },
+              culture_keywords: { 
+                type: "array", 
+                items: { type: "string" },
+                description: "3-5 Kultur-Keywords wie 'agil', 'remote-friendly', 'international'" 
+              },
+              interview_process: { type: "string", description: "z.B. '3-stufig, ca. 2 Wochen'" }
+            },
+            required: ["growth_stage", "culture_keywords"]
+          },
+          anzeige: {
+            type: "object",
+            description: "Vollständige anonyme Stellenanzeige in Du-Form, ohne Geldbeträge (dafür {VERGUETUNG})",
+            properties: {
+              einleitung: { type: "string" },
+              unternehmen: { type: "string" },
+              aufgaben: { type: "array", items: { type: "string" } },
+              arbeitsalltag: { type: "string" },
+              profil_zwingend: { type: "array", items: { type: "string" } },
+              profil_vorteil: { type: "array", items: { type: "string" } },
+              angebot: { type: "array", items: { type: "string" } },
+              team: { type: "string" },
+              ablauf: { type: "array", items: { type: "string" } }
+            },
+            required: ["einleitung", "unternehmen", "aufgaben", "profil_zwingend", "angebot"]
+          },
+          ansprache: {
+            type: "object",
+            description: "Kurzansprachen in Du-Form mit {VORNAME} und {VERGUETUNG}, ohne Geldbeträge",
+            properties: {
+              linkedin: { type: "string", description: "max. 280 Zeichen" },
+              email_betreff: { type: "string" },
+              email_text: { type: "string" },
+              telefon: {
+                type: "object",
+                properties: {
+                  einstieg: { type: "string" },
+                  argumente: { type: "array", items: { type: "string" } },
+                  fragen: { type: "array", items: { type: "string" } }
+                },
+                required: ["einstieg", "argumente", "fragen"]
+              }
+            },
+            required: ["linkedin", "email_betreff", "email_text", "telefon"]
+          }
+        },
+        required: ["headline", "highlights", "role_summary", "ideal_candidate", "selling_points", "anonymous_company_pitch", "quick_facts", "anzeige", "ansprache"],
+        additionalProperties: false
+      }
+    }
+  }
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -140,6 +237,15 @@ ${[
   job.position_advantages?.length
     ? `- Vorteile der Position, die nur ein Fachmann schaetzt:\n  ${(Array.isArray(job.position_advantages) ? job.position_advantages : [job.position_advantages]).join('\n  ')}`
     : null,
+  // Kriterien aus dem Katalog: nur die Muss-Kriterien sind Pflicht (21.10.2026).
+  job.must_have_criteria?.length
+    ? `- Muss-Kriterien (WOERTLICH, nur diese sind Pflicht):\n  ${job.must_have_criteria.join('\n  ')}` : null,
+  job.trainable_skills?.length
+    ? `- Erlernbar (NIE als Pflicht schreiben): ${job.trainable_skills.join(', ')}` : null,
+  job.nice_to_have_criteria?.length
+    ? `- Von Vorteil, kein Muss (NIE als Pflicht und NIE als "erfolgreich absolviert" schreiben): ${job.nice_to_have_criteria.join(', ')}` : null,
+  job.company_headcount ? `- Mitarbeitende im Unternehmen: ${job.company_headcount}` : null,
+  job.career_example ? `- Karrierebeispiel: ${job.career_example}` : null,
   job.daily_routine ? `- Arbeitsalltag: ${job.daily_routine}` : null,
   job.task_focus ? `- Schwerpunkt der Position: ${job.task_focus}` : null,
   job.vacancy_reason ? `- Warum die Stelle offen ist: ${job.vacancy_reason}` : null,
@@ -215,7 +321,11 @@ Erstelle eine ansprechende Formatierung mit:
    - email_text: 4-7 Sätze, beginnt mit "Hallo {VORNAME},", endet mit der Frage nach einem kurzen Gespräch (ohne Grußformel, die setzt das System)
    - telefon: einstieg (1 Satz), argumente (3 kurze Punkte), fragen (3 Fragen zur Passung aus den Muss-Kriterien)
 
-REGELN FÜR ANZEIGE UND ANSPRACHE:
+REGELN FÜR ALLE TEXTE (Headline, Highlights, Rollenbeschreibung, idealer Kandidat, Selling Points, Firmen-Pitch, Anzeige, Ansprache):
+- Keine Aussagen zur Marktstellung und keine Superlative: nicht "führend", "Marktführer", "Nr. 1", "renommiert", "einzigartig", "krisenfest", "sicherer Arbeitsplatz", "international", "weltweit" -- außer der Kunde sagt es oben wörtlich.
+- Zahlen (Mitarbeitende, Teamgröße, Jahre, Tage, Prozent) nur, wenn sie genau so oben stehen. Keine Schätzung wie "rund 500".
+- Muss und "von Vorteil" genau wie der Kunde: Was er erlernbar oder von Vorteil nennt, ist nie Pflicht und nie "erfolgreich absolviert".
+- Keine Zusätze an Kriterien (etwa "auf Konzernebene") und keine neuen Anforderungen.
 - Schreibe KEINE Geldbeträge, keine Zahlen mit €, EUR oder "k". Wo die Vergütung genannt werden soll, schreibe genau {VERGUETUNG}. Die Zahl setzt das System ein.
 - Nenne nie Honorar, Provision, Fee, Marge, Konkurrenzlage oder warum frühere Kandidaten abgesprungen sind.
 - Nutze nur, was oben steht. Was nicht in den Angaben steht, lässt du weg -- lieber kürzer als erfunden.
@@ -236,101 +346,7 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
           { role: "system", content: "Du bist ein Experte für Recruiter-Marketing. Du erstellst ansprechende, professionelle Job-Formatierungen. Antworte immer nur mit validem JSON." },
           { role: "user", content: prompt }
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "format_job",
-              description: "Formatiere die Stellenanzeige für Recruiter - OHNE Firmennamen zu nennen!",
-              parameters: {
-                type: "object",
-                properties: {
-                  headline: { 
-                    type: "string", 
-                    description: "Catchy headline für die Stelle, max 60 Zeichen, OHNE Firmennamen!" 
-                  },
-                  highlights: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "3-4 Key Highlights als kurze Bulletpoints" 
-                  },
-                  role_summary: { 
-                    type: "string", 
-                    description: "Prägnante Rollenbeschreibung, 2-3 Sätze, ANONYMISIERT ohne Firmennamen" 
-                  },
-                  ideal_candidate: { 
-                    type: "string", 
-                    description: "Beschreibung des idealen Kandidaten, 2-3 Sätze" 
-                  },
-                  selling_points: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "3-5 Benefits/Selling Points" 
-                  },
-                  urgency_note: { 
-                    type: "string", 
-                    description: "Optionaler Urgency-Hinweis falls dringend" 
-                  },
-                  anonymous_company_pitch: {
-                    type: "string",
-                    description: "2-3 Sätze über das Unternehmen OHNE den Firmennamen zu nennen. Beispiel: 'Innovatives IT-Unternehmen im Benelux-Raum...'"
-                  },
-                  quick_facts: {
-                    type: "object",
-                    properties: {
-                      team_size: { type: "string", description: "z.B. '5-10 Entwickler'" },
-                      growth_stage: { type: "string", description: "z.B. 'Wachstumsphase', 'Etabliert', 'Startup'" },
-                      culture_keywords: { 
-                        type: "array", 
-                        items: { type: "string" },
-                        description: "3-5 Kultur-Keywords wie 'agil', 'remote-friendly', 'international'" 
-                      },
-                      interview_process: { type: "string", description: "z.B. '3-stufig, ca. 2 Wochen'" }
-                    },
-                    required: ["growth_stage", "culture_keywords"]
-                  },
-                  anzeige: {
-                    type: "object",
-                    description: "Vollständige anonyme Stellenanzeige in Du-Form, ohne Geldbeträge (dafür {VERGUETUNG})",
-                    properties: {
-                      einleitung: { type: "string" },
-                      unternehmen: { type: "string" },
-                      aufgaben: { type: "array", items: { type: "string" } },
-                      arbeitsalltag: { type: "string" },
-                      profil_zwingend: { type: "array", items: { type: "string" } },
-                      profil_vorteil: { type: "array", items: { type: "string" } },
-                      angebot: { type: "array", items: { type: "string" } },
-                      team: { type: "string" },
-                      ablauf: { type: "array", items: { type: "string" } }
-                    },
-                    required: ["einleitung", "unternehmen", "aufgaben", "profil_zwingend", "angebot"]
-                  },
-                  ansprache: {
-                    type: "object",
-                    description: "Kurzansprachen in Du-Form mit {VORNAME} und {VERGUETUNG}, ohne Geldbeträge",
-                    properties: {
-                      linkedin: { type: "string", description: "max. 280 Zeichen" },
-                      email_betreff: { type: "string" },
-                      email_text: { type: "string" },
-                      telefon: {
-                        type: "object",
-                        properties: {
-                          einstieg: { type: "string" },
-                          argumente: { type: "array", items: { type: "string" } },
-                          fragen: { type: "array", items: { type: "string" } }
-                        },
-                        required: ["einstieg", "argumente", "fragen"]
-                      }
-                    },
-                    required: ["linkedin", "email_betreff", "email_text", "telefon"]
-                  }
-                },
-                required: ["headline", "highlights", "role_summary", "ideal_candidate", "selling_points", "anonymous_company_pitch", "quick_facts", "anzeige", "ansprache"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
+        tools: FORMAT_TOOLS,
         tool_choice: { type: "function", function: { name: "format_job" } }
       }),
     });
@@ -422,15 +438,38 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
       if (d) domains.push(d.company_domain, d.company_website);
     }
     const begriffe = verboteneBegriffe(job.company_name, job.reveal_envelope?.red_list, domains);
-    const texte = textDerAnzeige(formattedContent);
     const fakten = prompt.slice(prompt.indexOf('STELLENINFORMATIONEN:'), prompt.indexOf('Erstelle eine ansprechende Formatierung'));
+
+    // Gegen die Angaben des Kunden prüfen (21.10.2026): feste Regeln und die
+    // Belegprüfung. Was sie finden, schreibt die KI einmal neu; was danach noch
+    // übrig ist, streicht das System. Der Headhunter liest nur das Ergebnis.
+    const kundenFakten = faktenText(job);
+    const vorteile = vorteilBegriffe(job);
+    const regelVorher = regelFunde(textDerAnzeige(formattedContent), kundenFakten, vorteile);
+    const kiVorher = await ohneGrundlage(LOVABLE_API_KEY, fakten, textDerAnzeige(formattedContent));
+    const anstoesse = [...new Set([...regelVorher.map((f) => f.text), ...(kiVorher ?? [])])];
+    let korrigiert = false;
+    if (anstoesse.length) {
+      const neu = await korrigiere(LOVABLE_API_KEY, prompt, formattedContent, anstoesse);
+      if (neu) { formattedContent = { ...formattedContent, ...neu, fassung: ANZEIGE_FASSUNG }; korrigiert = true; }
+    }
+    const kiNachher = korrigiert ? await ohneGrundlage(LOVABLE_API_KEY, fakten, textDerAnzeige(formattedContent)) : kiVorher;
+    const ohneBeleg = entferneSaetze(formattedContent, kiNachher ?? []);
+    const bereinigt = bereinigeInhalt(ohneBeleg.content, kundenFakten, vorteile);
+    formattedContent = bereinigt.content;
+
+    const texte = textDerAnzeige(formattedContent);
     const pruefung = {
       begriffe,
       namensFunde: namensFunde(texte, begriffe),
       betragFunde: betragFunde(texte),
-      ohneGrundlage: await ohneGrundlage(LOVABLE_API_KEY, fakten, texte),
+      ohneGrundlage: kiVorher,
+      regelFunde: regelVorher.map((f) => `${f.treffer}: ${f.text}`),
+      korrigiert,
+      entfernt: [...ohneBeleg.entfernt, ...bereinigt.entfernt.map((f) => f.text)],
       erzeugtAm: new Date().toISOString(),
     };
+    if (pruefung.entfernt.length) console.log(`[format-job-for-recruiters] ${jobId}: ${pruefung.entfernt.length} Stellen ohne Grundlage gestrichen`);
 
     if (entwurf) {
       const { error: draftError } = await supabase.from('job_recruiter_text_drafts').upsert({
@@ -454,6 +493,40 @@ WICHTIG: Antworte NUR mit dem JSON-Objekt, keine anderen Texte!`;
     );
   }
 });
+
+/**
+ * Korrekturdurchlauf: dieselbe KI bekommt ihre Formatierung und die Stellen
+ * ohne Grundlage und schreibt sie neu. Scheitert er, bleibt die erste Fassung
+ * (die feste Bereinigung danach greift trotzdem).
+ */
+async function korrigiere(apiKey: string, prompt: string, inhalt: FormattedContent, stellen: string[]): Promise<Partial<FormattedContent> | null> {
+  try {
+    const { fassung: _fassung, ...bisher } = inhalt;
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: "Du bist ein Experte für Recruiter-Marketing. Du erstellst ansprechende, professionelle Job-Formatierungen. Antworte immer nur mit validem JSON." },
+          { role: "user", content: prompt },
+          { role: "assistant", content: JSON.stringify(bisher) },
+          { role: "user", content: `Diese Stellen sind NICHT durch die Angaben des Kunden gedeckt:\n${stellen.map((x) => `- ${x}`).join('\n')}\n\nSchreibe die Formatierung noch einmal. Entferne genau diese Aussagen oder ersetze sie durch das, was der Kunde wirklich gesagt hat. Ändere sonst nichts und halte alle Regeln von oben ein.` },
+        ],
+        tools: FORMAT_TOOLS,
+        tool_choice: { type: "function", function: { name: "format_job" } },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    const neu = args ? JSON.parse(args) : null;
+    return neu && typeof neu === 'object' ? neu as Partial<FormattedContent> : null;
+  } catch (e) {
+    console.error("Korrekturdurchlauf fehlgeschlagen:", e);
+    return null;
+  }
+}
 
 /**
  * Belegprüfung: eine zweite KI liest Anzeige und Ansprache gegen die Angaben

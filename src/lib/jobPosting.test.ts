@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAnsprache, buildJobPosting, postingAsText } from './jobPosting';
+import { buildAnsprache, buildJobPosting, nichtSchonGenannt, postingAsText } from './jobPosting';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
 
 const job = (extra: Record<string, unknown> = {}) => ({
@@ -39,6 +39,14 @@ describe('Benefit-Dubletten', () => {
     const posting = buildJobPosting(job({ benefits: ['Bonus', 'Bonuszahlung'] }));
     const zeile = posting.blocks.find(b => b.id === 'angebot')!.bullets[0];
     expect(zeile).toBe('Bonus · Bonuszahlung');
+  });
+});
+
+describe('Nicht schon genannt', () => {
+  it('erkennt gleiche Begriffe und gemeinsame Wortfolgen', () => {
+    const angebot = ['Steuerberaterexamen komplett bezahlt', 'Perspektive Head of Tax in drei Jahren', 'Gleitzeit ohne Kernzeit und 2 Tage Homeoffice'];
+    expect(nichtSchonGenannt(['Neugeschaffene Position durch Wachstum', 'Möglichkeit zur Entwicklung zum Head of Tax', 'Unterstützung beim Steuerberaterexamen', 'Gleitzeit ohne Kernzeit', '30 Urlaubstage'], angebot))
+      .toEqual(['Neugeschaffene Position durch Wachstum', '30 Urlaubstage']);
   });
 });
 
@@ -142,5 +150,22 @@ describe('Anzeige & Ansprache (29.09.2026)', () => {
     const a = buildAnsprache(job_, posting, 'Lena');
     const alles = [postingAsText(posting), a.linkedin, a.email.text, a.telefon.einstieg].join(' ');
     for (const verboten of ['1.000', '400', 'Honorar', 'Provision', '11 %']) expect(alles).not.toContain(verboten);
+  });
+});
+
+describe('Aufhänger in der Ansprache', async () => {
+  const { mitAufhaenger } = await import('./jobPosting');
+  it('ersetzt die Floskel nach der Anrede und hält die LinkedIn-Grenze', () => {
+    const t = 'Hallo Anna, spannendes Profil! Ich suche aktuell einen Tax Manager (m/w/d) in Frankfurt für ein wachsendes Unternehmen (Hybrid/Gleitzeit). Geboten werden 80.000 – 95.000 € und die volle Förderung des Steuerberaterexamens. Hättest Du Interesse an einem Austausch?';
+    const mit = mitAufhaenger(t, '5 Jahre WP-Gesellschaft');
+    expect(mit.startsWith('Hallo Anna, dein Hintergrund (5 Jahre WP-Gesellschaft) passt. Ich suche aktuell')).toBe(true);
+    expect(mit.length).toBeLessThanOrEqual(300);
+  });
+  it('setzt den Satz in der E-Mail in die Zeile nach der Anrede', () => {
+    expect(mitAufhaenger('Hallo Anna,\nich bin auf Dein Profil aufmerksam geworden.', 'SAP-Erfahrung'))
+      .toBe('Hallo Anna,\nDein Hintergrund (SAP-Erfahrung) passt. Ich bin auf Dein Profil aufmerksam geworden.');
+  });
+  it('lässt den Text ohne Aufhänger unverändert', () => {
+    expect(mitAufhaenger('Hallo,', '  ')).toBe('Hallo,');
   });
 });

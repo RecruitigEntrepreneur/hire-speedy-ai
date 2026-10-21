@@ -17,6 +17,16 @@ export type BriefingJob = IntakeDetails & {
   candidates_in_pipeline?: number | null;
   candidates_dropped_reason?: string | null;
   recruiter_briefing_answers?: unknown;
+  // Muss-Fragen der Aufnahme (20.10.2026). Zielfirmen, Abwerbeschutz und
+  // Einwaende liefert die View erst nach dem Reveal.
+  salary_flex?: string | null;
+  max_notice_period?: string | null;
+  visa_sponsorship?: boolean | null;
+  interview_process?: string | null;
+  target_companies?: string[] | null;
+  nogo_companies?: string[] | null;
+  candidate_concerns?: string[] | null;
+  candidate_concerns_answer?: string | null;
 };
 export type BriefingRow = { id: string; label: string; value: string; source: 'intake' | 'listing' };
 export type BriefingSection = { id: string; title: string; description: string; rows: BriefingRow[] };
@@ -26,6 +36,34 @@ const TRANSLATIONS: Record<string, string> = { growth: 'Wachstum', succession: '
 const LANGUAGES: Record<string, string> = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch' };
 const keyOf = (value: string) => value.trim().toLocaleLowerCase('de-DE').replace(/\s+/g, ' ');
 
+/**
+ * Umlaute, die die Aufnahme-KI als ae/oe/ue geschrieben hat („Team ueberlastet“,
+ * Befund 21.10.2026). Nur bekannte Wortstämme, damit „Steuer“, „neue“ oder
+ * „aktuell“ unberührt bleiben. Die Quelle (parse-job-url) schreibt seitdem Umlaute.
+ */
+const UMLAUT_STAEMME: [RegExp, string][] = ([
+  ['\\bueber', 'über'], ['\\bfuer\\b', 'für'], ['ueberlast', 'überlast'], ['verzoeger', 'verzöger'], ['pruef', 'prüf'],
+  ['koenn', 'könn'], ['moeglich', 'möglich'], ['groess', 'größ'], ['aender', 'änder'], ['waehr', 'währ'], ['zusaetz', 'zusätz'],
+  ['taeglich', 'täglich'], ['naechst', 'nächst'], ['spaet', 'spät'], ['fuehr', 'führ'], ['erfuell', 'erfüll'], ['wuensch', 'wünsch'],
+  ['muess', 'müss'], ['zurueck', 'zurück'], ['frueh', 'früh'], ['schluess', 'schlüss'], ['buero', 'büro'], ['loesung', 'lösung'],
+  ['hoeh', 'höh'], ['gehaelter', 'gehälter'], ['erwaehn', 'erwähn'], ['verguet', 'vergüt'], ['unterstuetz', 'unterstütz'],
+  ['persoenlich', 'persönlich'], ['taetig', 'tätig'], ['faehig', 'fähig'], ['staerk', 'stärk'], ['kuerz', 'kürz'], ['verfueg', 'verfüg'],
+  ['gemaess', 'gemäß'], ['regelmaess', 'regelmäß'], ['ueblich', 'üblich'], ['aussergewoehnlich', 'außergewöhnlich'], ['gewoehn', 'gewöhn'],
+] as [string, string][]).map(([a, u]) => [new RegExp(a, 'gi'), u]);
+
+export function umlaute(text: string): string {
+  if (!/ae|oe|ue/i.test(text)) return text;
+  // Platzhalter wie {VERGUETUNG} bleiben, wie sie sind: das System ersetzt sie später.
+  return text.split(/(\{[A-Z_]+\})/).map(teil => {
+    if (/^\{[A-Z_]+\}$/.test(teil)) return teil;
+    let out = teil;
+    for (const [re, ersatz] of UMLAUT_STAEMME) {
+      out = out.replace(re, (m) => (m[0] === m[0].toUpperCase() && m[0] !== m[0].toLowerCase() ? ersatz.charAt(0).toUpperCase() + ersatz.slice(1) : ersatz));
+    }
+    return out;
+  }).join('');
+}
+
 export function briefingText(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'boolean') return value ? 'Ja' : 'Nein';
@@ -33,10 +71,10 @@ export function briefingText(value: unknown): string {
   if (Array.isArray(value)) return [...new Set(value.map(briefingText).filter(Boolean))].join(' · ');
   if (typeof value !== 'string') return '';
   const trimmed = value.trim();
-  return !trimmed || PLACEHOLDERS.has(keyOf(trimmed)) ? '' : TRANSLATIONS[keyOf(trimmed)] ?? trimmed;
+  return !trimmed || PLACEHOLDERS.has(keyOf(trimmed)) ? '' : TRANSLATIONS[keyOf(trimmed)] ?? umlaute(trimmed);
 }
 
-function list(value: unknown): string[] {
+export function list(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const result = new Map<string, string>();
   for (const item of value) {
@@ -69,8 +107,13 @@ export const INTAKE_FIELDS: Field[] = [
   { id: 'must_have_criteria', label: 'Unverzichtbar', section: 'profil' },
   { id: 'trainable_skills', label: 'Erlernbar', section: 'profil' },
   { id: 'nice_to_have_criteria', label: 'Verhandelbar', section: 'profil' },
+  // K.-o.-Fragen zuerst: sie stehen im Abschnitt vor „Weitere Angaben“ (20.10.2026)
+  { id: 'max_notice_period', label: 'Längste Kündigungsfrist, die der Kunde abwartet', section: 'profil', only: 'employee' },
+  { id: 'visa_sponsorship', label: 'Arbeitserlaubnis', section: 'profil' },
   { id: 'success_profile', label: 'So gelingt die Aufgabe', section: 'profil' },
   { id: 'failure_profile', label: 'Erfahrungen mit bisheriger Besetzung', section: 'profil' },
+  { id: 'target_companies', label: 'Gute Kandidaten kommen aus', section: 'profil' },
+  { id: 'nogo_companies', label: 'Nicht abwerben bei', section: 'profil' },
   { id: 'vacancy_reason', label: 'Warum die Stelle offen ist', section: 'aufgabe' },
   { id: 'task_breakdown', label: 'Aufgabenverteilung', section: 'aufgabe' },
   { id: 'daily_routine', label: 'Der Arbeitsalltag', section: 'aufgabe' },
@@ -81,6 +124,7 @@ export const INTAKE_FIELDS: Field[] = [
   { id: 'benefits', label: 'Benefits und Ausstattung', section: 'angebot' },
   { id: 'salary_months', label: 'Monatsgehälter', section: 'angebot', only: 'employee' },
   { id: 'bonus_structure', label: 'Variable Vergütung', section: 'angebot', only: 'employee' },
+  { id: 'salary_flex', label: 'Spielraum beim Gehalt', section: 'angebot', only: 'employee' },
   { id: 'contract_limitation', label: 'Vertragsform', section: 'angebot', only: 'employee' },
   { id: 'career_example', label: 'Ein konkretes Karrierebeispiel', section: 'angebot', only: 'employee' },
   { id: 'day_rate_min', label: 'Tagessatz Spezialist ab', section: 'angebot', only: 'freelance' },
@@ -94,6 +138,8 @@ export const INTAKE_FIELDS: Field[] = [
   { id: 'overtime_policy', label: 'Umgang mit Überstunden', section: 'angebot', only: 'employee' },
   { id: 'time_tracking_method', label: 'Zeit- / Leistungserfassung', section: 'angebot' },
   { id: 'contract_sensitive_topics', label: 'Vertragsthemen vorab besprechen', section: 'angebot' },
+  { id: 'candidate_concerns', label: 'Was Kandidaten kritisch sehen könnten', section: 'angebot' },
+  { id: 'candidate_concerns_answer', label: 'Antwort des Kunden darauf', section: 'angebot' },
   { id: 'team_size', label: 'Teamgröße', section: 'unternehmen' },
   { id: 'reports_to', label: 'Berichtet an / fachliche Führung', section: 'unternehmen' },
   { id: 'company_culture', label: 'Zusammenarbeit und Kultur', section: 'unternehmen' },
@@ -103,6 +149,7 @@ export const INTAKE_FIELDS: Field[] = [
   { id: 'unique_selling_points', label: 'Was das Unternehmen besonders macht', section: 'unternehmen' },
   { id: 'industry_opportunities', label: 'Chancen der Branche', section: 'unternehmen' },
   { id: 'industry_challenges', label: 'Herausforderungen der Branche', section: 'unternehmen' },
+  { id: 'interview_process', label: 'Auswahlprozess', section: 'prozess' },
   { id: 'decision_makers', label: 'An der Entscheidung beteiligt', section: 'prozess' },
   { id: 'contract_creation_days', label: 'Von der Zusage bis zum Vertrag', section: 'prozess' },
   { id: 'contract_sent_digitally', label: 'Digitaler Vertragsversand', section: 'prozess' },
@@ -124,7 +171,7 @@ export function narrativeAnswer(job: BriefingJob, key: 'deliverable_90d' | 'inte
   return unknown === true ? '' : briefingText(value);
 }
 
-function fieldValue(job: BriefingJob, id: keyof BriefingJob): string {
+export function fieldValue(job: BriefingJob, id: keyof BriefingJob): string {
   const value = job[id];
   // This boolean is defaulted by the DB even for jobs that were never asked.
   if (id === 'works_council' && value === false) return '';
@@ -135,6 +182,8 @@ function fieldValue(job: BriefingJob, id: keyof BriefingJob): string {
     }).join('\n');
   }
   if (id === 'onsite_days_required' && value === 0) return 'Vollständig remote (0 Präsenztage)';
+  // Ja/Nein sagt hier nichts: die Frage war „Arbeitserlaubnis oder Visum?“
+  if (id === 'visa_sponsorship' && typeof value === 'boolean') return value ? 'Visum unterstützt der Kunde' : 'Arbeitserlaubnis für Deutschland nötig';
   const text = Array.isArray(value) ? list(value).join(' · ') : briefingText(value);
   if (!text) return '';
   const suffix: Partial<Record<keyof BriefingJob, string>> = { contract_creation_days: ' Tage', contract_duration_months: ' Monate', utilization_days_per_week: ' Tage pro Woche', onsite_days_required: ' Tage pro Woche', day_rate_min: ' € pro Tag', day_rate_max: ' € pro Tag' };
@@ -193,7 +242,9 @@ export function buildBriefingSections(job: BriefingJob): BriefingSection[] {
 
   for (const [section, id, label] of [['aufgabe', 'deliverable_90d', 'Erwartetes Ergebnis nach 90 Tagen'], ['prozess', 'interview_process', 'Interviewablauf']] as const) {
     const value = narrativeAnswer(job, id);
-    if (value) sections.find(item => item.id === section)!.rows.unshift({ id, label, value, source: 'intake' });
+    const ziel = sections.find(item => item.id === section)!;
+    // Seit 20.10.2026 fragt der Katalog den Auswahlprozess als eigene Spalte -- die gewinnt.
+    if (value && !ziel.rows.some(row => row.id === id)) ziel.rows.unshift({ id, label, value, source: 'intake' });
   }
   return sections;
 }

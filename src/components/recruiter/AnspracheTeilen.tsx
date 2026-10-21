@@ -15,12 +15,15 @@ export const LINKEDIN_GRENZE = 300;
  * wird beim Tippen eingesetzt; kopiert wird genau, was zu sehen ist.
  */
 export function AnspracheTeilen({
-  ansprache, vorname, onVorname, kanal, onKanal,
+  ansprache, vorname, onVorname, aufhaenger, onAufhaenger, kanal, onKanal,
 }: {
   ansprache: AnspracheTexte;
   vorname?: string;
   /** Ohne Handler (Vorschau für Matchunt) gibt es kein Namensfeld. */
   onVorname?: (wert: string) => void;
+  /** Aufhänger aus dem Profil des Kandidaten, gilt für LinkedIn und E-Mail (21.10.2026). */
+  aufhaenger?: string;
+  onAufhaenger?: (wert: string) => void;
   kanal: Kanal;
   onKanal: (kanal: Kanal) => void;
 }) {
@@ -51,11 +54,17 @@ export function AnspracheTeilen({
 
   return (
     <div className="space-y-4">
-      {onVorname && (
-        <label className="block space-y-1.5">
-          <span className="text-xs text-muted-foreground">Vorname des Kandidaten (optional)</span>
-          <Input value={vorname ?? ''} onChange={e => onVorname(e.target.value)} placeholder="z. B. Lena" />
-        </label>
+      {(onVorname || onAufhaenger) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {onVorname && <label className="block space-y-1.5">
+            <span className="text-xs text-muted-foreground">Vorname des Kandidaten (optional)</span>
+            <Input value={vorname ?? ''} onChange={e => onVorname(e.target.value)} placeholder="z. B. Lena" />
+          </label>}
+          {onAufhaenger && <label className="block space-y-1.5">
+            <span className="text-xs text-muted-foreground">Aufhänger (optional)</span>
+            <Input value={aufhaenger ?? ''} onChange={e => onAufhaenger(e.target.value)} placeholder="z. B. 5 Jahre WP-Gesellschaft" maxLength={60} />
+          </label>}
+        </div>
       )}
 
       <Tabs value={kanal} onValueChange={v => onKanal(v as Kanal)}>

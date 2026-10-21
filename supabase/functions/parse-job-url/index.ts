@@ -357,6 +357,11 @@ Diese Felder standen bis 09.09.2026 nicht im Schema. Gemessen an einer Anzeige,
 die zu jedem davon etwas sagte, kam nichts an -- nicht weil der Text fehlte,
 sondern weil niemand gefragt hat. Lies sie mit derselben Sorgfalt wie den Rest.
 
+SCHREIBWEISE fuer alle Textwerte: echte deutsche Umlaute und ß (ä, ö, ü, ß),
+so wie in der Anzeige. Nie ae, oe, ue oder ss als Ersatz -- diese Anleitung ist
+nur aus technischen Gruenden ohne Umlaute geschrieben (Befund 21.10.2026: "Team
+ueberlastet", "Betriebspruefungen verzoegern sich" standen so im Briefing).
+
 WICHTIG fuer alle: Der Wortlaut der Anzeige muss NICHT dem hier genannten
 Beispiel gleichen. Gib zurueck, was dasteht -- die Zuordnung auf feste
 Auswahlwerte passiert danach. Erfinde nichts; steht es nicht da, gib null.

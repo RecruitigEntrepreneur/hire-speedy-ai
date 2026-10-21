@@ -120,3 +120,42 @@ describe('Der Kandidatenstand steht vorn, nicht hinter dem Aufklappen', () => {
     expect(prozess.rows.map(r => r.id)).toEqual(['decision_makers']);
   });
 });
+
+describe('Recruiter briefing: Muss-Fragen der Aufnahme (20.10.2026)', () => {
+  const job = {
+    employment_type: 'full-time',
+    salary_flex: 'bis 10 % darüber',
+    max_notice_period: '3 Monate',
+    visa_sponsorship: false,
+    interview_process: 'Erstgespräch HR, dann Geschäftsführung',
+    recruiter_briefing_answers: { interview_process: { value: 'alter Text aus der alten Aufnahme' } },
+    target_companies: ['Beratungen', 'Beispiel GmbH'],
+    nogo_companies: ['Unsere Kunden'],
+    candidate_concerns: ['Präsenzpflicht'],
+    candidate_concerns_answer: 'Gleitzeit gleicht das aus',
+  } as unknown as BriefingJob;
+
+  it('zeigt Arbeitserlaubnis als Satz statt Ja/Nein', () => {
+    expect(rows(job).find(r => r.id === 'visa_sponsorship')?.value).toBe('Arbeitserlaubnis für Deutschland nötig');
+    expect(rows({ ...job, visa_sponsorship: true }).find(r => r.id === 'visa_sponsorship')?.value).toBe('Visum unterstützt der Kunde');
+  });
+
+  it('nimmt den Auswahlprozess aus der neuen Spalte und zeigt ihn nur einmal', () => {
+    const prozess = rows(job).filter(r => r.id === 'interview_process');
+    expect(prozess).toHaveLength(1);
+    expect(prozess[0].value).toBe('Erstgespräch HR, dann Geschäftsführung');
+  });
+
+  it('stellt Kündigungsfrist und Arbeitserlaubnis im Profil nach vorn', () => {
+    const profil = buildBriefingSections(job).find(s => s.id === 'profil')!;
+    expect(profil.rows.slice(0, 2).map(r => r.id)).toEqual(['max_notice_period', 'visa_sponsorship']);
+  });
+
+  it('lässt verdeckte Felder weg, solange die Sicht sie nicht liefert', () => {
+    const vorReveal = { ...job, target_companies: null, nogo_companies: null, candidate_concerns: null, candidate_concerns_answer: null } as BriefingJob;
+    const ids = rows(vorReveal).map(r => r.id);
+    expect(ids).not.toContain('target_companies');
+    expect(ids).not.toContain('candidate_concerns');
+    expect(ids).toContain('salary_flex');
+  });
+});

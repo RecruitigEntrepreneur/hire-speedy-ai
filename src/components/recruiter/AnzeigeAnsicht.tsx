@@ -11,21 +11,25 @@ const HERKUNFT: Record<Herkunft, string> = {
  * Ansprache" und für Matchunt in der Vorschau vor der Freigabe. Die Herkunft
  * je Abschnitt steht nur hier, nie im kopierten Text.
  */
-export function AnzeigeAnsicht({ posting, herkunftZeigen = true, kompakt = false }: {
+export function AnzeigeAnsicht({ posting, herkunftZeigen = true, kompakt = false, ohneKopf = false, ohneTitel = false }: {
   posting: Posting;
   herkunftZeigen?: boolean;
   /** Kleinere Überschrift, z. B. in der Vorschau im Freigabe-Dialog. */
   kompakt?: boolean;
+  /** Ohne Titel und Eckdaten, z. B. auf der Stellenseite, die beides schon oben zeigt. */
+  ohneKopf?: boolean;
+  /** Nur ohne Titel: die Seite zeigt ihn schon im Kopf (21.10.2026). Kopiert wird er weiter mit. */
+  ohneTitel?: boolean;
 }) {
   const kontakt = kontaktZeile(posting.kontakt);
   return (
     <div className="space-y-8">
-      <header className="space-y-3">
-        <h1 className={`${kompakt ? 'text-xl' : 'text-3xl'} font-semibold leading-tight tracking-tight`}>{posting.title}</h1>
+      {!ohneKopf && (!ohneTitel || posting.subtitle) && <header className="space-y-3">
+        {!ohneTitel && <h1 className={`${kompakt ? 'text-xl' : 'text-3xl'} font-semibold leading-tight tracking-tight`}>{posting.title}</h1>}
         {posting.subtitle && <p className="text-sm text-muted-foreground">{posting.subtitle}</p>}
-      </header>
+      </header>}
 
-      {posting.eckdaten.length > 0 && (
+      {!ohneKopf && posting.eckdaten.length > 0 && (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl border border-border bg-card px-5 py-4 text-sm sm:grid-cols-3">
           {posting.eckdaten.map(e => (
             <div key={e.label} className="min-w-0">

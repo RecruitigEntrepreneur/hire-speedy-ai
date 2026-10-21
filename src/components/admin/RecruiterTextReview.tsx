@@ -19,7 +19,11 @@ type Json = Record<string, any>;
 
 export interface TextEntwurf {
   content: Json;
-  pruefung: { begriffe?: string[]; ohneGrundlage?: string[] | null; erzeugtAm?: string; bearbeitet?: boolean } | null;
+  pruefung: {
+    begriffe?: string[]; ohneGrundlage?: string[] | null; erzeugtAm?: string; bearbeitet?: boolean;
+    /** Seit 21.10.2026: Funde vor der Korrektur, ob neu geschrieben, was gestrichen wurde. */
+    regelFunde?: string[]; korrigiert?: boolean; entfernt?: string[];
+  } | null;
   created_at?: string;
 }
 
@@ -142,7 +146,16 @@ export function RecruiterTextReview({
               schlecht={`Kommt vor: ${namen.join(', ')} – bitte entfernen. Bis dahin ist das Freigeben gesperrt.`} />
             <Pruefzeile ok={!betraege.length} gut="Beträge nur vom System, kein Budget und keine Marge"
               schlecht={`Betrag im Text: „${betraege[0]}“${betraege.length > 1 ? ` und ${betraege.length - 1} weitere` : ''}`} />
-            {belege == null
+            {entwurf?.pruefung?.korrigiert !== undefined
+              ? <>
+                  {/* Seit 21.10.2026 korrigiert der Generator selbst: neu schreiben, dann streichen. */}
+                  <Pruefzeile ok gut={entwurf.pruefung.korrigiert
+                    ? `Stellen ohne Grundlage gefunden und neu geschrieben: ${[...(entwurf.pruefung.regelFunde ?? []), ...(belege ?? [])].length}`
+                    : 'Alle Aussagen haben eine Grundlage in den Kundenangaben'} schlecht="" />
+                  {(entwurf.pruefung.entfernt?.length ?? 0) > 0 && <li className="flex gap-2 text-muted-foreground"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>Danach automatisch gestrichen: {entwurf.pruefung.entfernt!.map(b => `„${b}“`).join(' ')}</span></li>}
+                </>
+              : belege == null
               ? <li className="flex gap-2 text-muted-foreground"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />Belegprüfung nicht gelaufen – bitte selbst lesen</li>
               : <Pruefzeile ok={!belege.length} gut="Alle Aussagen haben eine Grundlage in den Kundenangaben"
                   schlecht={`${belege.length} ${belege.length === 1 ? 'Satz' : 'Sätze'} ohne Grundlage in den Kundenangaben – prüfen: ${belege.map(b => `„${b}“`).join(' ')}`} />}
