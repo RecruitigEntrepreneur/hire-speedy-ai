@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { EigeneEintraege } from './EigeneEintraege';
 import {
   DIALOG_QUESTIONS, chipTreffer, completeness, nextQuestion,
   frageText, slotChipWert, slotChips, slotLabel,
@@ -673,6 +674,11 @@ function SlotEingabe({
             </button>
           );
         })}
+        {multi && slot.eigene && (
+          <div className="basis-full">
+            <EigeneEintraege alle={gewaehlt} chips={slotChips(slot, contract) ?? []} placeholder={slot.placeholder} onChange={onSet} />
+          </div>
+        )}
       </div>
     );
   }

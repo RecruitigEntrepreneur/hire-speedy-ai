@@ -133,8 +133,13 @@ export interface BriefSlot {
    * zweite Auswahl daneben waere die Einladung, sich selbst zu widersprechen.
    */
   askIfLeer?: string;
-  /** Beispiel im leeren Feld. Nur fuer `short`/`text` sinnvoll. */
+  /** Beispiel im leeren Feld. Nur fuer `short`/`text` sinnvoll, bei `eigene` die Eingabe darunter. */
   placeholder?: string;
+  /**
+   * `multi` mit Vorschlaegen UND eigenen Eintraegen (20.10.2026): Firmennamen
+   * stehen in keiner Chipliste. Ohne Chips ist `multi` ohnehin eine freie Liste.
+   */
+  eigene?: boolean;
   only?: 'full-time' | 'freelance';
   /**
    * Ohne diese Zeile geht es nicht weiter zu den Kontaktdaten.
@@ -408,6 +413,18 @@ const LINKS: BriefQuestion[] = [
         required: false, weight: 1, reveal: 'safe', sources: ['ad'], only: 'full-time',
         askIfNot: { key: 'bonus_structure', equals: 'Nein' },
       },
+      /*
+        NEU 20.10.2026 (Muss-Frage 1, Wortlaut vom Nutzer bestaetigt): Das Band
+        allein sagt nicht, ob der Kunde fuer den Richtigen darueber geht. Gehalt
+        ist der haeufigste Abbruchgrund; die alte Aufnahme fragte das ("flex"),
+        der Katalog seit dem Umbau nicht mehr.
+      */
+      {
+        key: 'salary_flex', label: 'Wie viel Spielraum haben Sie beim Gehalt für den richtigen Kandidaten?', form: 'chips',
+        chips: ['Keiner, die Range ist fest', 'bis 5 % darüber', 'bis 10 % darüber', 'verhandelbar'],
+        column: 'salary_flex', store: 'text',
+        required: true, weight: 3, reveal: 'safe', sources: [], only: 'full-time',
+      },
     ],
   },
   {
@@ -653,6 +670,49 @@ const LINKS: BriefQuestion[] = [
       },
     ],
   },
+  /*
+    NEU 20.10.2026 (Muss-Fragen 3 und 4, Wortlaut vom Nutzer bestaetigt). Beide
+    gelten fuer die Firma, nicht fuer die Stelle -- deshalb in den Rahmendaten,
+    die auch Kunden mit Konto sehen (der Block "Ihr Unternehmen" ist dann
+    ausgeblendet). Die Spalten visa_sponsorship und nogo_companies gab es seit
+    der alten Aufnahme; gefragt wurde seit dem Katalog-Umbau keine von beiden.
+  */
+  {
+    key: 'arbeitserlaubnis',
+    place: 'arbeitszeit',
+    level: 'company',
+    order: 70,
+    chapter: 'Arbeitszeit & Prozess',
+    text: 'Braucht der Kandidat eine Arbeitserlaubnis, oder unterstützen Sie ein Visum?',
+    why: 'Ein K.-o.-Kriterium: ohne die Antwort spricht der Recruiter Kandidaten an, die nicht anfangen dürfen.',
+    slots: [
+      {
+        key: 'visa_sponsorship', label: 'Arbeitserlaubnis oder Visum', form: 'chips',
+        chips: ['Arbeitserlaubnis für Deutschland nötig', 'Visum unterstützen wir'],
+        chipValues: { 'Arbeitserlaubnis für Deutschland nötig': false, 'Visum unterstützen wir': true },
+        column: 'visa_sponsorship', store: 'bool',
+        required: true, weight: 2, reveal: 'safe', sources: ['inherit'],
+      },
+    ],
+  },
+  {
+    key: 'abwerbeschutz',
+    place: 'arbeitszeit',
+    level: 'company',
+    order: 80,
+    chapter: 'Arbeitszeit & Prozess',
+    text: 'Bei welchen Unternehmen dürfen wir auf keinen Fall abwerben?',
+    why: 'Wer beim Kunden des Kunden abwirbt, beschädigt die Geschäftsbeziehung. Nur der Recruiter sieht das, erst wenn er sucht.',
+    slots: [
+      {
+        key: 'nogo_companies', label: 'Nicht abwerben bei', form: 'multi', eigene: true,
+        chips: ['Unsere Kunden', 'Unsere Lieferanten', 'Konzerngesellschaften', 'Keine Einschränkung'],
+        placeholder: 'Firmenname eingeben',
+        column: 'nogo_companies', store: 'array',
+        required: true, weight: 2, reveal: 'gated', sources: ['inherit'],
+      },
+    ],
+  },
 ];
 
 /* ==================================================================== *
@@ -701,6 +761,14 @@ const GESPRAECH: BriefQuestion[] = [
         ],
         column: 'negative_impact_if_unfilled', store: 'text',
         required: true, weight: 2, reveal: 'gated', sources: ['ad'],
+      },
+      // NEU 20.10.2026 (Muss-Frage 2): gehoert zum "bis wann" -- gute Kandidaten
+      // sind gebunden, die Frist entscheidet, wen der Recruiter gar nicht erst anspricht.
+      {
+        key: 'max_notice_period', label: 'Welche Kündigungsfrist können Sie höchstens abwarten?', form: 'chips',
+        chips: ['1 Monat', '3 Monate', '6 Monate', 'egal'],
+        column: 'max_notice_period', store: 'text',
+        required: true, weight: 2, reveal: 'safe', sources: [], only: 'full-time',
       },
     ],
   },
@@ -763,6 +831,26 @@ const GESPRAECH: BriefQuestion[] = [
     ],
   },
   {
+    // NEU 20.10.2026 (Muss-Frage 6, Wortlaut vom Nutzer bestaetigt). Die alte
+    // Aufnahme fragte "interview_process"; seit dem Katalog fehlte die Frage,
+    // und "So laeuft es ab" in der Anzeige war aus Entscheidern und Tagen geraten.
+    key: 'auswahlprozess',
+    place: 'dialog',
+    level: 'position',
+    order: 35,
+    chapter: 'Prozess & Entscheider',
+    text: 'Wie läuft Ihr Auswahlprozess ab: wie viele Gespräche, mit wem, gibt es eine Fallstudie oder einen Probetag?',
+    why: 'Kandidaten fragen das im ersten Gespräch. Wer den Ablauf kennt, springt seltener ab.',
+    slots: [
+      {
+        key: 'interview_process', label: 'Der Auswahlprozess', form: 'ai',
+        chips: ['Erstgespräch HR', 'Zweitgespräch Fachbereich', 'Zweitgespräch Geschäftsführung', 'Fallstudie', 'Probetag'],
+        column: 'interview_process', store: 'text',
+        required: true, weight: 2, reveal: 'safe', sources: ['ad'],
+      },
+    ],
+  },
+  {
     key: 'passung',
     place: 'dialog',
     level: 'company',
@@ -807,6 +895,27 @@ const GESPRAECH: BriefQuestion[] = [
         ],
         column: 'failure_profile', store: 'text',
         required: true, weight: 3, reveal: 'safe', sources: ['ad', 'inherit', 'derive'],
+      },
+    ],
+  },
+  {
+    // NEU 20.10.2026 (Muss-Frage 5, Wortlaut vom Nutzer bestaetigt). Vorschlaege
+    // sind ARTEN von Unternehmen, keine Namen: eine erfundene Firmenliste waere
+    // schlimmer als keine. Namen traegt der Kunde selbst ein.
+    key: 'sourcing',
+    place: 'dialog',
+    level: 'position',
+    order: 45,
+    chapter: 'Sourcing',
+    text: 'Aus welchen Unternehmen kommen gute Kandidaten für diese Rolle typischerweise?',
+    why: 'Hier sucht Ihr Headhunter zuerst. Nur er sieht das, und erst wenn er für Sie sucht.',
+    slots: [
+      {
+        key: 'target_companies', label: 'Gute Kandidaten kommen aus', form: 'multi', eigene: true,
+        chips: ['Wettbewerber', 'Beratungen', 'Konzerne der Branche', 'Mittelstand der Branche', 'Zulieferer'],
+        placeholder: 'Firmenname eingeben',
+        column: 'target_companies', store: 'array',
+        required: true, weight: 2, reveal: 'gated', sources: [],
       },
     ],
   },
@@ -934,6 +1043,33 @@ const GESPRAECH: BriefQuestion[] = [
                          'Verschwiegenheit / NDA', 'Vor-Ort-Pflicht ohne Ausnahme', 'Reisepflicht'],
         column: 'contract_sensitive_topics', store: 'text',
         required: true, weight: 2, reveal: 'safe', sources: ['ad'],
+      },
+    ],
+  },
+  {
+    // NEU 20.10.2026 (Muss-Frage 7, Wortlaut vom Nutzer bestaetigt): die
+    // Einwaende vorher kennen, statt Kandidaten erst beim Angebot zu verlieren.
+    // Bleibt beim Recruiter, steht nie in der Anzeige.
+    key: 'einwaende',
+    place: 'dialog',
+    level: 'position',
+    order: 85,
+    chapter: 'Timing & Vertrag',
+    text: 'Was würde ein Kandidat an der Stelle kritisch sehen, und was antworten Sie darauf?',
+    why: 'Wer die Einwände vorher kennt, verliert Kandidaten nicht erst beim Angebot.',
+    slots: [
+      {
+        key: 'candidate_concerns', label: 'Was kritisch gesehen wird', form: 'multi', eigene: true,
+        chips: ['Präsenzpflicht', 'Arbeitsweg', 'Gehalt', 'Kein Bonus', 'Rückzahlungsklausel', 'Reisetätigkeit'],
+        placeholder: 'Eigenen Punkt eingeben',
+        column: 'candidate_concerns', store: 'array',
+        required: true, weight: 2, reveal: 'gated', sources: [],
+      },
+      {
+        key: 'candidate_concerns_answer', label: 'Ihre Antwort darauf', form: 'text',
+        placeholder: 'z. B. Gleitzeit ohne Kernzeit gleicht die Präsenz aus',
+        column: 'candidate_concerns_answer', store: 'text',
+        required: true, weight: 2, reveal: 'gated', sources: [],
       },
     ],
   },

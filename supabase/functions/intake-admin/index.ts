@@ -10,6 +10,9 @@ import { intakeResumeUrl } from '../_shared/app-url.ts';
 import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess } from '../_shared/client-access.ts';
 import { linkFramework, notifyFrameworkConflict } from '../_shared/framework-link.ts';
 import { firmenprofilAusAufnahme, firmaAusAufnahme } from '../_shared/firmenprofil.ts';
+import { holeFirmenlogo } from '../_shared/firmenlogo.ts';
+
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
 type Db = ReturnType<typeof serviceClient>;
 
@@ -253,6 +256,13 @@ serve(async (req) => {
       // Die Firma der Stelle (mit der Annahme verifiziert) bekommt Anschrift und Register.
       const firmaRes = await firmaAusAufnahme(supabase, jobId as string | null, draft, jobRow);
       if (firmaRes.fehler) console.warn('[intake-admin] Firma nicht gefuellt:', firmaRes.fehler);
+      // Website bekannt: Firmenlogo im Hintergrund holen (19.10.2026). Die Antwort wartet nicht darauf.
+      if (firmaRes.firmaId) {
+        const logo = holeFirmenlogo(supabase, firmaRes.firmaId, { fetch, firecrawlKey: Deno.env.get('FIRECRAWL_API_KEY') ?? undefined })
+          .then(r => console.log('[intake-admin] Firmenlogo:', r.status))
+          .catch(e => console.warn('[intake-admin] Firmenlogo:', e instanceof Error ? e.message : e));
+        if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(logo);
+      }
 
       // ---- Zugang des Kunden --------------------------------------------------
       // Neu angelegt oder schon vorhanden: der Kunde bekommt denselben Weg

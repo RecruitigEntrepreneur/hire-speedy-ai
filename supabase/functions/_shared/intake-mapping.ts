@@ -192,13 +192,18 @@ export function draftToJobRow(draft: Json): Json {
       (remoteType === 'hybrid' && remoteDays != null ? Math.max(0, 5 - remoteDays) : undefined),
     intake_completeness: asInt(draft.completeness),
 
-    // Typisierte Matching-Felder aus der KI-Normalisierung.
-    visa_sponsorship: typeof typed.visa_sponsorship === 'boolean' ? typed.visa_sponsorship : undefined,
+    // Typisierte Matching-Felder aus der KI-Normalisierung. Visum, Zielfirmen
+    // und Abwerbeschutz fragt seit 20.10.2026 der Katalog: seine Antwort
+    // gewinnt. Vorher stand hier der KI-Wert und ueberschrieb -- als
+    // `undefined` -- die Antwort aus `...ausKatalog` weiter oben.
+    visa_sponsorship: typeof ausKatalog.visa_sponsorship === 'boolean'
+      ? ausKatalog.visa_sponsorship
+      : typeof typed.visa_sponsorship === 'boolean' ? typed.visa_sponsorship : undefined,
     experience_min: asInt(typed.experience_min),
     experience_max: asInt(typed.experience_max),
     search_difficulty: typed.search_difficulty ?? undefined,
-    target_companies: asArray(typed.target_companies),
-    nogo_companies: asArray(typed.nogo_companies),
+    target_companies: asArray(ausKatalog.target_companies) ?? asArray(typed.target_companies),
+    nogo_companies: asArray(ausKatalog.nogo_companies) ?? asArray(typed.nogo_companies),
 
     reveal_trigger: reveal.trigger ?? 'after_first_interview',
     reveal_envelope: {

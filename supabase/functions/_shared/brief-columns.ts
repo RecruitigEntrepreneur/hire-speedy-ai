@@ -49,6 +49,7 @@ export const BRIEF_COLUMNS: BriefColumn[] = [
   // Verguetung
   { key: 'salary_months', column: 'salary_months', store: 'number', only: 'full-time' },
   { key: 'bonus_structure', column: 'bonus_structure', store: 'text', only: 'full-time' },
+  { key: 'salary_flex', column: 'salary_flex', store: 'text', only: 'full-time' },
 
   // Anforderungen
   { key: 'must_have_criteria', column: 'must_have_criteria', store: 'array' },
@@ -72,10 +73,15 @@ export const BRIEF_COLUMNS: BriefColumn[] = [
   { key: 'contract_creation_days', column: 'contract_creation_days', store: 'number' },
   { key: 'contract_sent_digitally', column: 'contract_sent_digitally', store: 'bool' },
 
+  // Firmenweit, neu 20.10.2026: Arbeitserlaubnis und Abwerbeschutz
+  { key: 'visa_sponsorship', column: 'visa_sponsorship', store: 'bool' },
+  { key: 'nogo_companies', column: 'nogo_companies', store: 'array' },
+
   // Vakanz
   { key: 'vacancy_reason', column: 'vacancy_reason', store: 'text' },
   { key: 'hiring_deadline', column: 'hiring_urgency', store: 'text' },
   { key: 'negative_impact_if_unfilled', column: 'negative_impact_if_unfilled', store: 'text' },
+  { key: 'max_notice_period', column: 'max_notice_period', store: 'text', only: 'full-time' },
 
   // Rolle
   { key: 'daily_routine', column: 'daily_routine', store: 'text' },
@@ -85,10 +91,12 @@ export const BRIEF_COLUMNS: BriefColumn[] = [
   // Entscheidung
   { key: 'reports_to', column: 'reports_to', store: 'text' },
   { key: 'decision_makers', column: 'decision_makers', store: 'array' },
+  { key: 'interview_process', column: 'interview_process', store: 'text' },
 
   // Passung, Verkauf, Kultur
   { key: 'success_profile', column: 'success_profile', store: 'text' },
   { key: 'failure_profile', column: 'failure_profile', store: 'text' },
+  { key: 'target_companies', column: 'target_companies', store: 'array' },
   { key: 'unique_selling_points', column: 'unique_selling_points', store: 'array' },
   { key: 'position_advantages', column: 'position_advantages', store: 'array' },
   { key: 'company_culture', column: 'company_culture', store: 'text' },
@@ -97,6 +105,8 @@ export const BRIEF_COLUMNS: BriefColumn[] = [
 
   // Vertrag und Branche
   { key: 'contract_sensitive_topics', column: 'contract_sensitive_topics', store: 'text' },
+  { key: 'candidate_concerns', column: 'candidate_concerns', store: 'array' },
+  { key: 'candidate_concerns_answer', column: 'candidate_concerns_answer', store: 'text' },
   { key: 'industry_opportunities', column: 'industry_opportunities', store: 'text' },
   { key: 'industry_challenges', column: 'industry_challenges', store: 'text' },
 

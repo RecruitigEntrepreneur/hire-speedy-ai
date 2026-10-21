@@ -8,6 +8,7 @@ import {
 } from '@/lib/briefCatalog';
 import { Check } from 'lucide-react';
 import { AbteilungsTreppe } from './AbteilungsTreppe';
+import { EigeneEintraege } from './EigeneEintraege';
 import { teamgroesseAus, type Abteilungsaufbau } from '../../../../supabase/functions/_shared/abteilung';
 
 /** Vorschlaege fuer die Treppe "Aufbau der Abteilung" (Rollen, Schnittstellen). */
@@ -225,6 +226,9 @@ function FeldEingabe({
   return (
     <div>
       {(slot.form === 'chips' || slot.form === 'multi') && chipReihe(slot.form === 'multi')}
+      {slot.form === 'multi' && slot.eigene && (
+        <EigeneEintraege alle={gewaehlt} chips={chips ?? []} placeholder={slot.placeholder} onChange={(v) => onSet(v)} />
+      )}
 
       {slot.form === 'short' && (
         <Input value={String(wert ?? '')} className="h-8 text-xs"

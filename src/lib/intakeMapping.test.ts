@@ -529,6 +529,28 @@ describe('draftToJobRow (Server)', () => {
     expect(draftToJobRow(draft).skills).toEqual(['AWS', 'K8s']);
   });
 
+  it('schreibt die neuen Muss-Fragen und lässt die Antwort des Kunden über dem KI-Wert stehen', () => {
+    const known = {
+      salary_flex: { value: 'bis 10 % darüber', from: 'answer' },
+      max_notice_period: { value: '3 Monate', from: 'answer' },
+      visa_sponsorship: { value: false, from: 'answer' },
+      nogo_companies: { value: ['Unsere Kunden', 'Muster AG'], from: 'answer' },
+      target_companies: { value: ['Beratungen', 'Beispiel GmbH'], from: 'answer' },
+      interview_process: { value: 'Erstgespräch HR, dann Geschäftsführung', from: 'answer' },
+      candidate_concerns: { value: ['Präsenzpflicht'], from: 'answer' },
+      candidate_concerns_answer: { value: 'Gleitzeit gleicht das aus', from: 'answer' },
+    };
+    const row = draftToJobRow({ ...draft, dyn: { ...draft.dyn, catalog: { known } } });
+    expect(row.salary_flex).toBe('bis 10 % darüber');
+    expect(row.max_notice_period).toBe('3 Monate');
+    expect(row.visa_sponsorship).toBe(false);
+    expect(row.nogo_companies).toEqual(['Unsere Kunden', 'Muster AG']);
+    expect(row.target_companies).toEqual(['Beratungen', 'Beispiel GmbH']);
+    expect(row.interview_process).toBe('Erstgespräch HR, dann Geschäftsführung');
+    expect(row.candidate_concerns).toEqual(['Präsenzpflicht']);
+    expect(row.candidate_concerns_answer).toBe('Gleitzeit gleicht das aus');
+  });
+
   it('schreibt Contracting-Konditionen in typisierte Spalten, nicht nur nach JSON', () => {
     // Ohne das ginge eine Freelance-Stelle ganz ohne Vergütungsangabe an die
     // Recruiter — genau der Befund aus 20260829120000.
