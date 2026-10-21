@@ -28,7 +28,8 @@ import {
   buildClientSummary,
   changeEvidence,
   computeReadiness,
-  interviewGaps,
+  abschlussGaps,
+  rahmenGaps,
   type ClientSummary,
 } from '@/lib/candidateDossier';
 import {
@@ -87,6 +88,10 @@ const NEXT_QUESTION: Record<string, string> = {
   why_now: 'Was ist jetzt anders als vor einem Jahr?',
   interview_type: 'Telefon, Video oder vor Ort? Oben im Kopf wählen.',
   interview_date: 'Wann war das Gespräch? Oben im Kopf.',
+  arbeitsmodell: 'Wie möchten Sie arbeiten: vor Ort, hybrid oder remote?',
+  wohnort: 'Wo wohnen Sie aktuell?',
+  pendeln: 'Wie lange darf der Arbeitsweg höchstens dauern?',
+  sprachen: 'Welche Sprachen sprechen Sie, und wie gut?',
 };
 
 type PhaseKey = (typeof PHASES)[number]['key'];
@@ -110,6 +115,11 @@ const WHERE: Record<string, { phase: PhaseKey | 'kopf' | 'akte'; field: string }
   kontakt: { phase: 'akte', field: 'email' },
   skills: { phase: 'akte', field: 'skills' },
   kundentexte: { phase: 'kundenprofil', field: 'summary_motivation' },
+  // Rahmen fürs Matching (19.10.2026), Pflicht zum Abschließen
+  arbeitsmodell: { phase: 'rahmen', field: 'remote_preference' },
+  wohnort: { phase: 'rahmen', field: 'city' },
+  pendeln: { phase: 'rahmen', field: 'max_commute_minutes' },
+  sprachen: { phase: 'rahmen', field: 'languages' },
 };
 
 const monthYear = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -221,7 +231,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     switch (PHASES[i].key) {
       case 'situation': return !!(f.change_motivation.trim() || f.change_motivation_tags.length) && !!(f.current_positive.trim() || f.current_negative.trim() || f.leadership_scope || f.specific_incident.trim());
       case 'ziele': return !!(f.target_roles.length || f.target_industries.length || f.target_locations.length || f.company_size_pref);
-      case 'rahmen': return !!f.expected_salary && !!(f.notice_period || f.availability_date);
+      case 'rahmen': return !!f.expected_salary && !!(f.notice_period || f.availability_date) && rahmenGaps(f).length === 0;
       case 'markt': return !!f.recommendation && !!(f.previous_process_issues.trim() || f.blocked_companies.length);
       case 'kundenprofil': return !!(f.summary_motivation || f.summary_salary || f.summary_notice || f.summary_key_requirements || f.summary_cultural_fit);
       default: return false;
@@ -305,10 +315,13 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const evidence = useMemo(() => changeEvidence(draft), [draft]);
   const firstName = draft.full_name.split(' ')[0] || 'die Person';
 
-  // Was fehlt -- zum Abschließen (Mindestangaben, wie die Datenbank beim Einreichen)
-  // und zusätzlich zum Einreichen. Gelb im Kopf, an den Reitern, in der Seitenleiste
-  // und am Feld (Durchklicken 15.10.2026: „fehlt noch etwas, aber was?“).
-  const gaps = useMemo(() => interviewGaps(draft), [draft]);
+  // Was fehlt -- zum Abschließen (Mindestangaben und Rahmen fürs Matching, wie die
+  // Datenbank beim Einreichen) und zusätzlich zum Einreichen. Gelb im Kopf, an den
+  // Reitern, in der Seitenleiste und am Feld (Durchklicken 15.10.2026: „fehlt noch etwas, aber was?“).
+  const gaps = useMemo(() => abschlussGaps(draft), [draft]);
+  // Einmal ohne Wohnort gesehen, bleibt das Feld stehen (sonst verschwindet es beim Tippen).
+  const wohnortFragen = useRef(false);
+  if (!draft.city.trim()) wohnortFragen.current = true;
   const gapKeys = useMemo(() => new Set(gaps.map((g) => g.key)), [gaps]);
   const fuerEinreichen = useMemo(() => {
     const gapFields = new Set(gaps.map((g) => WHERE[g.key]?.field));
@@ -592,8 +605,8 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     setCompleting(true);
     const ok = await flush();
     if (!ok) { setCompleting(false); toast.error('Speichern hat nicht geklappt'); return; }
-    // Abschließen nur mit den Mindestangaben (gleiche Regel wie die Datenbank beim Einreichen).
-    const offen = interviewGaps(draftRef.current);
+    // Abschließen nur mit Mindestangaben und Rahmen (gleiche Regel wie die Datenbank beim Einreichen).
+    const offen = abschlussGaps(draftRef.current);
     if (offen.length) {
       setCompleting(false);
       const keys = offen.map((g) => g.key);
@@ -861,6 +874,12 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
             )}
             <div className="space-y-1.5">
               {flowHint('pendeln', 'arbeitsmodell')}
+              {/* Ohne Wohnort kann das Matching keinen Arbeitsweg rechnen -- dann hier fragen. */}
+              {wohnortFragen.current && (
+                <Field label="Wohnort" field="city">
+                  <TextField field="city" value={draft.city} onChange={(v) => set({ city: v })} placeholder="z. B. Bamberg" />
+                </Field>
+              )}
               <ArbeitsortBlock form={draft} set={set} hideRelocation />
               {remoteMismatch && (
                 <FixHint text="Zielort ist „Remote“, das Arbeitsmodell ist leer." actions={[{ label: 'Remote übernehmen', onClick: () => set({ remote_preference: 'remote' }) }]} />

@@ -14,9 +14,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { DossierForm, DossierSection, computeReadiness, countChanges, isValidEmail } from '@/lib/candidateDossier';
+import { DossierForm, DossierSection, FIELD_SECTION, computeReadiness, countChanges, isValidEmail, missingFieldSet } from '@/lib/candidateDossier';
 import type { DossierSaveResult } from '@/hooks/useCandidateDossier';
-import { AreaField, Field, focusDossierField } from './DossierFields';
+import { AreaField, Field, FieldMissingContext, focusDossierField } from './DossierFields';
 import {
   ArbeitsortBlock,
   ArbeitserlaubnisBlock,
@@ -106,6 +106,9 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
 
   const changes = useMemo(() => countChanges(draft, initial), [draft, initial]);
   const readiness = useMemo(() => computeReadiness(draft), [draft]);
+  // Was fehlt, steht immer orange da: am Feld („fehlt“), an den Abschnitts-Knöpfen und oben.
+  const missing = useMemo(() => missingFieldSet(draft, readiness), [draft, readiness]);
+  const missingSections = useMemo(() => new Set([...missing].map((f) => FIELD_SECTION[f]).filter(Boolean)), [missing]);
 
   const scrollToSection = (key: DossierSection) => {
     const el = scrollRef.current?.querySelector<HTMLElement>(`[data-section="${key}"]`);
@@ -170,7 +173,7 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
               </span>
             </div>
             {readiness.missing.length > 0 && (
-              <p className="mt-1.5 text-xs text-muted-foreground">
+              <p className="mt-1.5 text-xs text-warning">
                 Fehlt noch:{' '}
                 {readiness.missing.map((m, i) => (
                   <span key={m.key}>
@@ -189,16 +192,20 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
                   type="button"
                   onClick={() => scrollToSection(s.key)}
                   className={cn(
-                    'rounded-md border px-2.5 py-1 text-xs transition-colors',
-                    active === s.key ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                    'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors',
+                    active === s.key ? 'border-primary bg-primary/10 text-primary'
+                      : missingSections.has(s.key) ? 'border-warning/50 text-warning hover:bg-warning/10'
+                      : 'border-border text-muted-foreground hover:text-foreground',
                   )}
                 >
+                  {missingSections.has(s.key) && <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-label="fehlt noch" />}
                   {s.label}
                 </button>
               ))}
             </div>
           </div>
 
+          <FieldMissingContext.Provider value={missing}>
           <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-8 pt-3">
             <Section id="kontakt" title="Kontakt">
               <KontaktBlock form={draft} set={set} errors={errors} />
@@ -241,6 +248,7 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
               <LinksBlock form={draft} set={set} />
             </Section>
           </div>
+          </FieldMissingContext.Provider>
 
           <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-3">
             <span className="text-xs text-muted-foreground">

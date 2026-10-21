@@ -1,3 +1,4 @@
+import { useContext } from 'react';
 import { AlertTriangle, Plus, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ import { blockedSuggestions, industrySuggestions, locationSuggestions, offerSugg
 import { cn } from '@/lib/utils';
 import type { RoleFamily } from '@/lib/roleFamily';
 import { minimumChips, salaryWarnings, wishChips, type SalaryChip } from '@/lib/salaryChips';
-import { AreaField, ChipGroup, Field, MoneyInput, MultiChips, NumberField, TagInput, TextField, fieldId } from './DossierFields';
+import { AreaField, ChipGroup, Field, FieldMissingContext, MoneyInput, MultiChips, NumberField, TagInput, TextField, fieldId } from './DossierFields';
 
 // Bausteine der Kandidatenakte. Bearbeiten-Panel und Interview setzen sie
 // unterschiedlich zusammen, schreiben aber dieselben Felder.
@@ -323,11 +324,12 @@ export function ZieleBlock({ form, set }: BlockProps) {
 }
 
 export function SprachenBlock({ form, set }: BlockProps) {
+  const fehlt = !!useContext(FieldMissingContext)?.has('languages');
   const update = (i: number, patch: Partial<DossierForm['languages'][number]>) =>
     set({ languages: form.languages.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
   return (
-    <div className="space-y-2" data-dossier-field="languages">
-      {form.languages.length === 0 && <p className="text-xs text-muted-foreground">Noch keine Sprache eingetragen.</p>}
+    <div className={cn('space-y-2', fehlt && 'border-l-2 border-warning pl-3')} data-dossier-field="languages">
+      {form.languages.length === 0 && <p className={cn('text-xs', fehlt ? 'text-warning' : 'text-muted-foreground')}>{fehlt ? 'fehlt · ' : ''}Noch keine Sprache eingetragen.</p>}
       {form.languages.map((l, i) => (
         <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,11rem)_auto] items-center gap-2">
           <Input value={l.language} placeholder="Sprache" onChange={(e) => update(i, { language: e.target.value })} aria-label="Sprache" />

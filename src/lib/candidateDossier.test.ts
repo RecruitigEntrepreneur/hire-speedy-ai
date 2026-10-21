@@ -8,6 +8,8 @@ import {
   fromRecords,
   interviewCompleted,
   interviewGaps,
+  rahmenGaps,
+  abschlussGaps,
   isMissingColumnError,
   mapNoticeText,
   mergeNoteRows,
@@ -104,12 +106,14 @@ describe('Kandidatenakte: speichern', () => {
 });
 
 describe('Bereit zum Einreichen', () => {
-  it('Lena steht nach dem alten Dialog bei 5 von 8, ohne dass ein CV nötig ist', () => {
+  it('Lena steht nach dem alten Dialog bei 7 von 11, ohne dass ein CV nötig ist', () => {
     const r = computeReadiness(fromRecords(lena, null));
-    expect(r.done).toBe(5);
-    expect(r.total).toBe(8);
-    expect(r.missing.map((m) => m.key)).toEqual(['motivation', 'einschaetzung', 'interview']);
+    expect(r.done).toBe(7);
+    expect(r.total).toBe(11);
+    expect(r.missing.map((m) => m.key)).toEqual(['motivation', 'sprachen', 'einschaetzung', 'interview']);
   });
+
+  const deutsch = [{ language: 'Deutsch', proficiency: 'C2' }];
 
   const gefuehrt = {
     change_motivation: 'Feste Arbeitszeiten', recommendation: 'yes', interview_date: '2026-10-12',
@@ -117,10 +121,10 @@ describe('Bereit zum Einreichen', () => {
   };
 
   it('ist erst mit abgeschlossenem Interview vollständig', () => {
-    const entwurf = computeReadiness({ ...fromRecords(lena, null), ...gefuehrt, interview_status: 'draft' });
+    const entwurf = computeReadiness({ ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'draft' });
     expect(entwurf.isReady).toBe(false);
     expect(entwurf.missing.map((m) => m.key)).toEqual(['interview']);
-    const fertig = computeReadiness({ ...fromRecords(lena, null), ...gefuehrt, interview_status: 'completed' });
+    const fertig = computeReadiness({ ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'completed' });
     expect(fertig.isReady).toBe(true);
   });
 
@@ -136,6 +140,26 @@ describe('Bereit zum Einreichen', () => {
       { id: 'alt', status: 'completed', why_now: 'x', updated_at: '2026-10-01' },
     ]);
     expect(fromRecords(lena, merged).interview_status).toBe('completed');
+  });
+
+  it('verlangt Arbeitsmodell, Wohnort mit Pendelzeit und Sprachen fürs Matching (19.10.2026)', () => {
+    const stefan = { ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'completed', city: 'Bamberg', remote_preference: null, max_commute_minutes: null };
+    expect(rahmenGaps(stefan).map((g) => g.key)).toEqual(['arbeitsmodell', 'pendeln']);
+    const r = computeReadiness(stefan);
+    expect(r.items.find((i) => i.key === 'interview')?.ok).toBe(true);
+    expect(r.missing.map((m) => m.key)).toEqual(['arbeitsmodell', 'pendeln']);
+    expect(r.missing.find((m) => m.key === 'pendeln')?.field).toBe('max_commute_minutes');
+    // Ohne Wohnort springt der Punkt zum Wohnort.
+    expect(computeReadiness({ ...stefan, city: '' }).missing.find((m) => m.key === 'pendeln')?.field).toBe('city');
+    // Abschließen verlangt beides: Mindestangaben und Rahmen.
+    expect(abschlussGaps(stefan).map((g) => g.key)).toEqual(['arbeitsmodell', 'pendeln']);
+  });
+
+  it('braucht keine Pendelzeit bei „nur remote“ oder Umzugsbereitschaft', () => {
+    const basis = { ...fromRecords(lena, null, deutsch), max_commute_minutes: null };
+    expect(rahmenGaps({ ...basis, remote_preference: 'remote' }).map((g) => g.key)).toEqual([]);
+    expect(rahmenGaps({ ...basis, relocation_willing: true }).map((g) => g.key)).toEqual([]);
+    expect(rahmenGaps(basis).map((g) => g.key)).toEqual(['pendeln']);
   });
 
   it('verlangt eine gültige E-Mail oder ein Telefon', () => {

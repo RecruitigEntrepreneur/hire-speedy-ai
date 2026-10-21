@@ -282,8 +282,6 @@ export default function RecruiterCandidateDetail() {
           activitiesLoading={activitiesLoading}
           onAddActivity={() => setAddActivityOpen(true)}
           onStartInterview={handleStartInterview}
-          onSubmitToJob={(jobId) => { setSubmitJobId(jobId ?? null); setSubmitOpen(true); }}
-          onEditDossier={() => openEdit()}
           dossierSlot={
             dossier.loading ? undefined : (
               <div className="space-y-6">

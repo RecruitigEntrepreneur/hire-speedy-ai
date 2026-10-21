@@ -716,7 +716,29 @@ export function interviewCompleted(f: DossierForm): boolean {
   return f.interview_status === 'completed' && interviewGaps(f).length === 0;
 }
 
+/**
+ * Was das Matching über jeden Kandidaten braucht, egal für welche Stelle
+ * (Entscheidung 19.10.2026: eine zentrale Liste statt eines eigenen Hinweises bei
+ * „Passende Stellen“). Pendelzeit entfällt bei „nur remote“ oder Umzugsbereitschaft.
+ * Dieselbe Regel prüft die Datenbank beim Einreichen (enforce_submission_interview).
+ */
+export function rahmenGaps(f: DossierForm): { key: string; label: string }[] {
+  const gaps: { key: string; label: string }[] = [];
+  if (!f.remote_preference) gaps.push({ key: 'arbeitsmodell', label: 'Arbeitsmodell' });
+  if (!f.city.trim()) gaps.push({ key: 'wohnort', label: 'Wohnort' });
+  const pendelnEgal = f.remote_preference === 'remote' || f.relocation_willing === true;
+  if (!pendelnEgal && !((f.max_commute_minutes ?? 0) > 0)) gaps.push({ key: 'pendeln', label: 'Pendelzeit' });
+  if (!f.languages.some((l) => l.language.trim())) gaps.push({ key: 'sprachen', label: 'Sprachen' });
+  return gaps;
+}
+
+/** Zum Abschließen des Interviews: Mindestangaben plus die Rahmenangaben fürs Matching. */
+export function abschlussGaps(f: DossierForm): { key: string; label: string }[] {
+  return [...interviewGaps(f), ...rahmenGaps(f)];
+}
+
 export function computeReadiness(f: DossierForm): Readiness {
+  const rahmen = new Set(rahmenGaps(f).map((g) => g.key));
   const items: ReadinessItem[] = [
     { key: 'kontakt', label: 'Kontakt', ok: !!f.full_name.trim() && (isValidEmail(f.email) || !!f.phone.trim()), section: 'kontakt', field: 'email' },
     { key: 'rolle', label: 'Rolle und Erfahrung', ok: !!f.job_title.trim() && (f.experience_years ?? 0) > 0, section: 'beruf', field: 'job_title' },
@@ -724,6 +746,13 @@ export function computeReadiness(f: DossierForm): Readiness {
     { key: 'gehalt', label: 'Wunschgehalt', ok: (f.expected_salary ?? 0) > 0, section: 'wechsel', field: 'expected_salary' },
     { key: 'verfuegbarkeit', label: 'Kündigungsfrist', ok: !!(f.notice_period || f.availability_date), section: 'wechsel', field: 'notice_period' },
     { key: 'motivation', label: 'Wechselmotivation', ok: !!f.change_motivation.trim() || f.change_motivation_tags.length > 0, section: 'wechsel', field: 'change_motivation' },
+    // Fürs Matching (19.10.2026): sonst meldet „Passende Stellen“ Lücken, obwohl hier alles grün ist.
+    { key: 'arbeitsmodell', label: 'Arbeitsmodell', ok: !rahmen.has('arbeitsmodell'), section: 'arbeitsort', field: 'remote_preference' },
+    {
+      key: 'pendeln', label: 'Wohnort und Pendelzeit', ok: !rahmen.has('wohnort') && !rahmen.has('pendeln'),
+      section: rahmen.has('wohnort') ? 'kontakt' : 'arbeitsort', field: rahmen.has('wohnort') ? 'city' : 'max_commute_minutes',
+    },
+    { key: 'sprachen', label: 'Sprachen', ok: !rahmen.has('sprachen'), section: 'sprachen', field: 'languages' },
     { key: 'einschaetzung', label: 'Deine Einschätzung', ok: !!f.recommendation, section: 'einschaetzung', field: 'recommendation' },
     // Ohne geführtes Interview bleibt beim Kunden „Aus dem Gespräch mit dem Headhunter“ leer.
     { key: 'interview', label: 'Interview abgeschlossen', ok: interviewCompleted(f), section: 'einschaetzung', field: 'interview' },
@@ -734,6 +763,37 @@ export function computeReadiness(f: DossierForm): Readiness {
   const done = items.filter((i) => i.ok).length;
   return { items, done, total: items.length, isReady: done === items.length, missing: items.filter((i) => !i.ok) };
 }
+
+/**
+ * Welche Felder gerade fehlen (für die orange Markierung „fehlt“ am Feld, im
+ * Bearbeiten-Fenster wie im Interview). Abgeleitet aus „Bereit zum Einreichen“.
+ */
+export function missingFieldSet(f: DossierForm, r: Readiness = computeReadiness(f)): Set<string> {
+  const out = new Set<string>();
+  const rahmen = new Set(rahmenGaps(f).map((g) => g.key));
+  for (const m of r.missing) {
+    if (m.key === 'interview') continue;
+    if (m.key === 'rolle') {
+      if (!f.job_title.trim()) out.add('job_title');
+      if (!((f.experience_years ?? 0) > 0)) out.add('experience_years');
+    } else if (m.key === 'pendeln') {
+      if (rahmen.has('wohnort')) out.add('city');
+      if (rahmen.has('pendeln')) out.add('max_commute_minutes');
+    } else {
+      out.add(m.field);
+    }
+  }
+  return out;
+}
+
+/** Abschnitt des Bearbeiten-Fensters je Feld, für die farbigen Abschnitts-Knöpfe. */
+export const FIELD_SECTION: Record<string, DossierSection> = {
+  email: 'kontakt', phone: 'kontakt', city: 'kontakt', full_name: 'kontakt',
+  job_title: 'beruf', experience_years: 'beruf', skills: 'beruf',
+  expected_salary: 'wechsel', notice_period: 'wechsel', change_motivation: 'wechsel',
+  remote_preference: 'arbeitsort', max_commute_minutes: 'arbeitsort',
+  languages: 'sprachen', recommendation: 'einschaetzung', summary_motivation: 'kunde',
+};
 
 /**
  * Belege aus den Nachfragen zur Wechselmotivation. Bewusst KEIN berechneter

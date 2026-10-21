@@ -61,6 +61,10 @@ export async function fetchDossierReadiness(candidateId: string): Promise<Readin
  * Interview-Datensatz (neuester) + Sprachen. Bearbeiten-Panel und Interview
  * schreiben beide hierüber, damit jede Angabe nur an einer Stelle liegt.
  */
+export const CANDIDATE_CHANGED = 'matchunt:candidate-changed';
+/** Sagt geöffneten Akten dieses Kandidaten, dass sie neu laden sollen. */
+export const notifyCandidateChanged = (candidateId: string) => window.dispatchEvent(new CustomEvent(CANDIDATE_CHANGED, { detail: candidateId }));
+
 export function useCandidateDossier(candidateId: string | undefined) {
   const { user } = useAuth();
   const [state, setState] = useState<DossierState>({ candidate: null, notes: null, olderNoteIds: [], languages: [] });
@@ -97,6 +101,13 @@ export function useCandidateDossier(candidateId: string | undefined) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Andere Stellen ändern die Akte auch (Nachgespräch → „Übernehmen“, 20.10.2026)
+  useEffect(() => {
+    const onChange = (e: Event) => { if ((e as CustomEvent<string>).detail === candidateId) load(); };
+    window.addEventListener(CANDIDATE_CHANGED, onChange);
+    return () => window.removeEventListener(CANDIDATE_CHANGED, onChange);
+  }, [load, candidateId]);
 
   const form = useMemo(() => fromRecords(state.candidate, state.notes, state.languages), [state]);
   const readiness = useMemo(() => computeReadiness(form), [form]);

@@ -21,7 +21,7 @@ import {
   changeEvidence,
   computeReadiness,
   formatEuro,
-  interviewGaps,
+  abschlussGaps,
 } from '@/lib/candidateDossier';
 import { quickExtract, type CaptureSuggestion } from '@/lib/quickExtract';
 import {
@@ -236,7 +236,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
   // abschließen -- mit denselben Mindestangaben wie das Live-Interview.
   const finishInterview = async () => {
     const next = { ...draft, interview_date: draft.interview_date ?? format(new Date(), 'yyyy-MM-dd') };
-    const gaps = interviewGaps(next);
+    const gaps = abschlussGaps(next);
     if (gaps.length) {
       toast.error('Zum Abschließen fehlt noch etwas', { description: `${gaps.map((g) => g.label).join(', ')}.` });
       return;

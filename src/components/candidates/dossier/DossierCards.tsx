@@ -9,6 +9,7 @@ import {
   Readiness,
   WORK_MODEL_OPTIONS,
   formatEuro,
+  missingFieldSet,
   optionLabel,
 } from '@/lib/candidateDossier';
 import type { EditFocus } from './CandidateEditSheet';
@@ -77,6 +78,11 @@ export function DossierReadinessCard({
               <MessagesSquare className="mr-1.5 h-3.5 w-3.5" /> Interview abschließen und einreichen
             </Button>
           </div>
+        ) : readiness.items.find((i) => i.key === 'interview')?.ok && readiness.missing[0] ? (
+          // Interview schon abgeschlossen, es fehlen nur Angaben: direkt zum ersten offenen Feld.
+          <Button size="sm" variant="outline" onClick={() => onEdit({ section: readiness.missing[0].section, field: readiness.missing[0].field })}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Fehlendes eintragen
+          </Button>
         ) : (
           <Button size="sm" onClick={onStartInterview}>
             <MessagesSquare className="mr-1.5 h-3.5 w-3.5" /> Interview starten
@@ -87,16 +93,27 @@ export function DossierReadinessCard({
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null }) {
+function Row({ label, value, onFix, fehltText }: { label: string; value: string | null; onFix?: () => void; fehltText?: string }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border py-1.5 text-sm last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={value ? 'text-right' : 'text-muted-foreground'}>{value ?? '–'}</span>
+      <span className={onFix ? 'text-warning' : 'text-muted-foreground'}>{label}</span>
+      {onFix ? (
+        <span className="text-right">
+          {value && <span className="mr-2">{value}</span>}
+          <span className="text-warning">{fehltText ?? 'fehlt'}</span>
+          <button type="button" className="ml-2 text-xs text-primary underline-offset-2 hover:underline" onClick={onFix}>eintragen</button>
+        </span>
+      ) : (
+        <span className={value ? 'text-right' : 'text-muted-foreground'}>{value ?? '–'}</span>
+      )}
     </div>
   );
 }
 
 export function DossierFactsCard({ form, onEdit }: { form: DossierForm; onEdit: (focus: EditFocus) => void }) {
+  // Pflichtangaben aus „Bereit zum Einreichen“, die fehlen: orange mit „eintragen“.
+  const fehlt = missingFieldSet(form);
+  const fix = (field: string, section: EditFocus['section']) => (fehlt.has(field) ? () => onEdit({ section, field }) : undefined);
   const commute = form.max_commute_minutes ? `max. ${form.max_commute_minutes} Min.` : null;
   const workModel = [optionLabel(WORK_MODEL_OPTIONS, form.remote_preference), commute].filter(Boolean).join(', ') || null;
   const motivation = form.change_motivation.trim() || (form.change_motivation_tags.length ? form.change_motivation_tags.join(', ') : null);
@@ -112,14 +129,14 @@ export function DossierFactsCard({ form, onEdit }: { form: DossierForm; onEdit: 
       </CardHeader>
       <CardContent>
         <Row label="Aktuelles Gehalt" value={form.current_salary ? formatEuro(form.current_salary) : null} />
-        <Row label="Wunschgehalt" value={form.expected_salary ? formatEuro(form.expected_salary) : null} />
+        <Row label="Wunschgehalt" value={form.expected_salary ? formatEuro(form.expected_salary) : null} onFix={fix('expected_salary', 'wechsel')} />
         <Row label="Schmerzgrenze" value={form.salary_minimum ? formatEuro(form.salary_minimum) : null} />
-        <Row label="Kündigungsfrist" value={optionLabel(NOTICE_OPTIONS, form.notice_period)} />
-        <Row label="Arbeitsmodell" value={workModel} />
+        <Row label="Kündigungsfrist" value={optionLabel(NOTICE_OPTIONS, form.notice_period)} onFix={fix('notice_period', 'wechsel')} />
+        <Row label="Arbeitsmodell" value={workModel} onFix={fix('remote_preference', 'arbeitsort') ?? fix('max_commute_minutes', 'arbeitsort')} fehltText={fehlt.has('remote_preference') ? undefined : fehlt.has('max_commute_minutes') ? 'Pendelzeit fehlt' : undefined} />
         <Row label="Beschäftigung" value={optionLabel(EMPLOYMENT_OPTIONS, form.employment_type)} />
-        <Row label="Sprachen" value={form.languages.length ? form.languages.map((l) => (l.proficiency ? `${l.language} (${l.proficiency})` : l.language)).join(', ') : null} />
+        <Row label="Sprachen" value={form.languages.length ? form.languages.map((l) => (l.proficiency ? `${l.language} (${l.proficiency})` : l.language)).join(', ') : null} onFix={fix('languages', 'sprachen')} />
         <Row label="Arbeitserlaubnis" value={optionLabel(PERMIT_OPTIONS, form.work_permit)} />
-        <Row label="Wechselmotivation" value={motivation} />
+        <Row label="Wechselmotivation" value={motivation} onFix={fix('change_motivation', 'wechsel')} />
       </CardContent>
     </Card>
   );
