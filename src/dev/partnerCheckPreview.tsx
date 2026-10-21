@@ -11,9 +11,9 @@ if (!import.meta.env.DEV) throw new Error('This preview is only available in dev
 const state = new URLSearchParams(location.search).get('state') ?? 'active';
 const now = new Date().toISOString();
 const answers: Record<string, unknown> = {
-  active: { state: 'active', number: 'MP-7K3Q-92XW', name: 'Marko Benko', company: 'Bluewater & Bridge GmbH', tier: 'partner', since: '2026-09-21T15:30:00Z', checkedAt: now, expertise: null },
-  expertise: { state: 'active', number: 'MP-7K3Q-92XW', name: 'Marko Benko', company: 'Bluewater & Bridge GmbH', tier: 'partner', since: '2026-09-21T15:30:00Z', checkedAt: now, expertise: 'Finance & Controlling · Fach, Führung' },
-  gold: { state: 'active', number: 'MP-7K3Q-92XW', name: 'Marko Benko', company: 'Bluewater & Bridge GmbH', tier: 'gold', since: '2026-09-21T15:30:00Z', checkedAt: now, expertise: null },
+  active: { state: 'active', number: 'MP-7K3Q-92XW', name: 'Marko Benko', company: 'Bluewater & Bridge GmbH', tier: 'partner', since: '2026-09-21T15:30:00Z', checkedAt: now, expertise: null, award: null },
+  expertise: { state: 'active', number: 'MP-7K3Q-92XW', name: 'Marko Benko', company: 'Bluewater & Bridge GmbH', tier: 'partner', since: '2026-09-21T15:30:00Z', checkedAt: now, expertise: 'Finance & Controlling · Fach, Führung', award: null },
+  gold: { state: 'active', number: 'MP-7K3Q-92XW', name: 'Marko Benko', company: 'Bluewater & Bridge GmbH', tier: 'gold', since: '2026-09-21T15:30:00Z', checkedAt: now, expertise: null, award: null },
   paused: { state: 'paused', number: 'MP-7K3Q-92XW', checkedAt: now },
   ended: { state: 'ended', number: 'MP-7K3Q-92XW', endedAt: '2027-03-31T10:00:00Z' },
   invalid: { state: 'invalid' },

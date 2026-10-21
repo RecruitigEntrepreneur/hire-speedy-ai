@@ -145,32 +145,6 @@ const calculatePotentialEarning = (
   return Math.round(avgSalary * (feePercentage / 100));
 };
 
-const getAlertTypeLabel = (alertType: string): { label: string; color: string } => {
-  const map: Record<string, { label: string; color: string }> = {
-    'opt_in_pending': { label: 'Opt-In', color: 'bg-primary/10 text-primary' },
-    'rejected_inform': { label: 'Absage', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'opt_in_pending_48h': { label: 'Opt-In', color: 'bg-destructive/10 text-destructive' },
-    'opt_in_pending_24h': { label: 'Opt-In', color: 'bg-destructive/10 text-destructive' },
-    'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-primary/10 text-primary' },
-    'interview_reminder': { label: 'Interview', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    'salary_mismatch': { label: 'Gehalt', color: 'bg-primary/10 text-primary' },
-    'ghosting_risk': { label: 'Ghosting', color: 'bg-destructive/10 text-destructive' },
-    'engagement_drop': { label: 'Engagement', color: 'bg-primary/10 text-primary' },
-    'high_closing_probability': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-    'closing_opportunity': { label: 'Closing', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-    'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    // Abgeleitete Aufgaben aus der Unified Inbox
-    'client_review_stalled': { label: 'Nachfassen', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-    'interview_debrief_due': { label: 'Debrief', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    // Manuelle Aufgaben
-    'call': { label: 'Anruf', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-    'email': { label: 'E-Mail', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-    'follow_up': { label: 'Follow-up', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-    'meeting': { label: 'Meeting', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-  };
-  return map[alertType] || { label: 'Aufgabe', color: 'bg-muted text-muted-foreground' };
-};
-
 const formatInterviewDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   if (isToday(date)) return `Heute, ${format(date, 'HH:mm')} Uhr`;

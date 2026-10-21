@@ -85,8 +85,8 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       ].filter(Boolean),
       consequence: 'Ohne Nachgespräch fehlt dir das Bauchgefühl des Kandidaten, wenn der Kunde entscheidet.',
       steps: [
-        { text: `${first} kurz anrufen.`, hint: 'Wie lief es, Zweifel, Gehalt, Stimmung?' },
-        { text: 'Drei Sätze eintragen, Empfehlung wählen.', hint: 'Weiter · Unsicher · Nicht passend' },
+        { text: `${first} anrufen.`, hint: 'Bauchgefühl, Ansprechpartner, Gehalt, Angebot, Start.' },
+        { text: 'Festhalten, dann den Kunden nach seinem Eindruck fragen.' },
       ],
       goal: 'Nachgespräch festgehalten',
       primary: { label: 'Nachgespräch', kind: 'debrief' },
@@ -427,7 +427,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
               <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Grund</p>
               <ul className="space-y-1.5 text-sm">
-                {guide.facts.map((f, i) => <li key={i} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{f}</span></li>)}
+                {guide.facts.map((f, i) => <li key={i} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{fee && f === `Honorar bei Abschluss: ${fee}.` ? <>Honorar bei Abschluss: <Honorar>{fee}</Honorar>.</> : f}</span></li>)}
                 {guide.consequence && <li className="flex gap-2 text-muted-foreground"><span>→</span><span>{guide.consequence}</span></li>}
               </ul>
               {group.others.length > 0 && (
