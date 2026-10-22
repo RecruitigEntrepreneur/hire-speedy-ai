@@ -246,7 +246,7 @@ CROSS JOIN LATERAL (SELECT public.employer_tokens(c.id) AS toks) emp
 WHERE public.can_access_job(s.job_id)
   AND COALESCE(n.presentation_consent, true);
 
-GRANT SELECT ON public.client_candidate_interview_view TO authenticated;
+GRANT SELECT ON public.client_candidate_interview_view TO authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 4. Ausbildung für den Kunden (Hochschule erst nach Interview-Zusage)
@@ -264,7 +264,7 @@ FROM submissions s
 JOIN candidate_educations e ON e.candidate_id = s.candidate_id
 WHERE public.can_access_job(s.job_id);
 
-GRANT SELECT ON public.client_candidate_education_view TO authenticated;
+GRANT SELECT ON public.client_candidate_education_view TO authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 5. Erwähnungen in Team-Notizen benachrichtigen
@@ -336,6 +336,6 @@ CROSS JOIN LATERAL (
 CROSS JOIN LATERAL (SELECT public.employer_tokens(c.id) AS toks) emp
 WHERE public.can_access_job(s.job_id);
 
-GRANT SELECT ON public.client_candidate_experiences_view TO authenticated;
+GRANT SELECT ON public.client_candidate_experiences_view TO authenticated, service_role;
 
 COMMIT;

@@ -169,6 +169,8 @@ CREATE POLICY "Liga: eigene Stände" ON public.liga_snapshots FOR SELECT
 GRANT SELECT ON public.liga_seasons, public.liga_awards, public.liga_events, public.liga_exclusions,
                 public.liga_results, public.liga_preferences, public.liga_snapshots TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON public.liga_seasons, public.liga_awards TO authenticated;
+GRANT ALL ON public.liga_seasons, public.liga_awards, public.liga_events, public.liga_exclusions,
+              public.liga_results, public.liga_preferences, public.liga_snapshots TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- 3. Regeln und Hilfen

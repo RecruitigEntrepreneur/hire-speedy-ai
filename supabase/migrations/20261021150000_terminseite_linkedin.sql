@@ -18,7 +18,7 @@
 
 -- 1) Terminseite ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.recruiter_booking_pages (
-  recruiter_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  recruiter_id uuid PRIMARY KEY,
   slug text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND length(slug) BETWEEN 3 AND 60 AND slug <> 'termin'),
   active boolean NOT NULL DEFAULT false,
   -- gleiche Form wie client_interview_hours.rules (weekly, bufferMinutes, minNoticeHours, horizonDays, skipHolidays, absences)
@@ -56,7 +56,7 @@ GRANT EXECUTE ON FUNCTION public.booking_slug_free(text) TO authenticated;
 -- 2) Buchungen -----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.recruiter_bookings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  recruiter_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  recruiter_id uuid NOT NULL,
   job_id uuid REFERENCES public.jobs(id) ON DELETE SET NULL,
   candidate_id uuid REFERENCES public.candidates(id) ON DELETE SET NULL,
   starts_at timestamptz NOT NULL,
@@ -99,7 +99,7 @@ CREATE POLICY "Recruiter read own bookings"
 -- im Ordner des Headhunters; werden beim Buchen an Kandidat und Akte gehängt).
 CREATE TABLE IF NOT EXISTS public.booking_cv_uploads (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  recruiter_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  recruiter_id uuid NOT NULL,
   path text NOT NULL,
   file_name text NOT NULL,
   file_size integer,
@@ -114,7 +114,7 @@ ALTER TABLE public.booking_cv_uploads ENABLE ROW LEVEL SECURITY;
 
 -- 3) LinkedIn-Verbindung (nur Server) -----------------------------------------
 CREATE TABLE IF NOT EXISTS public.recruiter_linkedin (
-  recruiter_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  recruiter_id uuid PRIMARY KEY,
   member_id text NOT NULL,
   name text,
   picture_url text,
@@ -142,7 +142,7 @@ GRANT EXECUTE ON FUNCTION public.my_linkedin() TO authenticated;
 
 CREATE TABLE IF NOT EXISTS public.linkedin_oauth_states (
   state text PRIMARY KEY,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL,
   return_to text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -153,7 +153,7 @@ ALTER TABLE public.linkedin_oauth_states ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS public.job_linkedin_posts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id uuid NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
-  recruiter_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  recruiter_id uuid NOT NULL,
   -- posted: direkt über die Schnittstelle · manual: selbst gepostet und abgehakt
   status text NOT NULL CHECK (status IN ('posted', 'manual', 'failed', 'deleted')),
   post_urn text,
@@ -198,3 +198,13 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.my_job_post_status(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.my_job_post_status(uuid) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Tabellenrechte (wie die RLS-Regeln oben): Headhunter lesen bzw. schreiben nur,
+-- was ihre Regeln erlauben; alles Übrige läuft über die Edge Functions (service_role).
+-- ---------------------------------------------------------------------------
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.recruiter_booking_pages TO authenticated;
+GRANT SELECT ON public.recruiter_bookings TO authenticated;
+GRANT SELECT, INSERT ON public.job_linkedin_posts TO authenticated;
+GRANT ALL ON public.recruiter_booking_pages, public.recruiter_bookings, public.booking_cv_uploads,
+             public.recruiter_linkedin, public.linkedin_oauth_states, public.job_linkedin_posts TO service_role;

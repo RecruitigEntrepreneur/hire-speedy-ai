@@ -91,3 +91,4 @@ CREATE POLICY "Headhunter aendert eigene Nachgespraeche"
   WITH CHECK (recruiter_id = auth.uid());
 
 GRANT SELECT, INSERT, UPDATE ON public.interview_nachgespraeche TO authenticated;
+GRANT ALL ON public.interview_nachgespraeche TO service_role;

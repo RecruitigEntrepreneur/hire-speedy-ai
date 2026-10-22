@@ -1221,6 +1221,12 @@ Dieser Auftrag fasst es zusammen; die Einzelheiten stehen bei den Nummern oben.
 Danach (nur mit Markos OK): bestehende Anzeigen neu erzeugen (siehe Nr. 28) und die erste Liga-Saison
 im Admin anlegen (siehe Nr. 27).
 
+**Stand 22.10. vormittags:** a und b sind gelaufen (`0033_firmenlogo`, `0034_einreichen_rahmen_pflicht`).
+Lovable hielt bei c an: Es fehlten Tabellenrechte für `service_role` (c, e) bzw. alle Tabellenrechte (g),
+und g verwies mit Fremdschlüsseln auf `auth.users`. Korrigiert: c und e mit `GRANT ALL … TO service_role`;
+g ohne Fremdschlüssel auf `auth.users` (Nutzer-ID als `uuid` wie bei der Liga), mit Rechten passend zu den
+RLS-Regeln; f gibt die drei Kunden-Ansichten zusätzlich an `service_role`. Weiter ab c.
+
 ---
 
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
