@@ -6576,6 +6576,8 @@ export type Database = {
           no_show_reported_at: string | null
           notes: string | null
           onsite_address: string | null
+          onsite_contact_name: string | null
+          onsite_contact_phone: string | null
           organizer_user_id: string | null
           outlook_event_id: string | null
           pending_opt_in: boolean | null
@@ -6640,6 +6642,8 @@ export type Database = {
           no_show_reported_at?: string | null
           notes?: string | null
           onsite_address?: string | null
+          onsite_contact_name?: string | null
+          onsite_contact_phone?: string | null
           organizer_user_id?: string | null
           outlook_event_id?: string | null
           pending_opt_in?: boolean | null
@@ -6704,6 +6708,8 @@ export type Database = {
           no_show_reported_at?: string | null
           notes?: string | null
           onsite_address?: string | null
+          onsite_contact_name?: string | null
+          onsite_contact_phone?: string | null
           organizer_user_id?: string | null
           outlook_event_id?: string | null
           pending_opt_in?: boolean | null

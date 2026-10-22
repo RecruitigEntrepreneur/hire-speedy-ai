@@ -288,6 +288,13 @@
       "when": 1792656033300,
       "tag": "0040_terminseite_linkedin",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792679653420,
+      "tag": "0041_interview_runde2_feedback",
+      "breakpoints": true
     }
   ]
 }
