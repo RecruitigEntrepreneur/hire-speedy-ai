@@ -267,6 +267,13 @@
       "when": 1792655867753,
       "tag": "0037_matchunt_liga",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792655898108,
+      "tag": "0038_liga_standings_transfer_correction",
+      "breakpoints": true
     }
   ]
 }
