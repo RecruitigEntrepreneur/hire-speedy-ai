@@ -8924,12 +8924,90 @@ export type Database = {
           },
         ]
       }
+      offer_recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          intro: string | null
+          items: Json
+          recruiter_id: string
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          intro?: string | null
+          items?: Json
+          recruiter_id: string
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          intro?: string | null
+          items?: Json
+          recruiter_id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_recommendations_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           access_token: string | null
           benefits: Json | null
           bonus_amount: number | null
           candidate_id: string
+          candidate_response: Json | null
           candidate_signature: string | null
           candidate_signed_at: string | null
           client_id: string
@@ -8940,21 +9018,28 @@ export type Database = {
           counter_offer_notes: string | null
           counter_offer_salary: number | null
           created_at: string | null
+          created_by: string | null
           custom_terms: string | null
           decision_at: string | null
           equity_percentage: number | null
           expires_at: string | null
+          extras: string[]
           id: string
           job_id: string
           location: string | null
+          message_to_recruiter: string | null
           negotiation_rounds: number | null
           offer_document_url: string | null
           original_salary: number | null
           position_title: string
+          previous_offer_id: string | null
           probation_months: number | null
           recruiter_id: string
           rejection_reason: string | null
           remote_policy: string | null
+          responded_at: string | null
+          responded_by: string | null
+          response_due: string | null
           salary_currency: string | null
           salary_offered: number
           sent_at: string | null
@@ -8962,13 +9047,17 @@ export type Database = {
           status: string | null
           submission_id: string
           updated_at: string | null
+          variable_salary: number | null
+          version: number
           viewed_at: string | null
+          work_model: string | null
         }
         Insert: {
           access_token?: string | null
           benefits?: Json | null
           bonus_amount?: number | null
           candidate_id: string
+          candidate_response?: Json | null
           candidate_signature?: string | null
           candidate_signed_at?: string | null
           client_id: string
@@ -8979,21 +9068,28 @@ export type Database = {
           counter_offer_notes?: string | null
           counter_offer_salary?: number | null
           created_at?: string | null
+          created_by?: string | null
           custom_terms?: string | null
           decision_at?: string | null
           equity_percentage?: number | null
           expires_at?: string | null
+          extras?: string[]
           id?: string
           job_id: string
           location?: string | null
+          message_to_recruiter?: string | null
           negotiation_rounds?: number | null
           offer_document_url?: string | null
           original_salary?: number | null
           position_title: string
+          previous_offer_id?: string | null
           probation_months?: number | null
           recruiter_id: string
           rejection_reason?: string | null
           remote_policy?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          response_due?: string | null
           salary_currency?: string | null
           salary_offered: number
           sent_at?: string | null
@@ -9001,13 +9097,17 @@ export type Database = {
           status?: string | null
           submission_id: string
           updated_at?: string | null
+          variable_salary?: number | null
+          version?: number
           viewed_at?: string | null
+          work_model?: string | null
         }
         Update: {
           access_token?: string | null
           benefits?: Json | null
           bonus_amount?: number | null
           candidate_id?: string
+          candidate_response?: Json | null
           candidate_signature?: string | null
           candidate_signed_at?: string | null
           client_id?: string
@@ -9018,21 +9118,28 @@ export type Database = {
           counter_offer_notes?: string | null
           counter_offer_salary?: number | null
           created_at?: string | null
+          created_by?: string | null
           custom_terms?: string | null
           decision_at?: string | null
           equity_percentage?: number | null
           expires_at?: string | null
+          extras?: string[]
           id?: string
           job_id?: string
           location?: string | null
+          message_to_recruiter?: string | null
           negotiation_rounds?: number | null
           offer_document_url?: string | null
           original_salary?: number | null
           position_title?: string
+          previous_offer_id?: string | null
           probation_months?: number | null
           recruiter_id?: string
           rejection_reason?: string | null
           remote_policy?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          response_due?: string | null
           salary_currency?: string | null
           salary_offered?: number
           sent_at?: string | null
@@ -9040,7 +9147,10 @@ export type Database = {
           status?: string | null
           submission_id?: string
           updated_at?: string | null
+          variable_salary?: number | null
+          version?: number
           viewed_at?: string | null
+          work_model?: string | null
         }
         Relationships: [
           {
@@ -9083,6 +9193,20 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_previous_offer_id_fkey"
+            columns: ["previous_offer_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_previous_offer_id_fkey"
+            columns: ["previous_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
             referencedColumns: ["id"]
           },
           {

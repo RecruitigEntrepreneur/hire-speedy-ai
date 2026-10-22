@@ -295,6 +295,13 @@
       "when": 1792679653420,
       "tag": "0041_interview_runde2_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792679684857,
+      "tag": "0042_angebot_empfehlung",
+      "breakpoints": true
     }
   ]
 }
