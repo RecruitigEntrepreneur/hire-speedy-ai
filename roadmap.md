@@ -1,12 +1,13 @@
 # Roadmap
 
-## Deployment b282db4 (22.10.2026)
-- [x] Current checkout verified at b282db4; prior journal ends at 0034_einreichen_rahmen_pflicht; pg_cron, pg_net and private.cron_tokens confirmed present.
+## Deployment 168f270 (22.10.2026)
+- [x] Current checkout verified at 168f270; prior journal ends at 0034_einreichen_rahmen_pflicht.
 - [x] Apply a–b as 0033_firmenlogo and 0034_einreichen_rahmen_pflicht; database schema and trigger verified.
-- [ ] Apply c–g individually in order: preflight stopped before execution. e:1033–1035 and f:23–25,32–34 seed data, which must be separated from DDL migrations; f:132 installs a permanent 10-minute bounded-retry sweeper without wake-on-enqueue/unschedule-after-drain. Transaction wrappers, grants and search_path are corrected. No dependent views found for the existing client_candidate_experiences_view.
-- [ ] Deploy the 15 requested functions with verify_jwt from config.toml after migrations are complete (blocked by migration preflight).
+- [ ] Complete preflight for c–g; user corrected seeds and queue wake/drain behavior in 168f270.
+- [ ] Apply c–g individually in the requested order.
+- [ ] Deploy the 15 requested functions with verify_jwt from config.toml after migrations are complete.
 - [x] Leave protected secrets unchanged.
-- [ ] Request frontend publication after migrations, function deployment and security check (blocked by migration preflight).
+- [ ] Request frontend publication after migrations, function deployment and security check.
 
 ## Erledigt (Abschnitte 15 + 16, 06.10.2026)
 - [x] Arbeitskopie auf 29cd415 und 204351c gebracht, keine Migration
