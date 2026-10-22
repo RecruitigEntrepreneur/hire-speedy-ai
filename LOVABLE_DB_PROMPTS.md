@@ -1159,6 +1159,70 @@ Danach: Bestehende Einschätzungen bleiben, wie sie sind. Ältere Texte mit Wert
 
 ---
 
+## 30 — Terminseite für Headhunter und LinkedIn-Beitrag mit Buchungslink (21.10.2026)
+
+Headhunter richten unter Profil › Terminseite ihre eigene Buchungsseite ein (`matchunt.ai/t/<name>`):
+Outlook verbinden, Zeiten, Dauer, Teams/Telefon, Adresse. Kandidaten sehen nur Zeiten, die im Outlook
+wirklich frei sind, buchen ohne Konto, laden optional den Lebenslauf hoch und können per Link aus der Mail
+verschieben oder absagen. Jede Buchung legt den Kandidaten sofort im Talent Pool an (Akte vorbefüllt), trägt
+den Termin ins Outlook des Headhunters ein und meldet ihn per Mail und Glocke. Auf der Stellenseite gibt es den
+blauen Knopf „Posten“: anonymer Beitragstext, Bild, Buchungslink, Anonym-Prüfung; nach „Freigeben“ geht der
+Beitrag direkt auf das LinkedIn des Headhunters (Text kopieren + Bild herunterladen bleibt als Ausweg).
+**Eine Migration, drei neue Edge Functions, zwei Secrets.**
+
+> 1. Migration `supabase/migrations/20261021150000_terminseite_linkedin.sql` ausführen
+>    (neue Tabellen recruiter_booking_pages, recruiter_bookings, booking_cv_uploads, recruiter_linkedin,
+>    linkedin_oauth_states, job_linkedin_posts mit RLS; Funktionen booking_slug_free, my_linkedin,
+>    my_job_post_status; bestehende Daten bleiben unverändert).
+> 2. Edge Functions deployen:
+>    - `termin-seite` (neu, **verify_jwt = false**, öffentliche Terminseite, prüft selbst mit Rate-Limits und Token)
+>    - `linkedin` (neu, verify_jwt = true, nur Headhunter: verbinden, posten, löschen)
+>    - `linkedin-callback` (neu, **verify_jwt = false**, Rücksprung von LinkedIn)
+> 3. Secrets setzen: `LINKEDIN_CLIENT_ID` und `LINKEDIN_CLIENT_SECRET` aus der LinkedIn-App
+>    (Produkte „Sign In with LinkedIn using OpenID Connect“ und „Share on LinkedIn“). In der LinkedIn-App als
+>    Redirect-URL eintragen: `<SUPABASE_URL>/functions/v1/linkedin-callback`. Optional `LINKEDIN_API_VERSION`
+>    (Standard 202509). **`TERMIN_TEST_KALENDER` niemals setzen** – das ist nur der lokale Test-Kalender.
+> 4. Publish.
+
+Ohne Schritt 3 funktioniert alles außer dem direkten Posten: der Knopf bietet dann nur Text kopieren und Bild
+herunterladen an. Ohne verbundenes Outlook lässt sich die Terminseite nicht einschalten.
+
+---
+
+## SAMMELAUFTRAG 22.10.2026 — alles Offene aus Nr. 21 bis 30 in einem Lauf
+
+Lovable hat zuletzt am 19.10. Migrationen ausgeführt (`drizzle/migrations` bis
+`0032_interview_umfeld_lernwoerterbuch`), Nr. 23 lief am 20.10. ohne Migration. Alles aus
+Nr. 21, 22, 24, 25, 26, 27, 28, 29 und 30 liegt im Repo, ist aber noch nicht ausgerollt.
+Dieser Auftrag fasst es zusammen; die Einzelheiten stehen bei den Nummern oben.
+
+> Bitte genau in dieser Reihenfolge ausführen. Vorher in `drizzle/migrations/meta/_journal.json`
+> nachsehen: Was dort schon steht, überspringen.
+>
+> 1. Migrationen, jede einzeln und in dieser Reihenfolge:
+>    a. `supabase/migrations/20261019170000_firmenlogo.sql` (Nr. 21; Bucket `company-logos` gibt es schon, nicht neu anlegen)
+>    b. `supabase/migrations/20261019180000_einreichen_rahmen_pflicht.sql` (Nr. 22)
+>    c. `supabase/migrations/20261020100000_nachgespraech.sql` (Nr. 25)
+>    d. `supabase/migrations/20261020110000_aufnahme_mussfragen.sql` (Nr. 26; braucht a)
+>    e. `supabase/migrations/20261021090000_matchunt_liga.sql` (Nr. 27; nutzt pg_cron und pg_net)
+>    f. `supabase/migrations/20261009140000_kandidatenprofil_kunde.sql` (Nr. 29; älterer Zeitstempel, aber erst jetzt fertig; nutzt pg_cron und pg_net)
+>    g. `supabase/migrations/20261021150000_terminseite_linkedin.sql` (Nr. 30)
+> 2. Edge Functions, verify_jwt jeweils wie in `supabase/config.toml`:
+>    - neu: `firmenlogo-holen`, `liga-weekly` (false), `client-question`, `termin-seite` (false),
+>      `linkedin`, `linkedin-callback` (false)
+>    - neu deployen: `intake-admin`, `recruiter-notify`, `format-job-for-recruiters`, `parse-job-url`,
+>      `partner-check`, `recruiter-onboarding`, `recruiter-onboarding-admin`,
+>      `assess-candidate-fit` (jetzt **false**), `client-candidate-summary`
+> 3. Secrets: `LINKEDIN_CLIENT_ID` und `LINKEDIN_CLIENT_SECRET` setzen, sobald die LinkedIn-App angelegt
+>    ist (Redirect-URL dort: `<SUPABASE_URL>/functions/v1/linkedin-callback`). Ohne sie läuft alles,
+>    nur das direkte Posten nicht. **`TERMIN_TEST_KALENDER` niemals setzen.**
+> 4. Publish.
+
+Danach (nur mit Markos OK): bestehende Anzeigen neu erzeugen (siehe Nr. 28) und die erste Liga-Saison
+im Admin anlegen (siehe Nr. 27).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

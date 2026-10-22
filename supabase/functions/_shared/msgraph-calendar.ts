@@ -258,6 +258,11 @@ export async function createTeamsEvent(token: string, input: EventInput): Promis
   return { eventId: created.id, joinUrl };
 }
 
+/** Termin ohne Teilnehmer entfernen (Erstgespräch der Terminseite); „absagen“ geht nur mit Teilnehmern. */
+export async function deleteEvent(token: string, eventId: string) {
+  await graph(token, `/me/events/${encodeURIComponent(eventId)}`, { method: 'DELETE' });
+}
+
 export async function cancelEvent(token: string, eventId: string, comment: string) {
   await graph(token, `/me/events/${encodeURIComponent(eventId)}/cancel`, { method: 'POST', body: JSON.stringify({ comment }) });
 }

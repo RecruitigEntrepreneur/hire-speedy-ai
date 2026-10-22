@@ -129,6 +129,7 @@ export default function JobDetail() {
         headerBadge={jobPaused ? <JobPausedBadge until={job.pause_until} /> : null}
         heroAction={<SearchHeroAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />}
         heroStatus={<SearchHeroStatus search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} companyName={companyName} capacity={{ used: gate.activeCount, limit: gate.maxSlots }} onAnswer={() => { setSubmitAfterQuestion(false); setShowQuestion(true); }} onEnd={() => setShowEnd(true)} />}
+        kannPosten={search.searching && !jobPaused}
         mobileAction={<SearchMobileAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />} />
     </div>
     <Dialog open={showSubmit} onOpenChange={setShowSubmit}>

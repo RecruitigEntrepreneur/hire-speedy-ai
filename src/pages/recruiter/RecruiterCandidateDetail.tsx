@@ -28,6 +28,7 @@ import { SubmitToJobDialog } from '@/components/candidates/dossier/SubmitToJobDi
 import { CaptureDialog } from '@/components/candidates/dossier/CaptureDialog';
 import { InterviewEntryCard } from '@/components/candidates/dossier/InterviewEntryCard';
 import { interviewCompleted, type DossierForm } from '@/lib/candidateDossier';
+import { TerminHerkunft } from '@/components/recruiter/termin/TerminHerkunft';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -239,6 +240,9 @@ export default function RecruiterCandidateDetail() {
 
         {/* Aufgaben-Fenster: öffnet sich über ?aufgabe= (Dashboard, Aufgaben-Block im Profilkopf) */}
         <CandidateTaskWindow candidateId={candidate.id} />
+
+        {/* Herkunft und Erstgespräch aus der Terminseite (21.10.2026) */}
+        <TerminHerkunft candidateId={candidate.id} importSource={(candidate as { import_source?: string | null }).import_source} createdAt={(candidate as { created_at?: string | null }).created_at} cvParsedAt={(candidate as { cv_parsed_at?: string | null }).cv_parsed_at} />
 
         {playbook && (
           <CandidatePlaybookPanel

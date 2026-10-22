@@ -24,6 +24,9 @@ import {
 import { expertiseLine, type PartnerStatusRow } from '../../../supabase/functions/_shared/recruiter-partner';
 import { PartnerCard } from '@/components/recruiter/partner/PartnerCard';
 import { PartnerStatusSection } from '@/components/recruiter/partner/PartnerStatusSection';
+import { TerminseiteBereich } from '@/components/recruiter/termin/TerminseiteBereich';
+import { LinkedinVerbindung } from '@/components/recruiter/termin/LinkedinVerbindung';
+import { useTerminseite } from '@/components/recruiter/termin/useTerminseite';
 
 /**
  * Profil des Headhunters (Mischung aus Vorschlag 1 und 3, freigegeben 22.09.2026):
@@ -34,11 +37,13 @@ import { PartnerStatusSection } from '@/components/recruiter/partner/PartnerStat
  * der Matchunt jede Änderung meldet. Partnerstatus (Etappe 3) erscheint im Menü erst,
  * wenn es ihn gibt: ab Vertrag 2.1. Team folgt.
  */
-type SectionId = 'uebersicht' | 'ueber-dich' | 'schwerpunkte' | 'partnerstatus' | 'abrechnung' | 'vertrag' | 'nachweise';
+type SectionId = 'uebersicht' | 'ueber-dich' | 'terminseite' | 'schwerpunkte' | 'partnerstatus' | 'abrechnung' | 'vertrag' | 'nachweise';
 /** Reiter oben (Entscheidung 22.09.2026 statt der Liste rechts): Reihenfolge wie beim Durcharbeiten. */
 const MENU: { id: SectionId; label: string }[] = [
   { id: 'uebersicht', label: 'Übersicht' },
   { id: 'ueber-dich', label: 'Über dich' },
+  // Terminseite (21.10.2026): direkt nach „Über dich“, weil Name und Position von dort kommen.
+  { id: 'terminseite', label: 'Terminseite' },
   { id: 'schwerpunkte', label: 'Schwerpunkte' },
   { id: 'partnerstatus', label: 'Partnerstatus' },
   { id: 'abrechnung', label: 'Abrechnung' },
@@ -123,6 +128,9 @@ export default function RecruiterProfile() {
   const location = useLocation();
   const navigate = useNavigate();
   const { section } = useParams();
+  const terminseite = useTerminseite();
+  // Aus dem Beitragsfenster: nach dem Freischalten dorthin zurück (nur interne Pfade).
+  const zurueck = (() => { const z = new URLSearchParams(location.search).get('zurueck'); return z && z.startsWith('/') && !z.startsWith('//') ? z : null; })();
   const photoInput = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [row, setRow] = useState<Record<string, unknown>>({});
@@ -382,12 +390,14 @@ export default function RecruiterProfile() {
       ? { id: 'bankverbindung', title: 'Bankverbindung eintragen', why: 'Ohne Konto können wir deine erste Provision nicht überweisen.', action: 'Eintragen', tag: 'Auszahlung', to: '/recruiter/profile/abrechnung#bankverbindung' }
       : { id: 'firmendaten', title: 'Firmendaten ergänzen', why: 'Firma, Anschrift und Steuerangaben brauchen wir für deine Gutschriften.', action: 'Ergänzen', tag: 'Auszahlung', to: '/recruiter/profile/abrechnung#firmendaten' }),
     ...openProof.map(kind => ({ id: kind, title: proofTitle(kind), why: 'Verlangt dein Vertrag. Matchunt prüft jeden Nachweis.', action: kind === 'income' ? 'Abgeben' : 'Hochladen', tag: 'Vertrag', to: '/recruiter/profile/nachweise' })),
+    ...(!terminseite.isLoading && !terminseite.zeile?.active ? [{ id: 'terminseite', title: 'Terminseite einrichten', why: 'Kandidaten aus deinen Beiträgen buchen direkt bei dir.', action: 'Einrichten', tag: 'LinkedIn', to: '/recruiter/profile/terminseite' }] : []),
   ];
   const done = [contractDone && 'Vertrag', ...billingSteps.filter(s => s.done).map(s => s.id === 'bank' ? 'Bankverbindung' : 'Firmendaten'),
     expertiseRows.length > 0 && 'Schwerpunkte', evidenceReady && !openProof.length && 'Nachweise'].filter(Boolean) as string[];
   const status: Record<SectionId, Status> = {
     uebersicht: tasks.length ? { kind: 'open', count: tasks.length } : { kind: 'done' },
     'ueber-dich': saved.about.full_name.trim() ? { kind: 'done' } : { kind: 'open', count: 1 },
+    terminseite: terminseite.zeile?.active ? { kind: 'done' } : { kind: 'none' },
     schwerpunkte: expertiseRows.length ? { kind: 'done' } : { kind: 'none' },
     abrechnung: openBilling.length ? { kind: 'open', count: openBilling.length } : { kind: 'done' },
     vertrag: contractDone || (!onboarding && !caseFailed) ? { kind: 'done' } : { kind: 'none' },
@@ -473,6 +483,7 @@ export default function RecruiterProfile() {
       <Fact label="Erfahrung" value={years || (currentExpertise?.experience && <>{currentExpertise.experience} <span className="text-muted-foreground">(laut Schwerpunkten)</span></>)}/>
       <Fact label="LinkedIn" value={linkedin && <><a className="text-primary underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer">{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>{linkedinFromContract && <span className="text-muted-foreground"> (aus dem Vertrag)</span>}</>}/>
     </dl>}
+    <LinkedinVerbindung/>
   </Panel>;
 
   const x = expertise;
@@ -635,7 +646,7 @@ export default function RecruiterProfile() {
   const partnerPanel = partner && <PartnerStatusSection partner={partner} onChange={setPartner}
     person={{ name: saved.about.full_name, company: saved.billing.company_name, roleTitle: saved.about.role_title, focus: expertiseLine(currentExpertise),
       areas: currentExpertise ? [...currentExpertise.areas, ...currentExpertise.extras].join(', ') : '' }}/>;
-  const content: Record<SectionId, ReactNode> = { uebersicht: overview, 'ueber-dich': aboutPanel, schwerpunkte: expertisePanel, partnerstatus: partnerPanel, abrechnung: billingPanel, vertrag: contractPanel, nachweise: proofPanel };
+  const content: Record<SectionId, ReactNode> = { uebersicht: overview, 'ueber-dich': aboutPanel, terminseite: <TerminseiteBereich zurueck={zurueck}/>, schwerpunkte: expertisePanel, partnerstatus: partnerPanel, abrechnung: billingPanel, vertrag: contractPanel, nachweise: proofPanel };
 
   return <DashboardLayout>
     <div className="mx-auto max-w-5xl space-y-5">

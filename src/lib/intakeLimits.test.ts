@@ -26,6 +26,10 @@ const ALLE: Record<string, LimitRule[]> = {
   recruiterEnrich: LIMITS.recruiterEnrich('draft-1', '1.2.3.4'),
   clientCode: LIMITS.clientCode('a@b.de', '1.2.3.4'),
   clientVerify: LIMITS.clientVerify('a@b.de', '1.2.3.4'),
+  terminSeite: LIMITS.terminSeite('1.2.3.4'),
+  terminLebenslauf: LIMITS.terminLebenslauf('1.2.3.4'),
+  terminBuchen: LIMITS.terminBuchen('1.2.3.4', 'a@b.de'),
+  terminVerwalten: LIMITS.terminVerwalten('1.2.3.4'),
 };
 
 describe('Zähler der Aufnahme', () => {

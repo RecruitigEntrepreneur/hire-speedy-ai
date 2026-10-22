@@ -193,10 +193,12 @@ function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => voi
  * Vorlauf, Planungshorizont, Feiertage und Abwesenheiten. Rein kontrolliert --
  * Laden und Speichern macht der Aufrufer (useInterviewHours).
  */
-export function InterviewHoursEditor({ value, onChange, compact }: {
+export function InterviewHoursEditor({ value, onChange, compact, noticeOptions = NOTICE }: {
   value: InterviewHoursRules;
   onChange: (v: InterviewHoursRules) => void;
   compact?: boolean;
+  /** Auswahl „Frühester Termin“; die Terminseite des Headhunters rechnet in Stunden (21.10.2026). */
+  noticeOptions?: { value: number; label: string }[];
 }) {
   const holidayId = useId();
   const weekendUsed = WEEKEND.some((d) => (value.weekly[d]?.length ?? 0) > 0);
@@ -275,7 +277,7 @@ export function InterviewHoursEditor({ value, onChange, compact }: {
         <div className={compact ? 'space-y-1.5' : 'space-y-2.5'}>
           <ChoiceChips label="Puffer zwischen Terminen" compact={compact} options={BUFFER} value={value.bufferMinutes}
                        onChange={(v) => onChange({ ...value, bufferMinutes: v })} />
-          <ChoiceChips label="Frühester Termin" compact={compact} options={NOTICE} value={value.minNoticeHours}
+          <ChoiceChips label="Frühester Termin" compact={compact} options={noticeOptions} value={value.minNoticeHours}
                        onChange={(v) => onChange({ ...value, minNoticeHours: v })} />
           <ChoiceChips label="Planung voraus" compact={compact} options={HORIZON} value={value.horizonDays}
                        onChange={(v) => onChange({ ...value, horizonDays: v })} />

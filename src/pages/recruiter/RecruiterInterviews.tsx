@@ -34,6 +34,7 @@ import {
 import { NachgespraechWindow } from '@/components/recruiter/tasks/NachgespraechWindow';
 import { cn } from '@/lib/utils';
 import { Honorar } from '@/components/recruiter/Honorar';
+import { ErstgespraecheAbschnitt, useErstgespraeche } from '@/components/recruiter/termin/Erstgespraeche';
 
 const formatFee = (fee: number | null) => (fee ? `~€${Math.round(fee / 1000)}k` : null);
 
@@ -206,6 +207,7 @@ function InterviewRow({
 
 export default function RecruiterInterviews() {
   const { t } = useTranslation();
+  const erstgespraeche = useErstgespraeche({ kommende: true });
   const { data: agenda, isLoading, refetch } = useRecruiterInterviewAgenda();
   const [pastOpen, setPastOpen] = useState(false);
   const [cancelledOpen, setCancelledOpen] = useState(false);
@@ -248,9 +250,13 @@ export default function RecruiterInterviews() {
     if (target) setSheet({ iv: target, variant: variantOf(target, agenda) });
   }, [deepLinkId, agenda, sheet.iv?.id]);
 
+  // Erstgespräche aus der Terminseite zählen in „Heute“ und „Diese Woche“ mit (21.10.2026).
+  const tagKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
+  const erstHeute = (erstgespraeche.data ?? []).filter((g) => tagKey(new Date(g.starts_at)) === tagKey(new Date())).length;
+  const erstWoche = (erstgespraeche.data ?? []).filter((g) => Date.parse(g.starts_at) < Date.now() + 7 * 86400000).length;
   const stats = [
-    { label: t('recruiterInterviews.stats.today'), value: agenda?.todayCount ?? 0 },
-    { label: t('recruiterInterviews.stats.week'), value: agenda?.weekCount ?? 0 },
+    { label: t('recruiterInterviews.stats.today'), value: (agenda?.todayCount ?? 0) + erstHeute },
+    { label: t('recruiterInterviews.stats.week'), value: (agenda?.weekCount ?? 0) + erstWoche },
     {
       // Ersetzt den alten "Unbestätigt"-Zähler: der zählte nur bereits
       // terminierte Termine und stand deshalb auf 0, während offene Anfragen
@@ -363,6 +369,9 @@ export default function RecruiterInterviews() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Erstgespräche aus der Terminseite (21.10.2026): eigene Gruppe, getrennt von Kundeninterviews */}
+            <ErstgespraecheAbschnitt liste={erstgespraeche.data ?? []} />
 
             {/* Gegenvorschlag zuerst: jemand wartet auf eine Reaktion */}
             {(agenda?.counterProposals.length ?? 0) > 0 && (

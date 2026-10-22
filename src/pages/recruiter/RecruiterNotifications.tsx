@@ -46,6 +46,9 @@ const NOTIFICATION_ICONS: Record<string, any> = {
   opt_in_request: Shield,
   opt_in_approved: Unlock,
   opt_in_denied: Lock,
+  booking_created: Calendar,
+  booking_moved: Calendar,
+  booking_cancelled: XCircle,
   default: Bell
 };
 
@@ -59,6 +62,9 @@ const NOTIFICATION_COLORS: Record<string, string> = {
   opt_in_request: 'text-primary bg-primary/10',
   opt_in_approved: 'text-emerald bg-emerald/10',
   opt_in_denied: 'text-destructive bg-destructive/10',
+  booking_created: 'text-primary bg-primary/10',
+  booking_moved: 'text-amber-500 bg-amber-500/10',
+  booking_cancelled: 'text-destructive bg-destructive/10',
   default: 'text-muted-foreground bg-muted'
 };
 
@@ -156,6 +162,9 @@ export default function RecruiterNotifications() {
         return `/recruiter/interviews?interview=${notification.related_id}`;
       case 'placement':
         return '/recruiter/earnings';
+      case 'candidate':
+        // Terminseite (21.10.2026): Termin gebucht, verschoben oder abgesagt → Akte
+        return `/recruiter/candidates/${notification.related_id}`;
       default:
         return null;
     }

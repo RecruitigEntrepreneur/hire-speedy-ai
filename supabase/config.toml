@@ -411,3 +411,17 @@ verify_jwt = false
 # Prüfung (Nutzer-Token, Aufnahme-Token, Cron-Schlüssel) sitzt in der Function.
 [functions.product-feedback]
 verify_jwt = false
+
+# Terminseite (21.10.2026): Kandidaten buchen ohne Konto; Prüfung (Slug, laufende
+# Suche, freie Zeit, Ratenbegrenzung, Bot-Falle, Verwalten-Token) sitzt in der Function.
+[functions.termin-seite]
+verify_jwt = false
+
+# LinkedIn-Rücksprung nach der Anmeldung: LinkedIn ruft ohne Matchunt-Token auf;
+# geprüft wird über den einmaligen state.
+[functions.linkedin-callback]
+verify_jwt = false
+
+# LinkedIn verbinden, posten, löschen: nur angemeldete Headhunter.
+[functions.linkedin]
+verify_jwt = true

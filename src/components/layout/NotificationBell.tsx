@@ -31,6 +31,9 @@ export function NotificationBell() {
         return role === "recruiter"
           ? `/recruiter/submissions/${notification.related_id}`
           : `/dashboard/candidates/${notification.related_id}`;
+      case "candidate":
+        // Terminseite (21.10.2026): neuer, verschobener oder abgesagter Termin → Akte
+        return role === "recruiter" ? `/recruiter/candidates/${notification.related_id}` : null;
       case "job":
         return role === "recruiter"
           ? `/recruiter/jobs/${notification.related_id}`

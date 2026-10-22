@@ -22,6 +22,10 @@ import { GespraechsleitfadenSheet } from './briefing/GespraechsleitfadenSheet';
 import { KundenFragenSheet } from './briefing/KundenFragenSheet';
 import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { useRecruiterKontakt } from '@/hooks/useRecruiterKontakt';
+import { useQuery } from '@tanstack/react-query';
+import { BeitragsFenster } from './linkedin/BeitragsFenster';
+import { ErstgespraecheAbschnitt, useErstgespraeche } from './termin/Erstgespraeche';
+import { beitragsStand } from '@/lib/terminApi';
 
 export interface WorkspaceJob extends BriefingJob {
   id: string;
@@ -65,6 +69,8 @@ interface Props {
   mobileAction?: ReactNode;
   /** Zusätzlicher Hinweis in der Kopfzeile, etwa „Pausiert bis …“. */
   headerBadge?: ReactNode;
+  /** Darf die Stelle gerade auf LinkedIn gepostet werden? (Headhunter sucht, Stelle nicht pausiert) */
+  kannPosten?: boolean;
 }
 
 function EmptyAnswer({ children }: { children: ReactNode }) {
@@ -90,7 +96,7 @@ function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
   return <div className="space-y-0.5"><p className="px-2 pb-1 text-xs text-muted-foreground">{titel}</p>{children}</div>;
 }
 
-export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submissionCount, candidates, onSubmit, onExpose, heroAction, heroStatus, mobileAction, headerBadge }: Props) {
+export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submissionCount, candidates, onSubmit, onExpose, heroAction, heroStatus, mobileAction, headerBadge, kannPosten = false }: Props) {
   // Erst die Anzeige, dann das Briefing: so liest ein Headhunter eine neue Stelle.
   const [tab, setTab] = useState('beschreibung');
   const [showEarning, setShowEarning] = useState(false);
@@ -116,6 +122,18 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
   const schritte = useMemo(() => buildArbeitsBriefing(job as never, companyRevealed), [job, companyRevealed]);
   const offeneFragen = fragenAnKunden(briefing.fehlt).length;
   const [searchParams, setSearchParams] = useSearchParams();
+  // LinkedIn-Beitrag (21.10.2026): Fenster, Stand im Kopf, Rückkehr aus der LinkedIn-Anmeldung (?beitrag=1).
+  const [beitragOffen, setBeitragOffen] = useState(false);
+  const erstgespraeche = useErstgespraeche({ jobId: job.id, kommende: true });
+  const beitrag = useQuery({ queryKey: ['beitrag-stand', job.id], staleTime: 60_000, queryFn: () => beitragsStand(job.id) });
+  useEffect(() => {
+    if (searchParams.get('beitrag') !== '1') return;
+    if (kannPosten) setBeitragOffen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('beitrag');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, kannPosten]);
 
   const ansprechen = (k: Kanal) => { setKanal(k); setTeilenOffen(true); };
 
@@ -189,10 +207,13 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
             {fakten.filter(f => f.symbol !== 'branche').map(f => { const Icon = KOPF_SYMBOL[f.symbol]; return <li key={f.symbol} className={cn('inline-flex items-center gap-1.5', f.symbol === 'geld' && 'font-medium')}><Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />{f.text}</li>; })}
           </ul>}
         </div>
-        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem] [&_button]:w-full">
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem]">
           <HeroEarning job={job} />
           {/* Unter 1180 px steht der Knopf in der Leiste unten, nicht doppelt. */}
-          <div className="hidden min-[1180px]:block">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}</div>
+          <div className="hidden gap-2 min-[1180px]:flex">
+            <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}</div>
+            {kannPosten && <Button size="lg" aria-label="Stelle anonym auf LinkedIn posten" className="w-auto shrink-0 bg-[#0A66C2] px-3.5 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin />Posten</Button>}
+          </div>
         </div>
       </div>
       {/* Reiter als Unterstreichung, rechts der Stand der Suche. */}
@@ -204,7 +225,14 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
             </TabsTrigger>)}
         </TabsList>
         {/* Am Handy über den Reitern, damit die Unterstreichung auf der Linie sitzt. */}
-        {heroStatus && <div className="order-first w-full pb-1 text-xs leading-5 text-muted-foreground sm:order-none sm:w-auto sm:pb-3 sm:text-right">{heroStatus}</div>}
+        {(heroStatus || beitrag.data) && <div className="order-first w-full space-y-0.5 pb-1 text-xs leading-5 text-muted-foreground sm:order-none sm:w-auto sm:pb-3 sm:text-right">
+          {heroStatus && <div>{heroStatus}</div>}
+          {beitrag.data && <div className="text-[#0A66C2]">
+            <Linkedin className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />Gepostet am {new Date(beitrag.data.posted_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })}
+            {' · '}{beitrag.data.bookings === 1 ? '1 Termin' : `${beitrag.data.bookings} Termine`} gebucht
+            {beitrag.data.post_urn && <> · <a className="underline underline-offset-2" href={`https://www.linkedin.com/feed/update/${beitrag.data.post_urn}/`} target="_blank" rel="noreferrer">ansehen</a></>}
+          </div>}
+        </div>}
       </div>
     </header>
 
@@ -239,6 +267,8 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
 
           <TabsContent value="kandidaten" className="m-0 space-y-6">
             <div><h2 className="text-xl font-semibold">Deine Kandidaten für dieses Mandat</h2><p className="mt-2 text-sm text-muted-foreground">Einreichungen, aktueller Stand und die nächsten Schritte.</p></div>
+            {/* Erstgespräche über die Terminseite, bevor eingereicht wird (21.10.2026) */}
+            <ErstgespraecheAbschnitt liste={erstgespraeche.data ?? []} ohneStelle />
             {submissionCount > 0 ? candidates : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center"><Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h3 className="font-medium">Deine erste Vorstellung beginnt hier</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Wähle ein vorhandenes Profil oder lege einen Kandidaten an. Vor dem Einreichen prüfst du die Angaben.</p><Button className="mt-6" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button></div>}
           </TabsContent>
         </div>
@@ -267,7 +297,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
       </div>
     </Tabs>
 
-    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}{hatAnzeige && <Button variant="outline" aria-label="Ansprechen" onClick={() => setTeilenOffen(true)}><Share2 /><span className="hidden min-[420px]:inline">Ansprechen</span></Button>}<Button variant="outline" aria-label="Anonymes Exposé öffnen" onClick={onExpose}><FileText /></Button></div>
+    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}{kannPosten && <Button aria-label="Auf LinkedIn posten" className="bg-[#0A66C2] px-3 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin /></Button>}{hatAnzeige && <Button variant="outline" aria-label="Ansprechen" onClick={() => setTeilenOffen(true)}><Share2 /><span className="hidden min-[420px]:inline">Ansprechen</span></Button>}<Button variant="outline" aria-label="Anonymes Exposé öffnen" onClick={onExpose}><FileText /></Button></div>
 
     {/* Ansprechen als Fenster von rechts; die Anzeige bleibt daneben lesbar. Am Handy über die ganze Breite. */}
     <Sheet open={teilenOffen} onOpenChange={setTeilenOffen}>
@@ -280,6 +310,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
     <KundenFragenSheet open={fragenOffen} onOpenChange={setFragenOffen} jobId={job.id} jobTitle={job.title} fehlt={briefing.fehlt} />
 
     <GespraechsleitfadenSheet open={showGuide} onOpenChange={setShowGuide} jobTitle={job.title} anruf={briefing.anruf} muss={criteria.required} hinterlegt={screening} />
+    {kannPosten && <BeitragsFenster open={beitragOffen} onOpenChange={setBeitragOffen} job={job} />}
     <Dialog open={showAccess} onOpenChange={setShowAccess}><DialogContent><DialogHeader><DialogTitle>Unternehmensfreigabe</DialogTitle><DialogDescription>Die vorhandenen Freigabestufen dieses Mandats.</DialogDescription></DialogHeader><ol className="list-decimal space-y-4 pl-5 text-sm leading-7"><li>Anonyme Stellenbeschreibung und Briefing für die erste Einschätzung.</li><li>Der Firmenname erscheint, sobald du „Ich suche“ drückst. Der Kunde sieht dann auch dich.</li><li>Nach Interviewbestätigung werden weitere Firmeninformationen zugänglich.</li></ol><p className="text-sm text-muted-foreground">Aktueller Status: {fullAccess ? 'Voller Zugriff' : companyRevealed ? 'Firma freigegeben' : 'Firma anonym'}. </p></DialogContent></Dialog>
     <Dialog open={showEarning} onOpenChange={setShowEarning}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Verdienst berechnen</DialogTitle><DialogDescription>{job.title} · so rechnet sich deine Provision.</DialogDescription></DialogHeader>{job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}</DialogContent></Dialog>
   </div>;

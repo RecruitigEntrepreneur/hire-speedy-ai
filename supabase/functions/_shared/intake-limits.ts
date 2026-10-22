@@ -98,6 +98,20 @@ export async function checkLimits(
 
 /** Voreinstellungen an einer Stelle, damit sie nicht in zehn Functions driften. */
 export const LIMITS = {
+  /** Terminseite (21.10.2026): ansehen großzügig, Lebenslauf lesen kostet KI, Buchen höchstens 3 je E-Mail und Tag. */
+  terminSeite: (ip: string | null): LimitRule[] => [
+    { zweck: 'termin-seite', scope: 'ip', key: ip, limit: 120 },
+  ],
+  terminLebenslauf: (ip: string | null): LimitRule[] => [
+    { zweck: 'termin-cv', scope: 'ai', key: ip, limit: 10 },
+  ],
+  terminBuchen: (ip: string | null, email: string): LimitRule[] => [
+    { zweck: 'termin-buchen', scope: 'ip', key: ip, limit: 10 },
+    { zweck: 'termin-buchen', scope: 'email', key: email.toLowerCase(), limit: 3, windowSeconds: 86400 },
+  ],
+  terminVerwalten: (ip: string | null): LimitRule[] => [
+    { zweck: 'termin-verwalten', scope: 'ip', key: ip, limit: 60 },
+  ],
   /** Link oeffnen: 30 pro IP und Stunde, 300 pro Link und Stunde. */
   start:  (ip: string | null, linkId: string): LimitRule[] => [
     { zweck: 'start', scope: 'ip',   key: ip,     limit: 30  },
