@@ -1,5 +1,11 @@
 # Roadmap
 
+## Deployment 37219c3 (22.10.2026)
+- [x] Current checkout verified at 37219c3; journal ends at 0032_interview_umfeld_lernwoerterbuch.
+- [ ] Apply seven requested migrations individually in order a–g, skipping journaled entries.
+- [ ] Deploy the 15 requested functions with existing configuration.
+- [ ] Leave protected secrets unchanged and request frontend publication after security check.
+
 ## Erledigt (Abschnitte 15 + 16, 06.10.2026)
 - [x] Arbeitskopie auf 29cd415 und 204351c gebracht, keine Migration
 - [x] interview-request, get-interview-by-token, process-interview-response, interview-client-link deployed
