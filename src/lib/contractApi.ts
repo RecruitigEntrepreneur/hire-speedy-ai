@@ -135,7 +135,7 @@ export async function contractDataPdf(c: Pick<ContractContext, 'jobTitle' | 'off
   const hint = ['Übliche Angaben für den Arbeitsvertrag bzw. den Nachweis der Arbeitsbedingungen.', 'Den Vertragstext formulieren Sie selbst; Matchunt gibt keine Rechtsberatung.'];
   for (const h of hint) { page.drawText(h, { x: 60, y, size: 9, font, color: rgb(0.4, 0.4, 0.45) }); y -= 14; }
   const bytes = await pdf.save();
-  return new Blob([bytes], { type: 'application/pdf' });
+  return new Blob([bytes as BlobPart], { type: 'application/pdf' });
 }
 
 export async function fileToBase64(file: File): Promise<string> {
