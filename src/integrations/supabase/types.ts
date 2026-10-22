@@ -83,6 +83,53 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_cv_uploads: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number | null
+          hints: Json
+          id: string
+          mime_type: string | null
+          path: string
+          raw_text: string | null
+          recruiter_id: string
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          hints?: Json
+          id?: string
+          mime_type?: string | null
+          path: string
+          raw_text?: string | null
+          recruiter_id: string
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          hints?: Json
+          id?: string
+          mime_type?: string | null
+          path?: string
+          raw_text?: string | null
+          recruiter_id?: string
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_cv_uploads_used_by_fkey"
+            columns: ["used_by"]
+            isOneToOne: false
+            referencedRelation: "recruiter_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_connections: {
         Row: {
           access_token_encrypted: string | null
@@ -304,7 +351,21 @@ export type Database = {
             foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
             columns: ["related_submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
+            columns: ["related_submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_activity_log_related_submission_id_fkey"
+            columns: ["related_submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -529,7 +590,21 @@ export type Database = {
             foreignKeyName: "candidate_behavior_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_behavior_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -739,7 +814,21 @@ export type Database = {
             foreignKeyName: "candidate_client_summary_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_client_summary_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -811,7 +900,21 @@ export type Database = {
             foreignKeyName: "candidate_comments_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_comments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -908,7 +1011,21 @@ export type Database = {
             foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_commitment_updates_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -1011,7 +1128,21 @@ export type Database = {
             foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
             columns: ["submission_a_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
+            columns: ["submission_a_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_a_id_fkey"
+            columns: ["submission_a_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -1046,7 +1177,21 @@ export type Database = {
             foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
             columns: ["submission_b_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
+            columns: ["submission_b_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_conflicts_submission_b_id_fkey"
+            columns: ["submission_b_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -1415,7 +1560,21 @@ export type Database = {
             foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -1931,7 +2090,21 @@ export type Database = {
             foreignKeyName: "candidate_risk_reports_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_risk_reports_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -2839,7 +3012,21 @@ export type Database = {
             foreignKeyName: "client_notifications_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_notifications_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_notifications_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -3556,7 +3743,21 @@ export type Database = {
             foreignKeyName: "communication_log_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "communication_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "communication_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -4693,7 +4894,21 @@ export type Database = {
             foreignKeyName: "identity_unlock_logs_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "identity_unlock_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "identity_unlock_logs_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -4783,7 +4998,21 @@ export type Database = {
             foreignKeyName: "influence_alerts_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "influence_alerts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "influence_alerts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -5875,7 +6104,21 @@ export type Database = {
             foreignKeyName: "interview_intelligence_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_intelligence_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_intelligence_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -5951,6 +6194,170 @@ export type Database = {
             columns: ["interview_id"]
             isOneToOne: false
             referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_nachgespraeche: {
+        Row: {
+          angebot_fix_min: number | null
+          angebot_punkte: string[]
+          angebot_text: string | null
+          ansprechpartner: string | null
+          bauchgefuehl: string | null
+          bedenken: string | null
+          candidate_id: string | null
+          created_at: string
+          gehalt_besprochen: boolean | null
+          gehalt_firma: number | null
+          gehalt_kandidat: number | null
+          id: string
+          interview_id: string
+          recruiter_id: string
+          start_art: string | null
+          start_datum: string | null
+          submission_id: string | null
+          updated_at: string
+          verlauf: string | null
+          will_weiter: string | null
+          zusammenarbeit: string | null
+        }
+        Insert: {
+          angebot_fix_min?: number | null
+          angebot_punkte?: string[]
+          angebot_text?: string | null
+          ansprechpartner?: string | null
+          bauchgefuehl?: string | null
+          bedenken?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          gehalt_besprochen?: boolean | null
+          gehalt_firma?: number | null
+          gehalt_kandidat?: number | null
+          id?: string
+          interview_id: string
+          recruiter_id?: string
+          start_art?: string | null
+          start_datum?: string | null
+          submission_id?: string | null
+          updated_at?: string
+          verlauf?: string | null
+          will_weiter?: string | null
+          zusammenarbeit?: string | null
+        }
+        Update: {
+          angebot_fix_min?: number | null
+          angebot_punkte?: string[]
+          angebot_text?: string | null
+          ansprechpartner?: string | null
+          bauchgefuehl?: string | null
+          bedenken?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          gehalt_besprochen?: boolean | null
+          gehalt_firma?: number | null
+          gehalt_kandidat?: number | null
+          id?: string
+          interview_id?: string
+          recruiter_id?: string
+          start_art?: string | null
+          start_datum?: string | null
+          submission_id?: string | null
+          updated_at?: string
+          verlauf?: string | null
+          will_weiter?: string | null
+          zusammenarbeit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
         ]
@@ -6368,7 +6775,21 @@ export type Database = {
             foreignKeyName: "interviews_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -6556,6 +6977,69 @@ export type Database = {
           },
         ]
       }
+      job_linkedin_posts: {
+        Row: {
+          deleted_at: string | null
+          error: string | null
+          format: string | null
+          id: string
+          job_id: string
+          post_urn: string | null
+          posted_at: string
+          recruiter_id: string
+          show_salary: boolean
+          status: string
+          template: string | null
+          text: string
+          visibility: string | null
+        }
+        Insert: {
+          deleted_at?: string | null
+          error?: string | null
+          format?: string | null
+          id?: string
+          job_id: string
+          post_urn?: string | null
+          posted_at?: string
+          recruiter_id: string
+          show_salary?: boolean
+          status: string
+          template?: string | null
+          text: string
+          visibility?: string | null
+        }
+        Update: {
+          deleted_at?: string | null
+          error?: string | null
+          format?: string | null
+          id?: string
+          job_id?: string
+          post_urn?: string | null
+          posted_at?: string
+          recruiter_id?: string
+          show_salary?: boolean
+          status?: string
+          template?: string | null
+          text?: string
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_linkedin_posts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_linkedin_posts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_recruiter_text_drafts: {
         Row: {
           content: Json
@@ -6714,6 +7198,8 @@ export type Database = {
           bonus_structure: string | null
           briefing_notes: string | null
           callback_requested_at: string | null
+          candidate_concerns: string[] | null
+          candidate_concerns_answer: string | null
           candidates_dropped_reason: string | null
           candidates_in_pipeline: number | null
           career_example: string | null
@@ -6777,9 +7263,11 @@ export type Database = {
           intake_draft_id: string | null
           intake_link_id: string | null
           intake_payload: Json | null
+          interview_process: string | null
           job_summary: Json | null
           location: string | null
           mandate_id: string | null
+          max_notice_period: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
           negative_impact_if_unfilled: string | null
@@ -6813,6 +7301,7 @@ export type Database = {
           requirements_normalized_at: string | null
           reveal_envelope: Json | null
           reveal_trigger: string | null
+          salary_flex: string | null
           salary_max: number | null
           salary_min: number | null
           salary_months: number | null
@@ -6847,6 +7336,8 @@ export type Database = {
           bonus_structure?: string | null
           briefing_notes?: string | null
           callback_requested_at?: string | null
+          candidate_concerns?: string[] | null
+          candidate_concerns_answer?: string | null
           candidates_dropped_reason?: string | null
           candidates_in_pipeline?: number | null
           career_example?: string | null
@@ -6910,9 +7401,11 @@ export type Database = {
           intake_draft_id?: string | null
           intake_link_id?: string | null
           intake_payload?: Json | null
+          interview_process?: string | null
           job_summary?: Json | null
           location?: string | null
           mandate_id?: string | null
+          max_notice_period?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -6946,6 +7439,7 @@ export type Database = {
           requirements_normalized_at?: string | null
           reveal_envelope?: Json | null
           reveal_trigger?: string | null
+          salary_flex?: string | null
           salary_max?: number | null
           salary_min?: number | null
           salary_months?: number | null
@@ -6980,6 +7474,8 @@ export type Database = {
           bonus_structure?: string | null
           briefing_notes?: string | null
           callback_requested_at?: string | null
+          candidate_concerns?: string[] | null
+          candidate_concerns_answer?: string | null
           candidates_dropped_reason?: string | null
           candidates_in_pipeline?: number | null
           career_example?: string | null
@@ -7043,9 +7539,11 @@ export type Database = {
           intake_draft_id?: string | null
           intake_link_id?: string | null
           intake_payload?: Json | null
+          interview_process?: string | null
           job_summary?: Json | null
           location?: string | null
           mandate_id?: string | null
+          max_notice_period?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -7079,6 +7577,7 @@ export type Database = {
           requirements_normalized_at?: string | null
           reveal_envelope?: Json | null
           reveal_trigger?: string | null
+          salary_flex?: string | null
           salary_max?: number | null
           salary_min?: number | null
           salary_months?: number | null
@@ -7150,6 +7649,334 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      liga_awards: {
+        Row: {
+          active: boolean
+          id: string
+          image_url: string | null
+          kind: string
+          prize: string | null
+          season_id: string
+          sort: number
+          title: string
+          value_eur: number
+        }
+        Insert: {
+          active?: boolean
+          id?: string
+          image_url?: string | null
+          kind: string
+          prize?: string | null
+          season_id: string
+          sort?: number
+          title: string
+          value_eur?: number
+        }
+        Update: {
+          active?: boolean
+          id?: string
+          image_url?: string | null
+          kind?: string
+          prize?: string | null
+          season_id?: string
+          sort?: number
+          title?: string
+          value_eur?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_events: {
+        Row: {
+          corrected_at: string | null
+          corrected_by: string | null
+          corrected_points: number | null
+          correction_reason: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          kind: string
+          label: string | null
+          occurred_at: string
+          points: number
+          recruiter_id: string
+          season_id: string
+          source_key: string
+          submission_id: string | null
+        }
+        Insert: {
+          corrected_at?: string | null
+          corrected_by?: string | null
+          corrected_points?: number | null
+          correction_reason?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          kind: string
+          label?: string | null
+          occurred_at: string
+          points: number
+          recruiter_id: string
+          season_id: string
+          source_key: string
+          submission_id?: string | null
+        }
+        Update: {
+          corrected_at?: string | null
+          corrected_by?: string | null
+          corrected_points?: number | null
+          correction_reason?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          kind?: string
+          label?: string | null
+          occurred_at?: string
+          points?: number
+          recruiter_id?: string
+          season_id?: string
+          source_key?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_events_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_exclusions: {
+        Row: {
+          created_at: string
+          decided_by: string | null
+          reason: string
+          recruiter_id: string
+          season_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_by?: string | null
+          reason: string
+          recruiter_id: string
+          season_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_by?: string | null
+          reason?: string
+          recruiter_id?: string
+          season_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_exclusions_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_preferences: {
+        Row: {
+          award_seen_season: string | null
+          recruiter_id: string
+          show_name: boolean
+          updated_at: string
+          weekly_mail: boolean
+        }
+        Insert: {
+          award_seen_season?: string | null
+          recruiter_id: string
+          show_name?: boolean
+          updated_at?: string
+          weekly_mail?: boolean
+        }
+        Update: {
+          award_seen_season?: string | null
+          recruiter_id?: string
+          show_name?: boolean
+          updated_at?: string
+          weekly_mail?: boolean
+        }
+        Relationships: []
+      }
+      liga_results: {
+        Row: {
+          award_mailed_at: string | null
+          awards: string[]
+          created_at: string
+          interviews: number
+          participants: number
+          placements: number
+          points: number
+          prize_done_at: string | null
+          quote: number | null
+          rank: number
+          recruiter_id: string
+          season_id: string
+          submissions: number
+        }
+        Insert: {
+          award_mailed_at?: string | null
+          awards?: string[]
+          created_at?: string
+          interviews: number
+          participants: number
+          placements: number
+          points: number
+          prize_done_at?: string | null
+          quote?: number | null
+          rank: number
+          recruiter_id: string
+          season_id: string
+          submissions: number
+        }
+        Update: {
+          award_mailed_at?: string | null
+          awards?: string[]
+          created_at?: string
+          interviews?: number
+          participants?: number
+          placements?: number
+          points?: number
+          prize_done_at?: string | null
+          quote?: number | null
+          rank?: number
+          recruiter_id?: string
+          season_id?: string
+          submissions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_results_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_seasons: {
+        Row: {
+          budget_eur: number | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          ends_on: string
+          grace_days: number
+          id: string
+          label: string
+          min_placements: number
+          newcomer_months: number
+          rules: Json
+          starts_on: string
+          tax_checked_on: string | null
+          top_n: number
+          updated_at: string
+          visible_from: string | null
+        }
+        Insert: {
+          budget_eur?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          ends_on: string
+          grace_days?: number
+          id?: string
+          label: string
+          min_placements?: number
+          newcomer_months?: number
+          rules?: Json
+          starts_on: string
+          tax_checked_on?: string | null
+          top_n?: number
+          updated_at?: string
+          visible_from?: string | null
+        }
+        Update: {
+          budget_eur?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          ends_on?: string
+          grace_days?: number
+          id?: string
+          label?: string
+          min_placements?: number
+          newcomer_months?: number
+          rules?: Json
+          starts_on?: string
+          tax_checked_on?: string | null
+          top_n?: number
+          updated_at?: string
+          visible_from?: string | null
+        }
+        Relationships: []
+      }
+      liga_snapshots: {
+        Row: {
+          points: number
+          rank: number
+          recruiter_id: string
+          season_id: string
+          taken_on: string
+        }
+        Insert: {
+          points: number
+          rank: number
+          recruiter_id: string
+          season_id: string
+          taken_on: string
+        }
+        Update: {
+          points?: number
+          rank?: number
+          recruiter_id?: string
+          season_id?: string
+          taken_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_snapshots_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linkedin_oauth_states: {
+        Row: {
+          created_at: string
+          return_to: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          return_to?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          return_to?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       match_ai_judgements: {
         Row: {
@@ -7383,7 +8210,21 @@ export type Database = {
             foreignKeyName: "match_outcomes_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "match_outcomes_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -7923,7 +8764,21 @@ export type Database = {
             foreignKeyName: "ml_training_events_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "ml_training_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -8235,7 +9090,21 @@ export type Database = {
             foreignKeyName: "offers_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -9822,7 +10691,21 @@ export type Database = {
             foreignKeyName: "placements_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -10178,6 +11061,166 @@ export type Database = {
           years_experience?: number | null
         }
         Relationships: []
+      }
+      recruiter_booking_pages: {
+        Row: {
+          active: boolean
+          allow_phone: boolean
+          allow_teams: boolean
+          created_at: string
+          duration_minutes: number
+          recruiter_id: string
+          rules: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allow_phone?: boolean
+          allow_teams?: boolean
+          created_at?: string
+          duration_minutes?: number
+          recruiter_id: string
+          rules?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allow_phone?: boolean
+          allow_teams?: boolean
+          created_at?: string
+          duration_minutes?: number
+          recruiter_id?: string
+          rules?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recruiter_bookings: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          candidate_id: string | null
+          created_at: string
+          cv_path: string | null
+          email: string
+          ends_at: string
+          first_name: string
+          id: string
+          job_id: string | null
+          join_url: string | null
+          last_name: string
+          linkedin_url: string | null
+          manage_token_hash: string
+          mode: string
+          note: string | null
+          outlook_event_id: string | null
+          phone: string | null
+          post_id: string | null
+          recruiter_id: string
+          source: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          cv_path?: string | null
+          email: string
+          ends_at: string
+          first_name: string
+          id?: string
+          job_id?: string | null
+          join_url?: string | null
+          last_name: string
+          linkedin_url?: string | null
+          manage_token_hash: string
+          mode: string
+          note?: string | null
+          outlook_event_id?: string | null
+          phone?: string | null
+          post_id?: string | null
+          recruiter_id: string
+          source?: string
+          starts_at: string
+          status?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          cv_path?: string | null
+          email?: string
+          ends_at?: string
+          first_name?: string
+          id?: string
+          job_id?: string | null
+          join_url?: string | null
+          last_name?: string
+          linkedin_url?: string | null
+          manage_token_hash?: string
+          mode?: string
+          note?: string | null
+          outlook_event_id?: string | null
+          phone?: string | null
+          post_id?: string | null
+          recruiter_id?: string
+          source?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recruiter_client_declarations: {
         Row: {
@@ -10658,6 +11701,39 @@ export type Database = {
           recruiter_id?: string
           submissions?: number | null
           total_revenue?: number | null
+        }
+        Relationships: []
+      }
+      recruiter_linkedin: {
+        Row: {
+          access_token_enc: string
+          connected_at: string
+          expires_at: string
+          member_id: string
+          name: string | null
+          picture_url: string | null
+          recruiter_id: string
+          reminder_sent_at: string | null
+        }
+        Insert: {
+          access_token_enc: string
+          connected_at?: string
+          expires_at: string
+          member_id: string
+          name?: string | null
+          picture_url?: string | null
+          recruiter_id: string
+          reminder_sent_at?: string | null
+        }
+        Update: {
+          access_token_enc?: string
+          connected_at?: string
+          expires_at?: string
+          member_id?: string
+          name?: string | null
+          picture_url?: string | null
+          recruiter_id?: string
+          reminder_sent_at?: string | null
         }
         Relationships: []
       }
@@ -11481,7 +12557,21 @@ export type Database = {
             foreignKeyName: "rejections_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "rejections_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "rejections_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -12492,6 +13582,18 @@ export type Database = {
           },
         ]
       }
+      client_candidate_education_view: {
+        Row: {
+          degree: string | null
+          field_of_study: string | null
+          graduation_year: number | null
+          id: string | null
+          institution: string | null
+          sort_order: number | null
+          submission_id: string | null
+        }
+        Relationships: []
+      }
       client_candidate_experiences_view: {
         Row: {
           candidate_id: string | null
@@ -12534,6 +13636,39 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "client_offers_view"
             referencedColumns: ["candidate_id"]
+          },
+        ]
+      }
+      client_candidate_interview_view: {
+        Row: {
+          change_motivation: string | null
+          change_motivation_tags: string[] | null
+          earliest_start_date: string | null
+          interview_date: string | null
+          interview_type: string | null
+          job_id: string | null
+          leadership_scope: string | null
+          leadership_team_size: number | null
+          notice_period: string | null
+          offer_requirements: string[] | null
+          salary_wish: string | null
+          submission_id: string | null
+          why_now: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -12711,7 +13846,21 @@ export type Database = {
             foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: true
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "candidate_fit_assessments_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -12764,7 +13913,21 @@ export type Database = {
             foreignKeyName: "interviews_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interviews_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -12829,7 +13992,21 @@ export type Database = {
             foreignKeyName: "offers_submission_id_fkey"
             columns: ["submission_id"]
             isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
             referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "offers_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
             referencedColumns: ["submission_id"]
           },
           {
@@ -13010,6 +14187,8 @@ export type Database = {
         Row: {
           benefits: string[] | null
           bonus_structure: string | null
+          candidate_concerns: string[] | null
+          candidate_concerns_answer: string | null
           candidates_dropped_reason: string | null
           candidates_in_pipeline: number | null
           career_example: string | null
@@ -13049,13 +14228,16 @@ export type Database = {
           industry: string | null
           industry_challenges: string | null
           industry_opportunities: string | null
+          interview_process: string | null
           job_summary: Json | null
           location: string | null
+          max_notice_period: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
           negative_impact_if_unfilled: string | null
           nice_to_have_criteria: string[] | null
           nice_to_haves: string[] | null
+          nogo_companies: string[] | null
           onsite_days_required: number | null
           onsite_required: boolean | null
           overtime_policy: string | null
@@ -13074,6 +14256,7 @@ export type Database = {
           required_certifications: string[] | null
           required_languages: Json | null
           requirements: string | null
+          salary_flex: string | null
           salary_max: number | null
           salary_min: number | null
           salary_months: number | null
@@ -13081,6 +14264,7 @@ export type Database = {
           skills: string[] | null
           status: string | null
           success_profile: string | null
+          target_companies: string[] | null
           task_breakdown: Json | null
           task_focus: string | null
           team_size: number | null
@@ -13093,6 +14277,7 @@ export type Database = {
           urgency: string | null
           utilization_days_per_week: number | null
           vacancy_reason: string | null
+          visa_sponsorship: boolean | null
           works_council: boolean | null
           works_council_meeting_schedule: string | null
         }
@@ -13234,6 +14419,117 @@ export type Database = {
           title: string
         }[]
       }
+      admin_liga_close: { Args: { p_season_id: string }; Returns: Json }
+      admin_liga_correct: {
+        Args: { p_event_id: string; p_points: number; p_reason: string }
+        Returns: undefined
+      }
+      admin_liga_events: {
+        Args: { p_recruiter_id: string; p_season_id: string }
+        Returns: {
+          corrected_at: string | null
+          corrected_by: string | null
+          corrected_points: number | null
+          correction_reason: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          kind: string
+          label: string | null
+          occurred_at: string
+          points: number
+          recruiter_id: string
+          season_id: string
+          source_key: string
+          submission_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "liga_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      admin_liga_exclude: {
+        Args: { p_reason: string; p_recruiter_id: string; p_season_id: string }
+        Returns: undefined
+      }
+      admin_liga_preview: {
+        Args: { p_season_id: string }
+        Returns: {
+          awards: string[]
+          full_name: string
+          placements: number
+          points: number
+          rank: number
+          recruiter_id: string
+        }[]
+      }
+      admin_liga_prize_done: {
+        Args: { p_done: boolean; p_recruiter_id: string; p_season_id: string }
+        Returns: undefined
+      }
+      admin_liga_recompute: { Args: { p_season_id: string }; Returns: number }
+      admin_liga_results: {
+        Args: { p_season_id: string }
+        Returns: {
+          award_mailed_at: string
+          awards: string[]
+          company_name: string
+          email: string
+          full_name: string
+          participants: number
+          placements: number
+          points: number
+          prize_done_at: string
+          prize_value: number
+          prizes: string[]
+          rank: number
+          recruiter_id: string
+          season_label: string
+        }[]
+      }
+      admin_liga_seasons: {
+        Args: never
+        Returns: {
+          awards_active: number
+          budget_eur: number
+          closed_at: string
+          ends_on: string
+          grace_days: number
+          id: string
+          label: string
+          participants: number
+          placements: number
+          prizes_open: number
+          starts_on: string
+          visible_from: string
+        }[]
+      }
+      admin_liga_table: {
+        Args: { p_season_id: string }
+        Returns: {
+          awards: string[]
+          company_name: string
+          deductions: number
+          excluded: boolean
+          exclusion_reason: string
+          full_name: string
+          holds: number
+          interviews: number
+          newcomer: boolean
+          offers: number
+          participants: number
+          placements: number
+          points: number
+          previous_rank: number
+          quote: number
+          rank: number
+          recruiter_id: string
+          submissions: number
+          tier: string
+        }[]
+      }
       admin_partner_tiers: {
         Args: never
         Returns: {
@@ -13268,6 +14564,7 @@ export type Database = {
         Args: { p_declaration_id: string; p_kind: string; p_path: string }
         Returns: undefined
       }
+      booking_slug_free: { Args: { p_slug: string }; Returns: boolean }
       can_access_job: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
@@ -13355,6 +14652,7 @@ export type Database = {
         Args: { _name: string; _token: string }
         Returns: boolean
       }
+      employer_tokens: { Args: { p_candidate_id: string }; Returns: string[] }
       end_job_search: { Args: { p_job_id: string }; Returns: Json }
       feedback_team: {
         Args: never
@@ -13463,6 +14761,131 @@ export type Database = {
         Args: { a: Json; b: Json }
         Returns: boolean
       }
+      liga_award_plan: {
+        Args: { p_season_id: string }
+        Returns: {
+          awards: string[]
+          interviews: number
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+          recruiter_id: string
+          submissions: number
+        }[]
+      }
+      liga_awards_of: {
+        Args: { p_recruiter_ids: string[] }
+        Returns: {
+          award: string
+          participants: number
+          rank: number
+          recruiter_id: string
+          season_label: string
+        }[]
+      }
+      liga_city: { Args: { p_recruiter_id: string }; Returns: string }
+      liga_current_season: { Args: never; Returns: string }
+      liga_display_name: { Args: { p_recruiter_id: string }; Returns: string }
+      liga_hall_of_fame: {
+        Args: never
+        Returns: {
+          awards: string[]
+          city: string
+          ends_on: string
+          interviews: number
+          is_me: boolean
+          name: string
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+          season_id: string
+          season_label: string
+        }[]
+      }
+      liga_me: { Args: { p_season_id?: string }; Returns: Json }
+      liga_participants: {
+        Args: never
+        Returns: {
+          granted_at: string
+          recruiter_id: string
+        }[]
+      }
+      liga_recompute: { Args: { p_season_id: string }; Returns: number }
+      liga_recompute_running: { Args: never; Returns: number }
+      liga_rules: { Args: { p_season_id: string }; Returns: Json }
+      liga_seasons_list: {
+        Args: never
+        Returns: {
+          closed: boolean
+          ends_on: string
+          grace_days: number
+          id: string
+          label: string
+          running: boolean
+          starts_on: string
+        }[]
+      }
+      liga_set_preferences: {
+        Args: {
+          p_award_seen_season?: string
+          p_show_name?: boolean
+          p_weekly_mail?: boolean
+        }
+        Returns: undefined
+      }
+      liga_standings: {
+        Args: { p_season_id: string }
+        Returns: {
+          excluded: boolean
+          interviews: number
+          last_at: string
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+          recruiter_id: string
+          submissions: number
+        }[]
+      }
+      liga_table: {
+        Args: { p_season_id?: string }
+        Returns: {
+          awards: string[]
+          city: string
+          interviews: number
+          is_me: boolean
+          name: string
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+        }[]
+      }
+      liga_weekly_rows: {
+        Args: { p_dry_run?: boolean }
+        Returns: {
+          days_left: number
+          email: string
+          full_name: string
+          gap_above: number
+          hold_points: number
+          next_hold: string
+          participants: number
+          points: number
+          previous_rank: number
+          rank: number
+          recruiter_id: string
+          season_label: string
+          top_n: number
+        }[]
+      }
+      liga_workdays: { Args: { p_from: string; p_to: string }; Returns: number }
       log_candidate_access: {
         Args: { _submission_id: string }
         Returns: undefined
@@ -13478,6 +14901,25 @@ export type Database = {
           status: string
           summary: string
           ticket_no: number
+        }[]
+      }
+      my_job_post_status: {
+        Args: { p_job_id: string }
+        Returns: {
+          bookings: number
+          post_urn: string
+          posted_at: string
+          status: string
+        }[]
+      }
+      my_linkedin: {
+        Args: never
+        Returns: {
+          connected: boolean
+          connected_at: string
+          expires_at: string
+          name: string
+          picture_url: string
         }[]
       }
       my_partner_progress: { Args: never; Returns: Json }
@@ -13517,6 +14959,10 @@ export type Database = {
           p_type: string
         }
         Returns: undefined
+      }
+      notify_candidate_mention: {
+        Args: { p_submission_id: string; p_title: string; p_user_ids: string[] }
+        Returns: number
       }
       notify_users: {
         Args: {
@@ -13568,7 +15014,12 @@ export type Database = {
         }
         Returns: string
       }
+      run_fit_assessment_fill: { Args: never; Returns: number }
       run_search_maintenance: { Args: never; Returns: undefined }
+      salary_wish_band: {
+        Args: { p_fallback_max: number; p_fallback_min: number; p_text: string }
+        Returns: string
+      }
       scrub_identity_tokens: {
         Args: { p_repl: string; p_text: string; p_tokens: string[] }
         Returns: string
