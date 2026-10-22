@@ -20,18 +20,34 @@ CREATE TABLE IF NOT EXISTS private.app_settings (
 );
 REVOKE ALL ON private.app_settings FROM PUBLIC;
 REVOKE ALL ON private.app_settings FROM anon, authenticated;
-INSERT INTO private.app_settings (key, value)
-VALUES ('functions_url', 'https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1')
-ON CONFLICT (key) DO NOTHING;
+-- Leer: Die Functions-Adresse steht als Standard in request_fit_assessment.
+-- Lokal lässt sie sich hier mit key = 'functions_url' überschreiben.
 
 CREATE TABLE IF NOT EXISTS private.cron_tokens (
   name       text PRIMARY KEY,
   token      text NOT NULL CHECK (length(token) >= 32),
   created_at timestamptz NOT NULL DEFAULT now()
 );
-INSERT INTO private.cron_tokens (name, token)
-VALUES ('fit-assessment', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
-ON CONFLICT (name) DO NOTHING;
+
+-- Schlüssel je Hintergrundjob, angelegt beim ersten Gebrauch (nicht in der Migration).
+-- Gleiche Funktion wie in 20261021090000_matchunt_liga.sql; mehrfach ausführbar.
+CREATE OR REPLACE FUNCTION private.cron_token_for(_name text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = private, public
+AS $$
+DECLARE
+  v_token text;
+BEGIN
+  INSERT INTO private.cron_tokens (name, token)
+  VALUES (_name, replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+  ON CONFLICT (name) DO NOTHING;
+  SELECT token INTO v_token FROM private.cron_tokens WHERE name = _name;
+  RETURN v_token;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.cron_token_for(text) FROM PUBLIC;
 
 -- Versuche je Einreichung, damit ein Fehler nicht alle 10 Minuten wiederholt wird.
 CREATE TABLE IF NOT EXISTS private.fit_assessment_attempts (
@@ -56,8 +72,10 @@ DECLARE
   v_url   text;
   v_token text;
 BEGIN
-  SELECT value INTO v_url FROM private.app_settings WHERE key = 'functions_url';
-  SELECT token INTO v_token FROM private.cron_tokens WHERE name = 'fit-assessment';
+  SELECT COALESCE((SELECT value FROM private.app_settings WHERE key = 'functions_url'),
+                  'https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1')
+    INTO v_url;
+  v_token := private.cron_token_for('fit-assessment');
   IF v_url IS NULL OR v_token IS NULL THEN
     RETURN;
   END IF;
@@ -73,6 +91,23 @@ END;
 $$;
 REVOKE ALL ON FUNCTION private.request_fit_assessment(uuid) FROM PUBLIC;
 
+-- Nachhol-Lauf nur, solange es Arbeit gibt: startet bei neuer Einreichung,
+-- run_fit_assessment_fill schaltet ihn ab, sobald nichts mehr offen ist.
+CREATE OR REPLACE FUNCTION private.ensure_fit_assessment_fill()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, private
+AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')
+     AND NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'fit-assessment-fill') THEN
+    PERFORM cron.schedule('fit-assessment-fill', '*/10 * * * *', 'SELECT public.run_fit_assessment_fill()');
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.ensure_fit_assessment_fill() FROM PUBLIC;
+
 -- Auslöser beim Einreichen: darf das Einreichen nie verhindern.
 CREATE OR REPLACE FUNCTION public.trigger_generate_fit_assessment()
 RETURNS trigger
@@ -83,6 +118,8 @@ AS $$
 BEGIN
   BEGIN
     PERFORM private.request_fit_assessment(NEW.id);
+    -- Netz für Fehlschläge: Nachhol-Lauf an, bis die Einschätzung da ist.
+    PERFORM private.ensure_fit_assessment_fill();
   EXCEPTION WHEN OTHERS THEN
     RAISE WARNING 'Einschätzung zur Stelle nicht angestoßen: %', SQLERRM;
   END;
@@ -123,13 +160,27 @@ BEGIN
     PERFORM private.request_fit_assessment(r.id);
     n := n + 1;
   END LOOP;
+  -- Nichts mehr offen (auch keine späteren Versuche): Lauf abschalten.
+  IF NOT EXISTS (
+    SELECT 1
+      FROM submissions s
+      LEFT JOIN private.fit_assessment_attempts t ON t.submission_id = s.id
+     WHERE NOT EXISTS (SELECT 1 FROM candidate_fit_assessments a WHERE a.submission_id = s.id)
+       AND COALESCE(s.status, '') NOT IN ('rejected', 'client_rejected', 'withdrawn', 'hired', 'placed')
+       AND COALESCE(s.stage, '') NOT IN ('rejected', 'client_rejected', 'withdrawn', 'hired', 'placed')
+       AND s.submitted_at > now() - interval '180 days'
+       AND (t.submission_id IS NULL OR t.attempts < 5)
+  ) AND EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'fit-assessment-fill') THEN
+    PERFORM cron.unschedule('fit-assessment-fill');
+  END IF;
   RETURN n;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.run_fit_assessment_fill() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.run_fit_assessment_fill() FROM anon, authenticated;
 
-SELECT cron.schedule('fit-assessment-fill', '*/10 * * * *', $$SELECT public.run_fit_assessment_fill();$$);
+-- Kein dauerhafter Zeitplan: Der Lauf startet bei der nächsten Einreichung
+-- (ensure_fit_assessment_fill) und arbeitet dabei auch ältere offene Einreichungen ab.
 
 -- ----------------------------------------------------------------------------
 -- 2. Wunschgehalt als Spanne: aus Freitext („85-95k“, „90.000“) oder Akte,

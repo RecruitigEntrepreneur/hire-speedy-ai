@@ -1030,9 +1030,25 @@ GRANT EXECUTE ON FUNCTION public.liga_rules(uuid), public.liga_current_season(),
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.liga_awards_of(uuid[]) TO service_role;
 
-INSERT INTO private.cron_tokens (name, token)
-VALUES ('liga-weekly', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
-ON CONFLICT (name) DO NOTHING;
+-- Schlüssel für liga-weekly: angelegt beim ersten Lauf (nicht in der Migration).
+-- Gleiche Funktion wie in 20261009140000_kandidatenprofil_kunde.sql; mehrfach ausführbar.
+CREATE OR REPLACE FUNCTION private.cron_token_for(_name text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = private, public
+AS $$
+DECLARE
+  v_token text;
+BEGIN
+  INSERT INTO private.cron_tokens (name, token)
+  VALUES (_name, replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+  ON CONFLICT (name) DO NOTHING;
+  SELECT token INTO v_token FROM private.cron_tokens WHERE name = _name;
+  RETURN v_token;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.cron_token_for(text) FROM PUBLIC;
 
 DO $$
 BEGIN
@@ -1044,7 +1060,7 @@ BEGIN
       SELECT net.http_post(
         url := 'https://dngycrrhbnwdohbftpzq.supabase.co/functions/v1/liga-weekly',
         headers := jsonb_build_object('Content-Type', 'application/json',
-                                      'x-cron-token', (SELECT token FROM private.cron_tokens WHERE name = 'liga-weekly')),
+                                      'x-cron-token', private.cron_token_for('liga-weekly')),
         body := '{}'::jsonb);
     $job$);
   END IF;

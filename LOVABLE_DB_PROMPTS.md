@@ -1227,6 +1227,14 @@ und g verwies mit Fremdschlüsseln auf `auth.users`. Korrigiert: c und e mit `GR
 g ohne Fremdschlüssel auf `auth.users` (Nutzer-ID als `uuid` wie bei der Liga), mit Rechten passend zu den
 RLS-Regeln; f gibt die drei Kunden-Ansichten zusätzlich an `service_role`. Weiter ab c.
 
+**Nachtrag 22.10. (2. und 3. Prüfung durch Lovable):** f ohne `BEGIN;`/`COMMIT;`, Ansichten mit
+`DROP VIEW IF EXISTS`. Keine Daten-Einfügungen mehr in Migrationen: Cron-Schlüssel entstehen beim
+ersten Gebrauch über `private.cron_token_for(name)` (e und f), die Functions-Adresse steht als Standard
+in `request_fit_assessment` (`private.app_settings` bleibt leer, nur zum lokalen Überschreiben). Der
+Nachhol-Lauf `fit-assessment-fill` läuft nicht mehr dauerhaft: Eine neue Einreichung startet ihn
+(`private.ensure_fit_assessment_fill`), `run_fit_assessment_fill` schaltet ihn ab, sobald nichts mehr
+offen ist. Ältere offene Einreichungen arbeitet er beim nächsten Start mit ab.
+
 ---
 
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
