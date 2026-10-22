@@ -50,7 +50,7 @@ export interface PrimaryAction {
 }
 
 /** Diese Aktionen laufen als Fenster im Bewerberprofil. */
-export const PROFILE_ACTIONS = ['feedback', 'offer', 'frage', 'profil'];
+export const PROFILE_ACTIONS = ['feedback', 'offer', 'contract', 'frage', 'profil'];
 
 const TERMINAL_STAGES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn'];
 
@@ -72,6 +72,10 @@ export function primaryActionFor(stateKey: string): PrimaryAction {
   // Angebot über den Headhunter: die Schritte stehen in der Angebots-Box im Profil
   if (stateKey === 'offer_negotiating') return { labelKey: 'bewerber.actions.review_counter', icon: FileText, run: 'profil' };
   if (stateKey === 'offer_rejected' || stateKey === 'offer_withdrawn' || stateKey === 'offer_prep') return { labelKey: 'bewerber.actions.make_offer', icon: FileText, run: 'offer' };
+  // Arbeitsvertrag nach der Zusage (Paket 3): Schritte in der Vertrags-Box im Profil
+  if (stateKey === 'offer_accepted' || stateKey === 'vertrag_abgelehnt') return { labelKey: 'bewerber.actions.send_contract', icon: FileText, run: 'contract' };
+  if (stateKey === 'vertrag_bestaetigen') return { labelKey: 'bewerber.actions.confirm_signature', icon: FileText, run: 'profil' };
+  if (stateKey === 'vertrag_unterwegs' || stateKey === 'vertrag_unterschrieben') return { labelKey: 'bewerber.actions.view_contract', icon: FileText, run: 'profil' };
   if (stateKey.startsWith('offer_')) return { labelKey: 'bewerber.actions.view_offer', icon: FileText, run: 'profil' };
   // wait_* und pruefung
   return { labelKey: 'bewerber.actions.request_interview', icon: Calendar, run: 'wizard' };

@@ -1272,6 +1272,35 @@ nachtragen.
 
 ---
 
+## 32 — Einstellungsprozess Teil 2: Arbeitsvertrag und Unterschrift (22.10.2026)
+
+Nach der Zusage schickt der Kunde den Arbeitsvertrag: digital über Matchunt (Vertrag hochladen,
+DocuSign, erst die Firma, dann der Kandidat; abgeschlossen = verbindlich) oder selbst (Vertragsdaten als
+PDF/Kopieren, Unterschrift melden). Melden darf jede Seite: Kunde (24 h rückgängig, Headhunter macht die
+Gegenprobe), Headhunter (Kunde bestätigt), Matchunt (mit Beleg direkt). Ohne Meldung: Tag 7 Mail an den
+Kunden, Tag 10 Aufgabe für den Headhunter, Tag 21 Fall für Matchunt (Admin › Unterschriften).
+Befristung und Wettbewerbsverbot sperren den digitalen Weg (Schriftform).
+**Eine Migration, drei neue Edge Functions, eine neu zu deployen.** Setzt Nr. 31 voraus.
+
+> 1. Migration `supabase/migrations/20261023090000_arbeitsvertrag.sql` ausführen
+>    (neue Tabellen `employment_contracts` und `employment_contract_events` mit RLS und Rechten,
+>    Funktion `my_contract_tasks` (SECURITY DEFINER), täglicher Cron `contract-followups` um 07:00 UTC
+>    über `private.cron_token_for`; keine Daten-Einfügungen, kein Bezug auf `auth.users`).
+> 2. Edge Functions, verify_jwt wie in `supabase/config.toml`:
+>    - neu: `employment-contract` (verify_jwt = true), `employment-docusign-webhook` (**verify_jwt = false**,
+>      prüft die DocuSign-HMAC-Signatur selbst), `contract-followups` (**verify_jwt = false**, Cron-Schlüssel)
+>    - neu deployen: `offer` (legt mit der Zusage den Vertrag an)
+> 3. Keine neuen Secrets: genutzt werden die vorhandenen `DOCUSIGN_*` und `DOCUSIGN_HMAC_KEY`.
+>    **`DOCUSIGN_FAKE` niemals setzen** – das ist nur der lokale Testmodus (greift ohnehin nur bei lokaler Adresse).
+>    Den privaten Speicher `employment-contracts` legt die Function beim ersten Upload selbst an.
+> 4. Publish.
+
+Solange DocuSign im Demo-Betrieb läuft (`DOCUSIGN_API_BASE` = demo), zeigt das Fenster: „nicht
+rechtsverbindlich, für echte Einstellungen bitte selbst verschicken“. Placement, Rechnung und „Stelle als
+besetzt schließen“ kommen mit Paket 4 genau an den Punkt „verbindlich“.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

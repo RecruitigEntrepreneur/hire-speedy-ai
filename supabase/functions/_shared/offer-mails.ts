@@ -45,7 +45,7 @@ export function recruiterOfferReceived(o: { recruiterFirstName: string | null; c
   const due = o.offer.responseDue ? ` bis ${day(o.offer.responseDue)}` : '';
   const body = [
     p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
-    p(`${esc(o.companyName)} macht <strong>${esc(o.candidateName)}</strong> ${o.adjusted ? 'ein angepasstes Angebot' : 'ein Angebot'} für <strong>${esc(o.jobTitle)}</strong>. Bitte besprich es mit ${esc(first)} und trag seine Antwort${esc(due)} in der Akte ein.`),
+    p(`${esc(o.companyName)} macht <strong>${esc(o.candidateName)}</strong> ${o.adjusted ? 'ein angepasstes Angebot' : 'ein Angebot'} für <strong>${esc(o.jobTitle)}</strong>. Bitte besprich es mit ${esc(first)} und trag die Antwort${esc(due)} in der Akte ein.`),
     linesHtml(offerLines(o.offer)),
     o.message ? p(`${muted(`Nachricht von ${esc(o.companyName)}:`)}`) + quote(o.message) : '',
   ].join('');

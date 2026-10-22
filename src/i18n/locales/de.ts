@@ -624,7 +624,12 @@ const de = {
       "offer_with_hh": "Angebot beim Headhunter",
       "offer_considering": "Kandidat überlegt noch",
       "offer_overdue": "Antwortfrist abgelaufen",
-      "offer_withdrawn": "Angebot zurückgezogen"
+      "offer_withdrawn": "Angebot zurückgezogen",
+      "vertrag_unterwegs": "Vertrag unterwegs",
+      "vertrag_bestaetigen": "Unterschrift bestätigen",
+      "vertrag_unterschrieben": "Vertrag unterschrieben",
+      "vertrag_abgelehnt": "Vertrag abgelehnt",
+      "abgesprungen": "Abgesprungen"
     },
     "tabs": {
       "neu": "Neu",
@@ -664,6 +669,9 @@ const de = {
       "review_counter": "Gegenvorschlag prüfen",
       "plan_next_round": "Interview {{round}} planen",
       "make_offer": "Angebot machen",
+      "send_contract": "Vertrag schicken",
+      "confirm_signature": "Unterschrift bestätigen",
+      "view_contract": "Vertrag ansehen",
       "ask_hh": "Frage an den Headhunter",
       "reject": "Ablehnen",
       "ask_recruiter": "Rückfrage an Recruiter"
@@ -717,6 +725,11 @@ const de = {
         "offer_rejected": "Der Kandidat hat das Angebot abgelehnt.",
         "offer_expired": "Das Angebot ist abgelaufen — Sie können ein neues senden.",
         "offer_accepted": "Der Kandidat hat das Angebot angenommen.",
+        "vertrag_unterwegs": "Der Arbeitsvertrag ist unterwegs.",
+        "vertrag_bestaetigen": "Ihr Headhunter meldet die Unterschrift. Bitte bestätigen.",
+        "vertrag_unterschrieben": "Der Arbeitsvertrag ist unterschrieben.",
+        "vertrag_abgelehnt": "Der Vertrag wurde in DocuSign abgelehnt.",
+        "abgesprungen": "Der Kandidat ist nach der Zusage abgesprungen.",
         "archiv": "Diese Bewerbung ist abgeschlossen."
       },
       "agenda": "Zur Agenda",

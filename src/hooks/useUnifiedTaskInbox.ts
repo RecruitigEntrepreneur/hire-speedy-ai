@@ -358,6 +358,33 @@ function mapCounterStalled(o: any, now: number): UnifiedTaskItem | null {
   });
 }
 
+// Abgeleitete Aufgaben rund um den Arbeitsvertrag (Paket 3, 22.10.2026):
+// Gegenprobe nach Kundenmeldung, Kandidat zur Unterschrift anstoßen, Tag 10 nachfassen
+function mapContractTask(r: any, acceptedAt: string | null, now: number): UnifiedTaskItem | null {
+  const sub = r.submissions;
+  if (!sub) return null;
+  const base = (extra: Partial<UnifiedTaskItem> & Pick<UnifiedTaskItem, 'itemId' | 'title' | 'taskCategory' | 'priority' | 'createdAt'>) => derivedBase(sub, sub.jobs, sub.candidates, extra);
+  if (['signed', 'final'].includes(r.status) && r.reported_role === 'client' && !r.recruiter_check) {
+    return base({ itemId: `derived-contract-check-${r.contract_id}`, title: 'Gegenprobe: Kunde meldet die Unterschrift', description: r.signed_on ? `Unterschrieben am ${r.signed_on}` : null, taskCategory: 'contract_check', priority: 'high', createdAt: r.reported_at ?? r.updated_at });
+  }
+  if (r.status === 'company_signed') {
+    return base({ itemId: `derived-contract-nudge-${r.contract_id}`, title: 'Zur Unterschrift anstoßen', description: 'Die Firma hat unterschrieben, der Kandidat noch nicht.', taskCategory: 'contract_nudge', priority: 'high', createdAt: r.company_signed_at ?? r.updated_at });
+  }
+  const anchor = r.status === 'sent_digital' && r.sent_at ? r.sent_at : (acceptedAt ?? r.updated_at);
+  const days = anchor ? Math.floor((now - new Date(anchor).getTime()) / DAY_MS) : 0;
+  if (['preparing', 'sent_self', 'sent_digital'].includes(r.status) && days >= 10) {
+    return base({ itemId: `derived-contract-followup-${r.contract_id}`, title: 'Vertrag nachfassen', description: `Seit ${days} Tagen keine Unterschrift gemeldet.`, taskCategory: 'contract_followup', priority: days >= 21 ? 'critical' : 'high', createdAt: anchor });
+  }
+  // Bis Tag 10 ruhig: Vertrag begleiten (Stand ansehen, Unterschrift melden)
+  if (['preparing', 'sent_self', 'sent_digital', 'declined'].includes(r.status)) {
+    const desc = r.status === 'sent_self' ? `Kunde hat den Vertrag${r.sent_at ? ` am ${new Date(r.sent_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : ''} selbst verschickt.`
+      : r.status === 'sent_digital' ? 'Vertrag über DocuSign verschickt, die Firma unterschreibt zuerst.'
+        : r.status === 'declined' ? 'In DocuSign abgelehnt. Bitte klären.' : 'Kunde bereitet den Vertrag vor.';
+    return base({ itemId: `derived-contract-follow-${r.contract_id}`, title: 'Vertrag begleiten', description: desc, taskCategory: 'contract_follow', priority: r.status === 'declined' ? 'high' : 'medium', createdAt: acceptedAt ?? r.updated_at });
+  }
+  return null;
+}
+
 // Abgeleitete Aufgabe: Der Kunde will ein Angebot machen, die Empfehlung fehlt noch
 function mapRecommendationDue(iv: any): UnifiedTaskItem | null {
   const sub = iv.submissions;
@@ -559,11 +586,11 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       // Angebote beim Headhunter (überbringen bzw. Kandidat überlegt noch), 22.10.2026
       const offerQuery = (supabase as any)
         .from('offers')
-        .select(`id, submission_id, status, sent_at, created_at, response_due, candidate_response, counter_offer_at, responded_at, salary_offered,
+        .select(`id, submission_id, status, sent_at, created_at, response_due, candidate_response, counter_offer_at, responded_at, decision_at, salary_offered,
           submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed,
             candidates(full_name, phone, email))`)
         .eq('recruiter_id', user.id)
-        .in('status', ['with_recruiter', 'considering', 'countered']);
+        .in('status', ['with_recruiter', 'considering', 'countered', 'accepted']);
       // Empfehlung fällig: Feedback des Kunden „Angebot machen“, noch keine Empfehlung und kein Angebot
       const offerWishQuery = supabase
         .from('interviews')
@@ -574,6 +601,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .like('feedback', '%"recommendation":"offer"%');
       const myRecsQuery = (supabase as any).from('offer_recommendations').select('submission_id').eq('recruiter_id', user.id);
       const myOffersQuery = (supabase as any).from('offers').select('submission_id').eq('recruiter_id', user.id);
+      // Arbeitsvertrag: Stand ohne Dateien (Paket 3); fehlt die Funktion noch, gibt es keine Vertragsaufgaben
+      const contractTaskQuery = (supabase as any).rpc('my_contract_tasks');
 
       // Kunde hat abgesagt, Kandidat noch nicht informiert (abgeleitet aus
       // Benachrichtigung + Zustand + fehlendem Beleg im Aktivitätslog)
@@ -622,11 +651,24 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .order('created_at', { ascending: false })
         .limit(500);
 
-      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult, logResult, nachResult, offerResult, offerWishResult, myRecsResult, myOffersResult] =
-        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery, logQuery, nachQuery, offerQuery, offerWishQuery, myRecsQuery, myOffersQuery]);
+      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult, logResult, nachResult, offerResult, offerWishResult, myRecsResult, myOffersResult, contractTaskResult] =
+        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery, logQuery, nachQuery, offerQuery, offerWishQuery, myRecsQuery, myOffersQuery, contractTaskQuery]);
       // Fehlen die Tabellen noch (Migration nicht live), bleiben die Listen leer
       const recommended = new Set(((myRecsResult as any).data || []).map((r: any) => r.submission_id as string));
       const offered = new Set(((myOffersResult as any).data || []).map((r: any) => r.submission_id as string));
+      // Verträge: Einreichung mit Kandidat dazuladen; die Stelle hängt unten über recruiter_jobs_view an
+      const contractRows = (((contractTaskResult as any).data || []) as any[]);
+      let contractWraps: any[] = [];
+      if (contractRows.length > 0) {
+        const { data: cSubs } = await supabase
+          .from('submissions')
+          .select('id, recruiter_id, candidate_id, job_id, company_revealed, candidates(full_name, phone, email)')
+          .in('id', [...new Set(contractRows.map((r) => r.submission_id))]);
+        const byId = new Map(((cSubs || []) as any[]).map((x) => [x.id, x]));
+        contractWraps = contractRows.map((r) => ({ ...r, submissions: byId.get(r.submission_id) ?? null })).filter((r) => r.submissions);
+      }
+      const acceptedAtBySub = new Map<string, string>();
+      for (const o of (((offerResult as any).data || []) as any[])) if (o.status === 'accepted' && o.decision_at) acceptedAtBySub.set(o.submission_id, o.decision_at);
       const wishBySub = new Map<string, any>();
       for (const iv of ((offerWishResult as any).data || []) as any[]) if (!wishBySub.has(iv.submission_id)) wishBySub.set(iv.submission_id, iv);
       const logRows = (logResult.data || []) as { id: string; candidate_id: string | null; related_submission_id: string | null; activity_type: string; title: string | null; metadata: any; created_at: string }[];
@@ -707,6 +749,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         // Angebot überbringen, Gegenwunsch, Empfehlung fällig (22.10.2026)
         ...(((offerResult as any).data || []) as any[]),
         ...(((offerWishResult as any).data || []) as any[]),
+        ...contractWraps,
       ];
       const allJobIds = [
         ...new Set(
@@ -799,7 +842,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           .map((iv: any) => mapDebriefDue(iv, nowMs)),
         ...(optInResult.data || []).map((s: any) => mapOptInDue(s, nowMs)),
         ...rejectedRows.map((s: any) => mapRejectedInform(s)),
-        ...(((offerResult as any).data || []) as any[]).map((o) => (o.status === 'countered' ? mapCounterStalled(o, nowMs) : mapOfferDeliver(o, nowMs))),
+        ...(((offerResult as any).data || []) as any[]).filter((o) => o.status !== 'accepted').map((o) => (o.status === 'countered' ? mapCounterStalled(o, nowMs) : mapOfferDeliver(o, nowMs))),
+        ...contractWraps.map((r) => mapContractTask(r, acceptedAtBySub.get(r.submission_id) ?? null, nowMs)),
         ...[...wishBySub.values()].filter((iv) => !recommended.has(iv.submission_id) && !offered.has(iv.submission_id)).map((iv) => mapRecommendationDue(iv)),
       ]
         .filter((i): i is UnifiedTaskItem => i !== null)

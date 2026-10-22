@@ -65,6 +65,7 @@ import AdminJobs from "./pages/admin/AdminJobs";
 import AdminCandidates from "./pages/admin/AdminCandidates";
 import AdminInterviews from "./pages/admin/AdminInterviews";
 import AdminPlacements from "./pages/admin/AdminPlacements";
+import AdminVertraege from "./pages/admin/AdminVertraege";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
@@ -435,6 +436,11 @@ function AppRoutes() {
       <Route path="/admin/placements" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminPlacements />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/vertraege" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminVertraege />
         </ProtectedRoute>
       } />
       <Route path="/admin/deal-health" element={

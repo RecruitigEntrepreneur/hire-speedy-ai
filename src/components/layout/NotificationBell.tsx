@@ -64,6 +64,9 @@ export function NotificationBell() {
       case "feedback":
         // Feedback aus der Lasche: Admins landen im Eingang, Absender haben keine eigene Seite dafür.
         return role === "admin" ? `/admin/feedback/${notification.related_id}` : null;
+      case "contract":
+        // Arbeitsvertrag: Fall für Matchunt (Tag 21, Gegenprobe weicht ab)
+        return role === "admin" ? `/admin/vertraege` : null;
       case "admin_review":
         // Prüfungen in der Recruiterverwaltung (Direktkontakte, Bestandskunden, Schließungen)
         return `/admin/recruiters#pruefungen`;

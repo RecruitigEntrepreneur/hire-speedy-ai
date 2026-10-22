@@ -58,6 +58,7 @@ import { FeedbackDialog } from '@/components/interview/window/FeedbackDialog';
 import { OfferDialog } from '@/components/offers/OfferDialog';
 import { OfferBox } from '@/components/offers/OfferBox';
 import { RecommendationCard } from '@/components/offers/RecommendationCard';
+import { ContractBox, type ContractOpen } from '@/components/contracts/ContractBox';
 import { offerApi } from '@/lib/offerApi';
 import { PendingRequestStatus } from '@/components/interview/PendingRequestStatus';
 import { StatePill } from '@/components/candidates/BewerberStatusPill';
@@ -219,6 +220,8 @@ export default function CandidateDetail() {
   const [feedbackFor, setFeedbackFor] = useState<string | null>(null);
   // Angebot machen (Paket 2): Fenster in der Mitte
   const [showOffer, setShowOffer] = useState(false);
+  // Arbeitsvertrag (Paket 3): Fenster öffnet die Vertrags-Box selbst
+  const [contractOpen, setContractOpen] = useState<ContractOpen>(null);
   // Gleicher Schlüssel wie Empfehlungskarte und Angebots-Box: ein Abruf für alle
   const { data: offerCtx } = useQuery({
     queryKey: ['offer-context', id],
@@ -363,9 +366,18 @@ export default function CandidateDetail() {
     if (openRequest === 'offer') setShowOffer(true);
     if (openRequest === 'reject') setShowRejectDialog(true);
     if (openRequest === 'frage') setShowFrage(true);
+    if (openRequest === 'contract') setContractOpen('contract');
     navigate(location.pathname, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest, subState]);
+  // Erinnerungs-Mail an Tag 7: ?vertrag=melden | verschickt | abgesprungen
+  const vertragParam = new URLSearchParams(location.search).get('vertrag');
+  useEffect(() => {
+    if (!vertragParam || !subState) return;
+    if (['melden', 'verschickt', 'abgesprungen'].includes(vertragParam)) setContractOpen(vertragParam as ContractOpen);
+    navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vertragParam, subState]);
 
   if (loading) {
     return (
@@ -480,6 +492,8 @@ export default function CandidateDetail() {
   const nextRoundNo = Number((state.params as { round?: number } | undefined)?.round ?? 2);
   // Angebot über den Headhunter: Schritte stehen in der Angebots-Box, nicht im Hauptknopf
   const offerFlow = ['with_recruiter', 'considering', 'countered', 'accepted', 'declined', 'withdrawn'].includes(subState?.offers?.[0]?.status ?? '');
+  // Nach der Unterschrift gibt es keine Absage mehr (Paket 3)
+  const signedContract = state.key === 'vertrag_unterschrieben';
 
   const tagMonat = (iso: string) => format(new Date(iso), 'dd.MM.', { locale: de });
   const tageSeit = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
@@ -509,6 +523,11 @@ export default function CandidateDetail() {
     if (k === 'offer_overdue') return `Die Antwortfrist ist abgelaufen. Verlängern Sie die Frist oder fragen Sie ${hhName}.`;
     if (k === 'offer_negotiating') return `Der Kandidat hat einen Gegenwunsch. Sie entscheiden: anpassen, beim Angebot bleiben oder absagen.`;
     if (k === 'offer_accepted') return 'Zusage! Jetzt fehlt nur noch der unterschriebene Arbeitsvertrag.';
+    // Arbeitsvertrag (Paket 3); Einzelheiten in der Vertrags-Box
+    if (k === 'vertrag_unterwegs') return `Der Arbeitsvertrag ist unterwegs. ${hhName} hakt beim Kandidaten nach.`;
+    if (k === 'vertrag_bestaetigen') return `${hhName} meldet die Unterschrift. Bitte bestätigen Sie unten.`;
+    if (k === 'vertrag_unterschrieben') return 'Der Arbeitsvertrag ist unterschrieben.';
+    if (k === 'vertrag_abgelehnt') return 'Der Vertrag wurde in DocuSign abgelehnt. Passen Sie ihn an oder schicken Sie ihn selbst.';
     if (k === 'offer_rejected') return `Der Kandidat hat abgesagt. ${hhName} ist informiert.`;
     if (k === 'offer_withdrawn') return 'Sie haben das Angebot zurückgezogen.';
     // Nach dem Feedback: der gewählte Weg, mit dem Namen des Headhunters
@@ -531,6 +550,7 @@ export default function CandidateDetail() {
     }
     if (primary.run === 'feedback') { setFeedbackFor(feedbackInterviewId); return; }
     if (primary.run === 'offer') { setShowOffer(true); return; }
+    if (primary.run === 'contract') { setContractOpen('contract'); return; }
     if (primary.run === 'frage') { setShowFrage(true); return; }
     navigate(primary.run);
   };
@@ -609,9 +629,11 @@ export default function CandidateDetail() {
               )}
               {!isViewer && !isTerminal && (
                 <>
-                  <Button variant="outline" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowRejectDialog(true)}>
-                    {t('bewerber.actions.reject')}
-                  </Button>
+                  {!signedContract && (
+                    <Button variant="outline" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowRejectDialog(true)}>
+                      {t('bewerber.actions.reject')}
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowFrage(true)}>
                     Frage an {hhName}
                   </Button>
@@ -800,15 +822,17 @@ export default function CandidateDetail() {
                   {(state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
                     <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 text-muted-foreground"
-                    onClick={() => setShowRejectDialog(true)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    {t('bewerber.actions.reject')}
-                  </Button>
+                  {!signedContract && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground"
+                      onClick={() => setShowRejectDialog(true)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      {t('bewerber.actions.reject')}
+                    </Button>
+                  )}
                   {showAgendaLink && (
                     <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
                       <Link to="/dashboard/interviews">{t('bewerber.detail.agenda')}</Link>
@@ -837,8 +861,9 @@ export default function CandidateDetail() {
               )}
             </div>
           </div>
-          {offerFlow && !isViewer && (
-            <OfferBox submissionId={submissionId} onAdjust={() => setShowOffer(true)} onReject={() => setShowRejectDialog(true)} />
+          {offerFlow && !isViewer && (subState?.offers?.[0]?.status === 'accepted'
+            ? <ContractBox submissionId={submissionId} openRequest={contractOpen} onOpenHandled={() => setContractOpen(null)} />
+            : <OfferBox submissionId={submissionId} onAdjust={() => setShowOffer(true)} onReject={() => setShowRejectDialog(true)} />
           )}
         </div>
 

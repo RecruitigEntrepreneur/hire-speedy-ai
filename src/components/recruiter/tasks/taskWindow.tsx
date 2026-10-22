@@ -22,11 +22,12 @@ import { Lock, Mail, NotebookPen, Phone } from 'lucide-react';
 import { NachgespraechWindow, nachTargetFromItem, type NachTarget } from './NachgespraechWindow';
 import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
 import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
+import { ContractWindow } from '@/components/contracts/ContractWindow';
 import { Honorar } from '@/components/recruiter/Honorar';
 
 export const DAY_MS = 86_400_000;
 
-export type Kind = 'call' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend';
+export type Kind = 'call' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract';
 
 export interface Guide {
   pill: string;
@@ -136,6 +137,29 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       ],
       goal: 'Empfehlung gesendet',
       primary: { label: 'Empfehlung schreiben', kind: 'recommend' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'contract_check' || cat === 'contract_nudge' || cat === 'contract_followup' || cat === 'contract_follow') {
+    // Arbeitsvertrag (Paket 3)
+    const check = cat === 'contract_check';
+    const nudge = cat === 'contract_nudge';
+    return {
+      pill: check ? 'Gegenprobe' : 'Vertrag',
+      advice: check ? `Der Kunde meldet: ${first} hat unterschrieben. Stimmt das?`
+        : nudge ? `Die Firma hat unterschrieben. Stoß ${first} an, damit die Unterschrift heute kommt.`
+          : cat === 'contract_follow' ? `${item.description ?? ''} Halt Kontakt zu ${first} und melde die Unterschrift, sobald sie da ist.`
+            : `${item.description ?? 'Noch keine Unterschrift gemeldet.'} Frag bei ${first} nach.`,
+      facts: [
+        `Arbeitsvertrag für ${job}${item.companyName ? ` bei ${item.companyName}` : ''}.`,
+        fee ? `Honorar bei Abschluss: ${fee}.` : '',
+      ].filter(Boolean),
+      consequence: check ? 'Weicht etwas ab, klärt Matchunt es, bevor die Rechnung rausgeht.' : 'Je länger der Vertrag liegt, desto mehr Zeit hat der alte Arbeitgeber für ein Gegenangebot.',
+      steps: check
+        ? [{ text: `Bei ${first} nachfragen.`, hint: 'Datum, Gehalt, Start.' }, { text: '„Stimmt“ oder „Weicht ab“ wählen.' }]
+        : [{ text: `${first} anrufen.`, hint: nudge ? 'DocuSign-Mail gefunden? Fragen zum Vertrag?' : 'Vertrag bekommen? Unterschrieben?' }, { text: 'Stand eintragen: unterschrieben oder abgesprungen.' }],
+      goal: check ? 'Gegenprobe gemacht' : 'Unterschrift',
+      primary: { label: check ? 'Gegenprobe' : 'Vertrag begleiten', kind: 'contract' },
       reachedOptions: [],
     };
   }
@@ -275,11 +299,13 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   // Angebot überbringen bzw. Empfehlung schreiben: eigene Fenster je Einreichung
   const [offerFor, setOfferFor] = useState<string | null>(null);
   const [recFor, setRecFor] = useState<string | null>(null);
+  const [contractFor, setContractFor] = useState<string | null>(null);
   /** Aufgaben mit eigenem Fenster direkt öffnen; true = erledigt. */
   const openOwnWindow = (it: UnifiedTaskItem) => {
     if (it.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
     if (it.taskCategory === 'offer_deliver' && it.submissionId) { setOfferFor(it.submissionId); return true; }
     if (it.taskCategory === 'recommendation_due' && it.submissionId) { setRecFor(it.submissionId); return true; }
+    if (it.taskCategory.startsWith('contract_') && it.submissionId) { setContractFor(it.submissionId); return true; }
     return false;
   };
 
@@ -306,6 +332,9 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         return;
       case 'recommend':
         if (item.submissionId) setRecFor(item.submissionId);
+        return;
+      case 'contract':
+        if (item.submissionId) setContractFor(item.submissionId);
         return;
       case 'call':
         if (item.candidatePhone) window.location.href = `tel:${item.candidatePhone}`;
@@ -391,7 +420,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
 
   /** Öffnet das Fenster der Person, zu der die Aufgabe gehört. */
   const openItem = (itemId: string) => {
-    const it = /^derived-(debrief|offer|recommend)-/.test(itemId) ? allItems.find(i => i.itemId === itemId) : null;
+    const it = /^derived-(debrief|offer|recommend|contract)-/.test(itemId) ? allItems.find(i => i.itemId === itemId) : null;
     if (it && openOwnWindow(it)) return true;
     const g = groups.find(x => x.primary.itemId === itemId || x.others.some(o => o.itemId === itemId));
     if (g) openGroupKey(g.key);
@@ -425,6 +454,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
       />
       <OfferAnswerDialog submissionId={offerFor} onClose={() => setOfferFor(null)} onDone={refetch} />
       <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} onDone={refetch} />
+      <ContractWindow submissionId={contractFor} onClose={() => setContractFor(null)} onDone={refetch} />
     </>
   );
 
@@ -587,7 +617,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
                 <Phone className="h-3 w-3" />{guide.primary.kind === 'call' ? 'Anrufen' : 'Nachgefasst'}
               </Button>
             )}
-            {guide.primary.kind === 'debrief' || guide.primary.kind === 'done' || guide.primary.kind === 'offer' || guide.primary.kind === 'recommend' ? (
+            {guide.primary.kind === 'debrief' || guide.primary.kind === 'done' || guide.primary.kind === 'offer' || guide.primary.kind === 'recommend' || guide.primary.kind === 'contract' ? (
               <Button size="sm" className="h-8 gap-1 text-xs" onClick={() => onAct(item, guide)}>
                 {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
                 {guide.primary.label}

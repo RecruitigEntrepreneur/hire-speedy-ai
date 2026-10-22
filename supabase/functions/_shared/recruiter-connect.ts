@@ -17,3 +17,6 @@ export const recruiterConnect = (env = (key: string) => Deno.env.get(key)) => do
 
 /** Customer contracts (docusign-send) report to docusign-webhook; docusign-sync covers lost events. */
 export const clientConnect = (env = (key: string) => Deno.env.get(key)) => docusignConnect('docusign-webhook', env);
+
+/** Arbeitsverträge (employment-contract) melden an employment-docusign-webhook; der tägliche Lauf holt verlorene Ereignisse nach. */
+export const employmentConnect = (env = (key: string) => Deno.env.get(key)) => docusignConnect('employment-docusign-webhook', env);

@@ -404,7 +404,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const derivedLabel = (category: string) =>
     category === 'interview_debrief_due' ? 'Nachgespräch' : category === 'client_review_stalled' ? 'Prüfung'
       : category === 'offer_deliver' ? 'Angebot' : category === 'recommendation_due' ? 'Empfehlung'
-        : category === 'offer_counter_stalled' ? 'Gegenwunsch' : 'Nachfassen';
+        : category === 'offer_counter_stalled' ? 'Gegenwunsch' : category === 'contract_check' ? 'Gegenprobe'
+          : category.startsWith('contract_') ? 'Vertrag' : 'Nachfassen';
 
   const handleCompleteDerivedTask = async (item: UnifiedTaskItem, e?: React.MouseEvent) => {
     e?.stopPropagation();

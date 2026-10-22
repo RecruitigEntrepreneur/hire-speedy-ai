@@ -185,6 +185,9 @@ export interface OfferInfo {
   status: string | null;
   /** Antwort bis (Datum); abgelaufen = Kunde ist am Zug */
   responseDue?: string | null;
+  /** Arbeitsvertrag nach der Zusage (Paket 3) */
+  contractStatus?: string | null;
+  contractReportedRole?: string | null;
 }
 
 function formatTermin(iso: string): string {
@@ -273,7 +276,16 @@ export function computeState(
   if (os === 'countered') return { key: 'offer_negotiating', tone: 'warn', turn: 'me' };
   if (os === 'declined') return { key: 'offer_rejected', tone: 'crit', turn: 'me' };
   if (os === 'withdrawn') return { key: 'offer_withdrawn', tone: 'neutral', turn: 'me' };
-  if (os === 'accepted') return { key: 'offer_accepted', tone: 'ok', turn: 'me' };
+  if (os === 'accepted') {
+    // Arbeitsvertrag nach der Zusage (Paket 3)
+    const cs = offer?.contractStatus || null;
+    if (cs === 'sent_self' || cs === 'sent_digital' || cs === 'company_signed') return { key: 'vertrag_unterwegs', tone: 'neutral', turn: 'other' };
+    if (cs === 'reported') return { key: 'vertrag_bestaetigen', tone: 'warn', turn: 'me' };
+    if (cs === 'signed' || cs === 'final') return { key: 'vertrag_unterschrieben', tone: 'ok', turn: 'none' };
+    if (cs === 'declined') return { key: 'vertrag_abgelehnt', tone: 'warn', turn: 'me' };
+    if (cs === 'dropped') return { key: 'abgesprungen', tone: 'neutral', turn: 'none' };
+    return { key: 'offer_accepted', tone: 'ok', turn: 'me' };
+  }
   if (os === 'sent') return { key: 'offer_sent', tone: 'neutral', turn: 'other' };
   if (os === 'viewed') return { key: 'offer_viewed', tone: 'neutral', turn: 'other' };
   if (os === 'negotiating') return { key: 'offer_negotiating', tone: 'warn', turn: 'me' };
@@ -331,7 +343,7 @@ export function useBewerber(filters: BewerberFilters) {
       const offerBySubmission = new Map<string, OfferInfo>();
       const rejBySubmission = new Map<string, { createdAt: string; reasonCategory: string | null; rejectedBy: string | null }>();
       if (submissionIds.length > 0) {
-        const [ivRes, offerRes, rejRes] = await Promise.all([
+        const [ivRes, offerRes, rejRes, contractRes] = await Promise.all([
           supabase
             .from('interviews')
             .select('id, submission_id, status, scheduled_at, feedback, created_at, requested_by, round')
@@ -350,7 +362,17 @@ export function useBewerber(filters: BewerberFilters) {
             .select('submission_id, created_at, reason_category, rejected_by')
             .in('submission_id', submissionIds)
             .order('created_at', { ascending: false }),
+          // Arbeitsvertrag nach der Zusage (Paket 3); fehlt die Tabelle noch, bleibt es bei „angenommen“
+          (supabase as any)
+            .from('employment_contracts')
+            .select('submission_id, status, reported_role, created_at')
+            .in('submission_id', submissionIds)
+            .order('created_at', { ascending: false }),
         ]);
+        const contractBySubmission = new Map<string, { status: string; reportedRole: string | null }>();
+        for (const c of ((contractRes as any).data || []) as any[]) {
+          if (!contractBySubmission.has(c.submission_id)) contractBySubmission.set(c.submission_id, { status: c.status, reportedRole: c.reported_role ?? null });
+        }
         for (const r of (rejRes.data || []) as any[]) {
           if (!rejBySubmission.has(r.submission_id)) {
             rejBySubmission.set(r.submission_id, { createdAt: r.created_at, reasonCategory: r.reason_category, rejectedBy: r.rejected_by });
@@ -370,7 +392,8 @@ export function useBewerber(filters: BewerberFilters) {
         }
         for (const o of (offerRes.data || []) as any[]) {
           if (!offerBySubmission.has(o.submission_id)) {
-            offerBySubmission.set(o.submission_id, { status: o.status, responseDue: o.response_due ?? null });
+            const c = contractBySubmission.get(o.submission_id);
+            offerBySubmission.set(o.submission_id, { status: o.status, responseDue: o.response_due ?? null, contractStatus: c?.status ?? null, contractReportedRole: c?.reportedRole ?? null });
           }
         }
       }

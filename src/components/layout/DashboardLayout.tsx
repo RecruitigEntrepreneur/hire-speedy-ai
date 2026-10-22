@@ -136,6 +136,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Kandidaten', href: '/admin/candidates', icon: <FileText className="h-4 w-4" /> },
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Unterschriften', href: '/admin/vertraege', icon: <FileText className="h-4 w-4" /> },
     { label: 'Deal Health', href: '/admin/deal-health', icon: <Activity className="h-4 w-4" /> },
     { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Matching Config', href: '/admin/matching-config', icon: <Target className="h-4 w-4" /> },

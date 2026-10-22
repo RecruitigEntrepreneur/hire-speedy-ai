@@ -625,7 +625,12 @@ const en: typeof de = {
       "offer_with_hh": "Offer with headhunter",
       "offer_considering": "Candidate is considering",
       "offer_overdue": "Response deadline passed",
-      "offer_withdrawn": "Offer withdrawn"
+      "offer_withdrawn": "Offer withdrawn",
+      "vertrag_unterwegs": "Contract sent",
+      "vertrag_bestaetigen": "Confirm signature",
+      "vertrag_unterschrieben": "Contract signed",
+      "vertrag_abgelehnt": "Contract declined",
+      "abgesprungen": "Dropped out"
     },
     "tabs": {
       "neu": "New",
@@ -665,6 +670,9 @@ const en: typeof de = {
       "review_counter": "Review counter offer",
       "plan_next_round": "Plan interview {{round}}",
       "make_offer": "Make an offer",
+      "send_contract": "Send contract",
+      "confirm_signature": "Confirm signature",
+      "view_contract": "View contract",
       "ask_hh": "Ask the headhunter",
       "reject": "Reject",
       "ask_recruiter": "Ask recruiter"
@@ -718,6 +726,11 @@ const en: typeof de = {
         "offer_rejected": "The candidate declined the offer.",
         "offer_expired": "The offer expired — you can send a new one.",
         "offer_accepted": "The candidate accepted the offer.",
+        "vertrag_unterwegs": "The employment contract is on its way.",
+        "vertrag_bestaetigen": "Your headhunter reports the signature. Please confirm.",
+        "vertrag_unterschrieben": "The employment contract is signed.",
+        "vertrag_abgelehnt": "The contract was declined in DocuSign.",
+        "abgesprungen": "The candidate dropped out after accepting.",
         "archiv": "This application is closed."
       },
       "agenda": "To agenda",

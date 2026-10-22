@@ -71,7 +71,7 @@ export function useSubmissionState(
         effectiveSubmittedAt = (v as any)?.submitted_at ?? null;
       }
 
-      const [ivRes, offerRes, rejRes] = await Promise.all([
+      const [ivRes, offerRes, rejRes, contractRes] = await Promise.all([
         supabase
           .from('interviews')
           .select('id, status, scheduled_at, created_at, cancelled_at, feedback, requested_by, round')
@@ -90,7 +90,15 @@ export function useSubmissionState(
           .select('created_at, rejected_by, reason_category')
           .eq('submission_id', submissionId!)
           .order('created_at', { ascending: false }),
+        // Arbeitsvertrag nach der Zusage (Paket 3)
+        (supabase as any)
+          .from('employment_contracts')
+          .select('status, reported_role, created_at')
+          .eq('submission_id', submissionId!)
+          .order('created_at', { ascending: false })
+          .limit(1),
       ]);
+      const contract = (((contractRes as any).data || []) as any[])[0] ?? null;
 
       const interviews: VerlaufInterview[] = ((ivRes.data || []) as any[]).map((r) => ({
         id: r.id,
@@ -128,7 +136,7 @@ export function useSubmissionState(
         latestInterview
           ? { status: latestInterview.status, scheduledAt: latestInterview.scheduledAt, feedback: latestInterview.feedback, round: latestInterview.round }
           : null,
-        offers[0] ? { status: offers[0].status, responseDue: offers[0].responseDue } : null
+        offers[0] ? { status: offers[0].status, responseDue: offers[0].responseDue, contractStatus: contract?.status ?? null, contractReportedRole: contract?.reported_role ?? null } : null
       );
       const state = datedState(rawState, latestInterview, rejections[0] ?? null, archiveKind);
 

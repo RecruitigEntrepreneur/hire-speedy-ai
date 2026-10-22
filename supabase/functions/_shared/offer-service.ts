@@ -308,6 +308,14 @@ export async function respondOffer(ctx: ServiceCtx, user: User, body: any) {
   dbFail(error, 'Die Antwort');
   must(updated, 'Für dieses Angebot ist keine Antwort mehr offen.', 'conflict');
   await event(ctx, offer.id, `answer_${way}`, 'recruiter', user.id, response);
+  // Zusage: der Arbeitsvertrag beginnt („Vertrag in Arbeit“, Paket 3)
+  if (way === 'accepted') {
+    const { error: cErr } = await ctx.db.from('employment_contracts').insert({
+      submission_id: b.submission.id, offer_id: offer.id, job_id: b.job.id, way: 'self', status: 'preparing',
+      salary: (updated as any).salary_offered, variable_salary: (updated as any).variable_salary ?? null, start_date: (updated as any).start_date ?? null, created_by: user.id,
+    });
+    if (cErr && cErr.code !== '23505') console.warn('[offer] Vertrag nicht angelegt', cErr.code, cErr.message);
+  }
 
   // Kundenseite: wer das Angebot gemacht hat, dazu der Ersteller der Stelle
   const recipients = [...new Set([offer.created_by, b.job.client_id].filter(Boolean))] as string[];
