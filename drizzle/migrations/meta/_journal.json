@@ -274,6 +274,13 @@
       "when": 1792655898108,
       "tag": "0038_liga_standings_transfer_correction",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792655995578,
+      "tag": "0039_kandidatenprofil_kunde",
+      "breakpoints": true
     }
   ]
 }
