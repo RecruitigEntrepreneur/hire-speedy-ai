@@ -7,7 +7,7 @@
 - [x] Apply c–g individually: 0035_nachgespraech, 0036_aufnahme_mussfragen, 0037_matchunt_liga, 0039_kandidatenprofil_kunde, 0040_terminseite_linkedin; database objects verified. 0038_liga_standings_transfer_correction restores the source expression after a transfer typo in 0037. f includes the tool-required cron review comment; SQL body matches source.
 - [x] Deploy all 15 requested functions successfully with verify_jwt from config.toml.
 - [x] Leave protected secrets unchanged.
-- [ ] Request frontend publication: user approved publishing unchanged despite five critical findings (the four known plus feedback_settings public reads).
+- [x] Frontend publication requested for https://matchunt.ai after user's approval; tool scheduled deployment and reported four persisted critical findings. Fresh scan additionally flagged feedback_settings. Deployment completion not verified.
 
 ## Erledigt (Abschnitte 15 + 16, 06.10.2026)
 - [x] Arbeitskopie auf 29cd415 und 204351c gebracht, keine Migration
