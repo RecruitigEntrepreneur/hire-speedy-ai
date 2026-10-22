@@ -1301,6 +1301,36 @@ besetzt schließen“ kommen mit Paket 4 genau an den Punkt „verbindlich“.
 
 ---
 
+## 33 — Einstellungsprozess Teil 3a: Einstellung und Rechnung, interne Beträge geschützt (22.10.2026)
+
+Ab „Vertrag verbindlich“ (Nr. 32) entsteht genau ein Placement (Zielgehalt = fix + variabel laut Vertrag),
+die Bewerbung steht auf „eingestellt“, andere laufende Einreichungen der Person werden zurückgezogen, die
+Stelle wird auf Wunsch als besetzt geschlossen, und es entsteht ein Rechnungsentwurf. Matchunt prüft ihn in
+Admin › Besetzungen (PDF-Vorschau) und gibt ihn frei: feste Nummer, PDF, Mail mit Anhang an die
+Rechnungs-E-Mail. Danach „Zahlung eingegangen“ buchen. Zugleich geschlossen: Kunden und Headhunter lesen
+die interne Aufteilung nicht mehr, Kunden sehen keine Rechnungsentwürfe, Headhunter können keine
+Auszahlung mit eigenem Betrag mehr anlegen, Tranche 1 wird erst nach Zahlung UND Antritt fällig.
+**Eine Migration, eine neue Edge Function, drei neu zu deployen.** Setzt Nr. 31 und 32 voraus.
+
+> 1. Migration `supabase/migrations/20261023120000_besetzung_rechnung.sql` ausführen
+>    (Tabelle `document_counters` + Funktion `next_document_number` nur für service_role; neue Spalten in
+>    `invoices` und neue Leseregel „nur gestellte Rechnungen, ganzes Kundenteam“; Leseregel für Nicht-Admins
+>    auf `placements` entfernt, dafür Ansichten `client_placements_view` und `recruiter_placements_view`;
+>    Trigger für Tranche 1 angepasst; Einfüge-Regel für Headhunter auf `payout_requests` entfernt.
+>    Keine Daten-Einfügungen, kein Bezug auf `auth.users`, kein Cron).
+> 2. Edge Functions, verify_jwt wie in `supabase/config.toml`:
+>    - neu: `placement` (verify_jwt = true)
+>    - neu deployen: `employment-contract`, `employment-docusign-webhook`, `contract-followups`
+>      (legen beim Verbindlich-Werden Placement und Rechnungsentwurf an)
+> 3. Keine neuen Secrets. Den privaten Speicher `invoices` legt die Function beim ersten Freigeben selbst an.
+> 4. Publish.
+
+Rechnungen lassen sich erst freigeben, wenn in `supabase/functions/_shared/billing-config.ts` der
+Nummernkreis (Anschluss an die bestehenden Nummern) und die Bankverbindung eingetragen sind, und wenn der
+Kunde in seinen Firmendaten Straße, PLZ und Ort hat. Bis dahin entstehen nur Entwürfe.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchClientPlacements } from '@/lib/placementViews';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,16 +48,9 @@ export default function ClientPlacements() {
   }, [user]);
 
   const fetchPlacements = async () => {
-    const { data, error } = await supabase
-      .from('placements')
-      .select(`
-        *,
-        submission:submissions(
-          candidate:candidates(full_name, email),
-          job:jobs(title, company_name)
-        )
-      `)
-      .order('created_at', { ascending: false });
+    // Abgesicherte Ansicht: eigenes Honorar, ohne interne Aufteilung (Paket 4a)
+    const data = await fetchClientPlacements();
+    const error = null;
 
     if (!error && data) {
       const placementsData = data as unknown as Placement[];

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchClientPlacements } from '@/lib/placementViews';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,28 +91,22 @@ export default function ClientBilling() {
       // Fetch invoices
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
-        .select(`
-          *,
-          placement:placements(
-            id,
-            submission:submissions(
-              candidate:candidates(full_name),
-              job:jobs(title)
-            )
-          )
-        `)
-        .eq('client_id', user?.id)
+        // Gestellte Rechnungen des Kundenteams (Entwürfe sieht nur Matchunt)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (invoicesError && invoicesError.code !== 'PGRST116') {
         console.error('Error fetching invoices:', invoicesError);
       }
       
-      setInvoices((invoicesData as unknown as Invoice[]) || []);
+      // Kandidat und Stelle aus der abgesicherten Placement-Ansicht ergänzen
+      const clientPlacementRows = await fetchClientPlacements();
+      const byPlacement = new Map(clientPlacementRows.map((p) => [p.id, p]));
+      setInvoices(((invoicesData || []) as any[]).map((i) => ({ ...i, placement: byPlacement.get(i.placement_id) ?? null })) as unknown as Invoice[]);
 
       // Calculate totals from invoices
       const pending = (invoicesData || [])
-        .filter(i => i.status === 'pending')
+        .filter(i => ['pending', 'open', 'partially_paid'].includes(i.status ?? ''))
         .reduce((sum, i) => sum + (i.total_amount || 0), 0);
       const paid = (invoicesData || [])
         .filter(i => i.status === 'paid')
@@ -121,16 +116,8 @@ export default function ClientBilling() {
       setTotalPaid(paid);
 
       // Fetch placements for fee overview
-      const { data: placementsData, error: placementsError } = await supabase
-        .from('placements')
-        .select(`
-          *,
-          submission:submissions(
-            candidate:candidates(full_name),
-            job:jobs(title, company_name, client_id)
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const placementsData = clientPlacementRows as any[];
+      const placementsError = null;
 
       if (placementsError) {
         console.error('Error fetching placements:', placementsError);

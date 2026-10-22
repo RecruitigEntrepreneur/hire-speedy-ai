@@ -64,16 +64,14 @@ import AdminRecruiterCase from "./pages/admin/AdminRecruiterCase";
 import AdminJobs from "./pages/admin/AdminJobs";
 import AdminCandidates from "./pages/admin/AdminCandidates";
 import AdminInterviews from "./pages/admin/AdminInterviews";
-import AdminPlacements from "./pages/admin/AdminPlacements";
 import AdminVertraege from "./pages/admin/AdminVertraege";
-import AdminPayments from "./pages/admin/AdminPayments";
+import AdminBesetzungen from "./pages/admin/AdminBesetzungen";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
 import AdminFraud from "./pages/admin/AdminFraud";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminDealHealth from "./pages/admin/AdminDealHealth";
 import AdminSettings from "./pages/admin/AdminSettings";
-import AdminInvoices from "./pages/admin/AdminInvoices";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminFeedback from "./pages/admin/AdminFeedback";
 import AdminLiga from "./pages/admin/AdminLiga";
@@ -433,9 +431,11 @@ function AppRoutes() {
           <AdminInterviews />
         </ProtectedRoute>
       } />
-      <Route path="/admin/placements" element={
+      {/* Besetzungen (Paket 4a) ersetzt Placements, Rechnungen und Zahlungen: dort ließen sich Beträge frei überschreiben */}
+      <Route path="/admin/placements" element={<Navigate to="/admin/besetzungen" replace />} />
+      <Route path="/admin/besetzungen" element={
         <ProtectedRoute allowedRoles={['admin']}>
-          <AdminPlacements />
+          <AdminBesetzungen />
         </ProtectedRoute>
       } />
       <Route path="/admin/vertraege" element={
@@ -448,11 +448,7 @@ function AppRoutes() {
           <AdminDealHealth />
         </ProtectedRoute>
       } />
-      <Route path="/admin/payments" element={
-        <ProtectedRoute allowedRoles={['admin']}>
-          <AdminPayments />
-        </ProtectedRoute>
-      } />
+      <Route path="/admin/payments" element={<Navigate to="/admin/besetzungen" replace />} />
       <Route path="/admin/activity" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminActivity />
@@ -518,11 +514,7 @@ function AppRoutes() {
           <AdminAcademyCourse />
         </ProtectedRoute>
       } />
-      <Route path="/admin/invoices" element={
-        <ProtectedRoute allowedRoles={['admin']}>
-          <AdminInvoices />
-        </ProtectedRoute>
-      } />
+      <Route path="/admin/invoices" element={<Navigate to="/admin/besetzungen" replace />} />
       <Route path="/admin/liga" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminLiga />

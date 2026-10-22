@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchRecruiterPlacements } from '@/lib/placementViews';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -280,10 +281,8 @@ export default function RecruiterDashboard() {
         setStats(prev => ({ ...prev, myCandidates: candidatesCount }));
       }
 
-      const { data: placements } = await supabase
-        .from('placements')
-        .select('recruiter_payout, submission_id, submissions!inner(recruiter_id)')
-        .eq('submissions.recruiter_id', user?.id);
+      // Eigener Anteil aus der abgesicherten Ansicht (Paket 4a)
+      const placements = await fetchRecruiterPlacements();
 
       if (placements) {
         const totalEarnings = placements.reduce((sum, p) => sum + (p.recruiter_payout || 0), 0);

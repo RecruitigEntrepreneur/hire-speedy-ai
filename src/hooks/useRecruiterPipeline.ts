@@ -59,7 +59,7 @@ export function useRecruiterPipeline() {
         supabase.from('submissions').select('id, stage, status, job_id, updated_at').eq('recruiter_id', user.id),
         supabase.from('interviews').select('submission_id, round, status, submissions!inner(recruiter_id)').eq('submissions.recruiter_id', user.id),
         supabase.from('offers').select('submission_id, status, expires_at'),
-        supabase.from('placements').select('submission_id, retention_release_date, start_date'),
+        (supabase as any).from('recruiter_placements_view').select('submission_id, retention_release_date, start_date'),
       ]);
       if (cancelled) return;
 

@@ -36,6 +36,7 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
   const [startDate, setStartDate] = useState('');
   const [note, setNote] = useState('');
   const [evidence, setEvidence] = useState('');
+  const [closeJob, setCloseJob] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
     setSalary(fmt(c?.salary ?? ctx.offer?.salary ?? null));
     setVariable(fmt(c?.variable ?? ctx.offer?.variable ?? null));
     setStartDate(c?.startDate ?? ctx.offer?.startDate ?? '');
-    setNote(''); setEvidence('');
+    setNote(''); setEvidence(''); setCloseJob(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ctx?.submissionId]);
 
@@ -62,7 +63,7 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
     try {
       const values = { submissionId: ctx.submissionId, signedOn, salary: sal, variable: vari, startDate };
       if (mode === 'values') await contractApi.confirm(ctx.submissionId, 'values', values);
-      else await contractApi.report({ ...values, note: note || undefined, evidence: evidence || undefined });
+      else await contractApi.report({ ...values, closeJob: role === 'client' ? closeJob : undefined, note: note || undefined, evidence: evidence || undefined });
       toast.success(role === 'client' ? (mode === 'values' ? 'Bestätigt. Die Einstellung ist verbindlich.' : 'Unterschrift gemeldet. 24 Stunden lang können Sie zurücknehmen.')
         : role === 'recruiter' ? `Gemeldet. ${ctx.companyName} bestätigt noch.` : evidence ? 'Mit Beleg bestätigt.' : 'Gemeldet. Der Kunde bestätigt noch.');
       queryClient.invalidateQueries({ queryKey: ['contract', ctx.submissionId] });
@@ -101,6 +102,12 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
           <p className="text-xs text-amber-600 dark:text-amber-400">Weicht von der Zusage ab ({euro(ctx.offer.salary)}). Es gilt der Wert laut Vertrag.</p>
         )}
 
+        {role === 'client' && mode === 'report' && (
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={closeJob} onChange={(e) => setCloseJob(e.target.checked)} />
+            <span>Stelle danach als besetzt schließen. <span className="text-muted-foreground">Andere Headhunter werden informiert. Bei mehreren Plätzen den Haken entfernen.</span></span>
+          </label>
+        )}
         {role === 'recruiter' && (
           <label className="block text-sm"><span className="text-muted-foreground">Notiz (optional)</span>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={`z. B. ${first} hat es heute am Telefon bestätigt`} className="mt-1 h-9" /></label>

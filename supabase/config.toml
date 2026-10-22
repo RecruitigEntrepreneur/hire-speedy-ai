@@ -445,3 +445,7 @@ verify_jwt = false
 # Täglicher Lauf Arbeitsvertrag (Tag 7/10/21, 24 h): eigener Schlüssel (x-cron-token).
 [functions.contract-followups]
 verify_jwt = false
+
+# Einstellung und Rechnung (Paket 4a): nur angemeldet; Admin bzw. Kundenteam prüft die Function selbst.
+[functions.placement]
+verify_jwt = true

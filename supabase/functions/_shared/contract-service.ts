@@ -19,6 +19,7 @@ import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './contract-mails.ts';
 import { accessToken, completedDocument, createEnvelope, docusignConfig, envelopeStatus } from './docusign.ts';
 import { employmentConnect } from './recruiter-connect.ts';
+import { bucketFiles, onContractFinal, type FilePort as InvoiceFilePort } from './placement-service.ts';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -58,6 +59,8 @@ export interface ContractCtx extends ServiceCtx {
   files: FilePort;
   /** DocuSign im Demo-Betrieb: Umschläge sind nicht rechtsverbindlich */
   signDemo?: boolean;
+  /** Ablage für Rechnungs-PDFs (Paket 4); fehlt sie, entsteht beim Verbindlich-Werden nichts */
+  invoiceFiles?: InvoiceFilePort;
 }
 
 /** Echtes DocuSign; lokal (Supabase nicht https) mit DOCUSIGN_FAKE=1 ein Testmodus ohne DocuSign. */
@@ -134,7 +137,7 @@ export function filePort(db: SupabaseClient): FilePort {
 export function contractCtx(base: ServiceCtx): ContractCtx {
   const sign = signPort();
   const demo = Deno.env.get('DOCUSIGN_FAKE') === '1' || (Deno.env.get('DOCUSIGN_API_BASE') ?? 'https://demo.docusign.net/restapi').includes('demo.docusign');
-  return { ...base, sign, files: filePort(base.db), signDemo: !!sign && demo };
+  return { ...base, sign, files: filePort(base.db), signDemo: !!sign && demo, invoiceFiles: bucketFiles(base.db, 'invoices') };
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +300,18 @@ async function makeFinal(ctx: ContractCtx, c: any, patch: Record<string, unknown
   const nowIso = new Date(ctx.now()).toISOString();
   const done = await update(ctx, c.id, { ...patch, status: 'final', final_at: nowIso, undo_until: null }, [c.status]);
   await event(ctx, c.id, 'final', 'system', null, {});
+  await afterFinal(ctx, c.id);
   return done;
+}
+
+/** Verbindlich: Einstellung und Rechnungsentwurf anlegen (Paket 4). Fehler blockieren die Meldung nicht. */
+async function afterFinal(ctx: ContractCtx, contractId: string) {
+  if (!ctx.invoiceFiles) return;
+  try {
+    await onContractFinal({ ...ctx, invoiceFiles: ctx.invoiceFiles }, contractId);
+  } catch (e) {
+    console.error('[contract] Einstellung nicht angelegt', e instanceof Error ? e.message : e);
+  }
 }
 
 async function finalizeIfDue(ctx: ContractCtx, b: Bundle) {
@@ -487,6 +501,7 @@ export async function sendDigital(ctx: ContractCtx, user: User, body: any) {
     company_signer_name: signerName, company_signer_email: signerEmail, candidate_email: candidateEmail,
     company_signed_at: null, candidate_signed_at: null, envelope_synced_at: nowIso,
     fixed_term: false, non_compete: false, salary, variable_salary: variable, start_date: body.startDate,
+    close_job: body.closeJob === true,
   }, ['preparing', 'sent_self']);
   await event(ctx, c.id, 'sent_digital', 'client', user.id, { envelopeId, salary, variable, startDate: body.startDate });
   await tellRecruiter(ctx, b, 'Arbeitsvertrag über DocuSign verschickt', `Erst unterschreibt ${b.submission.company_revealed ? b.job.company_name : 'die Firma'}, dann ${firstName(b.candidate.full_name)}. Du bekommst Bescheid.`);
@@ -554,6 +569,7 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
     }, DIGITAL_RUNNING);
     b.contract = c;
     await event(ctx, c.id, 'signed_digital', 'docusign', null, { signedOn: c.signed_on });
+    await afterFinal(ctx, c.id);
     const facts = { signedOn: c.signed_on, salary: c.salary, variable: c.variable_salary, startDate: c.start_date };
     for (const uid of clientRecipients(b)) {
       await notify(ctx, uid, 'contract_signed', `${b.candidate.full_name} hat unterschrieben`, `Arbeitsvertrag über DocuSign abgeschlossen`, 'submission', b.submission.id);
@@ -643,6 +659,7 @@ export async function report(ctx: ContractCtx, user: User, body: any) {
   if (role === 'admin' && evidence) {
     const done = await update(ctx, c.id, { ...base, evidence_note: evidence, status: 'final', final_at: nowIso, confirmed_by: user.id, confirmed_at: nowIso }, [c.status]);
     await event(ctx, c.id, 'reported_with_evidence', 'admin', user.id, { ...factsOut, evidence });
+    await afterFinal(ctx, c.id);
     await tellClient(ctx, b, `Unterschrift von Matchunt bestätigt (${mails.dateDe(f.signed_on)})`, null);
     await tellRecruiter(ctx, b, `Unterschrift bestätigt (${mails.dateDe(f.signed_on)})`, null);
     return { ok: true, contract: contractView(done, role) };

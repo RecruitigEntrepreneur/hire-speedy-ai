@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { EscrowStatusBadge } from "@/components/payment/EscrowStatusBadge";
 import { PayoutRequestCard } from "@/components/payment/PayoutRequestCard";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchRecruiterPlacements } from '@/lib/placementViews';
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -56,26 +57,16 @@ export default function RecruiterPayouts() {
 
     try {
       // Fetch placements with payout info
-      const { data: placementsData, error: placementsError } = await supabase
-        .from("placements")
-        .select(`
-          id,
-          start_date,
-          recruiter_payout,
-          escrow_status,
-          escrow_release_date,
-          payment_status,
-          submission:submissions!inner (
-            recruiter_id,
-            job_id,
-            candidate:candidates (
-              full_name
-            )
-          )
-        `)
-        .eq("submission.recruiter_id", user.id);
-
-      if (placementsError) throw placementsError;
+      // Eigener Anteil aus der abgesicherten Ansicht (Paket 4a)
+      const own = await fetchRecruiterPlacements();
+      const candIds = [...new Set(own.map((p) => p.candidate_id).filter(Boolean))];
+      const { data: candRows } = candIds.length ? await supabase.from("candidates").select("id, full_name").in("id", candIds) : { data: [] as any[] };
+      const nameById = new Map(((candRows ?? []) as any[]).map((c) => [c.id, c.full_name]));
+      const placementsData = own.map((p) => ({
+        id: p.id, start_date: p.first_working_day ?? p.start_date, recruiter_payout: p.recruiter_payout,
+        escrow_status: null, escrow_release_date: null, payment_status: p.payment_status,
+        submission: { recruiter_id: user.id, job_id: p.job_id, candidate: { full_name: nameById.get(p.candidate_id) ?? null } },
+      }));
 
       // Job separat ueber recruiter_jobs_view: Recruiter duerfen public.jobs
       // nicht mehr direkt lesen, ein eingebetteter Join liefert still null.

@@ -60,6 +60,8 @@ export interface ReportInput { submissionId: string; signedOn: string; salary: n
 export interface DigitalInput {
   submissionId: string; fileBase64: string; fileName: string; salary: number | null; variable: number | null; startDate: string;
   signerName: string; signerEmail: string; candidateEmail: string; fixedTerm: boolean; nonCompete: boolean;
+  /** nach der Unterschrift Stelle als besetzt schließen */
+  closeJob?: boolean;
 }
 
 type Ok = { ok: true; contract: ContractView };

@@ -135,7 +135,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Feedback', href: '/admin/feedback', icon: <MessageSquareWarning className="h-4 w-4" />, badge: newFeedback },
     { label: 'Kandidaten', href: '/admin/candidates', icon: <FileText className="h-4 w-4" /> },
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
-    { label: 'Placements', href: '/admin/placements', icon: <UserCheck className="h-4 w-4" /> },
+    { label: 'Besetzungen', href: '/admin/besetzungen', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Unterschriften', href: '/admin/vertraege', icon: <FileText className="h-4 w-4" /> },
     { label: 'Deal Health', href: '/admin/deal-health', icon: <Activity className="h-4 w-4" /> },
     { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
@@ -144,8 +144,6 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Skill Synonyme', href: '/admin/skill-synonyms', icon: <Activity className="h-4 w-4" /> },
     { label: 'Activity', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
     { label: 'Fraud', href: '/admin/fraud', icon: <AlertTriangle className="h-4 w-4" /> },
-    { label: 'Rechnungen', href: '/admin/invoices', icon: <CreditCard className="h-4 w-4" /> },
-    { label: 'Zahlungen', href: '/admin/payments', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Outreach', href: '/admin/outreach', icon: <Mail className="h-4 w-4" /> },
   ];

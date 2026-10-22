@@ -14,6 +14,8 @@ export interface InterviewMail {
   text: string;
   replyTo?: string;
   ics?: { content: string; method: 'REQUEST' | 'CANCEL' };
+  /** Weitere Anhänge (z. B. Rechnung als PDF), gehen über die API */
+  attachments?: { filename: string; contentBase64: string; contentType: string }[];
 }
 
 export interface MailResult { sent: boolean; via?: 'smtp' | 'api'; id?: string; error?: string }
@@ -138,7 +140,12 @@ async function apiSend(mail: InterviewMail, apiKey: string): Promise<MailResult>
       html: mail.html,
       text: mail.text,
       ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
-      ...(mail.ics ? { attachments: [{ filename: 'einladung.ics', content: base64Utf8(mail.ics.content), content_type: `text/calendar; charset=UTF-8; method=${mail.ics.method}` }] } : {}),
+      ...((mail.ics || mail.attachments?.length) ? {
+        attachments: [
+          ...(mail.ics ? [{ filename: 'einladung.ics', content: base64Utf8(mail.ics.content), content_type: `text/calendar; charset=UTF-8; method=${mail.ics.method}` }] : []),
+          ...(mail.attachments ?? []).map((a) => ({ filename: a.filename, content: a.contentBase64, content_type: a.contentType })),
+        ],
+      } : {}),
     }),
   });
   const body = await res.json().catch(() => ({}));

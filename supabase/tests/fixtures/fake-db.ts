@@ -7,7 +7,7 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 type Row = Record<string, any>;
 const singular = (t: string) => (t.endsWith('ies') ? t.slice(0, -3) + 'y' : t.endsWith('s') ? t.slice(0, -1) : t);
 
-export function fakeDb(seed: Record<string, Row[]>) {
+export function fakeDb(seed: Record<string, Row[]>, rpcs: Record<string, (args: any, tables: Record<string, Row[]>) => any> = {}) {
   const tables: Record<string, Row[]> = {};
   for (const [k, v] of Object.entries(seed)) tables[k] = v.map((r) => ({ ...r }));
   const t = (name: string) => (tables[name] ??= []);
@@ -118,6 +118,9 @@ export function fakeDb(seed: Record<string, Row[]>) {
     return q;
   }
 
-  const db = { from: (table: string) => builder(table) } as unknown as SupabaseClient;
+  const db = {
+    from: (table: string) => builder(table),
+    rpc: async (name: string, args: any) => (rpcs[name] ? { data: rpcs[name](args, tables), error: null } : { data: null, error: { message: `rpc ${name} fehlt`, code: '42883' } }),
+  } as unknown as SupabaseClient;
   return { db, tables };
 }

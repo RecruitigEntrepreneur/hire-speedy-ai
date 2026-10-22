@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchRecruiterPlacements } from '@/lib/placementViews';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,18 +79,7 @@ export default function RecruiterEarnings() {
         .select(`
           id,
           job_id,
-          candidates (full_name),
-          placements (
-            id,
-            agreed_salary,
-            recruiter_payout,
-            platform_fee,
-            total_fee,
-            payment_status,
-            start_date,
-            paid_at,
-            created_at
-          )
+          candidates (full_name)
         `)
         .eq('recruiter_id', user?.id)
         // stage statt status: 'hired' gab es im Status-Vokabular nie —
@@ -107,6 +97,12 @@ export default function RecruiterEarnings() {
           jobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
         }
         submissionsData.forEach((s: any) => { s.jobs = jobsById[s.job_id] ?? null; });
+        // Eigener Anteil aus der abgesicherten Ansicht; Kundenhonorar und Marge bleiben bei Matchunt (Paket 4a)
+        const ownPlacements = await fetchRecruiterPlacements(submissionsData.map((s: any) => s.id));
+        submissionsData.forEach((s: any) => {
+          s.placements = ownPlacements.filter((p) => p.submission_id === s.id)
+            .map((p) => ({ id: p.id, agreed_salary: p.agreed_salary, recruiter_payout: p.recruiter_payout, platform_fee: null, total_fee: null, payment_status: p.payment_status, start_date: p.first_working_day ?? p.start_date, paid_at: null, created_at: p.created_at }));
+        });
 
         const placementsWithDetails: Placement[] = [];
         let pending = 0, confirmed = 0, paid = 0;

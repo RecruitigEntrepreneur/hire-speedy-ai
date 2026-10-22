@@ -42,6 +42,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null }: P
   const [candidateEmail, setCandidateEmail] = useState('');
   const [fixedTerm, setFixedTerm] = useState<boolean | null>(null);
   const [nonCompete, setNonCompete] = useState<boolean | null>(null);
+  const [closeJob, setCloseJob] = useState(true);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -96,7 +97,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null }: P
         submissionId: ctx.submissionId, fileBase64: await fileToBase64(file), fileName: file.name,
         salary: digits(salary), variable: digits(variable), startDate,
         signerName: signerName.trim(), signerEmail: signerEmail.trim(), candidateEmail: candidateEmail.trim(),
-        fixedTerm: !!fixedTerm, nonCompete: !!nonCompete,
+        fixedTerm: !!fixedTerm, nonCompete: !!nonCompete, closeJob,
       });
       toast.success(`Verschickt. Erst unterschreibt ${signerName.trim() || 'die Firma'}, dann ${first}.`);
       refresh();
@@ -231,6 +232,10 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null }: P
               )}
               <p className="text-xs text-muted-foreground">{first} kann zusätzlich eine Papierfassung verlangen. Wir hängen eine Unterschriftenseite an, auf der beide unterschreiben.</p>
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={closeJob} onChange={(e) => setCloseJob(e.target.checked)} />
+              <span>Nach der Unterschrift die Stelle als besetzt schließen. <span className="text-muted-foreground">Bei mehreren Plätzen den Haken entfernen.</span></span>
+            </label>
 
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
               <Button variant="ghost" onClick={() => setStep('choose')}>Zurück</Button>
