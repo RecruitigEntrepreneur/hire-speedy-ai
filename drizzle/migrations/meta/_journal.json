@@ -239,6 +239,13 @@
       "when": 1792654344768,
       "tag": "0033_firmenlogo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792654392398,
+      "tag": "0034_einreichen_rahmen_pflicht",
+      "breakpoints": true
     }
   ]
 }
