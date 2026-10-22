@@ -6864,6 +6864,8 @@ export type Database = {
           bonus_structure: string | null
           briefing_notes: string | null
           callback_requested_at: string | null
+          candidate_concerns: string[] | null
+          candidate_concerns_answer: string | null
           candidates_dropped_reason: string | null
           candidates_in_pipeline: number | null
           career_example: string | null
@@ -6927,9 +6929,11 @@ export type Database = {
           intake_draft_id: string | null
           intake_link_id: string | null
           intake_payload: Json | null
+          interview_process: string | null
           job_summary: Json | null
           location: string | null
           mandate_id: string | null
+          max_notice_period: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
           negative_impact_if_unfilled: string | null
@@ -6963,6 +6967,7 @@ export type Database = {
           requirements_normalized_at: string | null
           reveal_envelope: Json | null
           reveal_trigger: string | null
+          salary_flex: string | null
           salary_max: number | null
           salary_min: number | null
           salary_months: number | null
@@ -6997,6 +7002,8 @@ export type Database = {
           bonus_structure?: string | null
           briefing_notes?: string | null
           callback_requested_at?: string | null
+          candidate_concerns?: string[] | null
+          candidate_concerns_answer?: string | null
           candidates_dropped_reason?: string | null
           candidates_in_pipeline?: number | null
           career_example?: string | null
@@ -7060,9 +7067,11 @@ export type Database = {
           intake_draft_id?: string | null
           intake_link_id?: string | null
           intake_payload?: Json | null
+          interview_process?: string | null
           job_summary?: Json | null
           location?: string | null
           mandate_id?: string | null
+          max_notice_period?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -7096,6 +7105,7 @@ export type Database = {
           requirements_normalized_at?: string | null
           reveal_envelope?: Json | null
           reveal_trigger?: string | null
+          salary_flex?: string | null
           salary_max?: number | null
           salary_min?: number | null
           salary_months?: number | null
@@ -7130,6 +7140,8 @@ export type Database = {
           bonus_structure?: string | null
           briefing_notes?: string | null
           callback_requested_at?: string | null
+          candidate_concerns?: string[] | null
+          candidate_concerns_answer?: string | null
           candidates_dropped_reason?: string | null
           candidates_in_pipeline?: number | null
           career_example?: string | null
@@ -7193,9 +7205,11 @@ export type Database = {
           intake_draft_id?: string | null
           intake_link_id?: string | null
           intake_payload?: Json | null
+          interview_process?: string | null
           job_summary?: Json | null
           location?: string | null
           mandate_id?: string | null
+          max_notice_period?: string | null
           must_have_criteria?: string[] | null
           must_haves?: string[] | null
           negative_impact_if_unfilled?: string | null
@@ -7229,6 +7243,7 @@ export type Database = {
           requirements_normalized_at?: string | null
           reveal_envelope?: Json | null
           reveal_trigger?: string | null
+          salary_flex?: string | null
           salary_max?: number | null
           salary_min?: number | null
           salary_months?: number | null
@@ -13160,6 +13175,8 @@ export type Database = {
         Row: {
           benefits: string[] | null
           bonus_structure: string | null
+          candidate_concerns: string[] | null
+          candidate_concerns_answer: string | null
           candidates_dropped_reason: string | null
           candidates_in_pipeline: number | null
           career_example: string | null
@@ -13199,13 +13216,16 @@ export type Database = {
           industry: string | null
           industry_challenges: string | null
           industry_opportunities: string | null
+          interview_process: string | null
           job_summary: Json | null
           location: string | null
+          max_notice_period: string | null
           must_have_criteria: string[] | null
           must_haves: string[] | null
           negative_impact_if_unfilled: string | null
           nice_to_have_criteria: string[] | null
           nice_to_haves: string[] | null
+          nogo_companies: string[] | null
           onsite_days_required: number | null
           onsite_required: boolean | null
           overtime_policy: string | null
@@ -13224,6 +13244,7 @@ export type Database = {
           required_certifications: string[] | null
           required_languages: Json | null
           requirements: string | null
+          salary_flex: string | null
           salary_max: number | null
           salary_min: number | null
           salary_months: number | null
@@ -13231,6 +13252,7 @@ export type Database = {
           skills: string[] | null
           status: string | null
           success_profile: string | null
+          target_companies: string[] | null
           task_breakdown: Json | null
           task_focus: string | null
           team_size: number | null
@@ -13243,6 +13265,7 @@ export type Database = {
           urgency: string | null
           utilization_days_per_week: number | null
           vacancy_reason: string | null
+          visa_sponsorship: boolean | null
           works_council: boolean | null
           works_council_meeting_schedule: string | null
         }
