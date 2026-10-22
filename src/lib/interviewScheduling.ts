@@ -34,7 +34,9 @@ export const DEFAULT_INTERVIEW_HOURS: InterviewHoursRules = {
 };
 
 export const WEEKDAY_LABELS: Record<Weekday, string> = { '1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa', '7': 'So' };
-export const INTERVIEW_DURATIONS = [30, 45, 60, 90, 120] as const;
+export const INTERVIEW_DURATIONS = [30, 45, 60, 90, 120, 180, 240] as const;
+/** „60 Min“, ab 3 Stunden „3 Std.“ */
+export const durationLabel = (minutes: number) => (minutes >= 180 ? `${minutes / 60} Std.` : `${minutes} Min`);
 export const MAX_PROPOSALS = 5;
 
 /** Person aus dem Team des Kunden. */
@@ -108,6 +110,12 @@ export interface RequestContext {
   openRequest: { interviewId: string; status: string; createdAt: string } | null;
   /** Firmenanschrift aus den Firmendaten (Vorbelegung „Vor Ort“), mehrzeilig */
   onsiteDefault: string | null;
+  /** Ansprechpartner vor Ort: aus dem letzten Termin vor Ort, sonst Sie selbst */
+  onsiteContactDefault?: { name: string; phone: string };
+  /** Empfang und Anfahrt aus dem letzten Termin vor Ort */
+  locationNoteDefault?: string | null;
+  /** Entsteht beim Buchen ein Teams-Link (Outlook verbunden oder Matchunt-Konto)? */
+  teamsLink?: 'auto' | 'manual';
   /** Darf Kollegen ins Team einladen; sonst Namen der Admins */
   invite: { allowed: boolean; adminNames: string[] };
 }
@@ -146,8 +154,10 @@ export interface InterviewDetails {
   durationMinutes: number;
   format: MeetingFormat;
   joinUrl: string | null;
-  onsite: { address: string; note: string | null; mapsUrl: string } | null;
+  onsite: { address: string; note: string | null; mapsUrl: string; contactName?: string | null; contactPhone?: string | null } | null;
   callPhone: string | null;
+  /** Gespeichertes Feedback (JSON) */
+  feedback?: string | null;
   inOutlook: boolean;
   proposedSlots: string[];
   counterSlot: string | null;
@@ -195,6 +205,9 @@ export interface SendInput {
   onsiteAddress?: string | null;
   /** Hinweis für den Kandidaten bei „Vor Ort“ (Empfang, Parken) */
   locationNote?: string | null;
+  /** Ansprechpartner vor Ort mit Telefon (geht an Kandidat und Headhunter) */
+  onsiteContactName?: string | null;
+  onsiteContactPhone?: string | null;
   durationMinutes: number;
   slots: string[];
   attendees: AttendeeDraft[];
@@ -204,6 +217,31 @@ export interface SendInput {
   round: number;
   /** offene Anfrage, die ersetzt wird („Neue Termine vorschlagen“) */
   replacesInterviewId?: string | null;
+}
+
+/** Wie es nach dem Gespräch weitergeht. */
+export type FeedbackWay = 'next_round' | 'offer' | 'unsure' | 'reject';
+export interface FeedbackInput {
+  interviewId: string;
+  way: FeedbackWay;
+  impression: string;
+  scores?: { technical?: number; communication?: number; culture?: number };
+  strengths?: string;
+  concerns?: string;
+}
+export interface FeedbackResult { ok: true; way: FeedbackWay; round: number; nextRound: number }
+
+/** Gespeichertes Feedback lesen; ältere Fassungen nutzen proceed/maybe. */
+export function feedbackWayOf(raw: string | null | undefined): FeedbackWay | null {
+  if (!raw) return null;
+  try {
+    const r = JSON.parse(raw)?.recommendation;
+    if (r === 'proceed') return 'next_round';
+    if (r === 'maybe') return 'unsure';
+    return r === 'next_round' || r === 'offer' || r === 'unsure' || r === 'reject' ? r : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface SendResult { interviewId: string; candidateMailSent: boolean; recruiterMailSent: boolean; warning: string | null }
@@ -241,6 +279,8 @@ export const interviewApi = {
   confirmAlternative: (interviewId: string) => callFunction<{ scheduledAt: string }>('interview-request', { action: 'confirm_alternative', interviewId }),
   withdraw: (interviewId: string, reason: string) => callFunction<{ ok: true }>('interview-request', { action: 'withdraw', interviewId, reason }),
   inviteColleague: (input: InviteColleagueInput) => callFunction<InviteColleagueResult>('interview-request', { action: 'invite_colleague', ...input }),
+  feedback: (input: FeedbackInput) => callFunction<FeedbackResult>('interview-request', { action: 'feedback', ...input }, 'Das Feedback konnte nicht gespeichert werden.'),
+  setLink: (interviewId: string, url: string) => callFunction<{ ok: true }>('interview-request', { action: 'set_link', interviewId, url }, 'Der Link konnte nicht gespeichert werden.'),
 };
 
 export const calendarApi = {
@@ -279,7 +319,7 @@ export interface CandidateView {
   durationMinutes: number;
   format: MeetingFormat;
   /** Vor Ort: Adresse, Hinweis, Kartenlink */
-  onsite: { address: string; note: string | null; mapsUrl: string } | null;
+  onsite: { address: string; note: string | null; mapsUrl: string; contact?: string | null } | null;
   /** Telefon: hinterlegte Nummer des Kandidaten, maskiert („··· 11“), oder null */
   phoneOnFile: string | null;
   /** Telefon: bestätigte Rückrufnummer, maskiert */

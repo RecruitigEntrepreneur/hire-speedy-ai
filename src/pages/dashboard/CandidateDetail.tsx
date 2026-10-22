@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
@@ -54,6 +54,11 @@ import type { TeamMember } from '@/hooks/useTeamData';
 import { CandidateExperienceTimeline } from '@/components/candidates/CandidateExperienceTimeline';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
+import { FeedbackDialog } from '@/components/interview/window/FeedbackDialog';
+import { OfferDialog } from '@/components/offers/OfferDialog';
+import { OfferBox } from '@/components/offers/OfferBox';
+import { RecommendationCard } from '@/components/offers/RecommendationCard';
+import { offerApi } from '@/lib/offerApi';
 import { PendingRequestStatus } from '@/components/interview/PendingRequestStatus';
 import { StatePill } from '@/components/candidates/BewerberStatusPill';
 import { primaryActionFor } from '@/components/candidates/BewerberPreviewPanel';
@@ -114,6 +119,7 @@ export default function CandidateDetail() {
   const { toast } = useToast();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data: candidateView, loading, error, refetch } = useClientCandidateView(id);
 
@@ -209,6 +215,19 @@ export default function CandidateDetail() {
   // Dialogs
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
+  // Feedback nach dem Gespräch: Fenster in der Mitte, für das letzte Gespräch ohne Feedback
+  const [feedbackFor, setFeedbackFor] = useState<string | null>(null);
+  // Angebot machen (Paket 2): Fenster in der Mitte
+  const [showOffer, setShowOffer] = useState(false);
+  // Gleicher Schlüssel wie Empfehlungskarte und Angebots-Box: ein Abruf für alle
+  const { data: offerCtx } = useQuery({
+    queryKey: ['offer-context', id],
+    queryFn: () => offerApi.context(id!),
+    enabled: !!id,
+    retry: false,
+    staleTime: 15_000,
+  });
+  const hasRecommendation = !!offerCtx?.recommendation;
 
   // Job Requirements Query
   const { data: jobReqs } = useQuery({
@@ -332,6 +351,22 @@ export default function CandidateDetail() {
   };
 
   // Loading
+  // Gespräch für das Feedback: das jüngste vergangene ohne Feedback
+  const feedbackInterviewId = (subState?.interviews ?? []).find((x) =>
+    !x.feedback && x.scheduledAt && Date.parse(x.scheduledAt) <= Date.now() && ['scheduled', 'completed', 'no_show'].includes(x.status ?? ''))?.id ?? null;
+
+  // Aus Liste, Agenda oder Feedback: Fenster direkt im Profil öffnen (state.open)
+  const openRequest = (location.state as { open?: string } | null)?.open ?? null;
+  useEffect(() => {
+    if (!openRequest || !subState) return;
+    if (openRequest === 'feedback') setFeedbackFor(feedbackInterviewId);
+    if (openRequest === 'offer') setShowOffer(true);
+    if (openRequest === 'reject') setShowRejectDialog(true);
+    if (openRequest === 'frage') setShowFrage(true);
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest, subState]);
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -442,6 +477,9 @@ export default function CandidateDetail() {
     }
   };
   const showAgendaLink = ['geplant', 'feedback', 'feedback_nodate', 'interview_phase', 'opted_in'].includes(state.key);
+  const nextRoundNo = Number((state.params as { round?: number } | undefined)?.round ?? 2);
+  // Angebot über den Headhunter: Schritte stehen in der Angebots-Box, nicht im Hauptknopf
+  const offerFlow = ['with_recruiter', 'considering', 'countered', 'accepted', 'declined', 'withdrawn'].includes(subState?.offers?.[0]?.status ?? '');
 
   const tagMonat = (iso: string) => format(new Date(iso), 'dd.MM.', { locale: de });
   const tageSeit = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
@@ -465,6 +503,20 @@ export default function CandidateDetail() {
       const grund = grundLabel(lastRejection.reasonCategory);
       return `${wer} am ${tagMonat(lastRejection.createdAt)} abgelehnt.${grund ? ` Grund: ${grund}.` : ''} ${hhName} ist informiert.`;
     }
+    // Angebot über den Headhunter (Einzelheiten in der Angebots-Box)
+    if (k === 'offer_with_hh') return `Ihr Angebot liegt bei ${hhName}. ${hhName.split(' ')[0]} bespricht es mit dem Kandidaten und trägt die Antwort hier ein.`;
+    if (k === 'offer_considering') return `Der Kandidat überlegt noch. ${hhName} hält Kontakt.`;
+    if (k === 'offer_overdue') return `Die Antwortfrist ist abgelaufen. Verlängern Sie die Frist oder fragen Sie ${hhName}.`;
+    if (k === 'offer_negotiating') return `Der Kandidat hat einen Gegenwunsch. Sie entscheiden: anpassen, beim Angebot bleiben oder absagen.`;
+    if (k === 'offer_accepted') return 'Zusage! Jetzt fehlt nur noch der unterschriebene Arbeitsvertrag.';
+    if (k === 'offer_rejected') return `Der Kandidat hat abgesagt. ${hhName} ist informiert.`;
+    if (k === 'offer_withdrawn') return 'Sie haben das Angebot zurückgezogen.';
+    // Nach dem Feedback: der gewählte Weg, mit dem Namen des Headhunters
+    if (k === 'naechste_runde') return `Ihr Feedback: weiter. Planen Sie Interview ${nextRoundNo}, gern vor Ort mit dem Team. ${hhName} weiß Bescheid.`;
+    if (k === 'angebot_vorbereiten') return hasRecommendation
+      ? `${hhName} hat Ihnen eine Empfehlung geschickt (unten). Damit trifft Ihr Angebot beim ersten Mal.`
+      : `Sie möchten ein Angebot machen. ${hhName} spricht mit dem Kandidaten und schickt Ihnen eine Empfehlung, was es für eine Zusage braucht.`;
+    if (k === 'unsicher') return `Sie sind noch unsicher. ${hhName} meldet sich mit den offenen Punkten; danach entscheiden Sie über Interview ${nextRoundNo}.`;
     if (k === 'wait_today' || k === 'wait_yesterday' || k === 'wait_days') return t('bewerber.detail.ctx.wait_new');
     if (k === 'wait_warn' || k === 'wait_crit') return t('bewerber.detail.ctx.wait_old', { days: (state.params as any)?.days ?? '' });
     if (k === 'archiv') return t('bewerber.detail.ctx.archiv');
@@ -477,10 +529,10 @@ export default function CandidateDetail() {
       setShowInterviewDialog(true);
       return;
     }
-    // Beim Feedback-Zustand direkt das Formular dieses Kandidaten öffnen,
-    // statt den Kunden nur auf die Interviews-Liste zu werfen.
-    const isFeedback = state.key === 'feedback' || state.key === 'feedback_nodate';
-    navigate(primary.run, isFeedback ? { state: { openFeedbackFor: submissionId } } : undefined);
+    if (primary.run === 'feedback') { setFeedbackFor(feedbackInterviewId); return; }
+    if (primary.run === 'offer') { setShowOffer(true); return; }
+    if (primary.run === 'frage') { setShowFrage(true); return; }
+    navigate(primary.run);
   };
 
   // Verlauf: Einreichung, Interviews und Angebote chronologisch — das Gedächtnis der Bewerbung
@@ -549,10 +601,10 @@ export default function CandidateDetail() {
             <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0" />
             <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">für: {jobTitle}</span>
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
-              {!isViewer && !isTerminal && !isPendingCandidate && (
+              {!isViewer && !isTerminal && !isPendingCandidate && !offerFlow && (
                 <Button size="sm" onClick={runPrimary} className="gap-1.5 h-8">
                   <PrimaryIcon className="h-3.5 w-3.5" />
-                  {t(primary.labelKey)}
+                  {t(primary.labelKey, state.params)}
                 </Button>
               )}
               {!isViewer && !isTerminal && (
@@ -736,11 +788,17 @@ export default function CandidateDetail() {
                 <>
                   {isPendingCandidate ? (
                     <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} />
-                  ) : (
+                  ) : !offerFlow && (
                     <Button size="sm" onClick={runPrimary} className="gap-1.5">
                       <PrimaryIcon className="h-3.5 w-3.5" />
-                      {t(primary.labelKey)}
+                      {t(primary.labelKey, state.params)}
                     </Button>
+                  )}
+                  {state.key === 'naechste_runde' && (
+                    <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>Direkt Angebot machen</Button>
+                  )}
+                  {(state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
+                    <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
                   )}
                   <Button
                     variant="outline"
@@ -779,7 +837,12 @@ export default function CandidateDetail() {
               )}
             </div>
           </div>
+          {offerFlow && !isViewer && (
+            <OfferBox submissionId={submissionId} onAdjust={() => setShowOffer(true)} onReject={() => setShowRejectDialog(true)} />
+          )}
         </div>
+
+        {!isViewer && !isTerminal && <RecommendationCard submissionId={submissionId} onOffer={() => setShowOffer(true)} />}
 
         {/* ================================================================ */}
         {/* ZONE 3+4 — PASSUNG (links) · WERDEGANG & PROFIL (rechts)         */}
@@ -1080,6 +1143,21 @@ export default function CandidateDetail() {
         onOpenChange={setShowInterviewDialog}
         submissionId={submissionId}
         onSent={() => { setShowInterviewDialog(false); refetch(); }}
+      />
+
+      <OfferDialog submissionId={submissionId} open={showOffer} onOpenChange={setShowOffer} onSent={() => refetch()} />
+
+      <FeedbackDialog
+        interviewId={feedbackFor}
+        open={!!feedbackFor}
+        onOpenChange={(o) => !o && setFeedbackFor(null)}
+        candidateName={identityUnlocked ? displayName : anonCode}
+        onSaved={() => refetch()}
+        onNext={(way) => {
+          if (way === 'next_round') setShowInterviewDialog(true);
+          if (way === 'offer') setShowOffer(true);
+          if (way === 'reject') setShowRejectDialog(true);
+        }}
       />
     </DashboardLayout>
   );

@@ -10,8 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
-  candidateApi, fmtDayLong, fmtDayShort, fmtRange, fmtTime, type CandidateView,
-} from '@/lib/interviewScheduling';
+  candidateApi, fmtDayLong, fmtDayShort, fmtRange, fmtTime, type CandidateView, durationLabel } from '@/lib/interviewScheduling';
 import {
   GermanTime, PublicInterviewShell, QuoteBlock, RecruiterContactCard, StatusIcon,
 } from '@/components/interview/PublicInterviewShell';
@@ -196,10 +195,12 @@ function InviteHeader({ view }: { view: CandidateView }) {
   return (
     <div className="space-y-2">
       <h1 className="text-2xl font-semibold leading-tight tracking-tight">
-        {view.reschedule ? `${view.companyName} möchte Ihren Termin verschieben` : `${view.companyName} möchte Sie kennenlernen`}
+        {view.reschedule
+          ? `${view.companyName} möchte Ihren Termin verschieben`
+          : (view.round ?? 1) > 1 ? `${view.companyName} lädt Sie zum ${view.round}. Gespräch ein` : `${view.companyName} möchte Sie kennenlernen`}
       </h1>
       <p className="text-sm text-muted-foreground">
-        {view.jobTitle} · {view.durationMinutes} Min · {formatText(view)}
+        {view.jobTitle} · {durationLabel(view.durationMinutes)} · {formatText(view)}
       </p>
       {view.reschedule?.stillValid && (
         <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
@@ -228,6 +229,7 @@ function OnsiteBlock({ view }: { view: CandidateView }) {
       <div className="min-w-0">
         <p className="whitespace-pre-line">{view.onsite.address}</p>
         {view.onsite.note && <p className="mt-1 text-muted-foreground">{view.onsite.note}</p>}
+        {view.onsite.contact && <p className="mt-1 text-muted-foreground">Ansprechpartner vor Ort: {view.onsite.contact}</p>}
         <a href={view.onsite.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-medium underline underline-offset-4">
           Karte öffnen
         </a>
@@ -637,7 +639,7 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
     <div className="space-y-6">
       <div className="space-y-3 text-center">
         <StatusIcon icon={CheckCircle2} tone="success" />
-        <h1 className="text-2xl font-semibold tracking-tight">Ihr Interview steht</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{(view.round ?? 1) > 1 ? `Ihr ${view.round}. Gespräch steht` : 'Ihr Interview steht'}</h1>
         <p className="text-sm text-muted-foreground">{view.companyName} · {view.jobTitle}</p>
       </div>
 
@@ -672,7 +674,7 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
             <a href={s.joinUrl} target="_blank" rel="noopener noreferrer"><Video /> Teams-Besprechung öffnen</a>
           </Button>
         ) : (
-          <p className="rounded-xl border border-border bg-card p-4 text-sm">Den Teams-Link bekommen Sie mit der Kalendereinladung per Mail.</p>
+          <p className="rounded-xl border border-border bg-card p-4 text-sm">Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht.</p>
         ))}
         {view.format === 'onsite' && view.onsite && (
           <Button asChild size="lg" className="h-12 w-full">
@@ -688,8 +690,8 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
 
       <p className="text-sm text-muted-foreground">
         {view.format === 'teams'
-          ? `${s?.joinUrl ? 'Kalendereinladung mit Teams-Link kommt per Mail. ' : ''}Teilnahme mit Teams-App oder im Browser. Erinnerung 24 h und 1 h vorher.`
-          : 'Die Kalendereinladung kommt per Mail. Erinnerung 24 h und 1 h vorher.'}
+          ? `${s?.joinUrl ? 'Kalendereinladung mit Teams-Link kommt per Mail. ' : ''}Teilnahme mit Teams-App oder im Browser. Am Vortag erinnern wir Sie per Mail.`
+          : 'Die Kalendereinladung kommt per Mail. Am Vortag erinnern wir Sie per Mail.'}
       </p>
 
       <div className="space-y-3">

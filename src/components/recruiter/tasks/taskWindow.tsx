@@ -20,11 +20,13 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Lock, Mail, NotebookPen, Phone } from 'lucide-react';
 import { NachgespraechWindow, nachTargetFromItem, type NachTarget } from './NachgespraechWindow';
+import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
+import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
 import { Honorar } from '@/components/recruiter/Honorar';
 
 export const DAY_MS = 86_400_000;
 
-export type Kind = 'call' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate';
+export type Kind = 'call' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend';
 
 export interface Guide {
   pill: string;
@@ -90,6 +92,70 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       ],
       goal: 'Nachgespräch festgehalten',
       primary: { label: 'Nachgespräch', kind: 'debrief' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'offer_deliver') {
+    // Angebot über den Headhunter (22.10.2026): überbringen und Antwort eintragen
+    const considering = item.title.startsWith('Kandidat überlegt');
+    // Kalendertage bis zur Frist (heute = 0)
+    const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+    const left = item.dueAt ? Math.round((Date.parse(`${berlinDay(new Date(item.dueAt).getTime())}T12:00:00Z`) - Date.parse(`${berlinDay(Date.now())}T12:00:00Z`)) / DAY_MS) : null;
+    const frist = left === null ? '' : left < 0 ? 'Frist abgelaufen.' : left === 0 ? 'Antwort heute fällig.' : `Noch ${left} ${left === 1 ? 'Tag' : 'Tage'}.`;
+    return {
+      pill: 'Angebot',
+      advice: considering ? `${first} überlegt noch. ${frist} Nachfassen und Antwort eintragen.` : `Der Kunde macht ${first} ein Angebot. ${frist} Ruf ${first} an.`,
+      facts: [
+        `Angebot für ${job}${item.companyName ? ` bei ${item.companyName}` : ''}.`,
+        item.dueAt ? satz(`Antwort bis ${dateDe(item.dueAt)}`) : '',
+        fee ? `Honorar bei Abschluss: ${fee}.` : '',
+      ].filter(Boolean),
+      consequence: 'Liegt ein Angebot zu lange, kommt das Gegenangebot des Arbeitgebers zuerst.',
+      steps: [
+        { text: `${first} anrufen und das Angebot durchgehen.`, hint: 'Gehalt, Start, Extras. Was fehlt noch für eine Zusage?' },
+        { text: 'Antwort eintragen: Zusage, überlegt noch, Gegenwunsch oder Absage.' },
+      ],
+      goal: 'Antwort eingetragen',
+      primary: { label: 'Antwort eintragen', kind: 'offer' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'recommendation_due') {
+    return {
+      pill: 'Empfehlung',
+      advice: `Der Kunde will ${first} ein Angebot machen. Schick deine Empfehlung, bevor er Zahlen schreibt.`,
+      facts: [
+        `Feedback des Kunden zu ${job}: Angebot machen.`,
+        'Was der Kandidat für eine Zusage braucht, weißt nur du aus dem Nachgespräch.',
+        fee ? `Honorar bei Abschluss: ${fee}.` : '',
+      ].filter(Boolean),
+      consequence: 'Ohne Empfehlung schreibt der Kunde oft zu niedrig, dann folgt eine Runde Gegenwunsch.',
+      steps: [
+        { text: 'Punkte aus dem Nachgespräch prüfen.', hint: 'Gehalt, Start, was ihm wichtig ist.' },
+        { text: 'Anhaken, was der Kunde sieht, und senden.', hint: 'Die Schmerzgrenze bleibt bei dir.' },
+      ],
+      goal: 'Empfehlung gesendet',
+      primary: { label: 'Empfehlung schreiben', kind: 'recommend' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'offer_counter_stalled') {
+    const d = daysSince(item.createdAt);
+    return {
+      pill: 'Gegenwunsch',
+      advice: `Der Kunde antwortet seit ${d} Tagen nicht auf ${first}s Gegenwunsch. Nachfassen.`,
+      facts: [
+        satz(`Gegenwunsch zu ${job} eingetragen am ${dateDe(item.createdAt)}`),
+        item.description ? satz(item.description) : '',
+        fee ? `Honorar bei Abschluss: ${fee}.` : '',
+      ].filter(Boolean),
+      consequence: 'Wartet der Kandidat zu lange, nimmt er ein anderes Angebot oder bleibt.',
+      steps: [
+        { text: 'Beim Kunden eine Entscheidung erbitten.', hint: 'Anpassen, beim Angebot bleiben oder absagen.' },
+        { text: `${first} auf dem Laufenden halten.` },
+      ],
+      goal: 'Entscheidung des Kunden',
+      primary: { label: 'Kunden erinnern', kind: 'client' },
       reachedOptions: [],
     };
   }
@@ -206,11 +272,21 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const [detail, setDetail] = useState<TaskDetailItem | null>(null);
   // Nachgespräch: eigenes Fenster, festgehalten, damit Schritt 3 nach dem Neuladen bleibt
   const [nach, setNach] = useState<{ target: NachTarget; item: UnifiedTaskItem } | null>(null);
+  // Angebot überbringen bzw. Empfehlung schreiben: eigene Fenster je Einreichung
+  const [offerFor, setOfferFor] = useState<string | null>(null);
+  const [recFor, setRecFor] = useState<string | null>(null);
+  /** Aufgaben mit eigenem Fenster direkt öffnen; true = erledigt. */
+  const openOwnWindow = (it: UnifiedTaskItem) => {
+    if (it.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
+    if (it.taskCategory === 'offer_deliver' && it.submissionId) { setOfferFor(it.submissionId); return true; }
+    if (it.taskCategory === 'recommendation_due' && it.submissionId) { setRecFor(it.submissionId); return true; }
+    return false;
+  };
 
   /** Personen-Fenster öffnen; steht ein Nachgespräch vorn, gleich dessen Fenster. */
   const openGroupKey = (key: string | null) => {
     const g = key ? groups.find(x => x.key === key) : null;
-    if (g && g.primary.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(g.primary), item: g.primary }); return; }
+    if (g && openOwnWindow(g.primary)) return;
     setWindowKey(key);
   };
 
@@ -224,6 +300,12 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
       }
       case 'debrief':
         setNach({ target: nachTargetFromItem(item), item });
+        return;
+      case 'offer':
+        if (item.submissionId) setOfferFor(item.submissionId);
+        return;
+      case 'recommend':
+        if (item.submissionId) setRecFor(item.submissionId);
         return;
       case 'call':
         if (item.candidatePhone) window.location.href = `tel:${item.candidatePhone}`;
@@ -309,8 +391,8 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
 
   /** Öffnet das Fenster der Person, zu der die Aufgabe gehört. */
   const openItem = (itemId: string) => {
-    const it = itemId.startsWith('derived-debrief-') ? allItems.find(i => i.itemId === itemId) : null;
-    if (it) { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
+    const it = /^derived-(debrief|offer|recommend)-/.test(itemId) ? allItems.find(i => i.itemId === itemId) : null;
+    if (it && openOwnWindow(it)) return true;
     const g = groups.find(x => x.primary.itemId === itemId || x.others.some(o => o.itemId === itemId));
     if (g) openGroupKey(g.key);
     return !!g;
@@ -341,6 +423,8 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         onDone={refetch}
         laterSlot={nach ? <LaterMenu onPick={until => { const it = nach.item; setNach(null); later(it, until); }} /> : null}
       />
+      <OfferAnswerDialog submissionId={offerFor} onClose={() => setOfferFor(null)} onDone={refetch} />
+      <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} onDone={refetch} />
     </>
   );
 
@@ -503,7 +587,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
                 <Phone className="h-3 w-3" />{guide.primary.kind === 'call' ? 'Anrufen' : 'Nachgefasst'}
               </Button>
             )}
-            {guide.primary.kind === 'debrief' || guide.primary.kind === 'done' ? (
+            {guide.primary.kind === 'debrief' || guide.primary.kind === 'done' || guide.primary.kind === 'offer' || guide.primary.kind === 'recommend' ? (
               <Button size="sm" className="h-8 gap-1 text-xs" onClick={() => onAct(item, guide)}>
                 {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
                 {guide.primary.label}

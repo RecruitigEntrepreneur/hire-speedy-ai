@@ -18,6 +18,8 @@ export interface IcsInvite {
   attendeeEmail: string;
   attendeeName?: string;
   nowMs?: number;
+  /** Erinnerung im Kalender, Minuten vorher (Standard 15; vor Ort mehr wegen der Anfahrt) */
+  alarmMinutes?: number;
 }
 
 const utcStamp = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -73,7 +75,7 @@ export function buildIcs(invite: IcsInvite): string {
     `ATTENDEE;CN=${paramValue(invite.attendeeName || invite.attendeeEmail)};ROLE=REQ-PARTICIPANT;PARTSTAT=${cancel ? 'DECLINED' : 'NEEDS-ACTION'};RSVP=FALSE:mailto:${invite.attendeeEmail}`,
     `STATUS:${cancel ? 'CANCELLED' : 'CONFIRMED'}`,
     'TRANSP:OPAQUE',
-    ...(cancel ? [] : ['BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Interview in 15 Minuten', 'TRIGGER:-PT15M', 'END:VALARM']),
+    ...(cancel ? [] : ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:Interview in ${invite.alarmMinutes ?? 15} Minuten`, `TRIGGER:-PT${invite.alarmMinutes ?? 15}M`, 'END:VALARM']),
     'END:VEVENT',
     'END:VCALENDAR',
   ];

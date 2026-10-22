@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { durationLabel } from '@/lib/interviewScheduling';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -100,7 +101,7 @@ export function NextInterviewHero({ interview: iv, onOpenGuide, onOpen, onEdit }
             </div>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
               <MeetingTypeIcon type={iv.meetingType} className="h-3.5 w-3.5" />
-              {meetingTypeLabel(iv.meetingType)} · {iv.jobTitle} · {iv.durationMinutes} Min
+              {meetingTypeLabel(iv.meetingType)} · {iv.jobTitle} · {durationLabel(iv.durationMinutes)}
             </p>
           </button>
           <div className="flex flex-wrap items-center gap-2">

@@ -305,6 +305,73 @@ function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
   };
 }
 
+/** Grundgerüst einer abgeleiteten Aufgabe zu einer Einreichung. */
+function derivedBase(sub: any, job: any, candidate: any, extra: Partial<UnifiedTaskItem> & Pick<UnifiedTaskItem, 'itemId' | 'title' | 'taskCategory' | 'priority' | 'createdAt'>): UnifiedTaskItem {
+  const fee = calcFee(job?.salary_min ?? null, job?.salary_max ?? null, job?.recruiter_fee_percentage ?? null);
+  return {
+    itemType: 'derived', recruiterId: sub.recruiter_id, description: null, recommendedAction: null,
+    sortPriority: ALERT_PRIORITY_MAP[extra.priority], submissionId: sub.id, candidateId: sub.candidate_id || null, jobId: sub.job_id || null,
+    playbookId: null, dueAt: null, isRead: false, isArchived: false, isCompleted: false, completedAt: null, snoozedUntil: null,
+    impactScore: fee ? Math.min(98, 75 + Math.round(fee / 1000)) : 80, feeValue: fee,
+    candidateName: candidate?.full_name || null, candidatePhone: candidate?.phone || null, candidateEmail: candidate?.email || null,
+    jobTitle: job?.title || null, companyName: safeCompany(job, sub.company_revealed), isStale: false,
+    ...extra,
+  };
+}
+
+// Abgeleitete Aufgabe: Der Kunde hat ein Angebot gemacht, der Headhunter überbringt es (22.10.2026)
+function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
+  const sub = o.submissions;
+  if (!sub) return null;
+  const due = o.response_due ? new Date(`${o.response_due}T23:59:59`).getTime() : null;
+  const considering = o.status === 'considering';
+  const until = o.candidate_response?.until ? new Date(`${o.candidate_response.until}T23:59:59`).getTime() : null;
+  const deadline = considering && until ? until : due;
+  // Kalendertage bis zur Frist (heute = 0), nicht angebrochene 24-Stunden-Blöcke
+  const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+  const daysLeft = deadline ? Math.round((Date.parse(`${berlinDay(deadline)}T12:00:00Z`) - Date.parse(`${berlinDay(now)}T12:00:00Z`)) / DAY_MS) : null;
+  const priority: 'critical' | 'high' = daysLeft !== null && daysLeft <= 1 ? 'critical' : 'high';
+  return derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-offer-${o.id}`,
+    title: considering ? 'Kandidat überlegt noch — nachfassen' : 'Angebot überbringen',
+    description: considering ? `Antwort bis ${o.candidate_response?.until ?? ''}` : `Antwort bis ${o.response_due ?? ''}`,
+    taskCategory: 'offer_deliver',
+    priority,
+    createdAt: o.sent_at ?? o.created_at,
+    dueAt: deadline ? new Date(deadline).toISOString() : null,
+  });
+}
+
+// Abgeleitete Aufgabe: Gegenwunsch liegt seit zwei Tagen beim Kunden ohne Antwort
+function mapCounterStalled(o: any, now: number): UnifiedTaskItem | null {
+  const sub = o.submissions;
+  const at = o.counter_offer_at ?? o.responded_at;
+  if (!sub || !at || now - new Date(at).getTime() < 2 * DAY_MS) return null;
+  const wish = o.candidate_response?.wish?.salary;
+  return derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-counter-${o.id}`,
+    title: 'Kunde antwortet nicht auf Gegenwunsch',
+    description: wish ? `Wunsch: ${new Intl.NumberFormat('de-DE').format(wish)} € statt ${new Intl.NumberFormat('de-DE').format(o.salary_offered)} €` : null,
+    taskCategory: 'offer_counter_stalled',
+    priority: 'high',
+    createdAt: at,
+  });
+}
+
+// Abgeleitete Aufgabe: Der Kunde will ein Angebot machen, die Empfehlung fehlt noch
+function mapRecommendationDue(iv: any): UnifiedTaskItem | null {
+  const sub = iv.submissions;
+  if (!sub) return null;
+  return derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-recommend-${sub.id}`,
+    title: 'Empfehlung an den Kunden',
+    description: 'Der Kunde möchte ein Angebot machen. Schick deine Empfehlung, bevor er Zahlen schreibt.',
+    taskCategory: 'recommendation_due',
+    priority: 'high',
+    createdAt: iv.updated_at ?? iv.scheduled_at,
+  });
+}
+
 // Abgeleitete Aufgabe: Interview angefragt, Kandidat hat noch nicht reagiert
 function mapOptInDue(sub: any, now: number): UnifiedTaskItem {
   const anchorIso = sub.opt_in_requested_at || sub.updated_at;
@@ -485,7 +552,28 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           candidates(full_name, phone, email)
         `)
         .eq('recruiter_id', user.id)
-        .eq('stage', 'interview_requested');
+        .eq('stage', 'interview_requested')
+        // Ab Runde 2 ist der Kandidat freigegeben: dann gibt es kein Opt-In mehr einzuholen
+        .eq('identity_unlocked', false);
+
+      // Angebote beim Headhunter (überbringen bzw. Kandidat überlegt noch), 22.10.2026
+      const offerQuery = (supabase as any)
+        .from('offers')
+        .select(`id, submission_id, status, sent_at, created_at, response_due, candidate_response, counter_offer_at, responded_at, salary_offered,
+          submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed,
+            candidates(full_name, phone, email))`)
+        .eq('recruiter_id', user.id)
+        .in('status', ['with_recruiter', 'considering', 'countered']);
+      // Empfehlung fällig: Feedback des Kunden „Angebot machen“, noch keine Empfehlung und kein Angebot
+      const offerWishQuery = supabase
+        .from('interviews')
+        .select(`id, submission_id, scheduled_at, updated_at, feedback,
+          submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed,
+            candidates(full_name, phone, email))`)
+        .eq('submissions.recruiter_id', user.id)
+        .like('feedback', '%"recommendation":"offer"%');
+      const myRecsQuery = (supabase as any).from('offer_recommendations').select('submission_id').eq('recruiter_id', user.id);
+      const myOffersQuery = (supabase as any).from('offers').select('submission_id').eq('recruiter_id', user.id);
 
       // Kunde hat abgesagt, Kandidat noch nicht informiert (abgeleitet aus
       // Benachrichtigung + Zustand + fehlendem Beleg im Aktivitätslog)
@@ -534,8 +622,13 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .order('created_at', { ascending: false })
         .limit(500);
 
-      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult, logResult, nachResult] =
-        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery, logQuery, nachQuery]);
+      const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult, logResult, nachResult, offerResult, offerWishResult, myRecsResult, myOffersResult] =
+        await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery, logQuery, nachQuery, offerQuery, offerWishQuery, myRecsQuery, myOffersQuery]);
+      // Fehlen die Tabellen noch (Migration nicht live), bleiben die Listen leer
+      const recommended = new Set(((myRecsResult as any).data || []).map((r: any) => r.submission_id as string));
+      const offered = new Set(((myOffersResult as any).data || []).map((r: any) => r.submission_id as string));
+      const wishBySub = new Map<string, any>();
+      for (const iv of ((offerWishResult as any).data || []) as any[]) if (!wishBySub.has(iv.submission_id)) wishBySub.set(iv.submission_id, iv);
       const logRows = (logResult.data || []) as { id: string; candidate_id: string | null; related_submission_id: string | null; activity_type: string; title: string | null; metadata: any; created_at: string }[];
       const debriefed = new Set([...(myFeedbackResult.data || []), ...((nachResult as any).data || [])].map((f: any) => f.interview_id as string));
 
@@ -611,6 +704,9 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         ...(alertsResult.data || []),
         ...(completedAlertsResult.data || []),
         ...(debriefResult.data || []),
+        // Angebot überbringen, Gegenwunsch, Empfehlung fällig (22.10.2026)
+        ...(((offerResult as any).data || []) as any[]),
+        ...(((offerWishResult as any).data || []) as any[]),
       ];
       const allJobIds = [
         ...new Set(
@@ -703,6 +799,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           .map((iv: any) => mapDebriefDue(iv, nowMs)),
         ...(optInResult.data || []).map((s: any) => mapOptInDue(s, nowMs)),
         ...rejectedRows.map((s: any) => mapRejectedInform(s)),
+        ...(((offerResult as any).data || []) as any[]).map((o) => (o.status === 'countered' ? mapCounterStalled(o, nowMs) : mapOfferDeliver(o, nowMs))),
+        ...[...wishBySub.values()].filter((iv) => !recommended.has(iv.submission_id) && !offered.has(iv.submission_id)).map((iv) => mapRecommendationDue(iv)),
       ]
         .filter((i): i is UnifiedTaskItem => i !== null)
         .filter(i => !alertKeys.has(`${i.taskCategory}:${i.submissionId}`))

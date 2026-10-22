@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { CandidateName } from './CandidateIdentity';
+import { interviewApi } from '@/lib/interviewScheduling';
 import { toast } from 'sonner';
 import { Loader2, XCircle } from 'lucide-react';
 
@@ -32,40 +33,30 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
   const cancel = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('interviews')
-        .update({
-          status: 'cancelled',
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: user?.id ?? null,
-          cancellation_reason: reason.trim() || null,
-        })
-        .eq('id', iv.id);
-      if (error) throw error;
-
-      const { data: sub } = await supabase
-        .from('submissions')
-        .select('recruiter_id')
-        .eq('id', iv.submissionId)
-        .single();
-      if (sub?.recruiter_id) {
-        await supabase.from('notifications').insert({
-          user_id: sub.recruiter_id,
-          type: 'interview_cancelled',
-          title: isRequest ? 'Interview-Anfrage zurückgezogen' : 'Interview abgesagt',
-          message: `Der Kunde hat das Interview für "${iv.jobTitle}" ${isRequest ? 'zurückgezogen' : 'abgesagt'}.${reason.trim() ? ` Begründung: ${reason.trim()}` : ''} Bitte den Kandidaten informieren.`,
-          related_type: 'interview',
-          related_id: iv.id,
-        });
+      if (['pending_response', 'counter_proposed', 'scheduled'].includes(iv.status)) {
+        // Über die Function: Outlook-Termin bzw. Teams-Besprechung entfernen, Absage per Kalender
+        // an alle Eingeladenen, Mail an den Kandidaten, Headhunter informiert.
+        await interviewApi.withdraw(iv.id, reason.trim());
+      } else {
+        // Alte Anfragen aus der Zeit vor der Terminierung v2
+        const { error } = await supabase
+          .from('interviews')
+          .update({
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+            cancelled_by: user?.id ?? null,
+            cancellation_reason: reason.trim() || null,
+          })
+          .eq('id', iv.id);
+        if (error) throw error;
       }
-
-      toast.success(isRequest ? 'Anfrage zurückgezogen.' : 'Interview abgesagt – der Recruiter informiert den Kandidaten.');
+      toast.success(isRequest ? 'Anfrage zurückgezogen. Kandidat und Headhunter sind informiert.' : 'Interview abgesagt. Alle Beteiligten bekommen die Absage.');
       setReason('');
       onOpenChange(false);
       onDone();
     } catch (e) {
       console.error('Absage-Fehler:', e);
-      toast.error('Absage fehlgeschlagen.');
+      toast.error(e instanceof Error ? e.message : 'Absage fehlgeschlagen.');
     } finally {
       setSaving(false);
     }

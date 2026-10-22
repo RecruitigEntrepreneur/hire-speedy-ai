@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { candidateAnonCode } from '@/lib/anonymization';
+import { feedbackWayOf } from '@/lib/interviewScheduling';
 
 export type BewerberSortOption = 'match_score' | 'waiting_time' | 'newest';
 
@@ -120,6 +121,8 @@ const INTERVIEW_STAGES = new Set([
   'interview_scheduled',
   'second_interview',
   'interview_counter_proposed',
+  // nach dem Feedback, bis Angebot oder Absage
+  'interview_completed',
 ]);
 
 export function tabOf(stage: string | null, status: string | null): { tab: BewerberTab; archiveKind: ArchiveKind | null } {
@@ -145,6 +148,18 @@ export interface InterviewInfo {
   feedback: string | null;
   createdAt?: string | null;
   requestedBy?: string | null;
+  /** Runde des Gesprächs (1, 2, …) */
+  round?: number | null;
+}
+
+/** Zustand nach gespeichertem Feedback: der Weg, den der Kunde gewählt hat. */
+function afterFeedback(iv: InterviewInfo): BewerberState {
+  const next = (iv.round ?? 1) + 1;
+  const way = feedbackWayOf(iv.feedback);
+  if (way === 'next_round') return { key: 'naechste_runde', tone: 'ok', turn: 'me', params: { round: next } };
+  if (way === 'offer') return { key: 'angebot_vorbereiten', tone: 'ok', turn: 'me', params: { round: next } };
+  if (way === 'unsure') return { key: 'unsicher', tone: 'neutral', turn: 'other', params: { round: next } };
+  return { key: 'interview_phase', tone: 'neutral', turn: 'other' };
 }
 
 const ddmm = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
@@ -168,6 +183,8 @@ export function datedState(
 
 export interface OfferInfo {
   status: string | null;
+  /** Antwort bis (Datum); abgelaufen = Kunde ist am Zug */
+  responseDue?: string | null;
 }
 
 function formatTermin(iso: string): string {
@@ -230,7 +247,7 @@ export function computeState(
         const past = new Date(iv.scheduledAt).getTime() < Date.now();
         if (!past) return { key: 'geplant', tone: 'ok', turn: 'other', params: { date: formatTermin(iv.scheduledAt) } };
         if (!iv.feedback) return { key: 'feedback', tone: feedbackTone(iv.scheduledAt), turn: 'me', params: { date: formatTag(iv.scheduledAt) } };
-        return { key: 'interview_phase', tone: 'neutral', turn: 'other' };
+        return afterFeedback(iv);
       }
       if (s === 'completed') {
         if (!iv.feedback) {
@@ -238,7 +255,7 @@ export function computeState(
             ? { key: 'feedback', tone: feedbackTone(iv.scheduledAt), turn: 'me', params: { date: formatTag(iv.scheduledAt) } }
             : { key: 'feedback_nodate', tone: 'warn', turn: 'me' };
         }
-        return { key: 'interview_phase', tone: 'neutral', turn: 'other' };
+        return afterFeedback(iv);
       }
     }
     if (stage === 'candidate_opted_in') return { key: 'opted_in', tone: 'ok', turn: 'me' };
@@ -246,8 +263,17 @@ export function computeState(
     return { key: 'interview_phase', tone: 'neutral', turn: 'other' };
   }
 
-  // Angebot
+  // Angebot über den Headhunter (22.10.2026)
   const os = offer?.status || null;
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+  if (os === 'with_recruiter' || os === 'considering') {
+    if (offer?.responseDue && offer.responseDue < today) return { key: 'offer_overdue', tone: 'warn', turn: 'me' };
+    return { key: os === 'considering' ? 'offer_considering' : 'offer_with_hh', tone: 'neutral', turn: 'other' };
+  }
+  if (os === 'countered') return { key: 'offer_negotiating', tone: 'warn', turn: 'me' };
+  if (os === 'declined') return { key: 'offer_rejected', tone: 'crit', turn: 'me' };
+  if (os === 'withdrawn') return { key: 'offer_withdrawn', tone: 'neutral', turn: 'me' };
+  if (os === 'accepted') return { key: 'offer_accepted', tone: 'ok', turn: 'me' };
   if (os === 'sent') return { key: 'offer_sent', tone: 'neutral', turn: 'other' };
   if (os === 'viewed') return { key: 'offer_viewed', tone: 'neutral', turn: 'other' };
   if (os === 'negotiating') return { key: 'offer_negotiating', tone: 'warn', turn: 'me' };
@@ -308,13 +334,13 @@ export function useBewerber(filters: BewerberFilters) {
         const [ivRes, offerRes, rejRes] = await Promise.all([
           supabase
             .from('interviews')
-            .select('id, submission_id, status, scheduled_at, feedback, created_at, requested_by')
+            .select('id, submission_id, status, scheduled_at, feedback, created_at, requested_by, round')
             .in('submission_id', submissionIds)
             .order('created_at', { ascending: false })
             .order('id', { ascending: false }),
           supabase
             .from('offers')
-            .select('id, submission_id, status, created_at')
+            .select('id, submission_id, status, created_at, response_due')
             .in('submission_id', submissionIds)
             .order('created_at', { ascending: false })
             .order('id', { ascending: false }),
@@ -338,12 +364,13 @@ export function useBewerber(filters: BewerberFilters) {
               feedback: iv.feedback,
               createdAt: iv.created_at,
               requestedBy: iv.requested_by ?? null,
+              round: iv.round ?? null,
             });
           }
         }
         for (const o of (offerRes.data || []) as any[]) {
           if (!offerBySubmission.has(o.submission_id)) {
-            offerBySubmission.set(o.submission_id, { status: o.status });
+            offerBySubmission.set(o.submission_id, { status: o.status, responseDue: o.response_due ?? null });
           }
         }
       }

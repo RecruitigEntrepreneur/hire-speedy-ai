@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, checkTime, clientLink, confirmAlternative, interviewDetails, interviewGuide, inviteColleague, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveInterviewGuide, send, setMyName, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, feedbackWay, interviewDetails, interviewGuide, inviteColleague, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -581,4 +581,119 @@ Deno.test({ name: 'Leitfaden: ohne KI aus den Muss-Kriterien, mit KI gespeichert
   let denied = '';
   try { await interviewDetails(ctx, user('fremd-0000-0000-0000-000000000009', 'x@y.test'), { interviewId: iv.id }); } catch (e) { denied = e instanceof Error ? e.message : String(e); }
   assert(denied.includes('Berechtigung'), 'fremder Nutzer sieht nichts');
+}});
+
+// --- Paket 1 (22.10.2026): Feedback, Runde 2 vor Ort, Link nachtragen, Erinnerung ---
+
+async function bookedRound1(ctx: ServiceCtx, me: User, sent: any[]) {
+  await send(ctx, me, { submissionId: SUB, durationMinutes: 60, slots: [at(6, 10)], attendees: [{ userId: JULIA, email: 'julia@example.test', name: 'Julia', required: true }], allowAlternative: false, alternativeRules: {}, round: 1 });
+  const token = linkToken(sent);
+  await candidateRespond(ctx, { action: 'accept', token, slotStart: at(6, 10), consentGiven: true });
+}
+
+Deno.test({ name: 'Feedback mit vier Wegen, Runde 2 vor Ort ohne Opt-In-Rücksprung, Ansprechpartner überall', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await bookedRound1(ctx, me, sent);
+  const iv1 = tables.interviews[0];
+
+  let message = '';
+  try { await saveFeedback(ctx, me, { interviewId: iv1.id, way: 'next_round' }); } catch (e: any) { message = e.message; }
+  assert(message.includes('nach dem Gespräch'), 'Feedback erst nach dem Gespräch');
+
+  const later: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 6, 12, 0) };
+  sent.length = 0;
+  const r = await saveFeedback(later, me, { interviewId: iv1.id, way: 'next_round', impression: 'Fachlich stark, wollen ihn vor Ort sehen.', scores: { technical: 5 } });
+  eq([r.way, r.round, r.nextRound], ['next_round', 1, 2]);
+  const saved = JSON.parse(tables.interviews[0].feedback);
+  eq([saved.recommendation, saved.impression, saved.technical_score, saved.communication], ['next_round', 'Fachlich stark, wollen ihn vor Ort sehen.', 100, null]);
+  eq(tables.interviews[0].status, 'completed');
+  eq(tables.submissions[0].stage, 'interview_completed');
+  assert(tables.notifications.some((n: any) => n.user_id === RECRUITER && n.type === 'interview_feedback' && n.related_type === 'candidate'), 'Glocke beim Headhunter');
+  const hhMail = sent.find((m) => m.template === 'interview_feedback_recruiter');
+  assert(hhMail?.to === 'tim@example.test' && hhMail.html.includes('wollen ihn vor Ort sehen'), 'Mail an den Headhunter mit Eindruck');
+  message = '';
+  try { await saveFeedback(later, me, { interviewId: iv1.id, way: 'offer' }); } catch (e: any) { message = e.message; }
+  assert(message.includes('schon ein Feedback'), 'kein zweites Feedback');
+  eq(feedbackWay(JSON.stringify({ recommendation: 'proceed' })), 'next_round');
+  eq(feedbackWay(JSON.stringify({ recommendation: 'maybe' })), 'unsure');
+
+  const context = await requestContext(later, me, SUB);
+  eq(context.round, 2);
+  eq(context.teamsLink, 'manual');
+  eq(context.onsiteContactDefault?.name, 'Marko Benko');
+
+  const optInBefore = tables.submissions[0].opt_in_requested_at;
+  sent.length = 0;
+  await send(later, me, {
+    submissionId: SUB, meetingFormat: 'onsite', onsiteAddress: 'Bluewater & Bridge GmbH\nAdlzreiterstraße 2\n80337 München', locationNote: '3. OG, Empfang rechts',
+    onsiteContactName: 'Sandra Weiß', onsiteContactPhone: '089 123 456 78', durationMinutes: 180, slots: [at(8, 10)],
+    attendees: [{ userId: JULIA, email: 'julia@example.test', name: 'Julia', required: true }], allowAlternative: false, alternativeRules: {}, round: 2,
+  });
+  eq(tables.submissions[0].stage, 'interview_completed', 'Runde 2 springt nicht auf „angefragt“ (keine Opt-In-Aufgabe)');
+  eq(tables.submissions[0].opt_in_requested_at, optInBefore);
+  const invitation = sent.find((m) => m.template === 'interview_invitation_v2');
+  assert(invitation.subject.startsWith('Einladung zum 2. Gespräch'), 'Betreff Runde 2');
+  assert(!invitation.html.includes('kennenlernen'), 'Runde 2 ist kein Kennenlernen');
+  assert(invitation.html.includes('Ansprechpartner vor Ort') && invitation.html.includes('089 123 456 78'), 'Ansprechpartner in der Einladung');
+  assert(sent.find((m) => m.template === 'interview_requested_recruiter').html.includes('Adlzreiterstraße 2'), 'Headhunter sieht den Ort');
+  const iv2 = tables.interviews.find((x: any) => x.round === 2)!;
+  eq([iv2.duration_minutes, iv2.onsite_contact_name], [180, 'Sandra Weiß']);
+
+  const token = linkToken(sent);
+  const view = await loadCandidateView(later, token);
+  eq(view.consentRequired, false);
+  assert(view.onsite?.contact === 'Sandra Weiß, 089 123 456 78');
+  sent.length = 0;
+  await candidateRespond(later, { action: 'accept', token, slotStart: at(8, 10) });
+  const booked = sent.find((m) => m.template === 'interview_booked_candidate');
+  assert(booked.subject.startsWith('2. Gespräch bestätigt'), 'Betreff Buchung Runde 2');
+  assert(booked.ics.content.includes('TRIGGER:-PT60M'), 'vor Ort Kalender-Erinnerung eine Stunde vorher');
+  assert(booked.ics.content.includes('Ansprechpartner vor Ort: Sandra Weiß'), 'Ansprechpartner im Kalender');
+  const clientMail = sent.find((m) => m.to === 'marko@example.test');
+  assert(!clientMail.html.includes('jetzt in Matchunt freigegeben'), 'Freigabe-Satz nur beim ersten Gespräch');
+}});
+
+Deno.test({ name: 'Ohne Teams-Link: ehrlicher Hinweis, Link nachtragen schickt allen die aktualisierte Einladung', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await bookedRound1(ctx, me, sent);
+  const booked = sent.find((m) => m.template === 'interview_booked_candidate');
+  assert(booked.html.includes('sobald er feststeht') && !booked.html.includes('rechtzeitig'), 'kein leeres Versprechen');
+  assert(sent.find((m) => m.to === 'marko@example.test').html.includes('Tragen Sie Ihren Link im Interview-Fenster ein'), 'Kunde weiß, was zu tun ist');
+  const iv = tables.interviews[0];
+  let message = '';
+  try { await setMeetingLink(ctx, me, { interviewId: iv.id, url: 'teams.microsoft.com/abc' }); } catch (e: any) { message = e.message; }
+  assert(message.includes('https://'), 'nur gültige Links');
+  sent.length = 0;
+  await setMeetingLink(ctx, me, { interviewId: iv.id, url: 'https://teams.microsoft.com/l/meetup-join/abc123' });
+  eq(tables.interviews[0].teams_join_url, 'https://teams.microsoft.com/l/meetup-join/abc123');
+  eq(sent.map((m) => m.template).sort(), ['interview_link_candidate', 'interview_link_client', 'interview_link_client', 'interview_link_recruiter']);
+  const cand = sent.find((m) => m.template === 'interview_link_candidate');
+  assert(cand.ics.content.includes('SEQUENCE:1') && cand.ics.content.includes('URL:https://teams.microsoft.com/l/meetup-join/abc123'), 'gleicher Kalendereintrag, jetzt mit Link');
+}});
+
+Deno.test({ name: 'Erinnerung am Vortag: einmal an Kandidat und Kundenteam, Glocke beim Headhunter', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await bookedRound1(ctx, me, sent);
+  sent.length = 0;
+  const twoDaysBefore: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 4, 17, 0) };
+  eq((await sendDayBeforeReminders(twoDaysBefore)).reminded, 0, 'nicht zwei Tage vorher');
+  const dayBefore: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 5, 17, 0) };
+  eq((await sendDayBeforeReminders(dayBefore)).reminded, 1);
+  const cand = sent.find((m) => m.template === 'interview_reminder_candidate');
+  assert(cand?.to === 'kandidat@example.test' && cand.fromName === 'Tim Weber über Matchunt', 'vom Headhunter über Matchunt');
+  eq(sent.filter((m) => m.template === 'interview_reminder_client').map((m) => m.to).sort(), ['julia@example.test', 'marko@example.test']);
+  eq(tables.interviews[0].reminder_24h_sent, true);
+  assert(tables.notifications.some((n: any) => n.user_id === RECRUITER && n.type === 'interview_reminder'));
+  sent.length = 0;
+  eq((await sendDayBeforeReminders(dayBefore)).reminded, 0, 'keine zweite Erinnerung');
+  eq(sent.length, 0);
 }});

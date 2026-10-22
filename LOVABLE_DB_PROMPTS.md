@@ -1237,6 +1237,41 @@ offen ist. Ältere offene Einreichungen arbeitet er beim nächsten Start mit ab.
 
 ---
 
+## 31 — Einstellungsprozess Teil 1: Interviews bis zur Entscheidung, Empfehlung und Angebot (22.10.2026)
+
+Paket 1: Ein Feedback-Fenster mit vier Wegen (nächste Runde, Angebot, unsicher, Absage); der Headhunter
+bekommt Glocke und Mail. Runde 2 vor Ort mit Ansprechpartner und Telefon, bis 4 Stunden, ohne neue
+Einwilligung und ohne falsche „Opt-In“-Aufgabe. Texte je Runde, ehrlicher Hinweis ohne Teams-Link, Link
+nachtragen, Erinnerung am Vortag an Kandidat und Kunde.
+Paket 2: Der Headhunter schickt eine Empfehlung (hakt an, was der Kunde sieht; die Schmerzgrenze nie).
+Der Kunde macht das Angebot im Bewerberprofil, es geht an den Headhunter. Der trägt die Antwort ein:
+Zusage, überlegt noch, Gegenwunsch, Absage. Beim Gegenwunsch passt der Kunde an (Version 2 ersetzt
+Version 1), bleibt dabei oder sagt ab. Neue Aufgaben: „Empfehlung schreiben“, „Angebot überbringen“,
+„Kunde antwortet nicht auf Gegenwunsch“.
+**Zwei Migrationen, zwei neue Edge Functions, acht neu zu deployen.**
+
+> 1. Migrationen, einzeln und in dieser Reihenfolge (vorher `drizzle/migrations/meta/_journal.json` prüfen):
+>    a. `supabase/migrations/20261022150000_interview_runde2_feedback.sql`
+>       (zwei Spalten in `interviews`; täglicher Cron `interview-reminders` um 15:00 UTC, Schlüssel über
+>       `private.cron_token_for`, keine Daten-Einfügungen)
+>    b. `supabase/migrations/20261022160000_angebot_empfehlung.sql`
+>       (neue Spalten in `offers`, neue Tabelle `offer_recommendations` mit RLS und Rechten für
+>       `authenticated` (lesen) und `service_role` (alles), kein Bezug auf `auth.users`)
+> 2. Edge Functions, verify_jwt wie in `supabase/config.toml`:
+>    - neu: `interview-reminders` (**verify_jwt = false**, prüft selbst den Cron-Schlüssel),
+>      `offer` (verify_jwt = true)
+>    - neu deployen (nutzen die geänderten gemeinsamen Dateien `_shared/interview-service.ts`,
+>      `_shared/interview-mails.ts`, `_shared/interview-ics.ts`): `interview-request`,
+>      `get-interview-by-token`, `process-interview-response`, `interview-client-link`,
+>      `calendar-connect`, `calendar-oauth-callback`, `recruiter-notify`, `termin-seite`
+> 3. Publish.
+
+Keine neuen Secrets. Teams-Links entstehen erst wieder, wenn `MS_CLIENT_SECRET` in Azure/Supabase
+stimmt; bis dahin zeigen alle Texte ehrlich „Link folgt“, und der Kunde kann ihn im Interview-Fenster
+nachtragen.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

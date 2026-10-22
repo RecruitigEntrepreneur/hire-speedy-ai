@@ -6,6 +6,7 @@ import {
   CalendarClock, Copy, ExternalLink, Loader2, Lock, MapPin, MoreHorizontal, Phone, RefreshCw, Video, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import * as PanelPrimitive from '@radix-ui/react-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -213,6 +214,7 @@ function WindowBody({
         </div>
 
         {/* Status, der eine Handlung braucht */}
+        {booked && !started && format === 'teams' && !joinUrl && d && <MissingLink interviewId={iv.id} onSaved={refresh} />}
         {d?.reschedule && (
           <Banner tone="info">
             <span className="flex-1">
@@ -316,12 +318,18 @@ function WindowBody({
               <div>
                 <FeedbackPanel
                   interviewId={iv.id}
+                  round={d?.round ?? 1}
                   candidateName={name}
+                  recruiterName={d?.recruiterName}
                   feedback={iv.feedback}
                   started={started}
                   notes={notes.notes}
                   onSaved={refresh}
-                  onNextRound={() => { onOpenChange(false); onNextRound(iv); }}
+                  onNext={(way) => {
+                    if (way === 'next_round') { onOpenChange(false); onNextRound(iv); return; }
+                    // Angebot und Absage laufen im Bewerberprofil
+                    if (way === 'offer' || way === 'reject') { onOpenChange(false); navigate(`/dashboard/candidates/${iv.submissionId}`, { state: { open: way } }); }
+                  }}
                 />
               </div>
             </TabsContent>
@@ -329,6 +337,34 @@ function WindowBody({
         )}
       </div>
     </>
+  );
+}
+
+/** Beim Buchen ist kein Teams-Link entstanden: eigenen Link eintragen, alle bekommen ihn per Mail. */
+function MissingLink({ interviewId, onSaved }: { interviewId: string; onSaved: () => void }) {
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await interviewApi.setLink(interviewId, url.trim());
+      toast.success('Link gespeichert. Kandidat, Headhunter und Ihr Team bekommen ihn per Mail.');
+      setUrl('');
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Der Link konnte nicht gespeichert werden.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Banner tone="warn">
+      <span className="w-full">Für diesen Termin gibt es noch keinen Teams-Link. Tragen Sie Ihren Link ein, dann bekommen ihn alle per Mail.</span>
+      <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://teams.microsoft.com/…" className="h-8 flex-1 bg-background text-sm" aria-label="Link zum Gespräch" />
+      <Button size="sm" className="h-8" disabled={busy || !/^https:\/\/\S{8,}$/.test(url.trim())} onClick={save}>
+        {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />} Link speichern
+      </Button>
+    </Banner>
   );
 }
 
@@ -372,7 +408,10 @@ function Overview({ d, name, formatLabel }: { d: InterviewDetails; name: string;
         {d.format === 'teams' && d.joinUrl && <p className="truncate text-xs text-muted-foreground">{d.joinUrl}</p>}
         {d.format === 'phone' && d.callPhone && <p className="text-sm">Sie rufen an: <a className="underline" href={`tel:${d.callPhone}`}>{d.callPhone}</a></p>}
         {d.format === 'onsite' && d.onsite && (
-          <p className="whitespace-pre-line text-sm">{d.onsite.address}{d.onsite.note ? `\n${d.onsite.note}` : ''}</p>
+          <p className="whitespace-pre-line text-sm">
+            {d.onsite.address}{d.onsite.note ? `\n${d.onsite.note}` : ''}
+            {d.onsite.contactName || d.onsite.contactPhone ? `\nAnsprechpartner vor Ort: ${[d.onsite.contactName, d.onsite.contactPhone].filter(Boolean).join(', ')}` : ''}
+          </p>
         )}
         {d.movedFrom && (
           <p className="text-xs text-muted-foreground">Verschoben vom {fmtDayShort(d.movedFrom.previousStart)} {fmtTime(d.movedFrom.previousStart)}</p>

@@ -90,6 +90,25 @@ export function messageSetFor(category: string, ctx: { jobTitle: string | null; 
         ],
         candidateSubject: `Rückmeldung zu ${job}`,
       };
+    case 'offer_counter_stalled':
+      // Gegenwunsch liegt beim Kunden (22.10.2026)
+      return {
+        clientIntents: [
+          { key: 'decision', label: `Entscheidung bis ${inDays(2)}`, text: `Wie stehen Sie zum Gegenwunsch des Kandidaten? Eine Entscheidung bis ${inDays(2)} wäre gut: anpassen, beim Angebot bleiben oder absagen.` },
+          { key: 'call', label: 'Kurz telefonieren?', text: 'Sollen wir den Gegenwunsch kurz am Telefon besprechen? Ich kann Ihnen einordnen, wie fest er ist.' },
+          { key: 'remind', label: 'Nur erinnern', text: 'Ich wollte den Gegenwunsch des Kandidaten kurz in Erinnerung bringen.' },
+        ],
+        clientHints: [
+          { key: 'waiting', label: 'Kandidat wartet auf Antwort', text: 'Der Kandidat wartet auf Ihre Antwort.' },
+          { key: 'parallel', label: 'Kandidat hat weiteres Angebot', text: 'Der Kandidat hat noch einen weiteren Prozess laufen.' },
+          { key: 'flexible', label: 'Kandidat ist gesprächsbereit', text: 'Der Kandidat ist beim Gegenwunsch gesprächsbereit.' },
+        ],
+        candidate: [
+          { key: 'nudged', label: 'Ich habe nachgefasst', text: `ich habe heute beim Kunden zu deinem Gegenwunsch für ${job} nachgefasst.` },
+          { key: 'until', label: `Antwort bis ${inDays(2)}`, text: `Ich rechne bis ${inDays(2)} mit einer Antwort.` },
+        ],
+        candidateSubject: `Stand zu deinem Angebot`,
+      };
     default:
       return {
         clientIntents: [{ key: 'remind', label: 'Nur erinnern', text: 'Ich wollte die Einreichung kurz in Erinnerung bringen.' }],

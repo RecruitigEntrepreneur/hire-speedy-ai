@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InterviewCalendarView } from '@/components/interview/InterviewCalendarView';
-import { InterviewFeedbackForm } from '@/components/interview/InterviewFeedbackForm';
+import { FeedbackDialog } from '@/components/interview/window/FeedbackDialog';
 import { NextInterviewHero } from '@/components/interview/agenda/NextInterviewHero';
 import { AgendaRow } from '@/components/interview/agenda/AgendaRow';
 import { ActionChips, type AgendaFocus } from '@/components/interview/agenda/ActionChips';
@@ -152,7 +152,7 @@ export default function ClientInterviews() {
     setConfirmingId(iv.id);
     try {
       await interviewApi.confirmAlternative(iv.id);
-      toast.success('Termin steht. Einladungen mit Teams-Link sind unterwegs.');
+      toast.success('Termin steht. Die Einladungen sind unterwegs.');
       setWindowFor(null);
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
     } catch (e) {
@@ -524,20 +524,19 @@ export default function ClientInterviews() {
       />
 
 
-      {feedbackFor && (
-        <InterviewFeedbackForm
-          interviewId={feedbackFor.id}
-          candidateName={feedbackFor.candidateName}
-          open={!!feedbackFor}
-          onOpenChange={(o) => !o && setFeedbackFor(null)}
-          onSuccess={() => {
-            setFeedbackFor(null);
-            refetch();
-          }}
-          // „Weiter / Nächste Runde“: gleich die nächste Runde anfragen (die Runde ermittelt das Backend)
-          onNextRound={() => setRequestFor({ submissionId: feedbackFor.submissionId, replacesInterviewId: null })}
-        />
-      )}
+      <FeedbackDialog
+        interviewId={feedbackFor?.id ?? null}
+        open={!!feedbackFor}
+        onOpenChange={(o) => !o && setFeedbackFor(null)}
+        candidateName={feedbackFor?.candidateName ?? ''}
+        onSaved={() => refetch()}
+        onNext={(way) => {
+          if (!feedbackFor) return;
+          // Nächste Runde: gleich anfragen (die Runde ermittelt das Backend); Angebot und Absage im Profil
+          if (way === 'next_round') setRequestFor({ submissionId: feedbackFor.submissionId, replacesInterviewId: null });
+          else navigate(`/dashboard/candidates/${feedbackFor.submissionId}`, { state: { open: way } });
+        }}
+      />
 
       <InterviewRequestDialog
         open={!!requestFor}

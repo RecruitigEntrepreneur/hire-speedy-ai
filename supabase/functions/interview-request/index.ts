@@ -1,11 +1,11 @@
 // Kunden-Seite der Interview-Terminierung v2: Kontext für das Anfrage-Fenster,
 // freie Zeiten (mit Outlook), Mail-Vorschau, Senden, andere Zeit bestätigen,
-// Anfrage zurückziehen. Logik in _shared/interview-service.ts.
+// Anfrage zurückziehen, Feedback nach dem Gespräch, Link nachtragen. Logik in _shared/interview-service.ts.
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import {
-  authUser, availability, checkTime, confirmAlternative, defaultCtx, interviewDetails, interviewFailure, interviewGuide, inviteColleague, must, preview, requestContext, reschedule, saveInterviewGuide, send, setMyName, withdraw,
+  authUser, availability, checkTime, confirmAlternative, defaultCtx, interviewDetails, interviewFailure, interviewGuide, inviteColleague, must, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, setMeetingLink, setMyName, withdraw,
 } from '../_shared/interview-service.ts';
 
 serve(async (req) => {
@@ -30,6 +30,8 @@ serve(async (req) => {
       case 'reschedule': return json(await reschedule(ctx, user, body));
       case 'guide': return json(await interviewGuide(ctx, user, body));
       case 'guide_save': return json(await saveInterviewGuide(ctx, user, body));
+      case 'feedback': return json(await saveFeedback(ctx, user, body));
+      case 'set_link': return json(await setMeetingLink(ctx, user, body));
       default: must(false, 'Unbekannte Aktion.');
     }
   } catch (e) {

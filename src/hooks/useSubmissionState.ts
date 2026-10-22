@@ -18,6 +18,8 @@ export interface VerlaufInterview {
   feedback: string | null;
   /** Wer auf Kundenseite angefragt hat (ältere Anfragen: null). */
   requestedBy: string | null;
+  /** Runde des Gesprächs (1, 2, …) */
+  round: number;
 }
 
 export interface VerlaufRejection {
@@ -31,6 +33,7 @@ export interface VerlaufOffer {
   status: string | null;
   createdAt: string | null;
   sentAt: string | null;
+  responseDue: string | null;
 }
 
 export interface SubmissionStateResult {
@@ -71,13 +74,13 @@ export function useSubmissionState(
       const [ivRes, offerRes, rejRes] = await Promise.all([
         supabase
           .from('interviews')
-          .select('id, status, scheduled_at, created_at, cancelled_at, feedback, requested_by')
+          .select('id, status, scheduled_at, created_at, cancelled_at, feedback, requested_by, round')
           .eq('submission_id', submissionId!)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false }),
         supabase
           .from('offers')
-          .select('id, status, created_at, sent_at')
+          .select('id, status, created_at, sent_at, response_due')
           .eq('submission_id', submissionId!)
           .order('created_at', { ascending: false })
           .order('id', { ascending: false }),
@@ -97,6 +100,7 @@ export function useSubmissionState(
         cancelledAt: r.cancelled_at,
         feedback: r.feedback,
         requestedBy: r.requested_by ?? null,
+        round: r.round ?? 1,
       }));
       const rejections: VerlaufRejection[] = ((rejRes.data || []) as any[]).map((r) => ({
         createdAt: r.created_at,
@@ -108,6 +112,7 @@ export function useSubmissionState(
         status: r.status,
         createdAt: r.created_at,
         sentAt: r.sent_at,
+        responseDue: r.response_due ?? null,
       }));
 
       const { tab, archiveKind } = tabOf(stage, status);
@@ -121,9 +126,9 @@ export function useSubmissionState(
         stage || status || 'submitted',
         hours,
         latestInterview
-          ? { status: latestInterview.status, scheduledAt: latestInterview.scheduledAt, feedback: latestInterview.feedback }
+          ? { status: latestInterview.status, scheduledAt: latestInterview.scheduledAt, feedback: latestInterview.feedback, round: latestInterview.round }
           : null,
-        offers[0] ? { status: offers[0].status } : null
+        offers[0] ? { status: offers[0].status, responseDue: offers[0].responseDue } : null
       );
       const state = datedState(rawState, latestInterview, rejections[0] ?? null, archiveKind);
 

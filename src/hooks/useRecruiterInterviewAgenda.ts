@@ -20,6 +20,11 @@ export interface RecruiterInterview {
   meetingType: string | null;
   joinUrl: string | null;
   onsiteAddress: string | null;
+  /** Vor Ort: Empfang/Anfahrt und Ansprechpartner (Name, Telefon) */
+  onsiteNote: string | null;
+  onsiteContact: string | null;
+  /** Runde des Gesprächs (1, 2, …) */
+  round: number;
   notes: string | null;
   feedback: string | null;
   createdAt: string;
@@ -119,7 +124,7 @@ export function useRecruiterInterviewAgenda() {
         .from('interviews')
         .select(
           `id, submission_id, scheduled_at, duration_minutes, status, meeting_type, meeting_format,
-           meeting_link, teams_join_url, google_meet_link, onsite_address, notes, feedback,
+           meeting_link, teams_join_url, google_meet_link, onsite_address, location_note, onsite_contact_name, onsite_contact_phone, round, notes, feedback,
            proposed_slots, counter_slots, candidate_message, cancellation_reason, cancelled_by,
            no_show_by, created_at,
            submissions!inner(
@@ -184,6 +189,9 @@ export function useRecruiterInterviewAgenda() {
           meetingType: r.meeting_type ?? r.meeting_format ?? null,
           joinUrl: r.teams_join_url ?? r.google_meet_link ?? r.meeting_link ?? null,
           onsiteAddress: r.onsite_address ?? null,
+          onsiteNote: r.location_note ?? null,
+          onsiteContact: [r.onsite_contact_name, r.onsite_contact_phone].filter(Boolean).join(', ') || null,
+          round: r.round ?? 1,
           notes: r.notes ?? null,
           feedback: r.feedback ?? null,
           createdAt: r.created_at,

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import {
   INTERVIEW_DURATIONS,
   MAX_PROPOSALS,
+  durationLabel,
   interviewApi,
   normalizeRules,
   weekStartOf,
@@ -97,9 +98,12 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const minWeek = weekStartOf(nowIso);
   const maxWeek = weekStartOf(nowIso, MAX_WEEKS_AHEAD);
 
-  const [format, setFormat] = useState<MeetingFormat>('teams');
+  // Ab Runde 2 meist ein Treffen vor Ort mit dem Team (ohne hinterlegte Anschrift fragt das Formular danach)
+  const [format, setFormat] = useState<MeetingFormat>(ctx.round >= 2 ? 'onsite' : 'teams');
   const [onsiteAddress, setOnsiteAddress] = useState(ctx.onsiteDefault ?? '');
-  const [locationNote, setLocationNote] = useState('');
+  const [locationNote, setLocationNote] = useState(ctx.locationNoteDefault ?? '');
+  const [contactName, setContactName] = useState(ctx.onsiteContactDefault?.name ?? '');
+  const [contactPhone, setContactPhone] = useState(ctx.onsiteContactDefault?.phone ?? '');
   const [duration, setDuration] = useState(60);
   const [attendees, setAttendees] = useState<AttendeeDraft[]>(() => initialAttendees(ctx));
   const [weekStart, setWeekStart] = useState(() => initialWeekStart(nowIso));
@@ -149,6 +153,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
     meetingFormat: format,
     onsiteAddress: format === 'onsite' ? onsiteAddress.trim() : null,
     locationNote: format === 'onsite' ? locationNote.trim() || null : null,
+    onsiteContactName: format === 'onsite' ? contactName.trim() || null : null,
+    onsiteContactPhone: format === 'onsite' ? contactPhone.trim() || null : null,
     durationMinutes: duration,
     slots: [...selected].sort((a, b) => Date.parse(a) - Date.parse(b)),
     attendees: attendees.map((a) => (isMe(a) ? { ...a, required: true } : a)),
@@ -170,6 +176,9 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
       if (result.warning) toast.warning(result.warning);
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
       queryClient.invalidateQueries({ queryKey: ['interview-availability'] });
+      // Ab Runde 2 bleibt die Stufe gleich: Zustand im Profil und in der Liste neu laden
+      queryClient.invalidateQueries({ queryKey: ['submission-state'] });
+      queryClient.invalidateQueries({ queryKey: ['bewerber'] });
       onClose();
       onSent?.(result);
     },
@@ -231,7 +240,9 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
               </Chip>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {format === 'teams' && 'Teams-Link entsteht automatisch · Teilnahme mit App oder im Browser, kein Konto nötig'}
+              {format === 'teams' && (ctx.teamsLink === 'manual'
+                ? 'Ohne verbundenes Outlook entsteht kein Teams-Link. Nach der Buchung tragen Sie Ihren Link im Interview-Fenster ein, dann bekommen ihn alle per Mail.'
+                : 'Der Teams-Link entsteht beim Buchen · Teilnahme mit App oder im Browser, kein Konto nötig')}
               {format === 'phone' && 'Sie rufen den Kandidaten zum Termin an. Seine Nummer sehen Sie, sobald er bestätigt hat.'}
               {format === 'onsite' && 'Der Kandidat sieht die Adresse schon in der Einladung, mit Link zur Karte.'}
             </p>
@@ -240,7 +251,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             <div className="flex flex-wrap gap-2">
               {INTERVIEW_DURATIONS.map((d) => (
                 <Chip key={d} active={duration === d} onClick={() => setDuration(d)}>
-                  {d} Min
+                  {durationLabel(d)}
                 </Chip>
               ))}
             </div>
@@ -264,16 +275,26 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
                 {ctx.onsiteDefault ? 'Aus Ihren Firmendaten, änderbar' : 'Bitte die Anschrift für das Gespräch angeben'}
               </p>
             </div>
-            <div>
-              <label htmlFor="onsite-note" className="mb-1.5 block text-sm font-medium">Hinweis für den Kandidaten (optional)</label>
-              <Input
-                id="onsite-note"
-                value={locationNote}
-                onChange={(e) => setLocationNote(e.target.value)}
-                maxLength={300}
-                placeholder="Bitte am Empfang melden, Parkplätze im Hof"
-                className="text-sm"
-              />
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="onsite-note" className="mb-1.5 block text-sm font-medium">Empfang und Anfahrt (optional)</label>
+                <Input
+                  id="onsite-note"
+                  value={locationNote}
+                  onChange={(e) => setLocationNote(e.target.value)}
+                  maxLength={300}
+                  placeholder="3. OG, Empfang rechts · Parkhaus nebenan"
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <p className="mb-1.5 text-sm font-medium">Ansprechpartner vor Ort</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input aria-label="Name des Ansprechpartners" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={120} placeholder="Name" className="text-sm" />
+                  <Input aria-label="Telefon des Ansprechpartners" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={40} placeholder="Telefon" inputMode="tel" className="text-sm" />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Bekommen Kandidat und Headhunter, falls es am Empfang hakt.</p>
+              </div>
             </div>
           </div>
         )}

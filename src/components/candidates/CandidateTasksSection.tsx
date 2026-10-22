@@ -402,7 +402,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const waitingTasks = inboxWaiting.filter(i => i.candidateId === candidateId);
 
   const derivedLabel = (category: string) =>
-    category === 'interview_debrief_due' ? 'Nachgespräch' : category === 'client_review_stalled' ? 'Prüfung' : 'Nachfassen';
+    category === 'interview_debrief_due' ? 'Nachgespräch' : category === 'client_review_stalled' ? 'Prüfung'
+      : category === 'offer_deliver' ? 'Angebot' : category === 'recommendation_due' ? 'Empfehlung'
+        : category === 'offer_counter_stalled' ? 'Gegenwunsch' : 'Nachfassen';
 
   const handleCompleteDerivedTask = async (item: UnifiedTaskItem, e?: React.MouseEvent) => {
     e?.stopPropagation();

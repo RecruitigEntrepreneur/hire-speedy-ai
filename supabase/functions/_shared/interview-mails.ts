@@ -21,15 +21,26 @@ export interface MeetingInfo {
   address?: string | null;
   note?: string | null;
   callPhone?: string | null;
+  /** Vor Ort: Ansprechpartner am Empfang */
+  contactName?: string | null;
+  contactPhone?: string | null;
+}
+
+/** „Sandra Weiß, 089 …“ – leer, wenn nichts angegeben ist. */
+export function contactLine(m: MeetingInfo): string {
+  return [m.contactName?.trim(), m.contactPhone?.trim()].filter(Boolean).join(', ');
 }
 
 export const mapsUrl = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.replace(/\s*\n\s*/g, ', '))}`;
 
 /** Ein Satz für die Einladung: „60 Minuten über Microsoft Teams.“ usw. */
+/** „60 Minuten“, ab 2 Stunden „3 Stunden“. */
+export const durationWords = (minutes: number) => (minutes >= 120 && minutes % 60 === 0 ? `${minutes / 60} Stunden` : `${minutes} Minuten`);
+
 export function formatSentence(m: MeetingInfo, minutes: number): string {
-  if (m.format === 'phone') return `${minutes} Minuten am Telefon, ${m.companyName} ruft Sie an.`;
-  if (m.format === 'onsite') return `${minutes} Minuten vor Ort${m.address ? `: ${m.address.replace(/\s*\n\s*/g, ', ')}` : ''}.`;
-  return `${minutes} Minuten über Microsoft Teams.`;
+  if (m.format === 'phone') return `${durationWords(minutes)} am Telefon, ${m.companyName} ruft Sie an.`;
+  if (m.format === 'onsite') return `${durationWords(minutes)} vor Ort${m.address ? `: ${m.address.replace(/\s*\n\s*/g, ', ')}` : ''}.`;
+  return `${durationWords(minutes)} über Microsoft Teams.`;
 }
 
 /** Kurzes Etikett: „Microsoft Teams“, „Telefon“, „Vor Ort“. */
@@ -37,10 +48,14 @@ export const formatLabel = (f: MeetingInfo['format']) => (f === 'phone' ? 'Telef
 
 function locationHtml(m: MeetingInfo) {
   if (m.format === 'onsite' && m.address) {
-    return p(`<strong>Adresse:</strong> ${esc(m.address).replace(/\n/g, '<br>')} · <a href="${esc(mapsUrl(m.address))}">Karte öffnen</a>${m.note ? `<br>${muted(esc(m.note))}` : ''}`);
+    const contact = contactLine(m);
+    return p(`<strong>Adresse:</strong> ${esc(m.address).replace(/\n/g, '<br>')} · <a href="${esc(mapsUrl(m.address))}">Karte öffnen</a>${m.note ? `<br>${muted(esc(m.note))}` : ''}${contact ? `<br>${muted('Ansprechpartner vor Ort:')} ${esc(contact)}` : ''}`);
   }
   return '';
 }
+
+/** Überschrift je Runde: Runde 1 ist ein Kennenlernen, ab Runde 2 ein weiteres Gespräch. */
+const roundTitle = (round: number) => (round > 1 ? `${round}. Gespräch` : 'Interview');
 
 function interviewerLine(people: PersonRef[]) {
   if (!people.length) return '';
@@ -69,8 +84,12 @@ export function candidateInvitation(o: {
   const meeting: MeetingInfo = o.meeting ?? { format: 'teams', companyName: o.companyName };
   const roundWord = o.round > 1 ? `zu einem ${o.round}. Gespräch` : '';
   const moved = o.reschedule ? `${formatBerlinDateLong(o.reschedule.previousStart)}, ${formatBerlinTime(o.reschedule.previousStart)} Uhr` : null;
-  const subject = moved ? `Neuer Terminvorschlag: ${o.jobTitle} bei ${o.companyName}` : `Interview-Einladung: ${o.jobTitle} bei ${o.companyName}`;
-  const heading = moved ? `${o.companyName} möchte Ihren Termin verschieben` : `${o.companyName} möchte Sie kennenlernen`;
+  const subject = moved
+    ? `Neuer Terminvorschlag: ${o.jobTitle} bei ${o.companyName}`
+    : o.round > 1 ? `Einladung zum ${o.round}. Gespräch: ${o.jobTitle} bei ${o.companyName}` : `Interview-Einladung: ${o.jobTitle} bei ${o.companyName}`;
+  const heading = moved
+    ? `${o.companyName} möchte Ihren Termin verschieben`
+    : o.round > 1 ? `${o.companyName} lädt Sie zum ${o.round}. Gespräch ein` : `${o.companyName} möchte Sie kennenlernen`;
   const slotRows = o.slots.map((s) =>
     `<tr><td style="padding:8px 0;border-top:1px solid #e5e7eb;">${esc(formatBerlinRange(s, o.durationMinutes))}</td>` +
     `<td style="padding:8px 0;border-top:1px solid #e5e7eb;text-align:right;"><a href="${esc(`${o.link}?slot=${encodeURIComponent(s)}`)}" style="color:#111827;font-weight:600;">wählen</a></td></tr>`).join('');
@@ -78,7 +97,9 @@ export function candidateInvitation(o: {
     p(`Hallo${o.firstName ? ` ${esc(o.firstName)}` : ''},`),
     moved
       ? p(`${esc(o.companyName)} muss Ihren Termin für die Stelle <strong>${esc(o.jobTitle)}</strong> am <strong>${esc(moved)}</strong> leider verschieben. Bitte wählen Sie eine neue Zeit – bis dahin bleibt der bisherige Termin bestehen. ${esc(formatSentence(meeting, o.durationMinutes))}`)
-      : p(`${esc(o.companyName)} möchte Sie ${roundWord ? `${roundWord} ` : ''}für die Stelle <strong>${esc(o.jobTitle)}</strong> kennenlernen. ${esc(formatSentence(meeting, o.durationMinutes))}`),
+      : o.round > 1
+        ? p(`${esc(o.companyName)} möchte Sie ${roundWord} für die Stelle <strong>${esc(o.jobTitle)}</strong> einladen. ${esc(formatSentence(meeting, o.durationMinutes))}`)
+        : p(`${esc(o.companyName)} möchte Sie für die Stelle <strong>${esc(o.jobTitle)}</strong> kennenlernen. ${esc(formatSentence(meeting, o.durationMinutes))}`),
     locationHtml(meeting),
     o.interviewers.length ? p(`${muted('Gesprächspartner:')} ${esc(interviewerLine(o.interviewers))}`) : '',
     o.message ? quote(o.message) : '',
@@ -102,8 +123,11 @@ export function candidateInvitation(o: {
       `Hallo${o.firstName ? ` ${o.firstName}` : ''},`, '',
       moved
         ? `${o.companyName} muss Ihren Termin am ${moved} verschieben. Bis Sie eine neue Zeit wählen, bleibt er bestehen. ${formatSentence(meeting, o.durationMinutes)}`
-        : `${o.companyName} möchte Sie für die Stelle ${o.jobTitle} kennenlernen. ${formatSentence(meeting, o.durationMinutes)}`,
+        : o.round > 1
+          ? `${o.companyName} möchte Sie ${roundWord} für die Stelle ${o.jobTitle} einladen. ${formatSentence(meeting, o.durationMinutes)}`
+          : `${o.companyName} möchte Sie für die Stelle ${o.jobTitle} kennenlernen. ${formatSentence(meeting, o.durationMinutes)}`,
       meeting.format === 'onsite' && meeting.note && `Hinweis: ${meeting.note}`,
+      meeting.format === 'onsite' && contactLine(meeting) && `Ansprechpartner vor Ort: ${contactLine(meeting)}`,
       o.interviewers.length > 0 && `Gesprächspartner: ${interviewerLine(o.interviewers)}`,
       o.message && `Nachricht: „${o.message}“`, '',
       'Terminvorschläge:', ...o.slots.map((s) => `- ${formatBerlinRange(s, o.durationMinutes)}`), '',
@@ -113,17 +137,18 @@ export function candidateInvitation(o: {
   };
 }
 
-export function candidateBooked(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string | null; recruiter: { name: string; phone: string | null } | null; link: string; meeting?: MeetingInfo }): MailContent {
+export function candidateBooked(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string | null; recruiter: { name: string; phone: string | null } | null; link: string; meeting?: MeetingInfo; round?: number }): MailContent {
+  const round = o.round ?? 1;
   const meeting: MeetingInfo = o.meeting ?? { format: 'teams', companyName: o.companyName, joinUrl: o.joinUrl };
   const when = `${formatBerlinDateLong(o.startIso)}, ${formatBerlinTime(o.startIso)}–${formatBerlinTime(Date.parse(o.startIso) + o.durationMinutes * 60000)} Uhr`;
   const how = meeting.format === 'phone'
     ? `${esc(o.companyName)} ruft Sie zum Termin an${meeting.callPhone ? ` unter ${esc(meeting.callPhone)}` : ''}. Die Kalendereinladung hängt an dieser Mail.`
     : meeting.format === 'onsite'
       ? 'Die Kalendereinladung mit der Adresse hängt an dieser Mail.'
-      : o.joinUrl ? 'Die Kalendereinladung mit dem Teams-Link hängt an dieser Mail. Sie können mit der Teams-App oder im Browser teilnehmen, ein Konto brauchen Sie nicht.' : 'Den Teams-Link schicken wir Ihnen rechtzeitig vor dem Termin.';
+      : o.joinUrl ? 'Die Kalendereinladung mit dem Teams-Link hängt an dieser Mail. Sie können mit der Teams-App oder im Browser teilnehmen, ein Konto brauchen Sie nicht.' : 'Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht. Die Kalendereinladung hängt schon an.';
   const body = [
     p(`Hallo${o.firstName ? ` ${esc(o.firstName)}` : ''},`),
-    p(`Ihr Interview mit ${esc(o.companyName)} für <strong>${esc(o.jobTitle)}</strong> steht:`),
+    p(`Ihr ${round > 1 ? `${round}. Gespräch` : 'Interview'} mit ${esc(o.companyName)} für <strong>${esc(o.jobTitle)}</strong> steht:`),
     p(`<strong>${esc(when)}</strong><br>${muted(`${formatLabel(meeting.format)} · ${zone(o.startIso)}`)}`),
     locationHtml(meeting),
     p(how),
@@ -131,9 +156,9 @@ export function candidateBooked(o: { firstName: string | null; companyName: stri
   const cta = meeting.format === 'teams' && o.joinUrl ? { label: 'Teams-Besprechung öffnen', url: o.joinUrl }
     : meeting.format === 'onsite' && meeting.address ? { label: 'Anfahrt in Karte öffnen', url: mapsUrl(meeting.address) } : undefined;
   return {
-    subject: `Interview bestätigt: ${o.jobTitle} bei ${o.companyName}`,
-    html: layout({ preheader: when, heading: 'Ihr Interview steht', body, cta, after: o.recruiter ? `Umbuchen oder absagen? Melden Sie sich bei ${esc(o.recruiter.name)}${o.recruiter.phone ? `, ${esc(o.recruiter.phone)}` : ''}.` : undefined, footnote: o.link ? `Ihre Übersicht: <a href="${esc(o.link)}">${esc(o.link)}</a>` : undefined }),
-    text: plain(`Ihr Interview mit ${o.companyName} für ${o.jobTitle} steht:`, when, formatLabel(meeting.format), meeting.format === 'teams' && o.joinUrl && `Teams: ${o.joinUrl}`, meeting.format === 'onsite' && meeting.address && `Adresse: ${meeting.address}`, o.recruiter && `Fragen: ${o.recruiter.name}${o.recruiter.phone ? `, ${o.recruiter.phone}` : ''}`),
+    subject: `${roundTitle(round)} bestätigt: ${o.jobTitle} bei ${o.companyName}`,
+    html: layout({ preheader: when, heading: round > 1 ? `Ihr ${round}. Gespräch steht` : 'Ihr Interview steht', body, cta, after: o.recruiter ? `Umbuchen oder absagen? Melden Sie sich bei ${esc(o.recruiter.name)}${o.recruiter.phone ? `, ${esc(o.recruiter.phone)}` : ''}.` : undefined, footnote: o.link ? `Ihre Übersicht: <a href="${esc(o.link)}">${esc(o.link)}</a>` : undefined }),
+    text: plain(`Ihr Interview mit ${o.companyName} für ${o.jobTitle} steht:`, when, formatLabel(meeting.format), meeting.format === 'teams' && o.joinUrl && `Teams: ${o.joinUrl}`, meeting.format === 'onsite' && meeting.address && `Adresse: ${meeting.address}`, meeting.format === 'onsite' && contactLine(meeting) && `Ansprechpartner vor Ort: ${contactLine(meeting)}`, o.recruiter && `Fragen: ${o.recruiter.name}${o.recruiter.phone ? `, ${o.recruiter.phone}` : ''}`),
   };
 }
 
@@ -158,7 +183,7 @@ export function candidateWithdrawn(o: { firstName: string | null; companyName: s
 
 // --- Headhunter ---------------------------------------------------------------
 
-export function recruiterRequested(o: { recruiterFirstName: string | null; candidateName: string; candidatePhone: string | null; companyName: string; jobTitle: string; slots: string[]; durationMinutes: number; round: number; detailUrl: string; format?: MeetingInfo['format']; previousStart?: string | null }): MailContent {
+export function recruiterRequested(o: { recruiterFirstName: string | null; candidateName: string; candidatePhone: string | null; companyName: string; jobTitle: string; slots: string[]; durationMinutes: number; round: number; detailUrl: string; format?: MeetingInfo['format']; previousStart?: string | null; meeting?: MeetingInfo | null }): MailContent {
   const first = o.slots[0];
   const moved = o.previousStart ? `${formatBerlinDateLong(o.previousStart)}, ${formatBerlinTime(o.previousStart)} Uhr` : null;
   const heading = moved ? `${o.companyName} möchte den Termin mit ${o.candidateName} verschieben` : `${o.companyName} möchte ${o.candidateName} sprechen`;
@@ -168,6 +193,7 @@ export function recruiterRequested(o: { recruiterFirstName: string | null; candi
       ? p(`${esc(o.companyName)} möchte den Termin mit <strong>${esc(o.candidateName)}</strong> für <strong>${esc(o.jobTitle)}</strong> am <strong>${esc(moved)}</strong> verschieben. Neue Vorschläge sind an ${esc(o.candidateName.split(' ')[0])} gegangen; der bisherige Termin bleibt bis zur Wahl bestehen.`)
       : p(`${esc(o.companyName)} möchte <strong>${esc(o.candidateName)}</strong> ${o.round > 1 ? `zu einem ${o.round}. Gespräch ` : ''}für <strong>${esc(o.jobTitle)}</strong> sprechen. Die Einladung ist gerade an ${esc(o.candidateName.split(' ')[0])} gegangen.`),
     p(`${muted(`${formatLabel(o.format ?? 'teams')} · `)}${o.durationMinutes} Min${first ? ` · ${o.slots.length} Vorschläge ab ${esc(formatBerlinRange(first, o.durationMinutes))}` : ''}`),
+    o.meeting ? locationHtml(o.meeting) : '',
     p(`Ein kurzer Anruf hilft: ${o.candidatePhone ? `<a href="tel:${esc(o.candidatePhone)}">${esc(o.candidatePhone)}</a>` : 'Telefonnummer steht in der Kandidatenakte'}. Bestätigen kann nur ${esc(o.candidateName.split(' ')[0])} selbst.`),
   ].join('');
   return {
@@ -202,7 +228,8 @@ export function clientRescheduleDeclined(o: { candidateLabel: string; jobTitle: 
   return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Interviews öffnen', url: o.agendaUrl } }), text: plain(heading, when, o.reason && `Nachricht: ${o.reason}`, o.agendaUrl) };
 }
 
-export function clientBooked(o: { candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; inOutlook: boolean; profileUrl: string; meeting?: MeetingInfo }): MailContent {
+export function clientBooked(o: { candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; inOutlook: boolean; profileUrl: string; meeting?: MeetingInfo; round?: number }): MailContent {
+  const round = o.round ?? 1;
   const meeting: MeetingInfo = o.meeting ?? { format: 'teams', companyName: '' };
   const when = formatBerlinRange(o.startIso, o.durationMinutes);
   const what = meeting.format === 'teams' ? 'Der Termin mit Teams-Link' : 'Der Termin';
@@ -211,9 +238,11 @@ export function clientBooked(o: { candidateName: string; jobTitle: string; start
     meeting.format === 'phone' ? p(`<strong>Bitte rufen Sie ${esc(o.candidateName)} an:</strong> ${meeting.callPhone ? `<a href="tel:${esc(meeting.callPhone)}">${esc(meeting.callPhone)}</a>` : 'die Nummer steht im Profil'}`) : '',
     meeting.format === 'onsite' && meeting.address ? p(`${esc(o.candidateName)} kommt zu: ${esc(meeting.address).replace(/\n/g, ', ')}`) : '',
     p(o.inOutlook ? `${what} steht in Ihrem Outlook. Ihre Kollegen haben die Einladung von Ihnen bekommen.` : `Die Kalendereinladung hängt an dieser Mail.`),
-    p('Name, Kontakt und Lebenslauf sind jetzt in Matchunt freigegeben.'),
+    round === 1 ? p('Name, Kontakt und Lebenslauf sind jetzt in Matchunt freigegeben.') : '',
+    meeting.format === 'teams' && !meeting.joinUrl ? p('Ein Teams-Link ist nicht entstanden. Tragen Sie Ihren Link im Interview-Fenster ein, dann bekommen ihn alle per Mail.') : '',
   ].join('');
-  return { subject: `${o.candidateName} hat das Interview bestätigt`, html: layout({ preheader: when, heading: `${o.candidateName} hat das Interview bestätigt`, body, cta: { label: 'Profil öffnen', url: o.profileUrl } }), text: plain(`${o.candidateName} hat das Interview bestätigt: ${when}.`, meeting.format === 'phone' && meeting.callPhone && `Anrufen: ${meeting.callPhone}`, o.profileUrl) };
+  const what2 = round > 1 ? `das ${round}. Gespräch` : 'das Interview';
+  return { subject: `${o.candidateName} hat ${what2} bestätigt`, html: layout({ preheader: when, heading: `${o.candidateName} hat ${what2} bestätigt`, body, cta: { label: 'Profil öffnen', url: o.profileUrl } }), text: plain(`${o.candidateName} hat das Interview bestätigt: ${when}.`, meeting.format === 'phone' && meeting.callPhone && `Anrufen: ${meeting.callPhone}`, o.profileUrl) };
 }
 
 export function clientAlternative(o: { candidateLabel: string; jobTitle: string; startIso: string; durationMinutes: number; message: string | null; confirmUrl: string; agendaUrl: string }): MailContent {
@@ -285,4 +314,89 @@ export function itConsentRequest(o: { requesterName: string; companyName: string
 export function itApproved(o: { name: string; connectUrl: string }): MailContent {
   const body = p(`Hallo ${esc(o.name.split(' ')[0] || '')}, Ihre IT hat die Matchunt-Kalender-App freigegeben. Sie können Outlook jetzt mit einem Klick verbinden.`);
   return { subject: 'Ihre IT hat zugestimmt', html: layout({ preheader: 'Outlook jetzt verbinden', heading: 'Ihre IT hat zugestimmt', body, cta: { label: 'Jetzt verbinden', url: o.connectUrl } }), text: plain('Ihre IT hat zugestimmt.', o.connectUrl) };
+}
+
+// --- Nachträglich eingetragener Link -------------------------------------------
+
+export function linkAdded(o: { name: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string }): MailContent {
+  const when = formatBerlinRange(o.startIso, o.durationMinutes);
+  const body = [
+    p(`Hallo${o.name ? ` ${esc(o.name)}` : ''},`),
+    p(`für das Gespräch <strong>${esc(when)}</strong> (${esc(o.jobTitle)}, ${esc(o.companyName)}) steht jetzt der Link fest. Die aktualisierte Kalendereinladung hängt an.`),
+  ].join('');
+  return {
+    subject: `Link für Ihr Gespräch: ${o.jobTitle}`,
+    html: layout({ preheader: when, heading: 'Der Link zum Gespräch', body, cta: { label: 'Gespräch öffnen', url: o.joinUrl } }),
+    text: plain(`Link für das Gespräch ${when}: ${o.joinUrl}`),
+  };
+}
+
+// --- Feedback des Kunden an den Headhunter -------------------------------------
+
+export type FeedbackWay = 'next_round' | 'offer' | 'unsure' | 'reject';
+export const FEEDBACK_LABEL: Record<FeedbackWay, string> = {
+  next_round: 'nächste Runde',
+  offer: 'Angebot',
+  unsure: 'noch unsicher',
+  reject: 'Absage',
+};
+
+export function recruiterFeedback(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; round: number; way: FeedbackWay; impression: string | null; akteUrl: string }): MailContent {
+  const next = o.way === 'next_round'
+    ? `${esc(o.companyName)} plant ein weiteres Gespräch. Sprich heute noch mit ${esc(o.candidateName.split(' ')[0])}, wie es für ihn war.`
+    : o.way === 'offer'
+      ? `${esc(o.companyName)} möchte ${esc(o.candidateName.split(' ')[0])} ein Angebot machen. Sprich mit ihm und schick deine Empfehlung, bevor ${esc(o.companyName)} Zahlen schreibt.`
+      : o.way === 'unsure'
+        ? `${esc(o.companyName)} ist noch unsicher. Ein kurzer Anruf beim Kunden hilft, die offenen Punkte zu klären.`
+        : `${esc(o.companyName)} sagt ab. Die Absage mit Grund folgt; informiere ${esc(o.candidateName.split(' ')[0])} persönlich.`;
+  const heading = `${o.companyName} nach ${o.round > 1 ? `dem ${o.round}. Gespräch` : 'dem Interview'}: ${FEEDBACK_LABEL[o.way]}`;
+  const body = [
+    p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
+    p(`Feedback zu <strong>${esc(o.candidateName)}</strong> für <strong>${esc(o.jobTitle)}</strong>:`),
+    o.impression ? quote(o.impression) : '',
+    p(next),
+  ].join('');
+  return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }), text: plain(heading, o.impression && `„${o.impression}“`, o.akteUrl) };
+}
+
+// --- Erinnerung am Vortag --------------------------------------------------------
+
+export function candidateReminder(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; round: number; meeting: MeetingInfo; interviewers: PersonRef[]; recruiter: { name: string; phone: string | null } | null }): MailContent {
+  const when = `${formatBerlinTime(o.startIso)}–${formatBerlinTime(Date.parse(o.startIso) + o.durationMinutes * 60000)} Uhr`;
+  const m = o.meeting;
+  const heading = m.format === 'onsite'
+    ? `Morgen ${formatBerlinTime(o.startIso)} Uhr bei ${o.companyName}`
+    : `Morgen ${formatBerlinTime(o.startIso)} Uhr: ${roundTitle(o.round)} mit ${o.companyName}`;
+  const how = m.format === 'onsite'
+    ? ''
+    : m.format === 'phone'
+      ? p(`${esc(o.companyName)} ruft Sie an${m.callPhone ? ` unter ${esc(m.callPhone)}` : ''}.`)
+      : p(m.joinUrl ? `Teams-Link: <a href="${esc(m.joinUrl)}">${esc(m.joinUrl)}</a>` : 'Den Link bekommen Sie per Mail, sobald er feststeht.');
+  const body = [
+    p(`Hallo${o.firstName ? ` ${esc(o.firstName)}` : ''},`),
+    p(`kurze Erinnerung: morgen, <strong>${esc(formatBerlinDateLong(o.startIso))}, ${esc(when)}</strong>, ${o.round > 1 ? `Ihr ${o.round}. Gespräch` : 'Ihr Interview'} für <strong>${esc(o.jobTitle)}</strong>.`),
+    locationHtml(m),
+    how,
+    o.interviewers.length ? p(`${muted('Gesprächspartner:')} ${esc(interviewerLine(o.interviewers))}`) : '',
+  ].join('');
+  const cta = m.format === 'onsite' && m.address ? { label: 'Anfahrt', url: mapsUrl(m.address) } : m.format === 'teams' && m.joinUrl ? { label: 'Teams öffnen', url: m.joinUrl } : undefined;
+  return {
+    subject: heading,
+    html: layout({ preheader: o.jobTitle, heading, body, cta, after: o.recruiter ? `Etwas kommt dazwischen? Melden Sie sich bei ${esc(o.recruiter.name)}${o.recruiter.phone ? `, ${esc(o.recruiter.phone)}` : ''}.` : undefined }),
+    text: plain(heading, `${formatBerlinDateLong(o.startIso)}, ${when}`, m.format === 'onsite' && m.address && `Adresse: ${m.address}`, m.format === 'onsite' && contactLine(m) && `Ansprechpartner: ${contactLine(m)}`, m.format === 'teams' && m.joinUrl && `Teams: ${m.joinUrl}`, o.recruiter && `Fragen: ${o.recruiter.name}${o.recruiter.phone ? `, ${o.recruiter.phone}` : ''}`),
+  };
+}
+
+export function clientReminder(o: { name: string | null; candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; round: number; meeting: MeetingInfo; agendaUrl: string }): MailContent {
+  const when = formatBerlinRange(o.startIso, o.durationMinutes);
+  const heading = `Morgen: ${roundTitle(o.round)} mit ${o.candidateName}`;
+  const m = o.meeting;
+  const body = [
+    p(`Hallo${o.name ? ` ${esc(o.name.split(' ')[0])}` : ''},`),
+    p(`morgen, <strong>${esc(when)}</strong>, ${o.round > 1 ? `${o.round}. Gespräch` : 'Interview'} mit <strong>${esc(o.candidateName)}</strong> (${esc(o.jobTitle)}) · ${formatLabel(m.format)}.`),
+    m.format === 'onsite' && m.address ? p(`Ort: ${esc(m.address).replace(/\n/g, ', ')}${contactLine(m) ? ` · Empfang: ${esc(contactLine(m))}` : ''}`) : '',
+    m.format === 'teams' && !m.joinUrl ? p('Es gibt noch keinen Teams-Link. Bitte tragen Sie ihn im Interview-Fenster ein.') : '',
+    p('Leitfaden, Lebenslauf und Notizen finden Sie im Interview-Fenster.'),
+  ].join('');
+  return { subject: heading, html: layout({ preheader: when, heading, body, cta: { label: 'Interview öffnen', url: o.agendaUrl } }), text: plain(heading, when, o.agendaUrl) };
 }

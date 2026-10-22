@@ -16,7 +16,7 @@ import {
   Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useInterviewFeedback } from '@/hooks/useInterviewFeedback';
 import type { RecruiterInterview } from '@/hooks/useRecruiterInterviewAgenda';
 import { cn } from '@/lib/utils';
@@ -63,6 +63,19 @@ function waitingLabel(hours: number): string {
  *  3. Das Debrief geht nach interview_feedback (evaluator_id = auth.uid()), NICHT
  *     nach interviews.feedback — letzteres gehört dem Kunden.
  */
+/** Feedback des Kunden lesbar: Weg und Eindruck statt Rohdaten. */
+const FEEDBACK_WEG: Record<string, string> = { next_round: 'nächste Runde', proceed: 'nächste Runde', offer: 'Angebot', unsure: 'noch unsicher', maybe: 'noch unsicher', reject: 'Absage' };
+function clientFeedbackText(raw: string): string {
+  try {
+    const f = JSON.parse(raw);
+    const weg = FEEDBACK_WEG[f?.recommendation];
+    const text = String(f?.impression || f?.notes || '').trim();
+    return [weg ? `Weiter mit: ${weg}` : null, text ? `„${text}“` : null].filter(Boolean).join('\n') || 'Feedback gespeichert.';
+  } catch {
+    return raw;
+  }
+}
+
 export function RecruiterTerminSheet({
   interview,
   variant,
@@ -150,10 +163,11 @@ export function RecruiterTerminSheet({
     !!iv.scheduledAt;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="space-y-0 text-left">
-          <div className="flex items-center gap-3">
+    // Fenster in der Mitte statt von rechts (22.10.2026, wie alle Fenster im Einstellungsprozess)
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-y-auto sm:max-w-lg">
+        <DialogHeader className="space-y-0 text-left">
+          <div className="flex items-center gap-3 pr-6">
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
               aria-hidden="true"
@@ -161,13 +175,13 @@ export function RecruiterTerminSheet({
               <User className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <SheetTitle className="truncate text-sm">{iv.candidateName}</SheetTitle>
-              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+              <DialogTitle className="truncate text-sm">{iv.candidateName}</DialogTitle>
+              <DialogDescription className="flex items-center gap-1 truncate text-xs">
                 <span className="truncate">
                   {iv.jobTitle} · {iv.companyLabel}
                 </span>
                 {!iv.companyRevealed && <Lock className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />}
-              </p>
+              </DialogDescription>
             </div>
             <span
               className={cn(
@@ -178,7 +192,7 @@ export function RecruiterTerminSheet({
               {t(`recruiterTermin.pill.${pill.key}`)}
             </span>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         <p className="mt-3 text-sm text-muted-foreground">{ctx}</p>
 
@@ -210,6 +224,8 @@ export function RecruiterTerminSheet({
                   )}
                 >
                   {iv.onsiteAddress || t('recruiterTermin.no_address')}
+                  {iv.onsiteNote && <><br />{iv.onsiteNote}</>}
+                  {iv.onsiteContact && <><br />Ansprechpartner vor Ort: {iv.onsiteContact}</>}
                 </p>
               )}
             </div>
@@ -291,12 +307,13 @@ export function RecruiterTerminSheet({
             </div>
           )}
 
-          {iv.feedback && variant !== 'debrief' && (
+          {/* Feedback des Kunden auch vor dem Nachgespräch: Julia weiß, worauf sie eingehen muss */}
+          {iv.feedback && (
             <div className="rounded-lg bg-muted/50 p-3">
               <p className="mb-1 text-xs font-semibold text-muted-foreground">
                 {t('recruiterTermin.client_feedback')}
               </p>
-              <p className="whitespace-pre-line text-sm text-muted-foreground">{iv.feedback}</p>
+              <p className="whitespace-pre-line text-sm text-muted-foreground">{clientFeedbackText(iv.feedback)}</p>
             </div>
           )}
 
@@ -394,7 +411,7 @@ export function RecruiterTerminSheet({
             )}
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -113,6 +113,8 @@ export type FunctionKey = 'fachbereich' | 'fuehrungskraft' | 'geschaeftsfuehrung
 export const FUNCTION_LABELS: Record<FunctionKey, string> = { fachbereich: 'Fachbereich', fuehrungskraft: 'Führungskraft', geschaeftsfuehrung: 'Geschäftsführung', hr: 'HR', andere: 'Andere' };
 const FUNCTION_KEYS = Object.keys(FUNCTION_LABELS) as FunctionKey[];
 export type MeetingFormat = 'teams' | 'phone' | 'onsite';
+/** Erlaubte Dauern in Minuten; 3 und 4 Stunden für Gespräche vor Ort mit dem Team. */
+export const DURATIONS = [30, 45, 60, 90, 120, 180, 240];
 
 interface SubmissionBundle {
   submission: any;
@@ -203,11 +205,11 @@ async function teamOf(db: SupabaseClient, job: any, me: TeamPerson): Promise<Tea
 }
 
 const anonCode = (candidateId: string) => `PR-${String(candidateId ?? '').slice(0, 6).toUpperCase()}`;
+/** Firmenname für den Recruiter nur nach Reveal; sonst Branchen-Label. Triple-Blind gilt auch in Mails und Benachrichtigungen. */
+const recruiterCompanyLabel = (b: SubmissionBundle) => (b.submission.company_revealed ? b.job.company_name : (b.job.industry ? `${b.job.industry}-Unternehmen` : 'Unternehmen'));
 const candidateLabel = (b: SubmissionBundle) => (b.submission.identity_unlocked ? b.candidate.full_name : `${b.candidate.job_title || 'Kandidat'} · ${anonCode(b.candidate.id)}`);
 const firstName = (full: string | null | undefined) => (full ? full.trim().split(/\s+/)[0] : null);
 
-/** Firmenname für den Recruiter nur nach Reveal; sonst Branchen-Label. Triple-Blind gilt auch in Mails und Benachrichtigungen. */
-const recruiterCompanyLabel = (b: SubmissionBundle) => (b.submission.company_revealed ? b.job.company_name : (b.job.industry ? `${b.job.industry}-Unternehmen` : 'Unternehmen'));
 /** Rund um die Uhr, ohne Vorlauf: zum Prüfen einer einzelnen, frei gewählten Zeit. */
 const allDayRules = (bufferMinutes: number): InterviewHoursRules => ({
   weekly: Object.fromEntries(['1', '2', '3', '4', '5', '6', '7'].map((d) => [d, [['00:00', '23:59']]])) as InterviewHoursRules['weekly'],
@@ -369,7 +371,7 @@ const DEFAULT_MESSAGE = 'Vielen Dank für Ihr Interesse an der Stelle. Wir freue
 export async function requestContext(ctx: ServiceCtx, user: User, submissionId: string) {
   const bundle = await requireClient(ctx, user, submissionId);
   const me = await personOf(ctx.db, user);
-  const [team, recruiter, round, prev, calendar, hours, open, onsiteDefault, invite] = await Promise.all([
+  const [team, recruiter, round, prev, calendar, hours, open, onsiteDefault, invite, myProfile, lastOnsite] = await Promise.all([
     teamOf(ctx.db, bundle.job, me),
     profileOf(ctx.db, bundle.submission.recruiter_id),
     nextRound(ctx.db, submissionId),
@@ -379,7 +381,13 @@ export async function requestContext(ctx: ServiceCtx, user: User, submissionId: 
     openInterviewOf(ctx.db, submissionId),
     companyAddress(ctx.db, user.id, bundle.job.client_id),
     inviteRights(ctx.db, user.id, bundle.job),
+    profileOf(ctx.db, user.id),
+    ctx.db.from('interviews').select('onsite_contact_name, onsite_contact_phone, location_note')
+      .eq('submission_id', submissionId).eq('meeting_format', 'onsite').order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then((r: any) => r.data ?? null),
   ]);
+  // Entsteht beim Buchen ein Teams-Link? Mit verbundenem Outlook oder über das Matchunt-Konto.
+  const teamsLink: 'auto' | 'manual' = calendar.state === 'connected' || !!(ctx.ms?.appTenantId && ctx.ms?.organizerUserId) ? 'auto' : 'manual';
   return {
     submissionId,
     jobId: bundle.job.id,
@@ -395,9 +403,17 @@ export async function requestContext(ctx: ServiceCtx, user: User, submissionId: 
     previousAttendees: prev,
     calendar,
     hours,
-    defaultMessage: round > 1 ? 'Vielen Dank für das erste Gespräch. Wir möchten Sie gern zu einem weiteren Gespräch einladen.' : DEFAULT_MESSAGE,
+    defaultMessage: round > 2 ? 'Vielen Dank für die bisherigen Gespräche. Wir möchten Sie gern zu einem weiteren Gespräch einladen.'
+      : round > 1 ? 'Vielen Dank für das erste Gespräch. Wir möchten Sie gern zu einem weiteren Gespräch einladen.' : DEFAULT_MESSAGE,
     openRequest: open ? { interviewId: open.id, status: open.status, createdAt: open.created_at } : null,
     onsiteDefault,
+    // Ansprechpartner vor Ort: aus dem letzten Termin vor Ort, sonst Sie selbst
+    onsiteContactDefault: {
+      name: lastOnsite?.onsite_contact_name ?? (me.needsName ? '' : me.name),
+      phone: lastOnsite?.onsite_contact_phone ?? myProfile?.phone ?? '',
+    },
+    locationNoteDefault: lastOnsite?.location_note ?? null,
+    teamsLink,
     invite,
   };
 }
@@ -442,7 +458,7 @@ const WEEKDAY_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 export async function availability(ctx: ServiceCtx, user: User, body: any) {
   const bundle = await requireClient(ctx, user, body.submissionId);
   const duration = Number(body.durationMinutes);
-  must([30, 45, 60, 90, 120].includes(duration), 'Ungültige Dauer.');
+  must(DURATIONS.includes(duration), 'Ungültige Dauer.');
   must(typeof body.weekStart === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.weekStart), 'Ungültige Woche.');
   const me = await personOf(ctx.db, user);
   const team = await teamOf(ctx.db, bundle.job, me);
@@ -481,7 +497,7 @@ export async function availability(ctx: ServiceCtx, user: User, body: any) {
 export async function checkTime(ctx: ServiceCtx, user: User, body: any) {
   const bundle = await requireClient(ctx, user, body.submissionId);
   const duration = Number(body.durationMinutes);
-  must([30, 45, 60, 90, 120].includes(duration), 'Ungültige Dauer.');
+  must(DURATIONS.includes(duration), 'Ungültige Dauer.');
   const startMs = Date.parse(String(body.start ?? ''));
   must(Number.isFinite(startMs), 'Ungültige Uhrzeit.');
   must(startMs > ctx.now() + 30 * 60000, 'Termine müssen in der Zukunft liegen.');
@@ -509,6 +525,8 @@ interface SendDraft {
   meetingFormat: MeetingFormat;
   onsiteAddress: string | null;
   locationNote: string | null;
+  onsiteContactName: string | null;
+  onsiteContactPhone: string | null;
   durationMinutes: number;
   slots: string[];
   attendees: AttendeeDraft[];
@@ -521,7 +539,7 @@ interface SendDraft {
 
 function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPerson[]): SendDraft {
   const duration = Number(body.durationMinutes);
-  must([30, 45, 60, 90, 120].includes(duration), 'Bitte eine Dauer wählen.');
+  must(DURATIONS.includes(duration), 'Bitte eine Dauer wählen.');
   const raw = Array.isArray(body.slots) ? body.slots : [];
   must(raw.length >= 1, 'Bitte mindestens einen Termin vorschlagen.');
   must(raw.length <= 5, 'Bitte höchstens 5 Termine vorschlagen.');
@@ -536,10 +554,15 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
   const onsiteAddress = typeof body.onsiteAddress === 'string' ? body.onsiteAddress.trim().slice(0, 300) : '';
   const locationNote = typeof body.locationNote === 'string' ? body.locationNote.trim().slice(0, 300) : '';
   if (meetingFormat === 'onsite') must(onsiteAddress.length >= 5, 'Bitte die Adresse für das Gespräch vor Ort angeben.');
+  const contactName = typeof body.onsiteContactName === 'string' ? body.onsiteContactName.trim().slice(0, 120) : '';
+  const contactPhone = typeof body.onsiteContactPhone === 'string' ? body.onsiteContactPhone.trim().slice(0, 40) : '';
+  if (meetingFormat === 'onsite' && contactPhone) must(/^[+\d][\d\s/()-]{5,}$/.test(contactPhone), 'Bitte eine gültige Telefonnummer für den Ansprechpartner angeben.');
   return {
     meetingFormat,
     onsiteAddress: meetingFormat === 'onsite' ? onsiteAddress : null,
     locationNote: meetingFormat === 'onsite' && locationNote ? locationNote : null,
+    onsiteContactName: meetingFormat === 'onsite' && contactName ? contactName : null,
+    onsiteContactPhone: meetingFormat === 'onsite' && contactPhone ? contactPhone : null,
     durationMinutes: duration,
     slots,
     attendees: cleanAttendees(body.attendees, me, team),
@@ -557,7 +580,7 @@ function interviewerRefs(me: TeamPerson, attendees: AttendeeDraft[]) {
 }
 
 const draftMeeting = (draft: SendDraft, companyName: string): mails.MeetingInfo =>
-  ({ format: draft.meetingFormat, companyName, address: draft.onsiteAddress, note: draft.locationNote });
+  ({ format: draft.meetingFormat, companyName, address: draft.onsiteAddress, note: draft.locationNote, contactName: draft.onsiteContactName, contactPhone: draft.onsiteContactPhone });
 
 export async function preview(ctx: ServiceCtx, user: User, body: any) {
   const bundle = await requireClient(ctx, user, body.submissionId);
@@ -619,6 +642,8 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     meeting_type: draft.meetingFormat,
     onsite_address: draft.onsiteAddress,
     location_note: draft.locationNote,
+    onsite_contact_name: draft.onsiteContactName,
+    onsite_contact_phone: draft.onsiteContactPhone,
     client_message: draft.message,
     round,
     requested_by: user.id,
@@ -651,7 +676,11 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     for (const e of (earlier ?? []) as any[]) if (e.id !== iv!.id) await supersede(ctx, e.id, iv!.id, user.id);
   } else {
     if (open) await supersede(ctx, open.id, iv!.id, user.id);
-    await ctx.db.from('submissions').update({ stage: 'interview_requested', opt_in_requested_at: new Date(ctx.now()).toISOString() }).eq('id', bundle.submission.id);
+    // Vor der Freigabe wartet der Headhunter auf das Opt-In. Ab Runde 2 ist der Kandidat
+    // schon freigegeben: Stufe bleibt, sonst entsteht fälschlich „Opt-In einholen“.
+    if (!bundle.submission.identity_unlocked) {
+      await ctx.db.from('submissions').update({ stage: 'interview_requested', opt_in_requested_at: new Date(ctx.now()).toISOString() }).eq('id', bundle.submission.id);
+    }
   }
 
   const link = `${ctx.appUrl()}/interview/respond/${token}`;
@@ -688,12 +717,15 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
       detailUrl: `${ctx.appUrl()}/recruiter/submissions/${bundle.submission.id}`,
       format: draft.meetingFormat,
       previousStart: moving ? open!.scheduled_at : null,
+      meeting: draft.meetingFormat === 'onsite' ? draftMeeting(draft, recruiterCompanyLabel(bundle)) : null,
     });
     recruiterMail = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: recruiter.email, ...content }, { template: 'interview_requested_recruiter', meta: { interview_id: iv!.id } });
   }
   await notify(ctx, bundle.submission.recruiter_id, 'interview_requested',
-    moving ? `${recruiterCompanyLabel(bundle)} möchte den Termin mit ${bundle.candidate.full_name} verschieben` : `${recruiterCompanyLabel(bundle)} möchte ${bundle.candidate.full_name} sprechen`,
-    `${moving ? 'Verschiebung' : 'Interview-Anfrage'} für ${bundle.job.title}: ${draft.slots.length} Terminvorschläge.`, iv!.id);
+    moving
+      ? `${recruiterCompanyLabel(bundle)} möchte den Termin mit ${bundle.candidate.full_name} verschieben`
+      : round > 1 ? `${recruiterCompanyLabel(bundle)} lädt ${bundle.candidate.full_name} zum ${round}. Gespräch ein` : `${recruiterCompanyLabel(bundle)} möchte ${bundle.candidate.full_name} sprechen`,
+    `${moving ? 'Verschiebung' : round > 1 ? `${round}. Gespräch${draft.meetingFormat === 'onsite' ? ' vor Ort' : ''}` : 'Interview-Anfrage'} für ${bundle.job.title}: ${draft.slots.length === 1 ? '1 Terminvorschlag' : `${draft.slots.length} Terminvorschläge`}.`, iv!.id);
 
   return {
     interviewId: iv!.id,
@@ -721,6 +753,8 @@ export async function reschedule(ctx: ServiceCtx, user: User, body: any) {
     meetingFormat: formatOf(iv),
     onsiteAddress: iv.onsite_address ?? null,
     locationNote: iv.location_note ?? null,
+    onsiteContactName: iv.onsite_contact_name ?? null,
+    onsiteContactPhone: iv.onsite_contact_phone ?? null,
     durationMinutes: iv.duration_minutes ?? 60,
     slots: body.slots,
     attendees,
@@ -846,7 +880,11 @@ const maskPhone = (phone: string | null | undefined) => {
 /** Wie das Gespräch stattfindet, für Mails und Einladungen. */
 function meetingOf(b: InterviewBundle): mails.MeetingInfo {
   const iv = b.interview;
-  return { format: formatOf(iv), companyName: b.job.company_name, joinUrl: iv.teams_join_url ?? iv.meeting_link ?? null, address: iv.onsite_address ?? null, note: iv.location_note ?? null, callPhone: iv.call_phone ?? null };
+  return {
+    format: formatOf(iv), companyName: b.job.company_name, joinUrl: iv.teams_join_url ?? iv.meeting_link ?? null,
+    address: iv.onsite_address ?? null, note: iv.location_note ?? null, callPhone: iv.call_phone ?? null,
+    contactName: iv.onsite_contact_name ?? null, contactPhone: iv.onsite_contact_phone ?? null,
+  };
 }
 
 function icsLocation(m: mails.MeetingInfo): string {
@@ -894,7 +932,7 @@ export async function candidateView(ctx: ServiceCtx, b: InterviewBundle) {
     jobTitle: b.job.title,
     durationMinutes: iv.duration_minutes ?? 60,
     format: formatOf(iv),
-    onsite: formatOf(iv) === 'onsite' && iv.onsite_address ? { address: iv.onsite_address, note: iv.location_note ?? null, mapsUrl: mails.mapsUrl(iv.onsite_address) } : null,
+    onsite: formatOf(iv) === 'onsite' && iv.onsite_address ? { address: iv.onsite_address, note: iv.location_note ?? null, mapsUrl: mails.mapsUrl(iv.onsite_address), contact: mails.contactLine(meetingOf(b)) || null } : null,
     phoneOnFile: formatOf(iv) === 'phone' ? maskPhone(b.candidate.phone) : null,
     callPhone: formatOf(iv) === 'phone' ? maskPhone(iv.call_phone) : null,
     message: iv.client_message ?? null,
@@ -1160,8 +1198,10 @@ function inviteDescription(m: mails.MeetingInfo, extra: string) {
   const how = m.format === 'phone'
     ? `Telefon-Interview: ${m.companyName} ruft an${m.callPhone ? ` (${m.callPhone})` : ''}.`
     : m.format === 'onsite'
-      ? [`Vor Ort: ${(m.address ?? '').replace(/\s*\n\s*/g, ', ')}`, m.note, m.address ? `Karte: ${mails.mapsUrl(m.address)}` : null].filter(Boolean).join('\n')
-      : [m.joinUrl ? `Microsoft Teams: ${m.joinUrl}` : 'Den Teams-Link bekommen Sie rechtzeitig vor dem Termin.', 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.'].join('\n\n');
+      ? [`Vor Ort: ${(m.address ?? '').replace(/\s*\n\s*/g, ', ')}`, m.note, mails.contactLine(m) ? `Ansprechpartner vor Ort: ${mails.contactLine(m)}` : null, m.address ? `Karte: ${mails.mapsUrl(m.address)}` : null].filter(Boolean).join('\n')
+      : m.joinUrl
+        ? [`Microsoft Teams: ${m.joinUrl}`, 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.'].join('\n\n')
+        : 'Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht.';
   return [how, extra].filter(Boolean).join('\n\n');
 }
 
@@ -1174,6 +1214,7 @@ async function sendInvite(ctx: ServiceCtx, b: InterviewBundle, r: { key: string;
     method, uid, sequence, startIso: new Date(ics.startMs).toISOString(), durationMinutes: iv.duration_minutes ?? 60,
     summary: ics.summary, description: ics.description, location: icsLocation(meetingOf(b)), url: formatOf(iv) === 'teams' ? iv.teams_join_url ?? undefined : undefined,
     organizerEmail: ctx.fromEmail, organizerName: 'Matchunt Termine', attendeeEmail: r.email, attendeeName: r.name, nowMs: ctx.now(),
+    alarmMinutes: formatOf(iv) === 'onsite' ? 60 : 15,
   });
   const result = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt Termine', to: r.email, ...content, ics: { content: icsContent, method } }, { template, meta: { interview_id: iv.id, recipient: r.key } });
   await ctx.db.from('interview_invites').upsert({
@@ -1196,7 +1237,7 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   // Kandidat
   await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName },
     'REQUEST',
-    mails.candidateBooked({ firstName: firstName(candidateName), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, recruiter: recruiterRef, link: '', meeting }),
+    mails.candidateBooked({ firstName: firstName(candidateName), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, recruiter: recruiterRef, link: '', meeting, round: iv.round ?? 1 }),
     { summary: `Interview: ${b.job.title} bei ${b.job.company_name}`, description: inviteDescription(meeting, `Gesprächspartner: ${interviewerNames}${recruiterRef ? `\nFragen: ${recruiterRef.name}${recruiterRef.phone ? `, ${recruiterRef.phone}` : ''}` : ''}`), startMs },
     'interview_booked_candidate');
 
@@ -1212,7 +1253,7 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   const clientSide = b.attendees.length ? b.attendees : (await clientRecipients(ctx.db, b)).map((r, i) => ({ ...r, id: `legacy-${i}`, is_organizer: true }));
   for (const a of clientSide) {
     if (a.is_organizer) {
-      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting });
+      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting, round: iv.round ?? 1 });
       if (provider === 'client_calendar') {
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: a.email, ...content }, { template: 'interview_booked_client', meta: { interview_id: iv.id } });
       } else {
@@ -1457,8 +1498,9 @@ export async function interviewDetails(ctx: ServiceCtx, user: User, body: any) {
     durationMinutes: iv.duration_minutes ?? 60,
     format: formatOf(iv),
     joinUrl: meeting.joinUrl ?? null,
-    onsite: meeting.address ? { address: meeting.address, note: meeting.note ?? null, mapsUrl: mails.mapsUrl(meeting.address) } : null,
+    onsite: meeting.address ? { address: meeting.address, note: meeting.note ?? null, mapsUrl: mails.mapsUrl(meeting.address), contactName: meeting.contactName ?? null, contactPhone: meeting.contactPhone ?? null } : null,
     callPhone: iv.call_phone ?? null,
+    feedback: iv.feedback ?? null,
     inOutlook: iv.meeting_provider === 'client_calendar',
     proposedSlots: slots(iv.proposed_slots),
     counterSlot: slots(iv.counter_slots)[0] ?? null,
@@ -1538,4 +1580,174 @@ export async function saveInterviewGuide(ctx: ServiceCtx, user: User, body: any)
   const { error } = await ctx.db.from('interviews').update({ guide }).eq('id', b.interview.id);
   dbFail(error, 'Der Leitfaden');
   return { guide };
+}
+
+// ---------------------------------------------------------------------------
+// Feedback des Kunden nach dem Gespräch: vier Wege, Headhunter erfährt es sofort
+// ---------------------------------------------------------------------------
+
+const FEEDBACK_WAYS: mails.FeedbackWay[] = ['next_round', 'offer', 'unsure', 'reject'];
+const INTERVIEW_STAGES_OPEN = ['interview_requested', 'candidate_opted_in', 'interview_scheduled', 'interview_counter_proposed', 'interview_completed'];
+
+/** Gespeichertes Feedback lesen; ältere Fassungen nutzen proceed/maybe. */
+export function feedbackWay(raw: unknown): mails.FeedbackWay | null {
+  if (!raw) return null;
+  let v: any = raw;
+  if (typeof raw === 'string') {
+    try { v = JSON.parse(raw); } catch { return null; }
+  }
+  const r = v?.recommendation;
+  if (r === 'proceed') return 'next_round';
+  if (r === 'maybe') return 'unsure';
+  return FEEDBACK_WAYS.includes(r) ? r : null;
+}
+
+export async function saveFeedback(ctx: ServiceCtx, user: User, body: any) {
+  const b = await clientInterview(ctx, user, body?.interviewId);
+  const iv = b.interview;
+  must(['scheduled', 'completed', 'no_show'].includes(iv.status) && iv.scheduled_at, 'Für dieses Interview steht noch kein Termin.', 'conflict');
+  must(Date.parse(iv.scheduled_at) <= ctx.now(), 'Das Feedback ist nach dem Gespräch dran.', 'conflict');
+  must(!iv.feedback, 'Zu diesem Gespräch gibt es schon ein Feedback.', 'conflict');
+  const way = body?.way as mails.FeedbackWay;
+  must(FEEDBACK_WAYS.includes(way), 'Bitte wählen, wie es weitergeht.');
+  const text = (v: unknown, max = 2000) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const score = (v: unknown) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n >= 1 && n <= 5 ? n * 20 : null;
+  };
+  const impression = text(body.impression);
+  const round = iv.round ?? 1;
+  const feedback = {
+    recommendation: way,
+    impression,
+    notes: impression,
+    technical_score: score(body.scores?.technical),
+    communication: score(body.scores?.communication),
+    culture_fit: score(body.scores?.culture),
+    strengths: text(body.strengths),
+    concerns: text(body.concerns),
+    round,
+    submitted_by: user.id,
+    submitted_at: new Date(ctx.now()).toISOString(),
+  };
+  const { data: saved, error } = await ctx.db.from('interviews').update({ feedback: JSON.stringify(feedback), status: 'completed' })
+    .eq('id', iv.id).is('feedback', null).select('id').maybeSingle();
+  dbFail(error, 'Das Feedback');
+  must(saved, 'Zu diesem Gespräch gibt es schon ein Feedback.', 'conflict');
+
+  const stage = String(b.submission.stage ?? '');
+  if (INTERVIEW_STAGES_OPEN.includes(stage)) {
+    await ctx.db.from('submissions').update({ stage: 'interview_completed' }).eq('id', b.submission.id);
+  }
+
+  const company = recruiterCompanyLabel(b);
+  const label = mails.FEEDBACK_LABEL[way];
+  const title = `${company} nach ${round > 1 ? `dem ${round}. Gespräch` : 'dem Interview'}: ${label}`;
+  const { error: nErr } = await ctx.db.from('notifications').insert({
+    user_id: b.submission.recruiter_id, type: 'interview_feedback', title,
+    message: `${b.candidate.full_name}${impression ? ` · „${impression.slice(0, 160)}${impression.length > 160 ? '…' : ''}“` : ''}`,
+    related_type: 'candidate', related_id: b.candidate.id,
+  });
+  if (nErr) console.warn('[interview] Feedback-Benachrichtigung nicht gespeichert', nErr.code, nErr.message);
+  if (b.recruiter?.email) {
+    const content = mails.recruiterFeedback({
+      recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: company,
+      jobTitle: b.job.title, round, way, impression: impression || null,
+      akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
+    });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_feedback_recruiter', meta: { interview_id: iv.id, way } });
+  }
+  return { ok: true, way, round, nextRound: round + 1 };
+}
+
+// ---------------------------------------------------------------------------
+// Link nachtragen, wenn beim Buchen kein Teams-Link entstanden ist
+// ---------------------------------------------------------------------------
+
+export async function setMeetingLink(ctx: ServiceCtx, user: User, body: any) {
+  const b = await clientInterview(ctx, user, body?.interviewId);
+  const iv = b.interview;
+  must(formatOf(iv) === 'teams', 'Einen Link gibt es nur bei Gesprächen per Video.');
+  must(iv.status === 'scheduled' && iv.scheduled_at && Date.parse(iv.scheduled_at) > ctx.now() - 30 * 60000, 'Nur für einen gebuchten Termin, der noch nicht vorbei ist.', 'conflict');
+  const url = String(body?.url ?? '').trim();
+  must(/^https:\/\/\S{8,500}$/.test(url), 'Bitte einen gültigen Link mit https:// eintragen.');
+  const { error } = await ctx.db.from('interviews').update({ teams_join_url: url, meeting_link: url }).eq('id', iv.id);
+  dbFail(error, 'Der Link');
+  b.interview = { ...iv, teams_join_url: url, meeting_link: url };
+
+  const startMs = Date.parse(iv.scheduled_at);
+  const startIso = new Date(startMs).toISOString();
+  const duration = iv.duration_minutes ?? 60;
+  const candidateName = b.candidate.full_name;
+  const meeting: mails.MeetingInfo = { ...meetingOf(b), joinUrl: url };
+  const agendaUrl = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
+  const content = (name: string | null, company: string) => mails.linkAdded({ name, companyName: company, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl: url });
+
+  await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName }, 'REQUEST', content(firstName(candidateName), b.job.company_name),
+    { summary: `Interview: ${b.job.title} bei ${b.job.company_name}`, description: inviteDescription(meeting, ''), startMs }, 'interview_link_candidate');
+  if (b.recruiter?.email) {
+    await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name }, 'REQUEST', content(firstName(b.recruiter.name), recruiterCompanyLabel(b)),
+      { summary: `Interview ${candidateName} · ${b.job.company_name}`, description: inviteDescription(meeting, `Kandidat: ${candidateName}\nStelle: ${b.job.title}`), startMs }, 'interview_link_recruiter');
+  }
+  // Im Outlook-Fall steht der Termin beim Kunden selbst; sonst bekommen alle die aktualisierte Einladung
+  if (iv.meeting_provider !== 'client_calendar') {
+    for (const a of b.attendees) {
+      await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name }, 'REQUEST', content(firstName(a.name), b.job.company_name),
+        { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(meeting, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_link_client');
+    }
+  }
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Erinnerung am Vortag (Function interview-reminders, täglich)
+// ---------------------------------------------------------------------------
+
+export async function sendDayBeforeReminders(ctx: ServiceCtx) {
+  const tomorrow = nextDateKey(berlinDateKey(ctx.now()));
+  const after = nextDateKey(tomorrow);
+  const atMidnight = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return berlinLocalToUtc(y, m, d, 0, 0);
+  };
+  const { data: rows, error } = await ctx.db.from('interviews').select('id')
+    .eq('status', 'scheduled')
+    .gte('scheduled_at', new Date(atMidnight(tomorrow)).toISOString())
+    .lt('scheduled_at', new Date(atMidnight(after)).toISOString())
+    .or('reminder_24h_sent.is.null,reminder_24h_sent.eq.false');
+  dbFail(error, 'Die Erinnerungen');
+  let reminded = 0;
+  for (const row of (rows ?? []) as { id: string }[]) {
+    const b = await loadInterview(ctx.db, { id: row.id });
+    if (!b || !b.interview.scheduled_at) continue;
+    // Erst als erledigt markieren: läuft der Lauf doppelt, geht keine zweite Erinnerung raus
+    const { data: claimed } = await ctx.db.from('interviews').update({ reminder_24h_sent: true }).eq('id', row.id)
+      .or('reminder_24h_sent.is.null,reminder_24h_sent.eq.false').select('id').maybeSingle();
+    if (!claimed) continue;
+    const iv = b.interview;
+    const startIso = new Date(Date.parse(iv.scheduled_at)).toISOString();
+    const duration = iv.duration_minutes ?? 60;
+    const round = iv.round ?? 1;
+    const meeting = meetingOf(b);
+    const recruiterRef = b.recruiter ? { name: b.recruiter.name, phone: b.recruiter.phone } : null;
+    if (b.candidate.email) {
+      const content = mails.candidateReminder({
+        firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, round, meeting,
+        interviewers: b.attendees.map((a: any) => ({ name: a.name, title: a.title ?? null })), recruiter: recruiterRef,
+      });
+      await ctx.mail({ fromEmail: ctx.fromEmail, fromName: b.recruiter ? `${b.recruiter.name} über Matchunt` : 'Matchunt', to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined, ...content },
+        { template: 'interview_reminder_candidate', meta: { interview_id: iv.id } });
+    }
+    const agendaUrl = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
+    const clientSide = b.attendees.length ? b.attendees : await clientRecipients(ctx.db, b);
+    for (const a of clientSide as any[]) {
+      if (!a.email) continue;
+      const content = mails.clientReminder({ name: a.name ?? null, candidateName: b.candidate.full_name, jobTitle: b.job.title, startIso, durationMinutes: duration, round, meeting, agendaUrl });
+      await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: a.email, ...content }, { template: 'interview_reminder_client', meta: { interview_id: iv.id } });
+    }
+    await notify(ctx, b.submission.recruiter_id, 'interview_reminder', `Morgen: ${round > 1 ? `${round}. Gespräch` : 'Interview'} mit ${b.candidate.full_name}`,
+      `${b.job.title} · ${formatBerlinDateShort(startIso)}`, iv.id);
+    reminded++;
+  }
+  return { reminded };
 }

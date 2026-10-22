@@ -93,6 +93,20 @@ export function fakeDb(seed: Record<string, Row[]>) {
       in(c: string, vs: any[]) { filters.push((r) => vs.includes(r[c])); return q; },
       is(c: string, v: any) { filters.push((r) => (r[c] ?? null) === v); return q; },
       gt(c: string, v: any) { filters.push((r) => r[c] > v); return q; },
+      gte(c: string, v: any) { filters.push((r) => r[c] >= v); return q; },
+      lt(c: string, v: any) { filters.push((r) => r[c] < v); return q; },
+      // PostgREST-or, wie im Code genutzt: „spalte.is.null,spalte.eq.false“
+      or(expr: string) {
+        const parts = expr.split(',').map((p) => p.split('.'));
+        filters.push((r) => parts.some(([col, op, ...rest]) => {
+          const val = rest.join('.');
+          const cell = r[col] ?? null;
+          if (op === 'is') return val === 'null' ? cell === null : String(cell) === val;
+          if (op === 'eq') return String(cell) === val;
+          return false;
+        }));
+        return q;
+      },
       ilike(c: string, v: string) { filters.push((r) => String(r[c] ?? '').toLowerCase() === String(v).toLowerCase()); return q; },
       order(c: string, o?: { ascending?: boolean }) { orderBy.push({ col: c, asc: o?.ascending !== false }); return q; },
       limit(n: number) { limitN = n; return q; },

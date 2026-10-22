@@ -35,7 +35,7 @@ export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDon
     setSaving(true);
     try {
       await interviewApi.confirmAlternative(iv.id);
-      toast.success('Termin steht. Einladungen mit Teams-Link sind unterwegs.');
+      toast.success('Termin steht. Die Einladungen sind unterwegs.');
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
       onOpenChange(false);
       onDone();

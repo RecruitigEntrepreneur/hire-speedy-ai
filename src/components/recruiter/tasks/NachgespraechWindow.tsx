@@ -107,6 +107,21 @@ function Frage({ label, fehlt, children }: { label: string; fehlt?: boolean; chi
  * fragen. Nach dem Festhalten bleibt das Fenster offen: Abgleich mit Akte und Stelle,
  * dann die Frage an den Kunden. Gehalt, Angebot, Start und Bedenken bleiben bei dir.
  */
+/** Feedback des Kunden aus interviews.feedback, kurz für den Headhunter. */
+const WEG: Record<string, string> = { next_round: 'nächste Runde', proceed: 'nächste Runde', offer: 'Angebot', unsure: 'noch unsicher', maybe: 'noch unsicher', reject: 'Absage' };
+function kundenFeedbackAus(raw: string | null): { weg: string; eindruck: string | null } | null {
+  if (!raw) return null;
+  try {
+    const f = JSON.parse(raw);
+    const weg = WEG[f?.recommendation] ?? null;
+    if (!weg) return null;
+    const text = String(f.impression || f.notes || '').trim();
+    return { weg, eindruck: text ? (text.length > 200 ? `${text.slice(0, 200)}…` : text) : null };
+  } catch {
+    return null;
+  }
+}
+
 export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
   target: NachTarget | null;
   onClose: () => void;
@@ -127,17 +142,18 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
   const [saving, setSaving] = useState(false);
   const [applied, setApplied] = useState<string[]>([]);
   const [askedAt, setAskedAt] = useState<Date | null>(null);
+  const [kundenFeedback, setKundenFeedback] = useState<{ weg: string; eindruck: string | null } | null>(null);
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
     if (!target || !user) return;
     let alive = true;
     setForm({ ...LEER }); setEuroText({ gk: '', gf: '', af: '' }); setUmfeld(UMFELD_LEER);
-    setSavedAt(null); setExisting(false); setEditing(true); setApplied([]); setAskedAt(null);
+    setSavedAt(null); setExisting(false); setEditing(true); setApplied([]); setAskedAt(null); setKundenFeedback(null);
     setLoading(true);
     (async () => {
       const [iv, row, cand, job, rollen, log, frage] = await Promise.all([
-        supabase.from('interviews').select('scheduled_at, duration_minutes, meeting_type').eq('id', target.interviewId).maybeSingle(),
+        supabase.from('interviews').select('scheduled_at, duration_minutes, meeting_type, feedback').eq('id', target.interviewId).maybeSingle(),
         (supabase as any).from('interview_nachgespraeche').select('*').eq('interview_id', target.interviewId).eq('recruiter_id', user.id).maybeSingle(),
         target.candidateId ? supabase.from('candidates').select('expected_salary, salary_fix, notice_period, availability_date').eq('id', target.candidateId).maybeSingle() : Promise.resolve({ data: null }),
         target.jobId ? supabase.from('recruiter_jobs_view').select('salary_min, salary_max').eq('id', target.jobId).maybeSingle() : Promise.resolve({ data: null }),
@@ -154,6 +170,8 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
       if (!alive) return;
       const gefragt = ((frage as any).data ?? [])[0]?.created_at as string | undefined;
       if (gefragt) setAskedAt(new Date(gefragt));
+      // Hat der Kunde schon Feedback gegeben? Dann nicht mehr nachfragen, sondern zeigen.
+      setKundenFeedback(kundenFeedbackAus((iv as any).data?.feedback ?? null));
       const c = (cand as any).data;
       setUmfeld({
         interview: (iv as any).data ?? null,
@@ -396,10 +414,10 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
                 ))}
                 {applied.length > 0 && <p className="text-xs text-emerald-600">✓ In die Akte übernommen</p>}
                 <div className="flex gap-2.5">
-                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]', askedAt && 'border-0 bg-emerald-500 text-white')}>{askedAt ? <Check className="h-3 w-3" /> : '3'}</span>
+                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]', (askedAt || kundenFeedback) && 'border-0 bg-emerald-500 text-white')}>{askedAt || kundenFeedback ? <Check className="h-3 w-3" /> : '3'}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{askedAt ? `Kunde gefragt · ${wann(askedAt)}` : 'Kunden nach seinem Eindruck fragen?'}</p>
-                    {!askedAt && (
+                    <p className="text-sm font-medium">{kundenFeedback ? 'Der Kunde hat sein Feedback schon gegeben (unten)' : askedAt ? `Kunde gefragt · ${wann(askedAt)}` : 'Kunden nach seinem Eindruck fragen?'}</p>
+                    {!askedAt && !kundenFeedback && (
                       <>
                         <p className="mt-1.5 rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm italic text-foreground/90">{kundenText(form)}</p>
                         <p className="mt-1.5 text-xs text-muted-foreground">Geht als Benachrichtigung ins Kunden-Dashboard und als Mail. Gehalt, Angebot, Start und Bedenken gehen nie automatisch an den Kunden.</p>
@@ -412,8 +430,14 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
           </div>
         </div>
 
+        {kundenFeedback && (
+          <div className="border-t px-4 pt-3 text-xs">
+            <span className="text-muted-foreground">Feedback des Kunden: </span><span className="font-medium">{kundenFeedback.weg}</span>
+            {kundenFeedback.eindruck && <span className="text-muted-foreground"> · „{kundenFeedback.eindruck}“</span>}
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-xs">
-          <span className="text-muted-foreground">Ziel: <span className="font-medium text-emerald-500">{saved ? (askedAt ? 'Erledigt' : 'Eindruck des Kunden') : 'Nachgespräch festgehalten'}</span></span>
+          <span className="text-muted-foreground">Ziel: <span className="font-medium text-emerald-500">{saved ? (askedAt || kundenFeedback ? 'Erledigt' : 'Eindruck des Kunden') : 'Nachgespräch festgehalten'}</span></span>
           {!saved ? (
             <div className="flex flex-wrap items-center gap-1.5">
               {laterSlot}
@@ -424,7 +448,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
           ) : (
             <div className="flex flex-wrap items-center gap-1.5">
               <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(true)}>Ändern</Button>
-              {askedAt || !target.submissionId ? (
+              {askedAt || kundenFeedback || !target.submissionId ? (
                 <Button size="sm" className="h-8 text-xs" onClick={onClose}>Schließen</Button>
               ) : (
                 <>

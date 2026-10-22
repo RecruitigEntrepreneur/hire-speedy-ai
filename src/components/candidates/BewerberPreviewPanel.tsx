@@ -45,8 +45,12 @@ interface BewerberPreviewPanelProps {
 export interface PrimaryAction {
   labelKey: string;
   icon: LucideIcon;
-  run: 'wizard' | string; // 'wizard' öffnet den Interview-Wizard, sonst Navigationsziel
+  /** 'wizard' öffnet die Interview-Anfrage; 'feedback', 'offer', 'frage' öffnen das Fenster im Profil; sonst Navigationsziel */
+  run: 'wizard' | 'feedback' | 'offer' | 'frage' | string;
 }
+
+/** Diese Aktionen laufen als Fenster im Bewerberprofil. */
+export const PROFILE_ACTIONS = ['feedback', 'offer', 'frage', 'profil'];
 
 const TERMINAL_STAGES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn'];
 
@@ -59,10 +63,16 @@ export function primaryActionFor(stateKey: string): PrimaryAction {
   if (stateKey === 'geplant') return { labelKey: 'bewerber.actions.view_appointment', icon: Calendar, run: '/dashboard/interviews' };
   if (stateKey === 'wartet_kandidat') return { labelKey: 'bewerber.actions.view_request', icon: Eye, run: '/dashboard/interviews' };
   if (stateKey === 'feedback' || stateKey === 'feedback_nodate')
-    return { labelKey: 'bewerber.actions.give_feedback', icon: Pencil, run: '/dashboard/interviews' };
+    return { labelKey: 'bewerber.actions.give_feedback', icon: Pencil, run: 'feedback' };
+  // Nach dem Feedback: der gewählte Weg ist die Hauptaktion
+  if (stateKey === 'naechste_runde') return { labelKey: 'bewerber.actions.plan_next_round', icon: Calendar, run: 'wizard' };
+  if (stateKey === 'angebot_vorbereiten') return { labelKey: 'bewerber.actions.make_offer', icon: FileText, run: 'offer' };
+  if (stateKey === 'unsicher') return { labelKey: 'bewerber.actions.ask_hh', icon: MessageSquare, run: 'frage' };
   if (stateKey === 'interview_phase') return { labelKey: 'bewerber.actions.view_interviews', icon: Eye, run: '/dashboard/interviews' };
-  if (stateKey === 'offer_negotiating') return { labelKey: 'bewerber.actions.review_counter', icon: FileText, run: '/dashboard/offers' };
-  if (stateKey.startsWith('offer_')) return { labelKey: 'bewerber.actions.view_offer', icon: FileText, run: '/dashboard/offers' };
+  // Angebot über den Headhunter: die Schritte stehen in der Angebots-Box im Profil
+  if (stateKey === 'offer_negotiating') return { labelKey: 'bewerber.actions.review_counter', icon: FileText, run: 'profil' };
+  if (stateKey === 'offer_rejected' || stateKey === 'offer_withdrawn' || stateKey === 'offer_prep') return { labelKey: 'bewerber.actions.make_offer', icon: FileText, run: 'offer' };
+  if (stateKey.startsWith('offer_')) return { labelKey: 'bewerber.actions.view_offer', icon: FileText, run: 'profil' };
   // wait_* und pruefung
   return { labelKey: 'bewerber.actions.request_interview', icon: Calendar, run: 'wizard' };
 }
@@ -145,6 +155,8 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
   const runPrimary = () => {
     if (primary.run === 'wizard') {
       onInterviewRequest?.();
+    } else if (PROFILE_ACTIONS.includes(primary.run)) {
+      navigate(`/dashboard/candidates/${item.submissionId}`, primary.run === 'profil' ? undefined : { state: { open: primary.run } });
     } else {
       navigate(primary.run);
     }
@@ -252,7 +264,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             {!isClosed && (
               <Button size="sm" onClick={runPrimary}>
                 <PrimaryIcon className="h-3.5 w-3.5 mr-1.5" />
-                {t(primary.labelKey)}
+                {t(primary.labelKey, item.state.params)}
               </Button>
             )}
             <Button variant="outline" size="sm" className="text-muted-foreground" onClick={onReject}>

@@ -91,7 +91,7 @@ export default function ClientConfirmAlternative() {
           <div className="space-y-3 text-center">
             <StatusIcon icon={CheckCircle2} tone="success" />
             <h1 className="text-2xl font-semibold tracking-tight">Termin steht.</h1>
-            <p className="text-sm text-muted-foreground">Kalendereinladungen mit Teams-Link sind unterwegs.</p>
+            <p className="text-sm text-muted-foreground">Die Kalendereinladungen sind unterwegs.</p>
           </div>
           {at && (
             <div className="rounded-xl border border-border bg-card p-4">
@@ -137,7 +137,7 @@ export default function ClientConfirmAlternative() {
             Zeit bestätigen
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Danach gehen Kalendereinladungen mit Teams-Link an alle Beteiligten.
+            Danach gehen die Kalendereinladungen an alle Beteiligten.
           </p>
           <Button asChild variant="outline" size="lg" className="h-12 w-full">
             <Link to={OVERVIEW}>Andere Termine vorschlagen</Link>
