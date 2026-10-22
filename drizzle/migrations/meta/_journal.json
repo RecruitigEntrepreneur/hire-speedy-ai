@@ -302,6 +302,13 @@
       "when": 1792679684857,
       "tag": "0042_angebot_empfehlung",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792679720922,
+      "tag": "0043_arbeitsvertrag",
+      "breakpoints": true
     }
   ]
 }

@@ -4695,6 +4695,263 @@ export type Database = {
         }
         Relationships: []
       }
+      employment_contract_events: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          contract_id: string
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          contract_id: string
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          contract_id?: string
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_contract_events_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employment_contracts: {
+        Row: {
+          admin_case_at: string | null
+          candidate_email: string | null
+          candidate_signed_at: string | null
+          client_reminded_at: string | null
+          close_job: boolean
+          company_signed_at: string | null
+          company_signer_email: string | null
+          company_signer_name: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          decline_reason: string | null
+          document_path: string | null
+          drop_reason: string | null
+          envelope_id: string | null
+          envelope_synced_at: string | null
+          evidence_note: string | null
+          final_at: string | null
+          fixed_term: boolean | null
+          id: string
+          job_id: string
+          non_compete: boolean | null
+          offer_id: string | null
+          previous_status: string | null
+          recruiter_check: string | null
+          recruiter_check_note: string | null
+          recruiter_checked_at: string | null
+          recruiter_reminded_at: string | null
+          report_note: string | null
+          reported_at: string | null
+          reported_by: string | null
+          reported_role: string | null
+          salary: number | null
+          sent_at: string | null
+          signed_document_path: string | null
+          signed_on: string | null
+          start_date: string | null
+          status: string
+          submission_id: string
+          undo_until: string | null
+          updated_at: string
+          variable_salary: number | null
+          way: string
+        }
+        Insert: {
+          admin_case_at?: string | null
+          candidate_email?: string | null
+          candidate_signed_at?: string | null
+          client_reminded_at?: string | null
+          close_job?: boolean
+          company_signed_at?: string | null
+          company_signer_email?: string | null
+          company_signer_name?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          decline_reason?: string | null
+          document_path?: string | null
+          drop_reason?: string | null
+          envelope_id?: string | null
+          envelope_synced_at?: string | null
+          evidence_note?: string | null
+          final_at?: string | null
+          fixed_term?: boolean | null
+          id?: string
+          job_id: string
+          non_compete?: boolean | null
+          offer_id?: string | null
+          previous_status?: string | null
+          recruiter_check?: string | null
+          recruiter_check_note?: string | null
+          recruiter_checked_at?: string | null
+          recruiter_reminded_at?: string | null
+          report_note?: string | null
+          reported_at?: string | null
+          reported_by?: string | null
+          reported_role?: string | null
+          salary?: number | null
+          sent_at?: string | null
+          signed_document_path?: string | null
+          signed_on?: string | null
+          start_date?: string | null
+          status?: string
+          submission_id: string
+          undo_until?: string | null
+          updated_at?: string
+          variable_salary?: number | null
+          way?: string
+        }
+        Update: {
+          admin_case_at?: string | null
+          candidate_email?: string | null
+          candidate_signed_at?: string | null
+          client_reminded_at?: string | null
+          close_job?: boolean
+          company_signed_at?: string | null
+          company_signer_email?: string | null
+          company_signer_name?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          decline_reason?: string | null
+          document_path?: string | null
+          drop_reason?: string | null
+          envelope_id?: string | null
+          envelope_synced_at?: string | null
+          evidence_note?: string | null
+          final_at?: string | null
+          fixed_term?: boolean | null
+          id?: string
+          job_id?: string
+          non_compete?: boolean | null
+          offer_id?: string | null
+          previous_status?: string | null
+          recruiter_check?: string | null
+          recruiter_check_note?: string | null
+          recruiter_checked_at?: string | null
+          recruiter_reminded_at?: string | null
+          report_note?: string | null
+          reported_at?: string | null
+          reported_by?: string | null
+          reported_role?: string | null
+          salary?: number | null
+          sent_at?: string | null
+          signed_document_path?: string | null
+          signed_on?: string | null
+          start_date?: string | null
+          status?: string
+          submission_id?: string
+          undo_until?: string | null
+          updated_at?: string
+          variable_salary?: number | null
+          way?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_settings: {
         Row: {
           enabled: boolean
@@ -15024,6 +15281,28 @@ export type Database = {
         | { Args: { _envelope: Json; _text: string }; Returns: string }
         | { Args: { _envelope: Json; _werte: string[] }; Returns: string[] }
       maskiere_json: { Args: { _envelope: Json; _wert: Json }; Returns: Json }
+      my_contract_tasks: {
+        Args: never
+        Returns: {
+          candidate_signed_at: string
+          company_signed_at: string
+          contract_id: string
+          final_at: string
+          recruiter_check: string
+          reported_at: string
+          reported_role: string
+          salary: number
+          sent_at: string
+          signed_on: string
+          start_date: string
+          status: string
+          submission_id: string
+          undo_until: string
+          updated_at: string
+          variable_salary: number
+          way: string
+        }[]
+      }
       my_feedback: {
         Args: never
         Returns: {
