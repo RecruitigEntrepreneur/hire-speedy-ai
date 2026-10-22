@@ -1,12 +1,12 @@
 # Roadmap
 
-## Deployment 37219c3 (22.10.2026)
-- [x] Current checkout verified at 37219c3; journal ends at 0032_interview_umfeld_lernwoerterbuch.
+## Deployment 5a8f2df (22.10.2026)
+- [x] Current checkout verified at 5a8f2df; journal ends at 0034_einreichen_rahmen_pflicht.
 - [x] Apply a–b as 0033_firmenlogo and 0034_einreichen_rahmen_pflicht; database schema and trigger verified.
-- [ ] Apply c–g: blocked at c by missing service_role table GRANT; requires corrected SQL in Codex. Later files also have missing grants; g references auth.users from application tables.
-- [ ] Deploy the 15 requested functions after migrations are complete (blocked by c).
+- [ ] Apply c–g individually in order: preflight stopped before execution because f has transaction-control statements at lines 10 and 341; migration tool requires SQL without these statements. Previous grant and auth.users FK issues are corrected.
+- [ ] Deploy the 15 requested functions with verify_jwt from config.toml after migrations are complete (blocked by migration preflight).
 - [x] Leave protected secrets unchanged.
-- [ ] Request frontend publication after migrations, function deployment and security check (blocked by c).
+- [ ] Request frontend publication after migrations, function deployment and security check (blocked by migration preflight).
 
 ## Erledigt (Abschnitte 15 + 16, 06.10.2026)
 - [x] Arbeitskopie auf 29cd415 und 204351c gebracht, keine Migration
