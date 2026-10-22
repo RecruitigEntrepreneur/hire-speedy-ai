@@ -1,5 +1,13 @@
 # Roadmap
 
+## Deployment 37219c3 (22.10.2026)
+- [x] Current checkout verified at 37219c3; journal ends at 0032_interview_umfeld_lernwoerterbuch.
+- [x] Apply a–b as 0033_firmenlogo and 0034_einreichen_rahmen_pflicht; database schema and trigger verified.
+- [ ] Apply c–g: blocked at c by missing service_role table GRANT; requires corrected SQL in Codex. Later files also have missing grants; g references auth.users from application tables.
+- [ ] Deploy the 15 requested functions after migrations are complete (blocked by c).
+- [x] Leave protected secrets unchanged.
+- [ ] Request frontend publication after migrations, function deployment and security check (blocked by c).
+
 ## Erledigt (Abschnitte 15 + 16, 06.10.2026)
 - [x] Arbeitskopie auf 29cd415 und 204351c gebracht, keine Migration
 - [x] interview-request, get-interview-by-token, process-interview-response, interview-client-link deployed

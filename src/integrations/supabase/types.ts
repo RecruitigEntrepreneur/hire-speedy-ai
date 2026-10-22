@@ -2412,6 +2412,10 @@ export type Database = {
           decided_by: string | null
           id: string
           legal_name: string | null
+          logo_check: Json | null
+          logo_checked_at: string | null
+          logo_source: string | null
+          logo_url: string | null
           name: string
           organization_id: string | null
           owner_id: string
@@ -2440,6 +2444,10 @@ export type Database = {
           decided_by?: string | null
           id?: string
           legal_name?: string | null
+          logo_check?: Json | null
+          logo_checked_at?: string | null
+          logo_source?: string | null
+          logo_url?: string | null
           name: string
           organization_id?: string | null
           owner_id: string
@@ -2468,6 +2476,10 @@ export type Database = {
           decided_by?: string | null
           id?: string
           legal_name?: string | null
+          logo_check?: Json | null
+          logo_checked_at?: string | null
+          logo_source?: string | null
+          logo_url?: string | null
           name?: string
           organization_id?: string | null
           owner_id?: string
@@ -13004,6 +13016,7 @@ export type Database = {
           career_path: string | null
           company_culture: string | null
           company_headcount: number | null
+          company_logo_url: string | null
           company_name: string | null
           company_revealed: boolean | null
           company_size_band: string | null
@@ -13325,6 +13338,10 @@ export type Database = {
       client_sees_recruiter: {
         Args: { p_recruiter_id: string }
         Returns: boolean
+      }
+      client_set_company_logo: {
+        Args: { p_company_id: string; p_logo_url: string }
+        Returns: undefined
       }
       company_matches_job: {
         Args: {
