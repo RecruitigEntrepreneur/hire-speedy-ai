@@ -5955,6 +5955,156 @@ export type Database = {
           },
         ]
       }
+      interview_nachgespraeche: {
+        Row: {
+          angebot_fix_min: number | null
+          angebot_punkte: string[]
+          angebot_text: string | null
+          ansprechpartner: string | null
+          bauchgefuehl: string | null
+          bedenken: string | null
+          candidate_id: string | null
+          created_at: string
+          gehalt_besprochen: boolean | null
+          gehalt_firma: number | null
+          gehalt_kandidat: number | null
+          id: string
+          interview_id: string
+          recruiter_id: string
+          start_art: string | null
+          start_datum: string | null
+          submission_id: string | null
+          updated_at: string
+          verlauf: string | null
+          will_weiter: string | null
+          zusammenarbeit: string | null
+        }
+        Insert: {
+          angebot_fix_min?: number | null
+          angebot_punkte?: string[]
+          angebot_text?: string | null
+          ansprechpartner?: string | null
+          bauchgefuehl?: string | null
+          bedenken?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          gehalt_besprochen?: boolean | null
+          gehalt_firma?: number | null
+          gehalt_kandidat?: number | null
+          id?: string
+          interview_id: string
+          recruiter_id?: string
+          start_art?: string | null
+          start_datum?: string | null
+          submission_id?: string | null
+          updated_at?: string
+          verlauf?: string | null
+          will_weiter?: string | null
+          zusammenarbeit?: string | null
+        }
+        Update: {
+          angebot_fix_min?: number | null
+          angebot_punkte?: string[]
+          angebot_text?: string | null
+          ansprechpartner?: string | null
+          bauchgefuehl?: string | null
+          bedenken?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          gehalt_besprochen?: boolean | null
+          gehalt_firma?: number | null
+          gehalt_kandidat?: number | null
+          id?: string
+          interview_id?: string
+          recruiter_id?: string
+          start_art?: string | null
+          start_datum?: string | null
+          submission_id?: string | null
+          updated_at?: string
+          verlauf?: string | null
+          will_weiter?: string | null
+          zusammenarbeit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_nachgespraeche_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_notes: {
         Row: {
           content: string
