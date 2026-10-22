@@ -4256,7 +4256,21 @@ export type Database = {
             foreignKeyName: "continuity_claims_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
+            referencedRelation: "client_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "continuity_claims_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "continuity_claims_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
             referencedColumns: ["id"]
           },
         ]
@@ -4453,6 +4467,27 @@ export type Database = {
           risk_level?: string | null
           submission_id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      document_counters: {
+        Row: {
+          kind: string
+          last_number: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          kind: string
+          last_number: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          kind?: string
+          last_number?: number
+          updated_at?: string
+          year?: number
         }
         Relationships: []
       }
@@ -7105,20 +7140,33 @@ export type Database = {
           invoice_number: string
           invoice_type: string
           issued_at: string | null
+          job_id: string | null
+          lines: Json | null
           mandate_id: string | null
+          paid_amount_cents: number | null
           paid_at: string | null
+          payment_note: string | null
           payment_terms_days: number
+          pdf_path: string | null
           pdf_url: string | null
           placement_id: string
           pricing_snapshot: Json | null
+          recipient: Json | null
+          released_at: string | null
+          released_by: string | null
+          reverse_charge: boolean
+          sent_at: string | null
+          sent_to: string | null
           status: string | null
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
+          submission_id: string | null
           tax_amount: number | null
           tax_amount_cents: number | null
           total_amount: number
           total_amount_cents: number | null
           updated_at: string
+          vat_rate: number | null
         }
         Insert: {
           amount: number
@@ -7132,20 +7180,33 @@ export type Database = {
           invoice_number: string
           invoice_type?: string
           issued_at?: string | null
+          job_id?: string | null
+          lines?: Json | null
           mandate_id?: string | null
+          paid_amount_cents?: number | null
           paid_at?: string | null
+          payment_note?: string | null
           payment_terms_days?: number
+          pdf_path?: string | null
           pdf_url?: string | null
           placement_id: string
           pricing_snapshot?: Json | null
+          recipient?: Json | null
+          released_at?: string | null
+          released_by?: string | null
+          reverse_charge?: boolean
+          sent_at?: string | null
+          sent_to?: string | null
           status?: string | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          submission_id?: string | null
           tax_amount?: number | null
           tax_amount_cents?: number | null
           total_amount: number
           total_amount_cents?: number | null
           updated_at?: string
+          vat_rate?: number | null
         }
         Update: {
           amount?: number
@@ -7159,20 +7220,33 @@ export type Database = {
           invoice_number?: string
           invoice_type?: string
           issued_at?: string | null
+          job_id?: string | null
+          lines?: Json | null
           mandate_id?: string | null
+          paid_amount_cents?: number | null
           paid_at?: string | null
+          payment_note?: string | null
           payment_terms_days?: number
+          pdf_path?: string | null
           pdf_url?: string | null
           placement_id?: string
           pricing_snapshot?: Json | null
+          recipient?: Json | null
+          released_at?: string | null
+          released_by?: string | null
+          reverse_charge?: boolean
+          sent_at?: string | null
+          sent_to?: string | null
           status?: string | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          submission_id?: string | null
           tax_amount?: number | null
           tax_amount_cents?: number | null
           total_amount?: number
           total_amount_cents?: number | null
           updated_at?: string
+          vat_rate?: number | null
         }
         Relationships: [
           {
@@ -7180,6 +7254,20 @@ export type Database = {
             columns: ["corrects_invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
             referencedColumns: ["id"]
           },
           {
@@ -7193,7 +7281,70 @@ export type Database = {
             foreignKeyName: "invoices_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
+            referencedRelation: "client_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
         ]
@@ -10927,7 +11078,21 @@ export type Database = {
             foreignKeyName: "payout_requests_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
+            referencedRelation: "client_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_requests_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_requests_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
             referencedColumns: ["id"]
           },
         ]
@@ -12380,7 +12545,21 @@ export type Database = {
             foreignKeyName: "recruiter_payout_tranches_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
+            referencedRelation: "client_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_payout_tranches_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_payout_tranches_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
             referencedColumns: ["id"]
           },
         ]
@@ -13081,7 +13260,28 @@ export type Database = {
             foreignKeyName: "research_assignments_placement_id_fkey"
             columns: ["placement_id"]
             isOneToOne: false
+            referencedRelation: "client_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_succeeded_placement_id_fkey"
+            columns: ["succeeded_placement_id"]
+            isOneToOne: false
+            referencedRelation: "client_placements_view"
             referencedColumns: ["id"]
           },
           {
@@ -13089,6 +13289,13 @@ export type Database = {
             columns: ["succeeded_placement_id"]
             isOneToOne: false
             referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_assignments_succeeded_placement_id_fkey"
+            columns: ["succeeded_placement_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
             referencedColumns: ["id"]
           },
         ]
@@ -14433,6 +14640,122 @@ export type Database = {
           },
         ]
       }
+      client_placements_view: {
+        Row: {
+          agreed_salary: number | null
+          candidate_id: string | null
+          client_fee_cents: number | null
+          continuity_end_date: string | null
+          continuity_state: string | null
+          created_at: string | null
+          end_reason: string | null
+          ended_at: string | null
+          first_working_day: string | null
+          gross_annual_target_compensation_cents: number | null
+          id: string | null
+          invoice_state: string | null
+          job_id: string | null
+          package_key: string | null
+          payment_status: string | null
+          placement_state: string | null
+          recruiter_id: string | null
+          start_date: string | null
+          submission_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_submissions_view: {
         Row: {
           candidate_id: string | null
@@ -14669,6 +14992,125 @@ export type Database = {
           works_council_meeting_schedule: string | null
         }
         Relationships: []
+      }
+      recruiter_placements_view: {
+        Row: {
+          agreed_salary: number | null
+          candidate_id: string | null
+          continuity_end_date: string | null
+          continuity_state: string | null
+          created_at: string | null
+          end_reason: string | null
+          ended_at: string | null
+          first_working_day: string | null
+          gross_annual_target_compensation_cents: number | null
+          id: string | null
+          invoice_state: string | null
+          job_id: string | null
+          package_key: string | null
+          payment_status: string | null
+          placement_state: string | null
+          recruiter_initial_cents: number | null
+          recruiter_payout: number | null
+          recruiter_retention_cents: number | null
+          retention_release_date: string | null
+          retention_state: string | null
+          start_date: string | null
+          submission_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: true
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -15358,6 +15800,10 @@ export type Database = {
           submissions: number
           title: string
         }[]
+      }
+      next_document_number: {
+        Args: { _kind: string; _start?: number; _year: number }
+        Returns: number
       }
       notify_admins: {
         Args: {

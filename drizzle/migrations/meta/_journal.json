@@ -309,6 +309,13 @@
       "when": 1792679720922,
       "tag": "0043_arbeitsvertrag",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792679756928,
+      "tag": "0044_besetzung_rechnung",
+      "breakpoints": true
     }
   ]
 }
