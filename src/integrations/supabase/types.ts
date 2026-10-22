@@ -7316,6 +7316,313 @@ export type Database = {
           },
         ]
       }
+      liga_awards: {
+        Row: {
+          active: boolean
+          id: string
+          image_url: string | null
+          kind: string
+          prize: string | null
+          season_id: string
+          sort: number
+          title: string
+          value_eur: number
+        }
+        Insert: {
+          active?: boolean
+          id?: string
+          image_url?: string | null
+          kind: string
+          prize?: string | null
+          season_id: string
+          sort?: number
+          title: string
+          value_eur?: number
+        }
+        Update: {
+          active?: boolean
+          id?: string
+          image_url?: string | null
+          kind?: string
+          prize?: string | null
+          season_id?: string
+          sort?: number
+          title?: string
+          value_eur?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_awards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_events: {
+        Row: {
+          corrected_at: string | null
+          corrected_by: string | null
+          corrected_points: number | null
+          correction_reason: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          kind: string
+          label: string | null
+          occurred_at: string
+          points: number
+          recruiter_id: string
+          season_id: string
+          source_key: string
+          submission_id: string | null
+        }
+        Insert: {
+          corrected_at?: string | null
+          corrected_by?: string | null
+          corrected_points?: number | null
+          correction_reason?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          kind: string
+          label?: string | null
+          occurred_at: string
+          points: number
+          recruiter_id: string
+          season_id: string
+          source_key: string
+          submission_id?: string | null
+        }
+        Update: {
+          corrected_at?: string | null
+          corrected_by?: string | null
+          corrected_points?: number | null
+          correction_reason?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          kind?: string
+          label?: string | null
+          occurred_at?: string
+          points?: number
+          recruiter_id?: string
+          season_id?: string
+          source_key?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_events_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_exclusions: {
+        Row: {
+          created_at: string
+          decided_by: string | null
+          reason: string
+          recruiter_id: string
+          season_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_by?: string | null
+          reason: string
+          recruiter_id: string
+          season_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_by?: string | null
+          reason?: string
+          recruiter_id?: string
+          season_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_exclusions_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_preferences: {
+        Row: {
+          award_seen_season: string | null
+          recruiter_id: string
+          show_name: boolean
+          updated_at: string
+          weekly_mail: boolean
+        }
+        Insert: {
+          award_seen_season?: string | null
+          recruiter_id: string
+          show_name?: boolean
+          updated_at?: string
+          weekly_mail?: boolean
+        }
+        Update: {
+          award_seen_season?: string | null
+          recruiter_id?: string
+          show_name?: boolean
+          updated_at?: string
+          weekly_mail?: boolean
+        }
+        Relationships: []
+      }
+      liga_results: {
+        Row: {
+          award_mailed_at: string | null
+          awards: string[]
+          created_at: string
+          interviews: number
+          participants: number
+          placements: number
+          points: number
+          prize_done_at: string | null
+          quote: number | null
+          rank: number
+          recruiter_id: string
+          season_id: string
+          submissions: number
+        }
+        Insert: {
+          award_mailed_at?: string | null
+          awards?: string[]
+          created_at?: string
+          interviews: number
+          participants: number
+          placements: number
+          points: number
+          prize_done_at?: string | null
+          quote?: number | null
+          rank: number
+          recruiter_id: string
+          season_id: string
+          submissions: number
+        }
+        Update: {
+          award_mailed_at?: string | null
+          awards?: string[]
+          created_at?: string
+          interviews?: number
+          participants?: number
+          placements?: number
+          points?: number
+          prize_done_at?: string | null
+          quote?: number | null
+          rank?: number
+          recruiter_id?: string
+          season_id?: string
+          submissions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_results_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liga_seasons: {
+        Row: {
+          budget_eur: number | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          ends_on: string
+          grace_days: number
+          id: string
+          label: string
+          min_placements: number
+          newcomer_months: number
+          rules: Json
+          starts_on: string
+          tax_checked_on: string | null
+          top_n: number
+          updated_at: string
+          visible_from: string | null
+        }
+        Insert: {
+          budget_eur?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          ends_on: string
+          grace_days?: number
+          id?: string
+          label: string
+          min_placements?: number
+          newcomer_months?: number
+          rules?: Json
+          starts_on: string
+          tax_checked_on?: string | null
+          top_n?: number
+          updated_at?: string
+          visible_from?: string | null
+        }
+        Update: {
+          budget_eur?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          ends_on?: string
+          grace_days?: number
+          id?: string
+          label?: string
+          min_placements?: number
+          newcomer_months?: number
+          rules?: Json
+          starts_on?: string
+          tax_checked_on?: string | null
+          top_n?: number
+          updated_at?: string
+          visible_from?: string | null
+        }
+        Relationships: []
+      }
+      liga_snapshots: {
+        Row: {
+          points: number
+          rank: number
+          recruiter_id: string
+          season_id: string
+          taken_on: string
+        }
+        Insert: {
+          points: number
+          rank: number
+          recruiter_id: string
+          season_id: string
+          taken_on: string
+        }
+        Update: {
+          points?: number
+          rank?: number
+          recruiter_id?: string
+          season_id?: string
+          taken_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liga_snapshots_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "liga_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_ai_judgements: {
         Row: {
           blended_score: number | null
@@ -13407,6 +13714,117 @@ export type Database = {
           title: string
         }[]
       }
+      admin_liga_close: { Args: { p_season_id: string }; Returns: Json }
+      admin_liga_correct: {
+        Args: { p_event_id: string; p_points: number; p_reason: string }
+        Returns: undefined
+      }
+      admin_liga_events: {
+        Args: { p_recruiter_id: string; p_season_id: string }
+        Returns: {
+          corrected_at: string | null
+          corrected_by: string | null
+          corrected_points: number | null
+          correction_reason: string | null
+          created_at: string
+          id: string
+          job_id: string | null
+          kind: string
+          label: string | null
+          occurred_at: string
+          points: number
+          recruiter_id: string
+          season_id: string
+          source_key: string
+          submission_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "liga_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      admin_liga_exclude: {
+        Args: { p_reason: string; p_recruiter_id: string; p_season_id: string }
+        Returns: undefined
+      }
+      admin_liga_preview: {
+        Args: { p_season_id: string }
+        Returns: {
+          awards: string[]
+          full_name: string
+          placements: number
+          points: number
+          rank: number
+          recruiter_id: string
+        }[]
+      }
+      admin_liga_prize_done: {
+        Args: { p_done: boolean; p_recruiter_id: string; p_season_id: string }
+        Returns: undefined
+      }
+      admin_liga_recompute: { Args: { p_season_id: string }; Returns: number }
+      admin_liga_results: {
+        Args: { p_season_id: string }
+        Returns: {
+          award_mailed_at: string
+          awards: string[]
+          company_name: string
+          email: string
+          full_name: string
+          participants: number
+          placements: number
+          points: number
+          prize_done_at: string
+          prize_value: number
+          prizes: string[]
+          rank: number
+          recruiter_id: string
+          season_label: string
+        }[]
+      }
+      admin_liga_seasons: {
+        Args: never
+        Returns: {
+          awards_active: number
+          budget_eur: number
+          closed_at: string
+          ends_on: string
+          grace_days: number
+          id: string
+          label: string
+          participants: number
+          placements: number
+          prizes_open: number
+          starts_on: string
+          visible_from: string
+        }[]
+      }
+      admin_liga_table: {
+        Args: { p_season_id: string }
+        Returns: {
+          awards: string[]
+          company_name: string
+          deductions: number
+          excluded: boolean
+          exclusion_reason: string
+          full_name: string
+          holds: number
+          interviews: number
+          newcomer: boolean
+          offers: number
+          participants: number
+          placements: number
+          points: number
+          previous_rank: number
+          quote: number
+          rank: number
+          recruiter_id: string
+          submissions: number
+          tier: string
+        }[]
+      }
       admin_partner_tiers: {
         Args: never
         Returns: {
@@ -13636,6 +14054,131 @@ export type Database = {
         Args: { a: Json; b: Json }
         Returns: boolean
       }
+      liga_award_plan: {
+        Args: { p_season_id: string }
+        Returns: {
+          awards: string[]
+          interviews: number
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+          recruiter_id: string
+          submissions: number
+        }[]
+      }
+      liga_awards_of: {
+        Args: { p_recruiter_ids: string[] }
+        Returns: {
+          award: string
+          participants: number
+          rank: number
+          recruiter_id: string
+          season_label: string
+        }[]
+      }
+      liga_city: { Args: { p_recruiter_id: string }; Returns: string }
+      liga_current_season: { Args: never; Returns: string }
+      liga_display_name: { Args: { p_recruiter_id: string }; Returns: string }
+      liga_hall_of_fame: {
+        Args: never
+        Returns: {
+          awards: string[]
+          city: string
+          ends_on: string
+          interviews: number
+          is_me: boolean
+          name: string
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+          season_id: string
+          season_label: string
+        }[]
+      }
+      liga_me: { Args: { p_season_id?: string }; Returns: Json }
+      liga_participants: {
+        Args: never
+        Returns: {
+          granted_at: string
+          recruiter_id: string
+        }[]
+      }
+      liga_recompute: { Args: { p_season_id: string }; Returns: number }
+      liga_recompute_running: { Args: never; Returns: number }
+      liga_rules: { Args: { p_season_id: string }; Returns: Json }
+      liga_seasons_list: {
+        Args: never
+        Returns: {
+          closed: boolean
+          ends_on: string
+          grace_days: number
+          id: string
+          label: string
+          running: boolean
+          starts_on: string
+        }[]
+      }
+      liga_set_preferences: {
+        Args: {
+          p_award_seen_season?: string
+          p_show_name?: boolean
+          p_weekly_mail?: boolean
+        }
+        Returns: undefined
+      }
+      liga_standings: {
+        Args: { p_season_id: string }
+        Returns: {
+          excluded: boolean
+          interviews: number
+          last_at: string
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+          recruiter_id: string
+          submissions: number
+        }[]
+      }
+      liga_table: {
+        Args: { p_season_id?: string }
+        Returns: {
+          awards: string[]
+          city: string
+          interviews: number
+          is_me: boolean
+          name: string
+          participants: number
+          placements: number
+          points: number
+          quote: number
+          rank: number
+        }[]
+      }
+      liga_weekly_rows: {
+        Args: { p_dry_run?: boolean }
+        Returns: {
+          days_left: number
+          email: string
+          full_name: string
+          gap_above: number
+          hold_points: number
+          next_hold: string
+          participants: number
+          points: number
+          previous_rank: number
+          rank: number
+          recruiter_id: string
+          season_label: string
+          top_n: number
+        }[]
+      }
+      liga_workdays: { Args: { p_from: string; p_to: string }; Returns: number }
       log_candidate_access: {
         Args: { _submission_id: string }
         Returns: undefined
