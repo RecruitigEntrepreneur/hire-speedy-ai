@@ -281,6 +281,13 @@
       "when": 1792655995578,
       "tag": "0039_kandidatenprofil_kunde",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792656033300,
+      "tag": "0040_terminseite_linkedin",
+      "breakpoints": true
     }
   ]
 }

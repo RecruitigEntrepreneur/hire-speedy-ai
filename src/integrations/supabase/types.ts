@@ -83,6 +83,53 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_cv_uploads: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number | null
+          hints: Json
+          id: string
+          mime_type: string | null
+          path: string
+          raw_text: string | null
+          recruiter_id: string
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          hints?: Json
+          id?: string
+          mime_type?: string | null
+          path: string
+          raw_text?: string | null
+          recruiter_id: string
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          hints?: Json
+          id?: string
+          mime_type?: string | null
+          path?: string
+          raw_text?: string | null
+          recruiter_id?: string
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_cv_uploads_used_by_fkey"
+            columns: ["used_by"]
+            isOneToOne: false
+            referencedRelation: "recruiter_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_connections: {
         Row: {
           access_token_encrypted: string | null
@@ -6930,6 +6977,69 @@ export type Database = {
           },
         ]
       }
+      job_linkedin_posts: {
+        Row: {
+          deleted_at: string | null
+          error: string | null
+          format: string | null
+          id: string
+          job_id: string
+          post_urn: string | null
+          posted_at: string
+          recruiter_id: string
+          show_salary: boolean
+          status: string
+          template: string | null
+          text: string
+          visibility: string | null
+        }
+        Insert: {
+          deleted_at?: string | null
+          error?: string | null
+          format?: string | null
+          id?: string
+          job_id: string
+          post_urn?: string | null
+          posted_at?: string
+          recruiter_id: string
+          show_salary?: boolean
+          status: string
+          template?: string | null
+          text: string
+          visibility?: string | null
+        }
+        Update: {
+          deleted_at?: string | null
+          error?: string | null
+          format?: string | null
+          id?: string
+          job_id?: string
+          post_urn?: string | null
+          posted_at?: string
+          recruiter_id?: string
+          show_salary?: boolean
+          status?: string
+          template?: string | null
+          text?: string
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_linkedin_posts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_linkedin_posts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_recruiter_text_drafts: {
         Row: {
           content: Json
@@ -7846,6 +7956,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      linkedin_oauth_states: {
+        Row: {
+          created_at: string
+          return_to: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          return_to?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          return_to?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       match_ai_judgements: {
         Row: {
@@ -10931,6 +11062,166 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_booking_pages: {
+        Row: {
+          active: boolean
+          allow_phone: boolean
+          allow_teams: boolean
+          created_at: string
+          duration_minutes: number
+          recruiter_id: string
+          rules: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allow_phone?: boolean
+          allow_teams?: boolean
+          created_at?: string
+          duration_minutes?: number
+          recruiter_id: string
+          rules?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allow_phone?: boolean
+          allow_teams?: boolean
+          created_at?: string
+          duration_minutes?: number
+          recruiter_id?: string
+          rules?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recruiter_bookings: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          candidate_id: string | null
+          created_at: string
+          cv_path: string | null
+          email: string
+          ends_at: string
+          first_name: string
+          id: string
+          job_id: string | null
+          join_url: string | null
+          last_name: string
+          linkedin_url: string | null
+          manage_token_hash: string
+          mode: string
+          note: string | null
+          outlook_event_id: string | null
+          phone: string | null
+          post_id: string | null
+          recruiter_id: string
+          source: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          cv_path?: string | null
+          email: string
+          ends_at: string
+          first_name: string
+          id?: string
+          job_id?: string | null
+          join_url?: string | null
+          last_name: string
+          linkedin_url?: string | null
+          manage_token_hash: string
+          mode: string
+          note?: string | null
+          outlook_event_id?: string | null
+          phone?: string | null
+          post_id?: string | null
+          recruiter_id: string
+          source?: string
+          starts_at: string
+          status?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          cv_path?: string | null
+          email?: string
+          ends_at?: string
+          first_name?: string
+          id?: string
+          job_id?: string | null
+          join_url?: string | null
+          last_name?: string
+          linkedin_url?: string | null
+          manage_token_hash?: string
+          mode?: string
+          note?: string | null
+          outlook_event_id?: string | null
+          phone?: string | null
+          post_id?: string | null
+          recruiter_id?: string
+          source?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recruiter_bookings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiter_client_declarations: {
         Row: {
           answer: string
@@ -11410,6 +11701,39 @@ export type Database = {
           recruiter_id?: string
           submissions?: number | null
           total_revenue?: number | null
+        }
+        Relationships: []
+      }
+      recruiter_linkedin: {
+        Row: {
+          access_token_enc: string
+          connected_at: string
+          expires_at: string
+          member_id: string
+          name: string | null
+          picture_url: string | null
+          recruiter_id: string
+          reminder_sent_at: string | null
+        }
+        Insert: {
+          access_token_enc: string
+          connected_at?: string
+          expires_at: string
+          member_id: string
+          name?: string | null
+          picture_url?: string | null
+          recruiter_id: string
+          reminder_sent_at?: string | null
+        }
+        Update: {
+          access_token_enc?: string
+          connected_at?: string
+          expires_at?: string
+          member_id?: string
+          name?: string | null
+          picture_url?: string | null
+          recruiter_id?: string
+          reminder_sent_at?: string | null
         }
         Relationships: []
       }
@@ -14240,6 +14564,7 @@ export type Database = {
         Args: { p_declaration_id: string; p_kind: string; p_path: string }
         Returns: undefined
       }
+      booking_slug_free: { Args: { p_slug: string }; Returns: boolean }
       can_access_job: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
@@ -14576,6 +14901,25 @@ export type Database = {
           status: string
           summary: string
           ticket_no: number
+        }[]
+      }
+      my_job_post_status: {
+        Args: { p_job_id: string }
+        Returns: {
+          bookings: number
+          post_urn: string
+          posted_at: string
+          status: string
+        }[]
+      }
+      my_linkedin: {
+        Args: never
+        Returns: {
+          connected: boolean
+          connected_at: string
+          expires_at: string
+          name: string
+          picture_url: string
         }[]
       }
       my_partner_progress: { Args: never; Returns: Json }
