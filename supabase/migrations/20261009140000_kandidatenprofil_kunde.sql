@@ -7,8 +7,6 @@
 --  3. Ausbildung für den Kunden (Hochschule erst nach Interview-Zusage).
 -- ============================================================================
 
-BEGIN;
-
 CREATE SCHEMA IF NOT EXISTS private;
 REVOKE ALL ON SCHEMA private FROM PUBLIC;
 REVOKE ALL ON SCHEMA private FROM anon, authenticated;
@@ -43,6 +41,9 @@ CREATE TABLE IF NOT EXISTS private.fit_assessment_attempts (
 );
 REVOKE ALL ON private.fit_assessment_attempts FROM PUBLIC;
 REVOKE ALL ON private.fit_assessment_attempts FROM anon, authenticated;
+-- Nur der Server (Edge Functions, Cron) darf die privaten Tabellen nutzen.
+GRANT USAGE ON SCHEMA private TO service_role;
+GRANT ALL ON private.app_settings, private.cron_tokens, private.fit_assessment_attempts TO service_role;
 
 -- Ruft assess-candidate-fit für eine Einreichung auf (fire and forget).
 CREATE OR REPLACE FUNCTION private.request_fit_assessment(p_submission_id uuid)
@@ -208,7 +209,8 @@ $$;
 --    Firmen, andere Bewerbungen, Empfehlungsstufe, Kritik am Arbeitgeber,
 --    Gegenangebot-Einschätzung. Ersetzte Notiz-Datensätze zählen nicht.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW public.client_candidate_interview_view AS
+DROP VIEW IF EXISTS public.client_candidate_interview_view;
+CREATE VIEW public.client_candidate_interview_view AS
 SELECT
   s.id AS submission_id,
   s.job_id,
@@ -251,7 +253,8 @@ GRANT SELECT ON public.client_candidate_interview_view TO authenticated, service
 -- ----------------------------------------------------------------------------
 -- 4. Ausbildung für den Kunden (Hochschule erst nach Interview-Zusage)
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW public.client_candidate_education_view AS
+DROP VIEW IF EXISTS public.client_candidate_education_view;
+CREATE VIEW public.client_candidate_education_view AS
 SELECT
   s.id AS submission_id,
   e.id,
@@ -309,7 +312,8 @@ GRANT EXECUTE ON FUNCTION public.notify_candidate_mention(uuid, uuid[], text) TO
 -- 6. Werdegang für den Kunden: Tätigkeiten vor der Freigabe ohne Namen und Firmen
 --    statt gar nicht (bisher NULL). Gleiche Bereinigung wie cv_ai_summary.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE VIEW public.client_candidate_experiences_view AS
+DROP VIEW IF EXISTS public.client_candidate_experiences_view;
+CREATE VIEW public.client_candidate_experiences_view AS
 SELECT
   ce.id,
   s.id AS submission_id,
@@ -337,5 +341,3 @@ CROSS JOIN LATERAL (SELECT public.employer_tokens(c.id) AS toks) emp
 WHERE public.can_access_job(s.job_id);
 
 GRANT SELECT ON public.client_candidate_experiences_view TO authenticated, service_role;
-
-COMMIT;
