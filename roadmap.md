@@ -1,6 +1,12 @@
 # Roadmap
 
+## Auftrag 34 (23.10.2026) — Live-Test Interview: Fixes aus dem ersten Durchlauf
+- [x] Stand 751bd75; keine Migration, keine Secrets.
+- [x] interview-request neu deployt (verify_jwt = true laut config.toml, Source-SHA ed55d19d…).
+- [x] Publish für https://matchunt.ai angefordert; 5 bekannte kritische Bestandsbefunde blockieren hier nicht.
 ## Deployment 168f270 (22.10.2026)
+
+
 - [x] Current checkout verified at 168f270; prior journal ends at 0034_einreichen_rahmen_pflicht.
 - [x] Apply a–b as 0033_firmenlogo and 0034_einreichen_rahmen_pflicht; database schema and trigger verified.
 - [x] Complete preflight for c–g; user corrected seeds and queue wake/drain behavior in 168f270.
