@@ -3052,6 +3052,109 @@ export type Database = {
           },
         ]
       }
+      client_task_log: {
+        Row: {
+          answer: string | null
+          done_at: string
+          done_by: string
+          id: string
+          job_id: string | null
+          kind: string
+          label: string
+          note: string | null
+          submission_id: string | null
+          task_key: string
+        }
+        Insert: {
+          answer?: string | null
+          done_at?: string
+          done_by: string
+          id?: string
+          job_id?: string | null
+          kind: string
+          label: string
+          note?: string | null
+          submission_id?: string | null
+          task_key: string
+        }
+        Update: {
+          answer?: string | null
+          done_at?: string
+          done_by?: string
+          id?: string
+          job_id?: string | null
+          kind?: string
+          label?: string
+          note?: string | null
+          submission_id?: string | null
+          task_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_task_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_task_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_jobs_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_rankings"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_education_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_experiences_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_interview_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_candidate_view"
+            referencedColumns: ["submission_id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "client_submissions_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_task_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_verifications: {
         Row: {
           client_id: string
@@ -7132,6 +7235,9 @@ export type Database = {
           amount: number
           amount_cents: number | null
           client_id: string
+          client_paid_reported_at: string | null
+          client_paid_reported_by: string | null
+          client_paid_reported_on: string | null
           corrects_invoice_id: string | null
           created_at: string
           currency: string | null
@@ -7172,6 +7278,9 @@ export type Database = {
           amount: number
           amount_cents?: number | null
           client_id: string
+          client_paid_reported_at?: string | null
+          client_paid_reported_by?: string | null
+          client_paid_reported_on?: string | null
           corrects_invoice_id?: string | null
           created_at?: string
           currency?: string | null
@@ -7212,6 +7321,9 @@ export type Database = {
           amount?: number
           amount_cents?: number | null
           client_id?: string
+          client_paid_reported_at?: string | null
+          client_paid_reported_by?: string | null
+          client_paid_reported_on?: string | null
           corrects_invoice_id?: string | null
           created_at?: string
           currency?: string | null
@@ -11137,6 +11249,10 @@ export type Database = {
           invoice_state: string
           mandate_id: string | null
           matchunt_cents: number | null
+          non_start_note: string | null
+          non_start_reason: string | null
+          non_start_reported_at: string | null
+          non_start_reported_by: string | null
           package_key: string | null
           package_version: number | null
           paid_at: string | null
@@ -11150,6 +11266,8 @@ export type Database = {
           research_state: string
           retention_release_date: string | null
           retention_state: string
+          start_confirmed_at: string | null
+          start_confirmed_by: string | null
           start_date: string | null
           submission_id: string
           total_fee: number | null
@@ -11172,6 +11290,10 @@ export type Database = {
           invoice_state?: string
           mandate_id?: string | null
           matchunt_cents?: number | null
+          non_start_note?: string | null
+          non_start_reason?: string | null
+          non_start_reported_at?: string | null
+          non_start_reported_by?: string | null
           package_key?: string | null
           package_version?: number | null
           paid_at?: string | null
@@ -11185,6 +11307,8 @@ export type Database = {
           research_state?: string
           retention_release_date?: string | null
           retention_state?: string
+          start_confirmed_at?: string | null
+          start_confirmed_by?: string | null
           start_date?: string | null
           submission_id: string
           total_fee?: number | null
@@ -11207,6 +11331,10 @@ export type Database = {
           invoice_state?: string
           mandate_id?: string | null
           matchunt_cents?: number | null
+          non_start_note?: string | null
+          non_start_reason?: string | null
+          non_start_reported_at?: string | null
+          non_start_reported_by?: string | null
           package_key?: string | null
           package_version?: number | null
           paid_at?: string | null
@@ -11220,6 +11348,8 @@ export type Database = {
           research_state?: string
           retention_release_date?: string | null
           retention_state?: string
+          start_confirmed_at?: string | null
+          start_confirmed_by?: string | null
           start_date?: string | null
           submission_id?: string
           total_fee?: number | null
