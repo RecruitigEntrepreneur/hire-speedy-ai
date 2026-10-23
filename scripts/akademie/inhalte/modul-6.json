@@ -1,0 +1,444 @@
+{
+  "sort": 6,
+  "title": "Vorstellen, das überzeugt",
+  "description": "Nach diesem Modul kannst du entscheiden, wen du einreichst, eine anonyme und faire Einschätzung schreiben und KI so nutzen, dass Datenschutz und dein eigenes Urteil gewahrt bleiben.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Wann du einreichst – und wann nicht",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du anhand von Muss-Kriterien, Motivation, Konditionen und Zustimmung entscheiden, ob du einen Kandidaten einreichst.",
+      "body": "Jede Einreichung ist eine Aussage über dein Urteil. Der Kunde merkt sich nicht, wie viele Profile du geschickt hast, sondern wie viele gepasst haben. Zwei bis vier starke Kandidaten je Stelle sind das Ziel, nicht zehn mittelmäßige.\n\n## Was die Zahlen zeigen\n\nOrientierungswerte aus Agenturdaten, überwiegend aus den USA:\n\n- Im Schnitt führt bei Agenturen knapp jede zweite Einreichung zu einem Interview (ca. 46 %).\n- Die besten Headhunter unterscheiden sich durch Trefferquote, nicht durch Aktivität. Bis zur ersten Einreichung brauchen sie sogar länger als der Rest: knapp 20 statt gut 15 Tage. Gründlichkeit schlägt Tempo.\n- Üblich sind drei bis vier Einreichungen je Besetzung, die Besten kommen mit einer bis zwei aus (ältere Daten von 2018).\n\nAuch in der Matchunt Liga zählt Treffsicherheit mehr als Menge.\n\n## Die Einreich-Prüfung\n\nBevor du einreichst, beantwortest du vier Fragen:\n\n- Muss-Kriterien: Sind alle erfüllt, jeweils mit Beleg? Ein „teilweise“ geht nur, wenn du es offen benennst.\n- Motivation: Sind Wechselgrund und Anlass klar?\n- Konditionen: Passen Gehaltserwartung und Untergrenze zum Band? Ist die Verfügbarkeit bekannt?\n- Zustimmung: Hat der Kandidat der Vorstellung für genau diese Stelle zugestimmt?\n\nEin Nein heißt: nicht einreichen oder erst klären. Liegt das Gehalt über dem Band, fragst du über „Kunden fragen“ nach, ob Spielraum besteht.\n\n## Wann du nicht einreichst\n\n- Ein Muss-Kriterium ist nicht erfüllt. „Vielleicht sieht der Kunde das anders“ ist kein Grund.\n- Der Kandidat ist neugierig, hat aber keinen Anlass.\n- Es gibt nur eine pauschale Zustimmung wie „Stellen Sie mich überall vor“.\n\n## Was Matchunt dabei übernimmt\n\nMatchunt lässt dich erst einreichen, wenn das Interview abgeschlossen ist. Beim Einreichen gleicht der Passungs-Check unter anderem Budget, Arbeitsmodell, Ort und Sprachen mit der Stelle ab, und du bestätigst die Einwilligung des Kandidaten mit einem Haken. Danach sieht der Kunde ein anonymes Profil. Fragt er ein Interview an, entscheidet der Kandidat, ob er seine Identität freigibt. Der Passungs-Check ist eine Hilfe, entscheiden musst du.\n\n## Beispiel\n\nMalte hat für eine Leitung Controlling sechs Gespräche geführt. Zwei Kandidaten erfüllen alle Muss-Kriterien mit Beleg und haben einen klaren Anlass. Eine Kandidatin passt fachlich, erwartet aber deutlich mehr als das Band. Drei haben Lücken bei Muss-Kriterien. Malte reicht zwei ein, fragt für die dritte über „Kunden fragen“ nach dem Budget und lässt die übrigen drei weg. Der Kunde lädt beide Eingereichten zum Interview ein.\n\n## Das Wichtigste\n\n- Zwei bis vier starke Kandidaten statt Masse. Deine Trefferquote ist dein Ruf.\n- Einreichen nur, wenn Muss-Kriterien, Motivation, Konditionen und Zustimmung stimmen.\n- Matchunt prüft mit, die Entscheidung triffst du.",
+      "vorlage_title": "Einreich-Check",
+      "vorlage_body": "## Muss-Kriterien\n\n- Jedes Muss-Kriterium mit Beleg erfüllt? ja / teilweise (offen benannt) / nein\n- Ein Nein bei einem Muss-Kriterium: nicht einreichen\n\n## Motivation\n\n- Weg von, hin zu und Anlass klar?\n- Skala und „Was fehlt zur 10?“ notiert?\n\n## Konditionen\n\n- Gehaltserwartung und Untergrenze im Band? Sonst erst über „Kunden fragen“ klären\n- Verfügbarkeit und Kündigungsfrist notiert?\n- Laufende Prozesse und Gegenangebots-Risiko bekannt?\n\n## Zustimmung und Erfassung\n\n- Zustimmung zur Vorstellung für genau diese Stelle eingeholt?\n- Interview in Matchunt abgeschlossen, alle Pflichtangaben vollständig?\n\n## Auswahl\n\n- Gehört dieser Kandidat zu meinen zwei bis vier stärksten für diese Stelle?\n- Würde ich ihn auch einreichen, wenn der Kunde nur ein einziges Profil sehen dürfte?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du hast acht Gespräche geführt. Drei Kandidaten erfüllen alle Muss-Kriterien mit Beleg, fünf nur teilweise. Ein Kollege rät: „Reich alle acht ein, der Kunde soll entscheiden.“",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du reichst alle acht ein, weil mehr Profile mehr Chancen bedeuten."
+            },
+            {
+              "id": "b",
+              "text": "Du reichst die drei starken ein und lässt die anderen fünf weg."
+            },
+            {
+              "id": "c",
+              "text": "Du reichst alle acht ein und markierst die drei besten als Favoriten."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Zwei bis vier starke Kandidaten schlagen Masse. Wer schwache Profile mitschickt, senkt seine Trefferquote und damit seinen Ruf beim Kunden."
+        },
+        {
+          "type": "single",
+          "case": "Eine Kandidatin erfüllt alle Muss-Kriterien. Ihre Untergrenze liegt aber 15 % über dem Gehaltsband der Stelle.",
+          "prompt": "Was ist der richtige Schritt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du klärst über „Kunden fragen“, ob es Spielraum gibt, bevor du einreichst."
+            },
+            {
+              "id": "b",
+              "text": "Du reichst ein und sprichst das Gehalt erst an, wenn der Kunde fragt."
+            },
+            {
+              "id": "c",
+              "text": "Du trägst eine niedrigere Erwartung ein, damit sie ins Band passt."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Passen die Konditionen nicht, klärst du das vor dem Einreichen. Verschweigen kostet Vertrauen, und falsche Angaben sind ausgeschlossen."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kandidat sagt am Ende des Gesprächs: „Stellen Sie mich gern überall vor, wo es passt.“",
+          "prompt": "Reicht das als Zustimmung für die Einreichung?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ja, eine allgemeine Zustimmung gilt für alle passenden Stellen."
+            },
+            {
+              "id": "b",
+              "text": "Ja, sofern du die Aussage in der Kandidatenakte notierst."
+            },
+            {
+              "id": "c",
+              "text": "Nein, du holst die Zustimmung für genau diese Stelle ein."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die Zustimmung zur Vorstellung gilt für eine bestimmte Stelle. Eine pauschale Erlaubnis ersetzt sie nicht, auch nicht mit Notiz."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was spricht gegen eine Einreichung? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ein Muss-Kriterium ist nicht erfüllt"
+            },
+            {
+              "id": "b",
+              "text": "Dem Kandidaten fehlt ein Kann-Kriterium"
+            },
+            {
+              "id": "c",
+              "text": "Das Interview in Matchunt ist noch nicht abgeschlossen"
+            },
+            {
+              "id": "d",
+              "text": "Der Kandidat hat einen klaren Anlass für den Wechsel"
+            }
+          ],
+          "correct": [
+            "a",
+            "c"
+          ],
+          "explanation": "Ein nicht erfülltes Muss-Kriterium ist ein klares Nein, und ohne abgeschlossenes Interview lässt Matchunt kein Einreichen zu. Ein fehlendes Kann-Kriterium ist kein Ausschlussgrund."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring den Ablauf auf Matchunt in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Interview mit allen Pflichtangaben abschließen"
+            },
+            {
+              "id": "b",
+              "text": "Einreichen mit Passungs-Check und Einwilligungs-Haken"
+            },
+            {
+              "id": "c",
+              "text": "Kunde sieht das anonyme Profil und fragt ein Interview an"
+            },
+            {
+              "id": "d",
+              "text": "Kandidat gibt seine Identität frei"
+            }
+          ],
+          "explanation": "Erst das abgeschlossene Interview, dann die Einreichung. Der Kunde sieht zunächst nur ein anonymes Profil. Die Identität gibt der Kandidat erst frei, wenn ein Interview angefragt ist."
+        },
+        {
+          "type": "single",
+          "case": "In einem Quartal hat Lea 30 Kandidaten eingereicht, drei wurden zum Interview eingeladen. Ben hat acht eingereicht, fünf wurden eingeladen.",
+          "prompt": "Wer arbeitet nach dem Maßstab dieses Themas besser?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Lea, weil sie deutlich aktiver war und mehr Profile geliefert hat."
+            },
+            {
+              "id": "b",
+              "text": "Ben, weil seine Trefferquote viel höher ist."
+            },
+            {
+              "id": "c",
+              "text": "Beide gleich, weil am Ende nur die Kundeninterviews zählen."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Ben kommt auf fünf von acht, Lea auf drei von dreißig. Gute Headhunter unterscheiden sich durch Trefferquote, nicht durch Aktivität, das gilt auch in der Matchunt Liga."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Die Einschätzung schreiben",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du eine anonyme Einschätzung nach Passung, Lücken, Motivation und Konditionen schreiben, die ein Kunde in zwei Minuten versteht.",
+      "body": "Der Kunde entscheidet über eine Einladung vor allem nach deinem Gespräch. Deine Einschätzung ist das, was er davon sieht. Sie muss in zwei Minuten verständlich sein, und sie muss ehrlich sein.\n\n## Die vier Teile\n\n- Passung: jedes Muss-Kriterium einzeln, mit einem Satz Beleg.\n- Lücken: was fehlt oder nur teilweise erfüllt ist, mit Einordnung. Verschwiegene Lücken kommen im Interview heraus und kosten dich Vertrauen.\n- Motivation: weg von, hin zu, warum jetzt, möglichst in den Worten des Kandidaten.\n- Konditionen: Gehaltserwartung und Untergrenze, Verfügbarkeit, laufende Prozesse, Gegenangebots-Risiko.\n\n## Anonym heißt: nicht erkennbar\n\nDen Namen wegzulassen reicht nicht. Erkennbar machen auch der genaue Arbeitgeber, ein seltener Titel mit Ort, ein Preis, ein Projekt mit Namen oder ein Ehrenamt. Schreib „mittelständischer Automobilzulieferer, Süddeutschland“ statt Firma und Stadt. Auf Matchunt sieht der Kunde die Identität erst, wenn er ein Interview anfragt und der Kandidat zustimmt.\n\n## Was nicht hineingehört\n\n- Kein Wort zu Alter, Herkunft, Religion, Behinderung oder sexueller Identität und keine Bewertung nach dem Geschlecht. Diese Merkmale schützt das AGG.\n- Nichts zu Gesundheit, Familienstand, Kindern oder Familienplanung.\n- Auch nicht versteckt: Schreib „Deutsch verhandlungssicher“ statt „Muttersprachler“ und „passt fachlich ins Team“ statt „passt ins junge Team“.\n- Kein Punktwert, keine Prozentzahl, keine Sterne. Eine Zahl täuscht Genauigkeit vor und lädt dazu ein, Menschen nach einer Zahl auszusortieren. Auf Matchunt gilt deshalb: Einschätzung in Worten.\n\nErzählt dir jemand im Gespräch etwas Privates, etwa zu Gesundheit oder Familie, bleibt es bei dir.\n\n## Beispiel\n\nEinschätzung für eine Leitung Buchhaltung:\n\n- Passung: Verantwortet seit 2021 den Monatsabschluss nach HGB für vier Gesellschaften, fertig bis zum fünften Arbeitstag. Führt ein Team von sechs Personen. Arbeitet täglich mit SAP S/4HANA.\n- Lücken: Keine Erfahrung mit IFRS (Kann-Kriterium). Hat eine Systemumstellung begleitet, aber nicht geleitet.\n- Motivation: Entscheidungen wurden in eine Zentrale verlagert. Wunsch: den Abschluss „wieder selbst gestalten“. Anlass: Der eigene Bereich wird im Januar zusammengelegt.\n- Konditionen: Erwartung 72.000 Euro fix plus bis zu 8.000 Euro variabel, Untergrenze 68.000 Euro. Kündigungsfrist drei Monate zum Quartalsende. Ein weiterer Prozess in Runde zwei. Gegenangebot nach eigener Aussage unwahrscheinlich.\n\nKein Name, kein Arbeitgeber, keine Stadt, kein Punktwert.\n\n## Das Wichtigste\n\n- Gliedern nach Passung, Lücken, Motivation und Konditionen, mit Belegen.\n- Anonym heißt nicht erkennbar: Branche und Region statt Firma und Details.\n- Kein Punktwert und nichts zu AGG-Merkmalen, Gesundheit oder Familienstand.",
+      "vorlage_title": "Gerüst Einschätzung",
+      "vorlage_body": "## Passung\n\n- [Muss-Kriterium 1]: [Beleg in einem Satz]\n- [Muss-Kriterium 2]: [Beleg in einem Satz]\n\n## Lücken\n\n- [Was fehlt oder nur teilweise erfüllt ist]: [Einordnung, zum Beispiel Kann-Kriterium oder ausgleichbar durch …]\n\n## Motivation\n\n- Weg von: …\n- Hin zu: …\n- Warum jetzt: …\n\n## Konditionen\n\n- Gehaltserwartung brutto pro Jahr: fix …, variabel …, Untergrenze …\n- Verfügbarkeit: Kündigungsfrist … zum …\n- Laufende Prozesse: …\n- Gegenangebots-Risiko: …\n\n## Vor dem Absenden prüfen\n\n- Kein Name, kein Arbeitgeber, kein Detail, an dem man die Person erkennt\n- Nichts zu Alter, Herkunft, Religion, Behinderung, Gesundheit, Familienstand\n- Kein Punktwert, keine Prozentzahl\n- In zwei Minuten lesbar?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "In einer Einschätzung steht: „Leiter Qualität bei einem Automobilzulieferer in Wolfsburg-Nord, Träger des regionalen Innovationspreises 2025.“",
+          "prompt": "Was ist das Problem?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Der Satz ist zu lang für eine Einschätzung, die schnell lesbar sein soll."
+            },
+            {
+              "id": "b",
+              "text": "Ort, Titel und Preis machen die Person erkennbar, obwohl kein Name fällt."
+            },
+            {
+              "id": "c",
+              "text": "Ein Preis ist kein Beleg für ein Muss-Kriterium und gehört zu den Lücken."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Anonym heißt nicht erkennbar. Die Kombination aus genauem Ort, Titel und Preis führt direkt zur Person. Schreib Branche und Region statt solcher Details."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde bittet dich: „Geben Sie mir bitte für jede Kandidatin eine Punktzahl von 1 bis 100.“",
+          "prompt": "Wie reagierst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du lieferst die Punktzahl, damit der Kunde schneller vergleichen kann."
+            },
+            {
+              "id": "b",
+              "text": "Du gibst statt Punkten Prozentwerte an, das wirkt weniger streng."
+            },
+            {
+              "id": "c",
+              "text": "Du bleibst bei einer Einschätzung in Worten, gegliedert und mit Belegen."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Eine Zahl täuscht Genauigkeit vor und lädt zum Aussortieren nach Zahl ein. Prozentwerte sind dasselbe in anderer Form. Auf Matchunt gibt es die Einschätzung in Worten."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kandidat erzählt im Gespräch, dass er nach einer längeren Krankheit seit einem Jahr wieder voll arbeitet.",
+          "prompt": "Was schreibst du dazu in die Einschätzung?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nichts. Angaben zur Gesundheit gehören nicht in die Einschätzung."
+            },
+            {
+              "id": "b",
+              "text": "Einen kurzen Hinweis, damit der Kunde später nicht überrascht wird."
+            },
+            {
+              "id": "c",
+              "text": "Einen Vermerk bei den Lücken, ohne die Krankheit genau zu nennen."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Was dir jemand zur Gesundheit erzählt, bleibt bei dir. Es hat mit den Muss-Kriterien nichts zu tun und kann zu Benachteiligung führen, auch als versteckter Vermerk."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was gehört in eine Einschätzung? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eine Gesamtnote wie 8 von 10"
+            },
+            {
+              "id": "b",
+              "text": "Muss-Kriterien mit je einem Satz Beleg"
+            },
+            {
+              "id": "c",
+              "text": "Der Familienstand, weil er für einen Umzug wichtig sein kann"
+            },
+            {
+              "id": "d",
+              "text": "Offene Lücken mit einer kurzen Einordnung"
+            }
+          ],
+          "correct": [
+            "b",
+            "d"
+          ],
+          "explanation": "Passung mit Belegen und offen benannte Lücken machen die Einschätzung glaubwürdig. Punktwerte und Familienstand gehören nicht hinein."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Notiz dem richtigen Teil der Einschätzung zu.",
+          "pairs": [
+            {
+              "left": "„Hat drei Werke auf ein neues Prüfsystem umgestellt.“",
+              "right": "Passung"
+            },
+            {
+              "left": "„Noch keine Führung mit eigener Budgetverantwortung.“",
+              "right": "Lücken"
+            },
+            {
+              "left": "„Will raus aus dem Konzern, näher an die Entscheidungen.“",
+              "right": "Motivation"
+            },
+            {
+              "left": "„Erwartet 85.000 Euro fix, Untergrenze 80.000 Euro.“",
+              "right": "Konditionen"
+            }
+          ],
+          "explanation": "Belege zu Muss-Kriterien zeigen die Passung, Fehlendes gehört zu den Lücken. Gründe für den Wechsel sind Motivation, Geld und Zeit sind Konditionen."
+        },
+        {
+          "type": "single",
+          "case": "Die Stelle verlangt sehr gutes Deutsch. Der Kandidat ist in Polen aufgewachsen und führt seit acht Jahren Kundenverhandlungen auf Deutsch.",
+          "prompt": "Wie formulierst du das in der Einschätzung?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Kein Muttersprachler, Deutsch aber trotzdem recht gut.“"
+            },
+            {
+              "id": "b",
+              "text": "„Deutsch verhandlungssicher, führt seit acht Jahren Verhandlungen auf Deutsch.“"
+            },
+            {
+              "id": "c",
+              "text": "„Aufgewachsen in Polen, spricht inzwischen gut Deutsch.“"
+            }
+          ],
+          "correct": "b",
+          "explanation": "Maßstab ist das Sprachniveau für die Aufgabe, belegt mit dem, was die Person tut. Herkunft und Muttersprache gehören nicht hinein, auch nicht nebenbei."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "KI richtig nutzen und prüfen",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du KI datenschutzgerecht nutzen, typische Fehler in KI-Texten finden und begründen, warum die Auswahl immer bei dir bleibt.",
+      "body": "KI spart dir Zeit. Sie hat aber eine gefährliche Eigenschaft: Sie klingt immer sicher, auch wenn sie etwas erfindet, übertreibt oder weglässt. Gute Headhunter nutzen KI als Hilfe und prüfen jedes Ergebnis.\n\n## Wofür KI taugt\n\n- Boolean-Strings und Suchideen\n- Varianten für Ansprachetexte, die du danach selbst überarbeitest\n- Gesprächsleitfäden\n- In Matchunt: Matching gegen die Stelle und eine Einschätzung der Passung als Vorschlag\n\nDie Matchunt-Einschätzung kennt nur, was in Lebenslauf, Akte und Stelle steht. Motivation, Glaubwürdigkeit und deinen Eindruck aus dem Gespräch kennt sie nicht. Ihre Hinweise sind Prüfaufträge, kein Urteil.\n\n## Datenschutz: Namen raus\n\nBevor Matchunt Daten an die KI gibt, ersetzt es Namen und Kontaktdaten (Pseudonymisierung). Außerhalb von Matchunt gilt: KI nur im Business-Tarif mit Auftragsverarbeitungsvertrag und ohne Personendaten. Lebensläufe mit Klarnamen gehören in kein privates KI-Konto. Dort verlierst du die Kontrolle darüber, was mit den Daten passiert.\n\n## Typische KI-Fehler\n\n- Erfunden: ein Zertifikat oder Abschluss, der nirgends steht\n- Falsch: Jahre, Teamgrößen, Zeiträume\n- Übertrieben: Aus „Grundkenntnisse“ wird „Experte“.\n- Weggelassen: eine Lücke, die Kündigungsfrist, ein Gegenangebots-Risiko\n- Verboten: Rückschlüsse auf Alter oder Herkunft, etwa „passt gut ins junge Team“\n\nSo prüfst du: Halte jede Aussage gegen die Quelle, also gegen Lebenslauf und Gesprächsnotizen. Was du nicht belegen kannst, streichst du. Was fehlt, ergänzt du.\n\n## Die Entscheidung bleibt bei dir\n\nNach Art. 22 DSGVO darf niemand einer ausschließlich automatisierten Entscheidung unterworfen werden, die ihn erheblich beeinträchtigt. Der Hamburger Datenschutzbeauftragte hält es grundsätzlich für unzulässig, die finale Auswahl einem Sprachmodell zu überlassen. KI in der Personalauswahl gilt nach der europäischen KI-Verordnung außerdem als Hochrisiko, die Pflichten dazu gelten ab Dezember 2027. Für dich heißt das: Du liest, prüfst, entscheidest und begründest in eigenen Worten. „Die KI sagt, passt nicht“ ist keine Begründung.\n\nAuch eine KI-Mitschrift setzt eine Aufnahme voraus. Die ist nur mit Einwilligung erlaubt (§ 201 StGB).\n\n## Beispiel\n\nDie KI fasst Kandidat „K-17“ so zusammen: „Zwölf Jahre Erfahrung in der Inbetriebnahme, PMP-zertifiziert, führt ein Team von 15 Personen. Passt gut in ein junges Team.“ Im Lebenslauf stehen sieben Jahre, kein PMP-Zertifikat und ein Team von fünf. Jana findet vier Fehler: falsche Jahre, ein erfundenes Zertifikat, eine falsche Teamgröße und einen Satz, der auf das Alter zielt. Sie korrigiert die Zusammenfassung und entscheidet selbst.\n\n## Das Wichtigste\n\n- Keine Lebensläufe mit Klarnamen in private KI-Konten. Matchunt ersetzt Namen vor der KI.\n- Jede KI-Aussage gegen die Quelle prüfen: erfunden, falsch, übertrieben, weggelassen, verboten.\n- Die Auswahl triffst du, nie die KI.",
+      "vorlage_title": "Prüfliste KI-Text",
+      "vorlage_body": "## Vor der Nutzung\n\n- Werkzeug: Matchunt oder KI im Business-Tarif mit Auftragsverarbeitungsvertrag?\n- Keine Klarnamen, keine Kontaktdaten, kein Lebenslauf in einem privaten KI-Konto\n- Gesprächsaufnahme für eine Mitschrift nur mit Einwilligung\n\n## Jede Aussage prüfen\n\n- Steht das so im Lebenslauf oder in meinen Gesprächsnotizen?\n- Stimmen Zahlen, Zeiträume, Teamgrößen und Abschlüsse?\n- Ist etwas übertrieben, etwa „Experte“ statt „Kenntnisse“?\n- Fehlt etwas Wichtiges, etwa eine Lücke, die Kündigungsfrist oder die Gehaltserwartung?\n- Steht etwas zu Alter, Herkunft, Geschlecht, Gesundheit oder Familienstand drin?\n\n## Danach\n\n- Nicht Belegtes streichen oder beim Kandidaten nachfragen\n- Fehlendes ergänzen, Verbotenes entfernen\n- Selbst entscheiden und in eigenen Worten begründen",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Tom will schnell eine Zusammenfassung und lädt einen Lebenslauf mit Namen und Telefonnummer in sein privates KI-Konto.",
+          "prompt": "Wie bewertest du das?",
+          "options": [
+            {
+              "id": "a",
+              "text": "In Ordnung, sofern er den Chat direkt danach wieder löscht."
+            },
+            {
+              "id": "b",
+              "text": "In Ordnung, weil der Kandidat der Vorstellung zugestimmt hat."
+            },
+            {
+              "id": "c",
+              "text": "Nicht in Ordnung, Lebensläufe mit Klarnamen gehören dort nicht hin."
+            }
+          ],
+          "correct": "c",
+          "explanation": "In einem privaten KI-Konto verlierst du die Kontrolle über die Daten, Löschen ändert daran nichts. Die Zustimmung zur Vorstellung deckt das nicht ab. Nutze Matchunt, das Namen vorher ersetzt."
+        },
+        {
+          "type": "single",
+          "case": "Eine KI-Zusammenfassung nennt ein „PMP-Zertifikat“. Im Lebenslauf und in deinen Notizen steht davon nichts.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du streichst die Angabe oder fragst beim Kandidaten nach."
+            },
+            {
+              "id": "b",
+              "text": "Du übernimmst sie, die KI hat das sicher irgendwo gefunden."
+            },
+            {
+              "id": "c",
+              "text": "Du übernimmst sie mit dem Zusatz „wahrscheinlich“."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Was weder im Lebenslauf noch in deinen Notizen steht, ist nicht belegt. Erfundene Zertifikate sind ein typischer KI-Fehler, ein „wahrscheinlich“ macht sie nicht wahrer."
+        },
+        {
+          "type": "single",
+          "case": "Die Matchunt-Einschätzung meldet: „Muss-Kriterium Inbetriebnahme von Schaltanlagen nicht erkennbar.“ Im Gespräch hat dir der Kandidat aber ein Projekt dazu genau und mit Belegen geschildert.",
+          "prompt": "Wie gehst du vor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du folgst der KI und reichst nicht ein, weil sie objektiver urteilt."
+            },
+            {
+              "id": "b",
+              "text": "Du nimmst den Hinweis als Prüfauftrag, urteilst selbst und belegst es."
+            },
+            {
+              "id": "c",
+              "text": "Du formulierst den Lebenslauf um, bis die KI das Kriterium erkennt."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Die Matchunt-Einschätzung kennt nur den Lebenslauf, nicht dein Gespräch. Ihr Hinweis ist ein Prüfauftrag. Das Urteil triffst du und belegst es in deiner Einschätzung."
+        },
+        {
+          "type": "multi",
+          "prompt": "Der Lebenslauf zeigt: Bachelor (FH), sieben Jahre Berufserfahrung, Team von fünf Personen. Welche Aussagen der KI-Zusammenfassung musst du korrigieren oder streichen? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Bachelor (FH) in Elektrotechnik“"
+            },
+            {
+              "id": "b",
+              "text": "„Seit zwölf Jahren in der Inbetriebnahme tätig“"
+            },
+            {
+              "id": "c",
+              "text": "„Führt ein Team von fünf Personen“"
+            },
+            {
+              "id": "d",
+              "text": "„Passt gut in ein junges, dynamisches Team“"
+            }
+          ],
+          "correct": [
+            "b",
+            "d"
+          ],
+          "explanation": "Die zwölf Jahre widersprechen dem Lebenslauf, und der Satz zum jungen Team zielt auf das Alter. Abschluss und Teamgröße sind durch den Lebenslauf belegt."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring den Umgang mit einem KI-Text in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Text in Matchunt oder einem Business-Tarif ohne Klarnamen erstellen lassen"
+            },
+            {
+              "id": "b",
+              "text": "Jede Aussage gegen Lebenslauf und Gesprächsnotizen prüfen"
+            },
+            {
+              "id": "c",
+              "text": "Nicht Belegtes streichen, Fehlendes ergänzen, Verbotenes entfernen"
+            },
+            {
+              "id": "d",
+              "text": "Selbst entscheiden und in eigenen Worten begründen"
+            }
+          ],
+          "explanation": "Datenschutz kommt vor der Nutzung, die Prüfung vor jeder Verwendung. Am Ende entscheidest du, nicht die KI."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde schlägt vor: „Lassen Sie doch die KI entscheiden, wen Sie einreichen. Das geht schneller.“",
+          "prompt": "Was antwortest du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nein, die Auswahl treffe ich selbst, das verlangt auch der Datenschutz."
+            },
+            {
+              "id": "b",
+              "text": "Gute Idee, eine KI urteilt objektiver als ein Mensch."
+            },
+            {
+              "id": "c",
+              "text": "Gern, solange ich die Ergebnisse stichprobenartig prüfe."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Die finale Auswahl einem Sprachmodell zu überlassen ist nach Art. 22 DSGVO grundsätzlich unzulässig. Stichproben ändern daran nichts: Du entscheidest über jeden Kandidaten selbst."
+        }
+      ]
+    }
+  ]
+}

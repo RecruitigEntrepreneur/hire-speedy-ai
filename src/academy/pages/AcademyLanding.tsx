@@ -1,126 +1,112 @@
 import { Link } from 'react-router-dom';
-import {
-  GraduationCap, Award, Users, Rocket, ArrowRight, Lock, BookOpen, Loader2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { AcademyLayout } from '../components/AcademyLayout';
-import { useAcademyCourses, type AcademyCourse } from '../lib/useAcademy';
+import { AUSBILDUNG_SLUG } from '../lib/ausbildung';
 
-const LEVEL_LABEL: Record<AcademyCourse['level'], string> = {
-  beginner: 'Einsteiger',
-  intermediate: 'Fortgeschritten',
-  advanced: 'Profi',
-};
+const db = supabase as unknown as { from: (table: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-const PILLARS = [
-  { icon: BookOpen, title: 'Kurse & Lektionen', text: 'Strukturierte Module von Sourcing bis Closing — in deinem Tempo.' },
-  { icon: Award, title: 'Prüfung & Zertifikat', text: 'Weise dein Können nach und erhalte ein anerkanntes Abschlusszertifikat.' },
-  { icon: Users, title: 'Community & Coaching', text: 'Lerne mit anderen Headhuntern und erhalte Feedback von Profis.' },
-  { icon: Rocket, title: 'Praxis bei Matchunt', text: 'Bewirb dich nach dem Abschluss als Recruiter und arbeite an echten Mandaten.' },
-];
+interface PublicModule { id: string; title: string; description: string; sort_order: number; lessons: { title: string; sort_order: number }[] }
 
-function CourseCard({ course }: { course: AcademyCourse }) {
-  return (
-    <Card className="glass-card flex flex-col transition-all hover:shadow-md">
-      <CardHeader>
-        <div className="mb-2 flex items-center justify-between">
-          <span className="status-badge bg-secondary text-secondary-foreground">{LEVEL_LABEL[course.level]}</span>
-          {course.is_premium ? (
-            <span className="status-badge bg-warning/10 text-warning inline-flex items-center gap-1">
-              <Lock className="h-3 w-3" /> Premium
-            </span>
-          ) : (
-            <span className="status-badge status-published">Kostenlos</span>
-          )}
-        </div>
-        <CardTitle className="text-lg">{course.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col">
-        <p className="flex-1 text-sm text-muted-foreground">{course.description}</p>
-        <Button asChild variant="ghost" className="mt-4 justify-start px-0 text-sm">
-          <Link to={`/kurs/${course.slug}`}>
-            Zum Kurs <ArrowRight className="ml-1 h-4 w-4" />
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
+/** Öffentlicher Lehrplan (veröffentlichte Module und Themen sind auch ohne Login lesbar). */
+function useLehrplan() {
+  return useQuery({
+    queryKey: ['academy', 'lehrplan'],
+    queryFn: async (): Promise<PublicModule[]> => {
+      const { data: course } = await db.from('academy_courses').select('id').eq('slug', AUSBILDUNG_SLUG).eq('published', true).maybeSingle();
+      if (!course) return [];
+      const { data: modules } = await db.from('academy_modules').select('id,title,description,sort_order')
+        .eq('course_id', course.id).order('sort_order', { ascending: true });
+      const ids = (modules ?? []).map((m: { id: string }) => m.id);
+      const { data: lessons } = ids.length
+        ? await db.from('academy_lessons').select('module_id,title,sort_order').in('module_id', ids).order('sort_order', { ascending: true })
+        : { data: [] };
+      return (modules ?? []).map((m: PublicModule & { id: string }) => ({
+        ...m,
+        lessons: (lessons ?? []).filter((l: { module_id: string }) => l.module_id === m.id),
+      }));
+    },
+  });
 }
 
+const STEPS = [
+  ['Lernen', '8 Module mit je 3 Themen, kurz und praxisnah'],
+  ['Abfragen', 'nach jedem Thema, sofort mit Begründung'],
+  ['Modul-Tests', 'das nächste Modul öffnet erst nach Bestehen'],
+  ['Zulassung', 'Arbeitsprobe und Live-Prüfung mit zwei Prüfern'],
+  ['Matchunt', 'nach Vertrag und Freischaltung echte Stellen'],
+];
+
 export default function AcademyLanding() {
-  const { data: courses, isLoading } = useAcademyCourses();
+  const { data: modules, isLoading } = useLehrplan();
 
   return (
     <AcademyLayout>
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-hero">
-        <div className="mx-auto max-w-4xl px-4 py-24 text-center sm:py-32">
-          <div className="animate-fade-in mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-navy shadow-glow">
-            <GraduationCap className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <h1 className="animate-slide-up text-4xl font-bold tracking-tight sm:text-5xl">
-            Werde zum <span className="gradient-text">Top-Headhunter</span>
-          </h1>
-          <p className="animate-slide-up mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Die Matchunt Akademie bildet dich zur modernen Personalberatung aus — und öffnet dir
-            danach die Tür, als Recruiter an echten Mandaten zu verdienen.
-          </p>
-          <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" variant="hero">
-              <Link to="/dashboard">Kostenlos starten <ArrowRight className="ml-1 h-4 w-4" /></Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <a href="#kurse">Kurse ansehen</a>
-            </Button>
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">Freemium — Basisinhalte gratis, kein Risiko.</p>
+      <section className="mx-auto max-w-4xl px-5 pb-12 pt-20 text-center">
+        <p className="eyebrow mb-4">Ausbildung zum Headhunter</p>
+        <h1 className="font-display text-4xl leading-tight sm:text-6xl">
+          Werde Headhunter auf <span className="text-gold italic-display">Matchunt</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-[hsl(36_10%_80%)]">
+          Du lernst das Handwerk Schritt für Schritt, wir fragen jedes Thema ab und testen jedes Modul.
+          Wer am Ende die Zulassung besteht, arbeitet an echten Stellen auf Matchunt.
+        </p>
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link to="/auth?mode=signup" className="btn-gold inline-flex items-center gap-1 px-6 py-3">Registrieren <ArrowRight className="h-4 w-4" /></Link>
+          <a href="#lehrplan" className="btn-ghost-acad px-6 py-3">Lehrplan ansehen</a>
         </div>
       </section>
 
-      {/* Säulen */}
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {PILLARS.map((p) => (
-            <div key={p.title} className="stat-card">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                <p.icon className="h-5 w-5" />
-              </div>
-              <h3 className="font-semibold">{p.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{p.text}</p>
+      <section id="ablauf" className="mx-auto max-w-6xl px-5">
+        <p className="eyebrow mb-3">So läuft es</p>
+        <div className="grid gap-3 sm:grid-cols-5">
+          {STEPS.map(([t, s], i) => (
+            <div key={t} className="acad-panel p-4">
+              <div className="course-index text-3xl">{i + 1}</div>
+              <div className="mt-2 font-medium">{t}</div>
+              <p className="mt-1 text-sm text-[hsl(36_9%_72%)]">{s}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Kurskatalog */}
-      <section id="kurse" className="mx-auto max-w-6xl px-4 py-16">
-        <div className="mb-8 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Kurskatalog</h2>
-          <p className="mt-2 text-muted-foreground">Starte mit den Grundlagen oder vertiefe dich als Profi.</p>
-        </div>
+      <section id="lehrplan" className="mx-auto mt-14 max-w-4xl px-5">
+        <p className="eyebrow mb-3">Lehrplan</p>
         {isLoading ? (
-          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-        ) : courses && courses.length > 0 ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {courses.map((c) => <CourseCard key={c.id} course={c} />)}
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[hsl(40_8%_60%)]" /></div>
+        ) : modules && modules.length ? (
+          <div className="acad-panel divide-y divide-[hsl(40_30%_90%/0.06)] px-5">
+            {modules.map((m) => (
+              <div key={m.id} className="grid grid-cols-[2.25rem_1fr] gap-3 py-4">
+                <span className="font-display text-2xl text-[hsl(var(--acad-gold-soft))]">{m.sort_order}</span>
+                <span>
+                  <span className="font-medium">{m.title}</span>
+                  <span className="mt-0.5 block text-sm text-[hsl(36_9%_70%)]">{m.lessons.map((l) => l.title).join(' · ')}</span>
+                </span>
+              </div>
+            ))}
           </div>
         ) : (
-          <p className="text-center text-muted-foreground">Bald verfügbar.</p>
+          <p className="text-[hsl(36_9%_72%)]">Der Lehrplan wird gerade veröffentlicht.</p>
         )}
       </section>
 
-      {/* Abschluss-CTA */}
-      <section className="mx-auto max-w-4xl px-4 pb-8">
-        <div className="glass-card rounded-2xl px-8 py-12 text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Vom Lernen zum Verdienen</h2>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Nach Abschluss und Zertifikat kannst du dich als Recruiter bei Matchunt bewerben —
-            und dein Wissen direkt in Platzierungen umsetzen.
+      <section className="mx-auto mt-10 grid max-w-4xl gap-4 px-5 md:grid-cols-2">
+        <div className="acad-panel p-5">
+          <p className="font-medium">Passt zu dir, wenn</p>
+          <ul className="mt-2 space-y-1.5 text-sm text-[hsl(36_10%_80%)]">
+            {['du deine Branche kennst und gern telefonierst', 'du Absagen aushältst und dranbleibst', 'du 8–10 Stunden pro Woche hast'].map((t) => (
+              <li key={t} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald" />{t}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="acad-panel p-5">
+          <p className="font-medium">Was wir nicht versprechen</p>
+          <p className="mt-2 text-sm text-[hsl(36_10%_80%)]">
+            Das Bestehen begründet keinen Anspruch auf Stellen oder Aufträge, und niemand kann dir ein Einkommen zusagen.
+            Das erste Honorar kommt oft erst Monate nach einer Zusage, weil Kündigungsfristen laufen.
           </p>
-          <Button asChild size="lg" variant="hero" className="mt-6">
-            <Link to="/dashboard">Jetzt Mitglied werden</Link>
-          </Button>
         </div>
       </section>
     </AcademyLayout>

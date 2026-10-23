@@ -1,0 +1,449 @@
+{
+  "sort": 1,
+  "title": "Das Spielfeld",
+  "description": "Nach diesem Modul kannst du erklären, wie ein Headhunter auf Matchunt Geld verdient, wer im Ablauf was sieht und wie du deine Arbeitswoche planst und misst.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "So verdienen Headhunter Geld – und warum die meisten scheitern",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du erklären, wie ein Erfolgshonorar entsteht, warum das erste Geld spät kommt und warum Trefferquote wichtiger ist als Fleiß.",
+      "body": "Als Headhunter wirst du für ein Ergebnis bezahlt: Eine Firma stellt die Person ein, die du vorgestellt hast. Dann zahlt die Firma ein Honorar. Kommt keine Einstellung zustande, gibt es kein Geld, egal wie viel Arbeit in der Suche steckt.\n\n## Wie das Honorar entsteht\n\n- In Deutschland, Österreich und der Schweiz liegt das Honorar meist bei 20 bis 30 Prozent des ersten Jahresbruttos der eingestellten Person.\n- Eine Branchenstudie des BDU nennt im Schnitt 26 Prozent des Zieleinkommens (Zahlen von 2019). Bei Führungspositionen liegt das Honorar oft über 30 Prozent.\n- Das Honorar zahlt immer die Firma. Auf Matchunt gilt: Von der Kandidatin nimmst du nie Geld. Und der Arbeitgeber darf die Provision auch nicht auf sie abwälzen, das hat das Bundesarbeitsgericht entschieden.\n\nMatchunt vereinbart das Honorar mit dem Kunden und stellt die Rechnung. Welcher Anteil dir zusteht, regelt dein Rahmenvertrag. Du bekommst ihn, nachdem der Kunde bezahlt hat.\n\n## Warum das erste Geld spät kommt\n\nZwischen deinem ersten Anruf und dem Geld liegen viele Schritte: Suche, Ansprache, Kandidateninterview, Interviews beim Kunden, Angebot, Vertrag. Danach kommt die Kündigungsfrist der Kandidatin. Gesetzlich sind es vier Wochen, üblich sind drei Monate, bei Führungskräften drei bis sechs Monate. Rechne deshalb mit Monaten, nicht mit Wochen, bis aus deiner Arbeit Geld wird. Plane diese Zeit vor dem Start ehrlich durch.\n\n## Warum die meisten scheitern\n\nEine Auswertung von rund 2.100 Vermittlungsfirmen (Recruiterflow) zeigt einen typischen Trichter: 213 gefundene Personen, 7 Einreichungen, 1 Vermittlung. Die besten 25 Prozent kommen auf gut 5 Vermittlungen im Jahr, der Rest auf knapp 1,4.\n\nDer Unterschied liegt nicht im Fleiß, sondern in der Trefferquote:\n- Die Besten machen aus ihrer Vorauswahl häufiger eine Einreichung: 50 statt 36 Prozent.\n- Sie besetzen öfter aus ihrem eigenen Bestand.\n- Bis zur ersten Einreichung brauchen sie sogar länger: knapp 20 statt gut 15 Tage. Gründlichkeit schlägt Tempo.\n\nTypische Gründe fürs Scheitern sind zu viele Stellen gleichzeitig, Masse statt Auswahl bei den Einreichungen, kein klares Wechselargument und Aufgeben, wenn die ersten Monate ohne Einnahmen vergehen.\n\n## Beispiel\n\nJonas Brandt, früher Vertriebsingenieur, startet als Headhunter für Technik. In seinen ersten Wochen klickt er bei acht Stellen „Ich suche“ und reicht 25 Profile ein. Zwei davon lädt ein Kunde zum Interview ein. Seine Kollegin Mira Yilmaz konzentriert sich auf drei Stellen in ihrer Branche. Sie reicht sieben Profile ein, fünf werden eingeladen. Mira hat weniger eingereicht, aber besser getroffen. Genau das merken sich Kunden.\n\n## Das Wichtigste\n\n- Geld gibt es nur für eine Einstellung. Das Honorar zahlt die Firma, nie die Kandidatin.\n- Rechne mit Monaten bis zur ersten Zahlung: Suche, Prozess und Kündigungsfrist brauchen Zeit.\n- Erfolg kommt aus Trefferquote: wenige passende Einreichungen statt vieler schneller.",
+      "vorlage_title": "Zeitstrahl: Von der Stelle bis zu deinem Anteil",
+      "vorlage_body": "## Die Schritte bis zu deinem Anteil\n\n- Stelle lesen und „Ich suche“ klicken\n- Markt kartieren, Menschen finden und ansprechen\n- Kandidateninterview führen, mit Einwilligung einreichen\n- Interviews beim Kunden, Angebot, Vertrag\n- Kündigungsfrist der Kandidatin: meist drei Monate, bei Führungskräften bis zu sechs\n- Kunde zahlt das Honorar, danach bekommst du deinen Anteil laut Rahmenvertrag\n\n## Deine ehrliche Rechnung vor dem Start\n\n- Wie viele Monate kann ich ohne Einnahmen aus Besetzungen überbrücken?\n- In welchem Fachbereich kenne ich Firmen und Menschen?\n- Wie viele Stunden pro Woche plane ich fest ein?\n- Wer gibt mir ehrliche Rückmeldung, wenn es zäh wird?\n\n## Merksatz\n\nWenige passende Einreichungen schlagen viele schnelle.",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Ein Kunde ist von deiner Kandidatin begeistert, findet das Honorar aber hoch. Er schlägt vor, einen Teil davon mit ihrem ersten Gehalt zu verrechnen.",
+          "prompt": "Was antwortest du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Das ist in Ordnung, wenn die Kandidatin vorher schriftlich zustimmt."
+            },
+            {
+              "id": "b",
+              "text": "Das ist in Ordnung, wenn der Abzug höchstens ein Monatsgehalt beträgt."
+            },
+            {
+              "id": "c",
+              "text": "Das geht nicht, denn die Firma darf das Honorar nicht auf sie abwälzen."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Das Honorar zahlt immer die Firma. Der Arbeitgeber darf die Provision nicht auf die eingestellte Person abwälzen, und auf Matchunt nimmst du von Kandidaten nie Geld."
+        },
+        {
+          "type": "single",
+          "case": "Die fiktive Weserland Energie sucht eine Projektleiterin. Das geplante Jahresbrutto liegt bei 80.000 Euro.",
+          "prompt": "Welche Honorarspanne ist dafür in Deutschland üblich?",
+          "options": [
+            {
+              "id": "a",
+              "text": "16.000 bis 24.000 Euro"
+            },
+            {
+              "id": "b",
+              "text": "4.000 bis 8.000 Euro"
+            },
+            {
+              "id": "c",
+              "text": "40.000 bis 48.000 Euro"
+            }
+          ],
+          "correct": "a",
+          "explanation": "Üblich sind 20 bis 30 Prozent des ersten Jahresbruttos. Bei 80.000 Euro sind das 16.000 bis 24.000 Euro."
+        },
+        {
+          "type": "single",
+          "case": "Jonas hat in seinem ersten Monat 25 Profile auf acht Stellen eingereicht. Zwei davon wurden zum Kundeninterview eingeladen.",
+          "prompt": "Was ist sein wichtigster Hebel?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Er nimmt weitere Stellen an, damit mehr Chancen entstehen."
+            },
+            {
+              "id": "b",
+              "text": "Er reicht schneller ein, um vor anderen beim Kunden zu sein."
+            },
+            {
+              "id": "c",
+              "text": "Er reicht weniger, aber gründlicher geprüfte Profile ein."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die Besten unterscheiden sich durch Trefferquote, nicht durch Aktivität. Sie brauchen bis zur ersten Einreichung sogar länger, treffen aber besser."
+        },
+        {
+          "type": "multi",
+          "prompt": "Welche Gründe führen häufig zum Scheitern als Headhunter? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Zu viele Stellen gleichzeitig angenommen"
+            },
+            {
+              "id": "b",
+              "text": "Konzentration auf einen einzigen Fachbereich"
+            },
+            {
+              "id": "c",
+              "text": "Masse statt Auswahl bei den Einreichungen"
+            },
+            {
+              "id": "d",
+              "text": "Aufgeben, wenn erste Monate ohne Einnahme vergehen"
+            }
+          ],
+          "correct": [
+            "a",
+            "c",
+            "d"
+          ],
+          "explanation": "Zu viele Stellen, Masse statt Auswahl und Aufgeben in der Durststrecke sind typische Gründe. Die Konzentration auf einen Fachbereich erhöht dagegen die Trefferquote."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Schritte von der Suche bis zu deinem Anteil am Honorar in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Kandidatin finden und ansprechen"
+            },
+            {
+              "id": "b",
+              "text": "Mit ihrer Einwilligung einreichen"
+            },
+            {
+              "id": "c",
+              "text": "Einstellung beim Kunden"
+            },
+            {
+              "id": "d",
+              "text": "Kunde zahlt das Honorar"
+            },
+            {
+              "id": "e",
+              "text": "Du bekommst deinen Anteil laut Rahmenvertrag"
+            }
+          ],
+          "explanation": "Erst nach der Einstellung stellt Matchunt das Honorar in Rechnung. Deinen Anteil bekommst du, nachdem der Kunde bezahlt hat."
+        },
+        {
+          "type": "single",
+          "case": "Miras Kandidatin unterschreibt am 10. Februar ihren Arbeitsvertrag beim Kunden. Ihre Kündigungsfrist beträgt drei Monate.",
+          "prompt": "Wie plant Mira ihre Einnahmen realistisch?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ihr Anteil kommt in derselben Woche wie die Unterschrift."
+            },
+            {
+              "id": "b",
+              "text": "Bis aus der Besetzung Geld wird, rechnet sie eher mit Monaten."
+            },
+            {
+              "id": "c",
+              "text": "Matchunt zahlt ihren Anteil vorab, sobald der Vertrag steht."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Zwischen den Schritten liegen oft Monate, allein die Kündigungsfrist dauert meist drei. Deinen Anteil bekommst du erst, nachdem der Kunde gezahlt hat."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "So funktioniert Matchunt: Niemand sieht mehr, als er muss",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du den Ablauf auf Matchunt vom „Ich suche“ bis zur Einstellung erklären und sagen, wer wann was sieht.",
+      "body": "Auf Matchunt arbeiten drei Seiten zusammen: der Kunde, der eine Stelle besetzen will, du als Headhunter und die Kandidatin oder der Kandidat. Matchunt steht in der Mitte und sorgt dafür, dass jede Seite genau das sieht, was sie für den nächsten Schritt braucht. Wir nennen das Triple-Blind: Niemand sieht mehr, als er muss.\n\n## Der Ablauf\n\n- Aufnahme: Der Kunde beschreibt seine Stelle in der Aufnahme. Daraus entsteht dein Briefing.\n- Ich suche: Du klickst bei einer passenden Stelle „Ich suche“. Ab jetzt sieht der Kunde, wer für ihn sucht.\n- Bestandskunden-Frage: Direkt danach fragt Matchunt, ob du die Firma schon kennst. Ist sie bereits dein Kunde, belegst du das mit einem unterschriebenen Vertrag von vor deinem „Ich suche“. Ohne Beleg zählt die Angabe nicht.\n- Suchen und ansprechen: Unter „Anzeige & Ansprache“ findest du eine anonyme Stellenanzeige und Texte für die Ansprache. Fragen an den Kunden stellst du über „Kunden fragen“.\n- Kandidateninterview: Vor jeder Einreichung führst du ein Gespräch und erfasst die Mindestangaben: Gesprächsdatum, Gesprächsart, Warum wechseln, Warum jetzt, Wunschgehalt, Kündigungsfrist bzw. Verfügbarkeit.\n- Einreichen: Nur mit Einwilligung der Kandidatin. Dazu schreibst du deine Einschätzung als Text: Passung, Lücken, Motivation, Konditionen. Einen Punktwert gibt es nicht.\n- Einstellung: Matchunt stellt dem Kunden das Honorar in Rechnung. Nach seiner Zahlung bekommst du deinen Anteil laut Vertrag.\n\n## Wer sieht was\n\n- Der Kunde sieht, wer für ihn sucht, und die eingereichten Profile zuerst anonym, mit deiner Einschätzung. Name und Kontaktdaten sieht er erst, wenn die Kandidatin zustimmt.\n- Die Kandidatin sieht zuerst eine anonyme Anzeige ohne Firmennamen.\n- Du siehst das Briefing mit Firma und vertraulichen Angaben. Was mit „nur für dich“ markiert ist, gehört nie in Anzeige oder Ansprache.\n- Belege zur Bestandskunden-Frage sieht nur Matchunt. Der Kunde erfährt nichts davon.\n\n## Kundenschutz\n\nMit Firmen, die du über Matchunt kennenlernst, arbeitest du nur über Matchunt. Eine Stelle an Matchunt vorbei direkt mit dem Kunden zu besetzen, ist Umgehung und verstößt gegen deinen Vertrag. Kunden können einen Direktkontakt bei Matchunt melden.\n\n## Was dir die Plattform abnimmt\n\nKundenakquise, Verträge, Rechnungen und Termine übernimmt Matchunt. Du konzentrierst dich auf das Handwerk der Besetzung. Die Partnerstufen Partner, Silber und Gold sind reine Ansehens-Stufen: Sie zeigen Kunden, wie erfolgreich du arbeitest.\n\n## Beispiel\n\nDie Personalleiterin der fiktiven Nordstahl Systems gibt eine Stelle für eine Teamleitung Instandhaltung ein. Headhunterin Selin Aksoy klickt „Ich suche“ und beantwortet die Bestandskunden-Frage mit „Nein“. Über die anonyme Anzeige spricht sie einen Instandhaltungsmeister an, führt das Kandidateninterview und holt seine Einwilligung ein. Nordstahl liest Selins Einschätzung, ohne seinen Namen zu kennen, und möchte ihn kennenlernen. Name und Kontaktdaten werden sichtbar, nachdem er zugestimmt hat.\n\n## Das Wichtigste\n\n- Jede Seite sieht nur, was sie für den nächsten Schritt braucht. Die Kandidatin bleibt anonym, bis sie zustimmt.\n- Vor jeder Einreichung: Kandidateninterview mit Mindestangaben und Einwilligung.\n- Firmen, die du über Matchunt kennenlernst, betreust du nur über Matchunt.",
+      "vorlage_title": "Checkliste vor dem Einreichen",
+      "vorlage_body": "## Kandidateninterview\n\n- Gesprächsdatum und Gesprächsart eingetragen\n- Warum wechseln und Warum jetzt in den eigenen Worten der Kandidatin festgehalten\n- Wunschgehalt und Kündigungsfrist bzw. Verfügbarkeit erfasst\n\n## Einwilligung\n\n- Die Kandidatin hat der Vorstellung bei genau dieser Stelle zugestimmt\n- Sie weiß, dass der Kunde sie zuerst anonym sieht\n\n## Einschätzung\n\n- Als Text: Passung, Lücken, Motivation, Konditionen\n- Keine Merkmale, an denen der Kunde die Person erkennt\n- Kein Punktwert, keine Adjektive ohne Beleg\n\n## Plattform-Regeln\n\n- Bestandskunden-Frage beantwortet, Beleg innerhalb der Frist hochgeladen\n- Nichts aus „nur für dich“ in Texten an die Kandidatin\n- Kein Kontakt zum Kunden an Matchunt vorbei",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du klickst bei einer Stelle der Firma Weber Logistik „Ich suche“. Mit Weber hast du seit zwei Jahren einen unterschriebenen Rahmenvertrag. Diese Stelle kennst du aber nur von Matchunt.",
+          "prompt": "Wie beantwortest du die Bestandskunden-Frage?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Ja, ist mein Kunde“ wählen und den Vertrag als Beleg hochladen."
+            },
+            {
+              "id": "b",
+              "text": "„Nein“ wählen, damit die Suche ohne Prüfung sofort startet."
+            },
+            {
+              "id": "c",
+              "text": "Weber direkt anrufen und die Stelle außerhalb von Matchunt besetzen."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Weber ist mit unterschriebenem Vertrag von vor deinem „Ich suche“ dein Kunde. Das gibst du an und belegst es. Nur Matchunt sieht den Beleg."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde, den du über Matchunt kennengelernt hast, ruft dich an. Er schlägt vor, seine nächste Stelle direkt mit dir zu besetzen, ohne Matchunt.",
+          "prompt": "Wie reagierst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du nimmst an, weil es eine andere Stelle ist als die auf Matchunt."
+            },
+            {
+              "id": "b",
+              "text": "Du nimmst an und informierst Matchunt nach der Besetzung."
+            },
+            {
+              "id": "c",
+              "text": "Du lehnst ab, weil du diese Firma nur über Matchunt betreust."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Mit Firmen, die du über Matchunt kennenlernst, arbeitest du nur über Matchunt. Alles andere ist Umgehung und verstößt gegen deinen Vertrag."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde liest deine Einreichung und bittet dich per Telefon um Namen und LinkedIn-Profil des Kandidaten. Der Kandidat hat dazu noch nicht zugestimmt.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du schickst den Namen, weil der Kunde ernsthaft interessiert ist."
+            },
+            {
+              "id": "b",
+              "text": "Du holst erst die Zustimmung des Kandidaten ein, bis dahin bleibt er anonym."
+            },
+            {
+              "id": "c",
+              "text": "Du nennst den Namen, hältst aber den Link zum Profil zurück."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Der Kunde sieht Profile zuerst anonym. Name und Kontaktdaten werden erst sichtbar, wenn der Kandidat zustimmt."
+        },
+        {
+          "type": "multi",
+          "prompt": "Welche Angaben gehören zu den Mindestangaben des Kandidateninterviews vor dem Einreichen? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Bisheriges Gehalt"
+            },
+            {
+              "id": "b",
+              "text": "Warum wechseln"
+            },
+            {
+              "id": "c",
+              "text": "Gesprächsart"
+            },
+            {
+              "id": "d",
+              "text": "Verfügbarkeit"
+            }
+          ],
+          "correct": [
+            "b",
+            "c",
+            "d"
+          ],
+          "explanation": "Die Mindestangaben sind Gesprächsdatum, Gesprächsart, Warum wechseln, Warum jetzt, Wunschgehalt und Kündigungsfrist bzw. Verfügbarkeit. Gefragt wird nach dem Wunschgehalt, nicht nach dem bisherigen Gehalt."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne zu: Wer sieht was?",
+          "pairs": [
+            {
+              "left": "Kunde",
+              "right": "Wer für ihn sucht und anonyme Profile mit Einschätzung"
+            },
+            {
+              "left": "Kandidatin",
+              "right": "Zuerst eine anonyme Anzeige ohne Firmennamen"
+            },
+            {
+              "left": "Headhunter",
+              "right": "Das Briefing mit Firma und vertraulichen Angaben"
+            },
+            {
+              "left": "Matchunt",
+              "right": "Den Beleg zur Bestandskunden-Frage"
+            }
+          ],
+          "explanation": "Triple-Blind heißt: Jede Seite sieht nur, was sie für den nächsten Schritt braucht."
+        },
+        {
+          "type": "single",
+          "prompt": "Was bekommt der Kunde mit deiner Einreichung zu sehen?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Deine Einschätzung als Text: Passung, Lücken, Motivation, Konditionen."
+            },
+            {
+              "id": "b",
+              "text": "Einen Punktwert von 0 bis 100 für die Passung der Kandidatin."
+            },
+            {
+              "id": "c",
+              "text": "Eine Rangliste aller Profile, die zu seiner Stelle eingereicht wurden."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Auf Matchunt gibt es keinen Punktwert. Der Kunde liest deine Einschätzung als Text und entscheidet selbst."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Dein Arbeitstag als Headhunter",
+      "duration_min": 7,
+      "learning_goal": "Nach diesem Thema kannst du eine Arbeitswoche mit festen Zeitblöcken planen und an vier Zahlen ablesen, wo es hakt.",
+      "body": "Auf Matchunt bist du selbstständig. Niemand schreibt dir Arbeitszeiten vor. Gerade deshalb brauchst du einen festen Rhythmus. Wer nur arbeitet, wenn gerade etwas anliegt, lässt Kandidaten warten. In einer Stepstone-Befragung nannten 23 Prozent der Bewerber unklare Kommunikation oder lange Wartezeiten als Grund für einen Abbruch.\n\n## Zeitblöcke statt Zufall\n\nDeine Arbeit besteht aus vier Tätigkeiten, die unterschiedliche Tageszeiten brauchen:\n- Suchen und Recherche: am besten vormittags, in einem Block ohne Telefon.\n- Ansprechen und Nachfassen: Nachrichten schreiben und kurze Anrufe. Ein Anruf am Arbeitsplatz ist erlaubt, aber nur kurz: Name und Zweck nennen, Interesse klären, das eigentliche Gespräch nach Feierabend vereinbaren.\n- Kandidateninterviews: oft am frühen Abend, weil viele Menschen tagsüber nicht offen sprechen können.\n- Dokumentieren: noch am selben Tag in Matchunt, nicht in Excel oder WhatsApp. Was heute ansteht, zeigt dir Matchunt unter „Heute“.\n\n## Ein Wochenrhythmus, der trägt\n\n- Montag: Briefings lesen, offene Punkte über „Kunden fragen“ klären, Wochenziel festlegen.\n- Dienstag bis Donnerstag: vormittags suchen, mittags ansprechen und nachfassen, abends Gespräche führen.\n- Freitag: Zahlen ansehen, letzte Nachfass-Kontakte, nächste Woche planen.\n\nPlane das Nachfassen fest ein. Eine große Auswertung des Anbieters Pin zeigt: 93 Prozent aller Antworten kommen bis zum dritten Kontakt. Wer nach einer Nachricht aufgibt, verschenkt die meisten Antworten.\n\n## Die vier Zahlen, die du kennen musst\n\n- Ansprachen: Wie viele passende Menschen hast du diese Woche erstmals kontaktiert?\n- Antwortquote: Wie viele davon haben geantwortet? Zur Orientierung: Pin misst bei LinkedIn-Nachrichten rund 17 Prozent.\n- Kandidateninterviews: Wie viele Gespräche hast du geführt und erfasst?\n- Interviewquote: Wie viele deiner Einreichungen lädt der Kunde zum Interview ein? In der Auswertung von Recruiterflow waren es rund 46 Prozent. Diese Zahl ist deine Trefferquote, und sie zählt beim Kunden am meisten.\n\nDie Vergleichswerte stammen überwiegend aus den USA. Sie sind Orientierung, keine Vorgabe. Deine eigenen Zahlen zeigen dir, wo es hakt: Wenige Antworten deuten auf die Nachricht. Wenige Kunden-Interviews deuten auf die Auswahl.\n\n## Beispiel\n\nTobias Lenz sucht Fachkräfte für Logistik und arbeitet an drei Stellen. Am Freitag notiert er: 40 Ansprachen, 5 Antworten, 3 Gespräche, 2 Einreichungen, noch keine Einladung. Seine Antwortquote liegt mit gut 12 Prozent unter der Orientierung. Er nimmt sich vor, die erste Nachricht kürzer und persönlicher zu schreiben und jeden Kontakt zweimal nachzufassen. Bei den Einreichungen wartet er die Rückmeldung des Kunden ab und fragt nach, was gefehlt hat.\n\n## Das Wichtigste\n\n- Feste Zeitblöcke: Suche vormittags, Ansprache und Nachfassen, Gespräche am Abend, Dokumentation am selben Tag.\n- Nachfassen gehört in den Plan: Fast alle Antworten kommen bis zum dritten Kontakt.\n- Vier Zahlen zeigen dir, wo es hakt: Ansprachen, Antwortquote, Kandidateninterviews, Interviewquote.",
+      "vorlage_title": "Wochenplan und Zahlen-Check",
+      "vorlage_body": "## Feste Blöcke\n\n- Montag: Briefings lesen, offene Punkte über „Kunden fragen“, Wochenziel festlegen\n- Dienstag bis Donnerstag, vormittags: Suchblock ohne Telefon\n- Dienstag bis Donnerstag, mittags: Ansprache und Nachfassen\n- Dienstag bis Donnerstag, ab dem frühen Abend: Kandidateninterviews\n- Jeden Tag: Gespräche noch am selben Tag in Matchunt erfassen\n- Freitag: Zahlen-Check, Nachfassen, Planung\n\n## Zahlen-Check am Freitag\n\n- Ansprachen diese Woche: ___\n- Antworten: ___ · Antwortquote: ___ %\n- Kandidateninterviews geführt und erfasst: ___\n- Einreichungen: ___ · davon Kunden-Interviews: ___ · Interviewquote: ___ %\n\n## Eine Frage an dich\n\nWo hakt es gerade am meisten, und was änderst du nächste Woche genau?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du erreichst einen Kandidaten über seine Durchwahl im Büro. Er klingt interessiert und fragt, ob ihr gleich ausführlich sprechen wollt.",
+          "prompt": "Wie gehst du vor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du führst das ausführliche Gespräch gleich, solange er Zeit hat."
+            },
+            {
+              "id": "b",
+              "text": "Du legst auf und schickst ihm eine ausführliche E-Mail ins Büro."
+            },
+            {
+              "id": "c",
+              "text": "Du klärst kurz das Interesse und vereinbarst einen Termin nach Feierabend."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Ein Anruf am Arbeitsplatz ist erlaubt, aber nur kurz: Name und Zweck nennen, Interesse klären, das eigentliche Gespräch außerhalb der Arbeitszeit führen."
+        },
+        {
+          "type": "single",
+          "case": "Tobias notiert am Freitag: 40 Ansprachen, 18 Antworten, 8 Gespräche, 6 Einreichungen, 0 Kunden-Interviews.",
+          "prompt": "Wo setzt Tobias zuerst an?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Bei der Auswahl: mit dem Kunden klären, was gefehlt hat, und gezielter einreichen."
+            },
+            {
+              "id": "b",
+              "text": "Bei der Menge: in der nächsten Woche deutlich mehr Menschen ansprechen."
+            },
+            {
+              "id": "c",
+              "text": "Bei der Nachricht: Seine Antwortquote ist zu niedrig für gute Gespräche."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Seine Antwortquote liegt bei 45 Prozent und ist gut. Keine Einladung trotz sechs Einreichungen deutet auf die Auswahl, also auf die Trefferquote."
+        },
+        {
+          "type": "single",
+          "case": "Eine Kandidatin hat dir um 20 Uhr im Gespräch ihren Wechselgrund, ihr Wunschgehalt und ihre Kündigungsfrist genannt.",
+          "prompt": "Wann erfasst du das Gespräch?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Am Freitag, gesammelt mit allen anderen Gesprächen der Woche."
+            },
+            {
+              "id": "b",
+              "text": "Noch am selben Abend in Matchunt, solange alles frisch ist."
+            },
+            {
+              "id": "c",
+              "text": "Erst wenn sie einer Einreichung bei diesem Kunden zugestimmt hat."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Dokumentiert wird noch am selben Tag in Matchunt, nicht in Excel oder WhatsApp. So geht nichts verloren und die Pflichtangaben stehen fürs Einreichen bereit."
+        },
+        {
+          "type": "multi",
+          "prompt": "Welche Zahlen gehören zu den vier Zahlen, die du jede Woche kennen solltest? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Antwortquote auf deine Ansprachen"
+            },
+            {
+              "id": "b",
+              "text": "Interviewquote deiner Einreichungen"
+            },
+            {
+              "id": "c",
+              "text": "Anzahl deiner LinkedIn-Kontakte"
+            },
+            {
+              "id": "d",
+              "text": "Geführte Kandidateninterviews"
+            }
+          ],
+          "correct": [
+            "a",
+            "b",
+            "d"
+          ],
+          "explanation": "Die vier Zahlen sind Ansprachen, Antwortquote, Kandidateninterviews und Interviewquote. Die Größe deines Netzwerks sagt nichts darüber, wo es hakt."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Tätigkeit dem passenden Zeitblock zu.",
+          "pairs": [
+            {
+              "left": "Suchen und Recherche",
+              "right": "Vormittags, in einem Block ohne Telefon"
+            },
+            {
+              "left": "Kandidateninterviews",
+              "right": "Am frühen Abend, nach Feierabend der Kandidaten"
+            },
+            {
+              "left": "Briefings lesen und Rückfragen stellen",
+              "right": "Montag zum Wochenstart"
+            },
+            {
+              "left": "Zahlen ansehen und nächste Woche planen",
+              "right": "Freitag zum Wochenende"
+            }
+          ],
+          "explanation": "Feste Blöcke sorgen dafür, dass jede Tätigkeit dann passiert, wenn sie am besten gelingt."
+        },
+        {
+          "type": "single",
+          "prompt": "Warum planst du das Nachfassen fest in deine Woche ein?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Weil Matchunt eine feste Zahl an Nachrichten je Woche verlangt."
+            },
+            {
+              "id": "b",
+              "text": "Weil die erste Nachricht auf LinkedIn meist nicht zugestellt wird."
+            },
+            {
+              "id": "c",
+              "text": "Weil fast alle Antworten bis zum dritten Kontakt eingehen."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Laut Pin kommen 93 Prozent aller Antworten bis zum dritten Kontakt. Wer nach einer Nachricht aufgibt, verschenkt die meisten Antworten."
+        }
+      ]
+    }
+  ]
+}

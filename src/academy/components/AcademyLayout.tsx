@@ -13,7 +13,7 @@ export function AcademyLogo() {
 }
 
 export function AcademyLayout({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -21,14 +21,16 @@ export function AcademyLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-5">
           <AcademyLogo />
           <nav className="flex items-center gap-1 sm:gap-2">
-            <Link to="/#kurse" className="hidden px-3 py-2 text-sm text-[hsl(40_8%_70%)] transition-colors hover:text-[hsl(40_12%_94%)] sm:block">Kurse</Link>
-            <a href="https://matchunt.de" className="hidden px-3 py-2 text-sm text-[hsl(40_8%_70%)] transition-colors hover:text-[hsl(40_12%_94%)] sm:block">Zur Plattform</a>
             {loading ? null : user ? (
-              <Link to="/dashboard" className="btn-gold ml-1 px-4 py-2 text-sm">Mein Lernbereich</Link>
+              <>
+                <Link to="/dashboard" className="btn-gold ml-1 px-4 py-2 text-sm">Meine Ausbildung</Link>
+                <button onClick={() => signOut()} className="px-3 py-2 text-sm text-[hsl(40_8%_70%)] transition-colors hover:text-[hsl(40_12%_94%)]">Abmelden</button>
+              </>
             ) : (
               <>
+                <Link to="/#ablauf" className="hidden px-3 py-2 text-sm text-[hsl(40_8%_70%)] transition-colors hover:text-[hsl(40_12%_94%)] sm:block">So läuft es</Link>
                 <Link to="/auth" className="px-3 py-2 text-sm text-[hsl(40_8%_70%)] transition-colors hover:text-[hsl(40_12%_94%)]">Anmelden</Link>
-                <Link to="/dashboard" className="btn-gold ml-1 px-4 py-2 text-sm">Kostenlos starten</Link>
+                <Link to="/auth?mode=signup" className="btn-gold ml-1 px-4 py-2 text-sm">Registrieren</Link>
               </>
             )}
           </nav>
@@ -41,7 +43,7 @@ export function AcademyLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 py-10 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="font-display text-lg">Matchunt <span className="text-gold italic-display">Akademie</span></div>
-            <p className="mt-1 text-sm text-[hsl(40_8%_60%)]">Ausbildung für moderne Personalberatung — vom Lernen zum Verdienen.</p>
+            <p className="mt-1 text-sm text-[hsl(40_8%_60%)]">Ausbildung zum Headhunter auf Matchunt. Abschluss der Matchunt Akademie, keine staatliche oder IHK-Prüfung.</p>
           </div>
           <div className="flex items-center gap-5 text-sm text-[hsl(40_8%_60%)]">
             <a href="https://matchunt.de/impressum" className="transition-colors hover:text-[hsl(40_12%_92%)]">Impressum</a>

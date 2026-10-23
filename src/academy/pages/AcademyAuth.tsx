@@ -29,10 +29,12 @@ export default function AcademyAuth() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
 
-  // Bereits eingeloggt -> direkt in den Lernbereich
+  // Bereits eingeloggt -> zurück zur angefragten Seite, sonst in die Ausbildung
   useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+    if (!user) return;
+    const next = searchParams.get('next');
+    navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard', { replace: true });
+  }, [user, navigate, searchParams]);
 
   const validate = () => {
     const next: typeof errors = {};
@@ -91,7 +93,7 @@ export default function AcademyAuth() {
             </CardTitle>
             <CardDescription>
               {mode === 'signup'
-                ? 'Kostenlos starten und sofort lernen.'
+                ? 'Mit deinem Konto startest du die Ausbildung. Die Akademie ist vom Matchunt-Dashboard getrennt.'
                 : 'Schön, dass du wieder da bist.'}
             </CardDescription>
           </CardHeader>

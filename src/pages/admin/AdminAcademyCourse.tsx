@@ -13,21 +13,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Lock, Video, FileText, HelpCircle, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { QuestionPoolDialog } from '@/components/admin/academy/QuestionPoolDialog';
 
 const db = supabase as any;
 
 interface Lesson {
   id: string; module_id: string; title: string; content_type: 'video' | 'text' | 'quiz';
   body: string; video_url: string | null; duration_min: number | null; is_premium: boolean; sort_order: number;
+  learning_goal: string; vorlage_title: string | null; vorlage_body: string | null; quiz_question_count: number;
 }
-interface Module { id: string; course_id: string; title: string; sort_order: number; lessons: Lesson[]; }
+interface Module {
+  id: string; course_id: string; title: string; sort_order: number; lessons: Lesson[];
+  description: string; test_question_count: number; test_pass_pct: number; test_retry_minutes: number;
+}
 interface Course { id: string; slug: string; title: string; description: string; level: string; is_premium: boolean; published: boolean; }
 
 const LEVELS = ['beginner', 'intermediate', 'advanced'];
 const TYPE_ICON = { video: Video, text: FileText, quiz: HelpCircle };
 
 const emptyLesson = (moduleId: string, sort: number): Partial<Lesson> => ({
-  module_id: moduleId, title: '', content_type: 'text', body: '', video_url: '', duration_min: 5, is_premium: false, sort_order: sort,
+  module_id: moduleId, title: '', content_type: 'text', body: '', video_url: '', duration_min: 8, is_premium: false, sort_order: sort,
+  learning_goal: '', vorlage_title: '', vorlage_body: '', quiz_question_count: 5,
 });
 
 export default function AdminAcademyCourse() {
@@ -38,6 +44,8 @@ export default function AdminAcademyCourse() {
   const [modules, setModules] = useState<Module[]>([]);
   const [lessonForm, setLessonForm] = useState<Partial<Lesson> | null>(null);
   const [savingLesson, setSavingLesson] = useState(false);
+  const [poolLesson, setPoolLesson] = useState<{ id: string; title: string } | null>(null);
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
 
   const fetchCourse = useCallback(async () => {
     setLoading(true);
@@ -47,6 +55,13 @@ export default function AdminAcademyCourse() {
     const { data: lessons } = moduleIds.length
       ? await db.from('academy_lessons').select('*').in('module_id', moduleIds).order('sort_order', { ascending: true })
       : { data: [] };
+    const lessonIds = (lessons ?? []).map((l: Lesson) => l.id);
+    const { data: qs } = lessonIds.length
+      ? await db.from('academy_questions').select('lesson_id').eq('active', true).in('lesson_id', lessonIds)
+      : { data: [] };
+    const counts: Record<string, number> = {};
+    (qs ?? []).forEach((q: { lesson_id: string }) => { counts[q.lesson_id] = (counts[q.lesson_id] ?? 0) + 1; });
+    setQuestionCounts(counts);
     setCourse(c ?? null);
     setModules((mods ?? []).map((m: Module) => ({ ...m, lessons: (lessons ?? []).filter((l: Lesson) => l.module_id === m.id) })));
     setLoading(false);
@@ -75,6 +90,12 @@ export default function AdminAcademyCourse() {
   const updateModuleTitle = async (m: Module, title: string) => {
     await db.from('academy_modules').update({ title }).eq('id', m.id);
   };
+  const updateModule = async (m: Module, patch: Partial<Module>) => {
+    const { error } = await db.from('academy_modules').update(patch).eq('id', m.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Modul gespeichert.');
+    fetchCourse();
+  };
   const deleteModule = async (m: Module) => {
     if (!confirm(`Modul „${m.title}" inkl. Lektionen löschen?`)) return;
     const { error } = await db.from('academy_modules').delete().eq('id', m.id);
@@ -90,6 +111,8 @@ export default function AdminAcademyCourse() {
       module_id: lessonForm.module_id, title: lessonForm.title, content_type: lessonForm.content_type,
       body: lessonForm.body ?? '', video_url: lessonForm.video_url || null,
       duration_min: lessonForm.duration_min ?? null, is_premium: !!lessonForm.is_premium, sort_order: lessonForm.sort_order ?? 0,
+      learning_goal: lessonForm.learning_goal ?? '', vorlage_title: lessonForm.vorlage_title || null,
+      vorlage_body: lessonForm.vorlage_body || null, quiz_question_count: lessonForm.quiz_question_count ?? 5,
     };
     const { error } = lessonForm.id
       ? await db.from('academy_lessons').update(payload).eq('id', lessonForm.id)
@@ -148,7 +171,7 @@ export default function AdminAcademyCourse() {
 
         {/* Module & Lektionen */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Module & Lektionen</h2>
+          <h2 className="text-lg font-semibold">Module, Themen und Fragen</h2>
           <Button variant="outline" size="sm" onClick={addModule}><Plus className="mr-1 h-4 w-4" /> Modul</Button>
         </div>
 
@@ -160,11 +183,33 @@ export default function AdminAcademyCourse() {
                 <Input defaultValue={m.title} className="max-w-md font-medium" onBlur={(e) => updateModuleTitle(m, e.target.value)} />
                 <div className="ml-auto flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => setLessonForm(emptyLesson(m.id, (m.lessons.at(-1)?.sort_order ?? 0) + 1))}>
-                    <Plus className="mr-1 h-4 w-4" /> Lektion
+                    <Plus className="mr-1 h-4 w-4" /> Thema
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteModule(m)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </CardHeader>
+              <div className="grid gap-3 border-t border-border/40 px-6 py-4 sm:grid-cols-[1fr_auto_auto_auto]">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Lernziel des Moduls</Label>
+                  <Input defaultValue={m.description} placeholder="Nach diesem Modul kannst du …" onBlur={(e) => e.target.value !== m.description && updateModule(m, { description: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Fragen im Modul-Test</Label>
+                  <Input type="number" min={1} max={50} className="w-28" defaultValue={m.test_question_count} onBlur={(e) => Number(e.target.value) !== m.test_question_count && updateModule(m, { test_question_count: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Bestanden ab %</Label>
+                  <Input type="number" min={1} max={100} className="w-24" defaultValue={m.test_pass_pct} onBlur={(e) => Number(e.target.value) !== m.test_pass_pct && updateModule(m, { test_pass_pct: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Wartezeit (Min)</Label>
+                  <Input type="number" min={0} max={10080} className="w-24" defaultValue={m.test_retry_minutes} onBlur={(e) => Number(e.target.value) !== m.test_retry_minutes && updateModule(m, { test_retry_minutes: Number(e.target.value) })} />
+                </div>
+                <p className="text-xs text-muted-foreground sm:col-span-4">
+                  Pool dieses Moduls: {m.lessons.reduce((sum, l) => sum + (questionCounts[l.id] ?? 0), 0)} aktive Fragen
+                  {m.lessons.reduce((sum, l) => sum + (questionCounts[l.id] ?? 0), 0) < m.test_question_count && ' – weniger als der Test braucht'}
+                </p>
+              </div>
               <CardContent className="p-0">
                 <ul className="divide-y divide-border/40">
                   {m.lessons.map((l) => {
@@ -175,12 +220,14 @@ export default function AdminAcademyCourse() {
                         <span className="flex-1 text-sm">{l.title}</span>
                         {l.is_premium && <Badge variant="outline" className="gap-1"><Lock className="h-3 w-3" /> Premium</Badge>}
                         {l.duration_min ? <span className="text-xs text-muted-foreground">{l.duration_min} Min</span> : null}
-                        <Button variant="ghost" size="sm" onClick={() => setLessonForm(l)}><Pencil className="h-4 w-4" /></Button>
+                        <Badge variant={(questionCounts[l.id] ?? 0) < l.quiz_question_count ? 'destructive' : 'outline'}>{questionCounts[l.id] ?? 0} Fragen</Badge>
+                        <Button variant="outline" size="sm" onClick={() => setPoolLesson({ id: l.id, title: l.title })}><HelpCircle className="mr-1 h-4 w-4" /> Fragenpool</Button>
+                        <Button variant="ghost" size="sm" aria-label="Thema bearbeiten" onClick={() => setLessonForm(l)}><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="sm" onClick={() => deleteLesson(l)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </li>
                     );
                   })}
-                  {m.lessons.length === 0 && <li className="px-5 py-3 text-sm text-muted-foreground">Noch keine Lektionen.</li>}
+                  {m.lessons.length === 0 && <li className="px-5 py-3 text-sm text-muted-foreground">Noch keine Themen.</li>}
                 </ul>
               </CardContent>
             </Card>
@@ -191,8 +238,8 @@ export default function AdminAcademyCourse() {
 
       {/* Lektion-Editor Dialog */}
       <Dialog open={!!lessonForm} onOpenChange={(o) => !o && setLessonForm(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{lessonForm?.id ? 'Lektion bearbeiten' : 'Neue Lektion'}</DialogTitle></DialogHeader>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader><DialogTitle>{lessonForm?.id ? 'Thema bearbeiten' : 'Neues Thema'}</DialogTitle></DialogHeader>
           {lessonForm && (
             <div className="space-y-4">
               <div className="space-y-2"><Label>Titel</Label><Input value={lessonForm.title ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })} /></div>
@@ -209,7 +256,13 @@ export default function AdminAcademyCourse() {
               {lessonForm.content_type === 'video' && (
                 <div className="space-y-2"><Label>Video-URL (Embed)</Label><Input value={lessonForm.video_url ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} placeholder="https://..." /></div>
               )}
-              <div className="space-y-2"><Label>Inhalt (Absätze mit Leerzeile trennen)</Label><Textarea rows={10} value={lessonForm.body ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, body: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Lernziel („Nach diesem Thema kannst du …“)</Label><Input value={lessonForm.learning_goal ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, learning_goal: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Lerntext (Absätze mit Leerzeile, „## “ für Zwischenüberschriften, „- “ für Aufzählungen)</Label><Textarea rows={10} value={lessonForm.body ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, body: e.target.value })} /></div>
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div className="space-y-2"><Label>Vorlage – Titel</Label><Input value={lessonForm.vorlage_title ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, vorlage_title: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Fragen je Abfrage</Label><Input type="number" min={1} max={20} className="w-28" value={lessonForm.quiz_question_count ?? 5} onChange={(e) => setLessonForm({ ...lessonForm, quiz_question_count: Number(e.target.value) })} /></div>
+              </div>
+              <div className="space-y-2"><Label>Vorlage – Text</Label><Textarea rows={5} value={lessonForm.vorlage_body ?? ''} onChange={(e) => setLessonForm({ ...lessonForm, vorlage_body: e.target.value })} /></div>
             </div>
           )}
           <DialogFooter>
@@ -218,6 +271,7 @@ export default function AdminAcademyCourse() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <QuestionPoolDialog lesson={poolLesson} onClose={() => setPoolLesson(null)} onChanged={fetchCourse} />
     </DashboardLayout>
   );
 }

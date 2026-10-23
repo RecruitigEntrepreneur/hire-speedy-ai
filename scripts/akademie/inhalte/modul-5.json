@@ -1,0 +1,449 @@
+{
+  "sort": 5,
+  "title": "Das Kandidatengespräch",
+  "description": "Nach diesem Modul kannst du ein Kandidatengespräch führen, das Motivation, Können und harte Fakten belastbar klärt und mit einer sauberen Zustimmung zur Vorstellung endet.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Warum wechseln, warum jetzt",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du die echte Wechselmotivation eines Kandidaten herausarbeiten und einschätzen, wie ernst sein Interesse ist.",
+      "body": "Ein Lebenslauf zeigt, was jemand kann. Ob er wechselt, zeigt er nicht. Ein typischer Anfängerfehler: Die Motivation wird unterstellt statt geprüft. Das rächt sich spät, im Kundeninterview oder beim Angebot. In einer Stepstone-Befragung hatten 44 % der Bewerber in Deutschland mindestens einen Prozess abgebrochen, vor allem wegen Erwartungen (34 %) und Gehalt (33 %).\n\n## Drei Fragen, die alles tragen\n\n- Weg von: Was stört heute? „Was müsste sich bei Ihrem jetzigen Arbeitgeber ändern, damit Sie bleiben?“\n- Hin zu: Was soll besser werden? „Woran merken Sie nach einem Jahr, dass der Wechsel richtig war?“\n- Was müsste passieren: Welche Bedingung muss ein Angebot erfüllen? „Was muss auf dem Tisch liegen, damit Sie unterschreiben?“\n\nWer nur „weg von“ nennt, hat Frust, und Frust verfliegt, sobald der Chef nachbessert. Wer nur „hin zu“ nennt, ist neugierig, aber nicht in Bewegung. Stark ist beides zusammen.\n\n## Warum jetzt?\n\nDie zweite Schlüsselfrage heißt: „Was ist der Anlass, dass Sie gerade jetzt offen sind?“ Echte Wechsler haben einen Auslöser: einen neuen Chef, eine Umstrukturierung, ein Projektende, einen Umzug. Ohne Anlass bleibt es oft bei „irgendwann“. „Warum wechseln“ und „Warum jetzt“ sind in Matchunt Pflichtangaben vor dem Einreichen.\n\n## Was fehlt zur 10?\n\nFrag zum Schluss: „Auf einer Skala von 1 bis 10: Wie interessant ist diese Stelle für Sie?“ Egal, welche Zahl kommt, die nächste Frage lautet: „Was fehlt zur 10?“ Die Antwort ist deine Arbeitsliste: offene Fragen an den Kunden, Bedenken, Bedingungen. Eine niedrige Zahl ist keine Niederlage, sondern eine ehrliche Auskunft. Stell die Frage nach jedem Schritt im Prozess erneut.\n\n## Zuhören statt verkaufen\n\nFrag offen und hake nach: „Was genau meinen Sie?“, „Woran merken Sie das?“ Notiere die Gründe in den Worten des Kandidaten. Du brauchst sie zweimal: für die Einschätzung an den Kunden und später, wenn ein Gegenangebot kommt. Dann erinnerst du ihn an seine eigenen Gründe, nicht an deine.\n\n## Beispiel\n\nSabine Roth leitet ein Buchhaltungsteam bei einem Großhändler. Im Gespräch sagt sie:\n\n- Weg von: „Seit der Übernahme entscheidet die Zentrale alles.“\n- Hin zu: „Ich will den Monatsabschluss wieder selbst gestalten.“\n- Warum jetzt: „Im Januar wird mein Bereich zusammengelegt.“\n- Skala: 7. Was fehlt zur 10? „Ich weiß nicht, ob zwei Tage Homeoffice drin sind.“\n\nIhr Headhunter stellt die Homeoffice-Frage noch am selben Tag über „Kunden fragen“ an die Firma. Kommt ein Ja, fragt er wieder nach der Zahl.\n\n## Das Wichtigste\n\n- Weg von, hin zu, was müsste passieren: in den Worten des Kandidaten notieren.\n- „Warum jetzt?“ trennt Wechsler von Neugierigen.\n- Skala 1 bis 10 und „Was fehlt zur 10?“ machen Bedenken sichtbar.",
+      "vorlage_title": "Leitfaden Motivation",
+      "vorlage_body": "## Weg von\n\n- „Was läuft heute gut, was nicht?“\n- „Was müsste sich bei Ihrem Arbeitgeber ändern, damit Sie bleiben?“\n\n## Hin zu\n\n- „Was soll in Ihrer nächsten Stelle anders sein?“\n- „Woran merken Sie nach einem Jahr, dass der Wechsel richtig war?“\n\n## Was müsste passieren\n\n- „Was muss ein Angebot enthalten, damit Sie unterschreiben?“\n\n## Warum jetzt\n\n- „Was ist der Anlass, dass Sie gerade jetzt offen sind?“\n\n## Skala\n\n- „Von 1 bis 10: Wie interessant ist diese Stelle für Sie?“\n- „Was fehlt zur 10?“ Antwort als Arbeitsliste notieren, offene Punkte über „Kunden fragen“ klären\n\n## Notieren\n\n- Antworten in den Worten des Kandidaten in die Interview-Erfassung übernehmen\n- Warnzeichen: nur Geld als Grund, kein Anlass, nur „weg von“ ohne „hin zu“",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Ein Kandidat nennt als einzigen Grund: „Ich verdiene zu wenig.“ Was ihn an der neuen Stelle reizt, kann er nicht sagen.",
+          "prompt": "Welches Risiko siehst du vor allem?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ein Gegenangebot: Mehr Geld vom jetzigen Arbeitgeber löst sein Problem."
+            },
+            {
+              "id": "b",
+              "text": "Er ist für die Stelle wahrscheinlich überqualifiziert und langweilt sich."
+            },
+            {
+              "id": "c",
+              "text": "Er wird im Kundeninterview zu hohe Ansprüche an das Team stellen."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Wer nur „weg von“ nennt und als Grund allein das Geld, ist leicht zu halten. Ein Gehaltsplus beim jetzigen Arbeitgeber nimmt ihm den einzigen Wechselgrund."
+        },
+        {
+          "type": "single",
+          "case": "Eine Kandidatin bewertet die Stelle mit 6 von 10.",
+          "prompt": "Was ist die beste nächste Frage?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Dann passt es wohl nicht. Sollen wir es lieber lassen?“"
+            },
+            {
+              "id": "b",
+              "text": "„Glauben Sie mir, diese Stelle ist eine echte 10.“"
+            },
+            {
+              "id": "c",
+              "text": "„Was fehlt aus Ihrer Sicht noch zur 10?“"
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die Zahl selbst ist nur der Einstieg. Erst „Was fehlt zur 10?“ macht Bedenken sichtbar, die du klären kannst. Überreden oder Aufgeben verschenkt diese Information."
+        },
+        {
+          "type": "single",
+          "case": "Auf die Frage „Warum jetzt?“ antwortet ein Kandidat: „Ich schaue mich eigentlich immer ein bisschen um.“",
+          "prompt": "Was schließt du daraus?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Er ist besonders wechselbereit, weil er den Markt ständig beobachtet."
+            },
+            {
+              "id": "b",
+              "text": "Ein Anlass fehlt. Du hakst nach, sonst bleibt es wohl bei Neugier."
+            },
+            {
+              "id": "c",
+              "text": "Die Frage war unpassend, weil „Warum jetzt“ zu persönlich ist."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Echte Wechsler haben einen Auslöser. Ohne Anlass bleibt es oft bei „irgendwann“. Deshalb fragst du nach, statt Wechselbereitschaft zu unterstellen."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Aussage der passenden Frage zu.",
+          "pairs": [
+            {
+              "left": "„Mein neuer Chef lässt mich keine Entscheidung mehr treffen.“",
+              "right": "Weg von"
+            },
+            {
+              "left": "„Ich möchte endlich ein eigenes Team aufbauen.“",
+              "right": "Hin zu"
+            },
+            {
+              "left": "„Im März endet mein Projekt, danach ist offen, was kommt.“",
+              "right": "Warum jetzt"
+            },
+            {
+              "left": "„Mit 30 Tagen Urlaub und Gleitzeit würde ich unterschreiben.“",
+              "right": "Was müsste passieren"
+            }
+          ],
+          "explanation": "Weg von beschreibt, was heute stört, hin zu, was besser werden soll. Der Anlass erklärt den Zeitpunkt, die Bedingung zeigt, was ein Angebot enthalten muss."
+        },
+        {
+          "type": "multi",
+          "prompt": "Woran erkennst du eine starke Wechselmotivation? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Der Kandidat nennt ausschließlich das Gehalt als Grund"
+            },
+            {
+              "id": "b",
+              "text": "Weg von und hin zu sind beide klar benannt"
+            },
+            {
+              "id": "c",
+              "text": "Es gibt einen konkreten Anlass, warum gerade jetzt"
+            },
+            {
+              "id": "d",
+              "text": "„Eigentlich bin ich zufrieden, aber erzählen Sie mal“"
+            }
+          ],
+          "correct": [
+            "b",
+            "c"
+          ],
+          "explanation": "Stark ist die Motivation, wenn beides da ist, Frust und Ziel, und dazu ein Anlass. Nur Geld oder reine Neugier sind Warnzeichen."
+        },
+        {
+          "type": "single",
+          "case": "Du hast die Wechselgründe einer Kandidatin mitgeschrieben. Ein Kollege meint, Stichworte in deinen eigenen Worten reichen völlig.",
+          "prompt": "Warum notierst du die Gründe besser in ihren eigenen Worten?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Weil der Kunde nur wörtliche Zitate als Beleg anerkennt."
+            },
+            {
+              "id": "b",
+              "text": "Weil du sie für die Einschätzung und bei einem Gegenangebot brauchst."
+            },
+            {
+              "id": "c",
+              "text": "Weil Matchunt ohne wörtliche Zitate keine Einreichung zulässt."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Die eigenen Worte des Kandidaten tragen die Motivation in der Einschätzung. Kommt ein Gegenangebot, erinnerst du ihn an seine Gründe, nicht an deine."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Können prüfen statt glauben",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du die Muss-Kriterien mit Fragen nach konkreten Beispielen prüfen, Belege von Behauptungen unterscheiden und die Identität eines Kandidaten absichern.",
+      "body": "„Ich bin sehr erfahren in der Inbetriebnahme.“ Das ist eine Behauptung, kein Beleg. Der Kunde bezahlt dich dafür, dass du prüfst, nicht dafür, dass du weitergibst. Prüfen heißt: nach konkreten Beispielen fragen, und zwar gezielt zu den Muss-Kriterien der Stelle.\n\n## Von den Muss-Kriterien aus fragen\n\nNimm die höchstens fünf Muss-Kriterien aus dem Briefing. Zu jedem stellst du mindestens eine Beispielfrage. Kann-Kriterien kommen dran, wenn Zeit bleibt. So wird das Gespräch kein Nacherzählen des Lebenslaufs.\n\n## Die Beispiel-Methode\n\nBitte um ein konkretes Erlebnis und führe durch vier Schritte:\n\n- Situation: Wann und wo war das?\n- Aufgabe: Was war Ihre Rolle, was war das Ziel?\n- Handlung: Was haben Sie selbst getan?\n- Ergebnis: Was kam heraus, und woran lässt sich das messen?\n\nAchte auf „wir“. Spricht jemand nur von „wir“, frag: „Was war Ihr eigener Teil?“ Gute Nachfragen sind auch: „Wie groß war das Team?“ und „Was würden Sie heute anders machen?“\n\n## Belege statt Adjektive\n\nSchreib mit, was jemand getan hat, nicht wie er sich beschreibt:\n\n- Adjektiv: „führungsstark“. Beleg: „führt seit 2023 ein Team von acht Personen, hat zwei Stellen selbst besetzt“.\n- Adjektiv: „kommunikationsstark“. Beleg: „stellt monatlich die Zahlen in der Geschäftsführung vor“.\n\nAm Ende bekommt jedes Muss-Kriterium ein Urteil: erfüllt, teilweise erfüllt oder nicht erfüllt, jeweils mit einem Satz Beleg.\n\n## Identität prüfen\n\nGefälschte Profile nehmen zu. Das Analysehaus Gartner erwartet, dass bis 2028 jedes vierte Kandidatenprofil gefälscht ist. Prüfe deshalb:\n\n- Führe mindestens ein Gespräch per Video mit Kamera.\n- Gleiche Stationen und Zeiträume in Lebenslauf, Netzwerk-Profil und Gespräch ab.\n- Frag nach Projektdetails, die nur kennt, wer dabei war.\n\nUnstimmigkeiten sprichst du offen an. Oft gibt es eine harmlose Erklärung. Fehlt sie, reichst du nicht ein.\n\n## Fair fragen\n\nFrag nur, was mit der Stelle zu tun hat. Fragen zu Alter, Herkunft, Religion, Gesundheit, Familienstand oder Familienplanung sind tabu, auch wenn der Kunde „jemanden fürs junge Team“ sucht. Das Allgemeine Gleichbehandlungsgesetz (AGG) schützt unter anderem vor Benachteiligung wegen Alter, Herkunft, Religion und Behinderung.\n\n## Beispiel\n\nMuss-Kriterium: Inbetriebnahme von Schaltanlagen. Kandidat Lukas Berger erzählt von einer Umspannwerk-Erweiterung im Jahr 2025. Aufgabe: Bauleitung vor Ort. Handlung: drei Subunternehmer koordiniert, Zeitplan gesteuert. Ergebnis: zwei Wochen vor Plan übergeben. Auf die Frage „Haben Sie die Prüfungen selbst gemacht?“ sagt er: „Nein, das hat ein Kollege übernommen.“ Urteil: teilweise erfüllt. Beleg: koordiniert Inbetriebnahmen, prüft aber nicht selbst.\n\n## Das Wichtigste\n\n- Jedes Muss-Kriterium mit einem konkreten Beispiel prüfen: Situation, Aufgabe, Handlung, Ergebnis.\n- Belege notieren statt Adjektive, und auf „ich“ statt „wir“ achten.\n- Identität absichern: Video, Angaben abgleichen, Details nachfragen.",
+      "vorlage_title": "Prüfbogen Muss-Kriterien",
+      "vorlage_body": "## Je Muss-Kriterium (höchstens fünf)\n\n- Kriterium: [aus dem Briefing]\n- Einstiegsfrage: „Erzählen Sie von einer Situation, in der Sie [Kriterium] selbst verantwortet haben.“\n- Situation: Wann und wo?\n- Aufgabe: Rolle und Ziel?\n- Handlung: Was hat die Person selbst getan?\n- Ergebnis: Zahl, Zeit, Wirkung?\n- Urteil: erfüllt / teilweise erfüllt / nicht erfüllt\n- Beleg in einem Satz: …\n\n## Identität\n\n- Gespräch per Video mit Kamera geführt? ja / nein\n- Stationen und Zeiträume in Lebenslauf und Profil stimmig? ja / nein\n- Projektdetails glaubwürdig geschildert? ja / nein\n- Unstimmigkeit angesprochen und geklärt? ja / nein\n\n## Nicht fragen\n\n- Alter, Herkunft, Religion, Gesundheit, Familienstand, Familienplanung",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Eine Kandidatin sagt: „Ich bin sehr stark in Verhandlungen mit Lieferanten.“ Das ist ein Muss-Kriterium der Stelle.",
+          "prompt": "Was fragst du als Nächstes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Wie würden Sie Ihre Verhandlungsstärke von 1 bis 10 einschätzen?“"
+            },
+            {
+              "id": "b",
+              "text": "„Erzählen Sie von Ihrer letzten Verhandlung: Was haben Sie erreicht?“"
+            },
+            {
+              "id": "c",
+              "text": "„Gut. Und was würden Sie als Ihre größte Schwäche bezeichnen?“"
+            }
+          ],
+          "correct": "b",
+          "explanation": "Eine Selbsteinschätzung bleibt ein Adjektiv. Erst ein konkretes Beispiel mit Situation, Handlung und Ergebnis liefert einen Beleg für das Muss-Kriterium."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kandidat beschreibt ein Projekt ausführlich, spricht aber durchgehend von „wir haben …“.",
+          "prompt": "Wie gehst du vor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du wertest das Projekt als Beleg, weil er offensichtlich dabei war."
+            },
+            {
+              "id": "b",
+              "text": "Du notierst „teamfähig“, weil er so oft das Team erwähnt."
+            },
+            {
+              "id": "c",
+              "text": "Du fragst nach: „Was war dabei Ihr eigener Teil?“"
+            }
+          ],
+          "correct": "c",
+          "explanation": "Bei „wir“ bleibt offen, was die Person selbst getan hat. Erst die Nachfrage nach dem eigenen Teil macht aus der Erzählung einen Beleg."
+        },
+        {
+          "type": "single",
+          "case": "Im Lebenslauf steht „2019–2024 bei Firma A“, im Netzwerk-Profil „2021–2024“. Ein Videogespräch lehnt der Kandidat ab, er will nur telefonieren.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du sprichst die Abweichung offen an und vereinbarst vor dem Einreichen ein Videogespräch."
+            },
+            {
+              "id": "b",
+              "text": "Du übergehst das, weil Daten in Profilen oft nachlässig gepflegt sind."
+            },
+            {
+              "id": "c",
+              "text": "Du brichst den Kontakt sofort ab und meldest ihn als Betrüger."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Unstimmige Daten und kein Video sind Warnzeichen. Oft gibt es eine harmlose Erklärung, deshalb fragst du offen nach. Ohne Klärung reichst du nicht ein."
+        },
+        {
+          "type": "multi",
+          "prompt": "Welche Notizen sind Belege? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Führt seit 2023 ein Team von acht Personen"
+            },
+            {
+              "id": "b",
+              "text": "Wirkt kompetent und sehr sympathisch"
+            },
+            {
+              "id": "c",
+              "text": "Hat 2025 eine ERP-Umstellung im Werk geleitet, Start nach neun Monaten"
+            },
+            {
+              "id": "d",
+              "text": "Sehr erfahren und hoch motiviert"
+            }
+          ],
+          "correct": [
+            "a",
+            "c"
+          ],
+          "explanation": "Belege beschreiben, was jemand getan hat, mit Zahl, Zeit oder Ergebnis. Adjektive und Eindrücke kann der Kunde nicht prüfen."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Fragen der Beispiel-Methode in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "„Wann und wo war das?“"
+            },
+            {
+              "id": "b",
+              "text": "„Was war Ihre Rolle, und was war das Ziel?“"
+            },
+            {
+              "id": "c",
+              "text": "„Was haben Sie selbst getan?“"
+            },
+            {
+              "id": "d",
+              "text": "„Was kam heraus, und woran lässt sich das messen?“"
+            }
+          ],
+          "explanation": "Erst die Situation, dann Aufgabe, eigene Handlung und Ergebnis. So entsteht ein vollständiges Beispiel, das sich gegen das Muss-Kriterium prüfen lässt."
+        },
+        {
+          "type": "single",
+          "case": "Die Firma wünscht sich „jemanden, der ins junge Team passt“. Du überlegst, im Gespräch nach dem Alter zu fragen.",
+          "prompt": "Was ist richtig?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du fragst nach dem Alter, weil die Firma es ausdrücklich wünscht."
+            },
+            {
+              "id": "b",
+              "text": "Du leitest das Alter aus dem Abschlussjahr ab und gibst es weiter."
+            },
+            {
+              "id": "c",
+              "text": "Du fragst nicht nach dem Alter und prüfst stattdessen die Muss-Kriterien."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Alter ist ein Merkmal, das das AGG schützt. Auch auf Wunsch des Kunden fragst du nicht danach und leitest es nicht ab. Maßstab sind die Muss-Kriterien."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Die harten Fakten und die Zustimmung",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du Gehaltserwartung, Kündigungsfrist, laufende Prozesse und Gegenangebots-Risiko richtig erfragen, die Zustimmung zur Vorstellung einholen und alles in Matchunt erfassen.",
+      "body": "Motivation und Können sind geklärt. Jetzt kommen die Fakten, an denen Prozesse später scheitern: Geld, Zeit und andere Angebote. Frag früh und genau.\n\n## Gehalt: Erwartung und Untergrenze\n\nFrag nach dem, was kommen soll, nicht nach dem, was war:\n\n- „Welches Bruttojahresgehalt erwarten Sie für diese Stelle, fix und variabel?“\n- „Unter welchem Betrag würden Sie nicht wechseln?“\n- Extras: Dienstwagen, Bonus, Homeoffice, Urlaub.\n\nNach dem bisherigen Gehalt fragst du nicht. Die EU-Entgelttransparenzrichtlinie verbietet Arbeitgebern diese Frage. Deutschland hat die Umsetzungsfrist im Juni 2026 verpasst, das Gesetz wird für 2027 erwartet. Auf Matchunt arbeiten wir schon heute so. Liegt die Untergrenze über dem Gehaltsband der Stelle, klärst du das vor dem Einreichen.\n\n## Kündigungsfrist und Verfügbarkeit\n\nGesetzlich gelten vier Wochen. Üblich sind drei Monate, bei Führungskräften drei bis sechs Monate zum Quartalsende. Frag genau: „Wie lang ist Ihre Kündigungsfrist laut Vertrag, und zu welchem Termin?“ Daraus ergibt sich der früheste Starttermin.\n\n## Laufende Prozesse\n\n„Sprechen Sie gerade mit anderen Firmen oder Headhuntern? In welchem Stadium?“ Die Antwort zeigt dir, wie viel Tempo nötig ist, und schützt vor einer doppelten Vorstellung.\n\n## Gegenangebots-Risiko\n\n„Was machen Sie, wenn Ihr Chef Ihnen mehr Geld bietet?“ In einer britischen Umfrage nahm gut die Hälfte ihr letztes Gegenangebot an, drei Viertel davon waren nach einem Jahr trotzdem weg. Notiere die Antwort und die Wechselgründe dazu.\n\n## Die Zustimmung\n\nOhne Zustimmung keine Vorstellung. Erkläre die Stelle mit ihren Eckdaten und wie Matchunt vorstellt: zuerst anonym. Den Namen erfährt die Firma erst, wenn sie ein Interview anfragt und der Kandidat zustimmt. Frag dann ausdrücklich: „Darf ich Sie für diese Stelle vorstellen?“ Die Zustimmung gilt für diese eine Stelle. Beim Einreichen bestätigst du sie mit einem Haken.\n\n## Noch am selben Tag erfassen\n\nVor dem Einreichen ist in Matchunt ein abgeschlossenes Interview Pflicht. Mindestangaben in der Interview-Erfassung der Kandidatenakte: Gesprächsdatum, Gesprächsart, Warum wechseln, Warum jetzt, Wunschgehalt und Kündigungsfrist bzw. Verfügbarkeit. Mitschreiben ist gut. Aufnehmen darfst du nur mit ausdrücklicher Einwilligung, heimliche Aufnahmen sind strafbar (§ 201 StGB).\n\n## Beispiel\n\nSabine Roth erwartet 72.000 Euro fix plus bis zu 8.000 Euro Bonus, ihre Untergrenze liegt bei 68.000 Euro. Kündigungsfrist: drei Monate zum Quartalsende. Kündigt sie bis Ende Dezember, kann sie am 1. April starten. Sie ist in einem weiteren Prozess in der zweiten Runde. Zum Gegenangebot sagt sie: „Geld hält mich nicht, die Zusammenlegung bleibt ja.“ Sie stimmt der Vorstellung für diese Stelle zu. Ihr Headhunter erfasst alles am selben Abend.\n\n## Das Wichtigste\n\n- Gehalt als Erwartung und Untergrenze, nie das bisherige Gehalt.\n- Kündigungsfrist, laufende Prozesse und Gegenangebots-Risiko immer klären.\n- Zustimmung für genau diese Stelle einholen und noch am selben Tag erfassen.",
+      "vorlage_title": "Checkliste harte Fakten",
+      "vorlage_body": "## Gehalt\n\n- Erwartung brutto pro Jahr: fix …, variabel …, Extras …\n- Untergrenze: …\n- Nicht fragen: bisheriges Gehalt\n- Liegt die Untergrenze über dem Band? Dann vor dem Einreichen klären\n\n## Verfügbarkeit\n\n- Kündigungsfrist laut Vertrag: … zum …\n- Frühester Start: …\n\n## Laufende Prozesse\n\n- Andere Gespräche, Stadium, Tempo: …\n\n## Gegenangebot\n\n- „Was machen Sie, wenn Ihr Chef Ihnen mehr bietet?“ Antwort: …\n\n## Zustimmung\n\n- Stelle mit Eckdaten und anonyme Vorstellung erklärt\n- „Darf ich Sie für diese Stelle vorstellen?“ Zustimmung am: …\n\n## Am selben Tag in Matchunt erfassen\n\n- Gesprächsdatum, Gesprächsart, Warum wechseln, Warum jetzt, Wunschgehalt, Kündigungsfrist bzw. Verfügbarkeit\n- Interview abschließen",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du willst im Gespräch das Thema Gehalt klären.",
+          "prompt": "Welche Frage stellst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Was verdienen Sie aktuell, damit ich Sie besser einschätzen kann?“"
+            },
+            {
+              "id": "b",
+              "text": "„Was erwarten Sie brutto im Jahr, und wo liegt Ihre Untergrenze?“"
+            },
+            {
+              "id": "c",
+              "text": "„Wie viel Prozent mehr als heute möchten Sie gern verdienen?“"
+            }
+          ],
+          "correct": "b",
+          "explanation": "Gefragt wird nach Erwartung und Untergrenze. Die EU-Entgelttransparenzrichtlinie verbietet die Frage nach dem bisherigen Gehalt, und auch „Prozent mehr als heute“ zielt darauf."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kandidat hat drei Monate Kündigungsfrist zum Quartalsende. Er unterschreibt Mitte November und kündigt Ende November.",
+          "prompt": "Wann kann er frühestens starten?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Am 1. Januar"
+            },
+            {
+              "id": "b",
+              "text": "Am 1. März"
+            },
+            {
+              "id": "c",
+              "text": "Am 1. April"
+            }
+          ],
+          "correct": "c",
+          "explanation": "Drei Monate ab Ende November reichen bis Ende Februar. Weil die Frist zum Quartalsende läuft, endet das Arbeitsverhältnis am 31. März. Start ist damit der 1. April."
+        },
+        {
+          "type": "single",
+          "case": "Auf die Frage nach einem Gegenangebot sagt ein Kandidat: „Wenn mein Chef zehn Prozent drauflegt, bleibe ich wahrscheinlich.“",
+          "prompt": "Wie gehst du damit um?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du wertest das als hohes Risiko und klärst seine Gründe vor dem Einreichen."
+            },
+            {
+              "id": "b",
+              "text": "Du reichst sofort ein, denn ob er bleibt, ist am Ende seine Sache."
+            },
+            {
+              "id": "c",
+              "text": "Du rätst ihm, mit seinem Chef gar nicht erst darüber zu sprechen."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Gut die Hälfte nimmt ein Gegenangebot an. Wer es selbst schon ankündigt, ist ein hohes Risiko. Du prüfst seine Wechselgründe, bevor du ihn vorstellst."
+        },
+        {
+          "type": "multi",
+          "prompt": "Welche Angaben braucht ein abgeschlossenes Interview in Matchunt mindestens? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Gesprächsdatum und Gesprächsart"
+            },
+            {
+              "id": "b",
+              "text": "Das bisherige Gehalt"
+            },
+            {
+              "id": "c",
+              "text": "Warum wechseln und Warum jetzt"
+            },
+            {
+              "id": "d",
+              "text": "Wunschgehalt und Kündigungsfrist bzw. Verfügbarkeit"
+            }
+          ],
+          "correct": [
+            "a",
+            "c",
+            "d"
+          ],
+          "explanation": "Die Mindestangaben sind Gesprächsdatum, Gesprächsart, Warum wechseln, Warum jetzt, Wunschgehalt und Kündigungsfrist bzw. Verfügbarkeit. Nach dem bisherigen Gehalt wird nicht gefragt."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Schritte vom Gespräch bis zur Einreichung in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Harte Fakten klären: Gehalt, Kündigungsfrist, Prozesse, Gegenangebot"
+            },
+            {
+              "id": "b",
+              "text": "Stelle und anonyme Vorstellung erklären"
+            },
+            {
+              "id": "c",
+              "text": "Ausdrückliche Zustimmung für diese Stelle einholen"
+            },
+            {
+              "id": "d",
+              "text": "Noch am selben Tag in der Interview-Erfassung festhalten und abschließen"
+            },
+            {
+              "id": "e",
+              "text": "Einreichen und die Zustimmung mit dem Haken bestätigen"
+            }
+          ],
+          "explanation": "Zustimmen kann der Kandidat erst, wenn er weiß, wofür. Die Erfassung kommt am selben Tag, und ohne abgeschlossenes Interview lässt Matchunt kein Einreichen zu."
+        },
+        {
+          "type": "single",
+          "case": "Du möchtest das Gespräch mit einer App aufnehmen, um später nichts zu vergessen.",
+          "prompt": "Was gilt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Erlaubt, solange die Aufnahme nur für dich bestimmt ist."
+            },
+            {
+              "id": "b",
+              "text": "Nur mit ausdrücklicher Einwilligung, heimlich aufzunehmen ist strafbar."
+            },
+            {
+              "id": "c",
+              "text": "Erlaubt, wenn du die Aufnahme nach einer Woche löschst."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Wer das nicht öffentlich gesprochene Wort heimlich aufnimmt, macht sich strafbar (§ 201 StGB), egal wofür. Mitschreiben ist jederzeit möglich."
+        }
+      ]
+    }
+  ]
+}

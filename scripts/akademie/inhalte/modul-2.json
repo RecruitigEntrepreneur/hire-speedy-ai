@@ -1,0 +1,449 @@
+{
+  "sort": 2,
+  "title": "Die Stelle verstehen",
+  "description": "Nach diesem Modul kannst du ein Briefing in eine klare Suchstrategie übersetzen, drei überzeugende Wechselgründe formulieren und mit präzisen Rückfragen beim Kunden nachschärfen.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Das Briefing lesen wie ein Profi",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du aus einem Briefing höchstens fünf Muss-Kriterien, die Ausschlüsse und die offenen Lücken herausarbeiten.",
+      "body": "Das Briefing ist dein Auftrag. Es entsteht aus der Aufnahme, in der der Kunde seine Stelle beschreibt. Anfänger überfliegen es und suchen den Jobtitel. Profis lesen es wie einen Vertrag: Was wird genau gesucht, was ist verhandelbar, was schließt jemanden aus, und was fehlt noch?\n\n## Fünf Fragen, in denen du das Briefing liest\n\nMatchunt ordnet das Briefing nach deinen Arbeitsschritten:\n- Lohnt sich der Auftrag? Gehalt, Arbeitsort, Level, warum die Stelle offen ist und wie dringend sie ist.\n- Wen suche ich, und wo? Muss-Kriterien, Erlernbares, was von Vorteil ist, wen du nicht schicken sollst, aus welchen Firmen gute Kandidaten kommen und wo du nicht abwerben darfst.\n- Womit überzeuge ich? Entwicklung, Team, Alltag, Kultur und Vorteile der Stelle.\n- Was kläre ich im ersten Gespräch? Längste mögliche Kündigungsfrist, Arbeitserlaubnis, Punkte, die Kandidaten kritisch sehen.\n- Wie bringe ich es ins Ziel? Interviewablauf, wer entscheidet, wie schnell der Vertrag kommt.\n\nAngaben mit dem Schloss „nur für dich“ sind vertraulich: zum Beispiel der Gehaltsspielraum, wen du nicht schicken sollst, bisherige Absagegründe oder was Kandidaten kritisch sehen. Sie helfen dir bei der Auswahl, gehören aber nie in Anzeige oder Ansprache. Die Gehaltsspanne darfst du nennen, den Spielraum darüber behältst du für dich.\n\n## Muss, von Vorteil, erlernbar\n\nDeine wichtigste Arbeit: höchstens fünf Muss-Kriterien. Ein Muss ist etwas, ohne das die Person die Stelle nicht ausfüllen kann. Alles andere ist von Vorteil oder erlernbar. Stehen im Briefing zwölf Muss-Punkte, sucht der Kunde eine Person, die es kaum gibt. Dann sortierst du und klärst die Reihenfolge mit dem Kunden.\n\nDie Prüffrage für jedes Muss lautet: Würde der Kunde eine Kandidatin absagen, die alles andere mitbringt, nur diesen einen Punkt nicht? Wenn nein, ist es kein Muss.\n\n## Ausschlüsse und Lücken\n\nLies „Nicht schicken“ und „Nicht abwerben bei“ besonders genau. Wer das übersieht, verspielt beim Kunden Vertrauen. Was im Briefing fehlt, zeigt Matchunt je Schritt als „Offen“. Diese Lücken klärst du früh, bevor du viele Menschen ansprichst.\n\n## Beispiel\n\nDie fiktive Elbtal Pharma sucht eine Qualitätsmanagerin. Im Briefing stehen neun Muss-Punkte, darunter SAP-Kenntnisse, verhandlungssicheres Englisch und Führungserfahrung. Headhunter Malte Ohlsen stellt bei jedem Punkt die Prüffrage. Übrig bleiben vier echte Muss: Erfahrung in der Pharmaproduktion, Erfahrung mit Audits, Englisch im Berufsalltag und ein Wohnort im Pendelbereich. SAP wird erlernbar, Führungserfahrung ist von Vorteil. Unter „Offen“ steht der Interviewablauf. Malte fragt ihn über „Kunden fragen“ nach und schreibt seine Sortierung der Muss-Kriterien als Frage dazu.\n\n## Das Wichtigste\n\n- Lies das Briefing entlang der fünf Fragen und notiere, was offen ist.\n- Höchstens fünf Muss-Kriterien, alles andere ist von Vorteil oder erlernbar.\n- Vertrauliches und Ausschlüsse steuern deine Auswahl, gehören aber nie in Anzeige oder Ansprache.",
+      "vorlage_title": "Checkliste Briefing lesen",
+      "vorlage_body": "## Die Stelle in einem Satz\n\nWer wird gesucht, für welches Team, mit welchem Ergebnis nach einem Jahr?\n\n## Lohnt sich der Auftrag?\n\n- Gehaltsspanne brutto im Jahr, fix und variabel\n- Spielraum (nur für dich)\n- Warum offen, wie dringend?\n\n## Wen suche ich, und wo?\n\n- Muss-Kriterien, höchstens 5, jedes mit der Prüffrage „Absage ohne das?“\n- Von Vorteil: ___\n- Erlernbar: ___\n- Nicht schicken: ___\n- Gute Kandidaten kommen aus: ___\n- Nicht abwerben bei: ___\n\n## Für das erste Gespräch und den Abschluss\n\n- Längste mögliche Kündigungsfrist, Arbeitserlaubnis\n- Interviewablauf und wer entscheidet\n\n## Lücken und Grenzen\n\n- Alles unter „Offen“ gesammelt, Frage über „Kunden fragen“ vorbereitet\n- Markiert, was „nur für dich“ ist und nie in Anzeige oder Ansprache gehört",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Im Briefing einer Stelle für eine Controllerin stehen elf Muss-Kriterien, darunter Power BI, SAP und Erfahrung im Konzern.",
+          "prompt": "Was tust du zuerst?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du suchst nach Profilen, die alle elf Punkte erfüllen."
+            },
+            {
+              "id": "b",
+              "text": "Du prüfst jeden Punkt mit der Prüffrage und klärst die Reihenfolge mit dem Kunden."
+            },
+            {
+              "id": "c",
+              "text": "Du streichst die Hälfte der Punkte und sagst dem Kunden nichts davon."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Höchstens fünf Kriterien sind echte Muss. Die Prüffrage „Würde der Kunde ohne diesen Punkt absagen?“ trennt Muss von Kann. Die Reihenfolge klärst du offen mit dem Kunden."
+        },
+        {
+          "type": "single",
+          "case": "Im Briefing steht als Gehalt 70.000 bis 78.000 Euro, dazu mit Schloss „nur für dich“: Spielraum bis 85.000 Euro. Eine Kandidatin fragt im ersten Telefonat, was die Stelle zahlt.",
+          "prompt": "Was antwortest du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du nennst den Spielraum bis 85.000 Euro, damit sie nicht abspringt."
+            },
+            {
+              "id": "b",
+              "text": "Du nennst keine Zahl, bis der Kunde sie zum Interview eingeladen hat."
+            },
+            {
+              "id": "c",
+              "text": "Du nennst die Spanne aus dem Briefing und behältst den Spielraum für dich."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die Gehaltsspanne darfst du nennen. Der Spielraum ist mit „nur für dich“ markiert und gehört nie in eine Ansprache."
+        },
+        {
+          "type": "single",
+          "case": "Unter „Nicht abwerben bei“ steht im Briefing die Firma Kessler Antriebe. Genau dort arbeitet eine Kandidatin, die perfekt passen würde.",
+          "prompt": "Was ist richtig?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du sprichst dort für diese Stelle niemanden an."
+            },
+            {
+              "id": "b",
+              "text": "Du sprichst sie an, wenn sie ohnehin wechseln will."
+            },
+            {
+              "id": "c",
+              "text": "Du sprichst sie an und erwähnst ihren Arbeitgeber erst später."
+            }
+          ],
+          "correct": "a",
+          "explanation": "„Nicht abwerben bei“ ist ein klarer Ausschluss des Kunden. Wer ihn übersieht, verspielt Vertrauen, egal wie gut die Kandidatin passt."
+        },
+        {
+          "type": "multi",
+          "prompt": "Welche Angaben aus dem Briefing gehören nie in Anzeige oder Ansprache? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Der Gehaltsspielraum mit Schloss „nur für dich“"
+            },
+            {
+              "id": "b",
+              "text": "Bisherige Absagegründe von Kandidaten"
+            },
+            {
+              "id": "c",
+              "text": "Der Arbeitsort und die Tage im Homeoffice"
+            },
+            {
+              "id": "d",
+              "text": "Was Kandidaten an der Stelle kritisch sehen"
+            }
+          ],
+          "correct": [
+            "a",
+            "b",
+            "d"
+          ],
+          "explanation": "Vertrauliche Angaben wie Spielraum, Absagegründe oder kritische Punkte helfen dir bei der Auswahl und im Gespräch. In Anzeige und Ansprache haben sie nichts zu suchen. Arbeitsort und Homeoffice gehören in jede Anzeige."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Angabe der Frage im Briefing zu, unter der du sie findest.",
+          "pairs": [
+            {
+              "left": "Warum die Stelle offen ist",
+              "right": "Lohnt sich der Auftrag?"
+            },
+            {
+              "left": "Nicht abwerben bei",
+              "right": "Wen suche ich, und wo?"
+            },
+            {
+              "left": "Team und Entwicklung",
+              "right": "Womit überzeuge ich?"
+            },
+            {
+              "left": "Interviewablauf und wer entscheidet",
+              "right": "Wie bringe ich es ins Ziel?"
+            }
+          ],
+          "explanation": "Das Briefing folgt deinen Arbeitsschritten. So findest du jede Angabe dort, wo du sie brauchst."
+        },
+        {
+          "type": "single",
+          "prompt": "Woran erkennst du ein echtes Muss-Kriterium?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Der Kunde hat es im Briefing als Erstes genannt."
+            },
+            {
+              "id": "b",
+              "text": "Es steht in den meisten Anzeigen für solche Stellen."
+            },
+            {
+              "id": "c",
+              "text": "Der Kunde würde ohne diesen Punkt absagen, auch wenn alles andere passt."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Ein Muss ist etwas, ohne das die Person die Stelle nicht ausfüllen kann. Reihenfolge im Briefing oder Gewohnheit anderer Anzeigen sagen darüber nichts."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Das Wechselargument",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du drei belegbare Gründe formulieren, warum eine zufriedene Person wechseln sollte, und prüfen, ob das Gehaltsband dafür reicht.",
+      "body": "Fast alle Menschen, die du ansprichst, suchen gerade keinen Job. 94 Prozent der Suchen deutscher Personalberatungen laufen über Direktansprache (BDU). Du rufst also Menschen an, denen es heute gut geht. Die entscheidende Frage lautet deshalb nicht „Was bietet die Stelle?“, sondern: Warum sollte jemand wechseln, dem es heute gut geht?\n\n## Drei Gründe statt einer Liste\n\nEine Liste mit Vorteilen wie Obstkorb, Jobrad und flachen Hierarchien überzeugt niemanden. Ein Wechselargument ist ein Grund, der für deine Zielgruppe zählt und den ihre heutige Firma meist nicht bietet. Du brauchst drei davon.\n\nSo gehst du vor:\n- Zuerst beschreibst du die Zielgruppe in einem Satz: wer, aus welchen Firmen, in welcher Lage.\n- Dann sammelst du alle Vorteile aus dem Briefing, vor allem unter „Womit überzeuge ich?“.\n- Danach prüfst du jeden Vorteil: Ist er besonders, oder bietet ihn fast jede Firma? Zählt er für genau diese Zielgruppe? Kannst du ihn mit einem Beispiel oder einer Zahl vom Kunden belegen?\n- Zum Schluss wählst du drei Gründe aus und formulierst daraus einen Satz für die Ansprache, ohne Firmennamen.\n\nStarke Gründe liegen oft in der Aufgabe (Aufbau statt Verwaltung, mehr Verantwortung), in der Entwicklung (ein echter nächster Schritt, belegt mit einem Beispiel aus dem Team) und im Rahmen (kürzerer Arbeitsweg, Tage im Homeoffice, verlässliche Arbeitszeit).\n\n## Gehalt muss stimmen, trägt aber selten allein\n\nIn Deutschland brachen laut Stepstone 44 Prozent der Bewerber mindestens einen Bewerbungsprozess ab. Häufige Gründe waren die Erwartungen (34 Prozent) und das Gehalt (33 Prozent). Das Gehalt muss also marktfähig sein. Als einziges Argument ist es trotzdem schwach: Wer nur wegen Geld wechselt, ist anfällig für ein Gegenangebot seines Chefs.\n\n## Ist das Gehaltsband marktfähig?\n\nGesprochen wird über das Bruttojahresgehalt: fix, variabel, Dienstwagen. Prüfe das Band im Briefing früh gegen dein Wissen aus dem Fachbereich und gegen die Erwartungen aus deinen ersten Gesprächen. Frag Kandidaten nach Erwartung und Untergrenze, nicht nach dem bisherigen Gehalt. Die EU-Entgelttransparenzrichtlinie verbietet Arbeitgebern diese Frage, das deutsche Gesetz dazu wird für 2027 erwartet. Liegen die Erwartungen deutlich über dem Band, meldest du das dem Kunden mit Zahlen, ohne Namen. Diese Marktberatung erwartet der Kunde von dir.\n\n## Beispiel\n\nDie fiktive Brenner Fördertechnik in Bielefeld sucht einen Konstrukteur: 62.000 bis 68.000 Euro, Team von sechs Leuten, neue Produktlinie ab Januar. Headhunterin Aylin Demir findet drei Gründe: Er gestaltet eine Produktlinie von Anfang an, statt alte Zeichnungen zu ändern. Er arbeitet direkt mit dem Entwicklungsleiter. Das Werk liegt für viele Konstrukteure der Region näher als die großen Arbeitgeber in der Nachbarstadt. Nach fünf Gesprächen liegen vier Erwartungen über 70.000 Euro. Aylin meldet das dem Kunden und fragt, ob das Band steigen kann oder ob auch Kandidaten mit weniger Erfahrung passen.\n\n## Das Wichtigste\n\n- Frag immer: Warum sollte jemand wechseln, dem es heute gut geht? Finde drei belegbare Gründe für deine Zielgruppe.\n- Das Gehalt muss marktfähig sein, trägt aber selten allein.\n- Frag nach Erwartung und Untergrenze, nie nach dem bisherigen Gehalt, und melde dem Kunden die Marktrealität.",
+      "vorlage_title": "Wechselargument in drei Gründen",
+      "vorlage_body": "## Für wen?\n\nZielgruppe in einem Satz: wer genau, aus welchen Firmen, in welcher Lage?\n\n## Drei Gründe\n\n- Grund 1, Aufgabe: ___ · Beleg aus dem Briefing: ___\n- Grund 2, Entwicklung oder Team: ___ · Beleg: ___\n- Grund 3, Rahmen wie Weg, Zeit oder Stabilität: ___ · Beleg: ___\n\n## Prüfung je Grund\n\n- Bietet das fast jede Firma? Dann streichen.\n- Zählt das für genau diese Zielgruppe?\n- Kann ich es mit einem Beispiel oder einer Zahl belegen?\n\n## Gehaltsband\n\n- Band laut Briefing, brutto im Jahr, fix und variabel: ___\n- Erwartungen aus den ersten Gesprächen: ___\n- Passt das nicht, Rückmeldung an den Kunden mit Zahlen, ohne Namen\n\n## Der Satz für die Ansprache\n\n„Ich melde mich, weil …“ (ohne Firmennamen)",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Die Stelle bietet: Obstkorb, Jobrad, 30 Urlaubstage, den Aufbau eines neuen Werks und Teamleitung nach einem Jahr. Für die Teamleitung nennt der Kunde ein Beispiel aus dem Team.",
+          "prompt": "Welche Kombination taugt als Wechselargument?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Aufbau des neuen Werks und Teamleitung, belegt mit einem Beispiel"
+            },
+            {
+              "id": "b",
+              "text": "Obstkorb, Jobrad und 30 Urlaubstage als starkes Gesamtpaket"
+            },
+            {
+              "id": "c",
+              "text": "30 Urlaubstage und Jobrad, weil das jeder sofort versteht"
+            }
+          ],
+          "correct": "a",
+          "explanation": "Starke Gründe sind besonders, zählen für die Zielgruppe und sind belegbar. Obstkorb, Jobrad und Urlaubstage bietet fast jede Firma."
+        },
+        {
+          "type": "single",
+          "case": "Im ersten Gespräch willst du herausfinden, ob das Gehaltsband zu einem Kandidaten passt.",
+          "prompt": "Welche Frage stellst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Was verdienen Sie heute, fix und variabel?“"
+            },
+            {
+              "id": "b",
+              "text": "„Wie viel mehr als heute müsste es mindestens sein?“"
+            },
+            {
+              "id": "c",
+              "text": "„Was erwarten Sie, und wo liegt Ihre Untergrenze, brutto im Jahr?“"
+            }
+          ],
+          "correct": "c",
+          "explanation": "Du fragst nach Erwartung und Untergrenze, nicht nach dem bisherigen Gehalt. Die Frage „Wie viel mehr als heute?“ zielt ebenfalls auf das bisherige Gehalt."
+        },
+        {
+          "type": "single",
+          "case": "Nach fünf Gesprächen liegen vier Gehaltserwartungen deutlich über dem Band im Briefing.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du suchst weiter, bis jemand ins Band passt, und belastest den Kunden nicht."
+            },
+            {
+              "id": "b",
+              "text": "Du meldest dem Kunden die Zahlen ohne Namen und besprichst Band oder Profil."
+            },
+            {
+              "id": "c",
+              "text": "Du sagst den Kandidaten, dass der Kunde am Ende sicher mehr zahlt."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Marktberatung gehört zu deiner Arbeit. Mit Zahlen aus echten Gesprächen kann der Kunde entscheiden, ob er das Band anhebt oder das Profil öffnet."
+        },
+        {
+          "type": "multi",
+          "prompt": "Woran erkennst du einen starken Wechselgrund? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Fast jede Firma der Branche bietet ihn auch an."
+            },
+            {
+              "id": "b",
+              "text": "Er zählt für genau die gesuchte Zielgruppe."
+            },
+            {
+              "id": "c",
+              "text": "Du kannst ihn mit einem Beispiel oder einer Zahl belegen."
+            },
+            {
+              "id": "d",
+              "text": "Die heutige Firma der Zielgruppe bietet ihn meist nicht."
+            }
+          ],
+          "correct": [
+            "b",
+            "c",
+            "d"
+          ],
+          "explanation": "Ein Wechselargument muss für die Zielgruppe zählen, belegbar sein und sich vom heutigen Arbeitgeber abheben. Was jede Firma bietet, bewegt niemanden zum Wechsel."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Arbeit am Wechselargument in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Zielgruppe in einem Satz beschreiben"
+            },
+            {
+              "id": "b",
+              "text": "Alle Vorteile aus dem Briefing sammeln"
+            },
+            {
+              "id": "c",
+              "text": "Jeden Vorteil prüfen: besonders, passend, belegbar?"
+            },
+            {
+              "id": "d",
+              "text": "Drei Gründe auswählen und als Satz für die Ansprache formulieren"
+            }
+          ],
+          "explanation": "Erst wenn klar ist, für wen du suchst, kannst du beurteilen, welche Vorteile für diese Menschen zählen."
+        },
+        {
+          "type": "single",
+          "prompt": "Warum reicht ein höheres Gehalt als einziges Wechselargument selten?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Es muss stimmen, aber wer nur wegen Geld wechselt, bleibt anfällig für ein Gegenangebot."
+            },
+            {
+              "id": "b",
+              "text": "Gehaltsangaben sind in einer Ansprache an Kandidaten grundsätzlich verboten."
+            },
+            {
+              "id": "c",
+              "text": "Kandidaten in Deutschland sprechen mit Headhuntern nicht über ihr Gehalt."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Ein marktfähiges Gehalt ist Voraussetzung. Als einziger Grund trägt es aber kaum, weil der heutige Arbeitgeber mit Geld nachziehen kann."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Rückfragen und Kalibrieren",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du die Bestandskunden-Frage richtig beantworten, präzise Rückfragen an den Kunden stellen und nach den ersten Einreichungen nachjustieren.",
+      "body": "Kein Briefing ist vollständig. Gute Headhunter merken das früh und fragen nach. Andere suchen drei Wochen in die falsche Richtung und wundern sich über Absagen.\n\n## Die Bestandskunden-Frage beim „Ich suche“\n\nDirekt nach deinem Klick auf „Ich suche“ fragt Matchunt: „Kennst du die Firma schon?“ Kunde heißt dabei: Du hast mit der Firma einen unterschriebenen Rahmen- oder Einzelvertrag von vor deinem ersten „Ich suche“. Ein Kennenlerngespräch reicht nicht. Du hast drei Antworten:\n- Nein, kenne ich nicht: Deine Suche läuft normal.\n- Ja, ist mein Kunde, diese Stelle läuft über Matchunt: Du lädst den Vertrag als Beleg hoch, Frist 5 Werktage. Beträge und Konditionen darfst du schwärzen. Nur Matchunt sieht den Beleg, deine Suche läuft normal weiter.\n- Ja, und genau diese Stelle habe ich schon direkt: Du belegst Vertrag und Beauftragung. Matchunt fragt den Kunden, bis dahin ruht deine Suche.\n\nAntworte ehrlich. Eine Angabe ohne Beleg zählt nicht.\n\n## Gute Rückfragen über „Kunden fragen“\n\nWas im Briefing fehlt, steht dort als „Offen“. Über „Kunden fragen“ wählst du diese Fragen aus und schreibst einen Satz dazu. Matchunt schickt sie an das Kundenteam, höchstens einmal in sieben Tagen je Stelle. Deshalb gilt: erst sammeln, dann einmal gut fragen. Die Antworten stehen danach in deinem Briefing.\n\nEine gute Rückfrage:\n- betrifft etwas, das deine Suche ändert,\n- ist konkret statt allgemein: „Ist Erfahrung mit Medizinprodukten ein Muss oder von Vorteil?“ statt „Was ist Ihnen wichtig?“,\n- bietet eine Wahl an, wo das möglich ist,\n- nennt kurz den Grund.\n\n## Kalibrieren nach den ersten Einreichungen\n\nWas eine Stelle wirklich verlangt, zeigt sich oft erst an der Reaktion des Kunden auf echte Profile. Kalibriere deshalb nach den ersten Einreichungen, spätestens nach fünf bis zehn Profilen: Was hat dem Kunden gefallen? Was hat gefehlt? Welches Muss war in Wahrheit keins? Ein Software-Anbieter berichtet, dass kalibrierte Stellen 22 Prozent schneller besetzt werden. Das ist eine Anbieterangabe, die Richtung deckt sich aber mit der Praxis. Melde dem Kunden dabei auch die Marktrealität: Wie viele passende Menschen gibt es, und was erwarten sie?\n\n## Beispiel\n\nHeadhunter Felix Lorenz sucht für die fiktive Kanzlei Hoffmann & Partner eine Steuerfachangestellte. Unter „Offen“ stehen das Arbeitszeitmodell und der Interviewablauf. Er wählt beide Fragen aus und schreibt dazu: „Ist DATEV-Erfahrung ein Muss? Zwei starke Kandidatinnen arbeiten mit einer anderen Software.“ Nach drei Einreichungen lädt die Kanzlei nur eine Kandidatin ein. Felix fragt nach: Den beiden anderen fehlte Erfahrung mit Jahresabschlüssen. Das stand nirgends als Muss. Felix klärt mit der Kanzlei, dass es ein Muss ist, und passt Suche und Auswahl an.\n\n## Das Wichtigste\n\n- Bestandskunde nur mit Beleg: unterschriebener Vertrag von vor deinem ersten „Ich suche“.\n- Sammle offene Punkte und frag über „Kunden fragen“ einmal präzise, höchstens einmal in sieben Tagen je Stelle.\n- Kalibriere nach den ersten Einreichungen und melde dem Kunden die Marktrealität.",
+      "vorlage_title": "Rückfragen-Check und Kalibrieren",
+      "vorlage_body": "## Vor dem Senden über „Kunden fragen“\n\n- Ändert die Antwort meine Suche? Wenn nein, weglassen.\n- Konkret statt allgemein formuliert?\n- Eine Wahl angeboten, zum Beispiel Muss oder von Vorteil?\n- Den Grund in einem Satz genannt?\n- Alle offenen Punkte gesammelt? Gesendet wird höchstens einmal in sieben Tagen je Stelle.\n\n## Nach den ersten Einreichungen\n\n- Was hat dem Kunden an der Person gefallen, die er einlädt?\n- Was hat bei den anderen gefehlt? Stand das im Briefing als Muss?\n- Welches Muss ist in Wahrheit erlernbar oder von Vorteil?\n- Passt das Gehaltsband zu den Erwartungen, die du hörst?\n- Was ändere ich ab heute an Marktkarte, Suche und Auswahl?\n\n## Rückmeldung an den Kunden\n\n- Wie viele passende Menschen habe ich gefunden und gesprochen?\n- Was erwarten sie, und was hält sie vom Wechsel ab?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du klickst „Ich suche“ bei der Firma Rotor Medizintechnik. Vor einem Jahr hattest du dort ein Kennenlerngespräch mit der Personalleitung. Einen Vertrag habt ihr nie geschlossen.",
+          "prompt": "Wie beantwortest du die Bestandskunden-Frage?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Ja, ist mein Kunde“, weil das Gespräch eine Beziehung belegt."
+            },
+            {
+              "id": "b",
+              "text": "„Ja, und genau diese Stelle habe ich schon direkt“."
+            },
+            {
+              "id": "c",
+              "text": "„Nein“, weil es keinen unterschriebenen Vertrag gibt."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Kunde heißt auf Matchunt: ein unterschriebener Rahmen- oder Einzelvertrag von vor deinem ersten „Ich suche“. Ein Kennenlerngespräch reicht nicht."
+        },
+        {
+          "type": "single",
+          "case": "Du hast die Stelle „Leitung Einkauf“ bei deinem Bestandskunden Hahn Bau seit drei Wochen direkt im Auftrag, mit unterschriebenem Suchauftrag. Jetzt erscheint sie auch auf Matchunt.",
+          "prompt": "Was passiert, wenn du „Ja, und genau diese Stelle habe ich schon direkt“ wählst?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du belegst Vertrag und Beauftragung, Matchunt fragt den Kunden, bis dahin ruht deine Suche."
+            },
+            {
+              "id": "b",
+              "text": "Deine Suche läuft normal weiter, und der Kunde erfährt nichts von deiner Angabe."
+            },
+            {
+              "id": "c",
+              "text": "Matchunt beendet die Stelle sofort für alle anderen Headhunter auf der Plattform."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Bei dieser Antwort brauchst du zwei Belege. Matchunt fragt beim Kunden nach, ob das stimmt. Bis dahin reichst du für diese Stelle nichts ein."
+        },
+        {
+          "type": "single",
+          "case": "Im Briefing stehen unter „Offen“ drei Punkte. Dir fällt heute eine Frage ein, morgen vielleicht noch eine zweite.",
+          "prompt": "Wie gehst du vor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du sendest heute die erste Frage und morgen die nächste hinterher."
+            },
+            {
+              "id": "b",
+              "text": "Du sammelst alle offenen Punkte und fragst einmal gebündelt und präzise."
+            },
+            {
+              "id": "c",
+              "text": "Du fragst gar nicht und füllst die Lücken mit eigenen Annahmen."
+            }
+          ],
+          "correct": "b",
+          "explanation": "„Kunden fragen“ sendet höchstens einmal in sieben Tagen je Stelle. Deshalb sammelst du erst und fragst dann einmal gut."
+        },
+        {
+          "type": "multi",
+          "prompt": "Woran erkennst du eine gute Rückfrage an den Kunden? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Die Antwort ändert deine Suche."
+            },
+            {
+              "id": "b",
+              "text": "Sie ist offen gehalten, etwa „Was ist Ihnen wichtig?“"
+            },
+            {
+              "id": "c",
+              "text": "Sie bietet eine Wahl an, etwa Muss oder von Vorteil."
+            },
+            {
+              "id": "d",
+              "text": "Sie nennt kurz, warum du fragst."
+            }
+          ],
+          "correct": [
+            "a",
+            "c",
+            "d"
+          ],
+          "explanation": "Gute Rückfragen sind konkret, entscheidungsrelevant, bieten eine Wahl und nennen den Grund. Offene Allgemeinfragen liefern selten eine brauchbare Antwort."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Schritte vom „Ich suche“ bis zur kalibrierten Suche in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "„Ich suche“ klicken"
+            },
+            {
+              "id": "b",
+              "text": "Bestandskunden-Frage beantworten"
+            },
+            {
+              "id": "c",
+              "text": "Offene Punkte über „Kunden fragen“ klären"
+            },
+            {
+              "id": "d",
+              "text": "Erste Kandidaten einreichen"
+            },
+            {
+              "id": "e",
+              "text": "Mit den Rückmeldungen des Kunden kalibrieren"
+            }
+          ],
+          "explanation": "Die Bestandskunden-Frage kommt direkt nach dem „Ich suche“. Lücken klärst du früh, kalibrieren kannst du erst, wenn der Kunde auf echte Profile reagiert hat."
+        },
+        {
+          "type": "single",
+          "case": "Nach drei Einreichungen lädt der Kunde nur eine Kandidatin ein. Den anderen fehlte Erfahrung mit Jahresabschlüssen, die im Briefing nicht als Muss stand.",
+          "prompt": "Was ist der beste nächste Schritt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du reichst die nächsten Profile genauso ein, denn das Briefing gilt."
+            },
+            {
+              "id": "b",
+              "text": "Du klärst den Punkt mit dem Kunden als Muss und passt Suche und Auswahl an."
+            },
+            {
+              "id": "c",
+              "text": "Du beendest deine Suche, weil der Kunde sich nicht an sein Briefing hält."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Genau das ist Kalibrieren: Die Reaktion des Kunden auf echte Profile zeigt, was die Stelle wirklich verlangt. Das klärst du und suchst danach gezielter."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,448 @@
+{
+  "sort": 4,
+  "title": "Ansprechen",
+  "description": "Nach diesem Modul kannst du passive Kandidaten persönlich, kurz und rechtssicher ansprechen: mit einer Nachricht unter 400 Zeichen, einer Folge aus drei Kontakten und einem kurzen Erstanruf.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Die Nachricht, die beantwortet wird",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du eine Erstnachricht unter 400 Zeichen schreiben, die persönlich begründet ist, keinen Firmennamen verrät und die passende Anrede trifft.",
+      "body": "Passive Kandidaten bekommen viele Nachrichten. Sie lesen die ersten zwei Zeilen und entscheiden in Sekunden, ob sie antworten. Deine Nachricht muss dort zeigen: Hier hat jemand mein Profil wirklich gelesen.\n\n## Drei Bausteine, unter 400 Zeichen\n\n- Warum gerade du: ein konkreter Punkt aus dem Profil, etwa ein Projekt, eine Station oder ein Spezialgebiet. Nicht „Ihr beeindruckendes Profil“.\n- Warum diese Stelle: ein Wechselargument aus dem Briefing, das für diese Person zählt, zum Beispiel mehr Verantwortung, eine neue Technik oder kürzere Wege.\n- Eine kleine Frage: leicht zu beantworten, ohne Druck. „Wäre das grundsätzlich ein Thema für Sie?“\n\nKurz lohnt sich: Laut einer LinkedIn-Auswertung bekommen Nachrichten unter 400 Zeichen rund 22 % mehr Antworten als der Durchschnitt. Kurz heißt: keine Firmengeschichte, keine Liste mit Vorteilen, keine vollständige Stellenbeschreibung.\n\n## Die Firma beschreiben, nicht nennen\n\nDen Firmennamen nennst du in der ersten Nachricht nicht, auch wenn du ihn kennst. Die Suche ist vertraulich, und wer den Namen kennt, kann sich am Headhunter vorbei direkt bewerben. Auf Matchunt bleiben beide Seiten anonym, bis die Firma ein Interview anfragt und der Kandidat zustimmt. Beschreibe stattdessen Branche, Größe und Region. Die anonyme Anzeige aus „Anzeige & Ansprache“ liefert dir diese Eckdaten und fertige Kurztexte als Ausgangspunkt.\n\n## Du oder Sie\n\nDazu gibt es keine Studie, aber eine bewährte Praxisregel: „Sie“ ist der Standard, besonders im Mittelstand, in der Industrie und bei erfahrenen Fachleuten. „Du“ passt in Tech und bei Startups, wenn sich die Person selbst so präsentiert. Im Zweifel siezt du und überlässt den Wechsel dem Kandidaten.\n\n## Der Datenschutz-Hinweis\n\nWenn du jemanden direkt ansprichst, musst du ihn nach Art. 14 DSGVO informieren, woher du seine Daten hast und was du damit tust, spätestens beim ersten Kontakt. Praktisch heißt das: ein kurzer Satz mit Link zu deinen Datenschutzhinweisen am Ende der Nachricht.\n\n## KI als Entwurf, nicht als Absender\n\nIn einer Auswertung aus dem Vertrieb bekamen reine KI-Texte 4,1 % Antworten, selbst geschriebene 10,4 % und KI-Entwurf plus eigene Überarbeitung 14,7 %. Nutze KI oder die Matchunt-Texte als Gerüst. Die persönliche Begründung schreibst du selbst.\n\n## Beispiel\n\nJana Keller sucht eine Leitung Instandhaltung für einen Maschinenbauer. Im Profil von Herrn Demir fällt ihr ein Projekt zur vorausschauenden Wartung auf. Sie schreibt:\n\n„Guten Tag Herr Demir, Ihr Projekt zur vorausschauenden Wartung hat mich neugierig gemacht. Ein Maschinenbauer aus Ostwestfalen mit rund 600 Beschäftigten baut genau das gerade auf und sucht dafür eine Leitung Instandhaltung mit eigenem Budget. Wäre das grundsätzlich ein Thema für Sie? Viele Grüße, Jana Keller (Datenschutzhinweise: Link)“\n\nDas sind gut 330 Zeichen: persönlicher Grund, Wechselargument, kleine Frage. Kein Firmenname.\n\n## Das Wichtigste\n\n- Unter 400 Zeichen: warum du, warum diese Stelle, eine kleine Frage.\n- Firma beschreiben statt nennen, Datenschutz-Hinweis beim ersten Kontakt.\n- Im Zweifel „Sie“. KI liefert den Entwurf, die Begründung kommt von dir.",
+      "vorlage_title": "Baukasten Erstnachricht",
+      "vorlage_body": "## Aufbau (unter 400 Zeichen)\n\n- Anrede: „Guten Tag Frau/Herr [Nachname]“ oder „Hallo [Vorname]“, wenn die Person sich im Profil selbst duzt\n- Warum Sie: „Mir ist [konkretes Projekt, Station oder Spezialgebiet] aufgefallen.“\n- Warum diese Stelle: „Ein [Branche] aus [Region] mit [Größe] sucht [Rolle] mit [ein Wechselargument].“\n- Kleine Frage: „Wäre das grundsätzlich ein Thema für Sie?“\n- Gruß: dein Name und Link zu deinen Datenschutzhinweisen\n\n## Vor dem Senden prüfen\n\n- Unter 400 Zeichen?\n- Kein Firmenname und kein Detail, an dem man die Firma erkennt?\n- Passt die Begründung nur auf diese eine Person?\n- Anrede passend zu Branche und Profil, im Zweifel „Sie“?\n- KI-Entwurf selbst überarbeitet, keine Personendaten in die KI gegeben?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Headhunter Paul schreibt einem Vertriebsleiter: „Ihr beeindruckendes Profil hat mich überzeugt. Unser Kunde, die Weber Antriebstechnik GmbH, sucht einen Head of Sales. Haben Sie Zeit für ein Telefonat?“",
+          "prompt": "Was ist das größte Problem dieser Nachricht?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Sie ist zu kurz, um bei einem Vertriebsleiter Vertrauen aufzubauen."
+            },
+            {
+              "id": "b",
+              "text": "Sie nennt die Firma zu früh und begründet nicht, warum gerade er gemeint ist."
+            },
+            {
+              "id": "c",
+              "text": "Sie endet mit einer Frage, statt gleich einen festen Termin vorzuschlagen."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Der Firmenname gehört nicht in die erste Nachricht, und „beeindruckendes Profil“ ist keine persönliche Begründung. Kurz zu sein und mit einer kleinen Frage zu enden ist dagegen richtig."
+        },
+        {
+          "type": "single",
+          "case": "Mia ist Senior-Entwicklerin bei einem Berliner Startup. In ihrem Profil steht: „Hi, ich bin Mia – sag gern Du.“",
+          "prompt": "Welche Anrede wählst du in deiner ersten Nachricht?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Du“, weil sie in Tech arbeitet und sich selbst so präsentiert."
+            },
+            {
+              "id": "b",
+              "text": "„Sie“, weil die erste Nachricht immer gesiezt werden muss."
+            },
+            {
+              "id": "c",
+              "text": "Erst „Sie“ im Gruß, dann „Du“ im Text, um beides abzudecken."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Die Praxisregel: „Du“ in Tech und bei Startups, wenn sich die Person selbst so präsentiert. „Sie“ ist nur im Zweifel die sichere Wahl."
+        },
+        {
+          "type": "single",
+          "case": "Du suchst eine Projektleitung für den Bau von Rechenzentren. Im Profil eines Kandidaten steht: „Neubau Rechenzentrum, Bauherrenvertretung“.",
+          "prompt": "Welcher Satz begründet am besten, warum gerade er gemeint ist?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ihr Profil passt hervorragend zu einer spannenden Position bei uns."
+            },
+            {
+              "id": "b",
+              "text": "Mit Ihrer langjährigen Erfahrung sind Sie für viele Firmen interessant."
+            },
+            {
+              "id": "c",
+              "text": "Ihr Rechenzentrumsprojekt als Bauherrenvertreter passt genau zu dieser Aufgabe."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Nur dieser Satz greift einen konkreten Punkt aus seinem Profil auf. Die anderen beiden passen auf jeden und wirken wie Massenware."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was gehört in eine gute Erstnachricht? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Der Name der Firma, damit die Nachricht seriös wirkt"
+            },
+            {
+              "id": "b",
+              "text": "Ein konkreter Grund, warum gerade diese Person gemeint ist"
+            },
+            {
+              "id": "c",
+              "text": "Eine vollständige Liste aller Vorteile und Zusatzleistungen"
+            },
+            {
+              "id": "d",
+              "text": "Ein kurzer Satz mit Link zu deinen Datenschutzhinweisen"
+            }
+          ],
+          "correct": [
+            "b",
+            "d"
+          ],
+          "explanation": "Die persönliche Begründung macht die Nachricht lesenswert, und der Datenschutz-Hinweis ist nach Art. 14 DSGVO spätestens beim ersten Kontakt fällig. Firmenname und lange Listen gehören nicht hinein."
+        },
+        {
+          "type": "single",
+          "case": "Tom lässt eine KI 50 Erstnachrichten schreiben und verschickt sie unverändert, um Zeit zu sparen.",
+          "prompt": "Was zeigt die Auswertung aus dem Vertrieb zu diesem Vorgehen?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Reine KI-Texte bekommen die meisten Antworten, weil sie fehlerfrei sind."
+            },
+            {
+              "id": "b",
+              "text": "KI-Entwurf mit eigener Überarbeitung bekommt deutlich mehr Antworten."
+            },
+            {
+              "id": "c",
+              "text": "Zwischen KI-Texten und eigenen Texten gibt es keinen messbaren Unterschied."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Reine KI-Texte kamen auf 4,1 % Antworten, KI-Entwurf plus eigene Überarbeitung auf 14,7 %. Die persönliche Begründung macht den Unterschied."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Bausteine einer Erstnachricht in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Anrede passend zu Branche und Profil"
+            },
+            {
+              "id": "b",
+              "text": "Warum gerade Sie: ein konkreter Punkt aus dem Profil"
+            },
+            {
+              "id": "c",
+              "text": "Warum diese Stelle: Firma beschreiben, ein Wechselargument"
+            },
+            {
+              "id": "d",
+              "text": "Eine kleine Frage, die leicht zu beantworten ist"
+            },
+            {
+              "id": "e",
+              "text": "Gruß mit Link zu den Datenschutzhinweisen"
+            }
+          ],
+          "explanation": "Erst zeigst du, dass du die Person meinst, dann was die Stelle ihr bietet. Die kleine Frage macht das Antworten leicht, der Datenschutz-Hinweis schließt die Nachricht ab."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Drei Kontakte, zwei Kanäle, zehn Tage",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du eine Ansprache-Folge aus drei Kontakten über zwei Kanäle in zehn Tagen planen, ohne gegen Wettbewerbsrecht oder Diskretion zu verstoßen.",
+      "body": "Viele Anfänger schreiben eine Nachricht und warten. Doch keine Antwort heißt selten „Nein“. Meistens heißt es „nicht gesehen“ oder „gerade keine Zeit“. Deshalb planst du die Ansprache als Folge: drei Kontakte, zwei Kanäle, zehn Tage.\n\n## Was die Zahlen sagen\n\nDie Werte stammen überwiegend aus den USA. Sie sind Orientierung, keine Norm:\n\n- Auf eine Netzwerk-Nachricht antwortet im Schnitt etwa jede sechste Person (17,1 %).\n- Wer zwei Kanäle kombiniert, bekommt etwa doppelt so oft eine Antwort wie mit einem Kanal.\n- Rund 93 % aller Antworten kommen bis zum dritten Kontakt. Ein vierter oder fünfter Kontakt bringt kaum noch Antworten, kostet aber Ansehen.\n\n## Die Folge\n\n- Tag 1: Netzwerk-Nachricht über LinkedIn oder XING, unter 400 Zeichen, mit Datenschutz-Hinweis.\n- Tag 4: kurzer Anruf nach den Regeln aus Thema 4.3. Erreichst du die Person nicht, hinterlässt du keine Stellendetails bei Kollegen oder auf der Mailbox.\n- Tag 10: zweite Netzwerk-Nachricht mit einem neuen Aspekt und einem freundlichen Ausstieg: „Wenn das Thema gerade nicht passt, ist das völlig in Ordnung.“\n\nKommt bis dahin keine Reaktion, ist Schluss. Jeder Kontakt bringt etwas Neues, denn „Haben Sie meine Nachricht gesehen?“ ist kein Inhalt. Verschicke von Hand: Automatisierte Folgen verstoßen gegen die Nutzungsbedingungen von LinkedIn und können dein Konto sperren lassen.\n\n## Warum die E-Mail nicht dazugehört\n\nDas deutsche Wettbewerbsrecht ist bei Werbe-E-Mails streng: Ohne Einwilligung sind sie unzulässig (§ 7 UWG). Wo genau die Grenze bei Mails an Kandidaten liegt, ist nicht abschließend geklärt. Deshalb gilt auf Matchunt: E-Mail erst, wenn der Kandidat geantwortet oder eingewilligt hat, etwa mit „Schicken Sie mir gern etwas“. Auch wenn du eine Adresse findest, schreibst du vorher keine Mail. Die E-Mail-Vorlage aus „Anzeige & Ansprache“ nutzt du also erst nach der ersten Antwort.\n\n## Die anonyme Anzeige richtig teilen\n\nDie anonyme Anzeige aus „Anzeige & Ansprache“ ist ein guter neuer Aspekt für Kontakt 3 und die beste Unterlage nach einer Antwort. Ergänzt du eigenen Text, prüfe: Steht dort etwas, an dem man die Firma erkennt? „Marktführer für Dosierpumpen aus Bad Kreuznach“ verrät den Kunden auch ohne Namen.\n\n## Beispiel\n\nMalte schreibt Frau Brandt, Controllerin bei einem Logistiker, am Montag über XING an. Keine Antwort. Am Donnerstag ruft er kurz an. Sie sagt: „Gerade schlecht, schicken Sie mir etwas.“ Malte fragt: „Gern. An welche Adresse darf ich es schicken?“ Sie nennt ihre private E-Mail-Adresse. Damit hat sie eingewilligt, und Malte schickt am selben Abend die anonyme Anzeige mit zwei Terminvorschlägen.\n\n## Das Wichtigste\n\n- Drei Kontakte in zehn Tagen, jeder mit neuem Inhalt, dann Schluss.\n- Zwei Kanäle: Netzwerk-Nachricht und Anruf, von Hand verschickt.\n- E-Mail erst nach Antwort oder Einwilligung.",
+      "vorlage_title": "Ansprache-Folge in zehn Tagen",
+      "vorlage_body": "## Tag 1: Netzwerk-Nachricht\n\n- Unter 400 Zeichen, persönliche Begründung, kleine Frage\n- Link zu deinen Datenschutzhinweisen\n\n## Tag 4: kurzer Anruf\n\n- Name, Zweck, Interesse klären, Termin außerhalb der Arbeitszeit (siehe Leitfaden Erstanruf)\n- Nicht erreicht: keine Stellendetails bei Kollegen oder auf der Mailbox\n\n## Tag 10: zweite Netzwerk-Nachricht\n\n- Neuer Aspekt, zum Beispiel ein Auszug aus der anonymen Anzeige\n- Freundlicher Ausstieg: „Wenn das Thema gerade nicht passt, ist das völlig in Ordnung. Dann melde ich mich nicht weiter.“\n\n## Danach\n\n- Keine Reaktion: Ansprache beenden und notieren\n- Antwort oder Einwilligung: jetzt E-Mail mit anonymer Anzeige und zwei Terminvorschlägen\n- Jeden Schritt von Hand, keine automatisierten Folgen\n- Vor dem Teilen der Anzeige prüfen: kein Detail, an dem man die Firma erkennt",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Malte hat am Montag eine Netzwerk-Nachricht geschickt. Bis Mittwoch kam keine Antwort.",
+          "prompt": "Was ist jetzt der beste nächste Schritt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Den Kandidaten streichen, denn keine Antwort heißt Nein."
+            },
+            {
+              "id": "b",
+              "text": "Täglich kurz nachfragen, ob die Nachricht gelesen wurde."
+            },
+            {
+              "id": "c",
+              "text": "Die Folge fortsetzen: am Donnerstag kurz anrufen, später nachfassen."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Keine Antwort heißt meistens „nicht gesehen“. Die geplante Folge mit Anruf und zweiter Nachricht holt die meisten Antworten, tägliches Nachfragen nervt nur."
+        },
+        {
+          "type": "single",
+          "case": "Frau Brandt hat noch nicht reagiert. Malte findet ihre E-Mail-Adresse über ein Kontaktdaten-Werkzeug.",
+          "prompt": "Darf er ihr die Stelle jetzt per E-Mail schicken?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ja, weil die Adresse öffentlich auffindbar und damit freigegeben ist."
+            },
+            {
+              "id": "b",
+              "text": "Nein, eine E-Mail kommt erst nach einer Antwort oder Einwilligung."
+            },
+            {
+              "id": "c",
+              "text": "Ja, wenn er im Betreff deutlich „vertraulich“ vermerkt."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Das Wettbewerbsrecht ist bei Werbe-E-Mails streng (§ 7 UWG). Auf Matchunt gilt deshalb: E-Mail erst nach Antwort oder Einwilligung, egal wie die Adresse gefunden wurde."
+        },
+        {
+          "type": "single",
+          "case": "Nach Nachricht, Anruf und zweiter Nachricht hat ein Kandidat in zehn Tagen nicht reagiert.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Die Ansprache beenden, denn fast alle Antworten kommen bis zum dritten Kontakt."
+            },
+            {
+              "id": "b",
+              "text": "Zwei weitere Nachrichten schicken, damit er dich nicht vergisst."
+            },
+            {
+              "id": "c",
+              "text": "Auf E-Mail wechseln, weil dieser Kanal noch nicht genutzt wurde."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Rund 93 % der Antworten kommen bis zum dritten Kontakt. Weitere Nachrichten bringen kaum etwas und schaden deinem Ruf, und E-Mail ist ohne Antwort oder Einwilligung tabu."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was macht eine gute Ansprache-Folge aus? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Jeder Kontakt bringt einen neuen Inhalt statt einer bloßen Erinnerung"
+            },
+            {
+              "id": "b",
+              "text": "Eine automatisierte LinkedIn-Folge, damit kein Kontakt vergessen wird"
+            },
+            {
+              "id": "c",
+              "text": "Im dritten Kontakt den Firmennamen nennen, um Spannung zu erzeugen"
+            },
+            {
+              "id": "d",
+              "text": "Netzwerk-Nachricht und Anruf werden miteinander kombiniert"
+            }
+          ],
+          "correct": [
+            "a",
+            "d"
+          ],
+          "explanation": "Zwei Kanäle verdoppeln etwa die Antworten, und jeder Kontakt braucht einen neuen Grund. Automatisierung kann das Konto sperren lassen, der Firmenname bleibt vertraulich."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Ansprache-Folge in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Netzwerk-Nachricht unter 400 Zeichen mit Datenschutz-Hinweis"
+            },
+            {
+              "id": "b",
+              "text": "Kurzer Anruf: Name, Zweck, Interesse klären"
+            },
+            {
+              "id": "c",
+              "text": "Zweite Netzwerk-Nachricht mit neuem Aspekt und freundlichem Ausstieg"
+            },
+            {
+              "id": "d",
+              "text": "Nach Antwort oder Einwilligung: E-Mail mit Anzeige und Terminvorschlägen"
+            }
+          ],
+          "explanation": "Tag 1 Nachricht, Tag 4 Anruf, Tag 10 zweite Nachricht. Die E-Mail kommt erst, wenn der Kandidat geantwortet oder eingewilligt hat."
+        },
+        {
+          "type": "single",
+          "case": "Malte setzt vor die anonyme Anzeige eine eigene Einleitung: „Der größte Arbeitgeber in Weilheim, Hersteller von Kühlregalen, sucht …“",
+          "prompt": "Was ist daran problematisch?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nichts, solange der Firmenname selbst nicht genannt wird."
+            },
+            {
+              "id": "b",
+              "text": "Eigene Einleitungen sind bei anonymen Anzeigen grundsätzlich verboten."
+            },
+            {
+              "id": "c",
+              "text": "Größe, Branche und Ort verraten die Firma auch ohne Namen."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Anonym heißt nicht erkennbar. Eine so genaue Beschreibung führt direkt zur Firma, auch ohne Namen. Eigene Ergänzungen sind erlaubt, wenn sie nichts verraten."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Der erste Anruf: 60 Sekunden, die erlaubt sind",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du einen Erstanruf am Arbeitsplatz kurz und rechtssicher führen und die häufigsten Einwände ruhig beantworten.",
+      "body": "Der Anruf ist der stärkste Kanal und der mit den meisten Regeln. Der Bundesgerichtshof hat entschieden (I ZR 221/01, I ZR 73/02): Ein Headhunter darf jemanden zur ersten Kontaktaufnahme am Arbeitsplatz anrufen, aber nur kurz. Der Arbeitgeber soll nicht hinnehmen müssen, dass seine Leute während der Arbeitszeit ausführlich abgeworben werden.\n\n## Was erlaubt ist\n\n- Dich mit Namen vorstellen und den Zweck nennen\n- Die Stelle knapp umreißen\n- Klären, ob grundsätzlich Interesse besteht\n- Bei Interesse einen Termin außerhalb der Arbeitszeit vereinbaren\n\nNicht erlaubt: das Gespräch ausdehnen, überreden, nach einem Nein weiterbohren, wiederholt am Arbeitsplatz anrufen. Eine feste Minutengrenze steht in keinem Gesetz, der Maßstab heißt „kurz“. Plane deshalb für etwa 60 Sekunden. Nach spätestens drei Minuten ist Schluss, so wird es auch in der Zulassung geprüft.\n\n## Der Ablauf\n\n- Einstieg: Name, „ich bin Headhunterin“ und „Passt es für eine Minute?“\n- Zweck: ein Satz zur Stelle und ein Satz, warum gerade diese Person.\n- Frage: „Wäre das grundsätzlich ein Thema für Sie?“\n- Bei Ja: Termin außerhalb der Arbeitszeit und Nummer klären. Details erst dann.\n- Bei Nein: danken, beenden, notieren, damit niemand erneut anruft.\n\n## Drei Einwände\n\n- „Kein Interesse.“ Antwort: „Danke für die klare Antwort. Einen guten Tag noch.“ Kein Nachhaken. Das schützt dich rechtlich und deinen Ruf.\n- „Schicken Sie mir was.“ Oft ein höflicher Ausstieg, manchmal echtes Interesse. Antwort: „Gern. An welche Adresse darf ich es schicken?“ Nennt die Person eine Adresse, hast du ihre Einwilligung für die E-Mail.\n- „Wer ist der Kunde?“ Antwort: „Den Namen nenne ich am Telefon nicht, genauso wenig, wie ich Ihren Namen ohne Ihre Zustimmung weitergebe. Ich kann Ihnen sagen: Maschinenbau, rund 600 Beschäftigte, Ostwestfalen.“\n\n## Beispiel\n\nJana ruft Herrn Demir vier Tage nach ihrer Nachricht an.\n\n„Guten Tag Herr Demir, Jana Keller, ich bin Headhunterin. Passt es für eine Minute?“ – „Ich sitze im Büro, aber kurz geht.“ – „Ich hatte Ihnen wegen Ihres Wartungsprojekts geschrieben. Ein Maschinenbauer sucht eine Leitung Instandhaltung, die genau so etwas aufbaut. Wäre das grundsätzlich ein Thema?“ – „Klingt interessant. Was zahlen die denn?“ – „Das besprechen wir gern in Ruhe. Passt Ihnen Donnerstag um 18:30 Uhr, und unter welcher Nummer erreiche ich Sie privat?“ – „Ja, unter dieser hier.“ – „Dann bis Donnerstag.“\n\nDas Gespräch dauert gut eine Minute. Die Gehaltsfrage beantwortet Jana bewusst nicht am Arbeitsplatz, sondern im Termin am Abend.\n\n## Das Wichtigste\n\n- Erlaubt ist kurz: Name, Zweck, Interesse klären, Termin außerhalb der Arbeitszeit.\n- Ein Nein beendet das Gespräch. Kein Überreden, kein wiederholter Anruf am Arbeitsplatz.\n- Den Firmennamen nennst du am Telefon nicht. Du beschreibst die Firma.",
+      "vorlage_title": "Leitfaden Erstanruf",
+      "vorlage_body": "## Einstieg (etwa 15 Sekunden)\n\n- „Guten Tag Frau/Herr [Nachname], [dein Name], ich bin Headhunter/in. Passt es für eine Minute?“\n\n## Zweck (etwa 20 Sekunden)\n\n- „Ein [Branche] aus [Region] sucht [Rolle]. Mir ist [konkreter Punkt aus dem Profil] aufgefallen, deshalb rufe ich an.“\n\n## Interesse klären (etwa 10 Sekunden)\n\n- „Wäre das grundsätzlich ein Thema für Sie?“\n\n## Bei Ja (etwa 15 Sekunden)\n\n- „Dann sprechen wir lieber in Ruhe außerhalb der Arbeitszeit. Passt [Tag] um [Uhrzeit]? Unter welcher Nummer erreiche ich Sie?“\n\n## Bei Nein\n\n- „Danke für die klare Antwort. Einen guten Tag noch.“ Beenden und notieren.\n\n## Einwände\n\n- „Schicken Sie mir was“: „Gern. An welche Adresse darf ich es schicken?“\n- „Wer ist der Kunde?“: „Den Namen nenne ich am Telefon nicht. Ich kann Ihnen sagen: [Branche, Größe, Region].“\n\n## Grenze\n\n- Spätestens nach drei Minuten Schluss, kein Überreden, kein zweiter Anruf am Arbeitsplatz",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Nach 30 Sekunden sagt die Kandidatin: „Kein Interesse, danke.“",
+          "prompt": "Wie reagierst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du nennst noch schnell das Gehaltsband, vielleicht ändert das ihre Meinung."
+            },
+            {
+              "id": "b",
+              "text": "Du bedankst dich für die klare Antwort und beendest das Gespräch."
+            },
+            {
+              "id": "c",
+              "text": "Du fragst, ob du sie nächste Woche noch einmal im Büro anrufen darfst."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Bei Desinteresse ist das Gespräch zu Ende. Nachhaken und wiederholte Anrufe am Arbeitsplatz sind nach den BGH-Regeln unzulässig und schaden deinem Ruf."
+        },
+        {
+          "type": "single",
+          "case": "Der Kandidat ist interessiert und fragt am Arbeitsplatz nach Aufgaben, Team und Gehalt. Ihr sprecht schon zwei Minuten.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du schlägst einen Termin nach Feierabend vor und besprichst die Details dann."
+            },
+            {
+              "id": "b",
+              "text": "Du beantwortest alle Fragen sofort, weil er sie selbst gestellt hat."
+            },
+            {
+              "id": "c",
+              "text": "Du bittest ihn, in einen ruhigen Raum zu gehen, und machst dort weiter."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Am Arbeitsplatz ist nur ein kurzes Gespräch erlaubt. Sobald Interesse da ist, gehören die Details in einen Termin außerhalb der Arbeitszeit."
+        },
+        {
+          "type": "single",
+          "case": "Am Telefon fragt der Kandidat: „Für welche Firma suchen Sie denn?“",
+          "prompt": "Welche Antwort ist richtig?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du nennst den Namen, weil er sonst wahrscheinlich auflegt."
+            },
+            {
+              "id": "b",
+              "text": "Du sagst „Darf ich nicht sagen“ und gehst zur nächsten Frage."
+            },
+            {
+              "id": "c",
+              "text": "Du beschreibst Branche, Größe und Region und hältst den Namen vertraulich."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Der Firmenname bleibt vertraulich. Mit Branche, Größe und Region gibst du trotzdem genug, damit der Kandidat das Interesse einschätzen kann."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was ist beim Erstanruf am Arbeitsplatz erlaubt? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Dich mit Namen vorstellen und den Zweck nennen"
+            },
+            {
+              "id": "b",
+              "text": "Bei Zögern mehrfach nachhaken, bis ein Ja kommt"
+            },
+            {
+              "id": "c",
+              "text": "Klären, ob grundsätzlich Interesse besteht"
+            },
+            {
+              "id": "d",
+              "text": "Ausführlich über Gehalt, Team und Aufgaben sprechen"
+            }
+          ],
+          "correct": [
+            "a",
+            "c"
+          ],
+          "explanation": "Erlaubt sind Name, Zweck, eine knappe Beschreibung, die Frage nach dem Interesse und ein Termin außerhalb der Arbeitszeit. Überreden und lange Gespräche am Arbeitsplatz sind es nicht."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jedem Satz des Kandidaten die passende Reaktion zu.",
+          "pairs": [
+            {
+              "left": "„Kein Interesse.“",
+              "right": "„Danke für die klare Antwort. Einen guten Tag noch.“"
+            },
+            {
+              "left": "„Schicken Sie mir was.“",
+              "right": "„Gern. An welche Adresse darf ich es schicken?“"
+            },
+            {
+              "left": "„Wer ist der Kunde?“",
+              "right": "„Den Namen nenne ich nicht. Maschinenbau, rund 600 Beschäftigte, Ostwestfalen.“"
+            },
+            {
+              "left": "„Klingt interessant, erzählen Sie mehr.“",
+              "right": "„Gern in Ruhe. Passt Ihnen heute Abend um 18:30 Uhr?“"
+            }
+          ],
+          "explanation": "Ein Nein beendet das Gespräch. Die Adresse ist die Einwilligung für die E-Mail. Die Firma beschreibst du, statt sie zu nennen. Interesse führt zum Termin außerhalb der Arbeitszeit."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kollege sagt: „Der BGH erlaubt beim Erstanruf genau 60 Sekunden.“",
+          "prompt": "Stimmt das?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ja, der BGH hat 60 Sekunden als feste Obergrenze festgelegt."
+            },
+            {
+              "id": "b",
+              "text": "Nein, eine feste Zeit steht nirgends. Der Maßstab heißt „kurz“."
+            },
+            {
+              "id": "c",
+              "text": "Nein, die Dauer ist egal, solange der Kandidat Interesse zeigt."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Kein Gesetz und kein Urteil nennt eine Minutenzahl. Der Maßstab ist „kurz“. Deshalb planst du für etwa 60 Sekunden und hörst spätestens nach drei Minuten auf."
+        }
+      ]
+    }
+  ]
+}

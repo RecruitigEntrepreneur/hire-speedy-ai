@@ -1,0 +1,445 @@
+{
+  "sort": 8,
+  "title": "Sauber und selbstständig arbeiten",
+  "description": "Nach diesem Modul kannst du die wichtigsten Rechtsregeln beim Suchen, Ansprechen und Vorstellen einhalten, Kundenschutz und Fairness auf Matchunt wahren und deinen Start als Selbstständiger ehrlich planen.",
+  "test_question_count": 10,
+  "test_pass_pct": 90,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Die Regeln, die dich schützen",
+      "duration_min": 10,
+      "learning_goal": "Nach diesem Thema kannst du die wichtigsten Regeln aus Datenschutz, Gleichbehandlung, Wettbewerbsrecht und Vermittlungsrecht in typischen Situationen richtig anwenden.",
+      "body": "Regeln wirken oft wie Bremsen. Für dich sind sie ein Schutz. Ein Verstoß kostet Geld, Ruf und auf Matchunt deinen Zugang. Dieses Thema gibt dir den Überblick. Es ersetzt keine Rechtsberatung. Bist du unsicher, frag eine Fachanwältin oder einen Fachanwalt.\n\n## Datenschutz beim Suchen\n\n- Berufliche Profile, etwa auf LinkedIn oder XING, darfst du ansehen und die Person zu einer passenden Stelle ansprechen. Grundlage ist das berechtigte Interesse.\n- Informiere die Person spätestens mit der ersten Nachricht, sonst binnen eines Monats: wer du bist, woher du die Daten hast, wozu und wie lange du sie nutzt und welche Rechte sie hat (Art. 14 DSGVO). Das Bundesarbeitsgericht sprach 2025 einer Person 1.000 € Schadensersatz zu, weil diese Information fehlte.\n- Einen eigenen Kandidatenpool führst du nur mit Einwilligung und mit Löschfrist.\n- Keine Browser-Erweiterungen, die Profile auslesen. Der Anbieter Kaspr musste dafür 240.000 € Bußgeld an die französische Datenschutzbehörde CNIL zahlen.\n- Private Netzwerke wie Facebook oder Instagram sind für die Recherche tabu.\n\n## Gleichbehandlung (AGG)\n\nAnzeigen formulierst du neutral, mit (m/w/d). Frag nie nach Alter, Herkunft, Religion, Familienplanung oder Gesundheit. Erzählt jemand so etwas von sich aus, gibst du es nicht weiter, weder in der Einschätzung noch mündlich.\n\n## Ansprache (UWG)\n\nEin Anruf am Arbeitsplatz ist erlaubt, wenn er kurz bleibt: Name, Zweck, Interesse klären, Termin nach Feierabend. Wiederholte Anrufe und Überreden sind unzulässig (BGH). Werbe-E-Mails brauchen eine Einwilligung (§ 7 UWG). Schreib die erste E-Mail deshalb erst nach einer Antwort oder Einwilligung.\n\n## Gespräch, Vertraulichkeit, Geld\n\n- Gespräche zeichnest du nur mit Einwilligung auf. Alles andere ist strafbar (§ 201 StGB).\n- Vertraulich bleibt, was vertraulich ist: kein Kundenname zu früh, keine Kandidatendaten ohne Zustimmung, keine Einreichung ohne Einwilligung.\n- Nimm nie Geld von der Kandidatin (§ 296 SGB III). Das Honorar zahlt der Kunde.\n- Du vermittelst in eine Anstellung beim Kunden. Menschen selbst anstellen und an den Kunden verleihen ist Arbeitnehmerüberlassung und braucht eine Erlaubnis (AÜG).\n\n## Was kommt: Entgelttransparenz und KI\n\nDie EU-Richtlinie 2023/970 bringt mehr Transparenz beim Gehalt. Das deutsche Gesetz wird für 2027 erwartet. Dann gilt: Gehaltsspanne vor dem Gespräch nennen, nicht nach dem bisherigen Gehalt fragen. Gewöhn dich schon jetzt daran und frag nach Erwartung und Untergrenze.\n\nKI darf dir helfen, zum Beispiel beim Suchstring, im Business-Tarif und ohne Personendaten. Werkzeuge, die aus Stimme oder Mimik Gefühle ablesen, sind tabu: Emotionserkennung im Arbeitsumfeld ist in der EU seit Februar 2025 verboten. Die Auswahl trifft immer ein Mensch, nie die KI.\n\n## Beispiel\n\nHeadhunterin Sabine Roth ruft Jan Weber an seinem Arbeitsplatz an. Nach einer Minute steht ein Termin am Abend. Ihre LinkedIn-Nachricht danach enthält den Datenschutz-Hinweis. Im Gespräch erzählt Jan, dass er bald Vater wird. In ihrer Einschätzung steht davon nichts.\n\n## Das Wichtigste\n\n- Informiere spätestens mit der ersten Nachricht nach Art. 14 DSGVO und nutze keine Auslese-Werkzeuge.\n- Frag nichts, was das AGG schützt, und zeichne nur mit Einwilligung auf.\n- Nimm nie Geld von Kandidaten und lass nie die KI auswählen.",
+      "vorlage_title": "Datenschutz-Hinweis für die erste Nachricht",
+      "vorlage_body": "Muster zum Anpassen. Keine Rechtsberatung: Lass deine endgültige Fassung von einer Fachanwältin oder einem Fachanwalt prüfen.\n\n## Kurzfassung für die erste Nachricht\n\n- „Ich habe Ihr berufliches Profil auf [LinkedIn/XING] gefunden. Ich speichere Ihren Namen, Ihren beruflichen Werdegang und diesen Kontaktweg, um Ihnen eine passende Stelle vorzustellen.“\n- „Haben Sie kein Interesse, lösche ich Ihre Daten innerhalb von [Frist].“\n- „Mehr zu Ihren Rechten: [Link zu deinen Datenschutzhinweisen]“\n\n## Was in die ausführlichen Hinweise gehört (Art. 14 DSGVO)\n\n- Wer verantwortlich ist: [Name, Firma, Anschrift, E-Mail]\n- Zweck und Rechtsgrundlage: Ansprache zu einer passenden Stelle, berechtigtes Interesse\n- Welche Daten und woher sie stammen\n- An wen sie gehen: an einen Kunden nur mit Ihrer Einwilligung\n- Wie lange sie gespeichert werden\n- Ihre Rechte: Auskunft, Berichtigung, Löschung, Widerspruch, Beschwerde bei einer Datenschutz-Aufsichtsbehörde",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du hast Jana Krüger auf LinkedIn gefunden. Heute schreibst du ihr zum ersten Mal wegen einer passenden Stelle.",
+          "prompt": "Wann muss Jana erfahren, wer du bist, woher du ihre Daten hast und wozu du sie nutzt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Erst wenn sie Interesse an der Stelle gezeigt hat"
+            },
+            {
+              "id": "b",
+              "text": "Spätestens mit dieser ersten Nachricht an sie"
+            },
+            {
+              "id": "c",
+              "text": "Innerhalb eines Jahres nach dem ersten Kontakt"
+            }
+          ],
+          "correct": "b",
+          "explanation": "Art. 14 DSGVO verlangt die Information spätestens beim ersten Kontakt. Fehlt sie, droht Schadensersatz, wie das BAG-Urteil von 2025 zeigt."
+        },
+        {
+          "type": "single",
+          "case": "Du rufst Kandidat Daniel Fuchs an seinem Arbeitsplatz an. Er sagt: „Klingt spannend, aber ich sitze gerade im Großraumbüro.“",
+          "prompt": "Wie machst du weiter?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du erklärst ihm die Stelle trotzdem in Ruhe, damit er sie ganz versteht."
+            },
+            {
+              "id": "b",
+              "text": "Du rufst morgen und übermorgen wieder in der Firma an, bis es passt."
+            },
+            {
+              "id": "c",
+              "text": "Du vereinbarst einen Termin nach Feierabend und beendest das Gespräch."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Am Arbeitsplatz ist nur ein kurzer Erstkontakt erlaubt: Zweck nennen, Interesse klären, Termin außerhalb der Arbeitszeit. Wiederholte Anrufe und Überreden sind unzulässig."
+        },
+        {
+          "type": "single",
+          "case": "Im Gespräch erzählt Kandidatin Lisa Brand von sich aus, dass sie im nächsten Jahr eine Familie gründen will.",
+          "prompt": "Was machst du mit dieser Information?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Sie bleibt draußen, schriftlich wie mündlich. Das AGG schützt sie."
+            },
+            {
+              "id": "b",
+              "text": "Du schreibst sie in die Einschätzung, damit der Kunde planen kann."
+            },
+            {
+              "id": "c",
+              "text": "Du deutest sie dem Kunden am Telefon an, schriftlich aber nicht."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Familienplanung ist durch das AGG geschützt. Auch wenn die Kandidatin es selbst erzählt, gibst du es nicht weiter, weder schriftlich noch mündlich."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was ist erlaubt? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ein berufliches XING-Profil ansehen und die Person zu einer passenden Stelle ansprechen"
+            },
+            {
+              "id": "b",
+              "text": "Eine Browser-Erweiterung nutzen, die bei LinkedIn-Profilen Telefonnummern ausliest"
+            },
+            {
+              "id": "c",
+              "text": "Einen KI-Assistenten im Business-Tarif für einen Suchstring ohne Personendaten nutzen"
+            },
+            {
+              "id": "d",
+              "text": "Eine KI entscheiden lassen, welche Kandidaten du beim Kunden einreichst"
+            }
+          ],
+          "correct": [
+            "a",
+            "c"
+          ],
+          "explanation": "Berufliche Profile ansehen und KI als Werkzeug ohne Personendaten nutzen ist erlaubt. Auslese-Erweiterungen sind tabu (Kaspr: 240.000 € Bußgeld), und die Auswahl trifft immer ein Mensch."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Regel ihrer Rechtsgrundlage zu.",
+          "pairs": [
+            {
+              "left": "Gespräche nur mit Einwilligung aufzeichnen",
+              "right": "§ 201 StGB"
+            },
+            {
+              "left": "Werbe-E-Mails nur mit Einwilligung",
+              "right": "§ 7 UWG"
+            },
+            {
+              "left": "Nie Geld von der Kandidatin nehmen",
+              "right": "§ 296 SGB III"
+            },
+            {
+              "left": "Niemanden ohne Erlaubnis an Kunden verleihen",
+              "right": "AÜG"
+            }
+          ],
+          "explanation": "Jede dieser Regeln hat eine eigene gesetzliche Grundlage. Wer sie kennt, erkennt heikle Situationen schneller."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde bittet dich: „Fragen Sie die Kandidatin doch nach ihrem aktuellen Gehalt, damit wir nicht zu viel bieten.“",
+          "prompt": "Wie gehst du vor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du fragst danach, denn das deutsche Gesetz dazu gilt ja noch gar nicht."
+            },
+            {
+              "id": "b",
+              "text": "Du fragst nach Erwartung und Untergrenze, nicht nach dem bisherigen Gehalt."
+            },
+            {
+              "id": "c",
+              "text": "Du fragst danach und gibst die Zahl weiter, ohne es ihr vorher zu sagen."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Die EU-Richtlinie zur Entgelttransparenz verbietet die Frage nach dem bisherigen Gehalt, das deutsche Gesetz wird für 2027 erwartet. Erwartung und Untergrenze reichen für ein gutes Angebot."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Kundenschutz und Fairness auf Matchunt",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du einen Bestandskunden richtig angeben, Umgehung erkennen und vermeiden und die Fairness-Regeln auf Matchunt einhalten.",
+      "body": "Matchunt funktioniert, weil sich alle drei Seiten aufeinander verlassen können. Niemand sieht mehr, als er muss. Die Kandidatin stimmt jeder Einreichung zu. Der Kunde sieht, wer für ihn sucht. Und du bekommst Stellen, ohne selbst Kunden gewinnen zu müssen. Das klappt nur, wenn niemand an der Plattform vorbei arbeitet.\n\n## Bestandskunden: nur mit Beleg\n\nKlickst du bei einer Stelle auf „Ich suche“, fragt Matchunt: Ist diese Firma schon dein Kunde? Ein Ja zählt nur mit Beleg. Der Beleg ist ein unterschriebener Vertrag mit dieser Firma aus der Zeit vor deinem „Ich suche“. Ein Handschlag, alte Telefonate oder eine Visitenkarte reichen nicht. Auch eine nachträgliche Bestätigung des Kunden ersetzt den Vertrag nicht. Den Beleg prüft Matchunt vertraulich.\n\nWarum so streng? Ohne Beleg könnte jeder behaupten, die Firma sei schon sein Kunde, und das Geschäft an der Plattform vorbei machen.\n\n## Keine Geschäfte an Matchunt vorbei\n\nUmgehung heißt: Du lernst eine Firma oder einen Kandidaten über Matchunt kennen und machst das Geschäft dann direkt. Zum Beispiel suchst du die nächste Stelle des Kunden ohne Plattform. Oder du vermittelst einen über Matchunt vorgestellten Kandidaten auf eigene Rechnung. Das gilt auch, wenn der Kunde dich selbst darum bittet.\n\nDer Kunde sieht auf Matchunt, welche Headhunter für ihn suchen und gesucht haben. Spricht ihn jemand direkt an, kann er das melden. Ein Verstoß führt nach einer Anhörung zum Ausschluss. Darüber entscheidet ein Mensch, mit Begründung.\n\nDieselben Regeln binden auch Kunden und die anderen Headhunter. So ist deine Arbeit geschützt.\n\n## Fairness unter Headhuntern\n\n- Die Plätze sind für alle gleich. Partner, Silber und Gold sind reine Ansehens-Stufen.\n- Du reichst nur ein, wen du vorher interviewt hast und wer zugestimmt hat.\n- Deine Einschätzung ist ehrlich. Lücken verschweigst du nicht.\n- Off-Limits: Firmen, die für eine Suche gesperrt sind, sprichst du nicht an. Mitarbeitende eines Kunden, für den du suchst, wirbst du nicht ab. Die genauen Regeln stehen in deinem Vertrag.\n\n## Beispiel\n\nHeadhunter Kai Brenner klickt bei der Stelle „Leitung Einkauf“ der Seidel Verpackungen GmbH auf „Ich suche“. Vor zwei Jahren hat er dort per Handschlag eine Stelle besetzt, einen Vertrag gibt es nicht. Er beantwortet die Frage ehrlich mit Nein und sucht über Matchunt. Drei Wochen später ruft die Personalleiterin an: „Die nächste Stelle machen wir direkt, ohne Plattform. Das spart uns beiden Geld.“ Kai lehnt freundlich ab und bittet sie, die Stelle über Matchunt anzulegen. Er weiß: Ein Direktgeschäft wäre Umgehung, und Seidel sieht ihn ohnehin als Suchenden.\n\n## Das Wichtigste\n\n- Bestandskunde gilt nur mit unterschriebenem Vertrag aus der Zeit vor deinem „Ich suche“.\n- Kein Geschäft an Matchunt vorbei, auch nicht auf Wunsch des Kunden.\n- Verstöße führen nach einer Anhörung zum Ausschluss.",
+      "vorlage_title": "Antwort auf eine direkte Anfrage des Kunden",
+      "vorlage_body": "Nutze diesen Text, wenn ein Kunde dich an Matchunt vorbei beauftragen will. Passe Anrede und Ton an.\n\nGuten Tag Frau [Name],\n\nvielen Dank für Ihr Vertrauen. Es freut mich, dass Sie mit meiner Arbeit zufrieden sind.\n\nFür Sie arbeite ich über Matchunt, und dabei bleibt es. Das schützt auch Sie: Stellen, Kandidaten und Vereinbarungen laufen an einem Ort, vertraulich und nachvollziehbar.\n\nLegen Sie die neue Stelle gern über Matchunt an. Sobald sie freigegeben ist, kann ich mit der Suche beginnen.\n\nViele Grüße\n[Dein Name]\n\n## Danach\n\n- Notiere dir Datum und Inhalt der Anfrage.\n- Bist du unsicher, frag bei Matchunt nach, bevor du antwortest.",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Bei der Stelle „Vertriebsleitung“ der Wagner Elektro GmbH klickst du auf „Ich suche“. Matchunt fragt, ob die Firma schon dein Kunde ist. Vor zwei Jahren hast du dort per Handschlag eine Stelle besetzt, einen Vertrag gibt es nicht.",
+          "prompt": "Was antwortest du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ja, denn die Besetzung war echt und der Kunde kennt dich gut."
+            },
+            {
+              "id": "b",
+              "text": "Ja, und du bittest den Kunden, das nachträglich zu bestätigen."
+            },
+            {
+              "id": "c",
+              "text": "Nein, denn ohne unterschriebenen Vertrag von vorher fehlt der Beleg."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Bestandskunde gilt nur mit einem unterschriebenen Vertrag aus der Zeit vor dem „Ich suche“. Eine nachträgliche Bestätigung ersetzt diesen Beleg nicht."
+        },
+        {
+          "type": "single",
+          "case": "Die Personalleiterin eines Kunden ruft dich an: „Die nächste Stelle suchen Sie doch direkt für uns, ohne Plattform. Das spart uns beiden Geld.“",
+          "prompt": "Wie reagierst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du sagst zu, weil der Kunde selbst gefragt hat und einverstanden ist."
+            },
+            {
+              "id": "b",
+              "text": "Du lehnst freundlich ab und bittest sie, die Stelle über Matchunt anzulegen."
+            },
+            {
+              "id": "c",
+              "text": "Du sagst zu, wartest aber, bis deine aktuelle Suche bei ihr beendet ist."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Ein Direktgeschäft mit einem Kunden, den du über Matchunt kennst, ist Umgehung, auch auf Wunsch des Kunden. Die Folge kann nach einer Anhörung der Ausschluss sein."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde meldet über Matchunt, dass ihn ein Headhunter direkt angesprochen hat, um an der Plattform vorbei zu arbeiten.",
+          "prompt": "Was passiert dann?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Matchunt hört den Headhunter an. Bei einem Verstoß folgt der Ausschluss."
+            },
+            {
+              "id": "b",
+              "text": "Der Headhunter wird automatisch und sofort gesperrt, ohne ein Gespräch."
+            },
+            {
+              "id": "c",
+              "text": "Nichts, solange der Kunde am Ende mit dem Ergebnis zufrieden ist."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Verstöße führen zum Ausschluss, aber erst nach einer Anhörung. Entscheiden tut ein Mensch, mit Begründung."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was gehört zur Fairness auf Matchunt? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Die Plätze sind für alle Headhunter gleich, egal welche Stufe."
+            },
+            {
+              "id": "b",
+              "text": "Gold-Partner bekommen mehr Plätze und bessere Konditionen."
+            },
+            {
+              "id": "c",
+              "text": "Der Kunde sieht, welche Headhunter für ihn suchen."
+            },
+            {
+              "id": "d",
+              "text": "Eingereicht wird nur nach Interview und mit Zustimmung der Kandidatin."
+            }
+          ],
+          "correct": [
+            "a",
+            "c",
+            "d"
+          ],
+          "explanation": "Gleiche Plätze, sichtbare Suchende und die Zustimmung der Kandidatin machen Matchunt fair. Die Stufen sind reines Ansehen, keine besseren Bedingungen."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring den Ablauf bei einem möglichen Bestandskunden in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Du klickst bei der Stelle auf „Ich suche“."
+            },
+            {
+              "id": "b",
+              "text": "Matchunt fragt, ob die Firma schon dein Kunde ist."
+            },
+            {
+              "id": "c",
+              "text": "Du antwortest mit Ja und reichst den unterschriebenen Vertrag von vorher ein."
+            },
+            {
+              "id": "d",
+              "text": "Matchunt prüft den Beleg vertraulich."
+            }
+          ],
+          "explanation": "Die Frage kommt beim „Ich suche“. Ein Ja zählt nur mit Beleg, und den prüft Matchunt vertraulich."
+        },
+        {
+          "type": "single",
+          "case": "Du suchst gerade für die Hartmann Medizintechnik GmbH. Für eine Stelle bei einer anderen Firma findest du die perfekte Kandidatin. Sie arbeitet bei Hartmann.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du sprichst sie an, denn es geht ja um eine ganz andere Firma und Stelle."
+            },
+            {
+              "id": "b",
+              "text": "Du sprichst sie nicht an. Beim Kunden, für den du suchst, wirbst du nicht ab."
+            },
+            {
+              "id": "c",
+              "text": "Du sprichst sie an, erzählst Hartmann aber vorsichtshalber nichts davon."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Mitarbeitende eines Kunden, für den du suchst, sind Off-Limits. Wer sie abwirbt, zerstört das Vertrauen, auf dem die Zusammenarbeit beruht."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Selbstständig starten",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du deine ersten Schritte als Selbstständiger planen: Gewerbe, Steuern, Abrechnung, Absicherung und einen ehrlichen Finanzplan für sechs Monate.",
+      "body": "Mit der Freischaltung auf Matchunt bist du selbstständig. Matchunt ist dein Vertragspartner, nicht dein Arbeitgeber. Du entscheidest selbst, wann und wie du arbeitest und für welche Stellen du suchst. Dafür kümmerst du dich selbst um Gewerbe, Steuern, Absicherung und Geld. Dieses Thema gibt dir eine Liste. Die Beratung im Einzelfall ersetzt es nicht.\n\n## Gewerbe und Steuern\n\n- Headhunting ist in der Regel ein Gewerbe. Melde es vor dem Start beim Gewerbeamt deiner Gemeinde an.\n- Danach meldest du dich mit dem Fragebogen zur steuerlichen Erfassung beim Finanzamt.\n- Sprich vorher mit einem Steuerberater. Wichtige Fragen: Kleinunternehmerregelung oder Umsatzsteuer? Wie viel jeder Zahlung legst du für Steuern zurück? Kommen Vorauszahlungen auf dich zu?\n\n## Gutschrift statt Rechnung\n\nDu schreibst Matchunt keine Rechnung. Matchunt rechnet per Gutschrift ab und erstellt das Dokument für dich. Damit es stimmt, müssen deine Angaben im Profil korrekt sein: Steuernummer, Umsatzsteuer ja oder nein, Bankverbindung. Prüfe jede Gutschrift und melde Fehler sofort.\n\n## Absichern\n\nEin Fehler kann teuer werden, etwa Unterlagen an den falschen Empfänger. Eine Berufshaftpflicht ist deshalb sinnvoll. Lass dich zu Umfang und Kosten beraten. Kranken- und Altersvorsorge regelst du als Selbstständiger selbst. Beziehst du Arbeitslosengeld, frag die Agentur für Arbeit nach dem Gründungszuschuss. Dein Abschluss der Akademie kann beim Nachweis deiner Kenntnisse helfen.\n\n## Partnerstatus und Liga\n\nMit der Freischaltung bist du Matchunt Partner. Silber gibt es nach 5 Kunden-Interviews oder 1 Einstellung, Gold nach festen Regeln. Die Matchunt Liga zeichnet die Besten einer Saison aus. Stufen und Liga sind reine Anerkennung: keine Pflicht, keine anderen Plätze, keine anderen Konditionen.\n\n## Ein ehrlicher Finanzplan\n\nDas erste Honorar kommt oft spät. Suche, Interviews und Angebot dauern Wochen bis Monate. Dann folgt meist eine Kündigungsfrist von 3 Monaten. In der Regel kommt dein Geld erst nach dem Start der Person. Die genauen Regeln stehen in deinem Headhunter-Vertrag.\n\nPlane deshalb mindestens sechs Monate ohne Honorar. Rechne deine monatlichen Kosten zusammen, nimm sie mal sechs und leg eine Steuerrücklage dazu. Reicht dein Polster nicht, plane eine Überbrückung, etwa eine Teilzeitstelle. Geld von Kandidaten ist nie eine Lösung, es ist verboten.\n\n## Beispiel\n\nNina Hoffmann war Vertriebsleiterin und startet am 1. Februar als Headhunterin. Mitte Januar meldet sie ihr Gewerbe an und spricht mit ihrem Steuerberater. Ihre erste Einreichung schickt sie im Februar, im März lädt der Kunde zum Interview. Mitte April unterschreibt ihr Kandidat. Er hat 3 Monate Kündigungsfrist zum Monatsende und startet am 1. August. Ihr erstes Honorar kommt danach. Nina hat vorgesorgt: Ihr Polster reicht für sieben Monate.\n\n## Das Wichtigste\n\n- Melde dein Gewerbe an und kläre die Steuern mit einem Steuerberater, bevor du startest.\n- Matchunt rechnet per Gutschrift ab. Deine Angaben im Profil müssen stimmen.\n- Plane mindestens sechs Monate ohne Honorar ein.",
+      "vorlage_title": "Finanzplan für die ersten sechs Monate",
+      "vorlage_body": "Trag deine eigenen Zahlen ein und rechne lieber vorsichtig.\n\n## Monatliche Kosten\n\n- Lebenshaltung (Miete, Essen, Mobilität): ___ €\n- Kranken- und Pflegeversicherung: ___ €\n- Altersvorsorge: ___ €\n- Berufshaftpflicht: ___ €\n- Werkzeuge (z. B. LinkedIn, Telefon, Headset): ___ €\n- Steuerberater: ___ €\n- Summe pro Monat: ___ €\n\n## Polster\n\n- Summe pro Monat × 6: ___ €\n- Rücklage für Steuern (Anteil mit dem Steuerberater klären): ___ €\n- Vorhandenes Polster: ___ €\n- Lücke: ___ €\n\n## Wenn eine Lücke bleibt\n\n- Überbrückung, z. B. Teilzeitstelle: ___\n- Gründungszuschuss geprüft: ja / nein\n\n## Erledigt vor dem Start\n\n- Gewerbe angemeldet\n- Fragebogen zur steuerlichen Erfassung abgegeben\n- Steuerangaben im Matchunt-Profil eingetragen\n- Berufshaftpflicht geprüft",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du bist zugelassen und willst nächste Woche mit deiner ersten Suche auf Matchunt beginnen.",
+          "prompt": "Was erledigst du vorher?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nichts, denn Matchunt meldet dein Gewerbe bei der Freischaltung automatisch an."
+            },
+            {
+              "id": "b",
+              "text": "Du meldest dein Gewerbe an und klärst die Steuerfragen mit einem Steuerberater."
+            },
+            {
+              "id": "c",
+              "text": "Du gründest zuerst eine GmbH, weil Einzelpersonen nicht vermitteln dürfen."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Als Selbstständiger meldest du dein Gewerbe selbst an. Ob Kleinunternehmerregelung oder Umsatzsteuer, klärst du mit einem Steuerberater."
+        },
+        {
+          "type": "single",
+          "case": "Dein erster Kandidat hat angefangen. Du überlegst, wie du Matchunt deine Rechnung schreibst.",
+          "prompt": "Was ist richtig?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du schreibst die Rechnung über dein Honorar direkt an den Kunden der Stelle."
+            },
+            {
+              "id": "b",
+              "text": "Du schreibst Matchunt eine Rechnung über das ganze Honorar des Kunden."
+            },
+            {
+              "id": "c",
+              "text": "Matchunt rechnet per Gutschrift ab. Du prüfst sie und pflegst deine Angaben."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Matchunt erstellt die Gutschrift für dich. Damit sie stimmt, müssen Steuernummer, Umsatzsteuer-Angabe und Bankverbindung in deinem Profil korrekt sein."
+        },
+        {
+          "type": "single",
+          "case": "Dein Kandidat unterschreibt am 15. April. Er hat 3 Monate Kündigungsfrist zum Monatsende.",
+          "prompt": "Wann rechnest du realistisch mit deinem Geld?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Frühestens nach seinem Start am 1. August"
+            },
+            {
+              "id": "b",
+              "text": "Noch im April, direkt mit seiner Unterschrift"
+            },
+            {
+              "id": "c",
+              "text": "Ende Mai, wenn er beim alten Arbeitgeber gekündigt hat"
+            }
+          ],
+          "correct": "a",
+          "explanation": "In der Regel kommt dein Geld erst nach dem Start der Person. Mit 3 Monaten Kündigungsfrist zum Monatsende ist das hier frühestens im August."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was stimmt über Partnerstatus und Liga? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Silber gibt es nach 5 Kunden-Interviews oder 1 Einstellung."
+            },
+            {
+              "id": "b",
+              "text": "Gold-Partner bekommen mehr Plätze als andere Headhunter."
+            },
+            {
+              "id": "c",
+              "text": "Die Liga ist reine Anerkennung ohne andere Konditionen."
+            },
+            {
+              "id": "d",
+              "text": "Wer in der Liga hinten liegt, verliert seine Plätze."
+            }
+          ],
+          "correct": [
+            "a",
+            "c"
+          ],
+          "explanation": "Stufen und Liga sind reine Anerkennung. Plätze und Konditionen hängen nicht davon ab."
+        },
+        {
+          "type": "match",
+          "prompt": "Wer hilft dir bei welcher Frage? Ordne zu.",
+          "pairs": [
+            {
+              "left": "Kleinunternehmerregelung oder Umsatzsteuer?",
+              "right": "Steuerberater"
+            },
+            {
+              "left": "Gewerbe anmelden",
+              "right": "Gewerbeamt deiner Gemeinde"
+            },
+            {
+              "left": "Gründungszuschuss beim Bezug von Arbeitslosengeld",
+              "right": "Agentur für Arbeit"
+            },
+            {
+              "left": "Steuerliche Erfassung nach der Gewerbeanmeldung",
+              "right": "Finanzamt"
+            }
+          ],
+          "explanation": "Für jede Frage gibt es eine zuständige Stelle. Steuerfragen klärst du nie allein nach Gefühl."
+        },
+        {
+          "type": "single",
+          "case": "Lea Sommer will ihren Job kündigen und ab März als Headhunterin starten. Ihre Ersparnisse reichen für zwei Monate.",
+          "prompt": "Was rätst du ihr?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Sofort starten, denn das erste Honorar kommt meist schon im zweiten Monat."
+            },
+            {
+              "id": "b",
+              "text": "Mit mindestens sechs Monaten ohne Honorar planen und die Lücke überbrücken."
+            },
+            {
+              "id": "c",
+              "text": "Die Lücke mit einer kleinen Gebühr von den ersten Kandidaten überbrücken."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Das erste Honorar kommt oft erst nach Kündigungsfrist und Start. Geld von Kandidaten zu nehmen ist verboten (§ 296 SGB III)."
+        }
+      ]
+    }
+  ]
+}

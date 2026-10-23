@@ -1,0 +1,445 @@
+{
+  "sort": 3,
+  "title": "Markt kartieren und finden",
+  "description": "Nach diesem Modul kannst du eine Marktkarte mit 30 Zielfirmen anlegen, mit Boolean, X-Ray und KI-Suche passende Menschen finden und dabei die Datenschutz-Regeln einhalten.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Die Marktkarte: 30 Zielfirmen",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du eine Marktkarte mit mindestens 30 begründeten Zielfirmen erstellen und sie gegen gesperrte Firmen abgleichen.",
+      "body": "Anfänger suchen nach Jobtiteln und finden immer dieselben Profile. Wer nur nach Titeln sucht, verpasst alle, die dieselbe Arbeit unter einem anderen Titel machen. Profis überlegen zuerst, wo die gesuchten Menschen heute arbeiten. Das Ergebnis ist die Marktkarte: mindestens 30 Zielfirmen, jede mit Begründung.\n\n## Woher die 30 Firmen kommen\n\nDenk in drei Ringen:\n- Wettbewerber: Firmen, die dasselbe herstellen oder dieselbe Leistung anbieten.\n- Nachbarbranchen: Firmen, in denen dieselbe Arbeit in einem anderen Umfeld gemacht wird. Wer Verpackungsmaschinen konstruiert, kennt oft ähnliche Technik wie in der Abfüll- oder Fördertechnik.\n- Region: Arbeitgeber im Pendelbereich, auch aus anderen Branchen, wenn die Aufgabe ähnlich ist.\n\nStartpunkte liefert das Briefing: Unter „Gute Kandidaten kommen aus“ nennt der Kunde oft schon Firmen. Weitere findest du über Verbandslisten, Ausstellerlisten von Messen, Branchenportale, Firmenwebseiten und Stellenanzeigen der Wettbewerber.\n\n## Was in jede Zeile gehört\n\n- Firma und Standort\n- Ring: Wettbewerber, Nachbarbranche oder Region\n- Begründung in einem Satz: Warum arbeiten dort passende Menschen?\n- Typische Jobtitel dort, als Stichworte für deine Suche\n- Status: frei oder gesperrt, mit Grund\n\n## Der Abgleich vor der ersten Ansprache\n\nBevor du jemanden ansprichst, gleichst du jede Firma ab:\n- „Nicht abwerben bei“ im Briefing: Dort sprichst du für diese Stelle niemanden an.\n- Der Kunde selbst: Bei ihm wirbst du nie ab.\n- Firmen, für die du selbst gerade suchst: Auch dort wirbst du nicht ab. Wer bei den eigenen Kunden abwirbt, verliert ihr Vertrauen.\n\nEine einzige gesperrte Firma auf der Liste kann das Vertrauen des Kunden kosten. In der Prüfung darf keine einzige auf deiner Karte stehen.\n\n## Die Karte als Beratung\n\nDie Marktkarte hilft auch dem Kunden. Gibt es im Pendelbereich nur zwölf passende Firmen, ist das eine wichtige Nachricht: Vielleicht braucht es Tage im Homeoffice, Hilfe beim Umzug oder ein breiteres Profil. Die Karte macht diese Marktrealität sichtbar, bevor Wochen vergehen.\n\n## Beispiel\n\nFür die fiktive Sauer Verpackungstechnik in Fulda sucht Headhunterin Nina Becker eine Elektrokonstrukteurin. Sie listet 11 Wettbewerber aus dem Verpackungsmaschinenbau, 10 Firmen aus Nachbarbranchen wie Abfüll- und Fördertechnik und 12 Arbeitgeber mit Elektrokonstruktion im Pendelbereich. Beim Abgleich fällt eine Firma heraus, weil sie unter „Nicht abwerben bei“ steht. Es bleiben 32 freie Zielfirmen, jede mit Begründung.\n\n## Das Wichtigste\n\n- Erst die Firmen, dann die Menschen: mindestens 30 Zielfirmen aus Wettbewerb, Nachbarbranchen und Region.\n- Jede Zeile mit Begründung und Status.\n- Vor der ersten Ansprache abgleichen: „Nicht abwerben bei“, der Kunde selbst, deine eigenen Kunden.",
+      "vorlage_title": "Vorlage Marktkarte",
+      "vorlage_body": "## Kopf\n\nStelle: ___ · Region und Pendelbereich: ___ · Stand vom: ___\n\n## Spalten je Zeile\n\n- Firma und Standort\n- Ring: Wettbewerber, Nachbarbranche oder Region\n- Begründung in einem Satz\n- Typische Jobtitel dort\n- Quelle: Briefing, Verband, Messe, Webseite\n- Status: frei oder gesperrt, mit Grund\n\n## Ziel\n\n- Mindestens 30 freie Zielfirmen\n- Als Richtwert etwa ein Drittel je Ring\n\n## Abgleich vor der ersten Ansprache\n\n- „Nicht abwerben bei“ im Briefing geprüft\n- Den Kunden selbst ausgeschlossen\n- Firmen ausgeschlossen, für die du selbst gerade suchst\n\n## Rückmeldung an den Kunden\n\n- Wie viele passende Firmen gibt es im Pendelbereich?\n- Was heißt das für Profil, Homeoffice oder Gehalt?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du suchst eine Lohnbuchhalterin für einen Kunden in Kassel. Auf deiner Marktkarte stehen bisher acht Steuerkanzleien aus Kassel.",
+          "prompt": "Was fehlt deiner Liste am meisten?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Nichts, Steuerkanzleien sind für diese Stelle die einzige sinnvolle Quelle."
+            },
+            {
+              "id": "b",
+              "text": "Nachbarbranchen und Region: Lohnbüros, Dienstleister und Firmen mit eigener Lohnabrechnung."
+            },
+            {
+              "id": "c",
+              "text": "Kanzleien in ganz Deutschland, die gerade eine ähnliche Anzeige geschaltet haben."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Eine Marktkarte denkt in drei Ringen. Dieselbe Arbeit wird auch in Nachbarbranchen und bei Arbeitgebern im Pendelbereich gemacht."
+        },
+        {
+          "type": "single",
+          "case": "Beim Abgleich siehst du: Eine deiner besten Zielfirmen steht im Briefing unter „Nicht abwerben bei“. Dort arbeitet eine Kandidatin, die du von früher kennst.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du setzt die Firma auf „gesperrt“ und sprichst dort für diese Stelle niemanden an."
+            },
+            {
+              "id": "b",
+              "text": "Du sprichst die Kandidatin an, weil du sie von früher persönlich kennst."
+            },
+            {
+              "id": "c",
+              "text": "Du sprichst sie an und informierst den Kunden, falls er sie einlädt."
+            }
+          ],
+          "correct": "a",
+          "explanation": "„Nicht abwerben bei“ gilt ohne Ausnahme. Eine gesperrte Firma auf der Liste kostet das Vertrauen des Kunden."
+        },
+        {
+          "type": "single",
+          "case": "Deine Marktkarte zeigt nur 12 passende Firmen im Pendelbereich. Der Kunde erwartet die volle Arbeitszeit vor Ort.",
+          "prompt": "Was ist der beste nächste Schritt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du suchst weiter und sagst dem Kunden erst etwas, wenn die Liste voll ist."
+            },
+            {
+              "id": "b",
+              "text": "Du füllst die Liste mit weit entfernten Firmen auf und erwähnst das nicht."
+            },
+            {
+              "id": "c",
+              "text": "Du meldest dem Kunden die Marktrealität und sprichst Homeoffice, Umzug oder Profil an."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die Marktkarte ist auch Beratung. Wenn der Markt klein ist, braucht der Kunde diese Nachricht früh, bevor Wochen vergehen."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was gehört in jede Zeile der Marktkarte? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Eine Begründung in einem Satz"
+            },
+            {
+              "id": "b",
+              "text": "Die Durchwahl der Personalabteilung"
+            },
+            {
+              "id": "c",
+              "text": "Der Status frei oder gesperrt"
+            },
+            {
+              "id": "d",
+              "text": "Der Ring: Wettbewerber, Nachbarbranche oder Region"
+            }
+          ],
+          "correct": [
+            "a",
+            "c",
+            "d"
+          ],
+          "explanation": "Jede Zeile braucht Firma, Ring, Begründung, typische Jobtitel und Status. Kontaktdaten der Personalabteilung brauchst du für die Karte nicht."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Firma zu. Gesucht wird eine Elektrokonstrukteurin für Verpackungsmaschinen in Fulda.",
+          "pairs": [
+            {
+              "left": "Ein anderer Hersteller von Verpackungsmaschinen",
+              "right": "Wettbewerber"
+            },
+            {
+              "left": "Ein Hersteller von Abfüllanlagen",
+              "right": "Nachbarbranche"
+            },
+            {
+              "left": "Ein Aufzughersteller mit Elektrokonstruktion 30 Kilometer entfernt",
+              "right": "Region"
+            },
+            {
+              "left": "Eine Firma unter „Nicht abwerben bei“",
+              "right": "Gesperrt"
+            }
+          ],
+          "explanation": "Wettbewerber machen dasselbe, Nachbarbranchen ähnliche Arbeit in anderem Umfeld, die Region bringt Arbeitgeber im Pendelbereich. Gesperrte Firmen fallen raus."
+        },
+        {
+          "type": "single",
+          "prompt": "Warum beginnt die Suche mit Firmen statt mit Jobtiteln?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du findest auch Menschen, die dieselbe Arbeit unter einem anderen Titel machen."
+            },
+            {
+              "id": "b",
+              "text": "Jobtitel lassen sich auf LinkedIn und XING grundsätzlich nicht durchsuchen."
+            },
+            {
+              "id": "c",
+              "text": "Matchunt erlaubt Suchen nach Jobtiteln erst nach der ersten Einreichung."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Wer nur nach Titeln sucht, findet immer dieselben Profile. Die Marktkarte deckt den Markt systematisch ab."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Suchen 2026: Boolean, X-Ray, KI-Suche",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du einen Boolean-String, eine X-Ray-Suche und einen KI-Suchauftrag schreiben und die Ergebnisse gegenprüfen.",
+      "body": "Mit der Marktkarte weißt du, wo du suchst. Jetzt geht es um das Wie. 2026 nutzt du drei Werkzeuge nebeneinander: Boolean-Suche, X-Ray-Suche und KI-Suche in Alltagssprache. Für die Übungen in der Akademie suchst du im Übungsmarkt mit erfundenen Profilen, nicht an echten Personen.\n\n## Boolean: präzise und nachvollziehbar\n\nBoolean-Suche verknüpft Begriffe nach festen Regeln. Auf LinkedIn gilt:\n- AND: Beide Begriffe müssen vorkommen.\n- OR: Einer der Begriffe reicht. Damit fasst du Synonyme, weibliche Formen und englische Titel zusammen.\n- NOT: schließt einen Begriff aus.\n- Anführungszeichen: suchen eine genaue Wortgruppe.\n- Klammern: fassen OR-Gruppen zusammen.\n\nSchreib die Operatoren groß. Ein Beispiel:\n\n(\"Elektrokonstrukteur\" OR \"Elektrokonstrukteurin\" OR \"Electrical Design Engineer\") AND (EPLAN OR \"E-CAD\") NOT Vertrieb\n\nSuch nicht nur nach Titeln. Nimm Werkzeuge, Normen und Verfahren dazu, die zur Stelle gehören.\n\n## X-Ray: Google durchsucht öffentliche Profile\n\nMit X-Ray durchsuchst du über Google öffentliche Profile in den Netzwerken:\n- site:linkedin.com/in (\"Elektrokonstrukteur\" OR \"Elektrokonstrukteurin\") EPLAN Fulda\n- site:xing.com/profile Elektrokonstrukteur EPLAN Fulda\n\nBei Google trennst du Synonyme mit OR. Ausschließen geht mit einem Minus direkt vor dem Wort, zum Beispiel -Praktikum. Google findet nur, was öffentlich ist. X-Ray lohnt sich besonders für XING, das bei Ingenieuren, in der Produktion, im Gesundheitswesen und im regionalen Mittelstand stärker ist als LinkedIn. XING ergänzt LinkedIn, ersetzt es aber nicht.\n\n## KI-Suche: schnell, aber nie ungeprüft\n\nBei der KI-Suche beschreibst du in Alltagssprache, wen du suchst, etwa im Hiring Assistant von LinkedIn. Den gibt es seit Juni 2026 auf Deutsch als Zusatzmodul. LinkedIn gibt an, dass Nutzer damit 81 Prozent weniger Profile sichten. Ein guter Suchauftrag nennt Rolle und Level, die Muss-Kriterien, die Region, Zielfirmen aus deiner Marktkarte und die Ausschlüsse.\n\nPrüfe KI-Ergebnisse immer mit einer Boolean-Suche gegen: Fehlen Profile, die eindeutig passen? Sind Treffer dabei, die ein Muss nicht erfüllen? Die KI macht Vorschläge, die Auswahl triffst du.\n\nFür Suchstrings hilft ein KI-Assistent wie ChatGPT oder Claude im Business-Tarif: Synonyme, englische Titel, Schreibweisen. Gib dabei nie Personendaten ein, also keine Namen, Profile oder Lebensläufe.\n\n## Beispiel\n\nNina Becker sucht die Elektrokonstrukteurin für Sauer Verpackungstechnik. Ihr KI-Suchauftrag liefert 60 Profile. Ihre Boolean-Gegenprobe mit erweiterten Titeln findet zwölf weitere, die sich „Ingenieurin Steuerungstechnik“ nennen. Gleichzeitig sortiert sie acht KI-Treffer aus, die EPLAN nur aus dem Vertrieb kennen. Per X-Ray auf XING findet sie fünf Profile aus regionalen Mittelständlern, die auf LinkedIn fehlen.\n\n## Das Wichtigste\n\n- Boolean für Präzision, X-Ray für öffentliche Profile, besonders auf XING, KI-Suche für Tempo.\n- KI-Ergebnisse immer mit Boolean gegenprüfen, die Auswahl triffst du.\n- KI-Assistenten nur für Suchbegriffe nutzen, nie mit Personendaten.",
+      "vorlage_title": "Such-Spickzettel: Boolean, X-Ray, KI-Auftrag",
+      "vorlage_body": "## Boolean auf LinkedIn\n\n- Titel-Gruppe: (\"Titel A\" OR \"Titel B\" OR \"englischer Titel\")\n- Können-Gruppe: (Werkzeug OR Norm OR Verfahren)\n- Ausschluss: NOT Begriff\n- Operatoren groß schreiben, Wortgruppen in Anführungszeichen\n\n## X-Ray über Google\n\n- site:linkedin.com/in (\"Titel A\" OR \"Titel B\") Können Ort\n- site:xing.com/profile Titel Können Ort\n- Ausschluss mit Minus direkt vor dem Wort, etwa -Praktikum\n\n## KI-Suchauftrag\n\n- Wen: Rolle und Level\n- Muss: höchstens 5 Kriterien\n- Wo: Region, Pendelbereich, Zielfirmen aus der Marktkarte\n- Nicht: Ausschlüsse und gesperrte Firmen\n\n## Gegenprobe\n\n- Boolean-Suche zum selben Profil laufen lassen\n- Fehlende passende Profile ergänzen\n- Treffer ohne Muss aussortieren\n- Keine Personendaten in KI-Assistenten",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du suchst Controller und Controllerinnen. Du willst auch Profile mit dem englischen Titel „Financial Controller“ finden, aber keine Praktika.",
+          "prompt": "Welcher LinkedIn-String passt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Controller AND Controllerin AND \"Financial Controller\" AND Praktikum"
+            },
+            {
+              "id": "b",
+              "text": "(Controller OR Controllerin OR \"Financial Controller\") NOT Praktikum"
+            },
+            {
+              "id": "c",
+              "text": "(Controller AND \"Financial Controller\") OR Controllerin OR Praktikum"
+            }
+          ],
+          "correct": "b",
+          "explanation": "OR fasst Synonyme und englische Titel in Klammern zusammen, NOT schließt Praktika aus. Mit AND zwischen den Titeln müssten alle gleichzeitig im Profil stehen."
+        },
+        {
+          "type": "single",
+          "case": "Du willst über Google öffentliche XING-Profile von Bauleitern in Leipzig finden. Praktikanten sollen nicht dabei sein.",
+          "prompt": "Welche Google-Suche passt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "site:xing.com/profile Bauleiter Leipzig -Praktikum"
+            },
+            {
+              "id": "b",
+              "text": "xing Bauleiter AND Leipzig NOT Praktikum"
+            },
+            {
+              "id": "c",
+              "text": "site:xing.com Bauleiter OR Leipzig OR Praktikum"
+            }
+          ],
+          "correct": "a",
+          "explanation": "X-Ray beginnt mit site: und dem Profilpfad. Bei Google schließt du mit einem Minus aus, nicht mit NOT. OR zwischen allen Begriffen würde viel zu breit suchen."
+        },
+        {
+          "type": "single",
+          "case": "Der Hiring Assistant liefert dir 50 Treffer für deine Stelle als Instandhaltungsleiter.",
+          "prompt": "Wie gehst du weiter vor?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du sprichst alle 50 Treffer direkt an, die KI hat sie bereits geprüft."
+            },
+            {
+              "id": "b",
+              "text": "Du verwirfst die KI-Treffer und suchst stattdessen ausschließlich mit X-Ray."
+            },
+            {
+              "id": "c",
+              "text": "Du prüfst mit Boolean gegen, ergänzt Fehlendes und sortierst Treffer ohne Muss aus."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die KI macht Vorschläge. Eine Boolean-Gegenprobe zeigt, was fehlt und was nicht passt. Die Auswahl triffst du."
+        },
+        {
+          "type": "multi",
+          "prompt": "Wofür darfst du einen KI-Assistenten im Business-Tarif nutzen? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Den Lebenslauf einer Kandidatin mit Namen zusammenfassen lassen"
+            },
+            {
+              "id": "b",
+              "text": "Synonyme und englische Titel für „Instandhaltungsleiter“ finden"
+            },
+            {
+              "id": "c",
+              "text": "Einen Boolean-String erweitern lassen"
+            },
+            {
+              "id": "d",
+              "text": "Aus den Muss-Kriterien der Stelle Suchbegriffe ableiten"
+            }
+          ],
+          "correct": [
+            "b",
+            "c",
+            "d"
+          ],
+          "explanation": "KI-Assistenten helfen bei Suchbegriffen und Strings. Personendaten wie Namen, Profile oder Lebensläufe gibst du dort nie ein."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jedes Zeichen seiner Wirkung zu.",
+          "pairs": [
+            {
+              "left": "OR",
+              "right": "Einer der Begriffe reicht"
+            },
+            {
+              "left": "AND",
+              "right": "Beide Begriffe müssen vorkommen"
+            },
+            {
+              "left": "Anführungszeichen",
+              "right": "Genaue Wortgruppe"
+            },
+            {
+              "left": "Minus vor einem Wort bei Google",
+              "right": "Begriff ausschließen"
+            }
+          ],
+          "explanation": "Mit diesen Zeichen steuerst du, wie breit oder eng deine Suche ist."
+        },
+        {
+          "type": "single",
+          "prompt": "Für welche Zielgruppen ist XING eine wichtige Ergänzung zu LinkedIn?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Vor allem für Gründer und Fachleute aus internationalen Tech-Startups"
+            },
+            {
+              "id": "b",
+              "text": "Für Ingenieure, Produktion, Gesundheitswesen und regionalen Mittelstand"
+            },
+            {
+              "id": "c",
+              "text": "Vor allem für Berufseinsteiger, die aus dem Ausland nach Deutschland kommen"
+            }
+          ],
+          "correct": "b",
+          "explanation": "XING ist in diesen Bereichen stärker als LinkedIn. Es ergänzt LinkedIn, ersetzt es aber nicht."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Die unterschätzten Quellen und die Datenschutz-Regeln",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du Bestand, Empfehlungen, Verbände und Messen als Quellen nutzen und dabei die Datenschutz-Regeln einhalten.",
+      "body": "Viele Anfänger stürzen sich sofort auf LinkedIn. Die Besten fangen woanders an. In der Auswertung von Recruiterflow stammen 71 Prozent der Vermittlungen von Kandidaten, die vorher schon im eigenen System waren. Bei den besten 25 Prozent sind es 74 Prozent, beim Rest 59 Prozent.\n\n## Die Reihenfolge der Quellen\n\n- Dein Bestand zuerst: Menschen, mit denen du schon gesprochen hast und die in deiner Akte auf Matchunt stehen. Sie kennen dich und antworten schneller.\n- Empfehlungen: Beende jedes Gespräch mit „Wen kennen Sie, der dafür in Frage kommt?“. Auch ein Nein zur Stelle kann so zu einem Namen führen. Über LinkedIn braucht es laut derselben Auswertung 283 Kandidaten je Vermittlung, über Empfehlungen 20.\n- Verbände und Fachgruppen: Vorstände, Referenten und Arbeitskreise zeigen dir, wer sich in einem Thema auskennt.\n- Messen und Konferenzen: Rednerlisten, Fachvorträge und Gespräche am Stand.\n- Danach die Suche in LinkedIn und XING, wie in Thema 3.2.\n\n## Die Datenschutz-Regeln\n\nSobald du Daten über eine Person nutzt, die sie dir nicht selbst gegeben hat, gilt die DSGVO:\n- Informieren nach Art. 14 DSGVO: Die Person erfährt, wer du bist, woher du ihre Daten hast, wofür du sie nutzt und welche Rechte sie hat. Das muss spätestens bei der ersten Kontaktaufnahme passieren, in jedem Fall innerhalb eines Monats. Am sichersten steht ein kurzer Hinweis gleich in deiner ersten Nachricht. Fehlt er, drohen Schadensersatz und Bußgeld.\n- Nur berufliche Quellen: LinkedIn, XING, Firmenwebseiten, Verbände, Fachveröffentlichungen. Private Netzwerke wie Facebook oder Instagram sind für die Recherche tabu.\n- Keine Browser-Erweiterungen, die LinkedIn-Profile auslesen. Der Anbieter Kaspr musste dafür in Frankreich 240.000 Euro Bußgeld zahlen. Kontaktdaten holst du, wenn überhaupt, sparsam über Anbieter wie Dropcontact oder Cognism.\n- Keine automatisierten Nachrichtenfolgen auf LinkedIn. Sie verstoßen gegen die Nutzungsbedingungen und können dein Konto kosten.\n- Talentpool nur mit Einwilligung: Wer nicht zur aktuellen Stelle passt, bleibt nur in deinem Bestand, wenn er zustimmt, und nur befristet.\n- Keine Lebensläufe mit Klarnamen in private KI-Konten.\n\n## Beispiel\n\nKemal Arslan sucht eine Hygienefachkraft für eine fiktive Klinik in Münster. Zuerst schaut er in seine Akte: Zwei Hygienefachkräfte hat er im Frühjahr gesprochen. Die eine ist offen für Neues. Die andere will nicht wechseln, nennt ihm aber eine frühere Kollegin. Auf der Webseite eines Fachverbands findet er außerdem eine Referentin aus der Region. In seiner ersten Nachricht an sie steht ein kurzer Datenschutz-Hinweis. Ihr privates Instagram-Profil, auf das er zufällig stößt, nutzt er nicht.\n\n## Das Wichtigste\n\n- Erst Bestand, dann Empfehlungen, dann Verbände und Messen, dann die Netzwerke. Jedes Gespräch endet mit „Wen kennen Sie?“.\n- Art. 14 DSGVO: spätestens beim ersten Kontakt informieren, in jedem Fall innerhalb eines Monats.\n- Tabu sind private Netzwerke, Auslese-Erweiterungen und automatisierte Folgen. Talentpool nur mit Einwilligung und befristet.",
+      "vorlage_title": "Datenschutz-Hinweis für die erste Nachricht",
+      "vorlage_body": "## Kurzfassung für die erste Nachricht\n\n„Ihren Namen und Ihre beruflichen Angaben habe ich aus Ihrem öffentlichen Profil auf [Quelle]. Ich nutze sie, um Ihnen eine berufliche Möglichkeit vorzustellen. Sie können dem jederzeit widersprechen, dann lösche ich Ihre Daten. Mehr dazu: [Link zur Datenschutzinformation].“\n\n## Was die vollständige Information hinter dem Link enthält\n\n- Wer die Daten verarbeitet, mit Kontakt\n- Zweck: Vorstellung einer beruflichen Möglichkeit\n- Rechtsgrundlage: berechtigtes Interesse nach Art. 6 Abs. 1 lit. f DSGVO\n- Quelle und Art der Daten: Name, beruflicher Werdegang\n- Wie lange die Daten gespeichert werden\n- Rechte: Auskunft, Berichtigung, Löschung, Widerspruch, Beschwerde bei der Aufsichtsbehörde\n\n## Vor dem Senden prüfen\n\n- Quelle beruflich, nicht privat?\n- Hinweis in der ersten Nachricht enthalten?\n- Kein Name des Kunden in der Nachricht?",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Du sprichst mit einem erfahrenen Instandhalter. Er passt nicht ganz zur Stelle und will auch nicht wechseln.",
+          "prompt": "Wie beendest du das Gespräch am besten?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Mit Dank und dem Versprechen, dich bei Gelegenheit wieder zu melden."
+            },
+            {
+              "id": "b",
+              "text": "Mit der Frage, wen er kennt, der für die Stelle in Frage kommt."
+            },
+            {
+              "id": "c",
+              "text": "Mit der Bitte, ihn ohne Frist in deinen Talentpool aufnehmen zu dürfen."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Jedes Gespräch endet mit „Wen kennen Sie?“. Über Empfehlungen braucht es weit weniger Kontakte je Vermittlung als über LinkedIn. Ein Talentpool ohne Frist ist nicht erlaubt."
+        },
+        {
+          "type": "single",
+          "case": "Beim Recherchieren stößt du auf das öffentliche Facebook-Profil einer Kandidatin. Dort schreibt sie, dass sie mit ihrem Arbeitgeber unzufrieden ist.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du nutzt den Hinweis, um deine Ansprache persönlicher zu machen."
+            },
+            {
+              "id": "b",
+              "text": "Du sprichst den Hinweis erst im Kandidateninterview vorsichtig an."
+            },
+            {
+              "id": "c",
+              "text": "Du nutzt den Hinweis nicht, private Netzwerke sind für die Recherche tabu."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Für die Recherche nutzt du nur berufliche Quellen. Private Netzwerke wie Facebook oder Instagram sind tabu, auch wenn du dort zufällig etwas findest."
+        },
+        {
+          "type": "single",
+          "case": "Du hast eine Bauleiterin über ihr öffentliches XING-Profil gefunden und willst sie anschreiben.",
+          "prompt": "Wann informierst du sie nach Art. 14 DSGVO?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Spätestens mit deiner ersten Nachricht an sie."
+            },
+            {
+              "id": "b",
+              "text": "Erst wenn sie einer Einreichung zugestimmt hat."
+            },
+            {
+              "id": "c",
+              "text": "Innerhalb eines Jahres nach der ersten Speicherung."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Werden die Daten für die Kontaktaufnahme genutzt, informierst du spätestens beim ersten Kontakt, in jedem Fall innerhalb eines Monats. Am sichersten steht der Hinweis gleich in der ersten Nachricht."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was ist bei der Suche tabu? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Browser-Erweiterungen, die LinkedIn-Profile auslesen"
+            },
+            {
+              "id": "b",
+              "text": "Automatisierte Nachrichtenfolgen auf LinkedIn"
+            },
+            {
+              "id": "c",
+              "text": "Eine X-Ray-Suche über Google nach öffentlichen Profilen"
+            },
+            {
+              "id": "d",
+              "text": "Lebensläufe mit Klarnamen in ein privates KI-Konto laden"
+            }
+          ],
+          "correct": [
+            "a",
+            "b",
+            "d"
+          ],
+          "explanation": "Auslese-Erweiterungen, automatisierte Folgen und Klarnamen in privaten KI-Konten verstoßen gegen Datenschutz oder Nutzungsbedingungen. X-Ray über öffentliche Profile ist ein normales Werkzeug."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jede Quelle dem passenden Vorgehen zu.",
+          "pairs": [
+            {
+              "left": "Eigener Bestand",
+              "right": "In der Akte nachsehen, wer schon im Gespräch war und offen ist"
+            },
+            {
+              "left": "Empfehlungen",
+              "right": "Jedes Gespräch mit „Wen kennen Sie?“ beenden"
+            },
+            {
+              "left": "Verbände",
+              "right": "Vorstände, Referenten und Arbeitskreise ansehen"
+            },
+            {
+              "left": "Messen",
+              "right": "Rednerlisten nutzen und am Stand ins Gespräch kommen"
+            }
+          ],
+          "explanation": "Jede Quelle hat ihr eigenes Vorgehen. Der eigene Bestand und Empfehlungen kommen zuerst, weil sie am schnellsten zu passenden Menschen führen."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kandidat passt nicht zur aktuellen Stelle, wäre aber für spätere Stellen interessant.",
+          "prompt": "Was ist richtig?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du speicherst ihn im Talentpool, weil er dir seine Daten im Gespräch gegeben hat."
+            },
+            {
+              "id": "b",
+              "text": "Du fragst ihn um seine Einwilligung und speicherst seine Daten nur befristet."
+            },
+            {
+              "id": "c",
+              "text": "Du speicherst ihn ohne Frist, solange er nicht ausdrücklich widerspricht."
+            }
+          ],
+          "correct": "b",
+          "explanation": "In einen Talentpool kommt nur, wer eingewilligt hat, und das nur befristet. Das Gespräch für eine bestimmte Stelle reicht dafür nicht."
+        }
+      ]
+    }
+  ]
+}

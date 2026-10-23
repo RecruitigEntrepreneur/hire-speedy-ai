@@ -1,0 +1,453 @@
+{
+  "sort": 7,
+  "title": "Begleiten bis zum ersten Arbeitstag",
+  "description": "Nach diesem Modul kannst du Kunde und Kandidatin durch Interviews, Angebot und Gegenangebot führen und die Person bis zum ersten Arbeitstag und durch die Probezeit begleiten.",
+  "test_question_count": 15,
+  "test_pass_pct": 80,
+  "lessons": [
+    {
+      "sort": 1,
+      "title": "Kundengespräche vorbereiten und nachfassen",
+      "duration_min": 8,
+      "learning_goal": "Nach diesem Thema kannst du Kandidatin und Kunde gezielt auf ein Interview vorbereiten und mit beiden innerhalb von 24 Stunden nachfassen.",
+      "body": "Im Kunden-Interview wird deine Arbeit sichtbar. Hier entscheidet sich, ob aus einer guten Einreichung eine Einstellung wird. Viele Prozesse kippen genau an dieser Stelle. Laut einer Stepstone-Befragung brechen 23 % der Bewerber ab, weil die Kommunikation unklar ist oder sie zu lange warten. Deine Aufgabe: beide Seiten vorbereiten und danach schnell nachfassen.\n\n## Die Kandidatin vorbereiten\n\nEine gut vorbereitete Kandidatin wirkt sicherer und stellt bessere Fragen. Kläre vor dem Termin:\n\n- Wer sitzt im Gespräch, welche Rolle hat die Person, wie lange dauert es, wo findet es statt?\n- Was will der Kunde prüfen? Geh die Muss-Kriterien durch. Zu jedem soll sie ein konkretes Beispiel aus ihrer Arbeit nennen können.\n- Warum will sie wechseln? Sie soll es in eigenen Worten sagen können.\n- Welche Fragen hat sie an den Kunden?\n- Gehalt: Sie nennt ihre Erwartung. Verhandelt wird über dich.\n\nBereite vor, aber schreib ihr keine Antworten vor. Wer auswendig gelernte Sätze aufsagt, verliert Vertrauen.\n\n## Den Kunden vorbereiten\n\nAuch der Kunde braucht fünf Minuten mit dir. Sag ihm, was für die Person spricht, wo Lücken sind und worauf er achten sollte. Erzähl ihm, was sie antreibt und was sie abschrecken würde. Gerade passive Kandidaten wollen im Interview auch überzeugt werden. Vereinbare gleich, wann du seine Rückmeldung bekommst: spätestens am nächsten Tag.\n\n## Das Nachgespräch: mit beiden, innerhalb von 24 Stunden\n\nRuf zuerst die Kandidatin an, solange der Eindruck frisch ist. Dann den Kunden. Frag beide nach ihrem Eindruck und stell beiden dieselbe Frage: „Wie groß ist Ihr Interesse auf einer Skala von 1 bis 10?“ Bei allem unter 10 folgt: „Was fehlt zur 10?“ Die Antwort zeigt dir die echte Hürde.\n\nHat der Kunde Bedenken, frag nach, woran er sie festmacht. Kläre sie mit Belegen, nicht mit Beteuerungen. Gib Rückmeldungen ehrlich weiter, aber sachlich und respektvoll. Sag beiden zum Schluss, wie es weitergeht und bis wann. Halte das Nachgespräch noch am selben Tag in Matchunt fest.\n\n## Beispiel\n\nHeadhunterin Lena Vogt hat Tobias Kern bei der Brandt Fördertechnik GmbH vorgestellt. Am Morgen nach dem Interview ruft sie Tobias an. Er sagt: „Interesse 7.“ Auf die Frage, was zur 10 fehlt, antwortet er: „Ich weiß nicht, ob ich mit dem Werksleiter klarkomme.“ Danach ruft Lena den Kunden an. Der ist angetan, zweifelt aber an Tobias’ SAP-Erfahrung. Lena fragt nach und schickt zwei konkrete Projektbeispiele nach. Außerdem schlägt sie ein kurzes Kennenlernen mit dem Werksleiter vor. Zwei Tage später steht die zweite Runde.\n\n## Das Wichtigste\n\n- Bereite Kandidatin und Kunde getrennt vor: Ablauf, Muss-Kriterien, Wechselgründe, offene Fragen.\n- Fass mit beiden innerhalb von 24 Stunden nach, die Kandidatin zuerst.\n- Frag nach dem Interesse von 1 bis 10 und immer: „Was fehlt zur 10?“",
+      "vorlage_title": "Checkliste: Interview vorbereiten und nachfassen",
+      "vorlage_body": "## Vor dem Interview: Kandidatin\n\n- Teilnehmer, Rollen, Dauer, Ort oder Link\n- Muss-Kriterien: zu jedem ein konkretes Beispiel\n- Wechselgründe in eigenen Worten\n- Eigene Fragen an den Kunden\n- Gehalt: Erwartung nennen, Verhandlung läuft über dich\n\n## Vor dem Interview: Kunde\n\n- Was spricht für die Person, wo sind Lücken?\n- Was treibt sie an, was würde sie abschrecken?\n- Rückmeldung vereinbaren: spätestens am nächsten Tag\n\n## Nachgespräch innerhalb von 24 Stunden\n\n- Zuerst die Kandidatin, dann der Kunde\n- „Wie groß ist Ihr Interesse auf einer Skala von 1 bis 10?“\n- „Was fehlt zur 10?“\n- Bei Bedenken: „Woran machen Sie das fest?“ Belege nachreichen.\n- Nächsten Schritt und Termin an beide geben\n- Noch am selben Tag in Matchunt festhalten",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Kandidat Jonas Weber hatte gestern um 16 Uhr sein Interview bei der Kunzel Logistik GmbH. Jetzt ist es 10 Uhr, und du hast noch mit niemandem gesprochen.",
+          "prompt": "Was tust du jetzt?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du wartest ab, bis sich der Kunde von selbst meldet, um ihn nicht zu drängen."
+            },
+            {
+              "id": "b",
+              "text": "Du rufst zuerst Jonas an und danach den Kunden, solange der Eindruck frisch ist."
+            },
+            {
+              "id": "c",
+              "text": "Du schickst Jonas eine kurze Mail und gibst dem Kunden eine Woche Zeit."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Das Nachgespräch führst du innerhalb von 24 Stunden mit beiden Seiten. Funkstille ist einer der häufigsten Gründe, warum Bewerber abbrechen."
+        },
+        {
+          "type": "single",
+          "case": "Nach dem Interview sagt Kandidatin Mara Schulte: „Mein Interesse liegt bei 7 von 10.“",
+          "prompt": "Welche Frage stellst du als Nächstes?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Sieben ist ordentlich. Soll ich das so an den Kunden weitergeben?“"
+            },
+            {
+              "id": "b",
+              "text": "„Sollen wir dann lieber gleich absagen und weitersuchen?“"
+            },
+            {
+              "id": "c",
+              "text": "„Danke. Was fehlt Ihnen noch zur 10, was müsste passieren?“"
+            }
+          ],
+          "correct": "c",
+          "explanation": "„Was fehlt zur 10?“ bringt die echte Hürde ans Licht. Erst wenn du sie kennst, kannst du sie mit Kunde und Kandidatin klären."
+        },
+        {
+          "type": "single",
+          "case": "Morgen hat Kandidat Sven Ott sein erstes Interview bei der Lindner Kältetechnik GmbH. Ihn selbst hast du schon vorbereitet.",
+          "prompt": "Warum rufst du vor dem Termin auch noch den Kunden an?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Damit er weiß, was Sven antreibt und wo er genauer nachfragen sollte."
+            },
+            {
+              "id": "b",
+              "text": "Damit er im Interview direkt mit Sven das Gehalt aushandeln kann."
+            },
+            {
+              "id": "c",
+              "text": "Damit er Svens Unterlagen vor dem Termin nicht mehr lesen muss."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Ein vorbereiteter Kunde fragt gezielt nach und weiß, was die Person überzeugt. Über Geld verhandelt nicht der Kunde direkt mit dem Kandidaten, das läuft über dich."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was gehört in die Vorbereitung der Kandidatin auf das Interview? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Wer im Gespräch sitzt und wie es abläuft"
+            },
+            {
+              "id": "b",
+              "text": "Zu jedem Muss-Kriterium ein konkretes Beispiel aus ihrer Arbeit"
+            },
+            {
+              "id": "c",
+              "text": "Fertige Antworten zum Auswendiglernen, damit nichts schiefgeht"
+            },
+            {
+              "id": "d",
+              "text": "Eigene Fragen, die sie dem Kunden stellen will"
+            }
+          ],
+          "correct": [
+            "a",
+            "b",
+            "d"
+          ],
+          "explanation": "Ablauf, Beispiele zu den Muss-Kriterien und eigene Fragen machen sie sicher. Auswendig gelernte Antworten wirken unecht und kosten Vertrauen."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Schritte rund um ein Kunden-Interview in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Kandidatin und Kunde getrennt vorbereiten"
+            },
+            {
+              "id": "b",
+              "text": "Nach dem Interview zuerst die Kandidatin anrufen"
+            },
+            {
+              "id": "c",
+              "text": "Danach den Kunden anrufen und nach seinem Eindruck fragen"
+            },
+            {
+              "id": "d",
+              "text": "Beiden den nächsten Schritt nennen und alles in Matchunt festhalten"
+            }
+          ],
+          "explanation": "Erst vorbereiten, dann innerhalb von 24 Stunden nachfassen: zuerst die Kandidatin, solange der Eindruck frisch ist, dann der Kunde. Zum Schluss wissen beide, wie es weitergeht."
+        },
+        {
+          "type": "single",
+          "case": "Der Kunde meldet nach dem Interview: „Fachlich stark. Aber wir sind unsicher, ob er ein Team führen kann.“",
+          "prompt": "Wie reagierst du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du leitest die Rückmeldung wörtlich an den Kandidaten weiter und wartest ab."
+            },
+            {
+              "id": "b",
+              "text": "Du fragst nach, woran der Kunde das festmacht, und reichst Belege nach."
+            },
+            {
+              "id": "c",
+              "text": "Du versicherst dem Kunden, dass der Kandidat ganz sicher führen kann."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Bedenken klärst du mit Belegen, nicht mit Beteuerungen. Erst die Nachfrage zeigt, was der Kunde braucht, um sicher zu werden."
+        }
+      ]
+    },
+    {
+      "sort": 2,
+      "title": "Angebot, Verhandlung, Gegenangebot",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du vor dem Angebot Vorab-Zusage und Mindestbedingung einholen und ein Gegenangebot früh entkräften.",
+      "body": "Ein gutes Angebot überrascht niemanden, weder die Kandidatin noch den Kunden. Wird ein Angebot abgelehnt, wurde vorher meistens etwas nicht geklärt. Deshalb verhandelst du, bevor das Papier rausgeht.\n\n## Vorab-Zusage und Mindestbedingung\n\nSprich über das Bruttojahresgehalt: fix, variabel, Dienstwagen. Dazu kommen Urlaub, mobiles Arbeiten, Titel und Startdatum. Dann stellst du die wichtigste Frage: „Wenn das Angebot X enthält, unterschreiben Sie dann?“ Das ist die Vorab-Zusage. Zögert die Kandidatin, kennst du die echte Hürde, bevor es zu spät ist.\n\nFrag außerdem nach der Mindestbedingung: „Unter welchem Betrag wechseln Sie nicht?“ Die Mindestbedingung ist keine Wunschzahl. Sie ist die Grenze, unter der kein Wechsel stattfindet. Mit beiden Angaben berätst du den Kunden ehrlich.\n\n## Das Angebot mündlich testen\n\nBevor der Kunde schriftlich anbietet, gehst du die Eckdaten mündlich mit der Kandidatin durch. Erst wenn sie Ja sagt, geht das schriftliche Angebot raus. Lass Kunde und Kandidatin nicht direkt über Geld verhandeln. Du kennst beide Seiten und kannst ausgleichen. Referenzen holst du nur mit Einwilligung der Kandidatin ein.\n\n## Das Gegenangebot\n\nWer kündigt, bekommt oft ein Gegenangebot: mehr Geld, ein neuer Titel, endlich das Projekt. In einer Umfrage von Robert Half in Großbritannien nahm gut die Hälfte ihr letztes Gegenangebot an. Rund drei Viertel davon waren nach einem Jahr trotzdem weg. Mehr Geld ändert selten etwas an den Gründen für den Wechsel.\n\nSo gehst du vor:\n\n- Sprich das Gegenangebot schon im ersten Gespräch an: „Was machen Sie, wenn Ihr Chef Ihnen mehr bietet?“\n- Sprich es vor der Kündigung noch einmal an.\n- Erinnere an die Wechselgründe, die die Kandidatin selbst genannt hat. Ihre Worte zählen, nicht deine.\n- Übe das Kündigungsgespräch: kurz, mit der schriftlichen Kündigung in der Hand, ohne Verhandlungsspielraum.\n\nDie Entscheidung trifft die Kandidatin. Druck schadet, Klarheit hilft.\n\n## Beispiel\n\nControllerin Aylin Demir will von einem Großhändler zur Hollmann Haustechnik GmbH wechseln. Im Erstgespräch nennt sie zwei Gründe: keine Entwicklung und ein Chef, der alles allein entscheidet. Headhunter Jens Paulsen holt die Vorab-Zusage ein: Bei 78.000 € und zwei Tagen mobilem Arbeiten unterschreibt sie. Unter 75.000 € wechselt sie nicht. Das Angebot kommt genau so und überrascht niemanden. Vor der Kündigung fragt Jens: „Was sagen Sie, wenn Ihr Chef 15 % drauflegt?“ Aylin lacht: „Dann entscheidet er trotzdem alles allein.“ Sie übt mit Jens drei Sätze für das Gespräch und kündigt am nächsten Morgen.\n\n## Das Wichtigste\n\n- Hol vor dem Angebot die Vorab-Zusage ein und kenne die Mindestbedingung.\n- Teste das Angebot mündlich, bevor es schriftlich rausgeht.\n- Sprich das Gegenangebot früh und vor der Kündigung an und erinnere an die eigenen Wechselgründe.",
+      "vorlage_title": "Gesprächsleitfaden: Vorab-Zusage und Gegenangebot",
+      "vorlage_body": "## Vorab-Zusage (vor dem Angebot)\n\n- „Wenn das Angebot [Gehalt fix und variabel, mobiles Arbeiten, Startdatum] enthält, unterschreiben Sie dann?“\n- „Was müsste sonst noch drinstehen?“\n\n## Mindestbedingung\n\n- „Unter welchem Betrag wechseln Sie nicht?“\n- „Was ist Ihnen wichtig, aber kein Muss?“\n\n## Mündlicher Test (vor dem schriftlichen Angebot)\n\n- „Der Kunde plant folgendes Angebot: [Eckdaten]. Passt das für Sie?“\n\n## Gegenangebot (im Erstgespräch und vor der Kündigung)\n\n- „Was machen Sie, wenn Ihr Chef Ihnen mehr bietet?“\n- „Sie haben mir gesagt, Sie wechseln wegen [Grund 1] und [Grund 2]. Ändert ein Gegenangebot daran etwas?“\n\n## Kündigungsgespräch üben\n\n- „Ich habe mich entschieden, das Unternehmen zu verlassen. Hier ist meine schriftliche Kündigung.“\n- „Danke für Ihr Angebot. Meine Entscheidung steht.“",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Der Kunde will morgen das schriftliche Angebot an Kandidat Felix Albrecht schicken: 82.000 € fix. Über Gehalt hast du mit Felix zuletzt im Erstgespräch gesprochen.",
+          "prompt": "Was tust du, bevor das Angebot rausgeht?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du gehst die Eckdaten mündlich mit Felix durch und holst seine Vorab-Zusage ein."
+            },
+            {
+              "id": "b",
+              "text": "Du lässt das Angebot rausgehen, denn Felix kann danach ja noch verhandeln."
+            },
+            {
+              "id": "c",
+              "text": "Du bittest den Kunden, vorsichtshalber 10 % mehr ins Angebot zu schreiben."
+            }
+          ],
+          "correct": "a",
+          "explanation": "Ein Angebot soll niemanden überraschen. Der mündliche Test zeigt vorher, ob Felix unterschreibt oder wo noch eine Hürde liegt."
+        },
+        {
+          "type": "single",
+          "case": "Kandidatin Sophie Lang sagt: „Bei 80.000 € unterschreibe ich.“ Auf deine Nachfrage ergänzt sie: „Unter 76.000 € wechsle ich nicht.“",
+          "prompt": "Was sind die 76.000 €?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ihre Vorab-Zusage für das Angebot"
+            },
+            {
+              "id": "b",
+              "text": "Ihr Wunschgehalt für die neue Stelle"
+            },
+            {
+              "id": "c",
+              "text": "Ihre Mindestbedingung für den Wechsel"
+            }
+          ],
+          "correct": "c",
+          "explanation": "Die Mindestbedingung ist die Grenze, unter der sie nicht wechselt. Die Vorab-Zusage ist ihr Ja zu einem konkreten Angebot, hier bei 80.000 €."
+        },
+        {
+          "type": "single",
+          "case": "Zwei Tage vor der Kündigung ruft Kandidat Timo Berger an. Sein Chef ahnt etwas und hat für morgen ein Gespräch angesetzt.",
+          "prompt": "Was ist jetzt am hilfreichsten?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du rätst Timo, sich das Angebot seines Chefs erst einmal anzuhören und zu vergleichen."
+            },
+            {
+              "id": "b",
+              "text": "Du übst mit Timo ein kurzes Kündigungsgespräch und erinnerst ihn an seine eigenen Gründe."
+            },
+            {
+              "id": "c",
+              "text": "Du bittest den Kunden, vorsorglich ein höheres Gehalt anzubieten, falls Timo wackelt."
+            }
+          ],
+          "correct": "b",
+          "explanation": "Ein kurzes, geübtes Gespräch mit schriftlicher Kündigung lässt keinen Verhandlungsspielraum. Seine eigenen Wechselgründe tragen weiter als jedes Argument von dir."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was hilft gegen ein Gegenangebot? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Das Thema schon im ersten Gespräch ansprechen"
+            },
+            {
+              "id": "b",
+              "text": "Kurz vor der Kündigung noch einmal darüber sprechen"
+            },
+            {
+              "id": "c",
+              "text": "Das Thema meiden, um niemanden auf Ideen zu bringen"
+            },
+            {
+              "id": "d",
+              "text": "An die Wechselgründe erinnern, die die Person selbst genannt hat"
+            }
+          ],
+          "correct": [
+            "a",
+            "b",
+            "d"
+          ],
+          "explanation": "Wer vorbereitet ist, lässt sich nicht überrumpeln. Schweigen verhindert kein Gegenangebot, es lässt die Person nur unvorbereitet."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne jedem Werkzeug die passende Beschreibung zu.",
+          "pairs": [
+            {
+              "left": "Vorab-Zusage",
+              "right": "„Wenn das Angebot X enthält, unterschreiben Sie dann?“"
+            },
+            {
+              "left": "Mindestbedingung",
+              "right": "Die Grenze, unter der die Person nicht wechselt"
+            },
+            {
+              "left": "Mündlicher Test",
+              "right": "Eckdaten besprechen, bevor das schriftliche Angebot rausgeht"
+            },
+            {
+              "left": "Kündigungsgespräch",
+              "right": "Kurz, schriftlich, ohne Verhandlungsspielraum"
+            }
+          ],
+          "explanation": "Diese vier Werkzeuge sorgen dafür, dass das Angebot passt und die Kündigung hält."
+        },
+        {
+          "type": "single",
+          "case": "Kandidat Erik Hansen sagt: „Wenn mein Chef 15 % drauflegt, bleibe ich halt.“ Vor drei Wochen hat er dir zwei klare Wechselgründe genannt.",
+          "prompt": "Welche Antwort hilft ihm ehrlich weiter?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Gegenangebote sind in Deutschland verboten. Ihr Chef darf Ihnen nichts bieten.“"
+            },
+            {
+              "id": "b",
+              "text": "„Wer ein Gegenangebot annimmt, wird meist kurz danach gekündigt.“"
+            },
+            {
+              "id": "c",
+              "text": "„Sie wollten wegen X und Y wechseln. Ändert ein Plus von 15 % daran etwas?“"
+            }
+          ],
+          "correct": "c",
+          "explanation": "Seine eigenen Gründe sind das stärkste Argument. Laut Robert Half (UK) waren rund drei Viertel derer, die ein Gegenangebot annahmen, nach einem Jahr trotzdem weg."
+        }
+      ]
+    },
+    {
+      "sort": 3,
+      "title": "Die lange Kündigungszeit und Continuity",
+      "duration_min": 9,
+      "learning_goal": "Nach diesem Thema kannst du einen Plan mit mindestens fünf Kontaktpunkten bis zum Start aufstellen und Kandidat und Kunde durch die Probezeit begleiten.",
+      "body": "Die Unterschrift ist nicht das Ziel. Das Ziel ist ein guter erster Arbeitstag und eine bestandene Probezeit. Dazwischen liegen in Deutschland oft Monate.\n\n## Warum die Zeit bis zum Start heikel ist\n\nGesetzlich gilt eine Kündigungsfrist von 4 Wochen. Üblich sind 3 Monate, bei Führungskräften 3 bis 6 Monate zum Quartalsende. Ein Beispiel: Wer am 12. Oktober unterschreibt und 3 Monate zum Quartalsende hat, kann nicht mehr zum 31. Dezember kündigen. Er scheidet frühestens am 31. März aus und startet am 1. April. Das ist fast ein halbes Jahr.\n\nIn dieser Zeit passiert viel. Der alte Chef macht ein Gegenangebot. Ein anderer Headhunter ruft an. Zweifel kommen auf. Der neue Arbeitgeber meldet sich nicht. Wer nach der Unterschrift abtaucht, verliert Kandidaten.\n\n## Der Plan bis zum Start: mindestens 5 Kontaktpunkte\n\nPlane die Zeit bis zum Start wie ein Projekt. Melde dich etwa alle zwei Wochen und hol den Kunden mit ins Boot. Fünf Kontaktpunkte sind das Minimum:\n\n- Tag der Unterschrift: Glückwunsch, Kündigungstermin festlegen, Kündigungsgespräch üben.\n- Tag nach der Kündigung: Wie lief es? Gab es ein Gegenangebot?\n- Nach etwa einem Monat: Der Kunde meldet sich persönlich, etwa mit einem Willkommensgruß.\n- Zur Halbzeit: Der Kunde lädt ins Team ein, zum Beispiel zu einem Teamessen.\n- Ein bis zwei Wochen vor dem Start: Ablauf des ersten Tages, Ansprechpartner, Ausstattung.\n\nAchte auf Warnsignale: Die Person antwortet langsamer, klingt unsicher oder erwähnt ein anderes Gespräch. Dann rufst du an und sprichst es offen an.\n\n## Nach dem Start\n\nMelde dich bei beiden nach der ersten Woche, nach dem ersten Monat, nach drei Monaten und zum Ende der Probezeit. Die Probezeit dauert höchstens 6 Monate (§ 622 BGB). In dieser Zeit können beide Seiten mit kurzer Frist kündigen. Kleine Probleme, die du früh hörst, lassen sich lösen.\n\n## Continuity\n\nContinuity ist Matchunts Nachbesetzungs-Leistung für den Kunden. Endet die Anstellung innerhalb der vereinbarten Zeit, sucht Matchunt nach. Ob und wie lange das gilt, hängt vom Paket des Kunden ab. Für dich heißt das: Ein früher Abgang kostet Zeit und Ansehen und kann deinen Anteil betreffen. Die genauen Regeln stehen in deinem Headhunter-Vertrag. Sprich deshalb immer von Continuity oder Nachbesetzung. Versprich nie, dass eine Person bleibt. Das kann niemand.\n\n## Beispiel\n\nHeadhunter Marc Albers hat Stefan Lorenz als Teamleiter Instandhaltung an die Rieger Antriebstechnik GmbH vermittelt. Unterschrift am 12. Oktober, Start am 1. April. Im Januar lädt Rieger ihn zum Neujahrsempfang ein. Im Februar erwähnt Stefan den Anruf eines anderen Headhunters. Marc fragt: „Wie sicher sind Sie sich, auf einer Skala von 1 bis 10?“ Stefan sagt 8. Ihm fehlt ein Gespräch über die Schichtplanung. Marc organisiert es mit dem Kunden. Stefan startet am 1. April.\n\n## Das Wichtigste\n\n- Plane bis zum Start mindestens 5 Kontaktpunkte und lass den Kunden ins Team einladen.\n- Melde dich nach Woche 1, Monat 1, Monat 3 und zum Ende der Probezeit.\n- Continuity ist Nachbesetzung, kein Versprechen, dass die Person bleibt.",
+      "vorlage_title": "Übergabeplan bis zum Start",
+      "vorlage_body": "## Bis zum Start (Beispiel: 3 Monate Kündigungsfrist)\n\n- Tag der Unterschrift: Glückwunsch, Kündigungstermin, Kündigungsgespräch üben\n- Tag nach der Kündigung: Wie lief es? Gab es ein Gegenangebot?\n- Woche 4: Willkommensgruß vom Kunden (Ansprechpartner: ___)\n- Woche 8: Einladung ins Team (Termin: ___)\n- 1–2 Wochen vor dem Start: erster Tag, Ansprechpartner, Ausstattung\n- Dazwischen: alle zwei Wochen kurz melden\n\n## Warnsignale\n\n- Antwortet langsamer oder gar nicht\n- Erwähnt ein anderes Gespräch oder ein Gegenangebot\n- Klingt unsicher oder fragt viel zum alten Job\n- Dann: sofort anrufen, offen fragen, an die eigenen Wechselgründe erinnern\n\n## Nach dem Start (Kandidat und Kunde)\n\n- Woche 1: ___\n- Monat 1: ___\n- Monat 3: ___\n- Ende der Probezeit (höchstens 6 Monate): ___",
+      "questions": [
+        {
+          "type": "single",
+          "case": "Kandidatin Petra Engel unterschreibt am 12. Oktober. Sie hat 3 Monate Kündigungsfrist zum Quartalsende.",
+          "prompt": "Womit planst du realistisch?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Mit einem Start am 1. Januar, also in knapp drei Monaten"
+            },
+            {
+              "id": "b",
+              "text": "Mit einem Start am 1. April, also fast einem halben Jahr Begleitung"
+            },
+            {
+              "id": "c",
+              "text": "Mit einem Start in vier Wochen, weil das die gesetzliche Frist ist"
+            }
+          ],
+          "correct": "b",
+          "explanation": "Für das Quartalsende 31. Dezember hätte sie bis Ende September kündigen müssen. Ihr Vertrag endet also frühestens am 31. März, und du begleitest fast sechs Monate."
+        },
+        {
+          "type": "single",
+          "case": "Sechs Wochen nach der Unterschrift antwortet Kandidat Paul Richter seit Tagen nicht. Zuletzt erwähnte er „ein interessantes Gespräch“.",
+          "prompt": "Was tust du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "Du wartest ab. Er hat unterschrieben, also ist alles in trockenen Tüchern."
+            },
+            {
+              "id": "b",
+              "text": "Du bittest den Kunden, Paul schriftlich mit einer Vertragsstrafe zu drohen."
+            },
+            {
+              "id": "c",
+              "text": "Du rufst Paul an, fragst offen nach dem Gespräch und erinnerst an seine Gründe."
+            }
+          ],
+          "correct": "c",
+          "explanation": "Langsame Antworten und ein anderes Gespräch sind Warnsignale. Ein offenes Gespräch über seine eigenen Wechselgründe hilft mehr als Druck."
+        },
+        {
+          "type": "single",
+          "case": "Ein Kunde fragt dich: „Was passiert, wenn die neue Kollegin nach zwei Monaten wieder geht?“",
+          "prompt": "Was antwortest du?",
+          "options": [
+            {
+              "id": "a",
+              "text": "„Je nach Ihrem Paket greift Continuity. Dann sucht Matchunt nach.“"
+            },
+            {
+              "id": "b",
+              "text": "„Das passiert nicht. Ich verspreche Ihnen, dass sie bleibt.“"
+            },
+            {
+              "id": "c",
+              "text": "„Dann bekommen Sie immer das ganze Honorar zurück, egal bei welchem Paket.“"
+            }
+          ],
+          "correct": "a",
+          "explanation": "Continuity ist Matchunts Nachbesetzungs-Leistung und hängt vom Paket des Kunden ab. Dass eine Person bleibt, kann niemand versprechen."
+        },
+        {
+          "type": "multi",
+          "prompt": "Was gehört in deinen Plan bis zum Start? (Mehrere Antworten richtig)",
+          "options": [
+            {
+              "id": "a",
+              "text": "Ein kurzer Anruf am Tag nach der Kündigung"
+            },
+            {
+              "id": "b",
+              "text": "Eine Einladung des Kunden zu einem Teamtermin"
+            },
+            {
+              "id": "c",
+              "text": "Funkstille bis zum ersten Tag, damit die Person Ruhe hat"
+            },
+            {
+              "id": "d",
+              "text": "Kurz vor dem Start den Ablauf des ersten Tages klären"
+            }
+          ],
+          "correct": [
+            "a",
+            "b",
+            "d"
+          ],
+          "explanation": "Regelmäßiger Kontakt und ein Kunde, der einlädt, halten die Entscheidung stabil. Funkstille öffnet die Tür für Gegenangebote und andere Headhunter."
+        },
+        {
+          "type": "order",
+          "prompt": "Bring die Schritte von der Unterschrift bis zum Ende der Probezeit in die richtige Reihenfolge.",
+          "items": [
+            {
+              "id": "a",
+              "text": "Kündigungsgespräch üben"
+            },
+            {
+              "id": "b",
+              "text": "Am Tag nach der Kündigung nachfragen, wie es lief"
+            },
+            {
+              "id": "c",
+              "text": "Der Kunde lädt ins Team ein"
+            },
+            {
+              "id": "d",
+              "text": "Nach der ersten Arbeitswoche bei beiden melden"
+            },
+            {
+              "id": "e",
+              "text": "Zum Ende der Probezeit bei beiden melden"
+            }
+          ],
+          "explanation": "Erst sicherst du die Kündigung ab, dann füllst du die Wartezeit gemeinsam mit dem Kunden. Nach dem Start bleibst du bis zum Ende der Probezeit dran."
+        },
+        {
+          "type": "match",
+          "prompt": "Ordne die Fristen richtig zu.",
+          "pairs": [
+            {
+              "left": "Gesetzliche Grundkündigungsfrist",
+              "right": "4 Wochen"
+            },
+            {
+              "left": "Übliche Kündigungsfrist",
+              "right": "3 Monate"
+            },
+            {
+              "left": "Bei Führungskräften oft",
+              "right": "3–6 Monate zum Quartalsende"
+            },
+            {
+              "left": "Probezeit höchstens",
+              "right": "6 Monate"
+            }
+          ],
+          "explanation": "Die übliche Frist liegt weit über der gesetzlichen. Deshalb dauert die Zeit bis zum Start oft Monate, und du brauchst einen Plan."
+        }
+      ]
+    }
+  ]
+}
