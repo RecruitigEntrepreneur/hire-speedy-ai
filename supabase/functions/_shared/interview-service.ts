@@ -18,7 +18,7 @@ import {
   alternativeSlots, isSlotStillFree, normalizeRules, scheduleSlots, stepFor, windowIntervals,
   type Interval, type InterviewHoursRules, type ScheduleParticipant,
 } from './interview-availability.ts';
-import { berlinDateKey, berlinLocalToUtc, formatBerlinDateShort, nextDateKey } from './interview-time.ts';
+import { berlinDateKey, berlinLocalToUtc, formatBerlinDateShort, formatBerlinTime, nextDateKey } from './interview-time.ts';
 import { aiChat, type AiCall, type AiResult } from './ai.ts';
 import { GUIDE_SYSTEM, GUIDE_TOOL, fallbackGuide, guidePrompt, normalizeGuide, type GuideInput } from './interview-guide.ts';
 import { buildIcs, inviteUid } from './interview-ics.ts';
@@ -489,6 +489,16 @@ export async function availability(ctx: ServiceCtx, user: User, body: any) {
   };
 }
 
+/** Kürzester Vorlauf für einen Termin. */
+const MIN_LEAD_MS = 30 * 60000;
+
+/** „Frühestens 17:30 Uhr – …“: früheste mögliche Zeit, auf volle 5 Minuten aufgerundet (Live-Test 23.10.2026). */
+export function leadTimeMessage(nowMs: number): string {
+  const earliest = Math.ceil((nowMs + MIN_LEAD_MS + 1) / 300000) * 300000;
+  const day = berlinDateKey(earliest) === berlinDateKey(nowMs) ? '' : `${formatBerlinDateShort(earliest)}, `;
+  return `Frühestens ${day}${formatBerlinTime(earliest)} Uhr – Termine brauchen mindestens 30 Minuten Vorlauf.`;
+}
+
 /**
  * Prüft eine frei eingegebene Uhrzeit (z. B. 14:30) wie eine Kachel im Raster:
  * Outlook, Kollegen, gebuchte Interviews, Puffer. Dazu, ob sie in den
@@ -500,7 +510,7 @@ export async function checkTime(ctx: ServiceCtx, user: User, body: any) {
   must(DURATIONS.includes(duration), 'Ungültige Dauer.');
   const startMs = Date.parse(String(body.start ?? ''));
   must(Number.isFinite(startMs), 'Ungültige Uhrzeit.');
-  must(startMs > ctx.now() + 30 * 60000, 'Termine müssen in der Zukunft liegen.');
+  must(startMs > ctx.now() + MIN_LEAD_MS, leadTimeMessage(ctx.now()));
   const endMs = startMs + duration * 60000;
   const me = await personOf(ctx.db, user);
   const team = await teamOf(ctx.db, bundle.job, me);
@@ -546,7 +556,7 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
   const slots = [...new Set<string>(raw.map((s: unknown) => String(s)))].map((s: string) => {
     const t = Date.parse(s);
     must(Number.isFinite(t), 'Ungültiger Termin.');
-    must(t > ctx.now() + 30 * 60000, 'Termine müssen in der Zukunft liegen.');
+    must(t > ctx.now() + MIN_LEAD_MS, leadTimeMessage(ctx.now()));
     return new Date(t).toISOString();
   }).sort();
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
@@ -1478,15 +1488,38 @@ export async function interviewDetails(ctx: ServiceCtx, user: User, body: any) {
   const { data: moving } = await ctx.db.from('interviews').select('id, status, proposed_slots, counter_slots, created_at')
     .eq('reschedules_interview_id', iv.id).in('status', ['pending_response', 'counter_proposed'])
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
-  const previous = iv.reschedules_interview_id
-    ? (await ctx.db.from('interviews').select('id, status, scheduled_at').eq('id', iv.reschedules_interview_id).maybeSingle()).data
-    : null;
+  // Ganze Geschichte über Verschiebungen hinweg (Live-Test 23.10.2026): jede Verschiebung ist ein eigenes Interview
+  const chain: any[] = [];
+  for (let prevId = iv.reschedules_interview_id; prevId && chain.length < 5;) {
+    const { data: p } = await ctx.db.from('interviews')
+      .select('id, status, scheduled_at, proposed_slots, created_at, candidate_confirmed_at, reschedules_interview_id')
+      .eq('id', prevId).maybeSingle();
+    if (!p) break;
+    chain.unshift(p);
+    prevId = p.reschedules_interview_id;
+  }
+  const previous = chain[chain.length - 1] ?? null;
   const slots = (raw: unknown) => ((Array.isArray(raw) ? raw : []) as any[]).map((x) => (typeof x === 'string' ? x : x?.datetime)).filter(Boolean) as string[];
+  const when = (iso: string) => `${formatBerlinDateShort(iso)} ${formatBerlinTime(iso)}`;
+  const asked = (raw: unknown, first: boolean) => {
+    const n = slots(raw).length;
+    return first ? `Anfrage gesendet (${n} ${n === 1 ? 'Termin' : 'Termine'})` : `Verschiebung angefragt (${n} ${n === 1 ? 'neue Zeit' : 'neue Zeiten'})`;
+  };
   const timeline: { at: string; text: string }[] = [];
-  if (iv.created_at) timeline.push({ at: iv.created_at, text: previous ? `Verschiebung angefragt (${slots(iv.proposed_slots).length} neue Zeiten)` : `Anfrage gesendet (${slots(iv.proposed_slots).length} Termine)` });
-  if (iv.status === 'counter_proposed' && slots(iv.counter_slots)[0]) timeline.push({ at: iv.updated_at ?? iv.created_at, text: `Kandidat fragt ${formatBerlinDateShort(slots(iv.counter_slots)[0])} an` });
-  if (iv.candidate_confirmed_at && iv.scheduled_at) timeline.push({ at: iv.candidate_confirmed_at, text: `Kandidat hat ${formatBerlinDateShort(iv.scheduled_at)} bestätigt` });
-  if (moving?.created_at) timeline.push({ at: moving.created_at, text: `Verschiebung angefragt (${slots(moving.proposed_slots).length} neue Zeiten), der Termin bleibt bis zur Wahl` });
+  const rounds = [...chain, iv];
+  rounds.forEach((r, k) => {
+    if (r.created_at) timeline.push({ at: r.created_at, text: asked(r.proposed_slots, k === 0) });
+    if (r.candidate_confirmed_at && r.scheduled_at) {
+      timeline.push({ at: r.candidate_confirmed_at, text: `Kandidat hat ${when(r.scheduled_at)} bestätigt` });
+      const before = rounds[k - 1];
+      if (before?.scheduled_at) {
+        const at = new Date(Date.parse(r.candidate_confirmed_at) + 1).toISOString();
+        timeline.push({ at, text: `Verschoben von ${when(before.scheduled_at)} auf ${when(r.scheduled_at)}` });
+      }
+    }
+  });
+  if (iv.status === 'counter_proposed' && slots(iv.counter_slots)[0]) timeline.push({ at: iv.updated_at ?? iv.created_at, text: `Kandidat fragt ${when(slots(iv.counter_slots)[0])} an` });
+  if (moving?.created_at) timeline.push({ at: moving.created_at, text: `${asked(moving.proposed_slots, false)}, der Termin bleibt bis zur Wahl` });
   if (iv.cancelled_at) timeline.push({ at: iv.cancelled_at, text: iv.cancellation_reason ? `Abgesagt: ${iv.cancellation_reason}` : 'Abgesagt' });
   timeline.sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
   const meeting = meetingOf(b);

@@ -25,13 +25,13 @@ import {
 import {
   attendeeIdentity,
   fmtDateDayMonth,
-  initialWeekStart,
   joinNames,
   roundTitle,
   sameAttendee,
 } from '@/lib/interviewRequestUtils';
 import { ParticipantsSection } from './ParticipantsSection';
 import { ProposalGrid } from './ProposalGrid';
+import { useProposalWeek, useSkipEmptyWeek } from './useProposalWeek';
 import { AlternativeSection } from './AlternativeSection';
 import { MailPreviewDialog } from './MailPreviewDialog';
 
@@ -106,7 +106,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const [contactPhone, setContactPhone] = useState(ctx.onsiteContactDefault?.phone ?? '');
   const [duration, setDuration] = useState(60);
   const [attendees, setAttendees] = useState<AttendeeDraft[]>(() => initialAttendees(ctx));
-  const [weekStart, setWeekStart] = useState(() => initialWeekStart(nowIso));
+  const week = useProposalWeek(nowIso, maxWeek);
+  const weekStart = week.weekStart;
   const [selected, setSelected] = useState<string[]>([]);
   const [allowAlternative, setAllowAlternative] = useState(true);
   const [defaultRules] = useState(() => normalizeRules(ctx.hours));
@@ -137,6 +138,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
     staleTime: 60_000,
     retry: 1,
   });
+  useSkipEmptyWeek(week, availability.data, availability.isPlaceholderData);
 
   const toggleSlot = (iso: string) =>
     setSelected((cur) => {
@@ -320,7 +322,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             weekStart={weekStart}
             canGoBack={weekStart > minWeek}
             canGoForward={weekStart < maxWeek}
-            onWeekChange={(delta) => setWeekStart((w) => weekStartOf(`${w}T12:00:00.000Z`, delta))}
+            onWeekChange={week.go}
+            note={week.note}
             data={availability.data}
             isLoading={availability.isLoading}
             isFetching={availability.isFetching}

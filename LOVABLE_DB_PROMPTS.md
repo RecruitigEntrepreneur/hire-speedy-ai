@@ -1331,6 +1331,20 @@ Kunde in seinen Firmendaten Straße, PLZ und Ort hat. Bis dahin entstehen nur En
 
 ---
 
+## 34 — Live-Test Interview: Fixes aus dem ersten Durchlauf (23.10.2026)
+
+Terminraster springt in die erste Woche mit freien Zeiten, Interview-Fenster des Kunden mittig, Vorlauf-Meldung
+nennt die früheste Uhrzeit („Frühestens 17:30 Uhr – Termine brauchen mindestens 30 Minuten Vorlauf.“), Einzahl
+bei einer neuen Zeit, Verlauf zeigt die ganze Geschichte über Verschiebungen hinweg, kein Kunden-Menü beim Laden
+des Headhunters, keine einzelne „0“ im Kandidatenprofil. **Keine Migration, eine Edge Function neu deployen.**
+
+> 1. Edge Function `interview-request` neu deployen (verify_jwt wie in `supabase/config.toml`; nutzt die geänderte
+>    gemeinsame Datei `_shared/interview-service.ts`).
+> 2. Keine Migration, keine neuen Secrets.
+> 3. Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

@@ -62,19 +62,20 @@ const FORMAT_LABEL = { teams: 'Teams', phone: 'Telefon', onsite: 'Vor Ort' } as 
 const timeRange = (iso: string, minutes: number) => `${fmtTime(iso)}–${fmtTime(new Date(Date.parse(iso) + minutes * 60_000).toISOString())} Uhr`;
 
 /**
- * Ein Panel rechts für alles zu einem Interview: Termin, Leute, Kandidat, Leitfaden,
- * Notizen, Feedback, Verschieben. Die Agenda bleibt sichtbar und klickbar – ein Klick
- * auf eine andere Zeile wechselt nur den Inhalt.
+ * Ein Fenster in der Mitte für alles zu einem Interview: Termin, Leute, Kandidat,
+ * Leitfaden, Notizen, Feedback, Verschieben. Mittig wie alle Fenster (Entscheidung
+ * 23.10.2026); ein Klick daneben schließt es nicht, damit Notizen nicht verloren gehen.
  */
 export function InterviewWindow(props: Props) {
   const { interview: iv, open, onOpenChange } = props;
   return (
-    <PanelPrimitive.Root open={open && !!iv} onOpenChange={onOpenChange} modal={false}>
+    <PanelPrimitive.Root open={open && !!iv} onOpenChange={onOpenChange}>
       <PanelPrimitive.Portal>
+        <PanelPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <PanelPrimitive.Content
           onInteractOutside={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:w-[46rem]"
+          className="fixed left-1/2 top-1/2 z-50 flex h-[min(52rem,92vh)] w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
         >
           {iv && <WindowBody key={iv.id} {...props} interview={iv} />}
           <PanelPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring" aria-label="Schließen">
@@ -218,8 +219,11 @@ function WindowBody({
         {d?.reschedule && (
           <Banner tone="info">
             <span className="flex-1">
-              Verschiebung angefragt: {first} wählt aus {d.reschedule.slots.length} neuen Zeiten
-              {d.reschedule.slots[0] ? ` (ab ${fmtDayShort(d.reschedule.slots[0])} ${fmtTime(d.reschedule.slots[0])})` : ''}. Bis dahin gilt dieser Termin.
+              Verschiebung angefragt:{' '}
+              {d.reschedule.slots.length === 1
+                ? `${first} bestätigt die neue Zeit ${fmtDayShort(d.reschedule.slots[0])} ${fmtTime(d.reschedule.slots[0])}.`
+                : `${first} wählt aus ${d.reschedule.slots.length} neuen Zeiten${d.reschedule.slots[0] ? ` (ab ${fmtDayShort(d.reschedule.slots[0])} ${fmtTime(d.reschedule.slots[0])})` : ''}.`}
+              {d.scheduledAt ? ` Bis dahin gilt ${fmtDayShort(d.scheduledAt)} ${fmtTime(d.scheduledAt)}.` : ' Bis dahin gilt dieser Termin.'}
             </span>
             <Button size="sm" variant="outline" className="h-7 bg-background text-xs" onClick={withdrawMove}>Zurückziehen</Button>
           </Banner>
@@ -276,7 +280,7 @@ function WindowBody({
                   <Button size="sm" variant="outline" className="gap-1.5" onClick={() => details.refetch()}><RefreshCw className="h-3.5 w-3.5" /> Erneut versuchen</Button>
                 </div>
               ) : (
-                <Overview d={d} name={name} formatLabel={formatLabel} />
+                <Overview d={d} name={name} formatLabel={formatLabel} candidateFirst={iv.identityUnlocked ? name.split(' ')[0] : null} />
               )}
             </TabsContent>
 
@@ -388,7 +392,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Overview({ d, name, formatLabel }: { d: InterviewDetails; name: string; formatLabel: string }) {
+function Overview({ d, name, formatLabel, candidateFirst }: { d: InterviewDetails; name: string; formatLabel: string; candidateFirst: string | null }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2">
       <Section title="Termin">
@@ -439,8 +443,9 @@ function Overview({ d, name, formatLabel }: { d: InterviewDetails; name: string;
         <ul className="space-y-1.5 text-sm">
           {d.timeline.map((t, i) => (
             <li key={i} className="flex gap-2">
-              <span className="w-12 shrink-0 tabular-nums text-muted-foreground">{new Date(t.at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
-              <span>{t.text}</span>
+              <span className="w-[5.5rem] shrink-0 tabular-nums text-muted-foreground">{new Date(t.at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} {fmtTime(t.at)}</span>
+              {/* Mit freigegebener Identität steht der Vorname statt „Kandidat“ */}
+              <span>{candidateFirst ? t.text.replace(/^Kandidat /, `${candidateFirst} `) : t.text}</span>
             </li>
           ))}
         </ul>

@@ -85,7 +85,7 @@ export function CandidateKeyFactsCard({ candidate, tags }: CandidateKeyFactsCard
               {seniorityLabels[candidate.seniority] || candidate.seniority}
             </Badge>
           )}
-          {candidate.experience_years && (
+          {!!candidate.experience_years && (
             <span className="text-muted-foreground flex items-center gap-1">
               <Briefcase className="h-3 w-3" />
               {candidate.experience_years}J

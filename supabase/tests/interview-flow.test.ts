@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, checkTime, clientLink, confirmAlternative, feedbackWay, interviewDetails, interviewGuide, inviteColleague, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, feedbackWay, interviewDetails, interviewGuide, inviteColleague, leadTimeMessage, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -425,7 +425,7 @@ Deno.test({ name: 'Eigene Uhrzeit (z. B. 14:30): Prüfung gegen Outlook, Puffer,
     eq((await check(at(2, 16))).shortNotice, true, 'weniger als 24 h Vorlauf');
     let pastError = '';
     try { await check(at(2, 14, 10)); } catch (e) { pastError = e instanceof Error ? e.message : String(e); }
-    assert(pastError.includes('Zukunft'), 'Vergangenheit wird abgelehnt');
+    assert(pastError.startsWith('Frühestens'), 'Vergangenheit wird abgelehnt, mit frühester Uhrzeit');
 
     eq((await check(at(8, 14))).status, 'all', 'ohne Puffer endet 14:00–15:00 direkt vor dem Termin');
     tables.client_interview_hours = [{ user_id: CLIENT, rules: { bufferMinutes: 15 } }];
@@ -526,7 +526,22 @@ Deno.test({ name: 'Verschieben: alter Termin bleibt bis zur neuen Wahl, dann ers
   const cancels = sent.filter((m) => m.ics && m.ics.content.includes('METHOD:CANCEL'));
   assert(cancels.length > 0 && cancels.every((m) => m.subject.startsWith('Verschoben:')), 'Absage des alten Termins als „Verschoben“');
   assert(sent.some((m) => m.ics && m.to === 'kandidat@example.test' && m.ics.content.includes('METHOD:REQUEST')), 'neue Einladung an den Kandidaten');
+
+  // Verlauf zeigt die ganze Geschichte über die Verschiebung hinweg, mit Uhrzeit und Einzahl/Mehrzahl
+  // Die Test-DB stempelt created_at mit der echten Uhr; hier auf die Testzeit setzen
+  Object.assign(old, { created_at: '2026-10-02T11:00:00.000Z', candidate_confirmed_at: '2026-10-02T11:10:00.000Z' });
+  req.created_at = '2026-10-02T12:00:00.000Z';
+  const texts = (await interviewDetails(ctx, me, { interviewId: req.id })).timeline.map((t: any) => t.text);
+  eq(texts.length, 5, texts.join(' | '));
+  eq([texts[0], texts[2]], ['Anfrage gesendet (1 Termin)', 'Verschiebung angefragt (2 neue Zeiten)']);
+  assert(/^Kandidat hat .+ \d\d:\d\d bestätigt$/.test(texts[1]) && /^Kandidat hat .+ 11:00 bestätigt$/.test(texts[3]), texts.join(' | '));
+  assert(/^Verschoben von .+ 10:00 auf .+ 11:00$/.test(texts[4]), texts[4]);
 }});
+
+Deno.test('Vorlauf: Meldung nennt die früheste mögliche Uhrzeit', () => {
+  eq(leadTimeMessage(Date.parse('2026-10-22T14:57:00Z')), 'Frühestens 17:30 Uhr – Termine brauchen mindestens 30 Minuten Vorlauf.');
+  eq(leadTimeMessage(Date.parse('2026-10-22T21:50:00Z')), 'Frühestens Fr, 23. Okt, 00:25 Uhr – Termine brauchen mindestens 30 Minuten Vorlauf.');
+});
 
 Deno.test({ name: 'Verschieben: Kandidat bleibt beim bisherigen Termin', permissions: { env: true }, fn: async () => {
   const { db, tables } = seed(); fixCandidate(tables);

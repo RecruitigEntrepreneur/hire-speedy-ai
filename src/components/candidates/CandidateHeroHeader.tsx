@@ -98,7 +98,7 @@ export function CandidateHeroHeader({
                         </span>
                       </>
                     )}
-                    {candidate.experience_years && (
+                    {!!candidate.experience_years && (
                       <>
                         <span className="text-border">•</span>
                         <span>{candidate.experience_years}J Erfahrung</span>
@@ -197,7 +197,7 @@ export function CandidateHeroHeader({
           </div>
 
           {/* Skills & Expertise Badges */}
-          {(candidate.skills?.length || (candidate as any).certifications?.length) && (
+          {(!!candidate.skills?.length || !!(candidate as any).certifications?.length) && (
             <div className="flex flex-wrap items-center gap-1 mt-2 px-0">
               {candidate.skills?.slice(0, 8).map((skill) => (
                 <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">

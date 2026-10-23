@@ -165,7 +165,7 @@ export function CandidateOverviewTab({ candidate, tags }: CandidateOverviewTabPr
                 {availabilityDisplay}
               </div>
             )}
-            {candidate.experience_years && (
+            {!!candidate.experience_years && (
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Briefcase className="h-3 w-3" />
                 {candidate.experience_years} Jahre

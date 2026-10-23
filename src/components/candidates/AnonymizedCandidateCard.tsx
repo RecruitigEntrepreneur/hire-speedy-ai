@@ -138,7 +138,7 @@ export function AnonymizedCandidateCard({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
-                    {candidate.experience_years && (
+                    {!!candidate.experience_years && (
                       <span className="flex items-center gap-1 text-muted-foreground">
                         <Briefcase className="h-3 w-3" />
                         {candidate.experience_years} Jahre

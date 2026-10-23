@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { MAX_PROPOSALS, interviewApi, weekStartOf, type AttendeeDraft, type InterviewDetails } from '@/lib/interviewScheduling';
-import { initialWeekStart } from '@/lib/interviewRequestUtils';
+import { useProposalWeek, useSkipEmptyWeek } from '../request/useProposalWeek';
 import { ProposalGrid } from '../request/ProposalGrid';
 
 const MAX_WEEKS_AHEAD = 8;
@@ -31,7 +31,8 @@ export function ReschedulePanel({ submissionId, details, candidateName, onDone, 
   const [nowIso] = useState(() => new Date().toISOString());
   const minWeek = weekStartOf(nowIso);
   const maxWeek = weekStartOf(nowIso, MAX_WEEKS_AHEAD);
-  const [weekStart, setWeekStart] = useState(() => initialWeekStart(nowIso));
+  const week = useProposalWeek(nowIso, maxWeek);
+  const weekStart = week.weekStart;
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [allowAlternative, setAllowAlternative] = useState(true);
@@ -54,6 +55,7 @@ export function ReschedulePanel({ submissionId, details, candidateName, onDone, 
     staleTime: 60_000,
     retry: 1,
   });
+  useSkipEmptyWeek(week, availability.data, availability.isPlaceholderData);
 
   const toggle = (iso: string) =>
     setSelected((cur) => {
@@ -88,7 +90,8 @@ export function ReschedulePanel({ submissionId, details, candidateName, onDone, 
         weekStart={weekStart}
         canGoBack={weekStart > minWeek}
         canGoForward={weekStart < maxWeek}
-        onWeekChange={(delta) => setWeekStart((w) => weekStartOf(`${w}T12:00:00.000Z`, delta))}
+        onWeekChange={week.go}
+        note={week.note}
         data={availability.data}
         isLoading={availability.isLoading}
         isFetching={availability.isFetching}

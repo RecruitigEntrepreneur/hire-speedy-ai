@@ -20,6 +20,8 @@ interface Props {
   canGoBack: boolean;
   canGoForward: boolean;
   onWeekChange: (delta: number) => void;
+  /** Hinweis unter der Woche, z. B. warum eine spätere Woche aufgeht */
+  note?: string | null;
   data: AvailabilityResult | undefined;
   isLoading: boolean;
   isFetching: boolean;
@@ -60,7 +62,7 @@ const UNCHECKED_TILE = 'border-dashed border-muted-foreground/50 bg-transparent 
 const normalizeDayKey = (date: string) => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? date : berlinDateKey(date));
 
 export function ProposalGrid({
-  weekStart, canGoBack, canGoForward, onWeekChange, data, isLoading, isFetching, error, onRetry,
+  weekStart, canGoBack, canGoForward, onWeekChange, note, data, isLoading, isFetching, error, onRetry,
   selected, onToggle, onAdd, peopleCount, durationMinutes, minNoticeHours, onCheckTime, calendar, onConnectCalendar, onOpenHoursSettings,
 }: Props) {
   const [customDay, setCustomDay] = useState<string | null>(null);
@@ -158,6 +160,7 @@ export function ProposalGrid({
         </div>
         {isFetching && !isLoading && <span className="text-xs text-muted-foreground">wird aktualisiert …</span>}
       </div>
+      {note && <p className="text-xs text-muted-foreground">{note}</p>}
 
       {/* Raster */}
       {error && !data ? (

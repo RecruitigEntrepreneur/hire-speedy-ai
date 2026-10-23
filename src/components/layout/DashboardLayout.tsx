@@ -148,11 +148,14 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Outreach', href: '/admin/outreach', icon: <Mail className="h-4 w-4" /> },
   ];
 
-  const navItems = role === 'admin' 
-    ? adminNavItems 
-    : role === 'recruiter' 
-    ? recruiterNavItems 
-    : clientNavItems;
+  // Solange die Rolle lädt, kein Menü raten: sonst blitzt beim Headhunter das Kunden-Menü auf (Live-Test 23.10.2026)
+  const navItems = role === 'admin'
+    ? adminNavItems
+    : role === 'recruiter'
+    ? recruiterNavItems
+    : role === 'client'
+    ? clientNavItems
+    : [];
 
   const settingsHref = role === 'admin' ? '/admin/settings' : role === 'client' ? '/dashboard/settings' : '/recruiter/settings';
 
@@ -207,6 +210,12 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
         <aside className="fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 border-r border-border/40 bg-card md:block">
           <div className="flex h-full flex-col gap-2 p-4">
             <nav className="flex-1 space-y-1">
+              {!role && [72, 56, 80, 64, 60, 48].map((w, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2" aria-hidden="true">
+                  <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+                  <div className="h-3 animate-pulse rounded bg-muted" style={{ width: `${w}%` }} />
+                </div>
+              ))}
               {navItems.map((item) => {
                 const isActive = location.pathname === item.href || 
                   (item.href !== '/dashboard' && item.href !== '/recruiter' && item.href !== '/admin' && location.pathname.startsWith(item.href));
