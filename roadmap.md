@@ -3,7 +3,7 @@
 ## Auftrag 34 (23.10.2026) — Live-Test Interview: Fixes aus dem ersten Durchlauf
 - [x] Stand 751bd75; keine Migration, keine Secrets.
 - [x] interview-request neu deployt (verify_jwt = true laut config.toml, Source-SHA ed55d19d…).
-- [x] Publish für https://matchunt.ai angefordert; 5 bekannte kritische Bestandsbefunde blockieren hier nicht.
+## Deployment 168f270 (22.10.2026)
 
 
 - [x] Current checkout verified at 168f270; prior journal ends at 0034_einreichen_rahmen_pflicht.
