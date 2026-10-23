@@ -1345,6 +1345,31 @@ des Headhunters, keine einzelne „0“ im Kandidatenprofil. **Keine Migration, 
 
 ---
 
+## 35 — Kunden-Aufgaben und Live-Test-Fixes 8–12 (23.10.2026)
+
+Der Kunde bekommt seine Aufgaben wie der Headhunter: Menüpunkt „Aufgaben“ mit Zahl, Seite „Aufgaben“, Kachel
+„Ihre Aufgaben“ im Dashboard, im Bewerberprofil die Karten „Ihre Aufgaben / Läuft bei anderen“ und ein
+Aufgaben-Fenster mit Antworten (15 Arten von „Kandidat prüfen“ bis „Antritt bestätigen“ und „Rechnung“). Die
+Aufgaben leitet die neue Function `client-tasks` aus dem Stand ab; gespeichert werden nur das Erledigt-Protokoll
+und zwei neue Antworten (Antritt, „Rechnung ist überwiesen“). Jedes Fenster zeigt oben eine Entscheidungshilfe
+(Kurzprofil mit Budget-Etikett, Angebot | Wunsch | Rahmen, Vertragsdaten, DocuSign-Verlauf, Rechnung netto/brutto,
+wer fragt); die Seite hat Zahlen und einen Filter nach Stelle. Dazu DocuSign „Mail erneut senden“. Außerdem die
+Fixes 8–12 aus dem Live-Test: Adresse nur einmal in der Einladung, Zugang des Headhunters im Gerät gemerkt,
+Nachgespräch ohne „er/ihm“, Schritt 3 bei vorhandenem Kunden-Feedback, „Bestätigen Sie die neue Zeit“ bei einer
+Zeit. **Eine Migration, eine neue Edge Function, zwei neu zu deployen.**
+
+> 1. Migration `supabase/migrations/20261024090000_kunden_aufgaben.sql` ausführen
+>    (neue Tabelle `client_task_log` mit RLS „Kundenteam liest“ und Rechten für `authenticated` (lesen) und
+>    `service_role` (alles); neue Spalten in `placements` (Antritt/Nichtantritt) und `invoices` („ist überwiesen“).
+>    Keine Daten-Einfügungen, kein Bezug auf `auth.users`, kein Cron.)
+> 2. Edge Functions, verify_jwt wie in `supabase/config.toml`:
+>    - neu: `client-tasks` (verify_jwt = true)
+>    - neu deployen: `employment-contract` (DocuSign erneut senden), `interview-request` (Einladung, Verschieben)
+> 3. Keine neuen Secrets.
+> 4. Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

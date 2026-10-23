@@ -10,7 +10,7 @@ import { contractApi, contractDataPdf, dateDe, download, euro, timeDe } from '@/
 import { ContractDialog } from './ContractDialog';
 import { ContractReportDialog } from './ContractReportDialog';
 
-export type ContractOpen = 'contract' | 'melden' | 'verschickt' | 'abgesprungen' | null;
+export type ContractOpen = 'contract' | 'digital' | 'melden' | 'werte' | 'verschickt' | 'abgesprungen' | null;
 
 interface Props {
   submissionId: string;
@@ -34,8 +34,10 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
   useEffect(() => {
     if (!openRequest || !q.data) return;
     if (openRequest === 'contract') setShowSend('any');
+    if (openRequest === 'digital') setShowSend('digital');
     if (openRequest === 'verschickt') setShowSend('self');
     if (openRequest === 'melden') setShowReport('report');
+    if (openRequest === 'werte') setShowReport('values');
     if (openRequest === 'abgesprungen') setDropReason('');
     onOpenHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps

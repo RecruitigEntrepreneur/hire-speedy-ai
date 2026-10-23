@@ -205,6 +205,8 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
   if (!target) return null;
   const name = target.candidateName || 'Kandidat';
   const vorname = first(target.candidateName);
+  // Ohne Namen neutral statt „er“ (Live-Test 23.10.2026)
+  const werNom = target.candidateName?.trim() ? vorname : 'die Person';
   const fee = kEuro(target.feeValue);
   const ivAt = umfeld.interview?.scheduled_at ?? target.scheduledAt;
   const saved = !editing && !!savedAt;
@@ -355,7 +357,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
                   <div className="min-w-0 flex-1 space-y-2.5">
                     <p className="text-sm font-medium">Festhalten, was {vorname} sagt</p>
                     <Frage label="Wie ist es gelaufen?">
-                      <Textarea value={form.verlauf} onChange={e => set('verlauf', e.target.value)} rows={2} className="text-sm" placeholder="In seinen Worten: was ihm gefallen hat, was nicht" />
+                      <Textarea value={form.verlauf} onChange={e => set('verlauf', e.target.value)} rows={2} className="text-sm" placeholder={`Was hat ${werNom} gefallen, was nicht? Möglichst in eigenen Worten`} />
                     </Frage>
                     <Frage label="Bauchgefühl" fehlt={!form.bauchgefuehl}>
                       <Chips options={BAUCH} value={form.bauchgefuehl} onChange={v => set('bauchgefuehl', v)} />
@@ -373,7 +375,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
                         </div>
                       )}
                     </Frage>
-                    <Frage label="Wie müsste ein Angebot aussehen, damit er annimmt?">
+                    <Frage label={`Wie müsste ein Angebot aussehen, damit ${werNom} annimmt?`}>
                       <Input value={euroText.af} onChange={e => setEuroText(t => ({ ...t, af: e.target.value }))} className="h-8 text-sm" placeholder="Fixgehalt mindestens, €" inputMode="numeric" />
                       <MultiChips options={ANGEBOT_PUNKTE} value={form.angebot_punkte} onChange={v => set('angebot_punkte', v)} />
                       <Input value={form.angebot_text} onChange={e => set('angebot_text', e.target.value)} className="h-8 text-sm" placeholder="Was muss sonst drinstehen" />
@@ -384,7 +386,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
                         <Input type="date" value={form.start_datum ?? ''} onChange={e => set('start_datum', e.target.value || null)} className="h-8 w-44 text-sm" />
                       )}
                     </Frage>
-                    <Frage label="Will er weiter?" fehlt={!form.will_weiter}>
+                    <Frage label={`Will ${werNom} weiter?`} fehlt={!form.will_weiter}>
                       <Chips options={DREI} value={form.will_weiter} onChange={v => set('will_weiter', v)} />
                       <Input value={form.bedenken} onChange={e => set('bedenken', e.target.value)} className="h-8 text-sm" placeholder="Offene Fragen oder Bedenken" />
                     </Frage>
@@ -392,7 +394,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
                 </div>
                 <div className="flex gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">3</span>
-                  <p className="text-xs leading-5 text-muted-foreground">Danach fragst du den Kunden nach seinem Eindruck. Gehalt, Angebot, Start und Bedenken bleiben bei dir.</p>
+                  <p className="text-xs leading-5 text-muted-foreground">{kundenFeedback ? 'Der Kunde hat sein Feedback schon gegeben (unten).' : 'Danach fragst du den Kunden nach seinem Eindruck.'} Gehalt, Angebot, Start und Bedenken bleiben bei dir.</p>
                 </div>
               </div>
             ) : (

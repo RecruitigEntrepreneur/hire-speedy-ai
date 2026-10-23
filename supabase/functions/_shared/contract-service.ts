@@ -43,6 +43,8 @@ export interface SignerSnapshot {
 export interface SignPort {
   send(args: { subject: string; blurb: string; documents: { base64: string; name: string }[]; company: { name: string; email: string }; candidate: { name: string; email: string }; contractId: string }): Promise<{ envelopeId: string }>;
   void(envelopeId: string, reason: string): Promise<void>;
+  /** DocuSign schickt die Mail an den, der gerade dran ist, noch einmal (Kunden-Aufgabe 11) */
+  resend(envelopeId: string): Promise<void>;
   /** null = Stand unbekannt (Testmodus) */
   status(envelopeId: string): Promise<SignerSnapshot | null>;
   document(envelopeId: string): Promise<Uint8Array | null>;
@@ -71,6 +73,7 @@ export function signPort(env = (k: string) => Deno.env.get(k)): SignPort | null 
     return {
       send: async () => ({ envelopeId: `fake-${crypto.randomUUID()}` }),
       void: async () => {},
+      resend: async () => {},
       status: async () => null,
       document: async () => null,
     };
@@ -100,6 +103,15 @@ export function signPort(env = (k: string) => Deno.env.get(k)): SignPort | null 
         body: JSON.stringify({ status: 'voided', voidedReason: reason.slice(0, 200) }),
       });
       if (!res.ok && res.status !== 400) throw new Error(`Umschlag konnte nicht zurückgezogen werden (${res.status}).`);
+    },
+    resend: async (envelopeId) => {
+      const token = await accessToken(cfg);
+      const res = await fetch(`${cfg.apiBase}/v2.1/accounts/${cfg.accountId}/envelopes/${envelopeId}?resend_envelope=true`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error(`DocuSign hat die Mail nicht erneut gesendet (${res.status}).`);
     },
     status: async (envelopeId) => {
       const r = await envelopeStatus(cfg, envelopeId);
@@ -518,6 +530,17 @@ export async function voidDigital(ctx: ContractCtx, user: User, body: any) {
   await event(ctx, c.id, 'voided', 'client', user.id, { envelopeId: c.envelope_id, toSelf });
   await tellRecruiter(ctx, b, toSelf ? 'Digitaler Vertrag zurückgezogen, Kunde schickt selbst' : 'Digitaler Vertrag zurückgezogen, wird neu gesendet', null);
   return { ok: true, contract: contractView(done, 'client') };
+}
+
+/** DocuSign-Mail an den, der gerade unterschreiben muss, erneut senden (Kunden-Aufgabe 11). */
+export async function resendDigital(ctx: ContractCtx, user: User, body: any) {
+  const { b } = await access(ctx, user, body?.submissionId, ['client', 'admin']);
+  const c = b.contract;
+  must(c && c.status === 'sent_digital' && c.envelope_id, 'Es läuft gerade kein digitaler Umschlag.', 'conflict');
+  must(ctx.sign, 'Die digitale Unterschrift ist gerade nicht eingerichtet.', 'conflict');
+  await ctx.sign!.resend(c.envelope_id);
+  await event(ctx, c.id, 'resent', 'client', user.id, { envelopeId: c.envelope_id });
+  return { ok: true, contract: contractView(c, 'client') };
 }
 
 // ---------------------------------------------------------------------------

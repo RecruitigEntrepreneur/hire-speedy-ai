@@ -51,6 +51,7 @@ import { GlobalSearch } from './GlobalSearch';
 import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsHelp';
 import { useNewFeedbackCount } from '@/hooks/useAdminFeedback';
+import { useClientTasks } from '@/lib/clientTasksApi';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -75,6 +76,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   // Initialize keyboard shortcuts
   const { shortcuts } = useDashboardKeyboardShortcuts(() => setShortcutsHelpOpen(true));
   const { data: newFeedback = 0 } = useNewFeedbackCount(role === 'admin');
+  const clientTasks = useClientTasks();
 
   const handleSignOut = async () => {
     await signOut();
@@ -95,6 +97,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
 
   const clientNavItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    // Kunden-Aufgaben (23.10.2026): Zahl bleibt, bis alles erledigt ist
+    { label: 'Aufgaben', href: '/dashboard/aufgaben', icon: <CheckSquare className="h-4 w-4" />, badge: clientTasks.data?.counts.total ?? 0 },
     { label: 'Meine Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Bewerber', href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },

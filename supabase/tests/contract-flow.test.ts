@@ -52,6 +52,7 @@ function world(withSign = true): World {
   const sign: SignPort = {
     send: async (a) => { envelopes.push(a.company.email); return { envelopeId: `env-${envelopes.length}` }; },
     void: async (id) => { voided.push(id); },
+    resend: async () => {},
     status: async () => null,
     document: async () => new TextEncoder().encode('%PDF-unterschrieben'),
   };

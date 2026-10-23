@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast as sonnerToast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,6 +71,9 @@ import { useMyOrganization } from '@/hooks/useOrganization';
 import { useTeamData } from '@/hooks/useTeamData';
 import { cn } from '@/lib/utils';
 import { candidateAnonCode } from '@/lib/anonymization';
+import { clientTasksApi, useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
+import { ClientTaskWindow, type TaskHandlers } from '@/components/client/tasks/ClientTaskWindow';
+import { ProfileTaskCards } from '@/components/client/tasks/ClientTaskParts';
 
 // ============================================================================
 // Helpers
@@ -123,6 +127,14 @@ export default function CandidateDetail() {
   const location = useLocation();
 
   const { data: candidateView, loading, error, refetch } = useClientCandidateView(id);
+  // Aufgaben dieser Bewerbung (23.10.2026): Karten im Kopf wie im Headhunter-Profil
+  const clientTasks = useClientTasks(id);
+  const queryClient = useQueryClient();
+  // Offene Aufgabe im Fenster; als Objekt gehalten, damit „Erledigt“ stehen bleibt, wenn sie aus der Liste fällt
+  const [activeTask, setActiveTask] = useState<ClientTask | null>(null);
+  // Aufgabe an ein anderes Fenster übergeben: erledigt, sobald sie aus der Liste verschwindet
+  const [delegatedTask, setDelegatedTask] = useState<ClientTask | null>(null);
+  const [requestReplaces, setRequestReplaces] = useState<string | null>(null);
 
   // Ein Zustand für die ganze Seite — gleiche Pillen-/Zuständigkeits-Logik wie die Inbox
   const { data: subState } = useSubmissionState(
@@ -352,6 +364,43 @@ export default function CandidateDetail() {
       setCommentLoading(false);
     }
   };
+
+  // ---------------------------------------------------------------- Kunden-Aufgaben (23.10.2026)
+  const taskCardsShown = !isViewer && !!clientTasks.data && (clientTasks.data.tasks.length > 0 || clientTasks.data.waiting.length > 0);
+  const openTask = (task: ClientTask) => {
+    // Feedback hat sein eigenes Fenster mit den vier Wegen
+    if (task.kind === 'feedback' && task.ref.interviewId) { setDelegatedTask(task); setFeedbackFor(task.ref.interviewId); return; }
+    setActiveTask(task);
+  };
+  const handoff = (fn: () => void) => () => { if (activeTask) setDelegatedTask(activeTask); setActiveTask(null); fn(); };
+  const taskHandlers: TaskHandlers = {
+    requestInterview: (replaces) => handoff(() => { setRequestReplaces(replaces ?? null); setShowInterviewDialog(true); })(),
+    reject: handoff(() => setShowRejectDialog(true)),
+    askRecruiter: handoff(() => setShowFrage(true)),
+    offer: handoff(() => setShowOffer(true)),
+    contract: (open) => handoff(() => setContractOpen(open))(),
+  };
+  // ?aufgabe=… aus Kachel, Liste oder Aufgaben-Seite: Fenster direkt öffnen
+  const aufgabeParam = new URLSearchParams(location.search).get('aufgabe');
+  useEffect(() => {
+    if (!aufgabeParam || !clientTasks.data) return;
+    const task = clientTasks.data.tasks.find((x) => x.key === aufgabeParam);
+    if (task) openTask(task);
+    navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aufgabeParam, clientTasks.data]);
+  // Stand geändert (Fenster gespeichert) → Aufgaben neu laden
+  useEffect(() => { void clientTasks.refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [subState]);
+  useEffect(() => {
+    if (!delegatedTask || !clientTasks.data) return;
+    if (clientTasks.data.tasks.some((x) => x.key === delegatedTask.key)) return;
+    const done = delegatedTask;
+    setDelegatedTask(null);
+    void clientTasksApi.logDone(done, `${done.title} erledigt`).catch(() => undefined);
+    void queryClient.invalidateQueries({ queryKey: ['client-tasks'] });
+    sonnerToast.success(`Erledigt: ${done.title}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientTasks.data, delegatedTask]);
 
   // Loading
   // Gespräch für das Feedback: das jüngste vergangene ohne Feedback
@@ -786,20 +835,30 @@ export default function CandidateDetail() {
                 )}
               </div>
             )}
+
+            {/* Ihre Aufgaben · läuft bei anderen (wie „AUFGABEN“ im Headhunter-Profil) */}
+            {!isViewer && clientTasks.data && (clientTasks.data.tasks.length > 0 || clientTasks.data.waiting.length > 0) && (
+              <div className="mt-3 border-t pt-3">
+                <ProfileTaskCards tasks={clientTasks.data.tasks} waiting={clientTasks.data.waiting} onOpen={openTask} />
+              </div>
+            )}
           </div>
         </div>
 
         {/* ================================================================ */}
         {/* ZONE 2 — WAS JETZT                                               */}
         {/* ================================================================ */}
+        {/* Mit Aufgaben-Karten im Kopf (23.10.2026) wird die Box zur schlichten Werkzeugzeile:
+            Satz und Entscheidungs-Knöpfe stehen dann in der Karte bzw. im Aufgaben-Fenster. */}
         <div className={cn(
           'rounded-xl border p-4',
+          taskCardsShown ? 'bg-transparent' :
           state.tone === 'warn' ? 'bg-warning/10 border-warning/20' :
           state.tone === 'crit' ? 'bg-destructive/10 border-destructive/20' :
           'bg-muted/30'
         )}>
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm flex-1 min-w-[240px]">{ctxFor()}</p>
+            {!taskCardsShown && <p className="text-sm flex-1 min-w-[240px]">{ctxFor()}</p>}
             <div className="flex flex-wrap items-center gap-2">
               {isViewer && (
                 <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
@@ -808,7 +867,7 @@ export default function CandidateDetail() {
               )}
               {!isViewer && !isTerminal && (
                 <>
-                  {isPendingCandidate ? (
+                  {taskCardsShown ? null : isPendingCandidate ? (
                     <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} />
                   ) : !offerFlow && (
                     <Button size="sm" onClick={runPrimary} className="gap-1.5">
@@ -816,10 +875,10 @@ export default function CandidateDetail() {
                       {t(primary.labelKey, state.params)}
                     </Button>
                   )}
-                  {state.key === 'naechste_runde' && (
+                  {!taskCardsShown && state.key === 'naechste_runde' && (
                     <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>Direkt Angebot machen</Button>
                   )}
-                  {(state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
+                  {!taskCardsShown && (state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
                     <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
                   )}
                   {!signedContract && (
@@ -833,7 +892,7 @@ export default function CandidateDetail() {
                       {t('bewerber.actions.reject')}
                     </Button>
                   )}
-                  {showAgendaLink && (
+                  {showAgendaLink && !taskCardsShown && (
                     <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
                       <Link to="/dashboard/interviews">{t('bewerber.detail.agenda')}</Link>
                     </Button>
@@ -1167,8 +1226,12 @@ export default function CandidateDetail() {
         open={showInterviewDialog}
         onOpenChange={setShowInterviewDialog}
         submissionId={submissionId}
-        onSent={() => { setShowInterviewDialog(false); refetch(); }}
+        replacesInterviewId={requestReplaces}
+        onSent={() => { setShowInterviewDialog(false); setRequestReplaces(null); refetch(); }}
       />
+
+      {/* Aufgaben-Fenster (23.10.2026) */}
+      <ClientTaskWindow task={activeTask} open={!!activeTask} onOpenChange={(o) => { if (!o) setActiveTask(null); }} handlers={taskHandlers} recruiterName={hhName} />
 
       <OfferDialog submissionId={submissionId} open={showOffer} onOpenChange={setShowOffer} onSent={() => refetch()} />
 
@@ -1178,6 +1241,7 @@ export default function CandidateDetail() {
         onOpenChange={(o) => !o && setFeedbackFor(null)}
         candidateName={identityUnlocked ? displayName : anonCode}
         onSaved={() => refetch()}
+        context={clientTasks.data?.tasks.find((x) => x.kind === 'feedback' && x.ref.interviewId === feedbackFor)?.context ?? null}
         onNext={(way) => {
           if (way === 'next_round') setShowInterviewDialog(true);
           if (way === 'offer') setShowOffer(true);

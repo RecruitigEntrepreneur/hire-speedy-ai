@@ -4,6 +4,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { fmtDayLong, interviewApi, type FeedbackWay } from '@/lib/interviewScheduling';
 import { useLiveInterviewNotes } from '@/hooks/useLiveInterviewNotes';
 import { FeedbackPanel } from './FeedbackPanel';
+import { ContextView } from '@/components/client/tasks/ClientTaskParts';
+import type { TaskContext } from '@/lib/clientTasksApi';
 
 interface Props {
   interviewId: string | null;
@@ -13,12 +15,14 @@ interface Props {
   /** Nach dem Speichern: nächste Runde, Angebot, Absage (unsicher schließt nur) */
   onNext: (way: FeedbackWay) => void;
   onSaved?: () => void;
+  /** Gedächtnisstütze aus der Kunden-Aufgabe (Notizen, Runde davor); Termin steht schon im Kopf */
+  context?: TaskContext | null;
 }
 
 const FORMAT = { teams: 'Teams', phone: 'Telefon', onsite: 'Vor Ort' } as const;
 
 /** Feedback nach dem Gespräch als Fenster in der Mitte (aus Profil und Agenda). */
-export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName, onNext, onSaved }: Props) {
+export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName, onNext, onSaved, context }: Props) {
   const queryClient = useQueryClient();
   const details = useQuery({
     queryKey: ['interview-details', interviewId],
@@ -40,6 +44,9 @@ export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName,
             {d?.scheduledAt ? `${fmtDayLong(d.scheduledAt)} · ${FORMAT[d.format]}` : ''}{people ? ` · mit ${people}` : ''}
           </DialogDescription>
         </DialogHeader>
+        {context && context.facts.some((f) => f.label !== 'Gespräch') && (
+          <ContextView context={{ ...context, facts: context.facts.filter((f) => f.label !== 'Gespräch'), line: [], why: null, foot: null }} />
+        )}
         {details.isLoading || !d ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> wird geladen …</p>
         ) : (

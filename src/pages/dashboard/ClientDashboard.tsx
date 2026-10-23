@@ -6,7 +6,7 @@ import { CalendarConnectCard } from '@/components/interview/calendar/CalendarCon
 import { PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
 import { AktiveJobsTile } from '@/components/dashboard/bento/AktiveJobsTile';
-import { BrauchtEntscheidungTile } from '@/components/dashboard/bento/BrauchtEntscheidungTile';
+import { IhreAufgabenTile } from '@/components/dashboard/bento/IhreAufgabenTile';
 import { AnstehendeInterviewsTile } from '@/components/dashboard/bento/AnstehendeInterviewsTile';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -110,7 +110,7 @@ export default function ClientDashboard() {
             <BewerbungenTile />
             <AktiveJobsTile jobs={data?.liveJobs ?? []} loading={isLoading} />
             <div data-tour="client.decide">
-              <BrauchtEntscheidungTile actions={data?.actions ?? []} loading={isLoading} />
+              <IhreAufgabenTile />
             </div>
             <AnstehendeInterviewsTile />
           </div>

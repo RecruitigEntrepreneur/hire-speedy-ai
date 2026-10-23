@@ -321,7 +321,7 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
 
       <section className="space-y-3" aria-labelledby="slot-heading">
         <div>
-          <h2 id="slot-heading" className="text-base font-semibold">{view.reschedule ? 'Wählen Sie eine neue Zeit' : 'Wählen Sie einen Termin'}</h2>
+          <h2 id="slot-heading" className="text-base font-semibold">{view.reschedule ? (view.slots.length === 1 ? 'Bestätigen Sie die neue Zeit' : 'Wählen Sie eine neue Zeit') : 'Wählen Sie einen Termin'}</h2>
           <p className="text-xs text-muted-foreground">Alle Zeiten: <GermanTime isos={view.slots.map((s) => s.start)} /></p>
         </div>
         <div role="radiogroup" aria-labelledby="slot-heading" className="space-y-2">

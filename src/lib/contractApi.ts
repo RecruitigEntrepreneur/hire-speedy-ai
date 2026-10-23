@@ -72,6 +72,7 @@ export const contractApi = {
   sendSelf: (submissionId: string, sentOn: string | null) => call<Ok>('send_self', { submissionId, sentOn }, 'Konnte nicht gespeichert werden.'),
   sendDigital: (input: DigitalInput) => call<Ok>('send_digital', { ...input }, 'Der Vertrag konnte nicht verschickt werden.'),
   voidDigital: (submissionId: string, toSelf: boolean) => call<Ok>('void_digital', { submissionId, toSelf }),
+  resend: (submissionId: string) => call<Ok>('resend', { submissionId }, 'Die DocuSign-Mail konnte nicht erneut gesendet werden.'),
   refresh: (submissionId: string) => call<Ok>('refresh', { submissionId }),
   report: (input: ReportInput) => call<Ok>('report', { ...input }, 'Die Meldung konnte nicht gespeichert werden.'),
   confirm: (submissionId: string, way: 'yes' | 'values' | 'not_yet', values?: Partial<ReportInput>) => call<Ok>('confirm', { submissionId, way, ...values }),

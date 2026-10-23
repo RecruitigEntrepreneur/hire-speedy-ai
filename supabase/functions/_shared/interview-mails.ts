@@ -37,9 +37,9 @@ export const mapsUrl = (address: string) => `https://www.google.com/maps/search/
 /** „60 Minuten“, ab 2 Stunden „3 Stunden“. */
 export const durationWords = (minutes: number) => (minutes >= 120 && minutes % 60 === 0 ? `${minutes / 60} Stunden` : `${minutes} Minuten`);
 
-export function formatSentence(m: MeetingInfo, minutes: number): string {
+export function formatSentence(m: MeetingInfo, minutes: number, withAddress = true): string {
   if (m.format === 'phone') return `${durationWords(minutes)} am Telefon, ${m.companyName} ruft Sie an.`;
-  if (m.format === 'onsite') return `${durationWords(minutes)} vor Ort${m.address ? `: ${m.address.replace(/\s*\n\s*/g, ', ')}` : ''}.`;
+  if (m.format === 'onsite') return `${durationWords(minutes)} vor Ort${withAddress && m.address ? `: ${m.address.replace(/\s*\n\s*/g, ', ')}` : ''}.`;
   return `${durationWords(minutes)} über Microsoft Teams.`;
 }
 
@@ -90,20 +90,22 @@ export function candidateInvitation(o: {
   const heading = moved
     ? `${o.companyName} möchte Ihren Termin verschieben`
     : o.round > 1 ? `${o.companyName} lädt Sie zum ${o.round}. Gespräch ein` : `${o.companyName} möchte Sie kennenlernen`;
+  // Verschiebung mit genau einer neuen Zeit: bestätigen statt wählen (Live-Test 23.10.2026)
+  const single = !!moved && o.slots.length === 1;
   const slotRows = o.slots.map((s) =>
     `<tr><td style="padding:8px 0;border-top:1px solid #e5e7eb;">${esc(formatBerlinRange(s, o.durationMinutes))}</td>` +
     `<td style="padding:8px 0;border-top:1px solid #e5e7eb;text-align:right;"><a href="${esc(`${o.link}?slot=${encodeURIComponent(s)}`)}" style="color:#111827;font-weight:600;">wählen</a></td></tr>`).join('');
   const body = [
     p(`Hallo${o.firstName ? ` ${esc(o.firstName)}` : ''},`),
     moved
-      ? p(`${esc(o.companyName)} muss Ihren Termin für die Stelle <strong>${esc(o.jobTitle)}</strong> am <strong>${esc(moved)}</strong> leider verschieben. Bitte wählen Sie eine neue Zeit – bis dahin bleibt der bisherige Termin bestehen. ${esc(formatSentence(meeting, o.durationMinutes))}`)
+      ? p(`${esc(o.companyName)} muss Ihren Termin für die Stelle <strong>${esc(o.jobTitle)}</strong> am <strong>${esc(moved)}</strong> leider verschieben. Bitte ${single ? 'bestätigen Sie die neue Zeit' : 'wählen Sie eine neue Zeit'} – bis dahin bleibt der bisherige Termin bestehen. ${esc(formatSentence(meeting, o.durationMinutes, false))}`)
       : o.round > 1
-        ? p(`${esc(o.companyName)} möchte Sie ${roundWord} für die Stelle <strong>${esc(o.jobTitle)}</strong> einladen. ${esc(formatSentence(meeting, o.durationMinutes))}`)
-        : p(`${esc(o.companyName)} möchte Sie für die Stelle <strong>${esc(o.jobTitle)}</strong> kennenlernen. ${esc(formatSentence(meeting, o.durationMinutes))}`),
+        ? p(`${esc(o.companyName)} möchte Sie ${roundWord} für die Stelle <strong>${esc(o.jobTitle)}</strong> einladen. ${esc(formatSentence(meeting, o.durationMinutes, false))}`)
+        : p(`${esc(o.companyName)} möchte Sie für die Stelle <strong>${esc(o.jobTitle)}</strong> kennenlernen. ${esc(formatSentence(meeting, o.durationMinutes, false))}`),
     locationHtml(meeting),
     o.interviewers.length ? p(`${muted('Gesprächspartner:')} ${esc(interviewerLine(o.interviewers))}`) : '',
     o.message ? quote(o.message) : '',
-    `<div style="font-weight:600;margin:16px 0 4px 0;">${moved ? 'Wählen Sie eine neue Zeit' : 'Wählen Sie einen Termin'}</div>`,
+    `<div style="font-weight:600;margin:16px 0 4px 0;">${single ? 'Bestätigen Sie die neue Zeit' : moved ? 'Wählen Sie eine neue Zeit' : 'Wählen Sie einen Termin'}</div>`,
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;">${slotRows}</table>`,
     p(muted(`Alle Zeiten in ${zone(o.slots[0] ?? new Date().toISOString())}.`)),
   ].join('');
@@ -118,11 +120,11 @@ export function candidateInvitation(o: {
     : 'Diese Einladung kommt über Matchunt.';
   return {
     subject,
-    html: layout({ preheader: heading, heading, body, cta: { label: moved ? 'Neue Zeit wählen' : 'Termin wählen und bestätigen', url: o.link }, after, footnote }),
+    html: layout({ preheader: heading, heading, body, cta: { label: single ? 'Neue Zeit bestätigen' : moved ? 'Neue Zeit wählen' : 'Termin wählen und bestätigen', url: o.link }, after, footnote }),
     text: plain(
       `Hallo${o.firstName ? ` ${o.firstName}` : ''},`, '',
       moved
-        ? `${o.companyName} muss Ihren Termin am ${moved} verschieben. Bis Sie eine neue Zeit wählen, bleibt er bestehen. ${formatSentence(meeting, o.durationMinutes)}`
+        ? `${o.companyName} muss Ihren Termin am ${moved} verschieben. Bis Sie ${single ? 'die neue Zeit bestätigen' : 'eine neue Zeit wählen'}, bleibt er bestehen. ${formatSentence(meeting, o.durationMinutes)}`
         : o.round > 1
           ? `${o.companyName} möchte Sie ${roundWord} für die Stelle ${o.jobTitle} einladen. ${formatSentence(meeting, o.durationMinutes)}`
           : `${o.companyName} möchte Sie für die Stelle ${o.jobTitle} kennenlernen. ${formatSentence(meeting, o.durationMinutes)}`,

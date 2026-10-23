@@ -449,3 +449,7 @@ verify_jwt = false
 # Einstellung und Rechnung (Paket 4a): nur angemeldet; Admin bzw. Kundenteam prüft die Function selbst.
 [functions.placement]
 verify_jwt = true
+
+# Kunden-Aufgaben (23.10.2026): nur angemeldet; Team-Zugriff prüft die Function selbst.
+[functions.client-tasks]
+verify_jwt = true

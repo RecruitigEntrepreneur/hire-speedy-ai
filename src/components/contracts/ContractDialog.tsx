@@ -49,7 +49,8 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null }: P
   useEffect(() => {
     if (!open || !ctx) return;
     setWay(initialWay ?? (ctx.digitalAvailable ? 'digital' : 'self'));
-    setStep('choose');
+    // Aus der Aufgabe „Digital über Matchunt“ direkt zum Hochladen
+    setStep(initialWay === 'digital' && ctx.digitalAvailable ? 'upload' : 'choose');
     setSentOn(initialWay === 'self' ? todayIso() : '');
     setFile(null);
     setSalary(fmt(ctx.offer?.salary ?? null));

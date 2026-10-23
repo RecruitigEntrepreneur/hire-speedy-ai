@@ -73,3 +73,25 @@ Deno.test('Versand: SMTP zuerst, bei Fehler API-Ersatz', async () => {
   const bad = await sendInterviewMail({ fromEmail: 'termine@matchunt.ai', fromName: 'M', to: 'kaputt', subject: 's', html: 'h', text: 't' }, { env });
   assert(!bad.sent);
 });
+
+// Live-Test 23.10.2026: Adresse nur einmal, bei genau einer neuen Zeit „bestätigen“
+import { candidateInvitation } from '../functions/_shared/interview-mails.ts';
+
+Deno.test('Einladung vor Ort: Adresse nur im Adressblock, Verschiebung mit einer Zeit heißt bestätigen', () => {
+  const base = {
+    firstName: 'Tessa', companyName: 'Bluewater & Bridge GmbH', jobTitle: 'Sales Manager DACH', durationMinutes: 120,
+    slots: ['2026-10-23T10:30:00.000Z'], link: 'https://matchunt.ai/interview/respond/x', message: null, interviewers: [],
+    recruiter: null, round: 2, allowAlternative: true, consentRequired: false,
+    meeting: { format: 'onsite' as const, companyName: 'Bluewater & Bridge GmbH', address: 'Bluewater & Bridge GmbH\nAdlzreiterstraße 2\n80337 München' },
+  };
+  const invite = candidateInvitation(base);
+  const count = (s: string, part: string) => s.split(part).length - 1;
+  if (count(invite.html, 'Adlzreiterstraße 2') !== 1) throw new Error('Adresse steht nicht genau einmal im HTML');
+  if (!invite.html.includes('2 Stunden vor Ort.')) throw new Error('Satz ohne Adresse fehlt');
+  if (!invite.text.includes('Adlzreiterstraße 2')) throw new Error('Textfassung braucht die Adresse');
+
+  const moved = candidateInvitation({ ...base, round: 1, reschedule: { previousStart: '2026-10-26T08:00:00.000Z' } });
+  if (!moved.html.includes('Bestätigen Sie die neue Zeit') || !moved.html.includes('Neue Zeit bestätigen')) throw new Error('Einzahl fehlt');
+  const two = candidateInvitation({ ...base, round: 1, slots: [...base.slots, '2026-10-27T10:00:00.000Z'], reschedule: { previousStart: '2026-10-26T08:00:00.000Z' } });
+  if (!two.html.includes('Wählen Sie eine neue Zeit')) throw new Error('Mehrzahl fehlt');
+});

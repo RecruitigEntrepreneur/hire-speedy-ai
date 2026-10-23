@@ -19,6 +19,7 @@ import CreateJob from "./pages/dashboard/CreateJob";
 import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
 import CandidateDetail from "./pages/dashboard/CandidateDetail";
 import ClientBewerberPage from "./pages/dashboard/ClientBewerberPage";
+import ClientAufgaben from "./pages/dashboard/ClientAufgaben";
 import ClientPlacements from "./pages/dashboard/ClientPlacements";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
@@ -228,6 +229,11 @@ function AppRoutes() {
       <Route path="/dashboard/talent" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/pipeline" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/pipeline/:jobId" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/aufgaben" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientAufgaben />
+        </ProtectedRoute>
+      } />
       <Route path="/dashboard/candidates" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientBewerberPage />

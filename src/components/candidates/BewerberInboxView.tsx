@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { BewerberPreviewPanel } from './BewerberPreviewPanel';
 import { BewerberStatusPill } from './BewerberStatusPill';
+import { useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import type { BewerberItem } from '@/hooks/useBewerber';
@@ -25,12 +26,15 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
 function CandidateCard({
   item,
   submitter,
+  task,
   isSelected,
   onSelect,
   onOpen,
 }: {
   item: BewerberItem;
   submitter?: string;
+  /** offene Aufgabe des Kunden zu dieser Bewerbung (23.10.2026) */
+  task?: ClientTask;
   isSelected: boolean;
   onSelect: () => void;
   onOpen: () => void;
@@ -57,6 +61,11 @@ function CandidateCard({
         {item.fullName && item.currentRole ? `${item.currentRole} · ` : ''}für: {item.jobTitle}
         {submitter ? ` · von ${submitter}` : ''}
       </p>
+      {task && (
+        <p className={cn('mt-1 truncate text-[11px] font-medium', task.urgent ? 'text-destructive' : 'text-amber-600 dark:text-amber-400')}>
+          Ihre Aufgabe: {task.title}
+        </p>
+      )}
       <div className="flex items-center justify-between gap-2 mt-1.5">
         <BewerberStatusPill item={item} />
         {title !== item.anonymizedName && (
@@ -85,6 +94,9 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
 
   // Wer den Kandidaten eingereicht hat, je Karte (über die Suchenden-Liste der Stellen)
   const { data: submitterNames } = useSubmitterNames(items.map((i) => ({ submissionId: i.submissionId, jobId: i.jobId })));
+  const { data: taskList } = useClientTasks();
+  const taskBySub = new Map<string, ClientTask>();
+  for (const t of taskList?.tasks ?? []) if (t.submissionId && !taskBySub.has(t.submissionId)) taskBySub.set(t.submissionId, t);
 
   const displayNameOf = (item: BewerberItem) =>
     item.fullName || item.currentRole || item.career[0]?.jobTitle || item.anonymizedName;
@@ -94,6 +106,7 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
       key={item.submissionId}
       item={item}
       submitter={submitterNames?.[item.submissionId]}
+      task={taskBySub.get(item.submissionId)}
       isSelected={selectedItem?.submissionId === item.submissionId}
       onSelect={() => setSelectedId(item.submissionId)}
       onOpen={() => navigate(`/dashboard/candidates/${item.submissionId}`)}
