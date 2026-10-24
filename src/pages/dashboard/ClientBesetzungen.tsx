@@ -35,14 +35,17 @@ const EMPTY: Record<BesetzungGroup, string> = {
   ab: 'Noch nichts abgeschlossen. Hier landen Besetzungen nach dem Continuity-Zeitraum bzw. 6 Monate nach Start, dazu Nichtantritte und Ausgeschiedene.',
 };
 
-function Kpi({ label, value, sub }: { label: string; value: string; sub?: string | null }) {
-  return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+function Kpi({ label, value, sub, onClick }: { label: string; value: string; sub?: string | null; onClick?: () => void }) {
+  const inner = (
+    <>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-xl font-semibold">{value}</p>
       {sub && <p className="truncate text-xs text-muted-foreground">{sub}</p>}
-    </div>
+    </>
   );
+  return onClick
+    ? <button type="button" onClick={onClick} className="rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/30">{inner}</button>
+    : <div className="rounded-xl border bg-card px-4 py-3">{inner}</div>;
 }
 
 export default function ClientBesetzungen() {
@@ -110,7 +113,7 @@ export default function ClientBesetzungen() {
           <>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Kpi label={`Besetzt ${new Date().getFullYear()}`} value={String(k?.placedThisYear ?? 0)} sub="unterschrieben" />
-              <Kpi label="Offene Rechnungen" value={k?.openInvoiceCents ? eur(k.openInvoiceCents) : '0 €'} sub={k?.openInvoiceCents ? 'brutto, laut Rechnung' : null} />
+              <Kpi label="Offene Rechnungen" value={k?.openInvoiceCents ? eur(k.openInvoiceCents) : '0 €'} sub="zu den Rechnungen" onClick={() => navigate('/dashboard/rechnungen')} />
               <Kpi label="Nächster Start" value={k?.nextStart ? dayMonth(k.nextStart.date) : '–'} sub={k?.nextStart?.name ?? null} />
             </div>
 

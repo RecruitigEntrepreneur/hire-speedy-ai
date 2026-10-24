@@ -36,7 +36,9 @@ async function settingsOf(ctx: PlacementCtx, ownerId: string) {
 export async function clientInvoices(ctx: PlacementCtx, user: User) {
   const scope = await billingScope(ctx.db, user.id);
   const settings = await settingsOf(ctx, scope.ownerId);
-  const base = { canManage: scope.canManage, financeOnly: scope.financeOnly, settings };
+  // Menüpunkt „Rechnungen“: nur wer Rechnungen sehen darf (nicht Hiring Manager und Viewer)
+  const canSee = scope.isAdmin || scope.canManage || scope.jobIds.length > 0;
+  const base = { canSee, canManage: scope.canManage, financeOnly: scope.financeOnly, settings };
   const byJob = await rowsIn(ctx.db, 'invoices', '*', 'job_id', scope.jobIds);
   const { data: legacy } = await ctx.db.from('invoices').select('*').eq('client_id', user.id).is('job_id', null);
   const all = [...byJob, ...((legacy ?? []) as any[])].filter((i) => i.status !== 'draft' && canSeeInvoice(scope, i));

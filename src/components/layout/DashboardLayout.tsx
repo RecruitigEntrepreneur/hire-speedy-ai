@@ -20,6 +20,7 @@ import {
   Wallet,
   Target,
   CheckSquare,
+  Receipt,
   BarChart3,
   UsersRound,
   AlertTriangle,
@@ -51,6 +52,7 @@ import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShort
 import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsHelp';
 import { useNewFeedbackCount } from '@/hooks/useAdminFeedback';
 import { useClientTasks } from '@/lib/clientTasksApi';
+import { useClientInvoices } from '@/lib/billingApi';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -76,6 +78,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   const { shortcuts } = useDashboardKeyboardShortcuts(() => setShortcutsHelpOpen(true));
   const { data: newFeedback = 0 } = useNewFeedbackCount(role === 'admin');
   const clientTasks = useClientTasks();
+  const clientInvoices = useClientInvoices();
 
   const handleSignOut = async () => {
     await signOut();
@@ -103,6 +106,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     // Besetzungen (Etappe 2, 25.10.2026): ersetzt „Angebote“ und „Placements“
     { label: 'Besetzungen', href: '/dashboard/besetzungen', icon: <UserCheck className="h-4 w-4" /> },
+    // Rechnungen (Etappe 3): eigener Bereich, nur wer Rechnungen sehen darf; Zahl = offene Belege
+    ...(clientInvoices.data?.canSee ? [{ label: 'Rechnungen', href: '/dashboard/rechnungen', icon: <Receipt className="h-4 w-4" />, badge: clientInvoices.data.totals.openCount }] : []),
     { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Team', href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },

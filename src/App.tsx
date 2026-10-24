@@ -24,7 +24,7 @@ import ClientBesetzungen from "./pages/dashboard/ClientBesetzungen";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
 import ClientIntake from "./pages/dashboard/ClientIntake";
-import ClientBilling from "./pages/dashboard/ClientBilling";
+import ClientRechnungen from "./pages/dashboard/ClientRechnungen";
 import DataPrivacy from "./pages/dashboard/DataPrivacy";
 
 // Recruiter pages
@@ -272,11 +272,13 @@ function AppRoutes() {
           <ClientSettings />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/billing" element={
+      {/* Rechnungen (Etappe 3, 25.10.2026): eigener Bereich, ersetzt „Abrechnung“ */}
+      <Route path="/dashboard/rechnungen" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <ClientBilling />
+          <ClientRechnungen />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/billing" element={<Navigate to="/dashboard/rechnungen" replace />} />
       <Route path="/dashboard/privacy" element={
         <ProtectedRoute allowedRoles={['client']}>
           <DataPrivacy />

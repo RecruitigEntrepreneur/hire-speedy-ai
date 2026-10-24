@@ -228,7 +228,10 @@ Deno.test({ name: 'Rechnungen: Buchhaltung sieht alle Belege, keine Profile; Hir
   eq([fin.totals.openCents, fin.totals.openCount, fin.totals.nextDue, fin.settings.billingEmail, fin.settings.bank?.holder], [4046000, 1, '2026-11-05', 'buchhaltung@medtec.test', 'Bluewater & Bridge GmbH']);
   const owner = await clientInvoices(w.ctx as any, user(CLIENT));
   eq([owner.invoices.length, owner.financeOnly, owner.invoices[0].submissionId], [1, false, SUB]);
-  eq((await clientInvoices(w.ctx as any, user(HM))).invoices.length, 0, 'Hiring Manager sieht keine Rechnungen');
+  const hm = await clientInvoices(w.ctx as any, user(HM));
+  eq([hm.invoices.length, hm.canSee, fin.canSee, owner.canSee], [0, false, true, true], 'Hiring Manager sieht keine Rechnungen, auch keinen Menüpunkt');
+  const hr = await clientInvoices(w.ctx as any, user(HR));
+  eq([hr.invoices.length, hr.canSee, hr.canManage], [1, true, false], 'HR sieht, ändert aber nicht');
 
   assert((await invoiceFile(w.ctx as any, user(FIN), { invoiceId: id })).url.includes('RE-2026-0042'), 'Buchhaltung holt das PDF');
   await fails(invoiceFile(w.ctx as any, user(HM), { invoiceId: id }), 'Berechtigung');

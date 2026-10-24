@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 import { besetzungApi, DEPARTURE_GROUPS, fileToBase64, type BesetzungItem, type DepartureOutcome } from '@/lib/besetzungApi';
 import { clientTasksApi } from '@/lib/clientTasksApi';
 import { contractApi } from '@/lib/contractApi';
-import { placementApi } from '@/lib/placementApi';
 import { dateDe, factsOf, first, statusOf, stepsOf, todayKey } from './besetzungView';
 import { FactGrid, StatusPill, StepRow } from './BesetzungParts';
 
@@ -104,7 +103,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onStartC
   if (p && item.can?.departure) acts.push({ label: 'Ausgeschieden melden', run: () => setForm('aus') });
   if (p && (!item.invoice?.number || item.invoice.status === 'draft') && !p.nonStartReportedAt) acts.push({ label: p.purchaseOrder ? 'Bestellnummer ändern' : 'Bestellnummer angeben', run: () => setForm('po') });
   if (item.contract?.status === 'final') acts.push({ label: 'Vertrag (PDF)', run: () => void openPdf(() => contractApi.document(item.submissionId)) });
-  if (item.invoice?.number && item.invoice.status !== 'draft') acts.push({ label: 'Rechnung (PDF)', run: () => void openPdf(() => placementApi.file(item.invoice!.id)) });
+  if (item.invoice?.number && item.invoice.status !== 'draft') acts.push({ label: 'Rechnung ansehen', run: () => { onOpenChange(false); navigate(`/dashboard/rechnungen?beleg=${item.invoice!.id}`); } });
   acts.push({ label: 'Bewerberprofil', run: () => { onOpenChange(false); navigate(`/dashboard/candidates/${item.submissionId}`); } });
 
   const continuity = !!item.package.continuityDays;
