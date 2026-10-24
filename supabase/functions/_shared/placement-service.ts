@@ -6,29 +6,31 @@
 // Rechnungs-E-Mail des Kunden. Danach bucht Matchunt den Zahlungseingang.
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
-import { canUserActOnJob } from './team-access.ts';
+import { billingOwnerOfJob, billingScope, canSeeInvoice } from './billing-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import { PAYMENT_TERMS_DAYS, VAT_RATE, NUMBERING, formatNumber, isReverseCharge, releaseBlockers } from './billing-config.ts';
 import { eur, renderInvoicePdf, type InvoiceDoc } from './invoice-pdf.ts';
 import { esc, layout } from './intake-mail.ts';
 
 export interface FilePort {
-  put(path: string, bytes: Uint8Array): Promise<void>;
+  put(path: string, bytes: Uint8Array, contentType?: string): Promise<void>;
   get(path: string): Promise<Uint8Array | null>;
   url(path: string, seconds: number): Promise<string | null>;
 }
 
 export interface PlacementCtx extends ServiceCtx {
   invoiceFiles: FilePort;
+  /** Unterlagen zur Einstellung, z. B. die Erklärung zum Nichtantritt (Etappe 1, 25.10.2026) */
+  placementFiles?: FilePort;
 }
 
-const UUID = /^[0-9a-f-]{36}$/i;
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const UUID = /^[0-9a-f-]{36}$/i;
+export const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ACTIVE_STAGES = ['submitted', 'in_review', 'interview_requested', 'candidate_opted_in', 'interview_scheduled', 'interview_counter_proposed', 'interview_completed', 'offer'];
-const PACKAGE_NAMES: Record<string, string> = { core: 'Matchunt Core', continuity_90: 'Matchunt Continuity 90', continuity_180: 'Matchunt Continuity 180' };
-const dateDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }) : '');
-const todayKey = (now: number) => new Date(now).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-const plusDays = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+export const PACKAGE_NAMES: Record<string, string> = { core: 'Matchunt Core', continuity_90: 'Matchunt Continuity 90', continuity_180: 'Matchunt Continuity 180' };
+export const dateDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }) : '');
+export const todayKey = (now: number) => new Date(now).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+export const plusDays = (iso: string, n: number) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 export function bucketFiles(db: SupabaseClient, bucket: string): FilePort {
   let ready = false;
@@ -39,9 +41,9 @@ export function bucketFiles(db: SupabaseClient, bucket: string): FilePort {
     ready = true;
   };
   return {
-    put: async (path, bytes) => {
+    put: async (path, bytes, contentType) => {
       await ensure();
-      const { error } = await db.storage.from(bucket).upload(path, bytes, { contentType: 'application/pdf', upsert: true });
+      const { error } = await db.storage.from(bucket).upload(path, bytes, { contentType: contentType ?? 'application/pdf', upsert: true });
       if (error) throw new Error(`Datei konnte nicht gespeichert werden: ${error.message}`);
     },
     get: async (path) => { const { data } = await db.storage.from(bucket).download(path); return data ? new Uint8Array(await data.arrayBuffer()) : null; },
@@ -50,23 +52,23 @@ export function bucketFiles(db: SupabaseClient, bucket: string): FilePort {
 }
 
 export function placementCtx(base: ServiceCtx): PlacementCtx {
-  return { ...base, invoiceFiles: bucketFiles(base.db, 'invoices') };
+  return { ...base, invoiceFiles: bucketFiles(base.db, 'invoices'), placementFiles: bucketFiles(base.db, 'placement-documents') };
 }
 
-async function isAdmin(db: SupabaseClient, userId: string) {
+export async function isAdmin(db: SupabaseClient, userId: string) {
   const { data } = await db.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
   return !!data;
 }
-async function adminIds(db: SupabaseClient): Promise<string[]> {
+export async function adminIds(db: SupabaseClient): Promise<string[]> {
   const { data } = await db.from('user_roles').select('user_id').eq('role', 'admin');
   return ((data ?? []) as any[]).map((r) => r.user_id);
 }
-async function profile(db: SupabaseClient, userId: string | null | undefined) {
+export async function profile(db: SupabaseClient, userId: string | null | undefined) {
   if (!userId) return null;
   const { data } = await db.from('profiles').select('full_name, email').eq('user_id', userId).maybeSingle();
   return data ? { name: (data as any).full_name ?? '', email: (data as any).email ?? null } : null;
 }
-async function notify(ctx: ServiceCtx, userId: string | null | undefined, type: string, title: string, message: string, relatedType: string, relatedId: string) {
+export async function notify(ctx: ServiceCtx, userId: string | null | undefined, type: string, title: string, message: string, relatedType: string, relatedId: string) {
   if (!userId) return;
   const { error } = await ctx.db.from('notifications').insert({ user_id: userId, type, title, message, related_type: relatedType, related_id: relatedId });
   if (error) console.warn('[placement] Benachrichtigung nicht gespeichert', error.code, error.message);
@@ -96,7 +98,7 @@ async function loadSubmission(db: SupabaseClient, submissionId: string) {
   const { data: submission } = await db.from('submissions').select('id, job_id, candidate_id, recruiter_id, stage, identity_unlocked, company_revealed').eq('id', submissionId).maybeSingle();
   must(submission, 'Bewerbung nicht gefunden.', 'not_found');
   const [{ data: job }, { data: candidate }] = await Promise.all([
-    db.from('jobs').select('id, title, company_name, industry, client_id, fee_percentage, mandate_id, status').eq('id', (submission as any).job_id).maybeSingle(),
+    db.from('jobs').select('id, title, company_name, industry, client_id, organization_id, fee_percentage, mandate_id, status').eq('id', (submission as any).job_id).maybeSingle(),
     db.from('candidates').select('id, full_name').eq('id', (submission as any).candidate_id).maybeSingle(),
   ]);
   must(job, 'Stelle nicht gefunden.', 'not_found');
@@ -164,9 +166,11 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
 }
 
 async function createInvoiceDraft(ctx: PlacementCtx, p: any, b: Awaited<ReturnType<typeof loadSubmission>>, c: any): Promise<string | null> {
-  const { data: company } = await ctx.db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email').eq('user_id', b.job.client_id).maybeSingle();
+  // Rechnungsdaten aus dem Firmenprofil des Inhabers (Team) bzw. des Kunden
+  const billingOwner = await billingOwnerOfJob(ctx.db, b.job);
+  const { data: company } = await ctx.db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email, default_cost_center').eq('user_id', billingOwner).maybeSingle();
   const cp = (company ?? {}) as any;
-  const owner = await profile(ctx.db, b.job.client_id);
+  const owner = await profile(ctx.db, billingOwner);
   const vatId = (cp.tax_id ?? '').trim() || null;
   const reverse = isReverseCharge(vatId);
   const net = Number(p.client_fee_cents ?? 0);
@@ -203,6 +207,7 @@ async function createInvoiceDraft(ctx: PlacementCtx, p: any, b: Awaited<ReturnTy
     payment_terms_days: PAYMENT_TERMS_DAYS, pricing_snapshot: p.pricing_snapshot ?? null, mandate_id: b.job.mandate_id ?? null,
     submission_id: b.submission.id, job_id: b.job.id, vat_rate: reverse ? 0 : VAT_RATE, reverse_charge: reverse,
     recipient, lines, issued_at: todayKey(ctx.now()),
+    purchase_order: p.purchase_order ?? null, cost_center: p.cost_center ?? cp.default_cost_center ?? null,
   }).select('id').maybeSingle();
   if (error) { console.warn('[placement] Rechnungsentwurf nicht angelegt', error.code, error.message); return null; }
   return (data as any)?.id ?? null;
@@ -220,6 +225,8 @@ function docOf(inv: any, overrides: Partial<InvoiceDoc> = {}): InvoiceDoc {
     serviceOn: inv.lines?.[0]?.serviceOn ?? null,
     recipient: { name: r.name ?? '', street: r.street ?? null, city: r.city ?? null, vatId: r.vatId ?? null },
     reference: r.reference ?? null,
+    purchaseOrder: inv.purchase_order ?? null,
+    costCenter: inv.cost_center ?? null,
     lines: (inv.lines ?? []) as any,
     netCents: Number(inv.amount_cents ?? 0), vatRate: Number(inv.vat_rate ?? VAT_RATE), vatCents: Number(inv.tax_amount_cents ?? 0),
     totalCents: Number(inv.total_amount_cents ?? 0), reverseCharge: !!inv.reverse_charge,
@@ -227,12 +234,30 @@ function docOf(inv: any, overrides: Partial<InvoiceDoc> = {}): InvoiceDoc {
   };
 }
 
-async function loadInvoice(db: SupabaseClient, invoiceId: unknown) {
+export async function loadInvoice(db: SupabaseClient, invoiceId: unknown) {
   must(typeof invoiceId === 'string' && UUID.test(invoiceId), 'Ungültige Rechnung.');
   const { data, error } = await db.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
   dbFail(error, 'Die Rechnung');
   must(data, 'Rechnung nicht gefunden.', 'not_found');
   return data as any;
+}
+
+/** Firmenprofil mit den Rechnungsdaten zur Rechnung: Inhaber der Organisation, sonst der Kunde. */
+async function billingCompany(db: SupabaseClient, inv: any) {
+  let ownerId = inv.client_id;
+  if (inv.job_id) {
+    const { data: job } = await db.from('jobs').select('client_id, organization_id').eq('id', inv.job_id).maybeSingle();
+    if (job) ownerId = await billingOwnerOfJob(db, job as any);
+  }
+  const { data } = await db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email, billing_cc_emails, purchase_order_required, default_cost_center').eq('user_id', ownerId).maybeSingle();
+  return (data ?? {}) as any;
+}
+
+/** Bestellnummer und Kostenstelle: von der Rechnung, sonst aus der Einstellung (Kunden-Aufgabe). */
+async function orderRefs(db: SupabaseClient, inv: any): Promise<{ purchaseOrder: string | null; costCenter: string | null }> {
+  if (inv.purchase_order && inv.cost_center) return { purchaseOrder: inv.purchase_order, costCenter: inv.cost_center };
+  const { data: p } = inv.placement_id ? await db.from('placements').select('purchase_order, cost_center').eq('id', inv.placement_id).maybeSingle() : { data: null };
+  return { purchaseOrder: inv.purchase_order ?? (p as any)?.purchase_order ?? null, costCenter: inv.cost_center ?? (p as any)?.cost_center ?? null };
 }
 
 async function requireAdmin(ctx: ServiceCtx, user: User) {
@@ -242,9 +267,12 @@ async function requireAdmin(ctx: ServiceCtx, user: User) {
 export async function invoicePreview(ctx: PlacementCtx, user: User, body: any) {
   await requireAdmin(ctx, user);
   const inv = await loadInvoice(ctx.db, body?.invoiceId);
-  const bytes = await renderInvoicePdf(docOf(inv));
+  const refs = await orderRefs(ctx.db, inv);
+  const cp = await billingCompany(ctx.db, inv);
+  const bytes = await renderInvoicePdf(docOf(inv, refs));
   const missingAddress = !inv.recipient?.street || !inv.recipient?.city;
-  return { pdfBase64: encodeBase64(bytes), blockers: [...releaseBlockers('invoice'), ...(missingAddress ? ['Anschrift des Kunden (Firmendaten)'] : [])] };
+  const missingOrder = !!cp.purchase_order_required && !refs.purchaseOrder;
+  return { pdfBase64: encodeBase64(bytes), blockers: [...releaseBlockers('invoice'), ...(missingAddress ? ['Anschrift des Kunden (Firmendaten)'] : []), ...(missingOrder ? ['Bestellnummer des Kunden'] : [])] };
 }
 
 export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
@@ -254,8 +282,9 @@ export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
   const inv = await loadInvoice(ctx.db, body?.invoiceId);
   must(inv.status === 'draft', 'Die Rechnung ist schon gestellt.', 'conflict');
   // Anschrift aus den aktuellen Firmendaten (§ 14 UStG: vollständige Anschrift des Empfängers)
-  const { data: company } = await ctx.db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id').eq('user_id', inv.client_id).maybeSingle();
-  const cp = (company ?? {}) as any;
+  const cp = await billingCompany(ctx.db, inv);
+  const refs = await orderRefs(ctx.db, inv);
+  must(!cp.purchase_order_required || refs.purchaseOrder, 'Die Bestellnummer des Kunden fehlt. Der Kunde trägt sie in seiner Aufgabe „Bestellnummer angeben“ ein.', 'conflict');
   inv.recipient = {
     ...inv.recipient,
     name: cp.legal_name || cp.company_name || inv.recipient?.name,
@@ -272,7 +301,7 @@ export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
   must(!nErr && typeof n === 'number', 'Die Rechnungsnummer konnte nicht vergeben werden.');
   const number = formatNumber(NUMBERING.invoice.template, year, n as number);
   const due = plusDays(today, inv.payment_terms_days ?? PAYMENT_TERMS_DAYS);
-  const final = { ...inv, status: 'open', invoice_number: number, issued_at: today, due_date: due };
+  const final = { ...inv, status: 'open', invoice_number: number, issued_at: today, due_date: due, purchase_order: refs.purchaseOrder, cost_center: refs.costCenter };
   const bytes = await renderInvoicePdf(docOf(final));
   const path = `${year}/${number.replace(/[^\w.-]/g, '_')}.pdf`;
   await ctx.invoiceFiles.put(path, bytes);
@@ -280,6 +309,7 @@ export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
   const { data: updated, error } = await ctx.db.from('invoices').update({
     status: 'open', invoice_number: number, issued_at: today, due_date: due, pdf_path: path,
     released_at: nowIso, released_by: user.id, recipient: { ...inv.recipient, email: recipientEmail },
+    purchase_order: refs.purchaseOrder, cost_center: refs.costCenter,
   }).eq('id', inv.id).eq('status', 'draft').select('*').maybeSingle();
   dbFail(error, 'Die Rechnung');
   must(updated, 'Die Rechnung wurde gerade schon freigegeben.', 'conflict');
@@ -292,13 +322,18 @@ export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
     `<p style="margin:0 0 12px 0;">anbei unsere Rechnung <strong>${esc(number)}</strong> über <strong>${esc(eur(Number(inv.total_amount_cents)))}</strong> für die Personalvermittlung (${esc(inv.lines?.[0]?.title?.replace('Personalvermittlung: ', '') ?? '')}).</p>`,
     `<p style="margin:0 0 12px 0;">Zahlbar bis ${esc(dateDe(due))}. Bei Fragen antworten Sie einfach auf diese Mail.</p>`,
   ].join('');
-  const result = await ctx.mail({
-    fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: recipientEmail, replyTo: 'info@bluewater-bridge.de',
+  const invoiceMail = (to: string) => ctx.mail({
+    fromEmail: ctx.fromEmail, fromName: 'Matchunt', to, replyTo: 'info@bluewater-bridge.de',
     subject: `${heading} – Matchunt`, html: layout({ preheader: heading, heading, body: body2 }),
     text: `${heading}\nBetrag: ${eur(Number(inv.total_amount_cents))}\nZahlbar bis ${dateDe(due)}`,
     attachments: [{ filename: `${number.replace(/[^\w.-]/g, '_')}.pdf`, contentBase64: encodeBase64(bytes), contentType: 'application/pdf' }],
   }, { template: 'invoice_issued', meta: { invoice_id: inv.id } });
-  if (result.sent) await ctx.db.from('invoices').update({ sent_at: nowIso, sent_to: recipientEmail }).eq('id', inv.id);
+  const result = await invoiceMail(recipientEmail);
+  // Weitere Empfänger aus den Rechnungsdaten des Kunden (z. B. Controlling)
+  const cc = ((cp.billing_cc_emails ?? []) as string[]).map((e) => String(e).trim()).filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.toLowerCase() !== recipientEmail.toLowerCase());
+  const ccSent: string[] = [];
+  for (const addr of cc) if ((await invoiceMail(addr)).sent) ccSent.push(addr);
+  if (result.sent) await ctx.db.from('invoices').update({ sent_at: nowIso, sent_to: [recipientEmail, ...ccSent].join(', ') }).eq('id', inv.id);
 
   // Kundenteam im Dashboard
   if (inv.submission_id) {
@@ -335,8 +370,7 @@ export async function bookPayment(ctx: PlacementCtx, user: User, body: any) {
 export async function invoiceFile(ctx: PlacementCtx, user: User, body: any) {
   const inv = await loadInvoice(ctx.db, body?.invoiceId);
   must(inv.status !== 'draft' && inv.pdf_path, 'Die Rechnung ist noch nicht gestellt.', 'not_found');
-  const allowed = (await isAdmin(ctx.db, user.id)) || inv.client_id === user.id || (inv.job_id && (await canUserActOnJob(ctx.db, user.id, inv.job_id)));
-  must(allowed, 'Dafür fehlt Ihnen die Berechtigung.', 'not_allowed');
+  must(canSeeInvoice(await billingScope(ctx.db, user.id), inv), 'Dafür fehlt Ihnen die Berechtigung.', 'not_allowed');
   const url = await ctx.invoiceFiles.url(inv.pdf_path, 120);
   must(url, 'Das PDF ist gerade nicht abrufbar.', 'not_found');
   return { url };

@@ -13,11 +13,12 @@ import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { canUserActOnJob, getAccessibleJobIds } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import { BANK } from './billing-config.ts';
+import { billingOwnerOfJob, billingScope, canSeeInvoice } from './billing-access.ts';
 
 export type ClientTaskKind =
   | 'review' | 'alternative' | 'expired_request' | 'feedback' | 'decide_unsure' | 'make_offer'
   | 'counter' | 'offer_overdue' | 'send_contract' | 'contract_signed_check' | 'docusign_sign'
-  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice';
+  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice' | 'purchase_order';
 
 export interface ClientTask {
   /** stabil, z. B. feedback:<interviewId> – das Protokoll erkennt damit Erledigtes */
@@ -126,6 +127,10 @@ export interface ClientTaskInput {
   userId?: string;
   /** Unterschrifts-Links (Unterschrift über Matchunt): verschickt, geöffnet */
   signLinks?: any[];
+  /** Stellen, deren Rechnung eine Bestellnummer braucht (Rechnungsdaten des Kunden) */
+  poRequiredJobs?: string[];
+  /** Standard-Kostenstelle je Stelle (Rechnungsdaten des Kunden) */
+  defaultCostCenter?: Record<string, string>;
 }
 
 const DAY = 86400000;
@@ -399,6 +404,24 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
         }
       } else if (pl.non_start_reported_at) {
         wait({ key: `nonstart:${pl.id}`, by: 'matchunt', title: 'Nichtantritt gemeldet', detail: 'Matchunt prüft den Fall und meldet sich' });
+      }
+      // Bestellnummer für die Rechnung (Etappe 1, 25.10.2026): nur, solange die Rechnung noch nicht gestellt ist
+      const released = input.invoices.some((i: any) => i.placement_id === pl.id && i.status !== 'draft');
+      if ((input.poRequiredJobs ?? []).includes(s.job_id) && !pl.purchase_order && !pl.non_start_reported_at && !released) {
+        const createdMs = t(pl.created_at);
+        const fee = pl.client_fee_cents != null ? euroCents(Number(pl.client_fee_cents)) : null;
+        const costCenter = pl.cost_center ?? input.defaultCostCenter?.[s.job_id] ?? null;
+        push({ key: `po:${pl.id}`, kind: 'purchase_order', since: iso(createdMs || now), urgent: now - createdMs > 3 * DAY, waitingWho: null,
+          title: 'Bestellnummer für die Rechnung angeben', detail: `${name} · ohne Bestellnummer geht die Rechnung nicht raus`, ref: { placementId: pl.id },
+          context: ctxOf({
+            ask: `Bestellnummer für die Einstellung von ${nameIn}`,
+            facts: [
+              ...fact('Honorar', fee ? `${fee} netto` : null),
+              ...fact('Kostenstelle', costCenter ?? 'keine hinterlegt'),
+            ],
+            line: [fee ? `${fee} netto` : null, 'Bestellnummer ist bei Ihnen Pflicht'].filter(Boolean) as string[],
+            foot: 'Die Rechnung geht erst mit Bestellnummer raus. Ändern lässt sich das unter Rechnungen › Rechnungsdaten.',
+          }) });
       }
       continue;
     }
@@ -895,7 +918,7 @@ async function rowsIn(db: SupabaseClient, table: string, select: string, column:
 
 /** Alles, was die Ableitung braucht – nur für Stellen, die der Nutzer sehen darf. */
 export async function loadClientTaskInput(db: SupabaseClient, userId: string, jobIds: string[], now: number): Promise<ClientTaskInput & { doneRecent: any[] }> {
-  const jobs = await rowsIn(db, 'jobs', 'id, title, status, client_id, salary_min, salary_max, fee_percentage, mandate_id', 'id', jobIds);
+  const jobs = await rowsIn(db, 'jobs', 'id, title, status, client_id, organization_id, salary_min, salary_max, fee_percentage, mandate_id', 'id', jobIds);
   const submissions = await rowsIn(db, 'submissions', 'id, job_id, candidate_id, recruiter_id, stage, status, submitted_at, identity_unlocked, identity_revealed, recruiter_notes', 'job_id', jobIds);
   const subIds = submissions.map((s) => s.id);
   // Kandidatenfelder wie im Bewerberprofil (client_candidate_view); Bänder bildet die Ableitung
@@ -950,10 +973,23 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
   const doneRecent = allLog.filter((l) => Date.parse(l.done_at) >= now - 7 * DAY)
     .filter((l, i, xs) => xs.findIndex((x) => x.task_key === l.task_key) === i)
     .sort((a, b) => Date.parse(b.done_at) - Date.parse(a.done_at));
+  // Rechnungsdaten je Stelle: braucht die Rechnung eine Bestellnummer? (Firmenprofil des Inhabers)
+  const poRequiredJobs: string[] = [];
+  const defaultCostCenter: Record<string, string> = {};
+  if (placements.length) {
+    const owners = new Map<string, string>();
+    for (const j of jobs) owners.set(j.id, await billingOwnerOfJob(db, j));
+    const profiles = await rowsIn(db, 'company_profiles', 'user_id, purchase_order_required, default_cost_center', 'user_id', [...owners.values()]).catch(() => []);
+    for (const j of jobs) {
+      const cp = profiles.find((x: any) => x.user_id === owners.get(j.id));
+      if (cp?.purchase_order_required) poRequiredJobs.push(j.id);
+      if (cp?.default_cost_center) defaultCostCenter[j.id] = cp.default_cost_center;
+    }
+  }
   return {
     now, jobs, submissions, candidates, recruiters, interviews, offers, recommendations, contracts, placements,
     invoices: invoices.filter((i: any) => i.status !== 'draft'), questions: qs, messages: messages.filter((m: any) => jobIds.includes(m.job_id)),
-    log: allLog, doneRecent, comments, activations, partners, questionSenders, feePct, userId, signLinks,
+    log: allLog, doneRecent, comments, activations, partners, questionSenders, feePct, userId, signLinks, poRequiredJobs, defaultCostCenter,
   };
 }
 
@@ -1184,7 +1220,8 @@ async function loadInvoiceForClient(ctx: ServiceCtx, user: User, id: unknown) {
   const { data: inv, error } = await ctx.db.from('invoices').select('*').eq('id', id).maybeSingle();
   dbFail(error, 'Die Rechnung');
   must(inv && inv.status !== 'draft', 'Diese Rechnung gibt es nicht.', 'not_found');
-  must(inv.client_id === user.id || (inv.job_id && (await canUserActOnJob(ctx.db as any, user.id, inv.job_id))), 'Dafür fehlt Ihnen die Berechtigung.', 'not_allowed');
+  // Inhaber, Admin, HR und Buchhaltung (Etappe 1, 25.10.2026)
+  must(canSeeInvoice(await billingScope(ctx.db, user.id), inv), 'Dafür fehlt Ihnen die Berechtigung.', 'not_allowed');
   return inv;
 }
 

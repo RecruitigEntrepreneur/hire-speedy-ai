@@ -16,6 +16,9 @@ export interface InvoiceDoc {
   serviceOn: string | null;
   recipient: { name: string; street: string | null; city: string | null; vatId: string | null };
   reference: string | null;
+  /** Bestellnummer und Kostenstelle des Kunden (Etappe 1, 25.10.2026) */
+  purchaseOrder?: string | null;
+  costCenter?: string | null;
   correctsNumber?: string | null;
   lines: InvoiceLine[];
   netCents: number;
@@ -61,6 +64,8 @@ export async function renderInvoicePdf(d: InvoiceDoc): Promise<Uint8Array> {
     ...(d.dueOn && d.kind === 'invoice' ? [['Zahlbar bis', day(d.dueOn)] as [string, string]] : []),
     ...(d.recipient.vatId ? [['Ihre USt-IdNr.', d.recipient.vatId] as [string, string]] : []),
     ...(d.reference ? [['Auftrag', d.reference] as [string, string]] : []),
+    ...(d.purchaseOrder ? [['Ihre Bestellnummer', d.purchaseOrder] as [string, string]] : []),
+    ...(d.costCenter ? [['Kostenstelle', d.costCenter] as [string, string]] : []),
     ...(d.correctsNumber ? [['Storniert Rechnung', d.correctsNumber] as [string, string]] : []),
   ];
   let my = 690;
