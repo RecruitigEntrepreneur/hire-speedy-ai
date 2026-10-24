@@ -13,6 +13,7 @@ import { interviewApi } from '@/lib/interviewScheduling';
 import { offerApi } from '@/lib/offerApi';
 import { contractApi } from '@/lib/contractApi';
 import { placementApi } from '@/lib/placementApi';
+import { besetzungApi } from '@/lib/besetzungApi';
 import type { ContractOpen } from '@/components/contracts/ContractBox';
 import { TaskContextBlock } from './ClientTaskParts';
 
@@ -32,7 +33,7 @@ export interface TaskHandlers {
   contract: (open: ContractOpen) => void;
 }
 
-type Field = 'none' | 'reason' | 'date' | 'text' | 'colleague' | 'nonstart';
+type Field = 'none' | 'reason' | 'date' | 'text' | 'colleague' | 'nonstart' | 'po';
 
 interface Option {
   key: string;
@@ -51,7 +52,7 @@ interface Option {
   run: (v: Values) => Promise<'done' | 'logged' | 'handoff'>;
 }
 
-interface Values { reason: string; date: string; text: string; colleague: string }
+interface Values { reason: string; date: string; text: string; colleague: string; cost: string }
 
 const INTERVIEW_CANCEL = [
   { key: 'Kandidat passt nicht mehr', label: 'passt nicht mehr' }, { key: 'Stelle ist besetzt', label: 'Stelle besetzt' },
@@ -196,6 +197,12 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
         { key: 'frage', label: 'Frage zur Rechnung', cta: 'Frage senden', field: 'text', check: (v) => (v.text.trim().length >= 3 ? null : 'Bitte die Frage schreiben.'),
           run: async (v) => { await clientTasksApi.invoiceQuestion(t.ref.invoiceId!, v.text.trim()); toast.success('Frage an Matchunt gesendet.'); return 'handoff'; } },
       ];
+    case 'purchase_order':
+      return [
+        { key: 'eintragen', label: 'Bestellnummer eintragen', cta: 'Speichern', doneText: 'Gespeichert. Die Bestellnummer steht auf der Rechnung.', field: 'po',
+          check: (v) => (v.text.trim() ? null : 'Bitte die Bestellnummer angeben.'),
+          run: async (v) => { await besetzungApi.setPurchaseOrder(t.ref.placementId!, v.text.trim(), v.cost.trim()); return 'logged'; } },
+      ];
     default:
       return [{ key: 'open', label: 'Öffnen', cta: 'Öffnen', run: handoff(() => {}) }];
   }
@@ -216,7 +223,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
   const hh = (recruiterName ?? 'Headhunter').split(' ')[0];
   const options = useMemo(() => (task ? optionsFor(task, handlers, { recruiter: hh }) : []), [task, handlers, hh]);
   const [choice, setChoice] = useState<string>('');
-  const [values, setValues] = useState<Values>({ reason: '', date: '', text: '', colleague: '' });
+  const [values, setValues] = useState<Values>({ reason: '', date: '', text: '', colleague: '', cost: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -225,7 +232,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
   useEffect(() => {
     if (!open || !task) return;
     setChoice(options[0]?.key ?? '');
-    setValues({ reason: '', date: task.kind === 'offer_overdue' ? plusDays(3) : task.kind === 'invoice' ? todayIso() : '', text: '', colleague: '' });
+    setValues({ reason: '', date: task.kind === 'offer_overdue' ? plusDays(3) : task.kind === 'invoice' ? todayIso() : '', text: '', colleague: '', cost: '' });
     setError(null);
     setDone(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -334,6 +341,14 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
             {opt?.field === 'text' && (
               <Textarea rows={task.kind === 'recruiter_question' ? 4 : 2} placeholder={task.kind === 'counter' ? 'z. B. Mehr ist im Budget nicht drin, dafür Start flexibel.' : task.kind === 'invoice' ? 'Ihre Frage an Matchunt …' : 'Ihre Antwort …'}
                 value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} />
+            )}
+            {opt?.field === 'po' && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm"><span className="text-muted-foreground">Bestellnummer</span>
+                  <Input className="mt-1 h-9" placeholder="z. B. 4500-1182" value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} /></label>
+                <label className="block text-sm"><span className="text-muted-foreground">Kostenstelle (optional)</span>
+                  <Input className="mt-1 h-9" placeholder="leer = Standard aus den Rechnungsdaten" value={values.cost} onChange={(e) => setValues((v) => ({ ...v, cost: e.target.value }))} /></label>
+              </div>
             )}
             {opt?.field === 'colleague' && (
               <div className="flex flex-wrap gap-1.5">

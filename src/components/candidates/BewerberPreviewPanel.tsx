@@ -258,7 +258,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               </p>
               {item.archiveKind === 'eingestellt' && (
                 <Button variant="outline" size="sm" className="mt-2" asChild>
-                  <Link to="/dashboard/placements">{t('bewerber.archive.view_placement')}</Link>
+                  <Link to="/dashboard/besetzungen?reiter=haus">{t('bewerber.archive.view_placement')}</Link>
                 </Button>
               )}
             </div>

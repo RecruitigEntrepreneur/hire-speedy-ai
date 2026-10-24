@@ -11,7 +11,7 @@ import { callFunction } from '@/lib/interviewScheduling';
 export type ClientTaskKind =
   | 'review' | 'alternative' | 'expired_request' | 'feedback' | 'decide_unsure' | 'make_offer'
   | 'counter' | 'offer_overdue' | 'send_contract' | 'contract_signed_check' | 'docusign_sign'
-  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice';
+  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice' | 'purchase_order';
 
 export interface ClientTask {
   key: string;
@@ -125,6 +125,7 @@ export const TASK_ACTION: Record<ClientTaskKind, string> = {
   recruiter_question: 'Antworten',
   confirm_start: 'Bestätigen',
   invoice: 'Öffnen',
+  purchase_order: 'Eintragen',
 };
 
 /** Kurzes Etikett auf der Karte (wie beim Headhunter). */
@@ -144,6 +145,7 @@ export const TASK_CHIP: Record<ClientTaskKind, string> = {
   recruiter_question: 'Frage',
   confirm_start: 'Antritt',
   invoice: 'Rechnung',
+  purchase_order: 'Rechnung',
 };
 
 /** „seit 2 Tagen“, „seit 5 Std.“, „seit heute“ */

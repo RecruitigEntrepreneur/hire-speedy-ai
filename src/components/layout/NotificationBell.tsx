@@ -53,7 +53,7 @@ export function NotificationBell() {
       case "placement":
         return role === "recruiter"
           ? `/recruiter/earnings`
-          : `/dashboard/placements`;
+          : `/dashboard/besetzungen`;
       case "payout":
         return `/recruiter/payouts`;
       case "client_company":

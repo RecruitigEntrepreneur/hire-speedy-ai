@@ -20,7 +20,7 @@ import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
 import CandidateDetail from "./pages/dashboard/CandidateDetail";
 import ClientBewerberPage from "./pages/dashboard/ClientBewerberPage";
 import ClientAufgaben from "./pages/dashboard/ClientAufgaben";
-import ClientPlacements from "./pages/dashboard/ClientPlacements";
+import ClientBesetzungen from "./pages/dashboard/ClientBesetzungen";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
 import ClientIntake from "./pages/dashboard/ClientIntake";
@@ -98,7 +98,6 @@ import SelectSlot from "./pages/interview/SelectSlot";
 import InterviewResponsePage from "./pages/interview/InterviewResponsePage";
 import SignLinkPage from "./pages/contract/SignLinkPage";
 import ClientConfirmAlternative from "./pages/interview/ClientConfirmAlternative";
-import ClientOffers from "./pages/dashboard/ClientOffers";
 import ViewOffer from "./pages/offer/ViewOffer";
 import OfferAccepted from "./pages/offer/OfferAccepted";
 
@@ -246,11 +245,13 @@ function AppRoutes() {
           <CandidateDetail />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/placements" element={
+      {/* Besetzungen (Etappe 2, 25.10.2026) ersetzt „Placements“ und „Angebote“ */}
+      <Route path="/dashboard/besetzungen" element={
         <ProtectedRoute allowedRoles={['client']}>
-          <ClientPlacements />
+          <ClientBesetzungen />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/placements" element={<Navigate to="/dashboard/besetzungen?reiter=haus" replace />} />
       <Route path="/dashboard/messages" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientMessages />
@@ -281,11 +282,7 @@ function AppRoutes() {
           <DataPrivacy />
         </ProtectedRoute>
       } />
-      <Route path="/dashboard/offers" element={
-        <ProtectedRoute allowedRoles={['client']}>
-          <ClientOffers />
-        </ProtectedRoute>
-      } />
+      <Route path="/dashboard/offers" element={<Navigate to="/dashboard/besetzungen?reiter=angebot" replace />} />
       <Route path="/dashboard/analytics" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientAnalytics />

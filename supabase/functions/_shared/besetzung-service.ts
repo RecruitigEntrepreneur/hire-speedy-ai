@@ -102,9 +102,11 @@ export async function clientOverview(ctx: PlacementCtx, user: User) {
     const inv = pl ? latest(invoices.filter((i) => i.placement_id === pl.id && i.invoice_type === 'placement_fee'), (i) => t(i.issued_at ?? i.released_at)) : null;
     const claim = pl ? latest(claims.filter((c: any) => c.placement_id === pl.id), (c: any) => t(c.reported_at)) : null;
     const startDate = String(pl?.first_working_day ?? pl?.start_date ?? contract?.start_date ?? offer?.start_date ?? '').slice(0, 10) || null;
-    const continuityEnd = pl?.continuity_end_date ? String(pl.continuity_end_date).slice(0, 10) : null;
+    // Continuity nur, wenn das Paket sie enthält (ältere Einstellungen tragen teils ein Fristende ohne Paket)
+    const continuityEnd = pkg.continuityDays && pl?.continuity_end_date ? String(pl.continuity_end_date).slice(0, 10) : null;
     const reportUntil = continuityEnd ? plusDays(continuityEnd, pkg.noticeDays) : null;
-    const coreUntil = startDate ? plusMonths(startDate, 6) : null;
+    const coreFrom = startDate ?? (pl?.created_at ? String(pl.created_at).slice(0, 10) : null);
+    const coreUntil = coreFrom ? plusMonths(coreFrom, 6) : null;
 
     // Gruppe
     let group: BesetzungGroup | null = null;

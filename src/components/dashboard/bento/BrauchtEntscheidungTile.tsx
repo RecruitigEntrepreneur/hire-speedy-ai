@@ -18,7 +18,7 @@ const ICON: Record<string, LucideIcon> = {
 
 const linkFor = (a: UnifiedAction): string => {
   if (a.type === 'review_candidate' && a.submissionId) return `/dashboard/candidates/${a.submissionId}`;
-  if (a.type === 'make_offer') return '/dashboard/offers';
+  if (a.type === 'make_offer') return a.submissionId ? `/dashboard/candidates/${a.submissionId}` : '/dashboard/besetzungen';
   return '/dashboard/interviews';
 };
 

@@ -20,7 +20,6 @@ import {
   Wallet,
   Target,
   CheckSquare,
-  Gift,
   BarChart3,
   UsersRound,
   AlertTriangle,
@@ -102,8 +101,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Meine Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: 'Bewerber', href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
     { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
-    { label: 'Angebote', href: '/dashboard/offers', icon: <Gift className="h-4 w-4" /> },
-    { label: 'Placements', href: '/dashboard/placements', icon: <UserCheck className="h-4 w-4" /> },
+    // Besetzungen (Etappe 2, 25.10.2026): ersetzt „Angebote“ und „Placements“
+    { label: 'Besetzungen', href: '/dashboard/besetzungen', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Team', href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },

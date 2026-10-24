@@ -394,7 +394,8 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
               facts: [
                 ...fact('Erster Tag', `${dateDe(startKey)} · ${inDays(daysTo(startKey, now))}`),
                 ...fact('Probezeit', Number.isFinite(probation) && probation > 0 ? `${probation} Monate · bis ${dateDe(plusMonthsKey(String(startKey), probation))}` : null),
-                ...fact('Garantie', pl.continuity_end_date ? `${pkg ? `${pkg} · ` : ''}bis ${dateDe(pl.continuity_end_date)}` : null),
+                // Continuity nur mit Continuity-Paket (Core hat keine; ältere Einstellungen tragen teils ein Fristende)
+                ...fact('Continuity', pl.continuity_end_date && Number(pl.pricing_snapshot?.continuityDays) > 0 ? `${pkg ? `${pkg} · ` : ''}bis ${dateDe(pl.continuity_end_date)}` : null),
               ],
               line: [`Start ${dateDe(startKey)}`, Number.isFinite(probation) && probation > 0 ? `Probezeit bis ${dateDe(plusMonthsKey(String(startKey), probation))}` : null].filter(Boolean) as string[],
               foot: `${hhFirst} erfährt Ihre Antwort sofort.`,

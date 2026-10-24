@@ -15,7 +15,7 @@ import {
 const ICON: Record<ClientTaskKind, LucideIcon> = {
   review: Users, alternative: CalendarClock, expired_request: CalendarClock, feedback: MessageSquare, decide_unsure: HelpCircle,
   make_offer: Gift, counter: Gift, offer_overdue: Clock, send_contract: FileText, contract_signed_check: FileText,
-  docusign_sign: FileSignature, confirm_signature: FileSignature, recruiter_question: HelpCircle, confirm_start: UserCheck, invoice: Receipt,
+  docusign_sign: FileSignature, confirm_signature: FileSignature, recruiter_question: HelpCircle, confirm_start: UserCheck, invoice: Receipt, purchase_order: Receipt,
 };
 
 /** Etikett „im Budget“ / „am oberen Rand“ / „überfällig“ */
