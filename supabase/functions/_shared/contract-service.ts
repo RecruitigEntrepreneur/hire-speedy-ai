@@ -6,6 +6,10 @@
 // Zwei Wege nach der Zusage:
 //  - digital: Kunde lädt seinen Vertrag hoch, wir hängen eine Unterschriftenseite
 //    an, DocuSign: erst die Firma, dann der Kandidat. Abgeschlossen = verbindlich.
+//    Seit 23.10.2026 „über Matchunt“ (signing_mode 'embedded'): beide Unterzeichner
+//    eingebettet, DocuSign mailt nicht. Die Firma unterschreibt im Bewerberprofil
+//    („Ich selbst“) oder über einen persönlichen Link, der Kandidat über seinen Link,
+//    sobald die Firma unterschrieben hat (Firmen-Mailfilter hielten DocuSign-Mails fest).
 //  - selbst: Kunde schickt selbst. Melden darf jede Seite. Kunde: sofort
 //    unterschrieben, 24 h rückgängig, Headhunter macht die Gegenprobe.
 //    Headhunter oder Matchunt: Kunde bestätigt (Matchunt mit Beleg direkt).
@@ -17,9 +21,14 @@ import { encodeBase64, decodeBase64 } from 'https://deno.land/std@0.224.0/encodi
 import { canUserActOnJob } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './contract-mails.ts';
-import { accessToken, completedDocument, createEnvelope, docusignConfig, envelopeStatus } from './docusign.ts';
+import { accessToken, completedDocument, createEnvelope, docusignConfig, envelopeStatus, recipientView } from './docusign.ts';
+import {
+  clientUserIdFor, createSignLink, latestLink, LINK_DAYS, linkByToken, linksOf, markLinkOpened, markLinkSigned, recipientIdFor, revokeLinks,
+  type SignerRole,
+} from './contract-sign.ts';
 import { employmentConnect } from './recruiter-connect.ts';
 import { bucketFiles, onContractFinal, type FilePort as InvoiceFilePort } from './placement-service.ts';
+import { noticeLabel } from './client-tasks.ts';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -41,7 +50,10 @@ export interface SignerSnapshot {
 }
 
 export interface SignPort {
-  send(args: { subject: string; blurb: string; documents: { base64: string; name: string }[]; company: { name: string; email: string }; candidate: { name: string; email: string }; contractId: string }): Promise<{ envelopeId: string }>;
+  /** embedded = beide Unterzeichner eingebettet (clientUserId), DocuSign mailt nicht */
+  send(args: { subject: string; blurb: string; documents: { base64: string; name: string }[]; company: { name: string; email: string }; candidate: { name: string; email: string }; contractId: string; embedded?: boolean }): Promise<{ envelopeId: string }>;
+  /** Adresse der eingebetteten Unterschrift (wenige Minuten gültig); DocuSign hängt beim Rücksprung event=… an */
+  view(args: { envelopeId: string; contractId: string; role: SignerRole; name: string; email: string; returnUrl: string; via: 'app' | 'link' }): Promise<string>;
   void(envelopeId: string, reason: string): Promise<void>;
   /** DocuSign schickt die Mail an den, der gerade dran ist, noch einmal (Kunden-Aufgabe 11) */
   resend(envelopeId: string): Promise<void>;
@@ -65,17 +77,38 @@ export interface ContractCtx extends ServiceCtx {
   invoiceFiles?: InvoiceFilePort;
 }
 
-/** Echtes DocuSign; lokal (Supabase nicht https) mit DOCUSIGN_FAKE=1 ein Testmodus ohne DocuSign. */
-export function signPort(env = (k: string) => Deno.env.get(k)): SignPort | null {
+/**
+ * Echtes DocuSign; lokal (Supabase nicht https) mit DOCUSIGN_FAKE=1 ein Testmodus ohne DocuSign:
+ * „Unterschreiben“ springt sofort zurück und gilt als unterschrieben (vermerkt im Verlauf,
+ * daraus liest der Stand), das unterschriebene PDF ist das hochgeladene.
+ */
+export function signPort(env = (k: string) => Deno.env.get(k), db?: SupabaseClient): SignPort | null {
   const url = env('SUPABASE_URL') ?? '';
   const local = /^http:\/\/(kong|localhost|127\.0\.0\.1|host\.docker\.internal)(:\d+)?\/?$/.test(url);
   if (local && env('DOCUSIGN_FAKE') === '1') {
+    const contractOf = async (envelopeId: string) => (db ? (await db.from('employment_contracts').select('id, document_path').eq('envelope_id', envelopeId).maybeSingle()).data as any : null);
     return {
       send: async () => ({ envelopeId: `fake-${crypto.randomUUID()}` }),
+      view: async (a) => {
+        const c = await contractOf(a.envelopeId);
+        if (c && db) await db.from('employment_contract_events').insert({ contract_id: c.id, event_type: 'fake_docusign_signed', actor_role: 'docusign', details: { envelopeId: a.envelopeId, recipientId: recipientIdFor(a.role) } });
+        return `${a.returnUrl}${a.returnUrl.includes('?') ? '&' : '?'}event=signing_complete`;
+      },
       void: async () => {},
       resend: async () => {},
-      status: async () => null,
-      document: async () => null,
+      status: async (envelopeId) => {
+        if (!db) return null;
+        const { data } = await db.from('employment_contract_events').select('details, created_at').eq('event_type', 'fake_docusign_signed').eq('details->>envelopeId', envelopeId);
+        const at = new Map(((data ?? []) as any[]).map((e) => [String(e.details?.recipientId), e.created_at as string]));
+        const signers = ['1', '2'].map((r) => ({ recipientId: r, status: at.has(r) ? 'completed' : 'sent', ...(at.has(r) ? { signedDateTime: at.get(r) } : {}) }));
+        return { status: at.size === 2 ? 'completed' : 'sent', signers };
+      },
+      document: async (envelopeId) => {
+        const c = await contractOf(envelopeId);
+        if (!c?.document_path || !db) return null;
+        const { data } = await db.storage.from(BUCKET).download(c.document_path);
+        return data ? new Uint8Array(await data.arrayBuffer()) : null;
+      },
     };
   }
   const cfg = docusignConfig();
@@ -87,14 +120,19 @@ export function signPort(env = (k: string) => Deno.env.get(k)): SignPort | null 
         blurb: a.blurb,
         documents: a.documents,
         signers: [
-          { name: a.company.name, email: a.company.email, anchor: '/mh_ag/', routingOrder: 1, recipientId: '1' },
-          { name: a.candidate.name, email: a.candidate.email, anchor: '/mh_an/', routingOrder: 2, recipientId: '2' },
+          { name: a.company.name, email: a.company.email, anchor: '/mh_ag/', routingOrder: 1, recipientId: '1', ...(a.embedded ? { clientUserId: clientUserIdFor(a.contractId, 'company') } : {}) },
+          { name: a.candidate.name, email: a.candidate.email, anchor: '/mh_an/', routingOrder: 2, recipientId: '2', ...(a.embedded ? { clientUserId: clientUserIdFor(a.contractId, 'candidate') } : {}) },
         ],
         customFields: { matchunt_employment_contract: a.contractId },
         eventNotification: employmentConnect(env),
       });
       return { envelopeId: r.envelopeId };
     },
+    view: async (a) => await recipientView(cfg, {
+      envelopeId: a.envelopeId, name: a.name, email: a.email, clientUserId: clientUserIdFor(a.contractId, a.role), returnUrl: a.returnUrl,
+      // Im Abschlusszertifikat: angemeldet in Matchunt bzw. über den Link an die eigene Adresse
+      authenticationMethod: a.via === 'app' ? 'password' : 'email',
+    }),
     void: async (envelopeId, reason) => {
       const token = await accessToken(cfg);
       const res = await fetch(`${cfg.apiBase}/v2.1/accounts/${cfg.accountId}/envelopes/${envelopeId}`, {
@@ -141,13 +179,14 @@ export function filePort(db: SupabaseClient): FilePort {
     },
     url: async (path, seconds) => {
       const { data } = await db.storage.from(BUCKET).createSignedUrl(path, seconds);
-      return data?.signedUrl ?? null;
+      // lokal liefert Supabase die Docker-Adresse; der Browser erreicht nur 127.0.0.1
+      return data?.signedUrl ? (localDev() ? data.signedUrl.replace(/^http:\/\/kong:8000/, 'http://127.0.0.1:54321') : data.signedUrl) : null;
     },
   };
 }
 
 export function contractCtx(base: ServiceCtx): ContractCtx {
-  const sign = signPort();
+  const sign = signPort(undefined, base.db);
   const demo = Deno.env.get('DOCUSIGN_FAKE') === '1' || (Deno.env.get('DOCUSIGN_API_BASE') ?? 'https://demo.docusign.net/restapi').includes('demo.docusign');
   return { ...base, sign, files: filePort(base.db), signDemo: !!sign && demo, invoiceFiles: bucketFiles(base.db, 'invoices') };
 }
@@ -190,7 +229,7 @@ async function loadBundle(db: SupabaseClient, submissionId: unknown): Promise<Bu
   must(submission, 'Bewerbung nicht gefunden.', 'not_found');
   const [{ data: job }, { data: candidate }, { data: offers }, { data: contracts }] = await Promise.all([
     db.from('jobs').select('id, title, company_name, industry, client_id, location, remote_type, onsite_days_required, benefits, fee_percentage, mandate_id').eq('id', (submission as any).job_id).maybeSingle(),
-    db.from('candidates').select('id, full_name, email, phone').eq('id', (submission as any).candidate_id).maybeSingle(),
+    db.from('candidates').select('id, full_name, email, phone, notice_period').eq('id', (submission as any).candidate_id).maybeSingle(),
     db.from('offers').select('*').eq('submission_id', submissionId).eq('status', 'accepted').order('created_at', { ascending: false }).limit(1),
     db.from('employment_contracts').select('*').eq('submission_id', submissionId).order('created_at', { ascending: false }).limit(1),
   ]);
@@ -241,6 +280,20 @@ const urls = (ctx: ContractCtx, b: Bundle) => ({
   akte: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
   admin: `${ctx.appUrl()}/admin/vertraege`,
 });
+const linkUrl = (ctx: ContractCtx, token: string) => `${ctx.appUrl()}/unterschrift/${token}`;
+const LOCAL_SUPABASE = /^http:\/\/(kong|localhost|127\.0\.0\.1|host\.docker\.internal)(:\d+)?\/?$/;
+const localDev = () => LOCAL_SUPABASE.test(Deno.env.get('SUPABASE_URL') ?? '');
+/**
+ * Wohin DocuSign nach der Unterschrift zurückspringt. Immer die App-Adresse; nur im
+ * lokalen Betrieb darf die Seite ihre eigene localhost-Adresse mitgeben.
+ */
+function baseFor(ctx: ContractCtx, body: any): string {
+  const want = typeof body?.returnBase === 'string' ? body.returnBase.trim().replace(/\/+$/, '') : '';
+  return want && localDev() && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(want) ? want : ctx.appUrl();
+}
+const signReturn = (base: string, b: Bundle) => `${base}/dashboard/candidates/${b.submission.id}?vertrag=zurueck`;
+/** Nach einem Rücksprung darf der Stand nach 20 s erneut abgefragt werden (sonst 10 Minuten) */
+export const RETURN_SYNC_MS = 20_000;
 
 async function tellRecruiter(ctx: ContractCtx, b: Bundle, title: string, detail: string | null = null) {
   await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name}: ${title}`, detail ?? `${companyFor(b)} · ${b.job.title}`, 'candidate', b.candidate.id);
@@ -350,7 +403,36 @@ export function contractView(c: any, role: Role) {
     recruiterCheck: c.recruiter_check, recruiterCheckNote: role === 'client' ? null : c.recruiter_check_note,
     declineReason: c.decline_reason, dropReason: c.drop_reason, finalAt: c.final_at,
     hasSignedDocument: forClient && !!c.signed_document_path,
+    signingMode: (c.signing_mode ?? 'email') as 'email' | 'embedded',
   };
+}
+
+/**
+ * Stand der Unterschrift über Matchunt: wer unterschreibt wie, Link verschickt/geöffnet.
+ * Der Headhunter sieht keine Mailadressen; youSign = der Betrachter unterschreibt für die Firma.
+ */
+export function signingView(c: any, links: any[], role: Role, youSign: boolean) {
+  if (!c || c.way !== 'digital') return null;
+  const sum = (l: any) => (l ? {
+    sentAt: l.sent_at, openedAt: l.opened_at, signedAt: l.signed_at, revoked: !!l.revoked_at, expiresAt: l.expires_at,
+    email: role === 'recruiter' ? null : l.email, reminders: l.reminders_sent ?? 0,
+  } : null);
+  return {
+    mode: (c.signing_mode ?? 'email') as 'email' | 'embedded',
+    youSign,
+    companyViaApp: !!c.company_signer_user_id,
+    companyEmail: role === 'recruiter' ? null : c.company_signer_email ?? null,
+    candidateEmail: role === 'recruiter' ? null : c.candidate_email ?? null,
+    company: sum(latestLink(links, 'company')),
+    candidate: sum(latestLink(links, 'candidate')),
+  };
+}
+
+/** Unterschreibt dieser Nutzer für die Firma? (Ich selbst, oder seine Kontoadresse ist die des Unterzeichners) */
+async function isCompanySigner(ctx: ContractCtx, c: any, userId: string): Promise<boolean> {
+  if (c.company_signer_user_id) return c.company_signer_user_id === userId;
+  const me = await profile(ctx.db, userId);
+  return !!me?.email && !!c.company_signer_email && me.email.toLowerCase() === String(c.company_signer_email).toLowerCase();
 }
 
 async function feePercent(db: SupabaseClient, job: any): Promise<number | null> {
@@ -383,7 +465,9 @@ export async function contractContext(ctx: ContractCtx, user: User, body: any) {
       } catch (e) { console.warn('[contract] DocuSign-Stand nicht abrufbar', e instanceof Error ? e.message : e); }
     }
   }
-  const { data: events } = role === 'recruiter' || !b.contract ? { data: [] } : await ctx.db.from('employment_contract_events').select('event_type, actor_role, details, created_at').eq('contract_id', b.contract.id).order('created_at');
+  const { data: events } = role === 'recruiter' || !b.contract ? { data: [] } : await ctx.db.from('employment_contract_events').select('event_type, actor_role, details, created_at').eq('contract_id', b.contract.id).neq('event_type', 'fake_docusign_signed').order('created_at');
+  const links = b.contract ? await linksOf(ctx.db, b.contract.id) : [];
+  const youSign = !!b.contract && role !== 'recruiter' && await isCompanySigner(ctx, b.contract, user.id);
   const extras: string[] = b.offer?.extras ?? [];
   const reporter = b.contract?.reported_by ? await profile(ctx.db, b.contract.reported_by) : null;
   return {
@@ -393,6 +477,8 @@ export async function contractContext(ctx: ContractCtx, user: User, body: any) {
     candidateName: b.candidate.full_name,
     candidateEmail: role === 'recruiter' ? null : b.candidate.email ?? null,
     candidatePhone: b.candidate.phone ?? null,
+    /** Kündigungsfrist laut Profil, lesbar („2 Monate zum Monatsende“) */
+    candidateNotice: noticeLabel(b.candidate.notice_period),
     jobTitle: b.job.title,
     companyName: role === 'recruiter' ? companyFor(b) : b.job.company_name,
     recruiterName: b.recruiter?.name ?? null,
@@ -406,6 +492,7 @@ export async function contractContext(ctx: ContractCtx, user: User, body: any) {
       workModel: workModel(b.job, b.offer), extras, acceptedAt: b.offer.decision_at ?? b.offer.responded_at ?? null,
     } : null,
     contract: contractView(b.contract, role),
+    signing: signingView(b.contract, links, role, youSign),
     events: ((events ?? []) as any[]).map((e) => ({ type: e.event_type, role: e.actor_role, at: e.created_at, details: e.details })),
   };
 }
@@ -470,6 +557,95 @@ export async function signaturePage(o: { companyName: string; candidateName: str
   return await pdf.save();
 }
 
+interface EnvelopeInput {
+  signerName: string; signerEmail: string; signerUserId: string | null; candidateEmail: string;
+  fileName: string; salary: number; variable: number | null; startDate: string; closeJob: boolean;
+  /** neu hochgeladen … */
+  bytes?: Uint8Array;
+  /** … oder schon abgelegt (Unterzeichner ändern) */
+  documentPath?: string;
+}
+
+/** Umschlag über Matchunt anlegen: beide eingebettet, Unterschriftenseite angehängt. */
+async function startEnvelope(ctx: ContractCtx, b: Bundle, c: any, user: User, x: EnvelopeInput, expect: string[]) {
+  let path = x.documentPath ?? '';
+  let bytes = x.bytes ?? null;
+  if (!path) {
+    path = `${b.submission.id}/${c.id}/vertrag-${ctx.now()}.pdf`;
+    await ctx.files.put(path, bytes!);
+  } else if (!bytes) {
+    bytes = await ctx.files.get(path);
+    must(bytes, 'Der hochgeladene Vertrag ist nicht mehr da. Bitte neu hochladen.', 'conflict');
+  }
+  const page = await signaturePage({ companyName: b.job.company_name, candidateName: b.candidate.full_name, jobTitle: b.job.title, fileName: x.fileName, signerName: x.signerName });
+  const { envelopeId } = await ctx.sign!.send({
+    subject: `Arbeitsvertrag ${b.job.title} – ${b.job.company_name}`.slice(0, 100),
+    blurb: `${b.job.company_name} bittet um Ihre Unterschrift unter den Arbeitsvertrag. Versendet über Matchunt.`,
+    documents: [{ base64: encodeBase64(bytes!), name: x.fileName }, { base64: encodeBase64(page), name: 'Unterschriften.pdf' }],
+    company: { name: x.signerName, email: x.signerEmail },
+    candidate: { name: b.candidate.full_name, email: x.candidateEmail },
+    contractId: c.id,
+    embedded: true,
+  });
+  const nowIso = new Date(ctx.now()).toISOString();
+  const done = await update(ctx, c.id, {
+    way: 'digital', status: 'sent_digital', signing_mode: 'embedded', sent_at: nowIso, envelope_id: envelopeId, document_path: path,
+    company_signer_name: x.signerName, company_signer_email: x.signerEmail, company_signer_user_id: x.signerUserId, candidate_email: x.candidateEmail,
+    company_signed_at: null, candidate_signed_at: null, envelope_synced_at: nowIso,
+    fixed_term: false, non_compete: false, salary: x.salary, variable_salary: x.variable, start_date: x.startDate, close_job: x.closeJob,
+  }, expect);
+  await event(ctx, c.id, 'sent_digital', 'client', user.id, { envelopeId, salary: x.salary, variable: x.variable, startDate: x.startDate, fileName: x.fileName, mode: 'embedded', self: !!x.signerUserId });
+  b.contract = done;
+  return done;
+}
+
+/** Wer für die Firma unterschreibt: „Ich selbst“ (Kontoadresse) oder Name + Mail. */
+async function signerFrom(ctx: ContractCtx, user: User, body: any) {
+  if (body.signerSelf === true) {
+    const me = await profile(ctx.db, user.id);
+    const email = String(me?.email ?? user.email ?? '').toLowerCase();
+    const name = text(body.signerName, 120) || me?.name || '';
+    must(name && EMAIL.test(email), 'In Ihrem Konto fehlen Name oder Mailadresse. Bitte „Jemand anderes“ wählen.');
+    return { signerName: name, signerEmail: email, signerUserId: user.id };
+  }
+  const signerName = text(body.signerName, 120);
+  const signerEmail = text(body.signerEmail, 200).toLowerCase();
+  must(signerName && EMAIL.test(signerEmail), 'Bitte Name und Mail der Person angeben, die für die Firma unterschreibt.');
+  return { signerName, signerEmail, signerUserId: null as string | null };
+}
+
+/** Nach dem Anlegen: selbst → Adresse der Unterschrift; sonst Link per Mail an den Unterzeichner. */
+async function afterStart(ctx: ContractCtx, b: Bundle, c: any, user: User, base: string): Promise<string | null> {
+  if (c.company_signer_user_id === user.id) {
+    return await ctx.sign!.view({ envelopeId: c.envelope_id, contractId: c.id, role: 'company', name: c.company_signer_name, email: c.company_signer_email, returnUrl: signReturn(base, b), via: 'app' });
+  }
+  await sendSignLink(ctx, b, c, 'company', user.id);
+  return null;
+}
+
+/** Persönlicher Link per Matchunt-Mail (Firma ohne Konto oder Kandidat). */
+async function sendSignLink(ctx: ContractCtx, b: Bundle, c: any, role: SignerRole, actorId: string | null, reminder = false) {
+  const name = role === 'company' ? c.company_signer_name : b.candidate.full_name;
+  const email = role === 'company' ? c.company_signer_email : c.candidate_email;
+  must(name && email && EMAIL.test(email), 'Für diese Unterschrift fehlt die Mailadresse.', 'conflict');
+  const { token } = await createSignLink(ctx.db, { contractId: c.id, envelopeId: c.envelope_id, role, name, email, createdBy: actorId, now: ctx.now() });
+  const url = linkUrl(ctx, token);
+  // Nur lokaler Testmodus (ohne DocuSign, ohne Mailversand): Link ins Protokoll
+  if (Deno.env.get('DOCUSIGN_FAKE') === '1' && localDev()) console.info(`[contract] Testmodus: Link für ${role} ${email}: /unterschrift/${token}`);
+  if (role === 'company') {
+    // Hochgeladen hat, wer den Umschlag verschickt hat (die Vertragszeile legt oft die Zusage an)
+    const { data: sentBy } = await ctx.db.from('employment_contract_events').select('actor_id, created_at').eq('contract_id', c.id).eq('event_type', 'sent_digital').order('created_at', { ascending: false }).limit(1);
+    const uploader = await profile(ctx.db, ((sentBy ?? [])[0] as any)?.actor_id ?? actorId);
+    const content = mails.companySignLink({ name, companyName: b.job.company_name, candidateName: b.candidate.full_name, jobTitle: b.job.title, uploaderName: uploader?.name || null, uploaderEmail: uploader?.email ?? null, url, days: LINK_DAYS, reminder, demo: ctx.signDemo });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: email, replyTo: uploader?.email ?? undefined, ...content }, { template: reminder ? 'contract_sign_company_reminder' : 'contract_sign_company', meta: { contract_id: c.id } });
+  } else {
+    const content = mails.candidateSignLink({ firstName: firstName(name), companyName: b.job.company_name, jobTitle: b.job.title, startDate: c.start_date, salary: c.salary, variable: c.variable_salary, recruiterName: b.recruiter?.name || null, url, days: LINK_DAYS, reminder, demo: ctx.signDemo });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: email, replyTo: b.recruiter?.email ?? undefined, ...content }, { template: reminder ? 'contract_sign_candidate_reminder' : 'contract_sign_candidate', meta: { contract_id: c.id } });
+  }
+  await event(ctx, c.id, reminder ? 'link_reminder' : 'link_sent', 'system', actorId, { role });
+  return { token };
+}
+
 export async function sendDigital(ctx: ContractCtx, user: User, body: any) {
   const { b } = await access(ctx, user, body?.submissionId, ['client', 'admin']);
   must(b.offer, 'Ohne Zusage gibt es noch keinen Vertrag.', 'conflict');
@@ -477,12 +653,10 @@ export async function sendDigital(ctx: ContractCtx, user: User, body: any) {
   must(typeof body.fixedTerm === 'boolean' && typeof body.nonCompete === 'boolean', 'Bitte beide Fragen beantworten.');
   // Befristung (§ 14 Abs. 4 TzBfG) und nachvertragliches Wettbewerbsverbot (§ 74 HGB) brauchen die Schriftform.
   must(!body.fixedTerm && !body.nonCompete, 'Befristung oder Wettbewerbsverbot: Dafür gilt die Schriftform. Bitte „Selbst verschicken“ wählen.');
-  const signerName = text(body.signerName, 120);
-  const signerEmail = text(body.signerEmail, 200).toLowerCase();
+  const signer = await signerFrom(ctx, user, body);
   const candidateEmail = text(body.candidateEmail, 200).toLowerCase();
-  must(signerName && EMAIL.test(signerEmail), 'Bitte Name und Mail der Person angeben, die für die Firma unterschreibt.');
   must(EMAIL.test(candidateEmail), 'Bitte die Mail des Kandidaten angeben.');
-  must(signerEmail !== candidateEmail, 'Firma und Kandidat brauchen zwei verschiedene Mailadressen.');
+  must(signer.signerEmail !== candidateEmail, 'Firma und Kandidat brauchen zwei verschiedene Mailadressen.');
   const salary = num(body.salary);
   must(salary && salary >= 10000 && salary <= 2000000, 'Bitte das Gehalt laut Vertrag angeben.');
   const variable = num(body.variable);
@@ -496,28 +670,61 @@ export async function sendDigital(ctx: ContractCtx, user: User, body: any) {
 
   const c = await ensureContract(ctx, b, user.id, true);
   must(['preparing', 'sent_self'].includes(c.status), DIGITAL_RUNNING.includes(c.status) ? 'Es läuft schon ein Umschlag. Bitte zuerst zurückziehen.' : 'Der Vertrag ist schon gemeldet.', 'conflict');
-  const path = `${b.submission.id}/${c.id}/vertrag-${ctx.now()}.pdf`;
-  await ctx.files.put(path, bytes!);
-  const page = await signaturePage({ companyName: b.job.company_name, candidateName: b.candidate.full_name, jobTitle: b.job.title, fileName, signerName });
-  const { envelopeId } = await ctx.sign.send({
-    subject: `Arbeitsvertrag ${b.job.title} – ${b.job.company_name}`.slice(0, 100),
-    blurb: `${b.job.company_name} bittet um Ihre Unterschrift unter den Arbeitsvertrag. Versendet über Matchunt.`,
-    documents: [{ base64: encodeBase64(bytes!), name: fileName }, { base64: encodeBase64(page), name: 'Unterschriften.pdf' }],
-    company: { name: signerName, email: signerEmail },
-    candidate: { name: b.candidate.full_name, email: candidateEmail },
-    contractId: c.id,
-  });
-  const nowIso = new Date(ctx.now()).toISOString();
-  const done = await update(ctx, c.id, {
-    way: 'digital', status: 'sent_digital', sent_at: nowIso, envelope_id: envelopeId, document_path: path,
-    company_signer_name: signerName, company_signer_email: signerEmail, candidate_email: candidateEmail,
-    company_signed_at: null, candidate_signed_at: null, envelope_synced_at: nowIso,
-    fixed_term: false, non_compete: false, salary, variable_salary: variable, start_date: body.startDate,
-    close_job: body.closeJob === true,
-  }, ['preparing', 'sent_self']);
-  await event(ctx, c.id, 'sent_digital', 'client', user.id, { envelopeId, salary, variable, startDate: body.startDate });
-  await tellRecruiter(ctx, b, 'Arbeitsvertrag über DocuSign verschickt', `Erst unterschreibt ${b.submission.company_revealed ? b.job.company_name : 'die Firma'}, dann ${firstName(b.candidate.full_name)}. Du bekommst Bescheid.`);
-  return { ok: true, contract: contractView(done, 'client') };
+  const done = await startEnvelope(ctx, b, c, user, { ...signer, candidateEmail, fileName, salary: salary!, variable, startDate: body.startDate, closeJob: body.closeJob === true, bytes: bytes! }, ['preparing', 'sent_self']);
+  const signUrl = await afterStart(ctx, b, done, user, baseFor(ctx, body));
+  const who = signer.signerUserId ? (b.submission.company_revealed ? b.job.company_name : 'die Firma') : signer.signerName;
+  await tellRecruiter(ctx, b, 'Arbeitsvertrag zur Unterschrift verschickt', `Erst unterschreibt ${who}, dann ${firstName(b.candidate.full_name)} über einen Link von Matchunt. Du bekommst Bescheid.`);
+  return { ok: true, contract: contractView(done, 'client'), signUrl };
+}
+
+/** Firma unterschreibt im Bewerberprofil: Adresse der eingebetteten Unterschrift. */
+export async function signUrl(ctx: ContractCtx, user: User, body: any) {
+  const { b } = await access(ctx, user, body?.submissionId, ['client', 'admin']);
+  const c = b.contract;
+  must(c && c.status === 'sent_digital' && c.signing_mode === 'embedded' && c.envelope_id, 'Gerade ist keine Unterschrift der Firma offen.', 'conflict');
+  must(ctx.sign, 'Die digitale Unterschrift ist gerade nicht eingerichtet.', 'conflict');
+  must(await isCompanySigner(ctx, c, user.id), `Für die Firma unterschreibt ${c.company_signer_name}; der Link ging per Mail an ${c.company_signer_email}.`, 'not_allowed');
+  const url = await ctx.sign!.view({ envelopeId: c.envelope_id, contractId: c.id, role: 'company', name: c.company_signer_name, email: c.company_signer_email, returnUrl: signReturn(baseFor(ctx, body), b), via: 'app' });
+  return { url };
+}
+
+/** Link an den, der gerade dran ist, neu senden (alter Link wird ungültig). */
+export async function resendLink(ctx: ContractCtx, user: User, body: any) {
+  const { b, role } = await access(ctx, user, body?.submissionId, ['client', 'recruiter', 'admin']);
+  const c = b.contract;
+  must(c && DIGITAL_RUNNING.includes(c.status) && c.signing_mode === 'embedded', 'Gerade läuft keine Unterschrift über Matchunt.', 'conflict');
+  const next: SignerRole = c.status === 'company_signed' ? 'candidate' : 'company';
+  must(role !== 'recruiter' || next === 'candidate', 'Den Link für die Firma schickt der Kunde.', 'not_allowed');
+  must(next === 'candidate' || !c.company_signer_user_id, 'Sie unterschreiben selbst: bitte „Jetzt unterschreiben“.', 'conflict');
+  await sendSignLink(ctx, b, c, next, user.id);
+  return { ok: true, sentTo: next === 'company' ? c.company_signer_email : (role === 'recruiter' ? null : c.candidate_email), role: next };
+}
+
+/**
+ * Anderer Unterzeichner für die Firma (oder „Ich selbst“): alter Umschlag wird
+ * zurückgezogen, ein neuer entsteht aus dem schon hochgeladenen Vertrag. Stellt
+ * auch alte Umschläge (DocuSign mailt) auf „über Matchunt“ um.
+ */
+export async function changeSigner(ctx: ContractCtx, user: User, body: any) {
+  const { b } = await access(ctx, user, body?.submissionId, ['client', 'admin']);
+  const c = b.contract;
+  must(c && c.status === 'sent_digital' && !c.company_signed_at, 'Der Unterzeichner lässt sich nur ändern, solange die Firma noch nicht unterschrieben hat.', 'conflict');
+  must(ctx.sign, 'Die digitale Unterschrift ist gerade nicht eingerichtet.', 'conflict');
+  must(c.document_path, 'Der hochgeladene Vertrag fehlt. Bitte zurückziehen und neu hochladen.', 'conflict');
+  const signer = await signerFrom(ctx, user, body);
+  must(signer.signerEmail !== String(c.candidate_email ?? '').toLowerCase(), 'Firma und Kandidat brauchen zwei verschiedene Mailadressen.');
+  const { data: sentEvents } = await ctx.db.from('employment_contract_events').select('details, created_at').eq('contract_id', c.id).eq('event_type', 'sent_digital').order('created_at', { ascending: false }).limit(1);
+  const fileName = text((sentEvents ?? [])[0]?.details?.fileName, 120) || 'Arbeitsvertrag.pdf';
+  if (c.envelope_id) {
+    try { await ctx.sign!.void(c.envelope_id, 'Neuer Unterzeichner für die Firma'); } catch (e) { console.warn('[contract] alter Umschlag nicht zurückgezogen', e instanceof Error ? e.message : e); }
+  }
+  await revokeLinks(ctx.db, c.id, ctx.now());
+  await event(ctx, c.id, 'signer_changed', 'client', user.id, { from: c.company_signer_email, to: signer.signerEmail, oldEnvelopeId: c.envelope_id });
+  const done = await startEnvelope(ctx, b, c, user, {
+    ...signer, candidateEmail: c.candidate_email, fileName, salary: c.salary, variable: c.variable_salary, startDate: c.start_date, closeJob: !!c.close_job, documentPath: c.document_path,
+  }, ['sent_digital']);
+  const url = await afterStart(ctx, b, done, user, baseFor(ctx, body));
+  return { ok: true, contract: contractView(done, 'client'), signUrl: url };
 }
 
 export async function voidDigital(ctx: ContractCtx, user: User, body: any) {
@@ -527,6 +734,7 @@ export async function voidDigital(ctx: ContractCtx, user: User, body: any) {
   if (ctx.sign && c.envelope_id) await ctx.sign.void(c.envelope_id, 'Vom Kunden zurückgezogen');
   const toSelf = body.toSelf === true;
   const done = await update(ctx, c.id, { status: 'preparing', way: toSelf ? 'self' : 'digital', envelope_id: null, company_signed_at: null, candidate_signed_at: null, sent_at: null }, DIGITAL_RUNNING);
+  await revokeLinks(ctx.db, c.id, ctx.now());
   await event(ctx, c.id, 'voided', 'client', user.id, { envelopeId: c.envelope_id, toSelf });
   await tellRecruiter(ctx, b, toSelf ? 'Digitaler Vertrag zurückgezogen, Kunde schickt selbst' : 'Digitaler Vertrag zurückgezogen, wird neu gesendet', null);
   return { ok: true, contract: contractView(done, 'client') };
@@ -536,6 +744,8 @@ export async function voidDigital(ctx: ContractCtx, user: User, body: any) {
 export async function resendDigital(ctx: ContractCtx, user: User, body: any) {
   const { b } = await access(ctx, user, body?.submissionId, ['client', 'admin']);
   const c = b.contract;
+  // Über Matchunt mailt DocuSign nicht: dann geht der Link von uns neu raus
+  if (c?.signing_mode === 'embedded') return await resendLink(ctx, user, body);
   must(c && c.status === 'sent_digital' && c.envelope_id, 'Es läuft gerade kein digitaler Umschlag.', 'conflict');
   must(ctx.sign, 'Die digitale Unterschrift ist gerade nicht eingerichtet.', 'conflict');
   await ctx.sign!.resend(c.envelope_id);
@@ -563,6 +773,7 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
     const reason = text(declined.declinedReason, 500) || null;
     c = await update(ctx, c.id, { status: 'declined', decline_reason: reason, envelope_synced_at: nowIso }, DIGITAL_RUNNING);
     b.contract = c;
+    await revokeLinks(ctx.db, c.id, ctx.now());
     await event(ctx, c.id, 'declined', 'docusign', null, { by: declined.recipientId, reason });
     await tellClient(ctx, b, `${who} hat in DocuSign abgelehnt`, reason);
     await tellRecruiter(ctx, b, `${who} hat den Vertrag in DocuSign abgelehnt`, reason ?? 'Bitte mit allen klären.');
@@ -571,6 +782,7 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
   if (snap.status === 'voided') {
     c = await update(ctx, c.id, { status: 'preparing', envelope_id: null, company_signed_at: null, candidate_signed_at: null, sent_at: null, envelope_synced_at: nowIso }, DIGITAL_RUNNING);
     b.contract = c;
+    await revokeLinks(ctx.db, c.id, ctx.now());
     await event(ctx, c.id, 'voided', 'docusign', null, {});
     return;
   }
@@ -593,6 +805,7 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
     b.contract = c;
     await event(ctx, c.id, 'signed_digital', 'docusign', null, { signedOn: c.signed_on });
     await afterFinal(ctx, c.id);
+    if (c.signing_mode === 'embedded') await afterBothSigned(ctx, b, c);
     const facts = { signedOn: c.signed_on, salary: c.salary, variable: c.variable_salary, startDate: c.start_date };
     for (const uid of clientRecipients(b)) {
       await notify(ctx, uid, 'contract_signed', `${b.candidate.full_name} hat unterschrieben`, `Arbeitsvertrag über DocuSign abgeschlossen`, 'submission', b.submission.id);
@@ -610,10 +823,33 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
     c = await update(ctx, c.id, patch, ['sent_digital']);
     b.contract = c;
     await event(ctx, c.id, 'company_signed', 'docusign', null, {});
+    if (c.signing_mode === 'embedded') {
+      // Über Matchunt: jetzt bekommt der Kandidat seinen Link
+      await markLinkSigned(ctx.db, c.id, 'company', String(c.company_signed_at ?? nowIso));
+      try { await sendSignLink(ctx, b, c, 'candidate', null); } catch (e) { console.error('[contract] Link an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
+      if (!c.company_signer_user_id) await tellClient(ctx, b, `${c.company_signer_name} hat für die Firma unterschrieben`, `Jetzt ist ${first} dran; der Link ist unterwegs.`, false);
+      await tellRecruiter(ctx, b, 'Firma hat unterschrieben', `${first} hat den Link zum Unterschreiben per Mail. Stoß ${first} kurz an.`);
+      return;
+    }
     await tellRecruiter(ctx, b, 'Firma hat unterschrieben', `Jetzt fehlt nur noch ${first}. Stoß ${first} kurz an.`);
     return;
   }
   b.contract = await update(ctx, c.id, patch);
+}
+
+/** Über Matchunt: Links abschließen, der Kandidat bekommt seine Kopie (DocuSign mailt eingebetteten Unterzeichnern nicht). */
+async function afterBothSigned(ctx: ContractCtx, b: Bundle, c: any) {
+  const nowIso = new Date(ctx.now()).toISOString();
+  await markLinkSigned(ctx.db, c.id, 'company', String(c.company_signed_at ?? nowIso));
+  await markLinkSigned(ctx.db, c.id, 'candidate', String(c.candidate_signed_at ?? nowIso));
+  if (!c.candidate_email || !c.envelope_id) return;
+  try {
+    const { token, id } = await createSignLink(ctx.db, { contractId: c.id, envelopeId: c.envelope_id, role: 'candidate', name: b.candidate.full_name, email: c.candidate_email, createdBy: null, now: ctx.now() });
+    // Kopie-Link: zählt nicht als offene Unterschrift
+    await ctx.db.from('employment_sign_links').update({ signed_at: nowIso }).eq('id', id);
+    const content = mails.candidateSignedCopy({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, startDate: c.start_date, url: linkUrl(ctx, token), days: LINK_DAYS });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: c.candidate_email, replyTo: b.recruiter?.email ?? undefined, ...content }, { template: 'contract_signed_copy_candidate', meta: { contract_id: c.id } });
+  } catch (e) { console.error('[contract] Kopie an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
 }
 
 /** Webhook: Umschlag zuordnen und Stand übernehmen. */
@@ -628,10 +864,15 @@ export async function applyEnvelopeEvent(ctx: ContractCtx, envelopeId: string, s
 
 export async function refreshDigital(ctx: ContractCtx, user: User, body: any) {
   const { b, role } = await access(ctx, user, body?.submissionId, ['client', 'recruiter', 'admin']);
+  // Rücksprung aus der eigenen Unterschrift: schon abgeschlossen ist auch eine Antwort
+  if (body?.returned && b.contract && !DIGITAL_RUNNING.includes(b.contract.status)) return { ok: true, contract: contractView(b.contract, role) };
   must(b.contract && DIGITAL_RUNNING.includes(b.contract.status), 'Es läuft gerade kein digitaler Umschlag.', 'conflict');
   must(ctx.sign, 'Die digitale Unterschrift ist gerade nicht eingerichtet.', 'conflict');
-  const snap = await ctx.sign.status(b.contract.envelope_id);
-  if (snap) await applySnapshot(ctx, b, snap);
+  const synced = b.contract.envelope_synced_at ? Date.parse(b.contract.envelope_synced_at) : 0;
+  if (!body?.returned || ctx.now() - synced >= RETURN_SYNC_MS) {
+    const snap = await ctx.sign.status(b.contract.envelope_id);
+    if (snap) await applySnapshot(ctx, b, snap);
+  }
   return { ok: true, contract: contractView(b.contract, role) };
 }
 
@@ -759,6 +1000,7 @@ export async function drop(ctx: ContractCtx, user: User, body: any) {
     try { await ctx.sign.void(c.envelope_id, 'Kandidat abgesprungen'); } catch (e) { console.warn('[contract] Umschlag nicht zurückgezogen', e instanceof Error ? e.message : e); }
   }
   const done = await update(ctx, c.id, { status: 'dropped', drop_reason: reason }, OPEN.concat(['declined']));
+  await revokeLinks(ctx.db, c.id, ctx.now());
   await event(ctx, c.id, 'dropped', role, user.id, { reason });
   const { error } = await ctx.db.from('submissions').update({ stage: 'withdrawn' }).eq('id', b.submission.id);
   if (error) console.warn('[contract] Stufe nicht gesetzt', error.code, error.message);
@@ -772,9 +1014,59 @@ export async function drop(ctx: ContractCtx, user: User, body: any) {
 // Täglicher Lauf: Tag 7 / 10 / 21, abgelaufene 24 h, DocuSign nachholen
 // ---------------------------------------------------------------------------
 
+/** Über Matchunt: Erinnerung frühestens 24 Std. nach dem Link, dann alle 2 Tage, höchstens 3-mal. */
+export const LINK_REMIND_AFTER_MS = 24 * 3_600_000;
+export const LINK_REMIND_EVERY_MS = 2 * DAY_MS;
+export const LINK_REMIND_MAX = 3;
+
+/**
+ * Täglicher Lauf für Umschläge über Matchunt: Erinnerung an den, der dran ist; Headhunter
+ * bekommt Bescheid, wenn der Kandidat seinen Link einen Tag nicht geöffnet hat; nach 7
+ * Tagen ohne Abschluss ein Fall für Matchunt. Liefert, was passiert ist.
+ */
+async function followEmbedded(ctx: ContractCtx, b: Bundle, out: { reminders: number; recruiter: number; admin: number }) {
+  const c = b.contract;
+  const now = ctx.now();
+  const nowIso = new Date(now).toISOString();
+  const role: SignerRole = c.status === 'company_signed' ? 'candidate' : 'company';
+  const first = firstName(b.candidate.full_name);
+  const links = await linksOf(ctx.db, c.id);
+  const link = links.find((l) => l.signer_role === role && !l.revoked_at && !l.signed_at) ?? null;
+  // Die Firma unterschreibt selbst in Matchunt: keine Mail, die Aufgabe im Konto genügt
+  if (link) {
+    const sent = Date.parse(link.sent_at ?? link.created_at);
+    const last = link.last_reminded_at ? Date.parse(link.last_reminded_at) : null;
+    // Der Zähler wandert mit: jede Erinnerung ist ein neuer Link, der den Stand des alten übernimmt
+    const reminders = Number(link.reminders_sent ?? 0);
+    if (now - sent >= LINK_REMIND_AFTER_MS && reminders < LINK_REMIND_MAX && (last === null || now - last >= LINK_REMIND_EVERY_MS)) {
+      await sendSignLink(ctx, b, c, role, null, true);
+      const fresh = (await linksOf(ctx.db, c.id)).find((l) => l.signer_role === role && !l.revoked_at && !l.signed_at);
+      if (fresh) await ctx.db.from('employment_sign_links').update({ reminders_sent: reminders + 1, last_reminded_at: nowIso }).eq('id', fresh.id);
+      out.reminders++;
+    }
+    // Kandidat hat den Link einen Tag nicht geöffnet: Headhunter anrufen lassen (einmal je Vertrag)
+    if (role === 'candidate' && !links.some((l) => l.signer_role === 'candidate' && l.opened_at) && now - sent >= LINK_REMIND_AFTER_MS) {
+      const { data: told } = await ctx.db.from('employment_contract_events').select('id').eq('contract_id', c.id).eq('event_type', 'candidate_link_unopened').limit(1);
+      if (!(told ?? []).length) {
+        await tellRecruiter(ctx, b, `${first} hat den Vertrags-Link nicht geöffnet`, `Seit einem Tag ungeöffnet. Ruf ${first} an: Ist die Mail von Matchunt angekommen? Notfalls in der Akte „Link erneut senden“.`);
+        await event(ctx, c.id, 'candidate_link_unopened', 'system', null, {});
+        out.recruiter++;
+      }
+    }
+  }
+  const sentAt = c.sent_at ? Date.parse(c.sent_at) : now;
+  if (now - sentAt >= 7 * DAY_MS && !c.admin_case_at) {
+    const who = role === 'company' ? (c.company_signer_name ?? 'Die Firma') : first;
+    await tellAdmins(ctx, b, `Unterschrift über Matchunt hängt seit ${Math.floor((now - sentAt) / DAY_MS)} Tagen: ${who} hat noch nicht unterschrieben.`, c.id);
+    await update(ctx, c.id, { admin_case_at: nowIso });
+    await event(ctx, c.id, 'admin_case', 'system', null, { embedded: true });
+    out.admin++;
+  }
+}
+
 export async function runFollowups(ctx: ContractCtx) {
   const now = ctx.now();
-  const out = { final: 0, client: 0, recruiter: 0, admin: 0, synced: 0 };
+  const out = { final: 0, client: 0, recruiter: 0, admin: 0, synced: 0, reminders: 0 };
   // Zusagen ohne Vertragszeile (älter als dieser Ablauf) bekommen eine
   const { data: accepted } = await ctx.db.from('offers').select('submission_id').eq('status', 'accepted');
   for (const o of (accepted ?? []) as any[]) {
@@ -790,6 +1082,11 @@ export async function runFollowups(ctx: ContractCtx) {
     if (DIGITAL_RUNNING.includes(c.status) && ctx.sign && c.envelope_id) {
       try { const snap = await ctx.sign.status(c.envelope_id); if (snap) { await applySnapshot(ctx, b, snap); out.synced++; } } catch { /* nächster Lauf */ }
       if (!OPEN.includes(b.contract.status)) continue;
+    }
+    // Über Matchunt: eigene Erinnerungen statt der Tag-7/10/21-Fragen („ist er unterschrieben?“ wissen wir ja)
+    if (DIGITAL_RUNNING.includes(b.contract.status) && b.contract.signing_mode === 'embedded') {
+      await followEmbedded(ctx, b, out);
+      continue;
     }
     const anchor = DIGITAL_RUNNING.includes(b.contract.status) && b.contract.sent_at ? b.contract.sent_at : (b.offer?.decision_at ?? b.offer?.responded_at ?? b.contract.created_at);
     const days = Math.floor((now - Date.parse(anchor)) / DAY_MS);
@@ -828,6 +1125,120 @@ export async function runFollowups(ctx: ContractCtx) {
 }
 
 // ---------------------------------------------------------------------------
+// Persönlicher Link ohne Konto (Function contract-sign, Seite /unterschrift/:token)
+// ---------------------------------------------------------------------------
+
+export type LinkState = 'invalid' | 'withdrawn' | 'revoked' | 'done' | 'signed' | 'not_yet' | 'expired' | 'ready';
+
+export function linkState(link: any, c: any, now: number): LinkState {
+  if (!link || !c) return 'invalid';
+  if (c.status === 'final' && c.envelope_id === link.envelope_id) return 'done';
+  if (c.envelope_id !== link.envelope_id || !DIGITAL_RUNNING.includes(c.status)) return 'withdrawn';
+  if (link.revoked_at) return 'revoked';
+  if (link.signer_role === 'company' ? c.company_signed_at : c.candidate_signed_at) return 'signed';
+  if (Date.parse(link.expires_at) < now) return 'expired';
+  if (link.signer_role === 'candidate' && !c.company_signed_at) return 'not_yet';
+  return 'ready';
+}
+
+const maskEmail = (e: string) => e.replace(/^(.)(.*)(@.*)$/, (_m, a: string, b: string, d: string) => `${a}${'•'.repeat(Math.min(6, Math.max(2, b.length)))}${d}`);
+
+async function loadLink(ctx: ContractCtx, token: unknown) {
+  const link = await linkByToken(ctx.db, token);
+  if (!link) return null;
+  const { data: c } = await ctx.db.from('employment_contracts').select('*').eq('id', link.contract_id).maybeSingle();
+  if (!c) return null;
+  const b = await loadBundle(ctx.db, (c as any).submission_id);
+  // Der Link gehört zu genau diesem Vertrag, nicht zum jüngsten der Bewerbung
+  b.contract = c;
+  return { link, b, c: c as any };
+}
+
+async function linkView(ctx: ContractCtx, x: { link: any; b: Bundle; c: any }) {
+  const { link, b, c } = x;
+  const state = linkState(link, c, ctx.now());
+  const role = link.signer_role as SignerRole;
+  const sentBy = role === 'company'
+    ? (((await ctx.db.from('employment_contract_events').select('actor_id, created_at').eq('contract_id', c.id).eq('event_type', 'sent_digital').order('created_at', { ascending: false }).limit(1)).data ?? [])[0] as any)?.actor_id
+    : null;
+  const uploader = sentBy ? await profile(ctx.db, sentBy) : null;
+  return {
+    state, role,
+    signerName: link.name,
+    email: maskEmail(String(link.email)),
+    companyName: b.job.company_name,
+    candidateName: b.candidate.full_name,
+    jobTitle: b.job.title,
+    startDate: c.start_date, salary: c.salary, variable: c.variable_salary,
+    uploadedBy: uploader?.name || null,
+    recruiterName: role === 'candidate' ? b.recruiter?.name || null : null,
+    companySignedAt: c.company_signed_at, candidateSignedAt: c.candidate_signed_at,
+    expiresAt: link.expires_at,
+    canDownload: state === 'done' && !link.revoked_at && Date.parse(link.expires_at) >= ctx.now() && !!c.signed_document_path,
+    demo: !!ctx.signDemo,
+  };
+}
+
+/** Seite öffnen: Stand des Links (öffnen zählt als „geöffnet“). */
+export async function linkPeek(ctx: ContractCtx, body: any) {
+  const x = await loadLink(ctx, body?.token);
+  if (!x) return { state: 'invalid' as LinkState };
+  if (!x.link.revoked_at) await markLinkOpened(ctx.db, x.link, ctx.now());
+  return await linkView(ctx, x);
+}
+
+/** „Vertrag ansehen und unterschreiben“: Adresse der eingebetteten Unterschrift. */
+export async function linkStart(ctx: ContractCtx, body: any) {
+  const x = await loadLink(ctx, body?.token);
+  must(x, 'Dieser Link ist nicht gültig.', 'not_found');
+  const state = linkState(x!.link, x!.c, ctx.now());
+  must(state === 'ready', state === 'not_yet' ? 'Die Firma unterschreibt zuerst; danach bekommen Sie Bescheid.' : state === 'expired' ? 'Der Link ist abgelaufen.' : 'Hier ist keine Unterschrift mehr offen.', 'conflict');
+  must(ctx.sign, 'Die digitale Unterschrift ist gerade nicht erreichbar. Bitte später noch einmal.', 'conflict');
+  const { link, c } = x!;
+  const url = await ctx.sign!.view({ envelopeId: c.envelope_id, contractId: c.id, role: link.signer_role, name: link.name, email: link.email, returnUrl: `${baseFor(ctx, body)}/unterschrift/${body.token}?zurueck=1`, via: 'link' });
+  return { url };
+}
+
+/** Rücksprung aus DocuSign: Stand holen (frühestens 20 s nach der letzten Abfrage). */
+export async function linkReturned(ctx: ContractCtx, body: any) {
+  const x = await loadLink(ctx, body?.token);
+  if (!x) return { state: 'invalid' as LinkState };
+  const { c, b } = x;
+  const synced = c.envelope_synced_at ? Date.parse(c.envelope_synced_at) : 0;
+  if (ctx.sign && c.envelope_id && DIGITAL_RUNNING.includes(c.status) && ctx.now() - synced >= RETURN_SYNC_MS) {
+    try {
+      const snap = await ctx.sign.status(c.envelope_id);
+      if (snap) { await applySnapshot(ctx, b, snap); x.c = b.contract; }
+    } catch (e) { console.warn('[contract] Stand nach dem Rücksprung nicht abrufbar', e instanceof Error ? e.message : e); }
+  }
+  return await linkView(ctx, x);
+}
+
+/** Abgelaufen: neuen Link an dieselbe Adresse (höchstens alle 10 Minuten). */
+export async function linkRenew(ctx: ContractCtx, body: any) {
+  const x = await loadLink(ctx, body?.token);
+  must(x, 'Dieser Link ist nicht gültig.', 'not_found');
+  const { link, b, c } = x!;
+  const fresh = (await linksOf(ctx.db, c.id)).find((l) => l.signer_role === link.signer_role && l.id !== link.id && ctx.now() - Date.parse(l.created_at) < 10 * 60_000);
+  // Doppelklick oder zweiter Tab: der neue Link ist schon unterwegs
+  if (fresh) return { ok: true, email: maskEmail(String(link.email)) };
+  must(linkState(link, c, ctx.now()) === 'expired', 'Für diesen Link gibt es nichts zu erneuern.', 'conflict');
+  await sendSignLink(ctx, b, c, link.signer_role, null);
+  return { ok: true, email: maskEmail(String(link.email)) };
+}
+
+/** Unterschriebenes PDF für Unterzeichner mit gültigem Link. */
+export async function linkDocument(ctx: ContractCtx, body: any) {
+  const x = await loadLink(ctx, body?.token);
+  must(x, 'Dieser Link ist nicht gültig.', 'not_found');
+  const v = await linkView(ctx, x!);
+  must(v.canDownload, 'Die Kopie ist über diesen Link nicht mehr abrufbar.', 'conflict');
+  const url = await ctx.files.url(x!.c.signed_document_path, 300);
+  must(url, 'Das PDF ist gerade nicht abrufbar.', 'not_found');
+  return { url };
+}
+
+// ---------------------------------------------------------------------------
 // Admin: offene Fälle
 // ---------------------------------------------------------------------------
 
@@ -842,6 +1253,7 @@ export async function adminCases(ctx: ContractCtx, user: User) {
       submissionId: c.submission_id, candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title,
       recruiterName: b.recruiter?.name ?? null, acceptedAt: b.offer?.decision_at ?? null,
       contract: contractView(c, 'admin'), adminCaseAt: c.admin_case_at,
+      signing: signingView(c, await linksOf(ctx.db, c.id), 'admin', false),
     });
   }
   return { cases: out };

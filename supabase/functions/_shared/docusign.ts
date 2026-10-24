@@ -263,6 +263,8 @@ export async function recipientView(c: DocuSignConfig, args: {
   frameAncestors?: string[];
   /** Herkuenfte, von denen DocuSign Nachrichten an das Fenster erlaubt. */
   messageOrigins?: string[];
+  /** Wie der Absender die Person geprüft hat (steht im Abschlusszertifikat). Standard 'none'. */
+  authenticationMethod?: 'none' | 'email' | 'password';
 }): Promise<string> {
   const token = await accessToken(c);
   const res = await fetch(
@@ -272,7 +274,7 @@ export async function recipientView(c: DocuSignConfig, args: {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         returnUrl: args.returnUrl,
-        authenticationMethod: 'none',
+        authenticationMethod: args.authenticationMethod ?? 'none',
         userName: args.name,
         email: args.email,
         clientUserId: args.clientUserId,

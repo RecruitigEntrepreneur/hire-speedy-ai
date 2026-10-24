@@ -1,6 +1,8 @@
 // Mailtexte rund um Arbeitsvertrag und Unterschrift (Paket 3, 22.10.2026). Reine
-// Funktionen: liefern Betreff, HTML und Text. Den digitalen Umschlag schickt
-// DocuSign selbst an die Unterzeichner; von Matchunt bekommt der Kandidat nichts.
+// Funktionen: liefern Betreff, HTML und Text. Seit 23.10.2026 (Unterschrift über
+// Matchunt) bekommen Unterzeichner ohne Konto und der Kandidat ihren persönlichen
+// Link von Matchunt; DocuSign mailt eingebetteten Unterzeichnern nichts. Alte
+// Umschläge (signing_mode 'email') verschickt DocuSign weiter selbst.
 import { esc, layout } from './intake-mail.ts';
 import type { MailContent } from './offer-mails.ts';
 
@@ -100,6 +102,66 @@ export function clientReminder(o: { name: string | null; candidateName: string; 
     p(`${link('Ja, melden', 'melden')}${link('Noch nicht, verschickt am …', 'verschickt')}${link(`${first} ist abgesprungen`, 'abgesprungen')}`),
   ].join('');
   return { subject: heading, html: layout({ preheader: 'Kurz melden', heading, body }), text: plain(heading, `Melden: ${o.profileUrl}?vertrag=melden`) };
+}
+
+// --- An die Unterzeichner (Unterschrift über Matchunt) ---------------------------
+
+const demoNote = (demo: boolean | undefined) => (demo ? p(muted('Testbetrieb: Diese Unterschrift ist noch nicht rechtsverbindlich.')) : '');
+const validity = (days: number) => `Der Link gilt ${days} Tage und ist nur für Sie bestimmt.`;
+
+/** Unterzeichner der Firma ohne Matchunt-Konto (z. B. Geschäftsführung). */
+export function companySignLink(o: {
+  name: string | null; companyName: string; candidateName: string; jobTitle: string; uploaderName: string | null; uploaderEmail: string | null;
+  url: string; days: number; reminder?: boolean; demo?: boolean;
+}): MailContent {
+  const heading = o.reminder ? `Erinnerung: Arbeitsvertrag ${o.candidateName} unterschreiben` : `Bitte unterschreiben: Arbeitsvertrag ${o.candidateName}`;
+  const body = [
+    p(`Guten Tag${o.name ? ` ${esc(o.name)}` : ''},`),
+    p(`${o.uploaderName ? `${esc(o.uploaderName)} hat` : 'Ihr Team hat'} bei Matchunt den Arbeitsvertrag für <strong>${esc(o.candidateName)}</strong> (${esc(o.jobTitle)}) hochgeladen. Sie unterschreiben für die ${esc(o.companyName)}; danach ist ${esc(o.candidateName.split(' ')[0])} dran.`),
+    demoNote(o.demo),
+  ].join('');
+  const after = [validity(o.days), o.uploaderName ? `Fragen: ${o.uploaderName}${o.uploaderEmail ? `, ${o.uploaderEmail}` : ''}` : null].filter(Boolean).join(' ');
+  return {
+    subject: heading,
+    html: layout({ preheader: o.companyName, heading, body, cta: { label: 'Vertrag ansehen und unterschreiben', url: o.url }, after: esc(after) }),
+    text: plain(heading, `${o.uploaderName ?? 'Ihr Team'} hat den Arbeitsvertrag für ${o.candidateName} hochgeladen. Sie unterschreiben für die ${o.companyName}.`, o.url, after),
+  };
+}
+
+/** Kandidat, sobald die Firma unterschrieben hat. */
+export function candidateSignLink(o: {
+  firstName: string; companyName: string; jobTitle: string; startDate: string | null; salary: number | null; variable: number | null;
+  recruiterName: string | null; url: string; days: number; reminder?: boolean; demo?: boolean;
+}): MailContent {
+  const heading = o.reminder ? `Erinnerung: Ihr Arbeitsvertrag mit ${o.companyName}` : `Ihr Arbeitsvertrag mit ${o.companyName} ist da`;
+  const facts = [
+    `Stelle: ${o.jobTitle}`,
+    o.startDate ? `Beginn: ${dateDe(o.startDate)}` : null,
+    o.salary ? `Gehalt: ${euro(o.salary)}${o.variable ? ` + ${euro(o.variable)} variabel` : ''}` : null,
+  ].filter(Boolean) as string[];
+  const body = [
+    hallo(o.firstName),
+    p(o.reminder ? `Ihr Arbeitsvertrag mit ${esc(o.companyName)} wartet noch auf Ihre Unterschrift.` : `${esc(o.companyName)} hat Ihren Arbeitsvertrag unterschrieben. Jetzt fehlt nur noch Ihre Unterschrift.`),
+    p(facts.map(esc).join('<br>')),
+    demoNote(o.demo),
+  ].join('');
+  const after = [validity(o.days), o.recruiterName ? `Fragen zum Vertrag? Antworten Sie einfach auf diese Mail, sie geht an ${o.recruiterName}.` : null].filter(Boolean).join(' ');
+  return {
+    subject: heading,
+    html: layout({ preheader: o.companyName, heading, body, cta: { label: 'Vertrag ansehen und unterschreiben', url: o.url }, after: esc(after) }),
+    text: plain(heading, ...facts, o.url, after),
+  };
+}
+
+/** Kandidat: beide haben unterschrieben, Kopie über denselben Weg. */
+export function candidateSignedCopy(o: { firstName: string; companyName: string; startDate: string | null; url: string; days: number }): MailContent {
+  const heading = `Geschafft: Ihr Arbeitsvertrag mit ${o.companyName} ist unterschrieben`;
+  const body = [
+    hallo(o.firstName),
+    p(`Beide Seiten haben unterschrieben${o.startDate ? `. Ihr erster Arbeitstag: ${esc(dateDe(o.startDate))}` : ''}. Ihre Kopie des Vertrags können Sie hier herunterladen.`),
+  ].join('');
+  const after = `Der Link gilt ${o.days} Tage. Speichern Sie die Kopie bitte bei sich.`;
+  return { subject: heading, html: layout({ preheader: o.companyName, heading, body, cta: { label: 'Kopie herunterladen', url: o.url }, after: esc(after) }), text: plain(heading, o.url, after) };
 }
 
 // --- An Matchunt ---------------------------------------------------------------

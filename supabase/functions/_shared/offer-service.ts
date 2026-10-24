@@ -368,6 +368,40 @@ export async function keepOffer(ctx: ServiceCtx, user: User, body: any) {
   return { ok: true };
 }
 
+/**
+ * Gegenwunsch annehmen (24.10.2026, „ein Fenster“): Version 2 mit genau den Werten des Wunsches,
+ * ein Klick. Der Headhunter bekommt sie wie jedes angepasste Angebot.
+ */
+export async function acceptCounter(ctx: ServiceCtx, user: User, body: any) {
+  const { offer } = await clientOffer(ctx, user, body?.offerId);
+  must(offer.status === 'countered', 'Es liegt kein Gegenwunsch vor.', 'conflict');
+  const wish = (offer.candidate_response?.wish ?? {}) as any;
+  const today = todayKey(ctx.now());
+  // Frist: die alte, wenn sie noch läuft, sonst drei Werktage
+  const due = offer.response_due && String(offer.response_due).slice(0, 10) >= today ? String(offer.response_due).slice(0, 10) : workdaysFrom(ctx.now(), 3);
+  const start = wish.startDate && String(wish.startDate) >= today ? String(wish.startDate) : offer.start_date;
+  const res = await createOffer(ctx, user, {
+    submissionId: offer.submission_id,
+    salary: wish.salary ?? offer.salary_offered,
+    variable: wish.variable ?? offer.variable_salary,
+    startDate: start, responseDue: due,
+    contractType: offer.contract_type, probationMonths: offer.probation_months, workModel: offer.work_model, extras: offer.extras ?? [],
+    message: wish.other ? `Wunsch angenommen, auch: ${String(wish.other).slice(0, 300)}` : 'Wunsch angenommen.',
+  });
+  await event(ctx, res.offerId, 'counter_accepted', 'client', user.id, { fromOfferId: offer.id });
+  return res;
+}
+
+function workdaysFrom(now: number, days: number): string {
+  const d = new Date(now);
+  let left = days;
+  while (left > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) left--;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
 export async function withdrawOffer(ctx: ServiceCtx, user: User, body: any) {
   const { offer, b } = await clientOffer(ctx, user, body?.offerId);
   must(OPEN_STATUSES.includes(offer.status), 'Dieses Angebot ist nicht mehr offen.', 'conflict');

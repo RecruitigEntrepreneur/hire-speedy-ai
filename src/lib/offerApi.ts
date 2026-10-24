@@ -102,6 +102,8 @@ export const offerApi = {
   create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'create', ...input }, 'Das Angebot konnte nicht gesendet werden.'),
   respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView }>('offer', { action: 'respond', ...input }, 'Die Antwort konnte nicht gespeichert werden.'),
   keep: (offerId: string, note: string) => callFunction<{ ok: true }>('offer', { action: 'keep', offerId, note }),
+  /** Gegenwunsch annehmen: Version 2 mit genau den Werten des Wunsches */
+  acceptCounter: (offerId: string) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'accept_counter', offerId }, 'Der Wunsch konnte nicht angenommen werden.'),
   withdraw: (offerId: string) => callFunction<{ ok: true }>('offer', { action: 'withdraw', offerId }),
   extend: (offerId: string, responseDue: string) => callFunction<{ ok: true }>('offer', { action: 'extend', offerId, responseDue }),
   recommend: (submissionId: string, intro: string, items: RecommendationItem[]) =>

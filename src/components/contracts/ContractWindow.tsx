@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
-import { contractApi, dateDe, euro, timeDe } from '@/lib/contractApi';
+import { contractApi, dateDe, euro, linkLine, timeDe } from '@/lib/contractApi';
 import { ContractReportDialog } from './ContractReportDialog';
 
 interface Props {
@@ -50,6 +50,9 @@ export function ContractWindow({ submissionId, onClose, onDone }: Props) {
   };
 
   const status = c?.status ?? 'preparing';
+  // Unterschrift über Matchunt: Kandidat bekommt seinen Link von uns, der Headhunter sieht, ob er geöffnet ist
+  const embedded = ctx?.signing?.mode === 'embedded';
+  const candLink = ctx?.signing?.candidate ?? null;
   const checkOpen = !!c && ['signed', 'final'].includes(status) && c.reportedRole === 'client' && !c.recruiterCheck;
   const canReport = ['preparing', 'sent_self', 'declined'].includes(status);
   const canDrop = ['preparing', 'sent_self', 'sent_digital', 'company_signed', 'declined'].includes(status);
@@ -82,9 +85,10 @@ export function ContractWindow({ submissionId, onClose, onDone }: Props) {
                 {step(true, 'Zusage', ctx.offer?.acceptedAt ? dateDe(ctx.offer.acceptedAt) : null)}
                 {c?.way === 'digital' || ['sent_digital', 'company_signed'].includes(status) ? (
                   <>
-                    {step(!!c?.sentAt, 'Versendet über DocuSign', timeDe(c?.sentAt))}
+                    {step(!!c?.sentAt, embedded ? 'Vertrag hochgeladen' : 'Versendet über DocuSign', timeDe(c?.sentAt))}
                     {step(!!c?.companySignedAt, `${firma} hat unterschrieben`, timeDe(c?.companySignedAt))}
-                    {step(!!c?.candidateSignedAt || status === 'final', `${first} unterschreibt`, timeDe(c?.candidateSignedAt))}
+                    {step(!!c?.candidateSignedAt || status === 'final', `${first} unterschreibt`,
+                      c?.candidateSignedAt ? timeDe(c.candidateSignedAt) : embedded && status === 'company_signed' ? linkLine(candLink, null) : null)}
                   </>
                 ) : (
                   step(status !== 'preparing', status === 'preparing' ? `${firma} bereitet den Vertrag vor` : `${firma} hat den Vertrag ${c?.sentAt ? `am ${dateDe(c.sentAt)} ` : ''}selbst geschickt`)
@@ -96,7 +100,15 @@ export function ContractWindow({ submissionId, onClose, onDone }: Props) {
               </ul>
               {status === 'declined' && <p className="mt-2 text-amber-700 dark:text-amber-400">In DocuSign abgelehnt{c?.declineReason ? `: „${c.declineReason}“` : ''}. Bitte mit allen klären.</p>}
               {status === 'dropped' && <p className="mt-2 text-muted-foreground">{first} ist abgesprungen{c?.dropReason ? `: „${c.dropReason}“` : ''}.</p>}
-              {['sent_digital', 'company_signed'].includes(status) && <p className="mt-2 text-xs text-muted-foreground">DocuSign meldet die Unterschrift von selbst; DocuSign erinnert {first} zusätzlich.</p>}
+              {['sent_digital', 'company_signed'].includes(status) && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {embedded
+                    ? (status === 'company_signed'
+                      ? `${first} hat den Link per Mail von Matchunt.${candLink && !candLink.openedAt ? ` Noch nicht geöffnet: ruf ${first} an, ob die Mail angekommen ist.` : ''}`
+                      : `Erst unterschreibt ${firma}, dann bekommt ${first} einen Link per Mail von Matchunt.`)
+                    : `DocuSign meldet die Unterschrift von selbst; DocuSign erinnert ${first} zusätzlich.`}
+                </p>
+              )}
             </div>
 
             {checkOpen && (
@@ -129,6 +141,9 @@ export function ContractWindow({ submissionId, onClose, onDone }: Props) {
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
               {ctx.candidatePhone && !['final', 'dropped'].includes(status) && (
                 <Button size="sm" variant="outline" className="gap-1" asChild><a href={`tel:${ctx.candidatePhone}`}><Phone className="h-3.5 w-3.5" />{first} anrufen</a></Button>
+              )}
+              {embedded && status === 'company_signed' && dropReason === null && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId!), `Neuer Link an ${first} ist unterwegs.`)}>Link an {first} erneut senden</Button>
               )}
               {canDrop && dropReason === null && <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{first} ist abgesprungen</Button>}
               {canReport && <Button size="sm" onClick={() => setShowReport(true)}>{first} hat unterschrieben</Button>}

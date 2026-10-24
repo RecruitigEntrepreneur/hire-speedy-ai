@@ -67,10 +67,12 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
   );
 }
 
-export function WaitingRow({ item }: { item: ClientWaitingItem }) {
+export function WaitingRow({ item, onOpen }: { item: ClientWaitingItem; onOpen?: (w: ClientWaitingItem) => void }) {
   const label = item.by === 'candidate' ? 'Kandidat' : item.by === 'recruiter' ? 'Headhunter' : item.by === 'matchunt' ? 'Matchunt' : 'Termin';
+  const clickable = !!onOpen && isContractWaiting(item.key) && !!item.submissionId;
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2.5 py-2">
+    <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-2', clickable && 'cursor-pointer hover:bg-accent/50')} onClick={clickable ? () => onOpen!(item) : undefined}
+      role={clickable ? 'button' : undefined} tabIndex={clickable ? 0 : undefined} onKeyDown={clickable ? (e) => { if (e.key === 'Enter') onOpen!(item); } : undefined}>
       <span className="w-20 shrink-0 text-[11px] text-muted-foreground">{label}</span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm">{item.title}</p>
@@ -154,8 +156,11 @@ export function ContextView({ context: c, detail, questions = [], note }: { cont
   );
 }
 
+/** Läuft-bei-anderen-Einträge rund um den Arbeitsvertrag (öffnen das Vertrags-Fenster) */
+export const isContractWaiting = (key: string) => /^(sign-company|docusign-cand|contract-self|contract-undo):/.test(key);
+
 /** Kopf des Bewerberprofils: „IHRE AUFGABEN“ und „LÄUFT BEI ANDEREN“ als Karten. */
-export function ProfileTaskCards({ tasks, waiting, onOpen }: { tasks: ClientTask[]; waiting: ClientWaitingItem[]; onOpen: (t: ClientTask) => void }) {
+export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { tasks: ClientTask[]; waiting: ClientWaitingItem[]; onOpen: (t: ClientTask) => void; onOpenWaiting?: (w: ClientWaitingItem) => void }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div>
@@ -185,13 +190,20 @@ export function ProfileTaskCards({ tasks, waiting, onOpen }: { tasks: ClientTask
           <p className="text-sm text-muted-foreground">–</p>
         ) : (
           <div className="space-y-1.5">
-            {waiting.map((w) => (
-              <div key={w.key} className="rounded-lg border bg-card px-3 py-2">
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{w.by === 'candidate' ? 'Kandidat' : w.by === 'recruiter' ? 'Headhunter' : w.by === 'matchunt' ? 'Matchunt' : 'Termin'}</span>
-                <p className="mt-1 text-sm font-medium">{w.title}</p>
-                <p className="text-xs text-muted-foreground">{w.detail}</p>
-              </div>
-            ))}
+            {waiting.map((w) => {
+              // Vertrag: klickbar, öffnet das Aufgaben-Fenster im Modus „läuft“
+              const clickable = !!onOpenWaiting && isContractWaiting(w.key);
+              const body = (
+                <>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{w.by === 'candidate' ? 'Kandidat' : w.by === 'recruiter' ? 'Headhunter' : w.by === 'matchunt' ? 'Matchunt' : 'Termin'}</span>
+                  <p className="mt-1 text-sm font-medium">{w.title}</p>
+                  <p className="text-xs text-muted-foreground">{w.detail}</p>
+                </>
+              );
+              return clickable
+                ? <button key={w.key} type="button" onClick={() => onOpenWaiting!(w)} className="block w-full rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-accent/40">{body}</button>
+                : <div key={w.key} className="rounded-lg border bg-card px-3 py-2">{body}</div>;
+            })}
           </div>
         )}
       </div>

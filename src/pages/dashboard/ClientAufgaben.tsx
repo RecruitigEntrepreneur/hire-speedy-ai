@@ -152,7 +152,7 @@ export default function ClientAufgaben() {
                 {showWaiting ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                 Läuft bei anderen · {waiting.length}
               </button>
-              {showWaiting && waiting.map((w) => <WaitingRow key={w.key} item={w} />)}
+              {showWaiting && waiting.map((w) => <WaitingRow key={w.key} item={w} onOpen={(x) => navigate(`/dashboard/candidates/${x.submissionId}?vertrag=offen`)} />)}
             </section>
             <section className="space-y-1">
               <button type="button" className="flex items-center gap-1 px-2.5 text-xs font-medium text-muted-foreground" onClick={() => setShowDone((v) => !v)}>

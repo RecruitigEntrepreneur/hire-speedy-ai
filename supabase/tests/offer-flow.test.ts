@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import type { ServiceCtx } from '../functions/_shared/interview-service.ts';
-import { createOffer, extendOffer, keepOffer, offerContext, recommend, recruiterContext, respondOffer, withdrawOffer, workModelOf } from '../functions/_shared/offer-service.ts';
+import { acceptCounter, createOffer, extendOffer, keepOffer, offerContext, recommend, recruiterContext, respondOffer, withdrawOffer, workModelOf } from '../functions/_shared/offer-service.ts';
 import type { InterviewMail } from '../functions/_shared/interview-mailer.ts';
 
 const assert = (v: unknown, m = 'Assertion failed') => { if (!v) throw Error(m); };
@@ -164,4 +164,26 @@ Deno.test({ name: 'Headhunter-Sicht: Nachgespräch mit Schmerzgrenze nur für de
   assert(message.includes('Nur der Headhunter'), 'Kunde sieht die Headhunter-Sicht nie');
   const client = await offerContext(ctx, user(CLIENT), { submissionId: SUB });
   assert(!JSON.stringify(client).includes('140000'), 'Schmerzgrenze nie im Kundenkontext');
+}});
+
+Deno.test({ name: 'Gegenwunsch annehmen: ein Klick, Version 2 mit genau den Werten, Headhunter überbringt', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed();
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  await createOffer(ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const first = tables.offers[0];
+  let message = '';
+  try { await acceptCounter(ctx, user(CLIENT), { offerId: first.id }); } catch (e: any) { message = e.message; }
+  assert(message.includes('kein Gegenwunsch'), 'nur bei Gegenwunsch');
+  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000, wishStart: '2027-03-01', wishOther: '4 Tage Homeoffice', reason: 'Kündigungsfrist' });
+  message = '';
+  try { await acceptCounter(ctx, user(RECRUITER), { offerId: first.id }); } catch (e: any) { message = e.message; }
+  assert(message.length > 0, 'nur der Kunde nimmt an');
+  sent.length = 0;
+  const r = await acceptCounter(ctx, user(CLIENT), { offerId: first.id });
+  const v2: any = tables.offers.find((o: any) => o.id === r.offerId);
+  eq([first.status, v2.status, v2.version, v2.salary_offered, v2.variable_salary, v2.start_date, v2.response_due], ['superseded', 'with_recruiter', 2, 150000, 20000, '2027-03-01', '2026-10-29']);
+  assert(String(v2.message_to_recruiter).includes('4 Tage Homeoffice'), 'Sonstiges geht als Nachricht an Julia');
+  assert(sent.some((m) => m.template === 'offer_received_recruiter' && m.to === 'julia@example.test'), 'Julia bekommt Version 2');
+  assert(tables.offer_events.some((e: any) => e.event_type === 'counter_accepted'), 'im Verlauf');
 }});

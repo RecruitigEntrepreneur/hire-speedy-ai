@@ -138,13 +138,32 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
         { key: 'weg', label: 'Abgesprungen', cta: 'Weiter', run: needH((x) => x.contract('abgesprungen')) },
       ];
     case 'docusign_sign':
+      // Über Matchunt (23.10.2026): unterschreiben direkt, ohne DocuSign-Mail
+      if (t.ref.signMode === 'embedded' && t.ref.signerExternal) {
+        // Jemand anderes unterschreibt für die Firma und hat es seit 2 Tagen nicht getan
+        return [
+          { key: 'link', label: 'Link erneut senden', cta: 'Neuen Link senden', hint: 'Der alte Link gilt dann nicht mehr. Die Aufgabe bleibt, bis unterschrieben ist.',
+            run: async () => { const r = await contractApi.resendLink(sid); toast.success(`Neuer Link an ${r.sentTo ?? 'den Unterzeichner'} ist unterwegs.`); return 'handoff'; } },
+          { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Unterzeichner ändern', hint: 'Auch „Ich selbst“ geht: dann unterschreiben Sie gleich hier in Matchunt.', run: needH((x) => x.contract('unterzeichner')) },
+          { key: 'selbst', label: 'Doch selbst verschicken', cta: 'Umschlag zurückziehen',
+            run: async () => { await contractApi.voidDigital(sid, true); h?.contract('verschickt'); return 'handoff'; } },
+        ];
+      }
+      if (t.ref.signMode === 'embedded') {
+        return [
+          { key: 'jetzt', label: 'Jetzt unterschreiben', cta: 'Zu DocuSign', hint: 'Öffnet die Unterschrift im selben Fenster, danach geht es zurück ins Bewerberprofil.', run: needH((x) => x.contract('unterschreiben')) },
+          { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Unterzeichner ändern', hint: 'Der Vertrag bleibt derselbe; die andere Person bekommt einen Link von Matchunt.', run: needH((x) => x.contract('unterzeichner')) },
+          { key: 'selbst', label: 'Doch selbst verschicken', cta: 'Umschlag zurückziehen',
+            run: async () => { await contractApi.voidDigital(sid, true); h?.contract('verschickt'); return 'handoff'; } },
+        ];
+      }
       return [
         { key: 'mail', label: 'DocuSign-Mail erneut senden', cta: 'Mail erneut senden', hint: 'Die Aufgabe bleibt, bis die Unterschrift bei DocuSign eingegangen ist.',
           run: async () => { await contractApi.resend(sid); toast.success('DocuSign schickt die Mail noch einmal.'); return 'handoff'; } },
         { key: 'stand', label: 'Ich habe schon unterschrieben', cta: 'Stand bei DocuSign abfragen',
           run: async () => { await contractApi.refresh(sid); return 'handoff'; } },
-        { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Umschlag neu senden', hint: 'Der bisherige Umschlag wird zurückgezogen.',
-          run: async () => { await contractApi.voidDigital(sid, false); h?.contract('digital'); return 'handoff'; } },
+        { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Unterzeichner ändern', hint: 'Stellt auf die Unterschrift über Matchunt um, ohne neues Hochladen. Der bisherige Umschlag wird zurückgezogen.',
+          run: needH((x) => x.contract('unterzeichner')) },
         { key: 'selbst', label: 'Doch selbst verschicken', cta: 'Umschlag zurückziehen',
           run: async () => { await contractApi.voidDigital(sid, true); h?.contract('verschickt'); return 'handoff'; } },
       ];

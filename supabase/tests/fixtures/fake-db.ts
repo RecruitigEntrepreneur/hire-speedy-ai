@@ -90,6 +90,7 @@ export function fakeDb(seed: Record<string, Row[]>, rpcs: Record<string, (args: 
       upsert(p: any, opts?: { onConflict?: string }) { mode = 'upsert'; payload = p; onConflict = (opts?.onConflict ?? 'id').split(','); return q; },
       delete() { mode = 'delete'; return q; },
       eq(c: string, v: any) { filters.push((r) => (c.includes('->>') ? String((r[c.split('->>')[0]] ?? {})[c.split('->>')[1]]) === String(v) : r[c] === v)); return q; },
+      neq(c: string, v: any) { filters.push((r) => r[c] !== v); return q; },
       in(c: string, vs: any[]) { filters.push((r) => vs.includes(r[c])); return q; },
       is(c: string, v: any) { filters.push((r) => (r[c] ?? null) === v); return q; },
       gt(c: string, v: any) { filters.push((r) => r[c] > v); return q; },

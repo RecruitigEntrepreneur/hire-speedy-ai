@@ -7,6 +7,7 @@ import { PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
 import { AktiveJobsTile } from '@/components/dashboard/bento/AktiveJobsTile';
 import { IhreAufgabenTile } from '@/components/dashboard/bento/IhreAufgabenTile';
+import { MilestoneBand } from '@/components/dashboard/MilestoneBand';
 import { AnstehendeInterviewsTile } from '@/components/dashboard/bento/AnstehendeInterviewsTile';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
@@ -98,6 +99,9 @@ export default function ClientDashboard() {
             <Compass className="h-4 w-4" /> Rundgang
           </Button>
         </div>
+
+        {/* Neuigkeit: Meilensteine (Zusage, Gegenwunsch …) mit dem nächsten Schritt (24.10.2026) */}
+        <MilestoneBand />
 
         {/* Neue Position – fuehrt in dieselbe Aufnahme wie der Link /start */}
         <div data-tour="client.entry">

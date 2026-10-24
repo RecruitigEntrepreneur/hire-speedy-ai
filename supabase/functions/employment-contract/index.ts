@@ -6,7 +6,8 @@ import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { authUser, defaultCtx, interviewFailure, must } from '../_shared/interview-service.ts';
 import {
-  adminCases, check, confirm, contractContext, contractCtx, drop, refreshDigital, report, sendDigital, sendSelf, signedDocument, undo, voidDigital, resendDigital,
+  adminCases, changeSigner, check, confirm, contractContext, contractCtx, drop, refreshDigital, report, resendDigital, resendLink, sendDigital, sendSelf,
+  signedDocument, signUrl, undo, voidDigital,
 } from '../_shared/contract-service.ts';
 
 serve(async (req) => {
@@ -23,6 +24,10 @@ serve(async (req) => {
       case 'send_digital': return json(await sendDigital(ctx, user, body));
       case 'void_digital': return json(await voidDigital(ctx, user, body));
       case 'resend': return json(await resendDigital(ctx, user, body));
+      // Unterschrift über Matchunt (23.10.2026)
+      case 'sign_url': return json(await signUrl(ctx, user, body));
+      case 'resend_link': return json(await resendLink(ctx, user, body));
+      case 'change_signer': return json(await changeSigner(ctx, user, body));
       case 'refresh': return json(await refreshDigital(ctx, user, body));
       case 'report': return json(await report(ctx, user, body));
       case 'confirm': return json(await confirm(ctx, user, body));

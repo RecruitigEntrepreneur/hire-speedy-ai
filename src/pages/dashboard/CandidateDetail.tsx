@@ -57,9 +57,12 @@ import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import { FeedbackDialog } from '@/components/interview/window/FeedbackDialog';
 import { OfferDialog } from '@/components/offers/OfferDialog';
-import { OfferBox } from '@/components/offers/OfferBox';
 import { RecommendationCard } from '@/components/offers/RecommendationCard';
-import { ContractBox, type ContractOpen } from '@/components/contracts/ContractBox';
+import type { ContractOpen } from '@/components/contracts/ContractBox';
+import { ContractTaskWindow } from '@/components/contracts/ContractTaskWindow';
+import { ContractTimeline } from '@/components/contracts/ContractTimeline';
+import { OfferTaskWindow } from '@/components/offers/OfferTaskWindow';
+import { OfferStand } from '@/components/offers/OfferStand';
 import { offerApi } from '@/lib/offerApi';
 import { PendingRequestStatus } from '@/components/interview/PendingRequestStatus';
 import { StatePill } from '@/components/candidates/BewerberStatusPill';
@@ -233,7 +236,11 @@ export default function CandidateDetail() {
   // Angebot machen (Paket 2): Fenster in der Mitte
   const [showOffer, setShowOffer] = useState(false);
   // Arbeitsvertrag (Paket 3): Fenster öffnet die Vertrags-Box selbst
-  const [contractOpen, setContractOpen] = useState<ContractOpen>(null);
+  // Ein Fenster für alles rund um den Vertrag (24.10.2026): Absicht, Rücksprung von DocuSign, Aufgabe
+  const [contractWin, setContractWin] = useState<null | { intent: ContractOpen; returnEvent: string | null; task: ClientTask | null }>(null);
+  const setContractOpen = (intent: ContractOpen) => setContractWin({ intent, returnEvent: null, task: null });
+  // Angebot: ebenfalls ein Fenster (Gegenwunsch, Frist, Stand)
+  const [offerWin, setOfferWin] = useState(false);
   // Gleicher Schlüssel wie Empfehlungskarte und Angebots-Box: ein Abruf für alle
   const { data: offerCtx } = useQuery({
     queryKey: ['offer-context', id],
@@ -370,7 +377,14 @@ export default function CandidateDetail() {
   const openTask = (task: ClientTask) => {
     // Feedback hat sein eigenes Fenster mit den vier Wegen
     if (task.kind === 'feedback' && task.ref.interviewId) { setDelegatedTask(task); setFeedbackFor(task.ref.interviewId); return; }
+    // Vertrag: eine Aufgabe, ein Fenster (kein Zwischenfenster)
+    if (['send_contract', 'docusign_sign', 'contract_signed_check'].includes(task.kind)) { setDelegatedTask(task); setContractWin({ intent: null, returnEvent: null, task }); return; }
+    if (['counter', 'offer_overdue'].includes(task.kind)) { setDelegatedTask(task); setOfferWin(true); return; }
     setActiveTask(task);
+  };
+  // „Läuft bei anderen“: Karten rund um den Vertrag öffnen dasselbe Fenster im Modus „läuft“
+  const openWaiting = (key: string) => {
+    if (/^(sign-company|docusign-cand|contract-self|contract-undo):/.test(key)) setContractWin({ intent: null, returnEvent: null, task: null });
   };
   const handoff = (fn: () => void) => () => { if (activeTask) setDelegatedTask(activeTask); setActiveTask(null); fn(); };
   const taskHandlers: TaskHandlers = {
@@ -378,7 +392,7 @@ export default function CandidateDetail() {
     reject: handoff(() => setShowRejectDialog(true)),
     askRecruiter: handoff(() => setShowFrage(true)),
     offer: handoff(() => setShowOffer(true)),
-    contract: (open) => handoff(() => setContractOpen(open))(),
+    contract: (open) => handoff(() => setContractWin({ intent: open, returnEvent: null, task: activeTask }))(),
   };
   // ?aufgabe=… aus Kachel, Liste oder Aufgaben-Seite: Fenster direkt öffnen
   const aufgabeParam = new URLSearchParams(location.search).get('aufgabe');
@@ -419,11 +433,13 @@ export default function CandidateDetail() {
     navigate(location.pathname, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest, subState]);
-  // Erinnerungs-Mail an Tag 7: ?vertrag=melden | verschickt | abgesprungen
+  // Erinnerungs-Mail an Tag 7: ?vertrag=melden | verschickt | abgesprungen; Rücksprung von DocuSign: ?vertrag=zurueck
   const vertragParam = new URLSearchParams(location.search).get('vertrag');
   useEffect(() => {
     if (!vertragParam || !subState) return;
     if (['melden', 'verschickt', 'abgesprungen'].includes(vertragParam)) setContractOpen(vertragParam as ContractOpen);
+    if (vertragParam === 'offen') setContractOpen(null);
+    if (vertragParam === 'zurueck') setContractWin({ intent: null, returnEvent: new URLSearchParams(location.search).get('event') ?? 'signing_complete', task: null });
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vertragParam, subState]);
@@ -839,7 +855,7 @@ export default function CandidateDetail() {
             {/* Ihre Aufgaben · läuft bei anderen (wie „AUFGABEN“ im Headhunter-Profil) */}
             {!isViewer && clientTasks.data && (clientTasks.data.tasks.length > 0 || clientTasks.data.waiting.length > 0) && (
               <div className="mt-3 border-t pt-3">
-                <ProfileTaskCards tasks={clientTasks.data.tasks} waiting={clientTasks.data.waiting} onOpen={openTask} />
+                <ProfileTaskCards tasks={clientTasks.data.tasks} waiting={clientTasks.data.waiting} onOpen={openTask} onOpenWaiting={(w) => openWaiting(w.key)} />
               </div>
             )}
           </div>
@@ -921,8 +937,8 @@ export default function CandidateDetail() {
             </div>
           </div>
           {offerFlow && !isViewer && (subState?.offers?.[0]?.status === 'accepted'
-            ? <ContractBox submissionId={submissionId} openRequest={contractOpen} onOpenHandled={() => setContractOpen(null)} />
-            : <OfferBox submissionId={submissionId} onAdjust={() => setShowOffer(true)} onReject={() => setShowRejectDialog(true)} />
+            ? <ContractTimeline submissionId={submissionId} onOpen={() => setContractOpen(null)} />
+            : <OfferStand submissionId={submissionId} onOpen={() => setOfferWin(true)} />
           )}
         </div>
 
@@ -1229,6 +1245,14 @@ export default function CandidateDetail() {
         replacesInterviewId={requestReplaces}
         onSent={() => { setShowInterviewDialog(false); setRequestReplaces(null); refetch(); }}
       />
+
+      {/* Angebot: ein Fenster (24.10.2026) */}
+      <OfferTaskWindow submissionId={submissionId} open={offerWin} onOpenChange={setOfferWin}
+        onAdjust={() => setShowOffer(true)} onReject={() => setShowRejectDialog(true)} onContract={() => setContractOpen(null)} />
+
+      {/* Arbeitsvertrag: ein Fenster für alles (24.10.2026) */}
+      <ContractTaskWindow submissionId={submissionId} open={!!contractWin} onOpenChange={(o) => { if (!o) setContractWin(null); }}
+        intent={contractWin?.intent ?? null} returnEvent={contractWin?.returnEvent ?? null} task={contractWin?.task ?? null} />
 
       {/* Aufgaben-Fenster (23.10.2026) */}
       <ClientTaskWindow task={activeTask} open={!!activeTask} onOpenChange={(o) => { if (!o) setActiveTask(null); }} handlers={taskHandlers} recruiterName={hhName} />

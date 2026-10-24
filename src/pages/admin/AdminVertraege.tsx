@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ContractReportDialog } from '@/components/contracts/ContractReportDialog';
-import { contractApi, dateDe, euro, timeDe, type AdminCase } from '@/lib/contractApi';
+import { contractApi, dateDe, euro, linkLine, timeDe, type AdminCase } from '@/lib/contractApi';
 
 const STAND: Record<string, string> = {
   preparing: 'Vertrag in Arbeit', sent_self: 'selbst verschickt', sent_digital: 'digital verschickt', company_signed: 'Firma unterschrieben, Kandidat offen',
@@ -20,7 +20,10 @@ const EVENT: Record<string, string> = {
   reported_with_evidence: 'mit Beleg bestätigt', confirmed: 'Kunde hat bestätigt', confirmed_other_values: 'Kunde hat mit anderen Werten bestätigt',
   report_rejected: 'Kunde: noch nicht unterschrieben', undone: 'Kunde hat zurückgenommen', check_ok: 'Gegenprobe: stimmt', check_differs: 'Gegenprobe: weicht ab',
   dropped: 'abgesprungen', reminder_client: 'Erinnerung an den Kunden (Tag 7)', reminder_recruiter: 'Aufgabe an den Headhunter (Tag 10)', admin_case: 'Fall für Matchunt (Tag 21)', final: 'verbindlich',
+  // Unterschrift über Matchunt (23.10.2026)
+  link_sent: 'Link verschickt', link_reminder: 'Erinnerung mit Link', signer_changed: 'Unterzeichner geändert', resent: 'DocuSign-Mail erneut gesendet',
 };
+const ROLE: Record<string, string> = { company: 'an die Firma', candidate: 'an den Kandidaten' };
 const days = (iso: string | null) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 86_400_000) : null);
 
 /** Admin › Unterschriften klären (Paket 3): hängende Verträge, Abweichungen, Fälle ab Tag 21. */
@@ -47,7 +50,10 @@ export default function AdminVertraege() {
                   <p className="font-medium">{c.candidateName} · {c.companyName}</p>
                   <p className="text-xs text-muted-foreground">{c.jobTitle} · Headhunter {c.recruiterName ?? '–'}{c.acceptedAt ? ` · Zusage vor ${days(c.acceptedAt)} Tagen` : ''}</p>
                 </div>
-                <span className="text-muted-foreground">{STAND[c.contract.status] ?? c.contract.status}</span>
+                <span className="text-muted-foreground">
+                  {STAND[c.contract.status] ?? c.contract.status}
+                  {['sent_digital', 'company_signed'].includes(c.contract.status) && (c.signing?.mode === 'embedded' ? ' · über Matchunt' : ' · DocuSign-Mail')}
+                </span>
                 {c.contract.recruiterCheck === 'differs' && <Badge variant="destructive">Gegenprobe weicht ab</Badge>}
                 {c.adminCaseAt && <Badge variant="secondary">Tag 21</Badge>}
                 <Button size="sm" variant={needs(c) ? 'default' : 'outline'} onClick={() => setOpen(c)}>{needs(c) ? 'Klären' : 'Ansehen'}</Button>
@@ -95,9 +101,18 @@ function CaseDialog({ item, onClose }: { item: AdminCase | null; onClose: () => 
               <p className="font-medium">Stand: {STAND[c?.status ?? ''] ?? c?.status}</p>
               {c?.signedOn && <p className="text-muted-foreground">Unterschrieben am {dateDe(c.signedOn)} · {euro(c.salary)}{c.variable ? ` + ${euro(c.variable)}` : ''} · Start {dateDe(c.startDate)}</p>}
               {c?.recruiterCheck === 'differs' && <p className="mt-1 text-destructive">Gegenprobe weicht ab: {c.recruiterCheckNote}</p>}
+              {ctx.signing && c && ['sent_digital', 'company_signed', 'final'].includes(c.status) && (
+                <dl className="mt-2 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-0.5 text-xs">
+                  <dt className="text-muted-foreground">Weg</dt><dd>{ctx.signing.mode === 'embedded' ? 'über Matchunt (eingebettet)' : 'DocuSign mailt (alter Weg)'}</dd>
+                  <dt className="text-muted-foreground">Firma</dt>
+                  <dd>{c.companySignerName ?? '–'} · {ctx.signing.companyEmail ?? '–'}{c.companySignedAt ? ` · unterschrieben ${timeDe(c.companySignedAt)}` : ctx.signing.companyViaApp ? ' · in Matchunt' : ctx.signing.company ? ` · ${linkLine(ctx.signing.company, null)}` : ''}</dd>
+                  <dt className="text-muted-foreground">Kandidat</dt>
+                  <dd>{ctx.signing.candidateEmail ?? '–'}{c.candidateSignedAt ? ` · unterschrieben ${timeDe(c.candidateSignedAt)}` : ctx.signing.candidate ? ` · ${linkLine(ctx.signing.candidate, null)}` : ''}</dd>
+                </dl>
+              )}
               <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                 {ctx.offer?.acceptedAt && <li>{timeDe(ctx.offer.acceptedAt)} · Zusage eingetragen</li>}
-                {ctx.events.map((e, i) => <li key={i}>{timeDe(e.at)} · {EVENT[e.type] ?? e.type}{e.details?.reason ? `: ${String(e.details.reason)}` : ''}{e.details?.note ? `: ${String(e.details.note)}` : ''}</li>)}
+                {ctx.events.map((e, i) => <li key={i}>{timeDe(e.at)} · {EVENT[e.type] ?? e.type}{e.details?.role ? ` ${ROLE[String(e.details.role)] ?? ''}` : ''}{e.details?.to ? ` → ${String(e.details.to)}` : ''}{e.details?.reason ? `: ${String(e.details.reason)}` : ''}{e.details?.note ? `: ${String(e.details.note)}` : ''}</li>)}
               </ul>
             </div>
             {dropReason !== null && (
@@ -108,6 +123,14 @@ function CaseDialog({ item, onClose }: { item: AdminCase | null; onClose: () => 
               </div>
             )}
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+              {c && ['sent_digital', 'company_signed'].includes(c.status) && dropReason === null && (
+                <>
+                  <Button size="sm" variant="outline" disabled={busy} onClick={async () => { setBusy(true); try { await contractApi.refresh(item!.submissionId); toast.success('Stand bei DocuSign abgefragt.'); refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.'); } finally { setBusy(false); } }}>Stand abfragen</Button>
+                  {ctx.signing?.mode === 'embedded' && !(c.status === 'sent_digital' && ctx.signing.companyViaApp) && (
+                    <Button size="sm" variant="outline" disabled={busy} onClick={async () => { setBusy(true); try { const r = await contractApi.resendLink(item!.submissionId); toast.success(`Neuer Link an ${r.sentTo ?? 'den Unterzeichner'} verschickt.`); refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.'); } finally { setBusy(false); } }}>Link erneut senden</Button>
+                  )}
+                </>
+              )}
               {c && ['preparing', 'sent_self', 'sent_digital', 'company_signed', 'declined'].includes(c.status) && dropReason === null && <Button size="sm" variant="ghost" onClick={() => setDropReason('')}>Als abgesprungen schließen</Button>}
               {canReport && <Button size="sm" onClick={() => setReport(true)}>Unterschrift melden</Button>}
               {!canReport && <Button size="sm" variant="ghost" onClick={onClose}>Schließen</Button>}

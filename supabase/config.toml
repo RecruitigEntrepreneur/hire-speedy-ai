@@ -453,3 +453,7 @@ verify_jwt = true
 # Kunden-Aufgaben (23.10.2026): nur angemeldet; Team-Zugriff prüft die Function selbst.
 [functions.client-tasks]
 verify_jwt = true
+
+# Unterschrift über Matchunt (23.10.2026): Seite ohne Konto, der persönliche Link ist der Zugang.
+[functions.contract-sign]
+verify_jwt = false

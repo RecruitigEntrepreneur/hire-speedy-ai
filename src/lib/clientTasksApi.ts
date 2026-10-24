@@ -25,7 +25,7 @@ export interface ClientTask {
   since: string;
   urgent: boolean;
   waitingWho: string | null;
-  ref: { interviewId?: string; offerId?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[] };
+  ref: { interviewId?: string; offerId?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
   note: string | null;
   /** Entscheidungshilfe (Fenster oben, Zeile auf der Seite „Aufgaben“) */
   context: TaskContext | null;
@@ -56,6 +56,19 @@ export interface ClientWaitingItem {
   detail: string;
 }
 
+/** Meilenstein für die Leiste oben im Dashboard (Zusage, Gegenwunsch, Absage, unterschrieben, erster Tag) */
+export interface ClientNewsItem {
+  key: string;
+  kind: 'accepted' | 'counter' | 'declined' | 'signed' | 'start';
+  submissionId: string;
+  title: string;
+  detail: string;
+  hint: string | null;
+  cta: string;
+  taskKey: string | null;
+  at: string;
+}
+
 export interface ClientDoneItem { key: string; kind: string; submissionId: string | null; jobId: string | null; label: string; answer: string | null; doneAt: string; doneBy: string }
 
 export interface ClientTaskList {
@@ -63,6 +76,7 @@ export interface ClientTaskList {
   waiting: ClientWaitingItem[];
   done: ClientDoneItem[];
   counts: { urgent: number; total: number };
+  news?: ClientNewsItem[];
 }
 
 const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?: string) => callFunction<T>('client-tasks', { action, ...body }, fallback);

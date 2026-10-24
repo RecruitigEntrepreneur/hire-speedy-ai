@@ -36,7 +36,7 @@ export interface ClientTask {
   urgent: boolean;
   /** wer wartet, für „Tessa wartet · 2 Tage“ */
   waitingWho: string | null;
-  ref: { interviewId?: string; offerId?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[] };
+  ref: { interviewId?: string; offerId?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
   /** Zusatz, z. B. „Frage an Marko gestellt“ – die Aufgabe bleibt trotzdem offen */
   note: string | null;
   /** Entscheidungshilfe: was der Kunde zum Entscheiden braucht (Fenster oben, Zeile auf der Seite) */
@@ -61,6 +61,24 @@ export interface TaskContext {
   /** Lage der Stelle oder warum es eilt */
   why: string | null;
   foot: string | null;
+}
+
+/**
+ * Meilenstein für die Leiste oben im Dashboard (24.10.2026): Zusage, Gegenwunsch, Absage des
+ * Kandidaten, Vertrag unterschrieben, erster Arbeitstag. Mit Aufgabe (taskKey) bleibt er, bis sie
+ * erledigt ist; reine Erfolgs- und Absagemeldungen 3 Tage.
+ */
+export interface NewsItem {
+  key: string;
+  kind: 'accepted' | 'counter' | 'declined' | 'signed' | 'start';
+  submissionId: string;
+  title: string;
+  detail: string;
+  hint: string | null;
+  cta: string;
+  /** Aufgabe, die der Knopf öffnet */
+  taskKey: string | null;
+  at: string;
 }
 
 export interface WaitingItem {
@@ -104,6 +122,10 @@ export interface ClientTaskInput {
   questionSenders?: Record<string, string>;
   /** Honorarsatz je Stelle laut Rahmenvertrag */
   feePct?: Record<string, number>;
+  /** angemeldeter Nutzer (unterschreibt er selbst für die Firma?) */
+  userId?: string;
+  /** Unterschrifts-Links (Unterschrift über Matchunt): verschickt, geöffnet */
+  signLinks?: any[];
 }
 
 const DAY = 86400000;
@@ -162,10 +184,17 @@ export function noticeLabel(v: unknown): string | null {
   const s = typeof v === 'string' ? v.trim() : '';
   if (!s) return null;
   if (NOTICE[s]) return NOTICE[s];
-  const m = s.match(/^(\d+)_(months?|weeks?)$/);
-  if (m) return `${m[1]} ${m[2].startsWith('month') ? (m[1] === '1' ? 'Monat' : 'Monate') : (m[1] === '1' ? 'Woche' : 'Wochen')}`;
+  // „2_months_eom“ → „2 Monate zum Monatsende“, „3_months_eoq“ → „… zum Quartalsende“
+  const m = s.match(/^(\d+)_(months?|weeks?)(?:_(eom|eoq|eoy))?$/);
+  if (m) {
+    const unit = m[2].startsWith('month') ? (m[1] === '1' ? 'Monat' : 'Monate') : (m[1] === '1' ? 'Woche' : 'Wochen');
+    const end = m[3] === 'eom' ? ' zum Monatsende' : m[3] === 'eoq' ? ' zum Quartalsende' : m[3] === 'eoy' ? ' zum Jahresende' : '';
+    return `${m[1]} ${unit}${end}`;
+  }
   return s.replace(/_/g, ' ');
 }
+/** „2 Monate zum Monatsende“ → „2 Monate Kündigungsfrist zum Monatsende“ */
+const noticeSentence = (n: string) => (/^\d+ \S+/.test(n) ? n.replace(/^(\d+ \S+)/, '$1 Kündigungsfrist') : `${n} Kündigungsfrist`);
 const REMOTE: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'vor Ort', flexible: 'flexibel' };
 const FORMAT: Record<string, string> = { teams: 'Teams', video: 'Video', phone: 'Telefon', onsite: 'vor Ort' };
 /** „Tessas“, „Max’“ */
@@ -241,7 +270,7 @@ function offerTerms(o: any): string {
   return [`${euro(o.salary_offered)}${o.variable_salary ? ` + ${euro(o.variable_salary)}` : ''}`, o.start_date ? `Start ${dateDe(o.start_date)}` : null].filter(Boolean).join(' · ');
 }
 
-export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]; waiting: WaitingItem[] } {
+export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]; waiting: WaitingItem[]; news: NewsItem[] } {
   const { now } = input;
   const jobById = new Map(input.jobs.map((j) => [j.id, j]));
   const candById = new Map(input.candidates.map((c) => [c.id, c]));
@@ -292,7 +321,7 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     const notice = noticeLabel(cand?.notice_period);
     const availDays = daysTo(cand?.availability_date, now);
     const avail = [cand?.availability_date ? (availDays !== null && availDays <= 0 ? 'sofort' : `ab ${dateDe(cand.availability_date)}`) : null,
-      notice ? (notice === 'sofort' ? (cand?.availability_date ? null : 'sofort') : `${notice} Kündigungsfrist`) : null].filter(Boolean).join(' · ') || null;
+      notice ? (notice === 'sofort' ? (cand?.availability_date ? null : 'sofort') : noticeSentence(notice)) : null].filter(Boolean).join(' · ') || null;
     const band = wishBand(cand);
     const chip = budgetChip(band, job);
     const range = jobRange(job);
@@ -433,11 +462,44 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
         } else {
           wait({ key: `contract-self:${c.id}`, by: 'candidate', title: `Vertrag liegt bei ${name}`, detail: `verschickt am ${formatBerlinDateShort(iso(sent))} · melden Sie die Unterschrift, sobald sie da ist` });
         }
+      } else if (c.status === 'sent_digital' && c.signing_mode === 'embedded' && !c.company_signed_at && c.company_signer_user_id !== input.userId) {
+        // Über Matchunt, und jemand anderes unterschreibt für die Firma: läuft bei ihr bzw. ihm
+        const l = (input.signLinks ?? []).filter((x: any) => x.contract_id === c.id && x.signer_role === 'company').sort((a: any, b: any) => t(b.created_at) - t(a.created_at))[0];
+        const linkState = l ? `Link verschickt ${formatBerlinDateShort(l.sent_at)} · ${l.opened_at ? `geöffnet ${formatBerlinDateShort(l.opened_at)}` : 'noch nicht geöffnet'}` : 'Link per Mail';
+        const signer = c.company_signer_name ?? 'Ihr Unterzeichner';
+        if (!c.company_signer_user_id && now - (t(c.sent_at) || now) >= 2 * DAY) {
+          // 2 Tage ohne Unterschrift der Firma: wird zur Aufgabe des Kunden
+          push({ key: `sign-company-late:${c.id}`, kind: 'docusign_sign', since: iso(t(c.sent_at) + 2 * DAY), urgent: true, waitingWho: name,
+            title: `${signer} hat noch nicht unterschrieben`, detail: linkState, ref: { contractId: c.id, signMode: 'embedded', signerExternal: true },
+            context: ctxOf({
+              ask: `${signer} hat noch nicht unterschrieben`,
+              timeline: [
+                { text: `${c.sent_at ? `${when(c.sent_at)} · ` : ''}Vertrag hochgeladen`, state: 'done' },
+                { text: `${signer} unterschreibt für die Firma · ${linkState}`, state: 'now' },
+                { text: `danach ${nameIn} (Link per Mail von Matchunt)`, state: 'next' },
+              ],
+              line: [linkState],
+              foot: 'Mail nicht angekommen? Link erneut senden oder eine andere Person unterschreiben lassen, auch Sie selbst.',
+            }) });
+        } else {
+          wait({ key: `sign-company:${c.id}`, by: 'date', title: `${signer} unterschreibt für die Firma`, detail: c.company_signer_user_id ? 'in Matchunt' : linkState });
+        }
       } else if (c.status === 'sent_digital') {
         if (!c.company_signed_at) {
+          const viaMatchunt = c.signing_mode === 'embedded';
           push({ key: `docusign:${c.id}`, kind: 'docusign_sign', since: c.sent_at ?? c.updated_at, urgent: true, waitingWho: name,
-            title: 'In DocuSign unterschreiben', detail: `${c.company_signer_name ?? 'Ihr Unterzeichner'} unterschreibt zuerst${c.company_signer_email ? ` (${c.company_signer_email})` : ''}, danach ${nameIn}`, ref: { contractId: c.id },
-            context: ctxOf({
+            title: viaMatchunt ? 'Arbeitsvertrag unterschreiben' : 'In DocuSign unterschreiben',
+            detail: viaMatchunt ? `Sie unterschreiben zuerst, hier in Matchunt; danach ${nameIn}` : `${c.company_signer_name ?? 'Ihr Unterzeichner'} unterschreibt zuerst${c.company_signer_email ? ` (${c.company_signer_email})` : ''}, danach ${nameIn}`,
+            ref: { contractId: c.id, signMode: viaMatchunt ? 'embedded' : 'email' },
+            context: viaMatchunt ? ctxOf({
+              ask: 'Sie unterschreiben zuerst',
+              timeline: [
+                { text: `${c.sent_at ? `${when(c.sent_at)} · ` : ''}Vertrag hochgeladen`, state: 'done' },
+                { text: 'Ihre Unterschrift, hier in Matchunt', state: 'now' },
+                { text: `danach ${nameIn} (Link per Mail von Matchunt)`, state: 'next' },
+              ],
+              line: ['Sie zuerst, in Matchunt', c.sent_at ? `hochgeladen ${formatBerlinDateShort(c.sent_at)}` : null].filter(Boolean) as string[],
+            }) : ctxOf({
               ask: 'Sie unterschreiben zuerst',
               timeline: [
                 { text: `${c.sent_at ? `${when(c.sent_at)} · ` : ''}an DocuSign übergeben`, state: 'done' },
@@ -445,11 +507,14 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
                 { text: `danach ${nameIn}${unlocked && c.candidate_email ? ` (${c.candidate_email})` : ''}`, state: 'next' },
               ],
               line: [`${c.company_signer_name ?? 'Ihr Unterzeichner'} zuerst`, c.sent_at ? `verschickt ${formatBerlinDateShort(c.sent_at)}` : null].filter(Boolean) as string[],
-              foot: 'Mail nicht gefunden? Im Spam-Ordner nach „DocuSign“ suchen oder hier erneut senden.',
+              foot: 'Mail nicht gefunden? „Anderer Unterzeichner“ stellt auf die Unterschrift über Matchunt um, ohne neues Hochladen.',
             }) });
         } else {
           wait({ key: `docusign-cand:${c.id}`, by: 'candidate', title: `${name} unterschreibt in DocuSign`, detail: `Ihre Unterschrift ist da (${formatBerlinDateShort(c.company_signed_at)})` });
         }
+      } else if (c.status === 'company_signed' && c.signing_mode === 'embedded') {
+        const l = (input.signLinks ?? []).filter((x: any) => x.contract_id === c.id && x.signer_role === 'candidate').sort((a: any, b: any) => t(b.created_at) - t(a.created_at))[0];
+        wait({ key: `docusign-cand:${c.id}`, by: 'candidate', title: `${name} unterschreibt`, detail: l ? `Link verschickt ${formatBerlinDateShort(l.sent_at)} · ${l.opened_at ? `geöffnet ${formatBerlinDateShort(l.opened_at)}` : 'noch nicht geöffnet'}` : 'Link per Mail von Matchunt' });
       } else if (c.status === 'reported') {
         push({ key: `confirm:${c.id}`, kind: 'confirm_signature', since: c.reported_at ?? c.updated_at, urgent: true, waitingWho: hh,
           title: 'Unterschrift bestätigen', detail: `${c.reported_role === 'admin' ? 'Matchunt' : hhFirst} meldet: unterschrieben am ${dateDe(c.signed_on)}${c.salary ? ` · ${euro(c.salary)}${c.variable_salary ? ` + ${euro(c.variable_salary)}` : ''}` : ''}${c.start_date ? ` · Start ${dateDe(c.start_date)}` : ''}`, ref: { contractId: c.id },
@@ -756,7 +821,59 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
 
   // Jemand wartet zuerst, dann nach Alter
   tasks.sort((a, b) => (a.urgent === b.urgent ? t(a.since) - t(b.since) : a.urgent ? -1 : 1));
-  return { tasks, waiting };
+  return { tasks, waiting, news: deriveNews(input, tasks) };
+}
+
+/** Meilensteine für die Dashboard-Leiste; wer handeln muss, zuerst. */
+function deriveNews(input: ClientTaskInput, tasks: ClientTask[]): NewsItem[] {
+  const { now } = input;
+  const jobById = new Map(input.jobs.map((j) => [j.id, j]));
+  const candById = new Map(input.candidates.map((c) => [c.id, c]));
+  const recName = new Map(input.recruiters.map((r) => [r.user_id, r.full_name as string]));
+  const open = new Set(tasks.map((x) => x.key));
+  const recent = (iso: unknown) => !Number.isNaN(t(iso)) && now - t(iso) <= 3 * DAY;
+  const out: NewsItem[] = [];
+  for (const s of input.submissions) {
+    const job = jobById.get(s.job_id);
+    if (!job) continue;
+    const cand = candById.get(s.candidate_id);
+    const unlocked = !!(s.identity_unlocked || s.identity_revealed);
+    const who = unlocked && cand?.full_name ? cand.full_name : `PR-${String(s.candidate_id ?? '').slice(0, 6).toUpperCase()}`;
+    const name = unlocked && cand?.full_name ? first(cand.full_name) : 'der Kandidat';
+    const hhFirst = first(recName.get(s.recruiter_id) ?? 'Ihr Headhunter');
+    const offers = input.offers.filter((o: any) => o.submission_id === s.id).sort((a: any, b: any) => t(b.created_at) - t(a.created_at));
+    const c = input.contracts.filter((x: any) => x.submission_id === s.id).sort((a: any, b: any) => t(b.created_at) - t(a.created_at))[0];
+    const accepted = offers.find((o: any) => o.status === 'accepted');
+    const terms = (o: any) => [`${euro(o.salary_offered)}${o.variable_salary ? ` + ${euro(o.variable_salary)}` : ''}`, o.start_date ? `Start ${dateDe(o.start_date)}` : null].filter(Boolean).join(' · ');
+    if (c?.status === 'preparing' && accepted && open.has(`contract-send:${c.id}`)) {
+      out.push({ key: `news-accepted:${c.id}`, kind: 'accepted', submissionId: s.id, title: `${who} hat zugesagt`, detail: [job.title, terms(accepted)].join(' · '),
+        hint: `Schicken Sie ${name} jetzt den Arbeitsvertrag. ${hhFirst} hält bis dahin Kontakt.`, cta: 'Vertrag schicken', taskKey: `contract-send:${c.id}`, at: accepted.decision_at ?? accepted.updated_at ?? c.created_at });
+    }
+    const countered = offers.find((o: any) => o.status === 'countered');
+    if (countered && open.has(`counter:${countered.id}`)) {
+      const wish = countered.candidate_response?.wish ?? {};
+      out.push({ key: `news-counter:${countered.id}`, kind: 'counter', submissionId: s.id, title: `${who} hat einen Gegenwunsch`,
+        detail: [wish.salary ? `${euro(wish.salary)} statt ${euro(countered.salary_offered)}` : null, wish.startDate ? `Start ${dateDe(wish.startDate)}` : null, wish.other ?? null].filter(Boolean).join(' · ') || job.title,
+        hint: `${hhFirst} hat den Wunsch aufgenommen. Antworten Sie, damit ${name} nicht abspringt.`, cta: 'Beantworten', taskKey: `counter:${countered.id}`, at: countered.counter_offer_at ?? countered.updated_at });
+    }
+    const latest = offers[0];
+    if (latest?.status === 'declined' && recent(latest.decision_at ?? latest.updated_at)) {
+      out.push({ key: `news-declined:${latest.id}`, kind: 'declined', submissionId: s.id, title: `${who} hat abgesagt`, detail: [job.title, latest.rejection_reason ?? null].filter(Boolean).join(' · '),
+        hint: `${hhFirst} sucht weiter für Sie.`, cta: 'Ansehen', taskKey: null, at: latest.decision_at ?? latest.updated_at });
+    }
+    if (c?.status === 'final' && recent(c.final_at)) {
+      out.push({ key: `news-signed:${c.id}`, kind: 'signed', submissionId: s.id, title: `Arbeitsvertrag mit ${who} unterschrieben`, detail: [job.title, c.start_date ? `Start ${dateDe(c.start_date)}` : null].filter(Boolean).join(' · '),
+        hint: `${hhFirst} begleitet ${name} bis zum ersten Tag.`, cta: 'Ansehen', taskKey: null, at: c.final_at });
+    }
+    const pl = input.placements.find((p: any) => p.submission_id === s.id);
+    const day = pl?.first_working_day ?? pl?.start_date;
+    if (pl && day && String(day).slice(0, 10) === berlinDateKey(now)) {
+      out.push({ key: `news-start:${pl.id}`, kind: 'start', submissionId: s.id, title: unlocked && cand?.full_name ? `Heute ist ${genitive(first(cand.full_name))} erster Arbeitstag` : `Heute ist der erste Arbeitstag von ${who}`, detail: job.title,
+        hint: null, cta: 'Ansehen', taskKey: null, at: new Date(now).toISOString() });
+    }
+  }
+  const act = (n: NewsItem) => (n.taskKey ? 0 : 1);
+  return out.sort((a, b) => act(a) - act(b) || t(b.at) - t(a.at));
 }
 
 // ---------------------------------------------------------------------------
@@ -786,15 +903,17 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
   const [candidates, interviews, offers, recommendations, contracts, placements, invoices, activations, mandates] = await Promise.all([
     rowsIn(db, 'candidates', candCols, 'id', submissions.map((s) => s.candidate_id)),
     rowsIn(db, 'interviews', 'id, submission_id, status, round, scheduled_at, duration_minutes, feedback, created_at, updated_at, proposed_slots, counter_slots, response_token_expires_at, reschedules_interview_id, meeting_format, onsite_address, candidate_message', 'submission_id', subIds),
-    rowsIn(db, 'offers', 'id, submission_id, status, created_at, updated_at, response_due, candidate_response, counter_offer_at, salary_offered, variable_salary, start_date, contract_type, probation_months, work_model, extras, decision_at, sent_at, version', 'submission_id', subIds),
+    rowsIn(db, 'offers', 'id, submission_id, status, created_at, updated_at, response_due, candidate_response, counter_offer_at, salary_offered, variable_salary, start_date, contract_type, probation_months, work_model, extras, decision_at, sent_at, version, rejection_reason', 'submission_id', subIds),
     rowsIn(db, 'offer_recommendations', 'id, submission_id, created_at, intro, items', 'submission_id', subIds),
-    rowsIn(db, 'employment_contracts', 'id, submission_id, status, way, sent_at, created_at, updated_at, company_signed_at, company_signer_name, company_signer_email, candidate_email, reported_at, reported_role, report_note, signed_on, salary, variable_salary, start_date, undo_until, fixed_term, non_compete, decline_reason', 'submission_id', subIds),
+    rowsIn(db, 'employment_contracts', 'id, submission_id, status, way, sent_at, created_at, updated_at, company_signed_at, company_signer_name, company_signer_email, candidate_email, reported_at, reported_role, report_note, signed_on, salary, variable_salary, start_date, undo_until, fixed_term, non_compete, decline_reason, signing_mode, company_signer_user_id, final_at', 'submission_id', subIds),
     rowsIn(db, 'placements', '*', 'submission_id', subIds),
     rowsIn(db, 'invoices', '*', 'job_id', jobIds),
     rowsIn(db, 'recruiter_job_activations', 'job_id, recruiter_id, status, activated_at', 'job_id', jobIds).catch(() => []),
     rowsIn(db, 'commercial_mandates', 'id, pricing_snapshot', 'id', jobs.map((j) => j.mandate_id)).catch(() => []),
   ]);
   const recruiterIds = [...submissions.map((s) => s.recruiter_id), ...activations.map((a: any) => a.recruiter_id)];
+  const signLinks = await rowsIn(db, 'employment_sign_links', 'contract_id, signer_role, sent_at, opened_at, signed_at, revoked_at, created_at', 'contract_id',
+    contracts.filter((c: any) => c.signing_mode === 'embedded').map((c: any) => c.id)).catch(() => []);
   const [recruiters, partners, comments] = await Promise.all([
     rowsIn(db, 'profiles', 'user_id, full_name, company_name', 'user_id', recruiterIds),
     rowsIn(db, 'recruiter_partner_status', 'user_id, tier, ended_at', 'user_id', recruiterIds).catch(() => []),
@@ -834,7 +953,7 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
   return {
     now, jobs, submissions, candidates, recruiters, interviews, offers, recommendations, contracts, placements,
     invoices: invoices.filter((i: any) => i.status !== 'draft'), questions: qs, messages: messages.filter((m: any) => jobIds.includes(m.job_id)),
-    log: allLog, doneRecent, comments, activations, partners, questionSenders, feePct,
+    log: allLog, doneRecent, comments, activations, partners, questionSenders, feePct, userId, signLinks,
   };
 }
 
@@ -892,7 +1011,7 @@ export async function clientTeamOf(db: SupabaseClient, jobId: string): Promise<{
 export async function listClientTasks(ctx: ServiceCtx, user: User, body: any) {
   const jobIds = await getAccessibleJobIds(ctx.db as any, user.id);
   const input = await loadClientTaskInput(ctx.db, user.id, jobIds, ctx.now());
-  const { tasks, waiting } = deriveClientTasks(input);
+  const { tasks, waiting, news } = deriveClientTasks(input);
   const sub = typeof body?.submissionId === 'string' && UUID.test(body.submissionId) ? body.submissionId : null;
   const pick = <T extends { submissionId: string | null }>(xs: T[]) => (sub ? xs.filter((x) => x.submissionId === sub) : xs);
   return {
@@ -900,6 +1019,7 @@ export async function listClientTasks(ctx: ServiceCtx, user: User, body: any) {
     waiting: pick(waiting),
     done: pick(input.doneRecent.map((l: any) => ({ key: l.task_key, kind: l.kind, submissionId: l.submission_id, jobId: l.job_id, label: l.label, answer: l.answer, doneAt: l.done_at, doneBy: l.done_by }))),
     counts: { urgent: tasks.filter((x) => x.urgent).length, total: tasks.length },
+    news: sub ? news.filter((n) => n.submissionId === sub) : news,
   };
 }
 

@@ -182,6 +182,9 @@ Deno.test('Kurzprofil: ohne Freigabe nur Bänder (Region, Erfahrung, Gehalt), ni
   assert(/^Wollen Sie PR-[0-9A-Z]{6} kennenlernen\?$/.test(ctx.ask!), ctx.ask!);
   eq(ctx.quote, { by: 'Julia Hartmann', text: 'Will ein eigenes Gebiet aufbauen.' });
   assert(/3 Monate Kündigungsfrist/.test(all) && !/3_months/.test(all), 'Kündigungsfrist lesbar');
+  const eom = sub({ identity_unlocked: false });
+  eom.cand = { ...eom.cand, notice_period: '2_months_eom' } as any;
+  eq(deriveClientTasks(input({ subs: [eom] })).tasks[0].context!.facts.find((f) => f.label === 'Verfügbar')?.value, '2 Monate Kündigungsfrist zum Monatsende');
   eq(ctx.why, 'Außerdem für diese Stelle: 1 Kandidat · 1 im Interview – andere sind schon weiter');
 });
 
@@ -199,6 +202,8 @@ Deno.test('Kurzprofil: nach Freigabe Stadt und Jahre; Budget-Etikett nur mit Obe
   eq(budgetChip(wishBand({ expected_salary: 91000 }), { salary_max: 95000 }), { text: 'am oberen Rand', tone: 'warn' });
   eq(noticeLabel('3_months_eoq'), '3 Monate zum Quartalsende');
   eq(noticeLabel('4_weeks'), '4 Wochen');
+  eq(noticeLabel('2_months_eom'), '2 Monate zum Monatsende', 'live gesehen 23.10.');
+  eq(noticeLabel('1_month_eom'), '1 Monat zum Monatsende');
 });
 
 Deno.test('Gegenwunsch: Angebot | Wunsch | Rahmen, Begründung des Headhunters, Honorar beim Wunsch', () => {
@@ -244,4 +249,59 @@ Deno.test('Rechnung: netto, USt., brutto, Fälligkeit; ohne Bankdaten Verweis au
   eq(f['Gesamt'], '23.800,00 € · fällig 25.10.2026');
   eq(f['Verwendungszweck'], 'RE-2026-0042');
   eq(r.tasks[0].context!.chip, { text: 'in 2 Tagen', tone: 'warn' });
+});
+
+Deno.test('Unterschrift über Matchunt: Aufgabe nur für den, der selbst unterschreibt; sonst läuft es mit Link-Stand', () => {
+  const a = sub({ stage: 'offer', status: 'offer' });
+  const ME = 'u-klara';
+  const cid = id('k');
+  const contract = { id: cid, submission_id: a.sub.id, status: 'sent_digital', way: 'digital', signing_mode: 'embedded', sent_at: ago(0, 2), company_signer_name: 'Klara Kunde', company_signer_user_id: ME };
+  const mine = deriveClientTasks(input({ subs: [a], contracts: [contract], userId: ME }));
+  eq([mine.tasks[0].kind, mine.tasks[0].title, mine.tasks[0].ref.signMode], ['docusign_sign', 'Arbeitsvertrag unterschreiben', 'embedded']);
+  const other = deriveClientTasks(input({
+    subs: [a], userId: ME,
+    contracts: [{ ...contract, company_signer_user_id: null, company_signer_name: 'Dr. Petra Weber' }],
+    signLinks: [{ contract_id: cid, signer_role: 'company', sent_at: ago(0, 2), opened_at: null, created_at: ago(0, 2) }],
+  }));
+  eq(other.tasks.length, 0, 'keine Aufgabe, Petra ist dran');
+  eq(other.waiting[0].title, 'Dr. Petra Weber unterschreibt für die Firma');
+  assert(/noch nicht geöffnet/.test(other.waiting[0].detail), other.waiting[0].detail);
+  const after = deriveClientTasks(input({
+    subs: [a], userId: ME,
+    contracts: [{ ...contract, status: 'company_signed', company_signed_at: ago(0, 1) }],
+    signLinks: [{ contract_id: cid, signer_role: 'candidate', sent_at: ago(0, 1), opened_at: ago(0), created_at: ago(0, 1) }],
+  }));
+  assert(/geöffnet/.test(after.waiting[0].detail) && after.waiting[0].by === 'candidate', after.waiting[0].detail);
+});
+
+Deno.test('Fremder Unterzeichner: nach 2 Tagen ohne Unterschrift eine rote Aufgabe mit Link-Stand', () => {
+  const a = sub({ stage: 'offer', status: 'offer' });
+  const cid = id('k');
+  const contract = { id: cid, submission_id: a.sub.id, status: 'sent_digital', way: 'digital', signing_mode: 'embedded', sent_at: ago(2, 1), company_signer_name: 'Dr. Petra Weber', company_signer_user_id: null };
+  const r = deriveClientTasks(input({ subs: [a], contracts: [contract], userId: 'u-klara', signLinks: [{ contract_id: cid, signer_role: 'company', sent_at: ago(2, 1), opened_at: null, created_at: ago(2, 1) }] }));
+  eq([r.tasks[0].kind, r.tasks[0].title, r.tasks[0].urgent, r.tasks[0].ref.signerExternal], ['docusign_sign', 'Dr. Petra Weber hat noch nicht unterschrieben', true, true]);
+  eq(r.waiting.length, 0);
+});
+
+Deno.test('Meilensteine fürs Dashboard: Zusage mit Aufgabe zuerst, Gegenwunsch, Absage und Unterschrift 3 Tage', () => {
+  const a = sub({ stage: 'offer', status: 'offer' }), b = sub({ stage: 'offer', status: 'offer' }), c = sub({ stage: 'offer', status: 'offer' }), d = sub();
+  const k = id('k');
+  const r = deriveClientTasks(input({
+    subs: [a, b, c, d],
+    offers: [
+      { id: id('o'), submission_id: a.sub.id, status: 'accepted', created_at: ago(1), decision_at: ago(0, 2), salary_offered: 78000, start_date: '2027-01-01' },
+      { id: id('o'), submission_id: b.sub.id, status: 'countered', created_at: ago(2), counter_offer_at: ago(0, 5), salary_offered: 140000, candidate_response: { wish: { salary: 150000 } } },
+      { id: id('o'), submission_id: c.sub.id, status: 'declined', created_at: ago(5), decision_at: ago(4), rejection_reason: 'Gehalt' },
+    ],
+    contracts: [
+      { id: k, submission_id: a.sub.id, status: 'preparing', created_at: ago(0, 2) },
+      { id: id('k'), submission_id: d.sub.id, status: 'final', created_at: ago(2), final_at: ago(1), start_date: '2027-02-01' },
+    ],
+  }));
+  eq(r.news.map((n) => n.kind), ['accepted', 'counter', 'signed'], 'Absage vor 4 Tagen ist schon weg');
+  eq([r.news[0].cta, r.news[0].taskKey], ['Vertrag schicken', `contract-send:${k}`]);
+  assert(r.news[0].detail.includes('78.000 €'), r.news[0].detail);
+  // erledigt (Vertrag verschickt) → Meldung weg
+  const after = deriveClientTasks(input({ subs: [a], offers: [{ id: id('o'), submission_id: a.sub.id, status: 'accepted', created_at: ago(1), decision_at: ago(0, 2), salary_offered: 78000 }], contracts: [{ id: k, submission_id: a.sub.id, status: 'sent_self', sent_at: ago(0, 1), created_at: ago(0, 2) }] }));
+  eq(after.news.length, 0);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -6,30 +6,64 @@ import { Check, Circle, FileDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { contractApi, contractDataPdf, dateDe, download, euro, timeDe } from '@/lib/contractApi';
+import { contractApi, contractDataPdf, dateDe, download, euro, linkLine, timeDe } from '@/lib/contractApi';
 import { ContractDialog } from './ContractDialog';
 import { ContractReportDialog } from './ContractReportDialog';
 
-export type ContractOpen = 'contract' | 'digital' | 'melden' | 'werte' | 'verschickt' | 'abgesprungen' | null;
+export type ContractOpen = 'contract' | 'digital' | 'melden' | 'werte' | 'verschickt' | 'abgesprungen' | 'unterschreiben' | 'unterzeichner' | null;
 
 interface Props {
   submissionId: string;
   /** Fenster direkt öffnen (aus Liste, Erinnerungs-Mail ?vertrag=…) */
   openRequest?: ContractOpen;
   onOpenHandled?: () => void;
+  /** Rücksprung aus der eigenen Unterschrift bei DocuSign (?vertrag=zurueck&event=…) */
+  returnEvent?: string | null;
+  onReturnHandled?: () => void;
+  /** Im Aufgaben-Fenster: Bestätigung nach dem Rücksprung ist da (Fenster zeigt „Erledigt“) */
+  onSignedBack?: (at: string | null) => void;
+  /** Aus der Aufgabe „Ist er unterschrieben?“: zusätzlich „Noch nicht“ (fragt in einer Woche wieder) */
+  onNotYet?: () => void;
 }
+
+/** Nach dem Rücksprung so lange nachfragen (DocuSign erlaubt eine Abfrage erst nach 20 s) */
+const RETURN_CHECKS_MS = [0, 21_000, 60_000, 120_000];
 
 /**
  * Arbeitsvertrag im Bewerberprofil (Kunde, Paket 3): nach der Zusage bis zur
  * verbindlichen Unterschrift, jeweils mit genau den passenden Schritten.
  */
-export function ContractBox({ submissionId, openRequest = null, onOpenHandled }: Props) {
+export function ContractBox({ submissionId, openRequest = null, onOpenHandled, returnEvent = null, onReturnHandled, onSignedBack, onNotYet }: Props) {
   const queryClient = useQueryClient();
   const q = useQuery({ queryKey: ['contract', submissionId], queryFn: () => contractApi.context(submissionId), staleTime: 15_000 });
   const [showSend, setShowSend] = useState<null | 'digital' | 'self' | 'any'>(null);
   const [showReport, setShowReport] = useState<null | 'report' | 'values'>(null);
   const [dropReason, setDropReason] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Unterzeichner ändern: null = zu, sonst Eingabe
+  const [signer, setSigner] = useState<null | { self: boolean; name: string; email: string }>(null);
+  // Rücksprung aus DocuSign: checking → signed | late | left
+  const [back, setBack] = useState<null | { state: 'checking' | 'signed' | 'late' | 'left'; at?: string | null }>(null);
+  const timers = useRef<number[]>([]);
+
+  const refetchAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['contract', submissionId] });
+    queryClient.invalidateQueries({ queryKey: ['submission-state'] });
+    queryClient.invalidateQueries({ queryKey: ['bewerber'] });
+    queryClient.invalidateQueries({ queryKey: ['client-tasks'] });
+  };
+
+  /** „Jetzt unterschreiben“: weiter zu DocuSign im selben Fenster */
+  const signNow = async () => {
+    setBusy(true);
+    try {
+      const { url } = await contractApi.signUrl(submissionId);
+      window.location.assign(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Die Unterschrift lässt sich gerade nicht starten.');
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!openRequest || !q.data) return;
@@ -39,9 +73,45 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
     if (openRequest === 'melden') setShowReport('report');
     if (openRequest === 'werte') setShowReport('values');
     if (openRequest === 'abgesprungen') setDropReason('');
+    if (openRequest === 'unterschreiben') void signNow();
+    if (openRequest === 'unterzeichner') setSigner({ self: false, name: '', email: '' });
     onOpenHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest, q.data]);
+
+  // Zurück von DocuSign: Bestätigung holen, wie beim Headhunter-Vertrag (0 / 21 / 60 / 120 s)
+  useEffect(() => {
+    if (!returnEvent) return;
+    onReturnHandled?.();
+    if (returnEvent !== 'signing_complete') {
+      setBack({ state: 'left' });
+      if (returnEvent === 'decline') void contractApi.refresh(submissionId, true).then(refetchAll).catch(() => undefined);
+      return;
+    }
+    setBack({ state: 'checking' });
+    let done = false;
+    RETURN_CHECKS_MS.forEach((ms, i) => {
+      timers.current.push(window.setTimeout(async () => {
+        if (done) return;
+        try {
+          const r = await contractApi.refresh(submissionId, true);
+          if (r.contract?.companySignedAt || !['sent_digital'].includes(r.contract?.status ?? '')) {
+            done = true;
+            setBack({ state: 'signed', at: r.contract?.companySignedAt ?? null });
+            refetchAll();
+            onSignedBack?.(r.contract?.companySignedAt ?? null);
+          } else if (i === RETURN_CHECKS_MS.length - 1) {
+            setBack({ state: 'late' });
+          }
+        } catch {
+          if (i === RETURN_CHECKS_MS.length - 1) setBack({ state: 'late' });
+        }
+      }, ms));
+    });
+    // Kein Aufräumen hier: das Profil setzt returnEvent gleich zurück, die Nachfragen laufen weiter
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnEvent]);
+  useEffect(() => () => { timers.current.forEach((t) => window.clearTimeout(t)); timers.current = []; }, []);
 
   const ctx = q.data ?? null;
   if (!ctx) return null;
@@ -56,9 +126,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
       await work();
       toast.success(done);
       setDropReason(null);
-      queryClient.invalidateQueries({ queryKey: ['contract', submissionId] });
-      queryClient.invalidateQueries({ queryKey: ['submission-state'] });
-      queryClient.invalidateQueries({ queryKey: ['bewerber'] });
+      refetchAll();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
     } finally {
@@ -86,6 +154,46 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
   ) : null;
   const dropButton = <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{first} ist abgesprungen</Button>;
 
+  const sig = ctx.signing ?? null;
+  const embedded = sig?.mode === 'embedded' || c?.signingMode === 'embedded';
+  const signerLabel = sig?.youSign ? 'Sie' : (c?.companySignerName ?? 'Die Firma');
+  const changeSigner = async () => {
+    if (!signer) return;
+    setBusy(true);
+    try {
+      const r = await contractApi.changeSigner(submissionId, signer.self ? { signerSelf: true } : { signerName: signer.name.trim(), signerEmail: signer.email.trim() });
+      refetchAll();
+      if (r.signUrl) { toast.success('Neu angelegt. Sie werden zur Unterschrift weitergeleitet …'); window.location.assign(r.signUrl); return; }
+      toast.success(`Neu angelegt. ${signer.name.trim()} bekommt jetzt eine Mail mit Link.`);
+      setSigner(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const signerRow = signer ? (
+    <div className="mt-2 space-y-2 rounded-md border border-border/60 bg-background/60 p-2">
+      <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5">
+        {[true, false].map((v) => (
+          <button key={String(v)} type="button" onClick={() => setSigner({ ...signer, self: v })}
+            className={cn('rounded px-3 py-1 text-xs', signer.self === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? 'Ich selbst' : 'Jemand anderes'}</button>
+        ))}
+      </div>
+      {!signer.self && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={signer.name} onChange={(e) => setSigner({ ...signer, name: e.target.value })} placeholder="Name" className="h-8 min-w-[10rem] flex-1" aria-label="Name" />
+          <Input value={signer.email} onChange={(e) => setSigner({ ...signer, email: e.target.value })} placeholder="Mail" className="h-8 min-w-[12rem] flex-1" aria-label="Mail" />
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">{signer.self ? 'Sie unterschreiben gleich danach hier in Matchunt.' : 'Bekommt eine Mail von Matchunt mit persönlichem Link.'} Der Vertrag bleibt derselbe, der alte Umschlag wird zurückgezogen.</p>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={busy || (!signer.self && (!signer.name.trim() || !/\S+@\S+\.\S+/.test(signer.email)))} onClick={changeSigner}>{signer.self ? 'Ändern und jetzt unterschreiben' : 'Ändern und Link senden'}</Button>
+        <Button size="sm" variant="ghost" onClick={() => setSigner(null)}>Abbrechen</Button>
+      </div>
+    </div>
+  ) : null;
+
   const step = (done: boolean, label: string, when?: string | null) => (
     <li className="flex items-center gap-2">
       {done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -100,6 +208,10 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
       tone === 'warn' && 'border-amber-500/30 bg-amber-500/[0.06]',
       tone === 'info' && 'border-primary/20 bg-primary/[0.04]',
       tone === 'muted' && 'border-border bg-muted/30')}>
+
+      {back?.state === 'signed' && status === 'company_signed' && (
+        <p className="mb-2 rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-2.5 py-1.5 text-emerald-800 dark:text-emerald-300">Unterschrieben{back.at ? `, ${timeDe(back.at)}` : ''}. {first} bekommt jetzt eine Mail mit Link.</p>
+      )}
 
       {notSent && c?.way !== 'digital' && (
         <>
@@ -133,6 +245,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button size="sm" onClick={() => setShowReport('report')}>Unterschrift melden</Button>
+              {onNotYet && <Button size="sm" variant="outline" onClick={onNotYet}>Noch nicht unterschrieben</Button>}
               <Button size="sm" variant="outline" className="gap-1" onClick={dataPdf}><FileDown className="h-3.5 w-3.5" />Vertragsdaten (PDF)</Button>
               {dropButton}
             </div>
@@ -140,7 +253,37 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
         </>
       )}
 
-      {(status === 'sent_digital' || status === 'company_signed') && (
+      {(status === 'sent_digital' || status === 'company_signed') && embedded && (
+        <>
+          <p className="font-medium">Stand der Unterschriften</p>
+          {back?.state === 'checking' && <p className="mt-1 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Wir holen die Bestätigung bei DocuSign …</p>}
+          {back?.state === 'late' && <p className="mt-1 text-amber-700 dark:text-amber-400">DocuSign hat Ihre Unterschrift noch nicht gemeldet. Das kann ein paar Minuten dauern; „Stand aktualisieren“ fragt erneut.</p>}
+          {back?.state === 'left' && !c!.companySignedAt && <p className="mt-1 text-amber-700 dark:text-amber-400">Sie haben DocuSign ohne Unterschrift verlassen.</p>}
+          <ul className="mt-1 space-y-1">
+            {step(true, 'Vertrag hochgeladen', timeDe(c!.sentAt))}
+            {c!.companySignedAt
+              ? step(true, sig?.youSign ? 'Sie haben in Matchunt unterschrieben' : `${signerLabel} hat ${sig?.companyViaApp ? 'in Matchunt ' : ''}unterschrieben`, timeDe(c!.companySignedAt))
+              : step(false, sig?.youSign ? 'Ihre Unterschrift' : `${signerLabel} unterschreibt zuerst`, sig?.companyViaApp ? 'in Matchunt' : linkLine(sig?.company, sig?.companyEmail))}
+            {c!.companySignedAt
+              ? step(false, `${first} unterschreibt`, linkLine(sig?.candidate, sig?.candidateEmail))
+              : step(false, `Danach ${first}`, 'bekommt dann einen Link per Mail')}
+          </ul>
+          {signerRow ?? dropRow ?? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {status === 'sent_digital' && sig?.youSign && back?.state !== 'checking' && <Button size="sm" disabled={busy} onClick={signNow}>{back?.state === 'left' ? 'Weiter unterschreiben' : 'Jetzt unterschreiben'}</Button>}
+              {status === 'sent_digital' && !sig?.companyViaApp && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), `Neuer Link an ${c!.companySignerName ?? 'den Unterzeichner'} ist unterwegs; der alte gilt nicht mehr.`)}>Link erneut senden</Button>}
+              {status === 'company_signed' && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), `Neuer Link an ${first} ist unterwegs; der alte gilt nicht mehr.`)}>Link an {first} erneut senden</Button>}
+              {status === 'sent_digital' && <Button size="sm" variant="ghost" onClick={() => setSigner({ self: !sig?.youSign, name: '', email: '' })}>Unterzeichner ändern</Button>}
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), 'Stand aktualisiert.')}>Stand aktualisieren</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), 'Zurückgezogen. Schicken Sie den Vertrag selbst.')}>Doch selbst verschicken</Button>
+              {dropButton}
+            </div>
+          )}
+          {ctx.digitalDemo && <p className="mt-2 text-xs text-muted-foreground">Testbetrieb: Unterschriften sind noch nicht rechtsverbindlich.</p>}
+        </>
+      )}
+
+      {(status === 'sent_digital' || status === 'company_signed') && !embedded && (
         <>
           <p className="font-medium">Stand der Unterschriften</p>
           <ul className="mt-1 space-y-1">
@@ -148,9 +291,11 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled }:
             {step(!!c!.companySignedAt, c!.companySignedAt ? `${c!.companySignerName ?? 'Die Firma'} hat unterschrieben` : `${c!.companySignerName ?? 'Die Firma'} unterschreibt zuerst`, timeDe(c!.companySignedAt))}
             {step(false, c!.companySignedAt ? `${first}: noch nicht unterschrieben. ${hhFirst} stößt ${first} an.` : `Danach unterschreibt ${first}`)}
           </ul>
-          {dropRow ?? (
+          {!c!.companySignedAt && <p className="mt-1 text-xs text-muted-foreground">Keine DocuSign-Mail angekommen? „Unterzeichner ändern“ stellt auf die Unterschrift über Matchunt um, ohne neues Hochladen.</p>}
+          {signerRow ?? dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), 'Stand aktualisiert.')}>Stand aktualisieren</Button>
+              {status === 'sent_digital' && <Button size="sm" variant="outline" onClick={() => setSigner({ self: true, name: '', email: '' })}>Unterzeichner ändern</Button>}
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, false), 'Zurückgezogen. Sie können den Vertrag neu senden.')}>Zurückziehen und neu senden</Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), 'Zurückgezogen. Schicken Sie den Vertrag selbst.')}>Doch selbst verschicken</Button>
               {dropButton}

@@ -176,8 +176,14 @@ function formatAvailability(
       '6_months': '6 Monate Kündigungsfrist',
     };
     if (noticeLabels[noticePeriod]) return noticeLabels[noticePeriod];
-    const monthsMatch = noticePeriod.match(/^(\d+)_months?$/);
-    if (monthsMatch) return `${monthsMatch[1]} Monate Kündigungsfrist`;
+    // auch mit Endtermin: „2_months_eom“ → „2 Monate Kündigungsfrist zum Monatsende“
+    const monthsMatch = noticePeriod.match(/^(\d+)_(months?|weeks?)(?:_(eom|eoq|eoy))?$/);
+    if (monthsMatch) {
+      const n = monthsMatch[1];
+      const unit = monthsMatch[2].startsWith('month') ? (n === '1' ? 'Monat' : 'Monate') : (n === '1' ? 'Woche' : 'Wochen');
+      const end = monthsMatch[3] === 'eom' ? ' zum Monatsende' : monthsMatch[3] === 'eoq' ? ' zum Quartalsende' : monthsMatch[3] === 'eoy' ? ' zum Jahresende' : '';
+      return `${n} ${unit} Kündigungsfrist${end}`;
+    }
     return noticePeriod;
   }
   return getSemanticExplanation('availability', { hasInterview, stage: '' });
