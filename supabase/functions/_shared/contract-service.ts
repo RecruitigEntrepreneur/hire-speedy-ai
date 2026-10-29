@@ -13,7 +13,10 @@
 //  - selbst: Kunde schickt selbst. Melden darf jede Seite. Kunde: sofort
 //    unterschrieben, 24 h rückgängig, Headhunter macht die Gegenprobe.
 //    Headhunter oder Matchunt: Kunde bestätigt (Matchunt mit Beleg direkt).
-// Ohne Meldung: Tag 7 Kunde, Tag 10 Headhunter, Tag 21 Matchunt.
+//    Seit 29.10.2026 erfährt der Kandidat jeden Schritt per Mail („<Headhunter> über
+//    Matchunt“) und antwortet auf /vertrag/:token: angekommen, noch nicht da, schon
+//    unterschrieben (Kunde bestätigt); nach einer Kundenmeldung „Stimmt“ als Gegenprobe.
+// Ohne Meldung: Tag 7 Kunde und Kandidat, Tag 10 Headhunter, Tag 21 Matchunt.
 // „Verbindlich“ (final) ist der Punkt, an dem Paket 4 Einstellung und Rechnung anlegt.
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
@@ -29,6 +32,8 @@ import {
 import { employmentConnect } from './recruiter-connect.ts';
 import { bucketFiles, onContractFinal, type FilePort as InvoiceFilePort } from './placement-service.ts';
 import { noticeLabel } from './client-tasks.ts';
+import { generateToken, hashToken } from './tokens.ts';
+import type { MailContent } from './offer-mails.ts';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -404,6 +409,11 @@ export function contractView(c: any, role: Role) {
     declineReason: c.decline_reason, dropReason: c.drop_reason, finalAt: c.final_at,
     hasSignedDocument: forClient && !!c.signed_document_path,
     signingMode: (c.signing_mode ?? 'email') as 'email' | 'embedded',
+    // Kandidat auf dem Laufenden (29.10.2026)
+    candidateInformedAt: c.candidate_informed_at ?? null, candidateAskedAt: c.candidate_asked_at ?? null,
+    candidateStatus: (c.candidate_status ?? null) as 'arrived' | 'missing' | null, candidateStatusAt: c.candidate_status_at ?? null,
+    candidateCheck: (c.candidate_check ?? null) as 'ok' | 'differs' | null, candidateCheckedAt: c.candidate_checked_at ?? null,
+    candidateCheckNote: role === 'client' ? null : c.candidate_check_note ?? null,
   };
 }
 
@@ -469,7 +479,8 @@ export async function contractContext(ctx: ContractCtx, user: User, body: any) {
   const links = b.contract ? await linksOf(ctx.db, b.contract.id) : [];
   const youSign = !!b.contract && role !== 'recruiter' && await isCompanySigner(ctx, b.contract, user.id);
   const extras: string[] = b.offer?.extras ?? [];
-  const reporter = b.contract?.reported_by ? await profile(ctx.db, b.contract.reported_by) : null;
+  const reporter = b.contract?.reported_role === 'candidate' ? { name: b.candidate.full_name }
+    : b.contract?.reported_by ? await profile(ctx.db, b.contract.reported_by) : null;
   return {
     role,
     submissionId: b.submission.id,
@@ -516,10 +527,20 @@ export async function sendSelf(ctx: ContractCtx, user: User, body: any) {
   must(['preparing', 'sent_self'].includes(c.status), c.status === 'dropped' ? 'Der Kandidat ist abgesprungen.' : 'Der Vertrag läuft schon digital. Ziehen Sie ihn zuerst zurück.', 'conflict');
   const sentOn = typeof body.sentOn === 'string' && DATE.test(body.sentOn) ? body.sentOn : null;
   must(!sentOn || sentOn <= todayKey(ctx.now()), 'Das Datum liegt in der Zukunft.');
-  const done = await update(ctx, c.id, { way: 'self', status: sentOn ? 'sent_self' : 'preparing', sent_at: sentOn ? `${sentOn}T12:00:00Z` : null }, ['preparing', 'sent_self']);
+  // Kandidat erfährt es beim ersten Versand und erneut nach „Noch nicht da“ (nicht bei bloßer Datumskorrektur)
+  const again = !!sentOn && c.candidate_status === 'missing';
+  const tellCandidate = !!sentOn && (c.status !== 'sent_self' || again);
+  let done = await update(ctx, c.id, {
+    way: 'self', status: sentOn ? 'sent_self' : 'preparing', sent_at: sentOn ? `${sentOn}T12:00:00Z` : null,
+    ...(again ? { candidate_status: null, candidate_status_at: null } : {}),
+  }, ['preparing', 'sent_self']);
   await event(ctx, c.id, sentOn ? 'sent_self' : 'way_self', 'client', user.id, { sentOn });
   const first = firstName(b.candidate.full_name);
-  await tellRecruiter(ctx, b, sentOn ? `Vertrag am ${mails.dateDe(sentOn)} selbst verschickt` : 'Kunde schickt den Vertrag selbst', `Bitte bei ${first} nachhaken und die Unterschrift melden, sobald sie da ist.`);
+  const informed = tellCandidate && await tellCandidateUnderway(ctx, b, done, again);
+  if (informed) done = b.contract;
+  await tellRecruiter(ctx, b,
+    sentOn ? `Vertrag am ${mails.dateDe(sentOn)} ${again ? 'erneut ' : ''}selbst verschickt` : 'Kunde schickt den Vertrag selbst',
+    informed ? `${first} hat eine Mail von uns und kann Ankunft und Unterschrift selbst melden. Du bekommst Bescheid.` : `Bitte bei ${first} nachhaken und die Unterschrift melden, sobald sie da ist.`);
   return { ok: true, contract: contractView(done, 'client') };
 }
 
@@ -733,9 +754,17 @@ export async function voidDigital(ctx: ContractCtx, user: User, body: any) {
   must(c && DIGITAL_RUNNING.includes(c.status), 'Es läuft gerade kein digitaler Umschlag.', 'conflict');
   if (ctx.sign && c.envelope_id) await ctx.sign.void(c.envelope_id, 'Vom Kunden zurückgezogen');
   const toSelf = body.toSelf === true;
+  // Hatte der Kandidat schon seinen Link (bzw. die DocuSign-Mail), sagen wir ihm, dass er nicht mehr gilt
+  const candidateHadLink = c.signing_mode === 'embedded'
+    ? (await linksOf(ctx.db, c.id)).some((l) => l.signer_role === 'candidate' && !l.revoked_at && !l.signed_at)
+    : !!c.company_signed_at;
   const done = await update(ctx, c.id, { status: 'preparing', way: toSelf ? 'self' : 'digital', envelope_id: null, company_signed_at: null, candidate_signed_at: null, sent_at: null }, DIGITAL_RUNNING);
   await revokeLinks(ctx.db, c.id, ctx.now());
   await event(ctx, c.id, 'voided', 'client', user.id, { envelopeId: c.envelope_id, toSelf });
+  if (toSelf && candidateHadLink) {
+    const content = mails.candidateLinkVoid({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, recruiterName: b.recruiter?.name || null });
+    if (await mailCandidate(ctx, b, done, 'link_void', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'link_void' });
+  }
   await tellRecruiter(ctx, b, toSelf ? 'Digitaler Vertrag zurückgezogen, Kunde schickt selbst' : 'Digitaler Vertrag zurückgezogen, wird neu gesendet', null);
   return { ok: true, contract: contractView(done, 'client') };
 }
@@ -917,6 +946,8 @@ export async function report(ctx: ContractCtx, user: User, body: any) {
       const content = mails.recruiterCheckRequest({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), facts: factsOut, akteUrl: urls(ctx, b).akte });
       await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'contract_check_recruiter', meta: { contract_id: c.id } });
     }
+    // Glückwunsch an den Kandidaten mit „Stimmt das so?“; wer zuerst bestätigt, er oder der Headhunter, schließt die Gegenprobe
+    await tellCandidateSigned(ctx, b, done, true);
     return { ok: true, contract: contractView(done, role) };
   }
 
@@ -926,21 +957,27 @@ export async function report(ctx: ContractCtx, user: User, body: any) {
     await afterFinal(ctx, c.id);
     await tellClient(ctx, b, `Unterschrift von Matchunt bestätigt (${mails.dateDe(f.signed_on)})`, null);
     await tellRecruiter(ctx, b, `Unterschrift bestätigt (${mails.dateDe(f.signed_on)})`, null);
+    await tellCandidateSigned(ctx, b, done, false);
     return { ok: true, contract: contractView(done, role) };
   }
 
   // Headhunter oder Matchunt ohne Beleg: der Kunde bestätigt
   const done = await update(ctx, c.id, { ...base, status: 'reported', evidence_note: evidence || null }, [c.status]);
   await event(ctx, c.id, 'reported', role, user.id, factsOut);
-  const reporterName = role === 'recruiter' ? (b.recruiter?.name || 'Ihr Headhunter') : 'Matchunt';
+  await askClientToConfirm(ctx, b, done, role === 'recruiter' ? (b.recruiter?.name || 'Ihr Headhunter') : 'Matchunt', factsOut);
+  return { ok: true, contract: contractView(done, role) };
+}
+
+/** Meldung von Headhunter, Matchunt oder Kandidat: der Kunde bestätigt. */
+async function askClientToConfirm(ctx: ContractCtx, b: Bundle, c: any, reporterName: string, factsOut: mails.ContractFacts) {
+  const title = reporterName === b.candidate.full_name ? `${reporterName} meldet: Arbeitsvertrag unterschrieben` : `${reporterName} meldet: ${b.candidate.full_name} hat unterschrieben`;
   for (const uid of clientRecipients(b)) {
-    await notify(ctx, uid, 'contract_confirm', `${reporterName} meldet: ${b.candidate.full_name} hat unterschrieben`, 'Stimmt das? Bitte im Profil bestätigen.', 'submission', b.submission.id);
+    await notify(ctx, uid, 'contract_confirm', title, 'Stimmt das? Bitte im Profil bestätigen.', 'submission', b.submission.id);
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
     const content = mails.clientConfirmRequest({ name: prof.name, candidateName: b.candidate.full_name, reporterName, facts: factsOut, profileUrl: urls(ctx, b).profile });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_confirm_client', meta: { contract_id: c.id } });
   }
-  return { ok: true, contract: contractView(done, role) };
 }
 
 export async function confirm(ctx: ContractCtx, user: User, body: any) {
@@ -953,7 +990,14 @@ export async function confirm(ctx: ContractCtx, user: User, body: any) {
   if (way === 'not_yet') {
     const done = await update(ctx, c.id, { status: c.previous_status && OPEN.includes(c.previous_status) && c.previous_status !== 'reported' ? c.previous_status : 'preparing', reported_by: null, reported_role: null, reported_at: null, report_note: null, signed_on: null }, ['reported']);
     await event(ctx, c.id, 'report_rejected', 'client', user.id, {});
-    await tellRecruiter(ctx, b, 'Kunde sagt: noch nicht unterschrieben', 'Die Erinnerungen laufen weiter.');
+    if (c.reported_role === 'candidate') {
+      // Kandidat sagt unterschrieben, Firma sagt nein: das klärt Matchunt mit dem Headhunter
+      const first = firstName(b.candidate.full_name);
+      await tellRecruiter(ctx, b, `Kunde sagt: noch nicht unterschrieben (${first} hatte es gemeldet)`, `Bitte mit ${first} und ${companyFor(b)} klären. Matchunt sieht sich den Fall an.`);
+      await tellAdmins(ctx, b, `${first} meldet unterschrieben am ${mails.dateDe(c.signed_on)}, der Kunde sagt: noch nicht.`, c.id);
+    } else {
+      await tellRecruiter(ctx, b, 'Kunde sagt: noch nicht unterschrieben', 'Die Erinnerungen laufen weiter.');
+    }
     return { ok: true, contract: contractView(done, 'client') };
   }
   const values = way === 'values' ? facts(body, ctx.now(), c) : {};
@@ -961,6 +1005,8 @@ export async function confirm(ctx: ContractCtx, user: User, body: any) {
   await event(ctx, c.id, way === 'values' ? 'confirmed_other_values' : 'confirmed', 'client', user.id, values);
   await tellRecruiter(ctx, b, way === 'values' ? 'Unterschrift bestätigt, mit anderen Werten' : 'Unterschrift vom Kunden bestätigt',
     way === 'values' ? mails.factLines({ signedOn: done.signed_on, salary: done.salary, variable: done.variable_salary, startDate: done.start_date }).join(' · ') : null);
+  // Gemeldet von Headhunter, Matchunt oder ihm selbst, bestätigt von der Firma: Glückwunsch ohne Rückfrage
+  await tellCandidateSigned(ctx, b, done, false);
   return { ok: true, contract: contractView(done, 'client') };
 }
 
@@ -970,9 +1016,20 @@ export async function undo(ctx: ContractCtx, user: User, body: any) {
   must(c?.status === 'signed' && c.reported_role === 'client', 'Hier gibt es nichts zurückzunehmen.', 'conflict');
   must(c.undo_until && Date.parse(c.undo_until) > ctx.now(), 'Die 24 Stunden sind vorbei. Bitte wenden Sie sich an Matchunt.', 'conflict');
   const back = c.previous_status && ['preparing', 'sent_self'].includes(c.previous_status) ? c.previous_status : 'preparing';
-  const done = await update(ctx, c.id, { status: back, undo_until: null, reported_by: null, reported_role: null, reported_at: null, report_note: null, signed_on: null, confirmed_by: null, confirmed_at: null, recruiter_check: null, recruiter_check_note: null, recruiter_checked_at: null }, ['signed']);
+  const done = await update(ctx, c.id, {
+    status: back, undo_until: null, reported_by: null, reported_role: null, reported_at: null, report_note: null, signed_on: null, confirmed_by: null, confirmed_at: null,
+    recruiter_check: null, recruiter_check_note: null, recruiter_checked_at: null, candidate_check: null, candidate_check_note: null, candidate_checked_at: null,
+  }, ['signed']);
   await event(ctx, c.id, 'undone', 'client', user.id, {});
   await tellRecruiter(ctx, b, 'Kunde hat die Unterschrift-Meldung zurückgenommen', null);
+  // Der Kandidat hatte den Glückwunsch schon: kurze Korrektur
+  if (candidateEmailOf(b, done)) {
+    try {
+      const token = await createStatusLink(ctx, c.id);
+      const content = mails.candidateReportUndone({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token) });
+      if (await mailCandidate(ctx, b, done, 'undone', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'undone' });
+    } catch (e) { console.error('[contract] Korrektur an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
+  }
   return { ok: true, contract: contractView(done, 'client') };
 }
 
@@ -980,6 +1037,7 @@ export async function check(ctx: ContractCtx, user: User, body: any) {
   const { b } = await access(ctx, user, body?.submissionId, ['recruiter']);
   const c = b.contract;
   must(c && ['signed', 'final'].includes(c.status) && c.reported_role === 'client' && !c.recruiter_check, 'Hier ist keine Gegenprobe offen.', 'conflict');
+  must(!c.candidate_check, `${firstName(b.candidate.full_name)} hat es schon selbst ${c.candidate_check === 'ok' ? 'bestätigt' : 'beantwortet'}.`, 'conflict');
   const way = body?.way;
   must(way === 'ok' || way === 'differs', 'Bitte „Stimmt“ oder „Weicht ab“ wählen.');
   const note = text(body.note) || null;
@@ -1001,6 +1059,7 @@ export async function drop(ctx: ContractCtx, user: User, body: any) {
   }
   const done = await update(ctx, c.id, { status: 'dropped', drop_reason: reason }, OPEN.concat(['declined']));
   await revokeLinks(ctx.db, c.id, ctx.now());
+  await ctx.db.from('contract_candidate_links').update({ revoked_at: new Date(ctx.now()).toISOString() }).eq('contract_id', c.id).is('revoked_at', null);
   await event(ctx, c.id, 'dropped', role, user.id, { reason });
   const { error } = await ctx.db.from('submissions').update({ stage: 'withdrawn' }).eq('id', b.submission.id);
   if (error) console.warn('[contract] Stufe nicht gesetzt', error.code, error.message);
@@ -1066,7 +1125,7 @@ async function followEmbedded(ctx: ContractCtx, b: Bundle, out: { reminders: num
 
 export async function runFollowups(ctx: ContractCtx) {
   const now = ctx.now();
-  const out = { final: 0, client: 0, recruiter: 0, admin: 0, synced: 0, reminders: 0 };
+  const out = { final: 0, client: 0, recruiter: 0, admin: 0, synced: 0, reminders: 0, candidate: 0 };
   // Zusagen ohne Vertragszeile (älter als dieser Ablauf) bekommen eine
   const { data: accepted } = await ctx.db.from('offers').select('submission_id').eq('status', 'accepted');
   for (const o of (accepted ?? []) as any[]) {
@@ -1092,6 +1151,14 @@ export async function runFollowups(ctx: ContractCtx) {
     const days = Math.floor((now - Date.parse(anchor)) / DAY_MS);
     const nowIso = new Date(now).toISOString();
     const first = firstName(b.candidate.full_name);
+    // Kandidat: einmal 7 Tage nach Zusage bzw. Versand fragen (nicht nach „Noch nicht da“, da sind Kunde und Headhunter dran)
+    if (SELF_OPEN.includes(b.contract.status) && !b.contract.candidate_asked_at && b.contract.candidate_status !== 'missing') {
+      const since = b.contract.status === 'sent_self' && b.contract.sent_at ? b.contract.sent_at : anchor;
+      if (now - Date.parse(since) >= 7 * DAY_MS) {
+        await askCandidate(ctx, b);
+        out.candidate++;
+      }
+    }
     if (days >= 7 && !b.contract.client_reminded_at) {
       for (const uid of clientRecipients(b)) {
         await notify(ctx, uid, 'contract_reminder', `Ist der Vertrag mit ${b.candidate.full_name} unterschrieben?`, 'Kurz im Profil melden.', 'submission', b.submission.id);
@@ -1239,6 +1306,210 @@ export async function linkDocument(ctx: ContractCtx, body: any) {
 }
 
 // ---------------------------------------------------------------------------
+// Kandidat auf dem Laufenden (29.10.2026): Mails „<Headhunter> über Matchunt“ und die
+// Seite /vertrag/:token ohne Konto (Function contract-status). Der Link ist der Zugang,
+// gespeichert wird nur sein Hash. Die Seite zeigt immer den aktuellen Stand, ältere
+// Links bleiben deshalb gültig; die Antwort prüft den Stand selbst.
+// ---------------------------------------------------------------------------
+
+const SELF_OPEN = ['preparing', 'sent_self'];
+const STATUS_LINK_DAYS = 30;
+const STATUS_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+const statusUrl = (ctx: ContractCtx, token: string) => `${ctx.appUrl()}/vertrag/${token}`;
+const candidateEmailOf = (b: Bundle, c: any): string | null => {
+  const e = String(c?.candidate_email || b.candidate.email || '').trim();
+  return EMAIL.test(e) ? e : null;
+};
+
+async function createStatusLink(ctx: ContractCtx, contractId: string): Promise<string> {
+  const token = generateToken();
+  const { error } = await ctx.db.from('contract_candidate_links').insert({
+    contract_id: contractId, token_hash: await hashToken(token), created_at: new Date(ctx.now()).toISOString(),
+    expires_at: new Date(ctx.now() + STATUS_LINK_DAYS * DAY_MS).toISOString(),
+  });
+  dbFail(error, 'Der Link für den Kandidaten');
+  return token;
+}
+
+/** Mail an den Kandidaten im Namen des Headhunters; Antworten gehen an ihn. */
+async function mailCandidate(ctx: ContractCtx, b: Bundle, c: any, kind: string, content: MailContent): Promise<boolean> {
+  const to = candidateEmailOf(b, c);
+  if (!to) return false;
+  const result = await ctx.mail({
+    fromEmail: ctx.fromEmail, fromName: b.recruiter?.name ? `${b.recruiter.name} über Matchunt` : 'Matchunt', to, replyTo: b.recruiter?.email ?? undefined, ...content,
+  }, { template: `contract_candidate_${kind}`, meta: { contract_id: c.id, submission_id: b.submission.id } });
+  // Nur lokal: Link ins Protokoll (die Mail verlinkt immer die öffentliche Adresse)
+  if (localDev()) console.info(`[contract] Lokal: Mail ${kind} an ${to}: ${/\/vertrag\/[A-Za-z0-9_-]+/.exec(content.text)?.[0] ?? '(ohne Link)'}`);
+  return result.sent;
+}
+
+/** M1: Vertrag ist unterwegs (Firma schickt selbst). Liefert, ob die Mail raus ist. */
+async function tellCandidateUnderway(ctx: ContractCtx, b: Bundle, c: any, again: boolean): Promise<boolean> {
+  if (!candidateEmailOf(b, c) || !c.sent_at) return false;
+  try {
+    const token = await createStatusLink(ctx, c.id);
+    const content = mails.candidateContractUnderway({
+      firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, jobTitle: b.job.title, sentOn: String(c.sent_at).slice(0, 10),
+      startDate: c.start_date, salary: c.salary, variable: c.variable_salary, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token), again,
+    });
+    if (!await mailCandidate(ctx, b, c, again ? 'underway_again' : 'underway', content)) return false;
+    b.contract = await update(ctx, c.id, { candidate_informed_at: new Date(ctx.now()).toISOString() });
+    await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'underway', again });
+    return true;
+  } catch (e) {
+    console.error('[contract] Kandidat nicht informiert', e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
+/** M4: Glückwunsch; ask = „Stimmt das so?“ (Meldung der Firma, Gegenprobe beim Kandidaten). Nur Weg „selbst“. */
+async function tellCandidateSigned(ctx: ContractCtx, b: Bundle, c: any, ask: boolean) {
+  if (c.way === 'digital' || !candidateEmailOf(b, c)) return;
+  try {
+    const url = ask ? statusUrl(ctx, await createStatusLink(ctx, c.id)) : null;
+    const content = mails.candidateContractSigned({
+      firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, signedOn: c.signed_on, startDate: c.start_date,
+      recruiterName: b.recruiter?.name || null, url, ask,
+    });
+    if (await mailCandidate(ctx, b, c, ask ? 'signed_check' : 'signed', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: ask ? 'signed_check' : 'signed' });
+  } catch (e) { console.error('[contract] Glückwunsch an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
+}
+
+/** M2: einmalige Frage nach 7 Tagen. Ohne Mailadresse gilt die Frage trotzdem als gestellt. */
+async function askCandidate(ctx: ContractCtx, b: Bundle) {
+  const c = b.contract;
+  b.contract = await update(ctx, c.id, { candidate_asked_at: new Date(ctx.now()).toISOString() });
+  if (!candidateEmailOf(b, c)) return;
+  try {
+    const token = await createStatusLink(ctx, c.id);
+    const arrived = c.candidate_status === 'arrived';
+    const content = mails.candidateContractAsk({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, arrived, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token) });
+    if (await mailCandidate(ctx, b, c, arrived ? 'ask_signed' : 'ask', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'ask', arrived });
+  } catch (e) { console.error('[contract] Frage an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
+}
+
+export type StatusPageState = 'invalid' | 'expired' | 'closed' | 'digital' | 'open' | 'reported' | 'check' | 'signed';
+
+async function loadStatusLink(ctx: ContractCtx, token: unknown) {
+  if (typeof token !== 'string' || !STATUS_TOKEN.test(token)) return null;
+  const { data: link } = await ctx.db.from('contract_candidate_links').select('*').eq('token_hash', await hashToken(token)).maybeSingle();
+  if (!link) return null;
+  const { data: c } = await ctx.db.from('employment_contracts').select('*').eq('id', (link as any).contract_id).maybeSingle();
+  if (!c) return null;
+  const b = await loadBundle(ctx.db, (c as any).submission_id);
+  b.contract = c;
+  return { link: link as any, b };
+}
+
+function statusState(link: any, c: any, now: number): StatusPageState {
+  if (link.revoked_at || ['dropped', 'declined', 'voided'].includes(c.status)) return 'closed';
+  // Gegenprobe: wer zuerst bestätigt, Kandidat oder Headhunter
+  if (['signed', 'final'].includes(c.status)) return c.reported_role === 'client' && !c.candidate_check && !c.recruiter_check ? 'check' : 'signed';
+  if (Date.parse(link.expires_at) < now) return 'expired';
+  if (DIGITAL_RUNNING.includes(c.status)) return 'digital';
+  if (c.status === 'reported') return 'reported';
+  return 'open';
+}
+
+async function statusView(ctx: ContractCtx, x: { link: any; b: Bundle }) {
+  const { link, b } = x;
+  const c = b.contract;
+  const state = statusState(link, c, ctx.now());
+  const { data: rec } = await ctx.db.from('profiles').select('full_name, email, phone').eq('user_id', b.submission.recruiter_id).maybeSingle();
+  return {
+    state,
+    firstName: firstName(b.candidate.full_name),
+    companyName: b.job.company_name,
+    jobTitle: b.job.title,
+    sentAt: c.sent_at, startDate: c.start_date, salary: c.salary, variable: c.variable_salary, signedOn: c.signed_on,
+    reportedByYou: c.reported_role === 'candidate',
+    candidateStatus: c.candidate_status ?? null, candidateStatusAt: c.candidate_status_at ?? null,
+    candidateCheck: c.candidate_check ?? null,
+    recruiter: rec ? { name: (rec as any).full_name ?? 'Ihr Headhunter', email: (rec as any).email ?? null, phone: (rec as any).phone ?? null } : null,
+  };
+}
+
+/** Seite öffnen: Stand (öffnen zählt als „geöffnet“). */
+export async function statusPeek(ctx: ContractCtx, body: any) {
+  const x = await loadStatusLink(ctx, body?.token);
+  if (!x) return { state: 'invalid' as StatusPageState };
+  const nowIso = new Date(ctx.now()).toISOString();
+  await ctx.db.from('contract_candidate_links').update({ opened_at: x.link.opened_at ?? nowIso, last_opened_at: nowIso }).eq('id', x.link.id);
+  return await statusView(ctx, x);
+}
+
+/**
+ * Antwort des Kandidaten: arrived · missing · signed (Datum, erster Tag) · ok · differs (Grund Pflicht).
+ * Doppelte Klicks liefern einfach den Stand.
+ */
+export async function statusAnswer(ctx: ContractCtx, body: any) {
+  const x = await loadStatusLink(ctx, body?.token);
+  must(x, 'Dieser Link ist nicht gültig.', 'not_found');
+  const { link, b } = x!;
+  const c = b.contract;
+  const state = statusState(link, c, ctx.now());
+  must(!['closed', 'expired'].includes(state), state === 'expired' ? `Der Link ist abgelaufen. Bitte melden Sie sich bei ${b.recruiter?.name ?? 'Ihrem Headhunter'}.` : 'Dieser Link gilt nicht mehr.', 'conflict');
+  const way = body?.way;
+  must(['arrived', 'missing', 'signed', 'ok', 'differs'].includes(way), 'Bitte eine Antwort wählen.');
+  const nowIso = new Date(ctx.now()).toISOString();
+  const first = firstName(b.candidate.full_name);
+  const company = b.job.company_name;
+  const already = { ok: true, view: await statusView(ctx, x!) };
+
+  if (way === 'arrived' || way === 'missing') {
+    must(SELF_OPEN.includes(c.status), state === 'digital' ? 'Ihr Vertrag kommt über Matchunt; den Link zum Unterschreiben bekommen Sie per Mail.' : 'Ihre Unterschrift ist schon gemeldet.', 'conflict');
+    if (c.candidate_status === way) return already;
+    b.contract = await update(ctx, c.id, { candidate_status: way, candidate_status_at: nowIso }, SELF_OPEN);
+    await event(ctx, c.id, way === 'arrived' ? 'candidate_arrived' : 'candidate_missing', 'candidate', null, {});
+    if (way === 'arrived') {
+      await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name}: Vertrag ist angekommen`, `${first} hat den Arbeitsvertrag bekommen.`, 'candidate', b.candidate.id);
+    } else {
+      const sent = c.status === 'sent_self' && c.sent_at ? ` (laut Kunde verschickt am ${mails.dateDe(c.sent_at)})` : '';
+      await tellRecruiter(ctx, b, 'Vertrag ist noch nicht angekommen', `${first} hat den Arbeitsvertrag noch nicht${sent}. ${companyFor(b)} weiß es und soll ihn erneut schicken. Ruf ${first} kurz an.`);
+      for (const uid of clientRecipients(b)) {
+        await notify(ctx, uid, 'contract_missing', `${b.candidate.full_name} hat den Arbeitsvertrag noch nicht`, 'Bitte prüfen und erneut schicken.', 'submission', b.submission.id);
+        const prof = await profile(ctx.db, uid);
+        if (!prof?.email) continue;
+        const content = mails.clientContractMissing({ name: prof.name, candidateName: b.candidate.full_name, sentOn: c.status === 'sent_self' ? c.sent_at : null, profileUrl: urls(ctx, b).profile });
+        await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_missing_client', meta: { contract_id: c.id } });
+      }
+    }
+  } else if (way === 'signed') {
+    if (c.status === 'reported' && c.reported_role === 'candidate') return already;
+    must(SELF_OPEN.includes(c.status), state === 'digital' ? 'Ihr Vertrag kommt über Matchunt; Sie unterschreiben über den Link aus unserer Mail.' : 'Die Unterschrift ist schon gemeldet.', 'conflict');
+    const signedOn = typeof body.signedOn === 'string' && DATE.test(body.signedOn) ? body.signedOn : null;
+    must(signedOn, 'Bitte das Datum Ihrer Unterschrift angeben.');
+    must(signedOn! <= todayKey(ctx.now()), 'Das Datum liegt in der Zukunft.');
+    const startDate = typeof body.startDate === 'string' && DATE.test(body.startDate) ? body.startDate : c.start_date;
+    must(startDate, 'Bitte Ihren ersten Arbeitstag angeben.');
+    b.contract = await update(ctx, c.id, {
+      status: 'reported', reported_role: 'candidate', reported_by: null, reported_at: nowIso, report_note: null, evidence_note: null,
+      signed_on: signedOn, start_date: startDate, previous_status: c.status, candidate_status: 'arrived', candidate_status_at: c.candidate_status === 'arrived' ? c.candidate_status_at : nowIso,
+    }, SELF_OPEN);
+    const factsOut = { signedOn, salary: c.salary, variable: c.variable_salary, startDate };
+    await event(ctx, c.id, 'reported', 'candidate', null, factsOut);
+    await askClientToConfirm(ctx, b, b.contract, b.candidate.full_name, factsOut);
+    await tellRecruiter(ctx, b, `Unterschrift selbst gemeldet (${mails.dateDe(signedOn)})`, `${company} bestätigt noch. Du bekommst Bescheid.`);
+  } else {
+    // Gegenprobe nach der Meldung der Firma
+    must(['signed', 'final'].includes(c.status) && c.reported_role === 'client', 'Hier gibt es nichts zu bestätigen.', 'conflict');
+    if (c.candidate_check || c.recruiter_check) return already;
+    const note = way === 'differs' ? text(body.note) : null;
+    must(way === 'ok' || note, 'Bitte kurz schreiben, was nicht stimmt.');
+    b.contract = await update(ctx, c.id, { candidate_check: way, candidate_check_note: note, candidate_checked_at: nowIso }, ['signed', 'final']);
+    await event(ctx, c.id, way === 'ok' ? 'candidate_check_ok' : 'candidate_check_differs', 'candidate', null, { note });
+    if (way === 'ok') {
+      await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name} bestätigt die Unterschrift`, 'Die Gegenprobe ist erledigt.', 'candidate', b.candidate.id);
+    } else {
+      await tellRecruiter(ctx, b, 'Meldung der Firma stimmt laut Kandidat nicht', note);
+      await tellAdmins(ctx, b, `${first} sagt zur Meldung von ${company}: „${note}“`, c.id);
+    }
+  }
+  await ctx.db.from('contract_candidate_links').update({ answered_at: nowIso }).eq('id', link.id);
+  return { ok: true, view: await statusView(ctx, x!) };
+}
+
+// ---------------------------------------------------------------------------
 // Admin: offene Fälle
 // ---------------------------------------------------------------------------
 
@@ -1247,7 +1518,7 @@ export async function adminCases(ctx: ContractCtx, user: User) {
   const { data } = await ctx.db.from('employment_contracts').select('*').in('status', OPEN.concat(['signed', 'final', 'declined'])).order('updated_at', { ascending: false }).limit(200);
   const out = [];
   for (const c of (data ?? []) as any[]) {
-    if (c.status === 'final' && c.recruiter_check !== 'differs') continue;
+    if (c.status === 'final' && c.recruiter_check !== 'differs' && c.candidate_check !== 'differs') continue;
     const b = await loadBundle(ctx.db, c.submission_id);
     out.push({
       submissionId: c.submission_id, candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title,

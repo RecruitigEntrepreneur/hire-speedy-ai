@@ -215,7 +215,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
               <label className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Verschickt am</span>
                 <Input type="date" value={sentOn} max={todayIso()} onChange={(e) => setSentOn(e.target.value)} className="h-8 w-44" />
-                <span className="text-xs text-muted-foreground">{hh} hakt dann bei {first} nach. Noch nicht verschickt? Dann einfach schließen, die Aufgabe bleibt.</span>
+                <span className="text-xs text-muted-foreground">{first} bekommt von uns Bescheid und meldet, wenn der Vertrag da ist; {hh} hakt nach. Noch nicht verschickt? Dann einfach schließen, die Aufgabe bleibt.</span>
               </label>
             )}
 

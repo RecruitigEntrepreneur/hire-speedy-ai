@@ -13,7 +13,7 @@ export interface ContractView {
   companySignerName: string | null;
   companySignedAt: string | null;
   candidateSignedAt: string | null;
-  reportedRole: 'client' | 'recruiter' | 'admin' | 'docusign' | null;
+  reportedRole: 'client' | 'recruiter' | 'admin' | 'docusign' | 'candidate' | null;
   reportedAt: string | null;
   reportNote: string | null;
   signedOn: string | null;
@@ -31,6 +31,14 @@ export interface ContractView {
   hasSignedDocument: boolean;
   /** 'embedded' = Unterschrift über Matchunt (23.10.2026), 'email' = DocuSign mailt (alter Weg) */
   signingMode?: 'email' | 'embedded';
+  /** Kandidat auf dem Laufenden (29.10.2026): Mail „Vertrag unterwegs“, Frage nach 7 Tagen, seine Antworten */
+  candidateInformedAt?: string | null;
+  candidateAskedAt?: string | null;
+  candidateStatus?: 'arrived' | 'missing' | null;
+  candidateStatusAt?: string | null;
+  candidateCheck?: 'ok' | 'differs' | null;
+  candidateCheckedAt?: string | null;
+  candidateCheckNote?: string | null;
 }
 
 export interface SignLinkView { sentAt: string | null; openedAt: string | null; signedAt: string | null; revoked: boolean; expiresAt: string; email: string | null; reminders: number }
@@ -225,4 +233,37 @@ export const signLinkApi = {
   returned: (token: string) => signCall<SignPageView>('returned', token),
   renew: (token: string) => signCall<{ ok: true; email: string }>('renew', token, {}, 'Der neue Link konnte nicht verschickt werden.'),
   document: (token: string) => signCall<{ url: string }>('document', token, {}, 'Die Kopie ist gerade nicht abrufbar.'),
+};
+
+// ---------------------------------------------------------------------------
+// Stand für den Kandidaten ohne Konto (/vertrag/:token, Function contract-status, 29.10.2026)
+// ---------------------------------------------------------------------------
+
+export type StatusPageState = 'invalid' | 'expired' | 'closed' | 'digital' | 'open' | 'reported' | 'check' | 'signed';
+export type StatusAnswer = 'arrived' | 'missing' | 'signed' | 'ok' | 'differs';
+
+export interface StatusPageView {
+  state: StatusPageState;
+  firstName?: string;
+  companyName?: string;
+  jobTitle?: string;
+  sentAt?: string | null;
+  startDate?: string | null;
+  salary?: number | null;
+  variable?: number | null;
+  signedOn?: string | null;
+  reportedByYou?: boolean;
+  candidateStatus?: 'arrived' | 'missing' | null;
+  candidateStatusAt?: string | null;
+  candidateCheck?: 'ok' | 'differs' | null;
+  recruiter?: { name: string; email: string | null; phone: string | null } | null;
+}
+
+const statusCall = <T,>(action: string, token: string, extra: Record<string, unknown> = {}, fallback?: string) =>
+  callFunction<T>('contract-status', { action, token, ...extra }, fallback);
+
+export const contractStatusApi = {
+  peek: (token: string) => statusCall<StatusPageView>('peek', token, {}, 'Die Seite konnte nicht geladen werden.'),
+  answer: (token: string, input: { way: StatusAnswer; signedOn?: string; startDate?: string; note?: string }) =>
+    statusCall<{ ok: true; view: StatusPageView }>('answer', token, input, 'Ihre Antwort konnte nicht gespeichert werden.'),
 };

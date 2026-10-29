@@ -35,7 +35,12 @@ export function ContractTimeline({ submissionId, onOpen }: { submissionId: strin
     rows.push({ state: 'next', text: 'Unterschriften · verbindlich' });
   } else if (status === 'sent_self') {
     rows.push({ state: 'done', text: 'Vertrag selbst verschickt (Ihre Angabe)', when: dateDe(c!.sentAt) });
-    rows.push({ state: 'now', text: <>Unterschrift von {first} melden, sobald sie da ist{openLink}</> });
+    // Antwort des Kandidaten (29.10.2026)
+    if (c!.candidateStatus === 'missing') rows.push({ state: 'bad', text: <>{first} hat den Vertrag noch nicht, bitte erneut schicken{openLink}</>, when: dateDe(c!.candidateStatusAt) });
+    else {
+      if (c!.candidateStatus === 'arrived') rows.push({ state: 'done', text: `Bei ${first} angekommen`, when: dateDe(c!.candidateStatusAt) });
+      rows.push({ state: 'now', text: <>Unterschrift von {first} melden, sobald sie da ist{openLink}</> });
+    }
   } else if (digital) {
     rows.push({ state: 'done', text: sig?.mode === 'embedded' ? 'Vertrag hochgeladen' : 'Versendet über DocuSign', when: timeDe(c!.sentAt) });
     if (c!.companySignedAt) rows.push({ state: 'done', text: sig?.youSign ? 'Sie haben unterschrieben' : `${c!.companySignerName ?? 'Die Firma'} hat unterschrieben`, when: timeDe(c!.companySignedAt) });
@@ -44,7 +49,9 @@ export function ContractTimeline({ submissionId, onOpen }: { submissionId: strin
     else if (c!.companySignedAt) rows.push({ state: 'now', text: <>{first} unterschreibt{sig?.mode === 'embedded' && sig.candidate ? <span className="text-muted-foreground"> · {linkLine(sig.candidate, sig.candidateEmail)}</span> : null}{openLink}</> });
     else rows.push({ state: 'next', text: `danach ${first}` });
   } else if (status === 'reported') {
-    rows.push({ state: 'now', text: <>{c!.reportedRole === 'admin' ? 'Matchunt' : (ctx.reporterName ?? ctx.recruiterName ?? 'Ihr Headhunter')} meldet die Unterschrift vom {dateDe(c!.signedOn)}, bitte bestätigen{openLink}</> });
+    rows.push({ state: 'now', text: c!.reportedRole === 'candidate'
+      ? <>{first} meldet selbst: unterschrieben am {dateDe(c!.signedOn)}, bitte bestätigen{openLink}</>
+      : <>{c!.reportedRole === 'admin' ? 'Matchunt' : (ctx.reporterName ?? ctx.recruiterName ?? 'Ihr Headhunter')} meldet die Unterschrift vom {dateDe(c!.signedOn)}, bitte bestätigen{openLink}</> });
   } else if (status === 'signed') {
     rows.push({ state: 'done', text: `Unterschrift gemeldet · ${values(c!)}`, when: dateDe(c!.signedOn) });
     rows.push({ state: 'now', text: <>bis {timeDe(c!.undoUntil)} rücknehmbar, dann verbindlich{openLink}</> });

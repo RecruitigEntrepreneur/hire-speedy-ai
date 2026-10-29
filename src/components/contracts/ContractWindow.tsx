@@ -77,13 +77,17 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
   // Unterschrift über Matchunt: Kandidat bekommt seinen Link von uns, der Headhunter sieht, ob er geöffnet ist
   const embedded = ctx?.signing?.mode === 'embedded';
   const candLink = ctx?.signing?.candidate ?? null;
-  const checkOpen = !!c && ['signed', 'final'].includes(status) && c.reportedRole === 'client' && !c.recruiterCheck;
+  // Gegenprobe: wer zuerst bestätigt, du oder der Kandidat (29.10.2026)
+  const checkOpen = !!c && ['signed', 'final'].includes(status) && c.reportedRole === 'client' && !c.recruiterCheck && !c.candidateCheck;
+  // Was der Kandidat von uns weiß und geantwortet hat
+  const candAnswer = c?.candidateStatus === 'arrived' ? `Antwort: angekommen (${dateDe(c.candidateStatusAt)})`
+    : c?.candidateStatus === 'missing' ? `Antwort: noch nicht da (${dateDe(c.candidateStatusAt)})` : 'noch keine Antwort';
   const canReport = ['preparing', 'sent_self', 'declined'].includes(status);
   const canDrop = ['preparing', 'sent_self', 'sent_digital', 'company_signed', 'declined'].includes(status);
   // Bis Tag 10 nichts zu tun (gleiche Regel wie „Wartet auf andere“, 28.10.2026)
   const anchor = status === 'sent_digital' && c?.sentAt ? c.sentAt : ctx?.offer?.acceptedAt ?? null;
   const followAt = anchor && ['preparing', 'sent_self', 'sent_digital'].includes(status) ? new Date(Date.parse(anchor) + 10 * 86_400_000) : null;
-  const quietUntil = followAt && followAt.getTime() > Date.now() ? followAt.toISOString() : null;
+  const quietUntil = followAt && followAt.getTime() > Date.now() && c?.candidateStatus !== 'missing' ? followAt.toISOString() : null;
   // Nachfassen: offen, solange nicht unterschrieben, abgesprungen oder gemeldet
   const followOpen = ctx?.role === 'recruiter' && ['preparing', 'sent_self', 'sent_digital', 'company_signed', 'declined'].includes(status);
   // DocuSign nach der Firma: die Unterschrift meldet DocuSign selbst, den Kunden zu fragen bringt nichts
@@ -168,14 +172,25 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
                       c?.candidateSignedAt ? timeDe(c.candidateSignedAt) : embedded && status === 'company_signed' ? linkLine(candLink, null) : null)}
                   </>
                 ) : (
-                  step(status !== 'preparing', status === 'preparing' ? `${firma} bereitet den Vertrag vor` : `${firma} hat den Vertrag ${c?.sentAt ? `am ${dateDe(c.sentAt)} ` : ''}selbst geschickt`)
+                  <>
+                    {step(status !== 'preparing', status === 'preparing' ? `${firma} bereitet den Vertrag vor` : `${firma} hat den Vertrag ${c?.sentAt ? `am ${dateDe(c.sentAt)} ` : ''}selbst geschickt`)}
+                    {(c?.candidateInformedAt || c?.candidateStatus) && step(c?.candidateStatus === 'arrived',
+                      c?.candidateInformedAt ? `${first} informiert ${dateDe(c.candidateInformedAt)} · ${candAnswer}` : `${first}: ${candAnswer}`)}
+                  </>
                 )}
-                {status === 'reported' && step(false, `Du hast gemeldet (${dateDe(c?.signedOn)}). ${firma} bestätigt noch.`)}
+                {status === 'reported' && step(false, c?.reportedRole === 'candidate'
+                  ? `${first} hat selbst gemeldet: unterschrieben am ${dateDe(c?.signedOn)}. ${firma} bestätigt noch.`
+                  : `Du hast gemeldet (${dateDe(c?.signedOn)}). ${firma} bestätigt noch.`)}
                 {['signed', 'final'].includes(status) && step(true, `Unterschrieben am ${dateDe(c?.signedOn)}`, values)}
                 {['signed', 'final'].includes(status) && c?.recruiterCheck === 'ok' && step(true, 'Von dir bestätigt')}
                 {['signed', 'final'].includes(status) && c?.recruiterCheck === 'differs' && step(true, `Abweichung gemeldet: ${c.recruiterCheckNote ?? ''}`)}
+                {['signed', 'final'].includes(status) && c?.candidateCheck === 'ok' && step(true, `Von ${first} bestätigt`, dateDe(c.candidateCheckedAt))}
+                {['signed', 'final'].includes(status) && c?.candidateCheck === 'differs' && step(true, `${first} sagt: stimmt so nicht${c.candidateCheckNote ? ` („${c.candidateCheckNote}“)` : ''} · Matchunt klärt das`)}
               </ul>
               {quietUntil && <p className="mt-2 text-xs text-emerald-600">Nichts zu tun bis {dateDe(quietUntil)}. Danach steht der Vertrag wieder unter „Jetzt“.</p>}
+              {c?.candidateStatus === 'missing' && ['preparing', 'sent_self'].includes(status) && (
+                <p className="mt-2 text-amber-700 dark:text-amber-400">{first} hat den Vertrag noch nicht. {firma} weiß es und soll ihn erneut schicken; ruf {first} kurz an.</p>
+              )}
               {status === 'declined' && <p className="mt-2 text-amber-700 dark:text-amber-400">In DocuSign abgelehnt{c?.declineReason ? `: „${c.declineReason}“` : ''}. Bitte mit allen klären.</p>}
               {status === 'dropped' && <p className="mt-2 text-muted-foreground">{first} ist abgesprungen{c?.dropReason ? `: „${c.dropReason}“` : ''}.</p>}
               {['sent_digital', 'company_signed'].includes(status) && (

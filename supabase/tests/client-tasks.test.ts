@@ -114,6 +114,24 @@ Deno.test('Vertrag: schicken, selbst verschickt erst nach 7 Tagen, DocuSign Firm
   eq(r.waiting.length, 1, 'selbst verschickt, noch keine 7 Tage');
 });
 
+Deno.test('Vertrag: Kandidat sagt „Noch nicht da“ → rote Aufgabe erneut schicken; „angekommen“ steht beim Warten; Kandidat meldet selbst', () => {
+  const a = sub(), b = sub(), c = sub();
+  const r = deriveClientTasks(input({
+    subs: [a, b, c],
+    contracts: [
+      { id: id('k'), submission_id: a.sub.id, status: 'sent_self', sent_at: ago(2), created_at: ago(3), candidate_status: 'missing', candidate_status_at: ago(0, 1) },
+      { id: id('k'), submission_id: b.sub.id, status: 'sent_self', sent_at: ago(2), created_at: ago(3), candidate_status: 'arrived', candidate_status_at: ago(1) },
+      { id: id('k'), submission_id: c.sub.id, status: 'reported', reported_at: ago(0, 2), reported_role: 'candidate', signed_on: '2026-10-22', created_at: ago(3) },
+    ],
+  }));
+  eq(kinds(r).sort(), ['confirm_signature', 'send_contract']);
+  const missing = r.tasks.find((x) => x.kind === 'send_contract')!;
+  assert(missing.urgent && missing.title.includes('noch nicht') && missing.detail.includes('erneut schicken'), 'rote Aufgabe mit Versanddatum');
+  assert(r.tasks.find((x) => x.kind === 'confirm_signature')!.detail.startsWith('Tessa meldet'), 'Kandidat meldet selbst');
+  eq(r.waiting.length, 1);
+  assert(r.waiting[0].detail.includes('angekommen laut Tessa'), 'Warten zeigt „angekommen“');
+});
+
 Deno.test('Nach der Einstellung: Antritt ab dem ersten Tag, vorher Termin; Nichtantritt geht an Matchunt', () => {
   const a = sub({ stage: 'placed' }), b = sub({ stage: 'placed' }), c = sub({ stage: 'placed' });
   const r = deriveClientTasks(input({

@@ -92,8 +92,8 @@ export default function OfferAnswerPage() {
   // Nach dem Antworten
   if (done) {
     const text: Record<Exclude<Done, null>, { title: string; body: string }> = {
-      accepted: { title: `Danke, Ihre Zusage ist bei ${v.companyName}`, body: `Als Nächstes kommt der Arbeitsvertrag zur Unterschrift, per Mail von Matchunt. ${hhFirst} begleitet Sie bis zum ersten Tag.` },
-      confirmed: { title: 'Danke, bestätigt', body: 'Der Arbeitsvertrag kommt als Nächstes per Mail von Matchunt.' },
+      accepted: { title: `Danke, Ihre Zusage ist bei ${v.companyName}`, body: `Als Nächstes kommt Ihr Arbeitsvertrag, über Matchunt oder direkt von der Firma. Wir sagen Ihnen Bescheid, sobald er unterwegs ist. ${hhFirst} begleitet Sie bis zum ersten Tag.` },
+      confirmed: { title: 'Danke, bestätigt', body: 'Als Nächstes kommt Ihr Arbeitsvertrag, über Matchunt oder direkt von der Firma. Wir sagen Ihnen Bescheid, sobald er unterwegs ist.' },
       callback: { title: `${hhFirst} ruft Sie zurück`, body: `Spätestens in 2 Stunden, abends erst am nächsten Morgen. ${v.companyName} sieht nur, dass Sie mit ${hhFirst} sprechen. Wünsche gibt ${hhFirst} an die Firma weiter.` },
       declined: { title: 'Danke für Ihre Rückmeldung', body: `${v.companyName} und ${hhFirst} sind informiert.` },
       not_confirmed: { title: 'Danke, das klären wir', body: `Die Zusage gilt nicht. ${hhFirst} meldet sich bei Ihnen, Matchunt sieht sich den Fall an.` },
@@ -106,7 +106,7 @@ export default function OfferAnswerPage() {
       return (
         <Shell>
           <Status icon={CheckCircle2} tone="success" title={v.answer === 'declined' ? 'Sie haben abgesagt' : 'Sie haben zugesagt'}>
-            {v.answer === 'declined' ? `${v.companyName} und ${hhFirst} sind informiert.` : 'Der Arbeitsvertrag kommt per Mail von Matchunt.'}
+            {v.answer === 'declined' ? `${v.companyName} und ${hhFirst} sind informiert.` : 'Ihr Arbeitsvertrag kommt über Matchunt oder direkt von der Firma. Wir sagen Ihnen Bescheid, sobald er unterwegs ist.'}
           </Status>
           {facts}{contact}
         </Shell>

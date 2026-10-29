@@ -241,7 +241,21 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       {status === 'sent_self' && (
         <>
           <p className="font-medium">Vertrag am {dateDe(c!.sentAt)} an {first} verschickt <span className="font-normal text-muted-foreground">(Ihre Angabe)</span></p>
-          <p className="mt-0.5 text-muted-foreground">{hhFirst} weiß Bescheid und hakt bei {first} nach.</p>
+          {c!.candidateStatus === 'missing' ? (
+            <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2">
+              <p className="font-medium">{first} hat den Vertrag noch nicht <span className="font-normal text-muted-foreground">(gemeldet am {dateDe(c!.candidateStatusAt)})</span></p>
+              <p className="mt-0.5 text-muted-foreground">Bitte prüfen und erneut schicken. {first} bekommt von uns Bescheid, sobald der Vertrag wieder unterwegs ist.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => setShowSend('self')}>Erneut verschickt am …</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowSend('digital')}>Doch über Matchunt</Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-0.5 text-muted-foreground">
+              {c!.candidateStatus === 'arrived' ? `${first} hat bestätigt: angekommen (${dateDe(c!.candidateStatusAt)}). ` : c!.candidateInformedAt ? `${first} hat eine Mail von uns und meldet uns, sobald der Vertrag da ist. ` : ''}
+              {hhFirst} weiß Bescheid und hakt bei {first} nach.
+            </p>
+          )}
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button size="sm" onClick={() => setShowReport('report')}>Unterschrift melden</Button>
@@ -306,7 +320,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
       {status === 'reported' && (
         <>
-          <p className="font-medium">{c!.reportedRole === 'admin' ? 'Matchunt' : (ctx.reporterName ?? hh)} meldet: {first} hat am {dateDe(c!.signedOn)} unterschrieben</p>
+          <p className="font-medium">{c!.reportedRole === 'candidate' ? `${first} meldet selbst: am ${dateDe(c!.signedOn)} unterschrieben` : `${c!.reportedRole === 'admin' ? 'Matchunt' : (ctx.reporterName ?? hh)} meldet: ${first} hat am ${dateDe(c!.signedOn)} unterschrieben`}</p>
           <p className="mt-0.5 text-muted-foreground">{values(c!)}{c!.reportNote ? ` · „${c!.reportNote}“` : ''}. Stimmt das?</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'yes'), 'Bestätigt. Die Einstellung ist verbindlich.')}>Ja, stimmt</Button>
@@ -319,7 +333,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       {status === 'signed' && (
         <>
           <p className="font-medium">Unterschrift gemeldet: am {dateDe(c!.signedOn)} · {values(c!)}</p>
-          <p className="mt-0.5 text-muted-foreground">Bis {timeDe(c!.undoUntil)} können Sie die Meldung zurücknehmen. Danach ist die Einstellung verbindlich. {hhFirst} bestätigt parallel bei {first}.</p>
+          <p className="mt-0.5 text-muted-foreground">Bis {timeDe(c!.undoUntil)} können Sie die Meldung zurücknehmen. Danach ist die Einstellung verbindlich. {c!.candidateCheck === 'ok' ? `${first} hat es bestätigt.` : `${first} bekommt eine Mail zum Bestätigen, ${hhFirst} fragt parallel nach.`}</p>
           <div className="mt-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.undo(submissionId), 'Zurückgenommen.')}>Rückgängig machen</Button></div>
         </>
       )}
@@ -329,7 +343,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           <p className="font-medium">Arbeitsvertrag unterschrieben am {dateDe(c!.signedOn)}</p>
           <p className="mt-0.5 text-muted-foreground">
             {values(c!)}{c!.way === 'digital' ? ' · über DocuSign' : ''}
-            {c!.recruiterCheck === 'ok' ? ` · ${hhFirst} hat es bei ${first} bestätigt` : ''}
+            {c!.candidateCheck === 'ok' ? ` · von ${first} bestätigt` : c!.recruiterCheck === 'ok' ? ` · ${hhFirst} hat es bei ${first} bestätigt` : ''}
           </p>
           {c!.hasSignedDocument && <div className="mt-2"><Button size="sm" variant="outline" className="gap-1" onClick={openPdf}><FileDown className="h-3.5 w-3.5" />Vertrag (PDF)</Button></div>}
         </>

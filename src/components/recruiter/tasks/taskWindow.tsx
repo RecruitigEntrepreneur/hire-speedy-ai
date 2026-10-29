@@ -193,7 +193,7 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       reachedOptions: [],
     };
   }
-  if (cat === 'contract_check' || cat === 'contract_nudge' || cat === 'contract_followup' || cat === 'contract_follow') {
+  if (cat === 'contract_check' || cat === 'contract_nudge' || cat === 'contract_followup' || cat === 'contract_follow' || cat === 'contract_missing') {
     // Arbeitsvertrag (Paket 3)
     const check = cat === 'contract_check';
     const nudge = cat === 'contract_nudge';
@@ -201,6 +201,7 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       pill: check ? 'Gegenprobe' : 'Vertrag',
       advice: check ? `Der Kunde meldet: ${first} hat unterschrieben. Stimmt das?`
         : nudge ? `Die Firma hat unterschrieben. Stoß ${first} an, damit die Unterschrift heute kommt.`
+          : cat === 'contract_missing' ? `${first} sagt: Der Arbeitsvertrag ist noch nicht da. Der Kunde ist informiert und soll ihn erneut schicken. Ruf ${first} an und frag beim Kunden nach, wenn er sich nicht rührt.`
           : cat === 'contract_follow' && item.description?.startsWith('In DocuSign abgelehnt') ? `${first} hat den Vertrag in DocuSign abgelehnt. Kläre mit ${first} und dem Kunden, ob ein neuer Vertrag kommt.`
           : cat === 'contract_follow' ? `${item.description ?? ''} Halt Kontakt zu ${first} und melde die Unterschrift, sobald sie da ist.`
             : `${item.description ?? 'Noch keine Unterschrift gemeldet.'} Frag bei ${first} nach.`,

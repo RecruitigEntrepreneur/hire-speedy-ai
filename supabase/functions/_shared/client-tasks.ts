@@ -463,7 +463,12 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
       continue;
     }
     if (c && !['final', 'declined', 'dropped', 'voided'].includes(c.status)) {
-      if (c.status === 'preparing') {
+      if (['preparing', 'sent_self'].includes(c.status) && c.candidate_status === 'missing') {
+        // Kandidat sagt „Noch nicht da“ (29.10.2026): erneut schicken, selbst oder über Matchunt
+        push({ key: `contract-missing:${c.id}:${c.candidate_status_at ?? ''}`, kind: 'send_contract', since: c.candidate_status_at ?? c.updated_at, urgent: true, waitingWho: name,
+          title: `${name} hat den Arbeitsvertrag noch nicht`, detail: c.status === 'sent_self' && c.sent_at ? `Laut Ihrer Angabe verschickt am ${formatBerlinDateShort(c.sent_at)} · bitte erneut schicken` : 'Bitte jetzt schicken',
+          ref: { contractId: c.id }, context: contractCtx(c, false) });
+      } else if (c.status === 'preparing') {
         push({ key: `contract-send:${c.id}`, kind: 'send_contract', since: c.created_at, urgent: true, waitingWho: name,
           title: 'Arbeitsvertrag schicken', detail: `Zusage${c.salary ? `: ${euro(c.salary)}${c.variable_salary ? ` + ${euro(c.variable_salary)}` : ''}` : ''}${c.start_date ? ` · Start ${dateDe(c.start_date)}` : ''}`, ref: { contractId: c.id },
           context: contractCtx(c, false) });
@@ -485,7 +490,7 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
               why: `${hhFirst} hält Kontakt zu ${nameDat}.`,
             }) });
         } else {
-          wait({ key: `contract-self:${c.id}`, by: 'candidate', title: `Vertrag liegt bei ${name}`, detail: `verschickt am ${formatBerlinDateShort(iso(sent))} · melden Sie die Unterschrift, sobald sie da ist` });
+          wait({ key: `contract-self:${c.id}`, by: 'candidate', title: `Vertrag liegt bei ${name}`, detail: `verschickt am ${formatBerlinDateShort(iso(sent))}${c.candidate_status === 'arrived' ? ` · angekommen laut ${name}` : ''} · melden Sie die Unterschrift, sobald sie da ist` });
         }
       } else if (c.status === 'sent_digital' && c.signing_mode === 'embedded' && !c.company_signed_at && c.company_signer_user_id !== input.userId) {
         // Über Matchunt, und jemand anderes unterschreibt für die Firma: läuft bei ihr bzw. ihm
@@ -541,10 +546,10 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
         const l = (input.signLinks ?? []).filter((x: any) => x.contract_id === c.id && x.signer_role === 'candidate').sort((a: any, b: any) => t(b.created_at) - t(a.created_at))[0];
         wait({ key: `docusign-cand:${c.id}`, by: 'candidate', title: `${name} unterschreibt`, detail: l ? `Link verschickt ${formatBerlinDateShort(l.sent_at)} · ${l.opened_at ? `geöffnet ${formatBerlinDateShort(l.opened_at)}` : 'noch nicht geöffnet'}` : 'Link per Mail von Matchunt' });
       } else if (c.status === 'reported') {
-        push({ key: `confirm:${c.id}`, kind: 'confirm_signature', since: c.reported_at ?? c.updated_at, urgent: true, waitingWho: hh,
-          title: 'Unterschrift bestätigen', detail: `${c.reported_role === 'admin' ? 'Matchunt' : hhFirst} meldet: unterschrieben am ${dateDe(c.signed_on)}${c.salary ? ` · ${euro(c.salary)}${c.variable_salary ? ` + ${euro(c.variable_salary)}` : ''}` : ''}${c.start_date ? ` · Start ${dateDe(c.start_date)}` : ''}`, ref: { contractId: c.id },
+        push({ key: `confirm:${c.id}`, kind: 'confirm_signature', since: c.reported_at ?? c.updated_at, urgent: true, waitingWho: c.reported_role === 'candidate' ? name : hh,
+          title: 'Unterschrift bestätigen', detail: `${c.reported_role === 'admin' ? 'Matchunt' : c.reported_role === 'candidate' ? name : hhFirst} meldet: unterschrieben am ${dateDe(c.signed_on)}${c.salary ? ` · ${euro(c.salary)}${c.variable_salary ? ` + ${euro(c.variable_salary)}` : ''}` : ''}${c.start_date ? ` · Start ${dateDe(c.start_date)}` : ''}`, ref: { contractId: c.id },
           context: (() => {
-            const by = c.reported_role === 'admin' ? 'Matchunt' : hh;
+            const by = c.reported_role === 'admin' ? 'Matchunt' : c.reported_role === 'candidate' ? name : hh;
             const row = (label: string, a: unknown, b: unknown, fmt: (v: any) => string) => {
               const x = a == null || a === '' ? '–' : fmt(a), y = b == null || b === '' ? '–' : fmt(b);
               return { label, cells: [x, y], changed: x !== '–' && y !== '–' && x !== y };
@@ -557,7 +562,7 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
             ];
             const off = rows.filter((r) => r.changed).length;
             return ctxOf({
-              ask: `Stimmt das? ${by === 'Matchunt' ? 'Matchunt' : hhFirst} meldet die Unterschrift`,
+              ask: c.reported_role === 'candidate' ? `Stimmt das? ${name} meldet die Unterschrift selbst` : `Stimmt das? ${by === 'Matchunt' ? 'Matchunt' : hhFirst} meldet die Unterschrift`,
               compare: { heads: ['Gemeldet', 'Zusage'], rows },
               line: [`gemeldet von ${by}`, off ? `${off} ${off === 1 ? 'Wert weicht' : 'Werte weichen'} von der Zusage ab` : 'wie zugesagt'],
               chip: off ? { text: 'weicht ab', tone: 'warn' } : null,
@@ -934,7 +939,7 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
     rowsIn(db, 'interviews', 'id, submission_id, status, round, scheduled_at, duration_minutes, feedback, created_at, updated_at, proposed_slots, counter_slots, response_token_expires_at, reschedules_interview_id, meeting_format, onsite_address, candidate_message', 'submission_id', subIds),
     rowsIn(db, 'offers', 'id, submission_id, status, created_at, updated_at, response_due, candidate_response, counter_offer_at, salary_offered, variable_salary, start_date, contract_type, probation_months, work_model, extras, decision_at, sent_at, version, rejection_reason', 'submission_id', subIds),
     rowsIn(db, 'offer_recommendations', 'id, submission_id, created_at, intro, items', 'submission_id', subIds),
-    rowsIn(db, 'employment_contracts', 'id, submission_id, status, way, sent_at, created_at, updated_at, company_signed_at, company_signer_name, company_signer_email, candidate_email, reported_at, reported_role, report_note, signed_on, salary, variable_salary, start_date, undo_until, fixed_term, non_compete, decline_reason, signing_mode, company_signer_user_id, final_at', 'submission_id', subIds),
+    rowsIn(db, 'employment_contracts', 'id, submission_id, status, way, sent_at, created_at, updated_at, company_signed_at, company_signer_name, company_signer_email, candidate_email, reported_at, reported_role, report_note, signed_on, salary, variable_salary, start_date, undo_until, fixed_term, non_compete, decline_reason, signing_mode, company_signer_user_id, final_at, candidate_status, candidate_status_at', 'submission_id', subIds),
     rowsIn(db, 'placements', '*', 'submission_id', subIds),
     rowsIn(db, 'invoices', '*', 'job_id', jobIds),
     rowsIn(db, 'recruiter_job_activations', 'job_id, recruiter_id, status, activated_at', 'job_id', jobIds).catch(() => []),

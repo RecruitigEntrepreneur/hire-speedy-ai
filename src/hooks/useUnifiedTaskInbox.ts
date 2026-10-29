@@ -484,11 +484,16 @@ function mapContractTask(r: any, acceptedAt: string | null, now: number): Unifie
   const sub = r.submissions;
   if (!sub) return null;
   const base = (extra: Partial<UnifiedTaskItem> & Pick<UnifiedTaskItem, 'itemId' | 'title' | 'taskCategory' | 'priority' | 'createdAt'>) => derivedBase(sub, sub.jobs, sub.candidates, extra);
-  if (['signed', 'final'].includes(r.status) && r.reported_role === 'client' && !r.recruiter_check) {
+  // Gegenprobe: erledigt, sobald du oder der Kandidat bestätigt (29.10.2026)
+  if (['signed', 'final'].includes(r.status) && r.reported_role === 'client' && !r.recruiter_check && !r.candidate_check) {
     return base({ itemId: `derived-contract-check-${r.contract_id}`, title: 'Gegenprobe: Kunde meldet die Unterschrift', description: r.signed_on ? `Unterschrieben am ${r.signed_on}` : null, taskCategory: 'contract_check', priority: 'high', createdAt: r.reported_at ?? r.updated_at });
   }
   if (r.status === 'company_signed') {
     return base({ itemId: `derived-contract-nudge-${r.contract_id}`, title: 'Zur Unterschrift anstoßen', description: 'Die Firma hat unterschrieben, der Kandidat noch nicht.', taskCategory: 'contract_nudge', priority: 'high', createdAt: r.company_signed_at ?? r.updated_at });
+  }
+  // Kandidat sagt „Noch nicht da“ (29.10.2026): Kunde weiß es schon, du rufst an
+  if (['preparing', 'sent_self'].includes(r.status) && r.candidate_status === 'missing') {
+    return base({ itemId: `derived-contract-missing-${r.contract_id}`, title: 'Vertrag kommt nicht an', description: `Laut Kandidat noch nicht da${r.status === 'sent_self' && r.sent_at ? ` (Kunde: verschickt am ${new Date(r.sent_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })})` : ''}. Der Kunde ist informiert.`, taskCategory: 'contract_missing', priority: 'critical', createdAt: r.candidate_status_at ?? r.updated_at });
   }
   const anchor = r.status === 'sent_digital' && r.sent_at ? r.sent_at : (acceptedAt ?? r.updated_at);
   const days = anchor ? Math.floor((now - new Date(anchor).getTime()) / DAY_MS) : 0;

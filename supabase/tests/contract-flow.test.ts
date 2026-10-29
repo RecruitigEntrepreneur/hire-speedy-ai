@@ -8,7 +8,7 @@ import { createOffer } from '../functions/_shared/offer-service.ts';
 import { acceptAsCandidate } from './fixtures/offer-accept.ts';
 import {
   applyEnvelopeEvent, changeSigner, check, confirm, contractContext, drop, linkDocument, linkPeek, linkRenew, linkReturned, linkStart, refreshDigital,
-  report, resendDigital, resendLink, runFollowups, sendDigital, sendSelf, signaturePage, signUrl, undo, voidDigital,
+  report, resendDigital, resendLink, runFollowups, sendDigital, sendSelf, signaturePage, signUrl, statusAnswer, statusPeek, undo, voidDigital,
   type ContractCtx, type FilePort, type SignerSnapshot, type SignPort,
 } from '../functions/_shared/contract-service.ts';
 
@@ -38,7 +38,7 @@ function seed() {
     ],
     user_roles: [{ user_id: CLIENT, role: 'client' }, { user_id: RECRUITER, role: 'recruiter' }, { user_id: ADMIN, role: 'admin' }],
     interviews: [], offers: [], offer_events: [], offer_recommendations: [], notifications: [],
-    employment_contracts: [], employment_contract_events: [], employment_sign_links: [],
+    employment_contracts: [], employment_contract_events: [], employment_sign_links: [], contract_candidate_links: [],
   });
 }
 
@@ -406,4 +406,166 @@ Deno.test({ name: 'Ich selbst: keine Erinnerungsmail an die Firma, die Aufgabe i
   w.clock.now = NOW + 30 * 3_600_000;
   eq((await runFollowups(w.ctx)).reminders, 0);
   eq(w.sent.filter((m) => m.to === 'klara@example.test' && /sign_company/.test(m.template)).length, 0);
+}});
+
+// ---------------------------------------------------------------------------
+// Kandidat auf dem Laufenden (29.10.2026)
+// ---------------------------------------------------------------------------
+
+const toDora = (w: World) => w.sent.filter((m) => m.to === 'dora@example.test' && String(m.template).startsWith('contract_candidate_'));
+/** Token der Seite /vertrag/:token aus der letzten Mail einer Vorlage */
+const statusToken = (w: World, template: string) => {
+  const mail = [...w.sent].reverse().find((m) => m.template === template);
+  const token = mail ? /\/vertrag\/([A-Za-z0-9_-]{43})/.exec(String(mail.text))?.[1] : null;
+  if (!token) throw Error(`Keine Mail ${template} mit Link`);
+  return token;
+};
+
+Deno.test({ name: 'Kandidat: „Vertrag unterwegs“ von Julia, angekommen, Firma meldet → Glückwunsch mit „Stimmt“, das schließt die Gegenprobe', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await accepted(w);
+  await sendSelf(w.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-22' });
+  const m1 = toDora(w);
+  eq(m1.map((m) => m.template), ['contract_candidate_underway']);
+  eq([m1[0].fromName, m1[0].replyTo], ['Julia Hartmann über Matchunt', 'julia@example.test']);
+  assert(m1[0].html.includes('?a=arrived') && m1[0].html.includes('?a=missing') && m1[0].html.includes('?a=signed') && m1[0].html.includes('150.000'), 'drei Knöpfe und Eckdaten');
+  assert(m1[0].subject.includes('MedTec Süd GmbH'), 'Kandidat kennt die Firma');
+  assert(contract(w).candidate_informed_at, 'vermerkt');
+  assert(notes(w, RECRUITER, 'contract_update').some((n: any) => n.message.includes('Mail von uns')), 'Julia weiß, dass Dora selbst meldet');
+  // bloße Datumskorrektur: keine zweite Mail
+  await sendSelf(w.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-21' });
+  eq(toDora(w).length, 1);
+
+  const token = statusToken(w, 'contract_candidate_underway');
+  const view: any = await statusPeek(w.ctx, { token });
+  eq([view.state, view.firstName, view.companyName, view.recruiter?.name], ['open', 'Dora', 'MedTec Süd GmbH', 'Julia Hartmann']);
+  assert(w.tables.contract_candidate_links[0].opened_at, 'geöffnet');
+  eq((await statusPeek(w.ctx, { token: 'x'.repeat(43) })).state, 'invalid');
+
+  await statusAnswer(w.ctx, { token, way: 'arrived' });
+  await statusAnswer(w.ctx, { token, way: 'arrived' });
+  eq(contract(w).candidate_status, 'arrived');
+  eq(notes(w, RECRUITER, 'contract_update').filter((n: any) => n.title.includes('angekommen')).length, 1, 'einmal Bescheid, kein Mail-Sturm');
+
+  await report(w.ctx, user(CLIENT), { submissionId: SUB, signedOn: '2026-10-22', salary: 150000, startDate: '2027-01-01' });
+  eq(toDora(w).map((m) => m.template), ['contract_candidate_underway', 'contract_candidate_signed_check']);
+  const check2 = statusToken(w, 'contract_candidate_signed_check');
+  eq((await statusPeek(w.ctx, { token: check2 }) as any).state, 'check');
+  eq((await statusPeek(w.ctx, { token }) as any).state, 'check', 'auch der alte Link zeigt den Stand');
+  await statusAnswer(w.ctx, { token: check2, way: 'ok' });
+  eq(contract(w).candidate_check, 'ok');
+  eq((await statusPeek(w.ctx, { token: check2 }) as any).state, 'signed');
+  await fails(check(w.ctx, user(RECRUITER), { submissionId: SUB, way: 'ok' }), 'schon selbst bestätigt');
+  const asRecruiter = await contractContext(w.ctx, user(RECRUITER), { submissionId: SUB });
+  eq([asRecruiter.contract?.candidateStatus, asRecruiter.contract?.candidateCheck], ['arrived', 'ok']);
+}});
+
+Deno.test({ name: 'Kandidat: „Noch nicht da“ → Kunde Mail + Benachrichtigung, Julia Bescheid; erneut verschickt → „erneut unterwegs“; keine 7-Tage-Frage', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await accepted(w);
+  await sendSelf(w.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-22' });
+  const token = statusToken(w, 'contract_candidate_underway');
+  await statusAnswer(w.ctx, { token, way: 'missing' });
+  eq(contract(w).candidate_status, 'missing');
+  const toKlara = w.sent.filter((m) => m.template === 'contract_missing_client');
+  eq(toKlara.map((m) => m.to), ['klara@example.test']);
+  assert(toKlara[0].html.includes('22.10.2026') && toKlara[0].html.includes('?vertrag=verschickt'), 'Datum und Knopf „erneut verschickt“');
+  eq(notes(w, CLIENT, 'contract_missing').length, 1);
+  assert(w.sent.some((m) => m.template === 'contract_update_recruiter' && m.subject.includes('noch nicht angekommen')), 'Julia per Mail');
+  await fails(statusAnswer(w.ctx, { token, way: 'ok' }), 'nichts zu bestätigen');
+
+  w.clock.now = NOW + 8 * 86_400_000;
+  eq((await runFollowups(w.ctx)).candidate, 0, 'nach „Noch nicht da“ fragen wir nicht noch einmal');
+
+  await sendSelf(w.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-30' });
+  eq([contract(w).candidate_status, toDora(w).at(-1)?.template], [null, 'contract_candidate_underway_again']);
+  assert(toDora(w).at(-1)?.subject.includes('erneut unterwegs'), 'Betreff sagt „erneut“');
+  assert(notes(w, RECRUITER, 'contract_update').some((n: any) => n.title.includes('erneut selbst verschickt')), 'Julia sieht den neuen Versand');
+}});
+
+Deno.test({ name: 'Kandidat meldet selbst: Kunde bestätigt → Glückwunsch ohne Frage; Kunde sagt „noch nicht“ → Fall für Matchunt', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await accepted(w);
+  await sendSelf(w.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-22' });
+  const token = statusToken(w, 'contract_candidate_underway');
+  await fails(statusAnswer(w.ctx, { token, way: 'signed', signedOn: '2026-10-30', startDate: '2027-01-01' }), 'Zukunft');
+  await statusAnswer(w.ctx, { token, way: 'signed', signedOn: '2026-10-22', startDate: '2027-01-15' });
+  eq([contract(w).status, contract(w).reported_role, contract(w).start_date, contract(w).salary], ['reported', 'candidate', '2027-01-15', 150000]);
+  const ask = w.sent.filter((m) => m.template === 'contract_confirm_client');
+  eq(ask.map((m) => m.subject), ['Dora Weber meldet: Arbeitsvertrag unterschrieben – stimmt das?']);
+  assert(notes(w, RECRUITER, 'contract_update').some((n: any) => n.title.includes('selbst gemeldet')), 'Julia weiß es');
+  eq((await statusPeek(w.ctx, { token }) as any).reportedByYou, true);
+  eq((await contractContext(w.ctx, user(CLIENT), { submissionId: SUB })).reporterName, 'Dora Weber');
+
+  await confirm(w.ctx, user(CLIENT), { submissionId: SUB, way: 'yes' });
+  eq(contract(w).status, 'final');
+  const last = toDora(w).at(-1)!;
+  eq(last.template, 'contract_candidate_signed');
+  assert(!last.html.includes('?a='), 'ohne Rückfrage, beide Seiten haben bestätigt');
+
+  const w2 = world();
+  await accepted(w2);
+  await sendSelf(w2.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-22' });
+  await statusAnswer(w2.ctx, { token: statusToken(w2, 'contract_candidate_underway'), way: 'signed', signedOn: '2026-10-22' });
+  await confirm(w2.ctx, user(CLIENT), { submissionId: SUB, way: 'not_yet' });
+  eq([contract(w2).status, contract(w2).reported_role], ['sent_self', null]);
+  assert(notes(w2, ADMIN, 'contract_case').some((n: any) => n.message.includes('Dora meldet')), 'Widerspruch: Matchunt klärt');
+}});
+
+Deno.test({ name: 'Kandidat: Rücknahme → Korrektur; „stimmt so nicht“ → Fall; Tag 7 einmal fragen; Rückzug digital → Link gilt nicht mehr; abgesprungen schließt die Seite', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await accepted(w);
+  await report(w.ctx, user(CLIENT), { submissionId: SUB, signedOn: '2026-10-22', salary: 150000, startDate: '2027-01-01' });
+  await undo(w.ctx, user(CLIENT), { submissionId: SUB });
+  eq(toDora(w).map((m) => m.template), ['contract_candidate_signed_check', 'contract_candidate_undone']);
+  await report(w.ctx, user(CLIENT), { submissionId: SUB, signedOn: '2026-10-22', salary: 150000, startDate: '2027-01-01' });
+  const token = statusToken(w, 'contract_candidate_signed_check');
+  await fails(statusAnswer(w.ctx, { token, way: 'differs' }), 'was nicht stimmt');
+  await statusAnswer(w.ctx, { token, way: 'differs', note: 'Erster Tag ist der 01.02.' });
+  eq([contract(w).candidate_check, contract(w).candidate_check_note], ['differs', 'Erster Tag ist der 01.02.']);
+  assert(notes(w, ADMIN, 'contract_case').some((n: any) => n.message.includes('01.02.')), 'Matchunt bekommt den Fall');
+
+  // Tag 7 ohne Versand und ohne Antwort: einmal fragen, mit drei Knöpfen
+  const w2 = world();
+  await accepted(w2);
+  w2.clock.now = NOW + 6 * 86_400_000;
+  eq((await runFollowups(w2.ctx)).candidate, 0);
+  w2.clock.now = NOW + 7 * 86_400_000 + 3_600_000;
+  eq((await runFollowups(w2.ctx)).candidate, 1);
+  eq((await runFollowups(w2.ctx)).candidate, 0, 'nur einmal');
+  const askMail = toDora(w2).at(-1)!;
+  eq(askMail.template, 'contract_candidate_ask');
+  assert(askMail.html.includes('?a=missing'), 'drei Knöpfe');
+  // schon angekommen: nur noch „schon unterschrieben?“, gezählt ab Versand
+  const w3 = world();
+  await accepted(w3);
+  w3.clock.now = NOW + 3 * 86_400_000;
+  await sendSelf(w3.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-25' });
+  await statusAnswer(w3.ctx, { token: statusToken(w3, 'contract_candidate_underway'), way: 'arrived' });
+  w3.clock.now = NOW + 8 * 86_400_000;
+  eq((await runFollowups(w3.ctx)).candidate, 0, 'erst 7 Tage nach Versand');
+  w3.clock.now = NOW + 10 * 86_400_000 + 3_600_000;
+  eq((await runFollowups(w3.ctx)).candidate, 1);
+  eq(toDora(w3).at(-1)?.template, 'contract_candidate_ask_signed');
+  assert(!toDora(w3).at(-1)?.html.includes('?a=missing'), 'nur „Ja, unterschrieben“');
+
+  // digital: Firma hat unterschrieben, Dora hat ihren Link; zurückgezogen → selbst: Dora erfährt es
+  const w4 = world();
+  await accepted(w4);
+  await sendDigital(w4.ctx, user(CLIENT), { submissionId: SUB, fileBase64: encodeBase64(new TextEncoder().encode('%PDF-1.4 Vertrag')), fileName: 'Vertrag.pdf', salary: 150000, startDate: '2027-01-01', signerName: 'Dr. Kühn', signerEmail: 'k@medtec.test', candidateEmail: 'dora@example.test', fixedTerm: false, nonCompete: false });
+  await voidDigital(w4.ctx, user(CLIENT), { submissionId: SUB, toSelf: true });
+  eq(toDora(w4).length, 0, 'vor der Firmen-Unterschrift hatte Dora noch keinen Link');
+  await sendDigital(w4.ctx, user(CLIENT), { submissionId: SUB, fileBase64: encodeBase64(new TextEncoder().encode('%PDF-1.4 Vertrag')), fileName: 'Vertrag.pdf', salary: 150000, startDate: '2027-01-01', signerName: 'Dr. Kühn', signerEmail: 'k@medtec.test', candidateEmail: 'dora@example.test', fixedTerm: false, nonCompete: false });
+  await applyEnvelopeEvent(w4.ctx, 'env-2', { status: 'sent', signers: [{ recipientId: '1', status: 'completed', signedDateTime: '2026-10-22T13:00:00Z' }, { recipientId: '2', status: 'sent' }] });
+  await voidDigital(w4.ctx, user(CLIENT), { submissionId: SUB, toSelf: true });
+  eq(toDora(w4).map((m) => m.template), ['contract_candidate_link_void']);
+
+  // abgesprungen: die Seite ist zu
+  const w5 = world();
+  await accepted(w5);
+  await sendSelf(w5.ctx, user(CLIENT), { submissionId: SUB, sentOn: '2026-10-22' });
+  const t5 = statusToken(w5, 'contract_candidate_underway');
+  await drop(w5.ctx, user(RECRUITER), { submissionId: SUB, reason: 'Gegenangebot angenommen' });
+  eq((await statusPeek(w5.ctx, { token: t5 }) as any).state, 'closed');
+  await fails(statusAnswer(w5.ctx, { token: t5, way: 'arrived' }), 'gilt nicht mehr');
 }});

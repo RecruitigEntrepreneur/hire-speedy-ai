@@ -13,7 +13,7 @@ export type Handgriff = 'anruf' | 'kunde' | 'kurz';
 const DAY_MS = 86_400_000;
 const CALLS = new Set([
   'interview_debrief_due', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h', 'offer_deliver',
-  'contract_nudge', 'contract_followup', 'contract_follow', 'interview_reminder', 'interview_prep_missing',
+  'contract_nudge', 'contract_followup', 'contract_follow', 'contract_missing', 'interview_reminder', 'interview_prep_missing',
   'ghosting_risk', 'engagement_drop', 'salary_mismatch', 'call',
 ]);
 const CLIENT_MAILS = new Set(['client_review_stalled', 'client_feedback_due', 'offer_counter_stalled']);
