@@ -11,7 +11,7 @@ import { useRecruiterPipeline, PIPELINE_LABELS, type PipelineStageKey } from '@/
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { DAY_MS, buildGuide, dateDe, daysSince, euro, firstName, hoursSince, useTaskHost, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
+import { DAY_MS, buildGuide, dateDe, daysSince, euro, firstName, useTaskHost, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
 import { KundePrueftWindow } from '@/components/recruiter/tasks/KundePrueftWindow';
 import { bundleByJob, viewText, type StalledBundle } from '@/lib/kundePrueft';
 import { handgriffOf, rowItem, rowItems, splitJetzt, type Handgriff, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
@@ -60,10 +60,6 @@ export default function RecruiterHeute() {
   const now = Date.now();
   // „Jetzt“: dieselben Zeilen wie die Aufgaben-Karte im Dashboard
   const { jetzt, groups, bundles, rows } = useMemo(() => splitJetzt(allItems), [allItems]);
-  const waitingOptIn = useMemo(
-    () => allItems.filter(i => !i.isStale && i.taskCategory === 'opt_in_pending' && hoursSince(i.createdAt) < 24),
-    [allItems],
-  );
   const stale = useMemo(() => allItems.filter(i => i.isStale), [allItems]);
   // „Kunde prüft“ je Stelle gebündelt (20.10.2026): eine Zeile, eine Mail für alle
   // Kandidaten. Alles andere bleibt je Person.
@@ -95,7 +91,6 @@ export default function RecruiterHeute() {
     .sort((a, b) => STAGE_ORDER.indexOf(b) - STAGE_ORDER.indexOf(a))[0] ?? null;
   const totalTasks = rows.reduce((n, r) => n + rowItems(r).length, 0);
   const restTasks = filteredRows.slice(1).reduce((n, r) => n + rowItems(r).length, 0);
-  const filteredWaiting = useMemo(() => (stageFilter ? waitingOptIn.filter(i => stageOfItem(i) === stageFilter) : []), [waitingOptIn, stageFilter, pipeline]);
   const doneToday = useMemo(
     () => completedItems.filter(i => i.completedAt && isToday(new Date(i.completedAt))),
     [completedItems],
@@ -129,7 +124,7 @@ export default function RecruiterHeute() {
   const headline = loading
     ? 'Einen Moment …'
     : rows.length === 0
-      ? `Nichts braucht dich gerade. ${waitingOptIn.length + upcoming.length + waitingItems.length + parkedItems.length} Deals laufen, ${stale.length} ohne Bewegung.`
+      ? `Nichts braucht dich gerade. ${upcoming.length + waitingItems.length + parkedItems.length} Deals laufen, ${stale.length} ohne Bewegung.`
       : `${dealCount} Deals${pipeline && pipeline.totalFee > 0 ? `, ${Math.round(pipeline.totalFee / 1000)}.000 € im Spiel` : ''}. ${totalTasks} ${totalTasks === 1 ? 'Aufgabe' : 'Aufgaben'} in ${rows.length} ${rows.length === 1 ? 'Handgriff' : 'Handgriffen'}, als Nächstes: ${rowName(rows[0])}.`;
 
   return (
@@ -207,7 +202,7 @@ export default function RecruiterHeute() {
         {/* Jetzt (Variante A, 28.10.2026): oben genau eine Sache, darunter nach Handgriff */}
         {loading ? (
           <Card className="border-border/30 shadow-sm"><CardContent className="px-4 py-6 text-sm text-muted-foreground">Lädt …</CardContent></Card>
-        ) : filteredRows.length + filteredWaiting.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <Card className="border-border/30 shadow-sm" data-tour="tasks.list">
             <CardContent className="px-4 py-6 text-sm text-muted-foreground">
               {stageFilter ? 'In dieser Stufe braucht dich gerade nichts.' : 'Nichts braucht dich gerade. Sonst nichts.'}
@@ -218,7 +213,7 @@ export default function RecruiterHeute() {
           <>
             {stageFilter && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{PIPELINE_LABELS[stageFilter]} · {filteredRows.length + filteredWaiting.length} {filteredRows.length + filteredWaiting.length === 1 ? 'Deal' : 'Deals'}</span>
+                <span className="font-medium text-foreground">{PIPELINE_LABELS[stageFilter]} · {filteredRows.length} {filteredRows.length === 1 ? 'Deal' : 'Deals'}</span>
                 <button type="button" className="hover:text-foreground" onClick={() => setStageFilter(null)}>Filter von der Pipeline · Alle anzeigen</button>
               </div>
             )}
@@ -226,7 +221,7 @@ export default function RecruiterHeute() {
               <NextCard row={filteredRows[0]} stage={furthestStage(filteredRows[0])}
                 onOpen={() => openRow(filteredRows[0])} onOpenItem={(id) => task.openItem(id)} />
             )}
-            {(filteredRows.length > 1 || filteredWaiting.length > 0) && (
+            {filteredRows.length > 1 && (
               <Card className="border-border/30 shadow-sm" data-tour="tasks.list">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
                   <CardTitle className="text-sm">Danach heute</CardTitle>
@@ -255,11 +250,6 @@ export default function RecruiterHeute() {
                       </div>
                     );
                   })}
-                  {filteredWaiting.map(i => (
-                    <div key={i.itemId} className="flex items-center gap-3 border-t border-border/40 px-4 py-3 text-sm text-muted-foreground">
-                      <div className="min-w-0 flex-1"><Badge variant="secondary" className="mr-2 h-4 px-1.5 text-[10px]">Wartet</Badge><span className="text-foreground">{i.candidateName}</span> · Einladung seit {hoursSince(i.createdAt)} Std. Ab 24 Std. oben.</div>
-                    </div>
-                  ))}
                 </CardContent>
               </Card>
             )}
@@ -303,7 +293,7 @@ export default function RecruiterHeute() {
               <span className="text-xs text-muted-foreground">nichts zu tun</span>
             </CardHeader>
             <CardContent className="p-0">
-              {waitingOptIn.length + upcoming.length + waitingBundles.length + parkedItems.length === 0 ? (
+              {upcoming.length + waitingBundles.length + parkedItems.length === 0 ? (
                 <p className="px-4 py-4 text-sm text-muted-foreground">Nichts liegt bei Kunden oder Kandidaten.</p>
               ) : (
                 <div className="divide-y divide-border/40">
@@ -353,13 +343,6 @@ export default function RecruiterHeute() {
                           Öffnen
                         </button>
                       </div>
-                    </div>
-                  ))}
-                  {waitingOptIn.map(i => (
-                    <div key={i.itemId} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">Opt-In</Badge>
-                      <span className="min-w-0 flex-1 truncate">{i.candidateName || i.title} · Einladung seit {hoursSince(i.createdAt)} Std.</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">ab 24 Std. oben</span>
                     </div>
                   ))}
                   {upcoming.slice(0, 5).map(iv => (

@@ -243,7 +243,9 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     const since = h < 48 ? `${h} Std.` : `${Math.floor(h / 24)} Tagen`;
     return {
       pill: 'Opt-In',
-      advice: `Einladung seit ${since} offen, Kunde wartet. Heute erreichen.`,
+      advice: h < 24
+        ? `Der Kunde will ${first} kennenlernen. Einladung seit ${since} offen. Ruf an, damit ${first} heute einen Termin wählt.`
+        : `Einladung seit ${since} offen, Kunde wartet. Heute erreichen.`,
       facts: [
         `Der Kunde hat ein Interview für ${job} angefragt.`,
         `${name} hat die Einladung seit ${since} nicht beantwortet.`,
