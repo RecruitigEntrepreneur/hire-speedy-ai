@@ -53,5 +53,11 @@ export function zipStore(files: { name: string; bytes: Uint8Array }[], now = new
   const end = new DataView(new ArrayBuffer(22));
   end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
-  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+  // Ein zusammenhängender Puffer auf eigenem ArrayBuffer: neuere TypeScript-Versionen (Lovable)
+  // nehmen als BlobPart nur ArrayBuffer-Views, keine Uint8Array<ArrayBufferLike> (29.10.2026)
+  const chunks = [...parts, ...central, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(new ArrayBuffer(chunks.reduce((a, b) => a + b.length, 0)));
+  let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.length; }
+  return new Blob([out], { type: 'application/zip' });
 }

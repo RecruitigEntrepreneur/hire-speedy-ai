@@ -37,8 +37,9 @@ CREATE INDEX IF NOT EXISTS offer_candidate_links_offer_idx ON public.offer_candi
 COMMENT ON TABLE public.offer_candidate_links IS
   'Persönliche Links des Kandidaten zur Antwortseite /angebot/:token. Nur der Hash wird gespeichert; Zugriff ausschließlich über die Function offer-answer.';
 
-ALTER TABLE public.offer_candidate_links ENABLE ROW LEVEL SECURITY;
+-- Lovable: GRANT vor dem Einschalten von RLS (29.10.2026)
 GRANT ALL ON public.offer_candidate_links TO service_role;
+ALTER TABLE public.offer_candidate_links ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.offers
   ADD COLUMN IF NOT EXISTS candidate_message text
