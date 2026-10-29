@@ -4,6 +4,8 @@ import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import type { ServiceCtx } from '../functions/_shared/interview-service.ts';
 import { acceptCounter, createOffer, extendOffer, keepOffer, offerContext, recommend, recruiterContext, respondOffer, withdrawOffer, workModelOf } from '../functions/_shared/offer-service.ts';
+import { candidateAnswer } from '../functions/_shared/offer-candidate.ts';
+import { tokenFrom } from './fixtures/offer-accept.ts';
 import type { InterviewMail } from '../functions/_shared/interview-mailer.ts';
 
 const assert = (v: unknown, m = 'Assertion failed') => { if (!v) throw Error(m); };
@@ -63,8 +65,11 @@ Deno.test({ name: 'Angebot: nur nach Freigabe, geht an den Headhunter, Stufe „
   assert(tables.notifications.some((n: any) => n.user_id === RECRUITER && n.type === 'offer_received' && n.related_type === 'candidate'));
   const mail = sent.find((m) => m.template === 'offer_received_recruiter');
   assert(mail?.to === 'julia@example.test' && mail.html.includes('140.000 €') && mail.html.includes('Beim Start sind wir flexibel'), 'Mail an Julia mit Eckdaten und Nachricht');
-  assert(!sent.some((m) => m.to === 'cem@example.test'), 'keine Matchunt-Mail an den Kandidaten');
-  eq(tables.offer_events.map((e: any) => e.event_type), ['sent']);
+  // G + H: der Kandidat bekommt das Angebot schriftlich in 2 Std. (14:00 Uhr → 16:00 Uhr), Erinnerung nach 24 Std.
+  const toCem = sent.filter((m) => m.to === 'cem@example.test');
+  eq(toCem.map((m) => [m.template, m.scheduledAt]), [['offer_candidate_offer', '2026-10-22T14:00:00.000Z'], ['offer_candidate_reminder', '2026-10-23T14:00:00.000Z']]);
+  assert(toCem[0].fromName === 'Julia Hartmann über Matchunt' && toCem[0].replyTo === 'julia@example.test' && toCem[0].html.includes('140.000 €') && toCem[0].html.includes('noch kein Arbeitsvertrag'), 'Eckdaten von Julia über Matchunt');
+  eq(tables.offer_events.map((e: any) => e.event_type), ['sent', 'candidate_mail_planned']);
 
   message = '';
   try { await createOffer(ctx, user(CLIENT), { submissionId: SUB, ...OFFER, responseDue: '2026-10-01' }); } catch (e: any) { message = e.message; }
@@ -83,7 +88,10 @@ Deno.test({ name: 'Gegenwunsch → Kunde bleibt dabei → angepasstes Angebot er
   assert(message.includes('Nur der Headhunter'), 'nur Julia trägt die Antwort ein');
 
   sent.length = 0;
-  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000, wishOther: '4 Tage Homeoffice', reason: 'Liegt mit Bonus bei 155.000 €.' });
+  let noTick = '';
+  try { await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000 }); } catch (e: any) { noTick = e.message; }
+  assert(noTick.includes('sagt bei diesen Werten zu'), 'Gegenwunsch nur mit Pflicht-Haken');
+  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000, wishOther: '4 Tage Homeoffice', reason: 'Liegt mit Bonus bei 155.000 €.', candidateAgrees: true });
   eq([tables.offers[0].status, tables.offers[0].counter_offer_salary], ['countered', 150000]);
   assert(tables.notifications.some((n: any) => n.user_id === CLIENT && n.type === 'offer_answer' && n.message.includes('150.000 €')), 'Kunde sieht den Wunsch in der Glocke');
   const answer = sent.find((m) => m.template === 'offer_answer_countered');
@@ -94,7 +102,7 @@ Deno.test({ name: 'Gegenwunsch → Kunde bleibt dabei → angepasstes Angebot er
   eq(tables.offers[0].status, 'with_recruiter');
   assert(sent.some((m) => m.template === 'offer_update_recruiter' && m.html.includes('bleibt bei 140.000 €')), 'Julia erfährt, dass der Kunde dabei bleibt');
 
-  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000 });
+  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000, candidateAgrees: true });
   await createOffer(ctx, user(CLIENT), { submissionId: SUB, ...OFFER, salary: 145000 });
   eq(tables.offers.map((o: any) => [o.status, o.version]), [['superseded', 1], ['with_recruiter', 2]]);
   eq(tables.offers[1].previous_offer_id, first.id);
@@ -102,22 +110,26 @@ Deno.test({ name: 'Gegenwunsch → Kunde bleibt dabei → angepasstes Angebot er
 
   sent.length = 0;
   await respondOffer(ctx, user(RECRUITER), { offerId: tables.offers[1].id, way: 'accepted', startConfirmed: '2027-01-01' });
+  eq(tables.offers[1].status, 'accept_reported', 'Zusage gemeldet, Kandidat bestätigt noch');
+  eq((tables.employment_contracts ?? []).length, 0, 'noch kein Vertrag');
+  await candidateAnswer(ctx, { token: tokenFrom(sent, 'offer_candidate_confirm'), way: 'confirmed' });
   eq(tables.offers[1].status, 'accepted');
-  assert(tables.offers[1].decision_at, 'Zeitpunkt der Zusage');
+  assert(tables.offers[1].decision_at && tables.offers[1].candidate_confirmed_at, 'Zeitpunkt der Zusage');
   assert(sent.some((m) => m.template === 'offer_answer_accepted' && m.subject === 'Cem Aydın hat zugesagt'));
   message = '';
   try { await respondOffer(ctx, user(RECRUITER), { offerId: tables.offers[1].id, way: 'declined' }); } catch (e: any) { message = e.message; }
   assert(message.includes('keine Antwort mehr offen'), 'nach der Zusage keine zweite Antwort');
 }});
 
-Deno.test({ name: 'Überlegt noch, Frist verlängern, zurückziehen, Absage mit Grund', permissions: { env: true }, fn: async () => {
+Deno.test({ name: 'Kein „Überlegt noch“, Frist verlängern, zurückziehen, Absage mit Grund', permissions: { env: true }, fn: async () => {
   const { db, tables } = seed();
   const sent: any[] = [];
   const ctx = ctxFor(db, sent);
   await createOffer(ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
   const id = tables.offers[0].id;
-  await respondOffer(ctx, user(RECRUITER), { offerId: id, way: 'considering', until: '2026-10-31', note: 'Bespricht es mit seiner Familie.' });
-  eq([tables.offers[0].status, tables.offers[0].candidate_response.until], ['considering', '2026-10-31']);
+  let considering = '';
+  try { await respondOffer(ctx, user(RECRUITER), { offerId: id, way: 'considering', until: '2026-10-31' }); } catch (e: any) { considering = e.message; }
+  assert(considering.includes('gibt es nicht mehr'), '„Überlegt noch“ entfällt');
   await extendOffer(ctx, user(CLIENT), { offerId: id, responseDue: '2026-11-05' });
   eq(tables.offers[0].response_due, '2026-11-05');
   await respondOffer(ctx, user(RECRUITER), { offerId: id, way: 'declined', reasonCategory: 'counter_offer', reason: 'Bleibt bei seinem Arbeitgeber.' });
@@ -175,7 +187,7 @@ Deno.test({ name: 'Gegenwunsch annehmen: ein Klick, Version 2 mit genau den Wert
   let message = '';
   try { await acceptCounter(ctx, user(CLIENT), { offerId: first.id }); } catch (e: any) { message = e.message; }
   assert(message.includes('kein Gegenwunsch'), 'nur bei Gegenwunsch');
-  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000, wishStart: '2027-03-01', wishOther: '4 Tage Homeoffice', reason: 'Kündigungsfrist' });
+  await respondOffer(ctx, user(RECRUITER), { offerId: first.id, way: 'countered', wishSalary: 150000, wishStart: '2027-03-01', wishOther: '4 Tage Homeoffice', reason: 'Kündigungsfrist', candidateAgrees: true });
   message = '';
   try { await acceptCounter(ctx, user(RECRUITER), { offerId: first.id }); } catch (e: any) { message = e.message; }
   assert(message.length > 0, 'nur der Kunde nimmt an');

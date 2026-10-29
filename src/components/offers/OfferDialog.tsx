@@ -75,6 +75,7 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
   const [extraOptions] = useState<string[]>(() => [...new Set([...c.defaults.extras, ...(cur?.extras ?? [])])]);
   const [newExtra, setNewExtra] = useState('');
   const [message, setMessage] = useState('');
+  const [candidateMessage, setCandidateMessage] = useState(cur?.candidateMessage ?? '');
   const [busy, setBusy] = useState(false);
   const [custom, setCustom] = useState<string[]>([]);
 
@@ -89,8 +90,8 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
 
   const input: OfferInput | null = useMemo(() => (ready ? {
     submissionId: c.submissionId, salary: fix!, variable: varNum, startDate, responseDue, contractType, probationMonths: probation,
-    workModel: workModel.trim(), extras, message: message.trim(),
-  } : null), [ready, c.submissionId, fix, varNum, startDate, responseDue, contractType, probation, workModel, extras, message]);
+    workModel: workModel.trim(), extras, message: message.trim(), candidateMessage: candidateMessage.trim(),
+  } : null), [ready, c.submissionId, fix, varNum, startDate, responseDue, contractType, probation, workModel, extras, message, candidateMessage]);
 
   const toggleExtra = (x: string) => setExtras((cur) => (cur.includes(x) ? cur.filter((y) => y !== x) : [...cur, x]));
   const addExtra = () => {
@@ -204,12 +205,18 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
       </div>
 
       <div>
-        <label htmlFor="offer-msg" className="text-sm font-medium">Nachricht an {hh} <span className="font-normal text-muted-foreground">(optional)</span></label>
+        <label htmlFor="offer-cand-msg" className="text-sm font-medium">Nachricht an {first} <span className="font-normal text-muted-foreground">(optional)</span></label>
+        <Textarea id="offer-cand-msg" value={candidateMessage} onChange={(e) => setCandidateMessage(e.target.value)} rows={2} maxLength={2000} placeholder="Wir freuen uns sehr, Sie im Team zu begrüßen." className="mt-1" />
+        <p className="mt-1 text-xs text-muted-foreground">Steht in der Mail an {first}, zusammen mit den Eckdaten.</p>
+      </div>
+
+      <div>
+        <label htmlFor="offer-msg" className="text-sm font-medium">Nachricht an {hh} <span className="font-normal text-muted-foreground">(optional, nur für {hh.split(' ')[0]})</span></label>
         <Textarea id="offer-msg" value={message} onChange={(e) => setMessage(e.target.value)} rows={2} maxLength={2000} placeholder="Beim Start sind wir flexibel, Februar ginge auch." className="mt-1" />
       </div>
 
       <div className="space-y-1 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-        <p>Das Angebot geht an {hh}. {hh.split(' ')[0]} bespricht es mit {first} und trägt die Antwort hier ein, meist in 1 bis 3 Tagen. Den Arbeitsvertrag schicken Sie nach der Zusage.</p>
+        <p>Das Angebot geht an {hh}. {hh.split(' ')[0]} ruft {first} an, danach bekommt {first} es schriftlich per Mail, spätestens nach 2 Stunden (nachts ab 8 Uhr), und antwortet selbst. Den Arbeitsvertrag schicken Sie nach der bestätigten Zusage.</p>
         {fee && <p>Honorar laut Rahmenvertrag: {c.feePercent} % vom Zielgehalt ({euro(target)}) = {euro(fee)} zzgl. USt. Fällig erst, wenn der Vertrag unterschrieben ist.</p>}
         {c.otherOpenOffers > 0 && <p>Für diese Stelle läuft schon {c.otherOpenOffers === 1 ? 'ein weiteres Angebot' : `${c.otherOpenOffers} weitere Angebote`}. Beides ist möglich.</p>}
         {cur && <p>Das bisherige Angebot gilt danach als ersetzt.</p>}

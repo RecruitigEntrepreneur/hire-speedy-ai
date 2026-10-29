@@ -75,6 +75,16 @@ export function useRecruiterPipeline() {
       }
       if (cancelled) return;
 
+      // „In Prüfung“ (29.10.2026): eingereicht und vom Kundenteam schon geöffnet (my_submission_jobs).
+      // Fehlt die Funktion noch (Lovable), bleibt alles unter „Eingereicht“.
+      const submittedIds = subs.filter(s => normalizeStage(s.stage, s.status) === 'submitted').map(s => s.id as string);
+      let viewed = new Set<string>();
+      if (submittedIds.length) {
+        const { data: js } = await (supabase as any).rpc('my_submission_jobs', { p_submission_ids: submittedIds });
+        viewed = new Set(((js || []) as any[]).filter(r => (r.client_view_count ?? 0) > 0).map(r => r.submission_id as string));
+      }
+      if (cancelled) return;
+
       const roundOf: Record<string, number> = {};
       for (const iv of (ivRes.data || []) as any[]) {
         if (['cancelled', 'declined'].includes(iv.status)) continue;
@@ -101,7 +111,7 @@ export function useRecruiterPipeline() {
           continue;
         }
         let key: PipelineStageKey;
-        if (canonical === 'submitted') key = 'submitted';
+        if (canonical === 'submitted') key = viewed.has(s.id) ? 'in_review' : 'submitted';
         else if (canonical === 'in_review') key = 'in_review';
         else if (canonical === 'offer') key = 'offer';
         else if (canonical === 'placed') key = 'placed';

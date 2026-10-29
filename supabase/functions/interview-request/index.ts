@@ -5,7 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import {
-  authUser, availability, checkTime, confirmAlternative, defaultCtx, interviewDetails, interviewFailure, interviewGuide, inviteColleague, must, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, setMeetingLink, setMyName, withdraw,
+  authUser, availability, checkTime, confirmAlternative, declineForCandidate, defaultCtx, interviewDetails, interviewFailure, interviewGuide, inviteColleague, must, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, setMeetingLink, setMyName, withdraw,
 } from '../_shared/interview-service.ts';
 
 serve(async (req) => {
@@ -25,6 +25,8 @@ serve(async (req) => {
       case 'send': return json(await send(ctx, user, body));
       case 'confirm_alternative': return json(await confirmAlternative(ctx, user, body.interviewId));
       case 'withdraw': return json(await withdraw(ctx, user, body.interviewId, body.reason));
+      // Opt-In: der Headhunter sagt für den Kandidaten ab (29.10.2026)
+      case 'decline_for_candidate': return json(await declineForCandidate(ctx, user, body));
       case 'invite_colleague': return json(await inviteColleague(ctx, user, body));
       case 'details': return json(await interviewDetails(ctx, user, body));
       case 'reschedule': return json(await reschedule(ctx, user, body));

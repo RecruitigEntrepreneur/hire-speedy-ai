@@ -26,8 +26,10 @@ export function OfferStand({ submissionId, onOpen }: { submissionId: string; onO
     rows.push({ state: 'now', text: <>{first} wünscht {wish || 'Änderungen'}{r?.reason ? <span className="text-muted-foreground"> · {hhFirst}: „{r.reason}“</span> : null}{openLink}</> });
   } else if (o.status === 'considering') {
     rows.push({ state: 'now', text: <>{first} überlegt noch{r?.until ? ` bis ${dayDe(r.until)}` : ''}{openLink}</> });
+  } else if (o.status === 'accept_reported') {
+    rows.push({ state: 'now', text: <>{first} hat laut {hhFirst} zugesagt und bestätigt gerade per Mail{openLink}</> });
   } else if (o.status === 'with_recruiter') {
-    rows.push({ state: late ? 'bad' : 'now', text: <>{late ? `Antwortfrist abgelaufen (${dayDe(o.responseDue)})` : `${hhFirst} bespricht es mit ${first} · Antwort bis ${dayDe(o.responseDue)}`}{openLink}</> });
+    rows.push({ state: late ? 'bad' : 'now', text: <>{late ? `Antwortfrist abgelaufen (${dayDe(o.responseDue)})` : `${hhFirst} bespricht es mit ${first}, ${first} antwortet selbst per Mail · Antwort bis ${dayDe(o.responseDue)}`}{openLink}</> });
   } else if (o.status === 'declined') {
     rows.push({ state: 'bad', text: <>{first} hat abgesagt{r?.reason ? `: „${r.reason}“` : ''}{openLink}</> });
   } else if (o.status === 'withdrawn') {

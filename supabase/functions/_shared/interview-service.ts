@@ -22,7 +22,7 @@ import { berlinDateKey, berlinLocalToUtc, formatBerlinDateShort, formatBerlinTim
 import { aiChat, type AiCall, type AiResult } from './ai.ts';
 import { GUIDE_SYSTEM, GUIDE_TOOL, fallbackGuide, guidePrompt, normalizeGuide, type GuideInput } from './interview-guide.ts';
 import { buildIcs, inviteUid } from './interview-ics.ts';
-import { sendInterviewMail, type InterviewMail, type MailResult } from './interview-mailer.ts';
+import { cancelScheduledMail, sendInterviewMail, type InterviewMail, type MailResult } from './interview-mailer.ts';
 import { clientMailAllowed } from './client-mail-prefs.ts';
 import * as mails from './interview-mails.ts';
 import {
@@ -67,6 +67,8 @@ export interface ServiceCtx {
   mail: (mail: InterviewMail, log: { template: string; meta: Record<string, unknown> }) => Promise<MailResult>;
   /** KI für den Leitfaden; fehlt sie, entsteht er aus den Muss-Kriterien */
   ai?: (call: AiCall) => Promise<AiResult>;
+  /** Geplante Mail abbrechen (Angebot an den Kandidaten, 25.10.2026) */
+  mailCancel?: (id: string) => Promise<boolean>;
 }
 
 export function defaultCtx(db: SupabaseClient): ServiceCtx {
@@ -78,13 +80,14 @@ export function defaultCtx(db: SupabaseClient): ServiceCtx {
     ms: msConfig(),
     fromEmail,
     ai: aiChat,
+    mailCancel: (id) => cancelScheduledMail(id),
     mail: async (mail, log) => {
       // Reine Mitteilungen an Kunden lassen sich in „Mein Konto“ abschalten.
       if (!(await clientMailAllowed(db, mail.to, log.template, !!mail.ics))) return { sent: false, error: 'Vom Empfänger abbestellt' };
       const { data: row } = await db.from('email_events').insert({ to_email: mail.to, template_name: log.template, subject: mail.subject, status: 'pending', metadata: log.meta }).select('id').maybeSingle();
       const result = await sendInterviewMail(mail);
       if (row?.id) {
-        await db.from('email_events').update({ status: result.sent ? 'sent' : 'failed', error_message: result.error ?? null, metadata: { ...log.meta, resend_id: result.id ?? null, via: result.via ?? null } }).eq('id', row.id);
+        await db.from('email_events').update({ status: result.sent ? (mail.scheduledAt ? 'scheduled' : 'sent') : 'failed', error_message: result.error ?? null, metadata: { ...log.meta, resend_id: result.id ?? null, via: result.via ?? null, ...(mail.scheduledAt ? { scheduled_at: mail.scheduledAt } : {}) } }).eq('id', row.id);
       }
       if (!result.sent) console.warn('[interview] Mail nicht versendet', log.template, result.error);
       return result;
@@ -1057,7 +1060,26 @@ async function requestAlternative(ctx: ServiceCtx, b: InterviewBundle, start: st
   await notify(ctx, b.submission.recruiter_id, 'interview_alternative', `${b.candidate.full_name} fragt eine andere Zeit an`, b.job.title, iv.id);
 }
 
-async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: string | null) {
+/**
+ * Opt-In (29.10.2026): Der Kandidat will nicht und sagt es dem Headhunter am Telefon. Der Headhunter
+ * sagt die Einladung für ihn ab, mit denselben Mails an den Kunden wie bei einer Absage über den Link.
+ */
+export async function declineForCandidate(ctx: ServiceCtx, user: User, body: any) {
+  must(typeof body.submissionId === 'string' && UUID.test(body.submissionId), 'Ungültige Einreichung.');
+  const { data: sub } = await ctx.db.from('submissions').select('id, recruiter_id').eq('id', body.submissionId).maybeSingle();
+  must(sub, 'Einreichung nicht gefunden.', 'not_found');
+  must(sub.recruiter_id === user.id, 'Keine Berechtigung für diese Einreichung.', 'not_allowed');
+  const { data: open } = await ctx.db.from('interviews').select('id').eq('submission_id', sub.id)
+    .in('status', ['pending_response', 'counter_proposed']).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  must(open, 'Es gibt keine offene Einladung mehr.', 'conflict');
+  const b = await loadInterview(ctx.db, { id: open.id });
+  must(b, 'Interview nicht gefunden.', 'not_found');
+  const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) || null : null;
+  await declineInterview(ctx, b, reason, { byRecruiter: true });
+  return { ok: true };
+}
+
+async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: string | null, opts: { byRecruiter?: boolean } = {}) {
   const iv = b.interview;
   const { data: updated, error } = await ctx.db.from('interviews').update({ status: 'declined', decline_reason: reason })
     .eq('id', iv.id).in('status', ['pending_response', 'counter_proposed']).select('id').maybeSingle();
@@ -1071,6 +1093,8 @@ async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: str
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: r.email, ...content }, { template: 'interview_declined_client', meta: { interview_id: iv.id } });
     await notify(ctx, r.user_id, 'interview_declined', `${label} hat das Interview abgelehnt`, reason ?? b.job.title, iv.id);
   }
+  // Hat der Headhunter selbst abgesagt, braucht er keine Mail über seine eigene Absage
+  if (opts.byRecruiter) return;
   if (b.recruiter?.email) {
     const content = mails.recruiterUpdate({ kind: 'declined', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, reason, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_declined_recruiter', meta: { interview_id: iv.id } });

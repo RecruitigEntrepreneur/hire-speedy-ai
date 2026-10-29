@@ -273,6 +273,7 @@ export function computeState(
     if (offer?.responseDue && offer.responseDue < today) return { key: 'offer_overdue', tone: 'warn', turn: 'me' };
     return { key: os === 'considering' ? 'offer_considering' : 'offer_with_hh', tone: 'neutral', turn: 'other' };
   }
+  if (os === 'accept_reported') return { key: 'offer_accept_reported', tone: 'ok', turn: 'other' };
   if (os === 'countered') return { key: 'offer_negotiating', tone: 'warn', turn: 'me' };
   if (os === 'declined') return { key: 'offer_rejected', tone: 'crit', turn: 'me' };
   if (os === 'withdrawn') return { key: 'offer_withdrawn', tone: 'neutral', turn: 'me' };

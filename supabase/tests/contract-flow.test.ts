@@ -4,7 +4,8 @@ import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { fakeDb } from './fixtures/fake-db.ts';
 import type { InterviewMail } from '../functions/_shared/interview-mailer.ts';
-import { createOffer, respondOffer } from '../functions/_shared/offer-service.ts';
+import { createOffer } from '../functions/_shared/offer-service.ts';
+import { acceptAsCandidate } from './fixtures/offer-accept.ts';
 import {
   applyEnvelopeEvent, changeSigner, check, confirm, contractContext, drop, linkDocument, linkPeek, linkRenew, linkReturned, linkStart, refreshDigital,
   report, resendDigital, resendLink, runFollowups, sendDigital, sendSelf, signaturePage, signUrl, undo, voidDigital,
@@ -80,7 +81,7 @@ const OFFER = { salary: 150000, variable: 20000, startDate: '2027-01-01', respon
 
 async function accepted(w: World) {
   await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
-  await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'accepted', startConfirmed: '2027-01-01' });
+  await acceptAsCandidate(w.ctx, w.sent, user(RECRUITER), w.tables.offers[0].id, { startConfirmed: '2027-01-01' });
 }
 const contract = (w: World) => w.tables.employment_contracts[w.tables.employment_contracts.length - 1];
 const notes = (w: World, userId: string, type: string) => w.tables.notifications.filter((n: any) => n.user_id === userId && n.type === type);
@@ -170,21 +171,21 @@ Deno.test({ name: 'Digital über Matchunt: Schriftform-Sperre, eingebettet, Link
   await applyEnvelopeEvent(w.ctx, 'env-1', { status: 'sent', signers: [{ recipientId: '1', status: 'completed', signedDateTime: '2026-10-22T13:00:00Z' }, { recipientId: '2', status: 'sent' }] });
   eq(contract(w).status, 'company_signed');
   assert(notes(w, RECRUITER, 'contract_update').some((n: any) => n.title.includes('Firma hat unterschrieben')), 'Julia stößt Dora an');
-  const toDora = w.sent.filter((m) => m.to === 'dora@example.test');
+  const toDora = w.sent.filter((m) => m.to === 'dora@example.test' && String(m.template).startsWith('contract_'));
   eq(toDora.map((m) => m.template), ['contract_sign_candidate'], 'Dora bekommt ihren Link erst jetzt');
   assert(toDora[0].replyTo === 'julia@example.test' && toDora[0].html.includes('150.000'), 'Antwort geht an Julia, Eckdaten stehen drin');
   assert(w.tables.employment_sign_links.find((l: any) => l.signer_role === 'company').signed_at, 'Firmen-Link erledigt');
   // doppelt zugestellt: nichts verschiebt sich, kein zweiter Link
   await applyEnvelopeEvent(w.ctx, 'env-1', { status: 'sent', signers: [{ recipientId: '1', status: 'completed', signedDateTime: '2026-10-22T15:00:00Z' }, { recipientId: '2', status: 'sent' }] });
   eq(contract(w).company_signed_at, '2026-10-22T13:00:00Z');
-  eq(w.sent.filter((m) => m.to === 'dora@example.test').length, 1);
+  eq(w.sent.filter((m) => m.to === 'dora@example.test' && String(m.template).startsWith('contract_')).length, 1);
 
   await applyEnvelopeEvent(w.ctx, 'env-1', { status: 'completed', signers: [{ recipientId: '1', status: 'completed', signedDateTime: '2026-10-22T13:00:00Z' }, { recipientId: '2', status: 'completed', signedDateTime: '2026-10-23T08:30:00Z' }] });
   const done = contract(w);
   eq([done.status, done.signed_on, done.reported_role], ['final', '2026-10-23', 'docusign']);
   assert(done.signed_document_path && w.files.has(done.signed_document_path), 'unterschriebenes PDF gesichert');
   assert(w.sent.some((m) => m.template === 'contract_done_client' && m.to === 'klara@example.test'), 'Kunde bekommt die Abschluss-Mail');
-  eq(w.sent.filter((m) => m.to === 'dora@example.test').map((m) => m.template), ['contract_sign_candidate', 'contract_signed_copy_candidate'], 'Dora bekommt ihre Kopie von Matchunt');
+  eq(w.sent.filter((m) => m.to === 'dora@example.test' && String(m.template).startsWith('contract_')).map((m) => m.template), ['contract_sign_candidate', 'contract_signed_copy_candidate'], 'Dora bekommt ihre Kopie von Matchunt');
   eq((await contractContext(w.ctx, user(RECRUITER), { submissionId: SUB })).contract?.hasSignedDocument, false, 'Headhunter sieht das PDF nicht');
 }});
 

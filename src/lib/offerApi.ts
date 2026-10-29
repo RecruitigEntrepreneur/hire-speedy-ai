@@ -2,11 +2,13 @@ import { callFunction } from '@/lib/interviewScheduling';
 
 /** Angebot über den Headhunter (22.10.2026): Typen und Aufrufe der Function offer. */
 
-export type OfferStatus = 'with_recruiter' | 'considering' | 'countered' | 'accepted' | 'declined' | 'withdrawn' | 'superseded' | string;
-export type AnswerWay = 'accepted' | 'considering' | 'countered' | 'declined';
+export type OfferStatus = 'with_recruiter' | 'considering' | 'accept_reported' | 'countered' | 'accepted' | 'declined' | 'withdrawn' | 'superseded' | string;
+/** „Überlegt noch“ gibt es seit G + H nicht mehr; es gilt die Antwortfrist des Kunden. */
+export type AnswerWay = 'accepted' | 'countered' | 'declined';
 
 export interface OfferResponse {
-  way: AnswerWay;
+  /** 'considering' nur bei älteren Angeboten von vor G + H */
+  way: AnswerWay | 'considering';
   note?: string | null;
   until?: string;
   wish?: { salary: number | null; variable: number | null; startDate: string | null; other: string | null };
@@ -14,6 +16,24 @@ export interface OfferResponse {
   reason_category?: string;
   start_confirmed?: string;
   client_keep?: { at: string; note: string | null };
+  candidate_agrees?: boolean;
+  /** 'candidate' = selbst auf der Antwortseite, sonst vom Headhunter gemeldet */
+  by?: 'candidate' | 'recruiter';
+}
+
+/** Angebot beim Kandidaten (G + H): Mail, Rückrufwunsch, gemeldete und bestätigte Zusage */
+export interface OfferCandidateState {
+  mailDueAt: string | null;
+  mailSent: boolean;
+  mailSentAt: string | null;
+  talkedAt: string | null;
+  callbackAt: string | null;
+  callbackTopic: string | null;
+  callbackDueAt: string | null;
+  reminderDueAt: string | null;
+  acceptReportedAt: string | null;
+  confirmedAt: string | null;
+  answeredByCandidate: boolean;
 }
 
 export interface OfferView {
@@ -32,6 +52,9 @@ export interface OfferView {
   sentAt: string | null;
   response: OfferResponse | null;
   respondedAt: string | null;
+  /** Nachricht des Kunden an den Kandidaten (steht auf seiner Seite) */
+  candidateMessage: string | null;
+  candidate: OfferCandidateState;
 }
 
 export interface RecommendationItem { key: string; label: string; value: string }
@@ -79,7 +102,10 @@ export interface OfferInput {
   probationMonths: number | null;
   workModel: string;
   extras: string[];
+  /** Nur für den Headhunter */
   message: string;
+  /** Steht in der Mail an den Kandidaten (G + H, 25.10.2026) */
+  candidateMessage?: string;
 }
 
 export interface AnswerInput {
@@ -94,13 +120,20 @@ export interface AnswerInput {
   reason?: string;
   reasonCategory?: string;
   startConfirmed?: string;
+  /** Pflicht beim Gegenwunsch: „Bei diesen Werten sagt er/sie zu.“ */
+  candidateAgrees?: boolean;
 }
 
 export const offerApi = {
   context: (submissionId: string) => callFunction<OfferContext>('offer', { action: 'context', submissionId }),
   recruiterContext: (submissionId: string) => callFunction<RecruiterOfferContext>('offer', { action: 'recruiter_context', submissionId }),
   create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'create', ...input }, 'Das Angebot konnte nicht gesendet werden.'),
-  respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView }>('offer', { action: 'respond', ...input }, 'Die Antwort konnte nicht gespeichert werden.'),
+  respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView; awaitingConfirmation?: boolean }>('offer', { action: 'respond', ...input }, 'Die Antwort konnte nicht gespeichert werden.'),
+  /** Gespräch geführt: Mail mit dem Angebot geht sofort an den Kandidaten */
+  talked: (offerId: string) => callFunction<{ ok: true; alreadySent?: boolean }>('offer', { action: 'talked', offerId }, 'Die Mail konnte nicht gesendet werden.'),
+  /** Rückruf erledigt: bleibt beim Angebot, oder nicht erreicht (nur notiert) */
+  callbackDone: (offerId: string, outcome: 'stays' | 'unreachable') =>
+    callFunction<{ ok: true; outcome: string }>('offer', { action: 'callback_done', offerId, outcome }, 'Das konnte nicht gespeichert werden.'),
   keep: (offerId: string, note: string) => callFunction<{ ok: true }>('offer', { action: 'keep', offerId, note }),
   /** Gegenwunsch annehmen: Version 2 mit genau den Werten des Wunsches */
   acceptCounter: (offerId: string) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'accept_counter', offerId }, 'Der Wunsch konnte nicht angenommen werden.'),
@@ -116,7 +149,7 @@ export const DECLINE_REASONS: { key: string; label: string }[] = [
 ];
 
 /** Offene Stände: das Angebot liegt beim Headhunter oder beim Kunden. */
-export const OPEN_OFFER = ['with_recruiter', 'considering', 'countered'];
+export const OPEN_OFFER = ['with_recruiter', 'considering', 'accept_reported', 'countered'];
 
 export const euro = (n: number | null | undefined) => (n == null ? '' : `${new Intl.NumberFormat('de-DE').format(n)} €`);
 /** „Do., 29.10.“; in einem anderen Jahr mit Jahr: „Fr., 01.01.2027“ */

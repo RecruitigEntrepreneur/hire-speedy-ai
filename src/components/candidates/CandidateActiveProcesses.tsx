@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Video,
   Clock,
+  FileText,
   Shield,
   Unlock,
 } from 'lucide-react';
@@ -24,6 +25,15 @@ import { cn } from '@/lib/utils';
 import { ScrollMoreHint } from './ScrollMoreHint';
 import { useRef, useState, useEffect } from 'react';
 import { SubmissionDetailDialog } from '@/components/influence/SubmissionDetailDialog';
+import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
+import { dayDe } from '@/lib/offerApi';
+
+// Angebot läuft: bei der Kandidatin, Zusage gemeldet oder Gegenwunsch beim Kunden (G + H, 26.10.2026)
+const RUNNING_OFFER = ['with_recruiter', 'considering', 'accept_reported', 'countered'];
+const offerHint = (o: { status: string; response_due: string | null }) =>
+  o.status === 'accept_reported' ? 'Zusage gemeldet'
+    : o.status === 'countered' ? 'Gegenwunsch'
+      : o.response_due ? `bis ${dayDe(o.response_due)}` : '';
 
 interface CandidateActiveProcessesProps {
   candidateId: string;
@@ -146,6 +156,9 @@ function TripleBlindBadge({ companyRevealed, identityUnlocked }: { companyReveal
 
 export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcessesProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  // Angebots-Fenster je Einreichung: der Weg zurück ins Angebot, solange es läuft
+  const [offerFor, setOfferFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -194,6 +207,17 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         .in('status', ['scheduled', 'pending_response'])
         .order('scheduled_at', { ascending: true });
 
+      const { data: offers } = await supabase
+        .from('offers')
+        .select('id, submission_id, status, response_due, created_at')
+        .in('submission_id', submissionIds)
+        .in('status', RUNNING_OFFER)
+        .order('created_at', { ascending: false });
+      const offerMap = new Map<string, { status: string; response_due: string | null }>();
+      (offers || []).forEach(o => {
+        if (!offerMap.has(o.submission_id)) offerMap.set(o.submission_id, { status: o.status ?? '', response_due: o.response_due });
+      });
+
       const jobMap = new Map((jobs || []).map(j => [j.id, j]));
       const interviewMap = new Map<string, (typeof interviews extends (infer T)[] | null ? T : never)[]>();
       (interviews || []).forEach(iv => {
@@ -208,6 +232,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         job: jobMap.get(sub.job_id) || null,
         nextInterview: interviewMap.get(sub.id)?.[0] || null,
         interviewCount: interviewMap.get(sub.id)?.length || 0,
+        runningOffer: offerMap.get(sub.id) ?? null,
       }));
     },
   });
@@ -366,9 +391,23 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                   </Badge>
                 </div>
 
-                {/* Row 4: Contextual info */}
+                {/* Row 4: Contextual info; läuft ein Angebot, der Weg zurück ins Angebots-Fenster */}
                 <div className="mt-1.5 text-[10px] text-muted-foreground truncate">
-                  {interviewInfo && (
+                  {process.runningOffer && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOfferFor(process.id); }}
+                        className="inline-flex items-center gap-1 rounded border border-primary/40 px-1.5 py-px font-medium text-primary hover:bg-primary/10"
+                      >
+                        <FileText className="h-2.5 w-2.5" />
+                        Angebot öffnen
+                      </button>
+                      {offerHint(process.runningOffer)}
+                    </span>
+                  )}
+
+                  {!process.runningOffer && interviewInfo && (
                     <span className={cn(
                       'inline-flex items-center gap-1 font-medium',
                       interviewInfo.urgent ? 'text-primary' : 'text-foreground'
@@ -378,14 +417,14 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                     </span>
                   )}
 
-                  {isAwaitingOptIn && !interviewInfo && (
+                  {!process.runningOffer && isAwaitingOptIn && !interviewInfo && (
                     <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
                       <Clock className="h-2.5 w-2.5" />
                       Wartet auf Opt-In
                     </span>
                   )}
 
-                  {!interviewInfo && !isAwaitingOptIn && timeSinceSubmission && (
+                  {!process.runningOffer && !interviewInfo && !isAwaitingOptIn && timeSinceSubmission && (
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-2.5 w-2.5" />
                       {timeSinceSubmission}
@@ -403,6 +442,12 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         submissionId={selectedSubmissionId}
+      />
+
+      <OfferAnswerDialog
+        submissionId={offerFor}
+        onClose={() => setOfferFor(null)}
+        onDone={() => queryClient.invalidateQueries({ queryKey: ['candidate-active-processes', candidateId] })}
       />
     </div>
   );

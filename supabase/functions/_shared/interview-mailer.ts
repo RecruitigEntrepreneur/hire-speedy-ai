@@ -16,6 +16,8 @@ export interface InterviewMail {
   ics?: { content: string; method: 'REQUEST' | 'CANCEL' };
   /** Weitere Anhänge (z. B. Rechnung als PDF), gehen über die API */
   attachments?: { filename: string; contentBase64: string; contentType: string }[];
+  /** Zeitversetzt verschicken (ISO-Zeitpunkt, höchstens 30 Tage); nur über die API, nicht mit Kalenderanhang */
+  scheduledAt?: string;
 }
 
 export interface MailResult { sent: boolean; via?: 'smtp' | 'api'; id?: string; error?: string }
@@ -129,8 +131,11 @@ async function smtpSend(raw: string, from: string, to: string, apiKey: string): 
   }
 }
 
+/** Nur lokal: RESEND_API_URL zeigt auf einen Mail-Fänger statt auf Resend (online nie gesetzt). */
+export const resendBase = (): string => (Deno.env.get('RESEND_API_URL') || 'https://api.resend.com').replace(/\/$/, '');
+
 async function apiSend(mail: InterviewMail, apiKey: string): Promise<MailResult> {
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch(`${resendBase()}/emails`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -140,6 +145,7 @@ async function apiSend(mail: InterviewMail, apiKey: string): Promise<MailResult>
       html: mail.html,
       text: mail.text,
       ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
+      ...(mail.scheduledAt ? { scheduled_at: mail.scheduledAt } : {}),
       ...((mail.ics || mail.attachments?.length) ? {
         attachments: [
           ...(mail.ics ? [{ filename: 'einladung.ics', content: base64Utf8(mail.ics.content), content_type: `text/calendar; charset=UTF-8; method=${mail.ics.method}` }] : []),
@@ -153,6 +159,20 @@ async function apiSend(mail: InterviewMail, apiKey: string): Promise<MailResult>
   return { sent: true, via: 'api', id: body?.id };
 }
 
+/** Geplante Mail vor dem Versand abbrechen (Resend). true = abgebrochen. */
+export async function cancelScheduledMail(id: string, deps: { env: (key: string) => string | undefined } = { env: (k) => Deno.env.get(k) }): Promise<boolean> {
+  const apiKey = deps.env('RESEND_API_KEY');
+  if (!apiKey || !id) return false;
+  try {
+    const res = await fetch(`${resendBase()}/emails/${encodeURIComponent(id)}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${apiKey}` } });
+    if (!res.ok) console.warn('[mail] Geplante Mail nicht abgebrochen', id, res.status);
+    return res.ok;
+  } catch (error) {
+    console.warn('[mail] Geplante Mail nicht abgebrochen', id, error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
 export interface MailerDeps { env: (key: string) => string | undefined; smtp?: typeof smtpSend; fetchApi?: typeof apiSend }
 
 /** Schickt eine Interview-Mail. Mit Kalendereinladung zuerst per SMTP, sonst über die API. */
@@ -160,7 +180,7 @@ export async function sendInterviewMail(mail: InterviewMail, deps: MailerDeps = 
   const apiKey = deps.env('RESEND_API_KEY');
   if (!apiKey) return { sent: false, error: 'RESEND_API_KEY fehlt' };
   if (!mail.to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail.to)) return { sent: false, error: 'Keine gültige Empfängeradresse' };
-  if (mail.ics && deps.env('INTERVIEW_SMTP_DISABLED') !== 'true') {
+  if (mail.ics && !mail.scheduledAt && deps.env('INTERVIEW_SMTP_DISABLED') !== 'true') {
     try {
       await (deps.smtp ?? smtpSend)(buildMime(mail), mail.fromEmail, mail.to, apiKey);
       return { sent: true, via: 'smtp' };

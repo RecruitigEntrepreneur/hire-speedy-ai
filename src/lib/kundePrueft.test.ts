@@ -55,9 +55,9 @@ describe('Kandidaten Bescheid geben?', () => {
     expect(candidateUpdateChoice({ hasEmail: false, lastContactAt: null, lastUpdateAt: null, submittedAt: null }, now).disabled).toBe(true);
   });
   it('der Text folgt der Bitte an den Kunden', () => {
-    expect(candidateUpdateText('decision', 'Projektingenieur', 'Donnerstag')).toBe('ich habe heute beim Unternehmen zu Projektingenieur nachgefragt. Ich rechne bis Donnerstag mit einer Rückmeldung und melde mich, sobald ich etwas höre.');
-    expect(candidateUpdateText('remind', null, 'Donnerstag')).toContain('nachgefasst');
-    expect(candidateUpdateText('question', 'Projektingenieur', 'Donnerstag', 'am 15.10.')).toContain('ich habe am 15.10. beim Unternehmen');
+    expect(candidateUpdateText('decision', 'Projektingenieur', 'Donnerstag')).toBe('kurzer Zwischenstand von mir: Ich habe heute beim Unternehmen zu Projektingenieur nachgefragt und um eine Entscheidung bis Donnerstag gebeten.\n\nSobald ich etwas höre, melde ich mich bei dir. Falls sich bei dir in der Zwischenzeit etwas tut, sag mir gern kurz Bescheid.');
+    expect(candidateUpdateText('remind', null, 'Donnerstag')).toContain('nachgehakt');
+    expect(candidateUpdateText('question', 'Projektingenieur', 'Donnerstag', 'am 15.10.')).toContain('Ich habe am 15.10. beim Unternehmen');
   });
 });
 
@@ -75,5 +75,10 @@ describe('Eine Zeile je Stelle', () => {
     ], new Date('2026-10-20T10:00:00'));
     expect(b.map(x => [x.key, x.items.length, x.days, x.erinnerung])).toEqual([['it', 1, 15, 2], ['tax', 2, 7, 1]]);
     expect(b[1].feeTotal).toBe(22000);
+  });
+  it('trennt „Kunde prüft“ und „Kunde gibt kein Feedback“ derselben Stelle', () => {
+    const fb = { ...item('f', 'tax', '2026-10-14T09:00:00'), taskCategory: 'client_feedback_due' };
+    const b = bundleByJob([item('a', 'tax', '2026-10-13T09:00:00'), fb], new Date('2026-10-20T10:00:00'));
+    expect(b.map(x => [x.key, x.kind, x.items.length])).toEqual([['tax', 'review', 1], ['feedback:tax', 'feedback', 1]]);
   });
 });

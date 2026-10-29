@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { anonymizeCompanyName } from '@/lib/anonymization';
-import { ERINNERUNG_AB_TAGEN, nudgeState, type WaitState } from '@/lib/kundePrueft';
+import { ERINNERUNG_AB_TAGEN, FEEDBACK_AB_WERKTAGEN, nudgeState, workdaysBetween, type WaitState } from '@/lib/kundePrueft';
 
 export interface UnifiedTaskItem {
   itemType: 'alert' | 'task' | 'derived';
@@ -50,6 +50,29 @@ export interface UnifiedTaskItem {
   lastNudgeIntent?: string | null;
   /** Firmenname bekannt (Reveal) – nur dann dürfen Stellen desselben Kunden gebündelt werden. */
   companyRevealed?: boolean;
+  /** „Wartet auf andere“ ohne Erinnerungen (28.10.2026): Vertrag bis Tag 10, pausierte Stelle. */
+  parkKind?: 'contract' | 'paused' | 'counter';
+  parkNote?: string | null;
+  /** Kunde gibt kein Feedback: Beginn des Interviews. */
+  interviewAt?: string | null;
+  /** „In Prüfung“: wie oft das Kundenteam das Profil geöffnet hat, zuletzt wann (29.10.2026) */
+  clientViewCount?: number;
+  clientLastViewedAt?: string | null;
+}
+
+/** Stand der Stelle zu einer eigenen Einreichung (my_submission_jobs, 28.10.2026). */
+interface SubmissionJobState {
+  submission_id: string;
+  job_status: string | null;
+  job_title: string | null;
+  job_industry: string | null;
+  company_name: string | null;
+  closed_at: string | null;
+  paused_at: string | null;
+  pause_until: string | null;
+  client_first_viewed_at?: string | null;
+  client_last_viewed_at?: string | null;
+  client_view_count?: number | null;
 }
 
 export type TaskFilter = 'all' | 'opt_in' | 'follow_up' | 'interview' | 'manual' | 'other';
@@ -258,6 +281,59 @@ function mapStalledSubmission(sub: any, now: number): UnifiedTaskItem | null {
   };
 }
 
+const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+
+// Abgeleitete Aufgabe (28.10.2026): Stelle besetzt oder geschlossen, die Einreichung lag noch beim
+// Kunden. Statt den Kunden zu erinnern, informiert der Headhunter den Kandidaten.
+function mapJobClosedInform(sub: any, js: SubmissionJobState): UnifiedTaskItem {
+  const filled = js.job_status === 'filled';
+  const name = sub.candidates?.full_name || 'Der Kandidat';
+  return {
+    ...derivedBase(sub, sub.jobs, sub.candidates, {
+      itemId: `derived-jobclosed-${sub.id}`,
+      title: filled ? 'Stelle besetzt — Kandidat informieren' : 'Stelle geschlossen — Kandidat informieren',
+      description: `${name} weiß noch nicht, dass die Stelle ${filled ? 'besetzt' : 'geschlossen'} ist.`,
+      taskCategory: 'job_closed_inform',
+      priority: 'high',
+      createdAt: js.closed_at ?? sub.submitted_at ?? sub.updated_at,
+    }),
+    dueAt: new Date(Date.parse(js.closed_at ?? sub.updated_at) + DAY_MS).toISOString(),
+  };
+}
+
+// „Wartet auf andere“ (28.10.2026): Stelle pausiert, darum keine Erinnerung an den Kunden
+function mapPausedPark(sub: any, js: SubmissionJobState): UnifiedTaskItem {
+  return {
+    ...derivedBase(sub, sub.jobs, sub.candidates, {
+      itemId: `parked-paused-${sub.id}`, title: 'Stelle pausiert', taskCategory: 'job_paused', priority: 'medium',
+      createdAt: js.paused_at ?? sub.submitted_at ?? sub.updated_at,
+    }),
+    parkKind: 'paused',
+    parkNote: `Stelle pausiert${js.pause_until ? ` bis ${dayMonth(js.pause_until)}` : ''} · keine Erinnerung an den Kunden`,
+  };
+}
+
+/**
+ * Hat der Headhunter den Kandidaten wirklich erreicht? Ein Anruf mit „Erreicht“ oder eine Mail an ihn,
+ * die rausging. Nachrichten an den Kunden, gescheiterte Mails und „Nicht erreicht“ zählen nicht (29.10.2026).
+ */
+function reachedCandidate(l: { activity_type: string; metadata?: any }): boolean {
+  const kind = l.metadata?.kind;
+  if (kind === 'client_nudge' || kind === 'client_message') return false;
+  if (l.activity_type === 'call') return l.metadata?.reached !== false;
+  return l.activity_type === 'email' && l.metadata?.sent !== false;
+}
+
+/** Feedback des Kunden zum Interview liegt vor (wie parseFeedback in client-tasks). */
+function hasClientFeedback(raw: unknown): boolean {
+  if (!raw) return false;
+  let v: any = raw;
+  if (typeof raw === 'string') {
+    try { v = JSON.parse(raw); } catch { return false; }
+  }
+  return typeof v?.recommendation === 'string' && v.recommendation.length > 0;
+}
+
 // Abgeleitete Aufgabe: Interview vorbei, kein Feedback erfasst
 function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
   const sub = iv.submissions;
@@ -319,27 +395,71 @@ function derivedBase(sub: any, job: any, candidate: any, extra: Partial<UnifiedT
   };
 }
 
-// Abgeleitete Aufgabe: Der Kunde hat ein Angebot gemacht, der Headhunter überbringt es (22.10.2026)
+// Abgeleitete Aufgabe: Der Kunde hat ein Angebot gemacht, der Headhunter überbringt es (22.10.2026).
+// Seit G + H (25.10.2026) antwortet der Kandidat selbst; die Aufgabe zeigt, was gerade beim Headhunter liegt:
+// Uhr bis zur Mail, Rückrufwunsch, nachfassen nach 24 Std. ohne Antwort bzw. ohne bestätigte Zusage.
+const HOUR_MS = 3_600_000;
+// Ruhezeit wie auf dem Server (20–8 Uhr Berlin → 8 Uhr); nur für die Anzeige der Rückruf-Frist
+function outsideQuietHoursBerlin(ms: number): number {
+  const hour = Number(new Date(ms).toLocaleString('en-GB', { hour: '2-digit', hour12: false, timeZone: 'Europe/Berlin' }));
+  if (hour >= 8 && hour < 20) return ms;
+  let t = ms;
+  // In Viertelstunden vor bis 8:00 Berlin (kommt höchstens 12 Std. später)
+  for (let i = 0; i < 49; i++) {
+    t = Math.ceil((t + 1) / (15 * 60_000)) * 15 * 60_000;
+    const p = new Date(t).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Berlin' });
+    if (p === '08:00') return t;
+  }
+  return ms;
+}
+const clock = (ms: number) => new Date(ms).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+
 function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
   const sub = o.submissions;
   if (!sub) return null;
   const due = o.response_due ? new Date(`${o.response_due}T23:59:59`).getTime() : null;
-  const considering = o.status === 'considering';
-  const until = o.candidate_response?.until ? new Date(`${o.candidate_response.until}T23:59:59`).getTime() : null;
-  const deadline = considering && until ? until : due;
   // Kalendertage bis zur Frist (heute = 0), nicht angebrochene 24-Stunden-Blöcke
   const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-  const daysLeft = deadline ? Math.round((Date.parse(`${berlinDay(deadline)}T12:00:00Z`) - Date.parse(`${berlinDay(now)}T12:00:00Z`)) / DAY_MS) : null;
-  const priority: 'critical' | 'high' = daysLeft !== null && daysLeft <= 1 ? 'critical' : 'high';
-  return derivedBase(sub, sub.jobs, sub.candidates, {
-    itemId: `derived-offer-${o.id}`,
-    title: considering ? 'Kandidat überlegt noch — nachfassen' : 'Angebot überbringen',
-    description: considering ? `Antwort bis ${o.candidate_response?.until ?? ''}` : `Antwort bis ${o.response_due ?? ''}`,
-    taskCategory: 'offer_deliver',
-    priority,
-    createdAt: o.sent_at ?? o.created_at,
-    dueAt: deadline ? new Date(deadline).toISOString() : null,
+  const daysLeft = due ? Math.round((Date.parse(`${berlinDay(due)}T12:00:00Z`) - Date.parse(`${berlinDay(now)}T12:00:00Z`)) / DAY_MS) : null;
+  const byDeadline: 'critical' | 'high' = daysLeft !== null && daysLeft <= 1 ? 'critical' : 'high';
+  const base = (title: string, description: string | null, priority: 'critical' | 'high', dueAt: number | null, createdAt: string) => derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-offer-${o.id}`, title, description, taskCategory: 'offer_deliver', priority, createdAt,
+    dueAt: dueAt ? new Date(dueAt).toISOString() : null,
   });
+  const frist = o.response_due ? `Antwort bis ${new Date(`${o.response_due}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : null;
+
+  // Ältere Angebote von vor G + H: „überlegt noch“
+  if (o.status === 'considering') {
+    const until = o.candidate_response?.until ? new Date(`${o.candidate_response.until}T23:59:59`).getTime() : due;
+    return base('Kandidat überlegt noch — nachfassen', `Antwort bis ${o.candidate_response?.until ?? o.response_due ?? ''}`, byDeadline, until, o.sent_at ?? o.created_at);
+  }
+  // Zusage gemeldet: Kandidat bestätigt per Mail; nach 24 Std. ohne Klick anrufen
+  if (o.status === 'accept_reported') {
+    const at = o.accept_reported_at ? Date.parse(o.accept_reported_at) : null;
+    if (!at || now - at < 24 * HOUR_MS) return null;
+    return base('Zusage noch nicht bestätigt — anrufen', 'Seit 24 Std. kein Klick auf „Ja, ich sage zu“', 'high', at + 24 * HOUR_MS, o.accept_reported_at);
+  }
+  // Rückrufwunsch von der Angebotsseite: binnen 2 Std. (nachts bis 8 Uhr)
+  if (o.callback_requested_at && !o.callback_done_at) {
+    const until = outsideQuietHoursBerlin(Date.parse(o.callback_requested_at) + 2 * HOUR_MS);
+    return base('Rückruf: Kandidat möchte sprechen', [`Rückruf bis ${clock(until)}`, o.callback_topic ? `„${o.callback_topic}“` : null].filter(Boolean).join(' · '), 'critical', until, o.callback_requested_at);
+  }
+  const mailDue = o.candidate_mail_due_at ? Date.parse(o.candidate_mail_due_at) : null;
+  const mailSent = !!o.candidate_mail_sent_at || (mailDue !== null && mailDue <= now);
+  // Uhr läuft: anrufen, bevor die Mail von selbst rausgeht
+  if (!mailSent && mailDue !== null) {
+    return base('Angebot überbringen', `Mail an Kandidat um ${clock(mailDue)}`, 'critical', mailDue, o.sent_at ?? o.created_at);
+  }
+  // 24 Std. nach der Mail keine Antwort: anrufen
+  const reminder = o.candidate_reminder_due_at ? Date.parse(o.candidate_reminder_due_at) : null;
+  if (reminder !== null && reminder <= now) {
+    return base('Keine Antwort seit 24 Std. — anrufen', frist, byDeadline, due ?? reminder, o.candidate_reminder_due_at);
+  }
+  // Mail ging ohne Gespräch raus: noch besprechen; nach „Gespräch geführt“ antwortet der Kandidat selbst
+  if (!o.recruiter_talked_at) {
+    return base('Angebot mit Kandidat besprechen', frist, byDeadline, due, o.candidate_mail_sent_at ?? o.candidate_mail_due_at ?? o.created_at);
+  }
+  return null;
 }
 
 // Abgeleitete Aufgabe: Gegenwunsch liegt seit zwei Tagen beim Kunden ohne Antwort
@@ -490,6 +610,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
   const [completedItems, setCompletedItems] = useState<UnifiedTaskItem[]>([]);
   /** „Kunde prüft“, bei denen der Kunde dran ist (erinnert) oder Matchunt übernommen hat. */
   const [waitingItems, setWaitingItems] = useState<UnifiedTaskItem[]>([]);
+  /** Ebenfalls „Wartet auf andere“, aber ohne Erinnerungen: Vertrag bis Tag 10, pausierte Stelle. */
+  const [parkedItems, setParkedItems] = useState<UnifiedTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -548,7 +670,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .select(`
           id, submission_id, scheduled_at, duration_minutes, status, feedback,
           submissions!inner(
-            recruiter_id, candidate_id, job_id, company_revealed,
+            id, recruiter_id, candidate_id, job_id, company_revealed, status, stage,
             candidates(full_name, phone, email)
           )
         `)
@@ -583,14 +705,15 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         // Ab Runde 2 ist der Kandidat freigegeben: dann gibt es kein Opt-In mehr einzuholen
         .eq('identity_unlocked', false);
 
-      // Angebote beim Headhunter (überbringen bzw. Kandidat überlegt noch), 22.10.2026
+      // Angebote beim Headhunter (überbringen, Rückruf, nachfassen), 22.10.2026 / G + H 25.10.2026
       const offerQuery = (supabase as any)
         .from('offers')
         .select(`id, submission_id, status, sent_at, created_at, response_due, candidate_response, counter_offer_at, responded_at, decision_at, salary_offered,
+          candidate_mail_due_at, candidate_mail_sent_at, candidate_reminder_due_at, recruiter_talked_at, callback_requested_at, callback_topic, callback_done_at, accept_reported_at,
           submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed,
             candidates(full_name, phone, email))`)
         .eq('recruiter_id', user.id)
-        .in('status', ['with_recruiter', 'considering', 'countered', 'accepted']);
+        .in('status', ['with_recruiter', 'considering', 'accept_reported', 'countered', 'accepted']);
       // Empfehlung fällig: Feedback des Kunden „Angebot machen“, noch keine Empfehlung und kein Angebot
       const offerWishQuery = supabase
         .from('interviews')
@@ -689,7 +812,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
             .eq('recruiter_id', user.id),
           supabase
             .from('candidate_activity_log')
-            .select('related_submission_id, activity_type, created_at')
+            .select('related_submission_id, activity_type, metadata, created_at')
             .eq('recruiter_id', user.id)
             .in('related_submission_id', ids)
             .in('activity_type', ['call', 'email']),
@@ -697,7 +820,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         const informed = new Set<string>();
         for (const l of (logRes.data || []) as any[]) {
           const since = rejectedBySub.get(l.related_submission_id);
-          if (since && l.created_at > since) informed.add(l.related_submission_id);
+          if (since && l.created_at > since && reachedCandidate(l)) informed.add(l.related_submission_id);
         }
         rejectedRows = ((subsRes.data || []) as any[])
           .filter(r => (r.stage === 'client_rejected' || r.status === 'rejected') && !informed.has(r.id))
@@ -705,7 +828,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       }
 
       // Für „Erledigt“: Stelle und Name zu Log-Einträgen, die zu keiner offenen Aufgabe gehören
-      const DONE_KINDS = new Set(['client_nudge', 'candidate_message', 'nachgespraech']);
+      const DONE_KINDS = new Set(['client_nudge', 'client_message', 'candidate_message', 'nachgespraech']);
       const doneLog = logRows.filter(l =>
         l.created_at >= new Date(nowMs - 7 * DAY_MS).toISOString()
         && (DONE_KINDS.has(l.metadata?.kind) || l.activity_type === 'call' || l.activity_type === 'alert_actioned'));
@@ -790,6 +913,29 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         if (s.job_id) s.jobs = taskJobsById[s.job_id] ?? null;
       });
 
+      // Stand der Stelle zu den eigenen Einreichungen (28.10.2026): besetzt, geschlossen, pausiert.
+      // recruiter_jobs_view kennt nur veröffentlichte Stellen. Fehlt die Funktion noch (Lovable), bleibt alles wie bisher.
+      const jobStateSubs = [...new Set([
+        ...(stalledResult.data || []).map((s: any) => s.id),
+        ...(debriefResult.data || []).map((iv: any) => iv.submission_id),
+      ].filter(Boolean))] as string[];
+      const jobStateBySub = new Map<string, SubmissionJobState>();
+      if (jobStateSubs.length) {
+        const { data: js, error: jsError } = await (supabase as any).rpc('my_submission_jobs', { p_submission_ids: jobStateSubs });
+        if (jsError) console.warn('Stand der Stellen nicht geladen:', jsError.message);
+        for (const r of (js || []) as SubmissionJobState[]) jobStateBySub.set(r.submission_id, r);
+      }
+      const jobClosed = (subId: string) => ['filled', 'closed'].includes(jobStateBySub.get(subId)?.job_status ?? '');
+      // Pausiert der Kunde, bleibt der Status 'published' und paused_at ist gesetzt (bis pause_until) (29.10.2026)
+      const jobPaused = (js: SubmissionJobState | undefined) => !!js && (js.job_status === 'paused'
+        || (!!js.paused_at && (!js.pause_until || Date.parse(js.pause_until) > nowMs)));
+      const jobOf = (subId: string, current: any) => {
+        const js = jobStateBySub.get(subId);
+        return current ?? (js ? { title: js.job_title, industry: js.job_industry, company_name: js.company_name } : null);
+      };
+      (stalledResult.data || []).forEach((s: any) => { s.jobs = jobOf(s.id, s.jobs); });
+      (debriefResult.data || []).forEach((iv: any) => { if (iv.submissions) iv.submissions.jobs = jobOf(iv.submission_id, iv.submissions.jobs); });
+
       // Map alerts — erst jetzt, damit die Job-Infos oben schon anhaengen.
       const alertItems: UnifiedTaskItem[] = (alertsResult.data || [])
         .map(mapAlertToItem)
@@ -815,14 +961,33 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       // „Kunde prüft“: Stand aus den Erinnerungen im Aktivitätslog. Erinnert und noch
       // in der Frist → wartet (nicht in „Jetzt“), nach 2 Erinnerungen → Matchunt.
       const nowDate = new Date(nowMs);
+      // Besetzte/geschlossene Stelle: Kandidat informieren statt Kunden erinnern; pausiert: warten (28.10.2026)
+      const closedInformItems: UnifiedTaskItem[] = [];
+      const parked: UnifiedTaskItem[] = [];
       const stalledAll: UnifiedTaskItem[] = (stalledResult.data || [])
         .map((s: any) => {
-          const item = mapStalledSubmission(s, nowMs);
+          const js = jobStateBySub.get(s.id);
+          if (js && jobClosed(s.id)) {
+            const since = js.closed_at ?? s.submitted_at ?? '';
+            // Nur echte Kontakte zählen: eine gescheiterte Mail (metadata.sent === false) informiert niemanden
+            const informed = logRows.some(l => (l.related_submission_id === s.id || l.candidate_id === s.candidate_id)
+              && reachedCandidate(l) && l.created_at > since);
+            if (!informed) closedInformItems.push(mapJobClosedInform(s, js));
+            return null;
+          }
+          if (jobPaused(js)) {
+            parked.push(mapPausedPark(s, js));
+            return null;
+          }
+          // Nach einer Pause zählt „Kunde prüft“ wieder von vorn
+          const floor = js?.pause_until && Date.parse(js.pause_until) <= nowMs ? js.pause_until : null;
+          const later = (a: string | null) => (a && floor && a > floor ? a : floor ?? a);
+          const item = mapStalledSubmission(floor ? { ...s, submitted_at: later(s.submitted_at), updated_at: later(s.updated_at) } : s, nowMs);
           if (!item) return null;
           const mine = logRows.filter(l => l.related_submission_id === s.id && l.created_at >= (s.submitted_at ?? ''));
           const nudgeRows = mine.filter(l => l.metadata?.kind === 'client_nudge');
           const st = nudgeState(nudgeRows.map(l => l.created_at), nowDate);
-          const contact = logRows.filter(l => l.candidate_id === s.candidate_id && l.metadata?.kind !== 'client_nudge' && (l.activity_type === 'call' || l.activity_type === 'email'));
+          const contact = logRows.filter(l => l.candidate_id === s.candidate_id && reachedCandidate(l));
           const updates = contact.filter(l => l.metadata?.kind === 'candidate_message');
           return {
             ...item,
@@ -830,20 +995,122 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
             lastCandidateContactAt: contact[0]?.created_at ?? null,
             lastCandidateUpdateAt: updates[0]?.created_at ?? null,
             lastNudgeIntent: nudgeRows[0]?.metadata?.intent ?? null,
+            clientViewCount: js?.client_view_count ?? 0,
+            clientLastViewedAt: js?.client_last_viewed_at ?? null,
           } as UnifiedTaskItem;
         })
         .filter((i): i is UnifiedTaskItem => i !== null);
-      setWaitingItems(stalledAll.filter(i => i.waitState !== 'jetzt'));
+
+      // Nachgespräch und Kunden-Feedback nur zum jüngsten gelaufenen Interview je Einreichung,
+      // nicht nach Einstellung, Absage, Rückzug, Zusage oder besetzter Stelle (28.10.2026)
+      const CLOSED_SUB = new Set(['hired', 'placed', 'rejected', 'withdrawn', 'client_rejected', 'expired']);
+      const ivEnd = (iv: any) => Date.parse(iv.scheduled_at) + (iv.duration_minutes ?? 60) * 60_000;
+      const latestIv = new Map<string, any>();
+      for (const iv of (debriefResult.data || []) as any[]) {
+        if (!iv.scheduled_at || ivEnd(iv) > nowMs) continue;
+        const cur = latestIv.get(iv.submission_id);
+        if (!cur || cur.scheduled_at < iv.scheduled_at) latestIv.set(iv.submission_id, iv);
+      }
+      const ivOpen = (iv: any) => {
+        const sub = iv.submissions;
+        return latestIv.get(iv.submission_id)?.id === iv.id
+          && !CLOSED_SUB.has(sub?.status) && !CLOSED_SUB.has(sub?.stage)
+          && !acceptedAtBySub.has(iv.submission_id) && !jobClosed(iv.submission_id);
+      };
+
+      // Kunde gibt nach dem Interview keinen Eindruck: ab 2 Werktagen, eine Zeile je Stelle (28.10.2026)
+      const feedbackAll: UnifiedTaskItem[] = ([...latestIv.values()] as any[])
+        .filter(iv => ivOpen(iv) && !hasClientFeedback(iv.feedback) && !offered.has(iv.submission_id)
+          && !jobPaused(jobStateBySub.get(iv.submission_id))
+          && workdaysBetween(new Date(ivEnd(iv)), nowDate) >= FEEDBACK_AB_WERKTAGEN)
+        .map((iv: any) => {
+          const sub = iv.submissions;
+          const endIso = new Date(ivEnd(iv)).toISOString();
+          const days = Math.floor((nowMs - ivEnd(iv)) / DAY_MS);
+          const nudgeRows = logRows.filter(l => l.related_submission_id === iv.submission_id && l.metadata?.kind === 'client_nudge'
+            && l.metadata?.intent === 'interview_feedback' && l.created_at >= endIso);
+          const contact = logRows.filter(l => l.candidate_id === sub.candidate_id && reachedCandidate(l));
+          return {
+            ...derivedBase(sub, sub.jobs, sub.candidates, {
+              itemId: `derived-feedback-${iv.id}`,
+              title: `Kunde ohne Feedback seit ${days} Tagen`,
+              description: `Interview am ${dayMonth(iv.scheduled_at)}, seitdem kein Eindruck des Kunden.`,
+              taskCategory: 'client_feedback_due',
+              priority: 'high',
+              createdAt: endIso,
+            }),
+            submissionId: iv.submission_id,
+            companyRevealed: !!sub.jobs?.company_name,
+            interviewAt: iv.scheduled_at,
+            ...nudgeState(nudgeRows.map(l => l.created_at), nowDate),
+            lastCandidateContactAt: contact[0]?.created_at ?? null,
+            lastCandidateUpdateAt: contact.filter(l => l.metadata?.kind === 'candidate_message')[0]?.created_at ?? null,
+            lastNudgeIntent: nudgeRows.length ? 'interview_feedback' : null,
+          } as UnifiedTaskItem;
+        });
+
+      // Vertrag begleiten bis Tag 10: nichts zu tun, darum unter „Wartet auf andere“ (28.10.2026)
+      const contractItems: UnifiedTaskItem[] = [];
+      for (const r of contractWraps) {
+        const it = mapContractTask(r, acceptedAtBySub.get(r.submission_id) ?? null, nowMs);
+        if (!it) continue;
+        if (it.taskCategory === 'contract_follow' && r.status !== 'declined') {
+          const accepted = acceptedAtBySub.get(r.submission_id) ?? null;
+          const anchor = r.status === 'sent_digital' && r.sent_at ? r.sent_at : (accepted ?? r.updated_at);
+          const ab = dayMonth(new Date(Date.parse(anchor) + 10 * DAY_MS).toISOString());
+          const first = (it.candidateName ?? '').split(/\s+/)[0] || 'dem Kandidaten';
+          const stand = r.status === 'preparing' ? 'Kunde bereitet den Vertrag vor'
+            : r.status === 'sent_self' ? `bei ${first} seit ${r.sent_at ? dayMonth(r.sent_at) : 'kurzem'}`
+              : `digital verschickt${r.sent_at ? ` am ${dayMonth(r.sent_at)}` : ''}`;
+          parked.push({ ...it, parkKind: 'contract', parkNote: `${stand} · nachfassen ab ${ab}` });
+          continue;
+        }
+        // Nachgefasst (29.10.2026): Kandidat sagt „unterschreibt bis …“ oder Kunde ist gefragt → wartet
+        if (it.taskCategory !== 'contract_check') {
+          const mine = logRows.filter(l => l.related_submission_id === r.submission_id);
+          const until = mine.find(l => l.activity_type === 'call' && typeof l.metadata?.until === 'string')?.metadata?.until as string | undefined;
+          const today = new Date(nowMs).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+          const first = (it.candidateName ?? '').split(/\s+/)[0] || 'Der Kandidat';
+          if (until && until >= today) {
+            parked.push({ ...it, parkKind: 'contract', parkNote: `${first} unterschreibt laut Anruf bis ${dayMonth(until)} · danach wieder oben` });
+            continue;
+          }
+          const st = nudgeState(mine.filter(l => l.metadata?.kind === 'client_nudge' && l.metadata?.anlass === 'contract').map(l => l.created_at), nowDate);
+          if (st.waitState === 'wartet') {
+            parked.push({ ...it, ...st, parkKind: 'contract', parkNote: `Kunde zum Vertrag gefragt am ${dayMonth(st.lastNudgeAt!)} · nachfassen ab ${dayMonth(st.nextNudgeAt!)}` });
+            continue;
+          }
+        }
+        contractItems.push(it);
+      }
+      // Gegenwunsch beim Kunden: erinnert und noch in der Frist → „Wartet auf andere“, auf dem Server
+      // festgehalten statt nur im Browser vertagt (29.10.2026)
+      const counterJetzt: UnifiedTaskItem[] = [];
+      for (const o of (((offerResult as any).data || []) as any[]).filter((o) => o.status === 'countered')) {
+        const it = mapCounterStalled(o, nowMs);
+        if (!it) continue;
+        const since = o.counter_offer_at ?? o.responded_at ?? '';
+        const st = nudgeState(logRows.filter(l => l.related_submission_id === o.submission_id && l.metadata?.kind === 'client_nudge' && l.created_at >= since).map(l => l.created_at), nowDate);
+        if (st.waitState === 'wartet') {
+          parked.push({ ...it, ...st, parkKind: 'counter', parkNote: `Kunde erinnert am ${dayMonth(st.lastNudgeAt!)} · ${st.nudgeCount >= 2 ? 'wieder nachfassen' : '2. Erinnerung'} ab ${dayMonth(st.nextNudgeAt!)}` });
+        } else counterJetzt.push({ ...it, ...st });
+      }
+      setParkedItems(parked);
+      setWaitingItems([...stalledAll, ...feedbackAll].filter(i => i.waitState !== 'jetzt'));
 
       const derivedItems: UnifiedTaskItem[] = [
         ...stalledAll.filter(i => i.waitState === 'jetzt'),
+        ...feedbackAll.filter(i => i.waitState === 'jetzt'),
+        ...closedInformItems,
         ...(debriefResult.data || [])
-          .filter((iv: any) => !debriefed.has(iv.id))
+          // Liegt schon ein Angebot vor, führt die Angebots-Aufgabe zum Kandidaten, nicht mehr das Nachgespräch (29.10.2026)
+          .filter((iv: any) => !debriefed.has(iv.id) && ivOpen(iv) && !offered.has(iv.submission_id))
           .map((iv: any) => mapDebriefDue(iv, nowMs)),
         ...(optInResult.data || []).map((s: any) => mapOptInDue(s, nowMs)),
         ...rejectedRows.map((s: any) => mapRejectedInform(s)),
-        ...(((offerResult as any).data || []) as any[]).filter((o) => o.status !== 'accepted').map((o) => (o.status === 'countered' ? mapCounterStalled(o, nowMs) : mapOfferDeliver(o, nowMs))),
-        ...contractWraps.map((r) => mapContractTask(r, acceptedAtBySub.get(r.submission_id) ?? null, nowMs)),
+        ...(((offerResult as any).data || []) as any[]).filter((o) => o.status !== 'accepted' && o.status !== 'countered').map((o) => mapOfferDeliver(o, nowMs)),
+        ...counterJetzt,
+        ...contractItems,
         ...[...wishBySub.values()].filter((iv) => !recommended.has(iv.submission_id) && !offered.has(iv.submission_id)).map((iv) => mapRecommendationDue(iv)),
       ]
         .filter((i): i is UnifiedTaskItem => i !== null)
@@ -1082,6 +1349,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     items: filteredItems,
     allItems: items,
     waitingItems,
+    parkedItems,
     urgentItems,
     openItems,
     completedItems,

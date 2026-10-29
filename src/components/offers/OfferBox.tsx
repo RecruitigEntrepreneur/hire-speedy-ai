@@ -67,6 +67,13 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
       tone === 'ok' && 'border-emerald-500/30 bg-emerald-500/[0.06]',
       tone === 'crit' && 'border-destructive/30 bg-destructive/[0.05]',
       tone === 'info' && 'border-primary/20 bg-primary/[0.04]')}>
+      {o.status === 'accept_reported' && (
+        <>
+          <p className="font-medium">{first} hat zugesagt · Bestätigung per Mail läuft</p>
+          <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}</p>
+          <p className="mt-1 text-muted-foreground">{hhFirst} hat die Zusage gemeldet. Sobald {first} sie per Klick bestätigt, schicken Sie den Arbeitsvertrag.</p>
+        </>
+      )}
       {(o.status === 'with_recruiter' || o.status === 'considering') && (
         <>
           <p className="font-medium">

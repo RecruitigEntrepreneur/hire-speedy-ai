@@ -16,7 +16,8 @@
  */
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+// Nur lokal: RESEND_API_URL zeigt auf einen Mail-Fänger statt auf Resend (online nie gesetzt)
+const resendEndpoint = () => `${(Deno.env.get('RESEND_API_URL') || 'https://api.resend.com').replace(/\/$/, '')}/emails`;
 
 const from = (): string => Deno.env.get('RESEND_FROM') ?? 'Matchunt <noreply@matchunt.ai>';
 
@@ -150,7 +151,7 @@ export async function sendIntakeMail(
   }
 
   try {
-    const res = await fetch(RESEND_ENDPOINT, {
+    const res = await fetch(resendEndpoint(), {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json',
         ...(args.idempotencyKey ? { 'Idempotency-Key': args.idempotencyKey } : {}), },

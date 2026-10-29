@@ -135,7 +135,8 @@ export interface ClientTaskInput {
 
 const DAY = 86400000;
 const CLOSED = ['placed', 'hired', 'rejected', 'client_rejected', 'withdrawn', 'expired'];
-const OPEN_OFFER = ['with_recruiter', 'considering', 'countered'];
+// accept_reported (G + H, 25.10.2026): Headhunter hat die Zusage gemeldet, der Kandidat bestätigt per Mail
+const OPEN_OFFER = ['with_recruiter', 'considering', 'countered', 'accept_reported'];
 const BOOKED = ['scheduled', 'confirmed', 'completed', 'no_show'];
 
 const t = (v: unknown) => (typeof v === 'string' && v ? Date.parse(v) : NaN);
@@ -575,6 +576,10 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     // ---------------------------------------------------------------- Angebot
     const offers = (offersBySub.get(s.id) ?? []).slice().sort((a: any, b: any) => t(b.created_at) - t(a.created_at));
     const offer = offers.find((o: any) => OPEN_OFFER.includes(o.status)) ?? null;
+    if (offer && offer.status === 'accept_reported') {
+      wait({ key: `offer-confirm:${offer.id}`, by: 'candidate', title: `${name} bestätigt die Zusage`, detail: `${hhFirst} hat die Zusage gemeldet, die Bestätigung per Mail läuft` });
+      continue;
+    }
     if (offer) {
       const due = offer.status === 'considering' ? (offer.candidate_response?.until ?? offer.response_due) : offer.response_due;
       const dueMs = due ? Date.parse(`${String(due).slice(0, 10)}T23:59:59Z`) : NaN;

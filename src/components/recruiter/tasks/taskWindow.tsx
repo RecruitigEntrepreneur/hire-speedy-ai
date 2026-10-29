@@ -3,7 +3,7 @@
 // Dashboard führt ins Kandidatenprofil, dort öffnet sich die Aufgabe).
 // Aus RecruiterHeute.tsx herausgelöst, Inhalt unverändert.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,13 +12,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { TaskDetailDialog, type TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 import { notifyTasksChanged, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
+import { useAuth } from '@/lib/auth';
 import { messageSetFor, composeClientText, composeCandidateText } from '@/lib/aufgabenTexte';
+import { functionError } from '@/lib/functionError';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Lock, Mail, NotebookPen, Phone } from 'lucide-react';
+import { Check, Lock, Mail, NotebookPen, Phone } from 'lucide-react';
 import { NachgespraechWindow, nachTargetFromItem, type NachTarget } from './NachgespraechWindow';
 import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
 import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
@@ -27,7 +29,7 @@ import { Honorar } from '@/components/recruiter/Honorar';
 
 export const DAY_MS = 86_400_000;
 
-export type Kind = 'call' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract';
+export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract';
 
 export interface Guide {
   pill: string;
@@ -75,12 +77,55 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       reachedOptions: ['Entscheidung zugesagt', 'Kunde braucht mehr Infos', 'Kunde sagt ab', `${first} informiert`],
     };
   }
+  if (cat === 'client_feedback_due') {
+    // Kunde gibt nach dem Interview keinen Eindruck (28.10.2026); das Fenster ist das Stellen-Fenster
+    const d = daysSince(item.createdAt);
+    return {
+      pill: 'Feedback',
+      advice: `Kunde ohne Feedback zum Interview seit ${d} Tagen. Nachfragen.`,
+      facts: [
+        `Interview mit ${name} am ${dateDe(item.interviewAt ?? item.createdAt)}, seitdem kein Eindruck des Kunden.`,
+        fee ? `Honorar bei Abschluss: ${fee}.` : 'Honorar: noch nicht bekannt.',
+      ],
+      consequence: `Ohne Eindruck gibt es keinen nächsten Schritt, und ${first} kühlt ab.`,
+      steps: [
+        { text: 'Den Kunden nach seinem Eindruck fragen.', hint: 'Frist nennen, eine Mail für alle Kandidaten.' },
+        { text: `${first} auf dem Laufenden halten.` },
+      ],
+      goal: 'Feedback des Kunden',
+      primary: { label: 'Kunden fragen', kind: 'client' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'job_closed_inform') {
+    // Stelle besetzt oder geschlossen (28.10.2026): Kandidat informieren statt Kunden erinnern
+    const besetzt = item.title.startsWith('Stelle besetzt');
+    return {
+      pill: besetzt ? 'Besetzt' : 'Geschlossen',
+      advice: `Die Stelle ist ${besetzt ? 'besetzt' : 'geschlossen'}. ${first} weiß es noch nicht.`,
+      facts: [
+        `${item.companyName ?? 'Der Kunde'} hat die Stelle ${job} am ${dateDe(item.createdAt)} ${besetzt ? 'besetzt' : 'geschlossen'}.`,
+        `${name} hat das noch nicht von dir gehört.`,
+      ],
+      consequence: `Erfährt ${first} es woanders zuerst, verliert ${first} das Vertrauen in dich.`,
+      steps: [
+        { text: `${first} informieren.`, hint: 'Wertschätzend, ohne Namen der eingestellten Person.' },
+        { text: 'Andere Stellen anbieten oder im Blick behalten.' },
+      ],
+      goal: `${first} informiert`,
+      primary: { label: `${first} informieren`, kind: 'candidate' },
+      reachedOptions: ['Informiert', 'Will andere Stellen', 'Kein Interesse mehr'],
+    };
+  }
   if (cat === 'interview_debrief_due') {
     // Nachgespräch statt Debrief (20.10.2026): zuerst hören, was der Kandidat sagt.
     const h = hoursSince(item.createdAt);
     return {
       pill: 'Nachgespräch',
-      advice: `${satz(`Interview war ${h < 48 ? `vor ${h} Std.` : `am ${dateDe(item.createdAt)}`}`)} Ruf ${first} an, solange es frisch ist.`,
+      // „solange es frisch ist“ nur in den ersten zwei Tagen (Durchklick 27.10.2026)
+      advice: h < 48
+        ? `Interview war vor ${h} Std. Ruf ${first} an, solange es frisch ist.`
+        : `${satz(`Interview am ${dateDe(item.createdAt)}`)} ${first} wartet auf deine Rückmeldung.`,
       facts: [
         `Das Interview mit ${name} für ${job} ist vorbei.`,
         'Wie es lief, Gehalt, Angebot und Start weißt du nur von ihm.',
@@ -97,27 +142,35 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     };
   }
   if (cat === 'offer_deliver') {
-    // Angebot über den Headhunter (22.10.2026): überbringen und Antwort eintragen
-    const considering = item.title.startsWith('Kandidat überlegt');
+    // Angebot über den Headhunter (22.10.2026; G + H 25.10.2026): Der Kandidat antwortet selbst,
+    // der Headhunter ruft an, bevor die Mail rausgeht, ruft zurück und fasst nach
+    const t = item.title;
+    const considering = t.startsWith('Kandidat überlegt');
     // Kalendertage bis zur Frist (heute = 0)
     const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
     const left = item.dueAt ? Math.round((Date.parse(`${berlinDay(new Date(item.dueAt).getTime())}T12:00:00Z`) - Date.parse(`${berlinDay(Date.now())}T12:00:00Z`)) / DAY_MS) : null;
     const frist = left === null ? '' : left < 0 ? 'Frist abgelaufen.' : left === 0 ? 'Antwort heute fällig.' : `Noch ${left} ${left === 1 ? 'Tag' : 'Tage'}.`;
+    const advice = t.startsWith('Rückruf') ? `${first} möchte über das Angebot sprechen. ${item.description ? satz(item.description) : ''}`
+      : t === 'Angebot überbringen' ? `Der Kunde macht ${first} ein Angebot. Ruf an, bevor die Mail rausgeht${item.description ? ` (${item.description.replace(/^Mail an Kandidat /, '')})` : ''}.`
+        : t.startsWith('Keine Antwort') ? `${first} hat seit 24 Std. nicht auf das Angebot geantwortet. ${frist} Ruf an.`
+          : t.startsWith('Zusage noch nicht') ? `${first} hat die Zusage noch nicht per Klick bestätigt. Ruf an.`
+            : considering ? `${first} überlegt noch. ${frist} Nachfassen und Antwort eintragen.`
+              : `${first} hat das Angebot schriftlich. ${frist} Ruf an und geh es durch.`;
     return {
       pill: 'Angebot',
-      advice: considering ? `${first} überlegt noch. ${frist} Nachfassen und Antwort eintragen.` : `Der Kunde macht ${first} ein Angebot. ${frist} Ruf ${first} an.`,
+      advice,
       facts: [
         `Angebot für ${job}${item.companyName ? ` bei ${item.companyName}` : ''}.`,
-        item.dueAt ? satz(`Antwort bis ${dateDe(item.dueAt)}`) : '',
+        `${first} antwortet selbst auf der Angebotsseite (Mail von dir über Matchunt).`,
         fee ? `Honorar bei Abschluss: ${fee}.` : '',
       ].filter(Boolean),
       consequence: 'Liegt ein Angebot zu lange, kommt das Gegenangebot des Arbeitgebers zuerst.',
       steps: [
         { text: `${first} anrufen und das Angebot durchgehen.`, hint: 'Gehalt, Start, Extras. Was fehlt noch für eine Zusage?' },
-        { text: 'Antwort eintragen: Zusage, überlegt noch, Gegenwunsch oder Absage.' },
+        { text: '„Gespräch geführt“ klicken: Die Mail geht sofort raus.', hint: 'Sagt es dir am Telefon zu, ab oder will mehr: hier melden.' },
       ],
-      goal: 'Antwort eingetragen',
-      primary: { label: 'Antwort eintragen', kind: 'offer' },
+      goal: 'Angebot liegt schriftlich vor',
+      primary: { label: 'Angebot öffnen', kind: 'offer' },
       reachedOptions: [],
     };
   }
@@ -148,6 +201,7 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       pill: check ? 'Gegenprobe' : 'Vertrag',
       advice: check ? `Der Kunde meldet: ${first} hat unterschrieben. Stimmt das?`
         : nudge ? `Die Firma hat unterschrieben. Stoß ${first} an, damit die Unterschrift heute kommt.`
+          : cat === 'contract_follow' && item.description?.startsWith('In DocuSign abgelehnt') ? `${first} hat den Vertrag in DocuSign abgelehnt. Kläre mit ${first} und dem Kunden, ob ein neuer Vertrag kommt.`
           : cat === 'contract_follow' ? `${item.description ?? ''} Halt Kontakt zu ${first} und melde die Unterschrift, sobald sie da ist.`
             : `${item.description ?? 'Noch keine Unterschrift gemeldet.'} Frag bei ${first} nach.`,
       facts: [
@@ -167,7 +221,7 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     const d = daysSince(item.createdAt);
     return {
       pill: 'Gegenwunsch',
-      advice: `Der Kunde antwortet seit ${d} Tagen nicht auf ${first}s Gegenwunsch. Nachfassen.`,
+      advice: `Der Kunde antwortet seit ${d} Tagen nicht auf den Gegenwunsch von ${first}. Nachfassen.`,
       facts: [
         satz(`Gegenwunsch zu ${job} eingetragen am ${dateDe(item.createdAt)}`),
         item.description ? satz(item.description) : '',
@@ -225,10 +279,19 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     };
   }
   if (item.itemType === 'task') {
+    // Eigene Erinnerung (29.10.2026): oben steht, was zu tun ist, die Notiz im Grund
+    const due = item.dueAt ? new Date(item.dueAt) : null;
+    const dueText = due
+      ? `Fällig ${due.toDateString() === new Date().toDateString() ? 'heute' : `am ${dateDe(item.dueAt)}`}, ${format(due, 'HH:mm')}`
+      : 'Ohne Datum';
     return {
       pill: 'Eigene',
-      advice: item.description || item.title,
-      facts: [item.dueAt ? satz(`Fällig am ${dateDe(item.dueAt)}`) : 'Ohne Datum.'],
+      advice: item.title,
+      facts: [
+        item.description ? `Deine Notiz: „${item.description}“` : '',
+        `${dueText}.`,
+        item.jobTitle ? `${item.jobTitle}${item.companyName ? ` · ${item.companyName}` : ''}.` : '',
+      ].filter(Boolean),
       consequence: null,
       steps: [{ text: item.title }],
       goal: 'Erledigt',
@@ -343,6 +406,10 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
       case 'followup':
         setReached({ item, guide });
         return;
+      case 'called':
+        // „Angerufen“ im Schritt an den Kandidaten: nur festhalten, nicht wählen (29.10.2026)
+        setReached({ item, guide: { ...guide, primary: { label: 'Anrufen', kind: 'call' } } });
+        return;
       case 'done':
         markDone(item.itemType, item.itemId).then(({ error }) => {
           if (error) toast.error('Konnte nicht als erledigt markiert werden.');
@@ -359,19 +426,33 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
     const { data, error } = await supabase.functions.invoke('recruiter-notify', {
       body: { action, submissionId: item.submissionId, text, ...meta },
     });
-    const failure = error?.message || (data && (data as any).error) || (data && (data as any).message && !(data as any).ok ? (data as any).message : null);
+    let failure = error?.message || (data && (data as any).error) || (data && (data as any).message && !(data as any).ok ? (data as any).message : null);
+    // Bei einem Fehler steht der Grund im Antworttext der Function, nicht in error.message (28.10.2026)
+    if (error) {
+      try {
+        const body = await (error as any).context?.json?.();
+        if (body?.message || body?.error) failure = body.message ?? body.error;
+      } catch { /* kein JSON */ }
+    }
     if (failure) {
       const msg = typeof failure === 'string' ? failure : 'Senden fehlgeschlagen.';
       toast.error(/Failed to send a request/i.test(msg) ? 'Senden nicht möglich: Die Function „recruiter-notify“ ist noch nicht deployt.' : msg);
       return false;
     }
+    const anlass = meta.anlass;
     if (action === 'client_nudge') {
-      toast.success(`Kunde erinnert (${(data as any)?.recipients ?? 1} Empfänger). Die Zeile ruht bis zur Antwort.`);
-      await snooze(item.itemType, item.itemId, new Date(Date.now() + 3 * DAY_MS));
+      // Gegenwunsch: wartet auf dem Server (Aktivitätslog); Opt-In und Absage: nur ein Stand an den Kunden,
+      // die Aufgabe beim Kandidaten bleibt (29.10.2026)
+      if (anlass === 'counter') toast.success('Kunde erinnert. Die Zeile wartet unter „Wartet auf andere“.');
+      else if (anlass === 'opt_in' || anlass === 'rejected') toast.success('Kunde informiert.');
+      else {
+        toast.success(`Kunde erinnert (${(data as any)?.recipients ?? 1} Empfänger). Die Zeile ruht bis zur Antwort.`);
+        await snooze(item.itemType, item.itemId, new Date(Date.now() + 3 * DAY_MS));
+      }
     } else {
       toast.success('Nachricht gesendet.');
-      if (item.taskCategory === 'rejected_inform') await markDone(item.itemType, item.itemId);
-      else await snooze(item.itemType, item.itemId, new Date(Date.now() + DAY_MS));
+      if (item.taskCategory === 'rejected_inform' || item.taskCategory === 'job_closed_inform') await markDone(item.itemType, item.itemId);
+      else if (item.taskCategory !== 'offer_counter_stalled') await snooze(item.itemType, item.itemId, new Date(Date.now() + DAY_MS));
     }
     refetch();
     notifyTasksChanged();
@@ -398,7 +479,10 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         item.submissionId || undefined,
       );
     }
-    if (yes) {
+    // Gegenwunsch: Der Anruf beim Kandidaten erledigt nichts, der Kunde ist noch dran
+    if (yes && item.taskCategory === 'offer_counter_stalled') {
+      toast.success('Anruf festgehalten.');
+    } else if (yes) {
       const { error } = await markDone(item.itemType, item.itemId);
       if (error) toast.error('Beleg gespeichert, Zeile konnte nicht geschlossen werden.');
       else toast.success(outcome ? `${outcome}. Zeile geschlossen.` : 'Zeile geschlossen.');
@@ -427,6 +511,14 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
     return !!g;
   };
 
+  // Fenster bleibt nach dem Senden offen, auch wenn die Aufgabe danach aus der Liste fällt (29.10.2026)
+  const liveGroup = groups.find(g => g.key === windowKey) ?? null;
+  const frozen = useRef<PersonGroup | null>(null);
+  if (!windowKey) frozen.current = null;
+  else if (liveGroup && (!frozen.current || frozen.current.primary.itemId === liveGroup.primary.itemId)) frozen.current = liveGroup;
+  const windowGroup = windowKey ? frozen.current ?? liveGroup : null;
+  const contractItem = contractFor ? allItems.find(i => i.submissionId === contractFor && i.taskCategory.startsWith('contract_')) : undefined;
+
   const host = (
     <>
       <TaskDetailDialog
@@ -437,13 +529,15 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         onSnooze={async (id, until) => { const it = allItems.find(i => i.itemId === id); if (it) await later(it, until); }}
       />
       <TaskWindow
-        group={groups.find(g => g.key === windowKey) ?? null}
+        group={windowGroup}
         initialTab={windowTab}
         onSend={sendMessage}
         onClose={() => setWindowKey(null)}
         onAct={(item, guide) => { setWindowKey(null); act(item, guide); }}
         onLater={(item, until) => { setWindowKey(null); later(item, until); }}
+        onSnooze={async (item, until) => { await snooze(item.itemType, item.itemId, until); }}
         onDetail={item => { setWindowKey(null); openDetail(item); }}
+        onChanged={() => { refetch(); notifyTasksChanged(); }}
       />
       <ReachedDialog state={reached} onClose={() => setReached(null)} onConfirm={confirmReached} />
       <NachgespraechWindow
@@ -454,70 +548,215 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
       />
       <OfferAnswerDialog submissionId={offerFor} onClose={() => setOfferFor(null)} onDone={refetch} />
       <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} onDone={refetch} />
-      <ContractWindow submissionId={contractFor} onClose={() => setContractFor(null)} onDone={refetch} />
+      <ContractWindow
+        submissionId={contractFor}
+        onClose={() => setContractFor(null)}
+        onDone={refetch}
+        onLater={contractItem ? until => { setContractFor(null); later(contractItem, until); } : undefined}
+      />
     </>
   );
 
-  return { act, later, openDetail, openItem, setWindowKey: openGroupKey, host };
+  /** Vertrags-Fenster direkt (Vertrag unter „Wartet auf andere“, 28.10.2026). */
+  const openContract = (submissionId: string) => setContractFor(submissionId);
+  return { act, later, openDetail, openItem, openContract, setWindowKey: openGroupKey, host };
 }
 
-/** Die Aufgabe als Fenster: Grund, Deine Aufgabe, Ziel, Knöpfe. Die Liste bleibt kompakt. */
-export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater, onDetail }: {
+type Side = 'call' | 'done' | 'client' | 'candidate';
+
+/** Ergebnis des Anrufs bei Opt-In (29.10.2026). */
+type OptInOutcome = 'waehlt' | 'zeit' | 'will_nicht' | 'nicht_erreicht' | 'erreicht';
+const OPT_IN_OUTCOMES: { key: OptInOutcome; label: string }[] = [
+  { key: 'waehlt', label: 'Wählt heute selbst' },
+  { key: 'zeit', label: 'Keine Zeit passt' },
+  { key: 'will_nicht', label: 'Will nicht' },
+  { key: 'nicht_erreicht', label: 'Nicht erreicht' },
+];
+/** Anruf aus einer eigenen Erinnerung oder einem alten Hinweis */
+const CALL_OUTCOMES: { key: OptInOutcome; label: string }[] = [
+  { key: 'erreicht', label: 'Erreicht' },
+  { key: 'nicht_erreicht', label: 'Nicht erreicht' },
+];
+
+/**
+ * Schritte im Aufgaben-Fenster (29.10.2026, statt zweier Reiter): erst die Pflicht, dann das
+ * Optionale. Nach dem Senden bleibt das Fenster offen, der nächste Schritt ist dran.
+ */
+export function stepPlan(cat: string, first: string, opts: { itemType?: string; title?: string; phone?: boolean; hasCandidate?: boolean } = {}): { side: Side; label: string; optional?: boolean }[] {
+  // Eigene Erinnerung (29.10.2026): die Aufgabe selbst, eine Mail an den Kandidaten nur auf Wunsch, nie an den Kunden
+  if (opts.itemType === 'task') {
+    const mail = opts.hasCandidate ? [{ side: 'candidate' as const, label: `${first} eine Mail schreiben?`, optional: true }] : [];
+    return [{ side: cat === 'call' ? 'call' : 'done', label: opts.title || 'Erinnerung' }, ...mail];
+  }
+  if (cat === 'offer_counter_stalled') return [{ side: 'client', label: 'Kunden um Entscheidung bitten' }, { side: 'candidate', label: `${first} Bescheid geben?`, optional: true }];
+  if (cat === 'rejected_inform') return [{ side: 'candidate', label: `${first} informieren` }, { side: 'client', label: 'Kunden nach dem Grund fragen?', optional: true }];
+  if (cat === 'job_closed_inform') return [{ side: 'candidate', label: `${first} informieren` }];
+  if (cat.startsWith('opt_in_pending')) return [{ side: 'call', label: `${first} anrufen` }, { side: 'client', label: 'Kunden Bescheid geben?', optional: true }, { side: 'candidate', label: `${first} per Mail erinnern?`, optional: true }];
+  // Alte Hinweise: anrufen oder schreiben, keine allgemeine Erinnerung an den Kunden
+  return opts.phone
+    ? [{ side: 'call', label: `${first} anrufen` }, { side: 'candidate', label: `${first} eine Mail schreiben?`, optional: true }]
+    : [{ side: 'candidate', label: `An ${first}` }];
+}
+
+/** Anlass der Nachricht an den Kunden: Betreff und Schluss der Mail (recruiter-notify). */
+export const anlassOf = (cat: string) =>
+  cat === 'offer_counter_stalled' ? 'counter' : cat.startsWith('opt_in_pending') ? 'opt_in' : cat === 'rejected_inform' ? 'rejected' : undefined;
+
+function afterText(cat: string, first: string): string | null {
+  if (cat === 'offer_counter_stalled') return 'Danach wartest du. Die Zeile steht unter „Wartet auf andere“, bis der Kunde antwortet. Kommt nichts, ist nach 3 Werktagen die 2. Erinnerung dran.';
+  if (cat === 'rejected_inform' || cat === 'job_closed_inform') return `Erledigt, sobald ${first} informiert ist: Mail gesendet oder Anruf „erreicht“.`;
+  if (cat.startsWith('opt_in_pending')) return `Die Aufgabe bleibt, bis ${first} einen Termin wählt oder absagt. Nach dem Anruf ruht sie bis morgen, bei „Nicht erreicht“ 2 Std.`;
+  return null;
+}
+
+/** Die Aufgabe als Fenster: Grund, Deine Aufgabe in Schritten, Ziel, Knöpfe. Die Liste bleibt kompakt. */
+export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater, onSnooze, onDetail, onChanged }: {
   group: PersonGroup | null;
   initialTab: 'client' | 'candidate';
   onSend: (item: UnifiedTaskItem, action: 'client_nudge' | 'candidate_message', text: string, meta: Record<string, unknown>) => Promise<boolean>;
   onClose: () => void;
   onAct: (item: UnifiedTaskItem, guide: Guide) => void;
   onLater: (item: UnifiedTaskItem, until: Date) => void;
+  /** Vertagen, ohne das Fenster zu schließen (nach dem Anruf bei Opt-In). */
+  onSnooze: (item: UnifiedTaskItem, until: Date) => Promise<void>;
   onDetail: (item: UnifiedTaskItem) => void;
+  onChanged: () => void;
 }) {
   const navigate = useNavigate();
+  const { logActivity } = useActivityLogger();
+  const [outcome, setOutcome] = useState<OptInOutcome | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
+  const [allowAlt, setAllowAlt] = useState(false);
   const item = group?.primary ?? null;
-  const [tab, setTab] = useState<'client' | 'candidate'>(initialTab);
+  const [active, setActive] = useState<Side | null>(null);
+  const [sent, setSent] = useState<Partial<Record<Side, Date>>>({});
   const [intent, setIntent] = useState<string | null>(null);
   const [hints, setHints] = useState<string[]>([]);
   const [candKeys, setCandKeys] = useState<string[]>([]);
+  const [clientEdit, setClientEdit] = useState<string | null>(null);
+  const [candEdit, setCandEdit] = useState<string | null>(null);
+  const { user } = useAuth();
+  const myName = (user?.user_metadata as any)?.full_name ?? null;
   const [sending, setSending] = useState(false);
-  const [history, setHistory] = useState<{ title: string; created_at: string; activity_type: string }[]>([]);
+  const [history, setHistory] = useState<{ title: string; created_at: string; activity_type: string; metadata?: { sent?: boolean } | null }[]>([]);
   const set = useMemo(() => item ? messageSetFor(item.taskCategory, { jobTitle: item.jobTitle, firstName: firstName(item.candidateName) }) : null, [item?.itemId, item?.taskCategory, item?.jobTitle, item?.candidateName]);
+  const canClient = !!item?.submissionId && !!set && set.clientIntents.length > 0;
+  const canCandidate = !!item?.submissionId && !!item?.candidateEmail && !!set && set.candidate.length > 0;
+  const plan = item ? stepPlan(item.taskCategory, firstName(item.candidateName), { itemType: item.itemType, title: item.title, phone: !!item.candidatePhone, hasCandidate: !!item.candidateId }) : [];
+  const [callNote, setCallNote] = useState('');
+  const optIn = !!item && item.taskCategory.startsWith('opt_in_pending');
   useEffect(() => {
-    setTab(initialTab);
-    setIntent(set?.clientIntents[0]?.key ?? null);
+    const can = (s: Side) => (s === 'call' || s === 'done' ? true : s === 'client' ? canClient : canCandidate);
+    const wanted = plan.find(p => p.side === initialTab && can(p.side) && !p.optional)?.side;
+    setActive(wanted ?? plan.find(p => can(p.side))?.side ?? null);
+    setSent({});
+    setClientEdit(null);
+    setCandEdit(null);
+    setOutcome(null);
+    setDeclineReason('');
+    // Opt-In: die Bitte an den Kunden ergibt sich erst aus dem Anruf
+    setIntent(optIn ? null : set?.clientIntents[0]?.key ?? null);
     setHints([]);
     setCandKeys(set?.candidate[0] ? [set.candidate[0].key] : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.itemId, initialTab]);
+  const sentCount = Object.keys(sent).length;
+  // Opt-In: Darf der Kandidat in der Einladung selbst eine andere Zeit vorschlagen?
+  useEffect(() => {
+    setAllowAlt(false);
+    if (!optIn || !item?.submissionId) return;
+    supabase.from('interviews').select('allow_alternative').eq('submission_id', item.submissionId)
+      .in('status', ['pending_response', 'counter_proposed']).order('created_at', { ascending: false }).limit(1)
+      .then(({ data }) => setAllowAlt(!!(data as any)?.[0]?.allow_alternative));
+  }, [optIn, item?.submissionId]);
   useEffect(() => {
     if (!item?.submissionId) { setHistory([]); return; }
     supabase
       .from('candidate_activity_log')
-      .select('title, created_at, activity_type')
+      .select('title, created_at, activity_type, metadata')
       .eq('related_submission_id', item.submissionId)
       .order('created_at', { ascending: false })
       .limit(5)
       .then(({ data }) => setHistory((data ?? []) as any));
-  }, [item?.submissionId]);
+  }, [item?.submissionId, sentCount]);
   if (!group || !item || !set) return null;
   const guide = buildGuide(item);
   const fee = euro(item.feeValue);
   const first = firstName(item.candidateName);
-  const clientText = composeClientText(set, intent, hints);
-  const candidateText = composeCandidateText(set, candKeys);
+  // Text vor dem Senden änderbar (29.10.2026): ein Klick auf einen Baustein setzt ihn neu zusammen
+  const clientText = clientEdit ?? composeClientText(set, intent, hints);
+  const candidateText = candEdit ?? composeCandidateText(set, candKeys);
+  const meFirst = firstName(myName);
   const toggle = (list: string[], key: string) => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]);
-  const canClient = !!item.submissionId && set.clientIntents.length > 0;
-  const canCandidate = !!item.submissionId && !!item.candidateEmail && set.candidate.length > 0;
-  const send = async () => {
-    setSending(true);
-    const ok = tab === 'client'
-      ? await onSend(item, 'client_nudge', clientText, { intent, hints })
-      : await onSend(item, 'candidate_message', candidateText, { kind: candKeys.join(','), subject: set.candidateSubject });
-    setSending(false);
-    if (ok) onClose();
+  const can = (s: Side) => (s === 'call' || s === 'done' ? true : s === 'client' ? canClient : canCandidate);
+  const outcomes = optIn ? OPT_IN_OUTCOMES : CALL_OUTCOMES;
+  // Opt-In „Keine Zeit passt“ ohne eigene Zeitwahl des Kandidaten: der Kunde muss neue Zeiten nennen
+  const optionalOf = (p: { side: Side; optional?: boolean }) => (optIn && p.side === 'client' && outcome === 'zeit' && !allowAlt ? false : !!p.optional);
+  const stepLabel = (p: { side: Side; label: string }) => (optIn && p.side === 'client' && outcome === 'zeit' ? 'Kunden um weitere Zeiten bitten' : p.label);
+  const after = afterText(item.taskCategory, first);
+  const outcomeLabel = outcomes.find(o => o.key === outcome)?.label ?? '';
+  // Für den Kandidaten abgesagt: keine weiteren Schritte mehr
+  const declined = optIn && outcome === 'will_nicht' && !!sent.call;
+  const markDone = (side: Side, nextActive?: Side | null) => {
+    const next = { ...sent, [side]: new Date() };
+    setSent(next);
+    setActive(nextActive !== undefined ? nextActive : plan.find(p => !next[p.side] && can(p.side))?.side ?? null);
   };
+  const logCall = (reached: boolean, label: string, note?: string) => item.candidateId
+    ? logActivity(item.candidateId, 'call', reached ? `Erreicht: ${label}` : 'Nicht erreicht', note, { reached, outcome: label, task_category: item.taskCategory }, item.submissionId || undefined)
+    : Promise.resolve(null);
+  const pickOutcome = async (o: OptInOutcome) => {
+    setOutcome(o);
+    setClientEdit(null);
+    setCandEdit(null);
+    if (o === 'will_nicht') return;
+    const label = outcomes.find(x => x.key === o)!.label;
+    await logCall(o !== 'nicht_erreicht', label, callNote.trim() || undefined);
+    // Eigene Erinnerung oder alter Hinweis: erreicht = erledigt, sonst in 2 Std. wieder
+    if (!optIn) {
+      if (o === 'erreicht') { onAct(item, { ...guide, primary: { label: 'Erledigt', kind: 'done' } }); return; }
+      await onSnooze(item, new Date(Date.now() + 2 * 3_600_000));
+      markDone('call', canCandidate ? 'candidate' : null);
+      toast.success('Festgehalten. In 2 Std. wieder oben.');
+      onChanged();
+      return;
+    }
+    const tomorrow = new Date(Date.now() + DAY_MS); tomorrow.setHours(9, 0, 0, 0);
+    if (o === 'waehlt') { setIntent('reached'); await onSnooze(item, tomorrow); markDone('call', 'client'); }
+    if (o === 'zeit') { setIntent('newslots'); setCandKeys([allowAlt ? 'alt' : 'notfit']); await onSnooze(item, tomorrow); markDone('call', allowAlt ? 'candidate' : 'client'); }
+    if (o === 'nicht_erreicht') { setCandKeys(['remind']); await onSnooze(item, new Date(Date.now() + 2 * 3_600_000)); markDone('call', 'candidate'); }
+    toast.success(o === 'nicht_erreicht' ? 'Festgehalten. In 2 Std. wieder oben.' : 'Anruf festgehalten.');
+    onChanged();
+  };
+  const declineForCandidate = async () => {
+    if (!item.submissionId) return;
+    setSending(true);
+    const { data, error } = await supabase.functions.invoke('interview-request', { body: { action: 'decline_for_candidate', submissionId: item.submissionId, reason: declineReason.trim() } });
+    const failure = await functionError(error, data, 'interview-request');
+    setSending(false);
+    if (failure) { toast.error(failure); return; }
+    await logCall(true, 'Will nicht', declineReason.trim() || undefined);
+    toast.success(`Einladung für ${first} abgesagt. Der Kunde ist informiert.`);
+    markDone('call', null);
+    onChanged();
+  };
+  const time = (d: Date) => d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const send = async (side: Side) => {
+    setSending(true);
+    const ok = side === 'client'
+      ? await onSend(item, 'client_nudge', clientText.trim(), { intent, hints, anlass: anlassOf(item.taskCategory) })
+      : await onSend(item, 'candidate_message', candidateText.trim(), { kind: candKeys.join(','), subject: set.candidateSubject });
+    setSending(false);
+    if (!ok) return;
+    const next = { ...sent, [side]: new Date() };
+    setSent(next);
+    setActive(plan.find(p => !next[p.side] && can(p.side))?.side ?? null);
+  };
+  const called = () => onAct(item, { ...guide, primary: { label: 'Angerufen', kind: 'called' } });
 
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="gap-0 p-0 sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] gap-0 overflow-y-auto p-0 sm:max-w-3xl">
         <DialogHeader className="space-y-2 border-b p-5 pb-4 text-left">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{group.initials}</div>
@@ -554,49 +793,123 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
                 <p className="text-xs text-muted-foreground">Noch kein Kontakt zu diesem Deal.</p>
               ) : (
                 <ul className="space-y-1 text-xs">
-                  {history.map((h, i) => <li key={i} className="flex gap-2"><span className="w-12 shrink-0 text-muted-foreground tabular-nums">{dateDe(h.created_at)}</span><span>{h.title}</span></li>)}
+                  {history.map((h, i) => <li key={i} className="flex gap-2"><span className="w-12 shrink-0 text-muted-foreground tabular-nums">{dateDe(h.created_at)}</span><span>{h.title}{h.metadata?.sent === false ? ' (nicht gesendet)' : ''}</span></li>)}
                 </ul>
               )}
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-            <div className="mb-2 inline-flex rounded-md border border-border/60 bg-background p-0.5 text-xs">
-              <button type="button" disabled={!canClient} className={cn('rounded px-2.5 py-1', tab === 'client' ? 'bg-accent text-foreground' : 'text-muted-foreground', !canClient && 'opacity-40')} onClick={() => setTab('client')}>An den Kunden</button>
-              <button type="button" disabled={!canCandidate} className={cn('rounded px-2.5 py-1', tab === 'candidate' ? 'bg-accent text-foreground' : 'text-muted-foreground', !canCandidate && 'opacity-40')} onClick={() => setTab('candidate')}>An {first}</button>
-            </div>
-            {tab === 'client' ? (
-              <>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Was möchtest du?</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {set.clientIntents.map(c => (
-                    <Button key={c.key} size="sm" variant={intent === c.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setIntent(c.key)}>{c.label}</Button>
-                  ))}
-                </div>
-                {set.clientHints.length > 0 && (
-                  <>
-                    <p className="mb-1 mt-3 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Hinweis mitgeben</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {set.clientHints.map(c => (
-                        <Button key={c.key} size="sm" variant={hints.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setHints(h => toggle(h, c.key))}>{c.label}</Button>
-                      ))}
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Deine Aufgabe</p>
+            {(declined ? plan.filter(x => x.side === 'call') : plan).map((p, idx) => {
+              const done = sent[p.side];
+              const open = active === p.side && !done;
+              return (
+                <div key={p.side} className="flex gap-2.5">
+                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', done ? 'bg-emerald-500 text-white' : open ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground')}>
+                    {done ? <Check className="h-3 w-3" /> : idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className={cn('text-sm', open || done ? 'font-medium' : 'text-muted-foreground')}>
+                        {done ? (p.side === 'call' ? `${first} angerufen · ${outcomeLabel}${outcome === 'will_nicht' ? ' · Einladung abgesagt' : ''}` : `${p.side === 'client' ? 'Kunde' : first} · gesendet ${time(done)}`) : stepLabel(p)}
+                        {!done && optionalOf(p) && <span className="font-normal text-muted-foreground"> · optional</span>}
+                      </p>
+                      {!done && !open && can(p.side) && (
+                        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setActive(p.side)}>{optionalOf(p) ? 'Ja, schreiben' : 'Jetzt'}</button>
+                      )}
                     </div>
-                  </>
-                )}
-                <p className="mt-3 rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">{clientText || 'Wähle eine Bitte.'}</p>
-                <p className="mt-2 text-xs text-muted-foreground">Geht als Benachrichtigung ins Kunden-Dashboard und als Mail. Vor Opt-In nur das Bewerber-Kürzel, kein Name. Höchstens einmal in drei Tagen.</p>
-              </>
-            ) : (
-              <>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Was soll {first} wissen?</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {set.candidate.map(c => (
-                    <Button key={c.key} size="sm" variant={candKeys.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setCandKeys(k => toggle(k, c.key))}>{c.label}</Button>
-                  ))}
+                    {open && p.side === 'call' && (
+                      <>
+                        {item.candidatePhone ? (
+                          <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" asChild><a href={`tel:${item.candidatePhone}`}><Phone className="h-3 w-3" />{item.candidatePhone}</a></Button>
+                        ) : <p className="text-xs text-muted-foreground">Keine Telefonnummer hinterlegt.</p>}
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Was kam raus?</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {outcomes.map(o => (
+                            <Button key={o.key} size="sm" variant={outcome === o.key ? 'default' : 'outline'} className="h-7 text-xs" disabled={sending} onClick={() => pickOutcome(o.key)}>{o.label}</Button>
+                          ))}
+                        </div>
+                        {!optIn && (
+                          <Textarea value={callNote} onChange={e => setCallNote(e.target.value)} placeholder="Notiz, eine Zeile …" rows={2} className="text-sm" />
+                        )}
+                        {outcome === 'will_nicht' && (
+                          <div className="space-y-1.5">
+                            <Textarea value={declineReason} onChange={e => setDeclineReason(e.target.value)} placeholder={`Warum will ${first} nicht? Der Kunde sieht den Grund.`} rows={2} className="text-sm" />
+                            <Button size="sm" variant="destructive" className="h-8 text-xs" disabled={sending} onClick={declineForCandidate}>Für {first} absagen</Button>
+                            <p className="text-xs text-muted-foreground">Die Einladung ist damit abgesagt. Der Kunde bekommt die übliche Mail, dass {first} das Interview abgelehnt hat.</p>
+                          </div>
+                        )}
+                        {outcome === 'zeit' && allowAlt && (
+                          <p className="text-xs text-muted-foreground">{first} kann in der Einladung selbst „Andere Zeit“ wählen. Sag es {first} am Telefon oder per Mail.</p>
+                        )}
+                      </>
+                    )}
+                    {open && p.side === 'done' && (
+                      <p className="text-xs text-muted-foreground">Wenn es erledigt ist: unten „Erledigt“.</p>
+                    )}
+                    {!can(p.side) && !done && (
+                      <p className="text-xs text-muted-foreground">{p.side === 'candidate' ? `Keine E-Mail von ${first} hinterlegt. Ruf an.` : 'Hier nicht möglich.'}</p>
+                    )}
+                    {open && p.side === 'client' && (
+                      <>
+                        <div className="flex flex-wrap gap-1.5">
+                          {set.clientIntents.map(c => (
+                            <Button key={c.key} size="sm" variant={intent === c.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setIntent(c.key); setClientEdit(null); }}>{c.label}</Button>
+                          ))}
+                        </div>
+                        {set.clientHints.length > 0 && (
+                          <>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Hinweis mitgeben</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {set.clientHints.map(c => (
+                                <Button key={c.key} size="sm" variant={hints.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setHints(h => toggle(h, c.key)); setClientEdit(null); }}>{c.label}</Button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                        <Textarea value={clientText} onChange={e => setClientEdit(e.target.value)} placeholder="Wähle eine Bitte oder schreib selbst." rows={4} className="text-sm" />
+                        <p className="text-[11px] text-muted-foreground">Die Mail beginnt mit „Guten Tag …“ und dem Bezug zur Stelle, danach kommt dein Text, am Ende dein Gruß.</p>
+                        <p className="text-xs text-muted-foreground">Geht als Benachrichtigung ins Kunden-Dashboard und als Mail. Vor Opt-In nur das Bewerber-Kürzel, kein Name.</p>
+                        <Button size="sm" className="h-8 gap-1 text-xs" disabled={sending || !clientText} onClick={() => send('client')}>
+                          <Mail className="h-3 w-3" />{item.taskCategory === 'offer_counter_stalled' ? 'Kunden erinnern' : 'An den Kunden senden'}
+                        </Button>
+                      </>
+                    )}
+                    {open && p.side === 'candidate' && (
+                      <>
+                        <div className="flex flex-wrap gap-1.5">
+                          {set.candidate.filter(c => c.key !== 'alt' || allowAlt).map(c => (
+                            <Button key={c.key} size="sm" variant={candKeys.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setCandKeys(k => toggle(k, c.key)); setCandEdit(null); }}>{c.label}</Button>
+                          ))}
+                        </div>
+                        <div className="rounded-md border border-border/60 bg-background/60 p-2 text-sm">
+                          <p className="mb-1">Hallo {first},</p>
+                          <Textarea value={candidateText} onChange={e => setCandEdit(e.target.value)} placeholder="Wähle einen Satz oder schreib selbst." rows={5} className="text-sm" />
+                          <p className="mt-1 whitespace-pre-line text-muted-foreground">{`Viele Grüße\n${meFirst}`}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Mail über Matchunt mit deinem Namen, Antworten landen bei dir. Kein Firmenname vor Reveal.</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Button size="sm" className="h-8 gap-1 text-xs" disabled={sending || !candidateText} onClick={() => send('candidate')}>
+                            <Mail className="h-3 w-3" />An {first} senden
+                          </Button>
+                          {!plan.some(x => x.side === 'call') && (
+                            <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={called}>
+                              <Phone className="h-3 w-3" />Angerufen
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-3 rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">{candidateText ? `Hallo ${first}, ${candidateText}` : 'Wähle einen Satz.'}</p>
-                <p className="mt-2 text-xs text-muted-foreground">Mail über Matchunt mit deinem Namen, Antworten landen bei dir. Kein Firmenname vor Reveal.</p>
-              </>
+              );
+            })}
+            {after && (
+              <div className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">{declined ? 2 : plan.length + 1}</span>
+                <p className="text-xs leading-5 text-muted-foreground">{declined ? 'Erledigt: Die Einladung ist abgesagt, der Kunde ist informiert.' : after}</p>
+              </div>
             )}
           </div>
         </div>
@@ -612,21 +925,18 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
               <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/submissions/${item.submissionId}`)}>Einreichung</Button>
             )}
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => onDetail(item)}>Details</Button>
-            {(guide.primary.kind === 'call' || guide.primary.kind === 'followup') && (
+            {(guide.primary.kind === 'call' || guide.primary.kind === 'followup') && !plan.some(p => p.side === 'call') && (
               <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={() => onAct(item, guide)}>
                 <Phone className="h-3 w-3" />{guide.primary.kind === 'call' ? 'Anrufen' : 'Nachgefasst'}
               </Button>
             )}
-            {guide.primary.kind === 'debrief' || guide.primary.kind === 'done' || guide.primary.kind === 'offer' || guide.primary.kind === 'recommend' || guide.primary.kind === 'contract' ? (
+            {(guide.primary.kind === 'debrief' || guide.primary.kind === 'done' || guide.primary.kind === 'offer' || guide.primary.kind === 'recommend' || guide.primary.kind === 'contract') && (
               <Button size="sm" className="h-8 gap-1 text-xs" onClick={() => onAct(item, guide)}>
                 {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
                 {guide.primary.label}
               </Button>
-            ) : (
-              <Button size="sm" className="h-8 gap-1 text-xs" disabled={sending || (tab === 'client' ? !clientText || !canClient : !candidateText || !canCandidate)} onClick={send}>
-                <Mail className="h-3 w-3" />{tab === 'client' ? 'An den Kunden senden' : `An ${first} senden`}
-              </Button>
             )}
+            {sentCount > 0 && <Button size="sm" className="h-8 text-xs" onClick={onClose}>Fertig</Button>}
           </div>
         </div>
       </DialogContent>

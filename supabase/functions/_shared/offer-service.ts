@@ -11,8 +11,10 @@ import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@
 import { canUserActOnJob } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './offer-mails.ts';
+import { DECLINE_REASONS, cancelCandidateMails, candidateState, reportAccept, revokeCandidateLinks, scheduleCandidateMail } from './offer-candidate.ts';
 
-export const OPEN_STATUSES = ['with_recruiter', 'considering', 'countered'];
+// accept_reported: Headhunter hat eine Zusage gemeldet, der Kandidat bestätigt noch (G + H, 25.10.2026)
+export const OPEN_STATUSES = ['with_recruiter', 'considering', 'countered', 'accept_reported'];
 const CLOSED_STAGES = ['placed', 'hired', 'rejected', 'client_rejected', 'withdrawn'];
 const UUID = /^[0-9a-f-]{36}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -94,7 +96,7 @@ async function feePercent(db: SupabaseClient, job: any): Promise<number | null> 
   return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
 }
 
-export function offerView(o: any) {
+export function offerView(o: any, now: number = Date.now()) {
   if (!o) return null;
   return {
     id: o.id, status: o.status, version: o.version ?? 1,
@@ -102,6 +104,9 @@ export function offerView(o: any) {
     contractType: o.contract_type ?? 'permanent', probationMonths: o.probation_months ?? null, workModel: o.work_model ?? null,
     extras: o.extras ?? [], message: o.message_to_recruiter ?? null, sentAt: o.sent_at ?? null,
     response: o.candidate_response ?? null, respondedAt: o.responded_at ?? null,
+    candidateMessage: o.candidate_message ?? null,
+    // Angebot beim Kandidaten: Mail, Rückrufwunsch, gemeldete und bestätigte Zusage
+    candidate: candidateState(o, now),
   };
 }
 
@@ -135,7 +140,7 @@ export async function offerContext(ctx: ServiceCtx, user: User, body: any) {
     feePercent: pct,
     defaults: { workModel: workModelOf(b.job), extras: (b.job.benefits ?? []) as string[], probationMonths: 6, contractType: 'permanent' },
     recommendation: rec ? { intro: rec.intro ?? null, items: rec.items ?? [], createdAt: rec.created_at } : null,
-    currentOffer: offerView((offers ?? [])[0]),
+    currentOffer: offerView((offers ?? [])[0], ctx.now()),
     otherOpenOffers: ((others ?? []) as any[]).filter((o) => o.submission_id !== b.submission.id).length,
   };
 }
@@ -183,7 +188,7 @@ export async function recruiterContext(ctx: ServiceCtx, user: User, body: any) {
     akte: { expectedSalary: (akte as any)?.expected_salary ?? null, noticePeriod: (akte as any)?.notice_period ?? null, availabilityDate: (akte as any)?.availability_date ?? null },
     nachgespraech: await mergeNachgespraeche(ctx.db, (nach ?? []) as any[]),
     recommendation: rec ? { intro: rec.intro ?? null, items: rec.items ?? [], createdAt: rec.created_at } : null,
-    currentOffer: offerView((offers ?? [])[0]),
+    currentOffer: offerView((offers ?? [])[0], ctx.now()),
   };
 }
 
@@ -197,7 +202,7 @@ function validDate(v: unknown, what: string): string {
 }
 const todayKey = (now: number) => new Date(now).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 
-export async function createOffer(ctx: ServiceCtx, user: User, body: any) {
+export async function createOffer(ctx: ServiceCtx, user: User, body: any, opts: { immediate?: boolean } = {}) {
   const b = await requireClient(ctx, user, body?.submissionId);
   must(b.submission.identity_unlocked, 'Ein Angebot geht erst, wenn der Kandidat sein Profil freigegeben hat.', 'conflict');
   must(!CLOSED_STAGES.includes(String(b.submission.stage ?? '')) && !CLOSED_STAGES.includes(String(b.submission.status ?? '')), 'Diese Bewerbung ist abgeschlossen.', 'conflict');
@@ -220,12 +225,16 @@ export async function createOffer(ctx: ServiceCtx, user: User, body: any) {
   const workModel = typeof body.workModel === 'string' ? body.workModel.trim().slice(0, 200) || null : null;
   const extras = (Array.isArray(body.extras) ? body.extras : []).map((x: unknown) => String(x ?? '').trim().slice(0, 60)).filter(Boolean).slice(0, 20);
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) || null : null;
+  // Nachricht an den Kandidaten (steht auf seiner Seite); die Nachricht oben bleibt für den Headhunter
+  const candidateMessage = typeof body.candidateMessage === 'string' ? body.candidateMessage.trim().slice(0, 2000) || null : null;
 
   // Offenes Angebot dieser Bewerbung wird ersetzt
   const { data: openRows } = await ctx.db.from('offers').select('*').eq('submission_id', b.submission.id).in('status', OPEN_STATUSES);
   const previous = ((openRows ?? []) as any[]).sort((x, y) => (y.version ?? 1) - (x.version ?? 1))[0] ?? null;
   for (const o of (openRows ?? []) as any[]) {
     await ctx.db.from('offers').update({ status: 'superseded', updated_at: new Date(ctx.now()).toISOString() }).eq('id', o.id);
+    await cancelCandidateMails(ctx, o);
+    await revokeCandidateLinks(ctx, o.id);
     await event(ctx, o.id, 'superseded', 'client', user.id);
   }
   const nowIso = new Date(ctx.now()).toISOString();
@@ -233,7 +242,7 @@ export async function createOffer(ctx: ServiceCtx, user: User, body: any) {
     submission_id: b.submission.id, job_id: b.job.id, candidate_id: b.submission.candidate_id, client_id: b.job.client_id, recruiter_id: b.submission.recruiter_id,
     position_title: b.job.title, salary_offered: salary, variable_salary: variable, start_date: startDate, response_due: responseDue,
     expires_at: `${responseDue}T23:59:59+01:00`, contract_type: contractType, probation_months: probation, work_model: workModel,
-    location: b.job.location ?? null, extras, benefits: extras, message_to_recruiter: message,
+    location: b.job.location ?? null, extras, benefits: extras, message_to_recruiter: message, candidate_message: candidateMessage,
     status: 'with_recruiter', sent_at: nowIso, created_by: user.id,
     version: previous ? (previous.version ?? 1) + 1 : 1, previous_offer_id: previous?.id ?? null,
     original_salary: previous?.original_salary ?? previous?.salary_offered ?? salary,
@@ -254,75 +263,74 @@ export async function createOffer(ctx: ServiceCtx, user: User, body: any) {
     });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'offer_received_recruiter', meta: { offer_id: (offer as any).id } });
   }
-  return { offerId: (offer as any).id, offer: offerView(offer) };
+  // Der Kandidat bekommt das Angebot schriftlich: nach „Gespräch geführt“, spätestens nach 2 Std.
+  const planned = await scheduleCandidateMail(ctx, (offer as any).id, { immediate: !!opts.immediate });
+  const { data: fresh } = await ctx.db.from('offers').select('*').eq('id', (offer as any).id).maybeSingle();
+  return { offerId: (offer as any).id, offer: offerView(fresh ?? offer, ctx.now()), candidateMailAt: planned.dueAt };
 }
 
 // ---------------------------------------------------------------------------
 // Headhunter: Antwort des Kandidaten eintragen
 // ---------------------------------------------------------------------------
 
-const DECLINE_REASONS: Record<string, string> = {
-  salary: 'Gehalt', counter_offer: 'Gegenangebot des Arbeitgebers', other_job: 'andere Stelle', personal: 'persönliche Gründe', other: 'anderer Grund',
-};
 
 export async function respondOffer(ctx: ServiceCtx, user: User, body: any) {
   const offer = await loadOffer(ctx.db, body?.offerId);
   const b = await loadBundle(ctx.db, offer.submission_id);
   must(b.submission.recruiter_id === user.id || await isAdmin(ctx.db, user.id), 'Nur der Headhunter dieses Kandidaten trägt die Antwort ein.', 'not_allowed');
+  // 'considering' nur noch für ältere Angebote von vor G + H
   must(['with_recruiter', 'considering'].includes(offer.status), 'Für dieses Angebot ist keine Antwort mehr offen.', 'conflict');
   const way = body?.way as mails.AnswerWay;
-  must(['accepted', 'considering', 'countered', 'declined'].includes(way), 'Bitte die Antwort wählen.');
+  // „Überlegt noch“ gibt es seit G + H nicht mehr: es gilt die Antwortfrist des Kunden
+  must(way !== 'considering', '„Überlegt noch“ gibt es nicht mehr. Bitten Sie den Kunden bei Bedarf um eine längere Antwortfrist.');
+  must(['accepted', 'countered', 'declined'].includes(way), 'Bitte die Antwort wählen.');
   const text = (v: unknown, max = 1000) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const note = text(body.note) || null;
   const nowIso = new Date(ctx.now()).toISOString();
   const response: Record<string, unknown> = { way, note, at: nowIso, by: user.id };
   const patch: Record<string, unknown> = { responded_at: nowIso, responded_by: user.id, updated_at: nowIso };
 
-  if (way === 'considering') {
-    const until = validDate(body.until, 'das Datum, bis wann er antwortet');
-    must(until >= todayKey(ctx.now()), 'Das Datum liegt in der Vergangenheit.');
-    response.until = until;
-    patch.status = 'considering';
-  } else if (way === 'countered') {
+  // Zusage: der Kandidat bestätigt sie selbst per Mail, erst dann gilt sie (G + H)
+  if (way === 'accepted') {
+    const startConfirmed = typeof body.startConfirmed === 'string' && DATE.test(body.startConfirmed) ? body.startConfirmed : null;
+    const updated = await reportAccept(ctx, user, offer, note, startConfirmed);
+    return { ok: true, offer: offerView(updated, ctx.now()), awaitingConfirmation: true };
+  }
+
+  if (way === 'countered') {
+    // Pflicht-Haken: der Headhunter steht dafür ein, dass der Kandidat bei diesen Werten zusagt
+    must(body?.candidateAgrees === true, 'Bitte bestätigen Sie: Der Kandidat sagt bei diesen Werten zu.');
     const num = (v: unknown) => (v == null || v === '' ? null : Math.round(Number(v)));
     const wish = { salary: num(body.wishSalary), variable: num(body.wishVariable), startDate: typeof body.wishStart === 'string' && DATE.test(body.wishStart) ? body.wishStart : null, other: text(body.wishOther, 300) || null };
     must(wish.salary || wish.variable || wish.startDate || wish.other, 'Bitte eintragen, was sich der Kandidat wünscht.');
     must(!wish.salary || (wish.salary >= 10000 && wish.salary <= 2000000), 'Bitte ein gültiges Wunschgehalt angeben.');
     response.wish = wish;
     response.reason = text(body.reason) || null;
+    response.candidate_agrees = true;
     Object.assign(patch, { status: 'countered', counter_offer_salary: wish.salary, counter_offer_at: nowIso, counter_offer_notes: response.reason, negotiation_rounds: (offer.negotiation_rounds ?? 0) + 1 });
   } else if (way === 'declined') {
     const category = DECLINE_REASONS[body.reasonCategory] ? body.reasonCategory : 'other';
     response.reason_category = category;
     response.reason = text(body.reason) || null;
     Object.assign(patch, { status: 'declined', decision_at: nowIso, rejection_reason: [DECLINE_REASONS[category], response.reason].filter(Boolean).join(': ') });
-  } else {
-    if (typeof body.startConfirmed === 'string' && DATE.test(body.startConfirmed)) {
-      response.start_confirmed = body.startConfirmed;
-      patch.start_date = body.startConfirmed;
-    }
-    Object.assign(patch, { status: 'accepted', decision_at: nowIso });
   }
   patch.candidate_response = response;
+  // Noch nicht verschickte Mail an den Kandidaten zurückhalten: verhandelt wird jetzt über den Kunden
+  const mailPending = !offer.candidate_mail_sent_at && offer.candidate_mail_due_at && Date.parse(offer.candidate_mail_due_at) > ctx.now();
+  if (mailPending) Object.assign(patch, { candidate_mail_due_at: null, candidate_mail_id: null });
+  if (way === 'countered') patch.callback_done_at = offer.callback_requested_at && !offer.callback_done_at ? nowIso : offer.callback_done_at ?? null;
   const { data: updated, error } = await ctx.db.from('offers').update(patch).eq('id', offer.id).in('status', ['with_recruiter', 'considering']).select('*').maybeSingle();
   dbFail(error, 'Die Antwort');
   must(updated, 'Für dieses Angebot ist keine Antwort mehr offen.', 'conflict');
   await event(ctx, offer.id, `answer_${way}`, 'recruiter', user.id, response);
-  // Zusage: der Arbeitsvertrag beginnt („Vertrag in Arbeit“, Paket 3)
-  if (way === 'accepted') {
-    const { error: cErr } = await ctx.db.from('employment_contracts').insert({
-      submission_id: b.submission.id, offer_id: offer.id, job_id: b.job.id, way: 'self', status: 'preparing',
-      salary: (updated as any).salary_offered, variable_salary: (updated as any).variable_salary ?? null, start_date: (updated as any).start_date ?? null, created_by: user.id,
-    });
-    if (cErr && cErr.code !== '23505') console.warn('[offer] Vertrag nicht angelegt', cErr.code, cErr.message);
-  }
+  await cancelCandidateMails(ctx, offer);
+  if (way === 'declined') await revokeCandidateLinks(ctx, offer.id);
 
   // Kundenseite: wer das Angebot gemacht hat, dazu der Ersteller der Stelle
   const recipients = [...new Set([offer.created_by, b.job.client_id].filter(Boolean))] as string[];
   const recruiterName = b.recruiter?.name || 'Ihr Headhunter';
   const first = firstName(b.candidate.full_name) ?? 'Der Kandidat';
-  const title = way === 'accepted' ? `${b.candidate.full_name} hat zugesagt`
-    : way === 'considering' ? `${first} überlegt noch` : way === 'countered' ? `${first} hat einen Gegenwunsch` : `${b.candidate.full_name} hat abgesagt`;
+  const title = way === 'countered' ? `${first} hat einen Gegenwunsch` : `${b.candidate.full_name} hat abgesagt`;
   const wish = response.wish as any;
   const message = way === 'countered' && wish?.salary ? `wünscht ${euro(wish.salary)} statt ${euro(offer.salary_offered)}` : way === 'declined' ? String((updated as any).rejection_reason ?? '') : note ?? b.job.title;
   for (const uid of recipients) {
@@ -336,7 +344,7 @@ export async function respondOffer(ctx: ServiceCtx, user: User, body: any) {
     });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: `offer_answer_${way}`, meta: { offer_id: offer.id } });
   }
-  return { ok: true, offer: offerView(updated) };
+  return { ok: true, offer: offerView(updated, ctx.now()) };
 }
 
 // ---------------------------------------------------------------------------
@@ -364,6 +372,8 @@ export async function keepOffer(ctx: ServiceCtx, user: User, body: any) {
   const response = { ...(offer.candidate_response ?? {}), client_keep: { at: new Date(ctx.now()).toISOString(), by: user.id, note } };
   await ctx.db.from('offers').update({ status: 'with_recruiter', candidate_response: response, updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);
   await event(ctx, offer.id, 'client_keeps', 'client', user.id, { note });
+  // Hatte der Kandidat das Angebot noch nicht schriftlich: jetzt (der Headhunter hat schon gesprochen)
+  if (!offer.candidate_mail_due_at) await scheduleCandidateMail(ctx, offer.id, { immediate: true });
   await tellRecruiter(ctx, b, offer.id, `bleibt bei ${euro(offer.salary_offered)}${note ? ` („${note}“)` : ''}. Bitte noch einmal mit ${firstName(b.candidate.full_name)} sprechen.`);
   return { ok: true };
 }
@@ -387,7 +397,8 @@ export async function acceptCounter(ctx: ServiceCtx, user: User, body: any) {
     startDate: start, responseDue: due,
     contractType: offer.contract_type, probationMonths: offer.probation_months, workModel: offer.work_model, extras: offer.extras ?? [],
     message: wish.other ? `Wunsch angenommen, auch: ${String(wish.other).slice(0, 300)}` : 'Wunsch angenommen.',
-  });
+    candidateMessage: offer.candidate_message ?? null,
+  }, { immediate: true }); // der Headhunter hat zugesichert, dass der Kandidat bei diesen Werten zusagt
   await event(ctx, res.offerId, 'counter_accepted', 'client', user.id, { fromOfferId: offer.id });
   return res;
 }
@@ -406,6 +417,8 @@ export async function withdrawOffer(ctx: ServiceCtx, user: User, body: any) {
   const { offer, b } = await clientOffer(ctx, user, body?.offerId);
   must(OPEN_STATUSES.includes(offer.status), 'Dieses Angebot ist nicht mehr offen.', 'conflict');
   await ctx.db.from('offers').update({ status: 'withdrawn', decision_at: new Date(ctx.now()).toISOString(), updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);
+  await cancelCandidateMails(ctx, offer);
+  await revokeCandidateLinks(ctx, offer.id);
   await event(ctx, offer.id, 'withdrawn', 'client', user.id);
   await tellRecruiter(ctx, b, offer.id, 'hat das Angebot zurückgezogen');
   return { ok: true };
@@ -413,7 +426,7 @@ export async function withdrawOffer(ctx: ServiceCtx, user: User, body: any) {
 
 export async function extendOffer(ctx: ServiceCtx, user: User, body: any) {
   const { offer, b } = await clientOffer(ctx, user, body?.offerId);
-  must(['with_recruiter', 'considering'].includes(offer.status), 'Dieses Angebot ist nicht mehr offen.', 'conflict');
+  must(['with_recruiter', 'considering', 'accept_reported'].includes(offer.status), 'Dieses Angebot ist nicht mehr offen.', 'conflict');
   const due = validDate(body.responseDue, 'eine neue Frist');
   must(due >= todayKey(ctx.now()), 'Die neue Frist liegt in der Vergangenheit.');
   await ctx.db.from('offers').update({ response_due: due, expires_at: `${due}T23:59:59+01:00`, updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);

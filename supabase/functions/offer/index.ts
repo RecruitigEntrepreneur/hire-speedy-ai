@@ -6,6 +6,7 @@ import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { authUser, defaultCtx, interviewFailure, must } from '../_shared/interview-service.ts';
 import { acceptCounter, createOffer, extendOffer, keepOffer, offerContext, recommend, recruiterContext, respondOffer, withdrawOffer } from '../_shared/offer-service.ts';
+import { recruiterCallbackDone, recruiterTalked } from '../_shared/offer-candidate.ts';
 
 serve(async (req) => {
   const pre = preflight(req);
@@ -20,6 +21,9 @@ serve(async (req) => {
       case 'recruiter_context': return json(await recruiterContext(ctx, user, body));
       case 'create': return json(await createOffer(ctx, user, body));
       case 'respond': return json(await respondOffer(ctx, user, body));
+      // Headhunter hat mit dem Kandidaten gesprochen: Mail mit dem Angebot geht jetzt raus (G + H)
+      case 'talked': return json(await recruiterTalked(ctx, user, body));
+      case 'callback_done': return json(await recruiterCallbackDone(ctx, user, body));
       case 'keep': return json(await keepOffer(ctx, user, body));
       case 'accept_counter': return json(await acceptCounter(ctx, user, body));
       case 'withdraw': return json(await withdrawOffer(ctx, user, body));

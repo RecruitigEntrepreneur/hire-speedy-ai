@@ -97,6 +97,7 @@ import { AppFeedback } from "./components/feedback/AppFeedback";
 import SelectSlot from "./pages/interview/SelectSlot";
 import InterviewResponsePage from "./pages/interview/InterviewResponsePage";
 import SignLinkPage from "./pages/contract/SignLinkPage";
+import OfferAnswerPage from "./pages/offer/OfferAnswerPage";
 import ClientConfirmAlternative from "./pages/interview/ClientConfirmAlternative";
 import ViewOffer from "./pages/offer/ViewOffer";
 import OfferAccepted from "./pages/offer/OfferAccepted";
@@ -597,6 +598,8 @@ function AppRoutes() {
       <Route path="/interview/select/:token" element={<SelectSlot />} />
       <Route path="/interview/respond/:token" element={<InterviewResponsePage />} />
       <Route path="/unterschrift/:token" element={<SignLinkPage />} />
+      {/* Angebot an den Kandidaten (G + H, 25.10.2026): Antwortseite ohne Konto */}
+      <Route path="/angebot/:token" element={<OfferAnswerPage />} />
       {/* Kunde bestätigt die vom Kandidaten angefragte Zeit direkt aus der Mail, ohne Login. */}
       <Route path="/interview/bestaetigen/:token" element={<ClientConfirmAlternative />} />
       <Route path="/offer/view/:token" element={<ViewOffer />} />

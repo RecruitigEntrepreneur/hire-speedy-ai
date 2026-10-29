@@ -3,10 +3,11 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import type { InterviewMail } from '../functions/_shared/interview-mailer.ts';
-import { createOffer, respondOffer } from '../functions/_shared/offer-service.ts';
+import { createOffer } from '../functions/_shared/offer-service.ts';
 import { confirm, report, type ContractCtx } from '../functions/_shared/contract-service.ts';
 import { adminOverview, bookPayment, invoiceFile, invoicePreview, onContractFinal, releaseInvoice, type FilePort } from '../functions/_shared/placement-service.ts';
 import { BANK, NUMBERING, formatNumber, isReverseCharge } from '../functions/_shared/billing-config.ts';
+import { acceptAsCandidate } from './fixtures/offer-accept.ts';
 
 const assert = (v: unknown, m = 'Assertion failed') => { if (!v) throw Error(m); };
 const eq = (a: unknown, b: unknown, m = '') => { if (JSON.stringify(a) !== JSON.stringify(b)) throw Error(`${m} erwartet ${JSON.stringify(b)}, war ${JSON.stringify(a)}`); };
@@ -63,7 +64,7 @@ const OFFER = { salary: 150000, variable: 20000, startDate: '2027-01-01', respon
 
 async function signed(w: ReturnType<typeof world>, closeJob = true) {
   await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
-  await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'accepted' });
+  await acceptAsCandidate(w.ctx, w.sent, user(RECRUITER), w.tables.offers[0].id);
   await report(w.ctx, user(RECRUITER), { submissionId: SUB, signedOn: '2026-10-22', salary: 150000, variable: 20000, startDate: '2027-01-01', closeJob });
   await confirm(w.ctx, user(CLIENT), { submissionId: SUB, way: 'yes' });
 }

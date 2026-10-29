@@ -1,32 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
-import { clientBundleSet, composeClientText, inDays } from '@/lib/aufgabenTexte';
-import { WERKTAGE_BIS_NAECHSTE, addWorkdays, candidateUpdateChoice, candidateUpdateText, type StalledBundle } from '@/lib/kundePrueft';
+import { clientBundleSet, composeClientText, feedbackBundleSet, inDays } from '@/lib/aufgabenTexte';
+import { WERKTAGE_BIS_NAECHSTE, addWorkdays, candidateUpdateChoice, candidateUpdateText, viewText, type StalledBundle } from '@/lib/kundePrueft';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Check, Lock, Mail, Phone } from 'lucide-react';
 import { dateDe, euro, firstName } from './taskWindow';
 import { Honorar } from '@/components/recruiter/Honorar';
 
-type Sent = { at: Date; nudged: string[] };
+import { functionError } from '@/lib/functionError';
 
-async function functionError(error: any, data: any): Promise<string | null> {
-  if (data?.error) return typeof data.error === 'string' ? data.error : data.message ?? 'Senden fehlgeschlagen.';
-  if (!error) return null;
-  try {
-    const body = await error.context?.json?.();
-    if (body?.error || body?.message) return body.message ?? body.error;
-  } catch { /* kein JSON */ }
-  return /Failed to send a request/i.test(error.message ?? '')
-    ? 'Senden nicht möglich: Die Function „recruiter-notify“ ist noch nicht deployt.'
-    : error.message ?? 'Senden fehlgeschlagen.';
-}
+type Sent = { at: Date; nudged: string[] };
 
 /**
  * Fenster für eine Zeile „Kunde prüft“ (20.10.2026): ein Ziel, drei Schritte.
@@ -35,6 +26,8 @@ async function functionError(error: any, data: any): Promise<string | null> {
  *   2 Danach im selben Fenster: Kandidaten Bescheid geben? Vorausgewählt nur, wer
  *     seit 5 Werktagen nichts von dir gehört hat. Die Aufgabe ist so oder so erledigt.
  *   3 Wartet 3 Werktage; dann einmal die 2. Erinnerung; danach übernimmt Matchunt.
+ * Seit 28.10.2026 auch für „Kunde gibt kein Feedback“ (bundle.kind 'feedback'): gleiche
+ * Schritte, Bitte um den Eindruck aus dem Interview (intent interview_feedback).
  */
 export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDone }: {
   bundle: StalledBundle | null;
@@ -52,16 +45,20 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
   const [chosen, setChosen] = useState<string[]>([]);
+  const [clientEdit, setClientEdit] = useState<string | null>(null);
+  const [candEdit, setCandEdit] = useState<string | null>(null);
 
   useEffect(() => {
     setIntent(startSent ? bundle?.items[0]?.lastNudgeIntent ?? 'decision' : 'decision');
     setHints([]);
+    setClientEdit(null);
+    setCandEdit(null);
     setExtra(startSent ? [] : sameClient.map(b => b.key));
     if (bundle && startSent) {
       const nudged = bundle.items.map(i => i.submissionId).filter((x): x is string => !!x);
       setSent({ at: new Date(startSent.at), nudged });
       setChosen(bundle.items.filter(i => candidateUpdateChoice({
-        hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt,
+        hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung',
       }, new Date()).preselect).map(i => i.itemId));
     } else {
       setSent(null);
@@ -75,16 +72,27 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
     [bundle, sameClient, extra],
   );
   const items = included.flatMap(b => b.items);
-  const set = useMemo(() => clientBundleSet(items.length), [items.length]);
-  const clientText = composeClientText(set, intent, hints);
+  const feedback = bundle?.kind === 'feedback';
+  const firstCandidate = items[0]?.candidateName ?? null;
+  const set = useMemo(
+    () => (feedback ? feedbackBundleSet(items.length, firstName(firstCandidate)) : clientBundleSet(items.length)),
+    [feedback, items.length, firstCandidate],
+  );
+  // An den Server und für den Zwischenstand: nach dem Interview zählt der Eindruck, nicht eine Prüfung
+  const sendIntent = feedback ? 'interview_feedback' : intent;
+  // Text vor dem Senden änderbar (29.10.2026)
+  const clientText = clientEdit ?? composeClientText(set, intent, hints);
   const until = inDays(2);
   const now = new Date();
   const toggle = (list: string[], key: string) => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]);
 
   if (!bundle) return null;
-  const first = bundle.items[0];
-  const fee = euro(bundle.feeTotal);
-  const n = bundle.items.length;
+  // Zusammengefasste Kundenzeile (mehrere Stellen in einer Mail): Kopf und Grund zeigen alle (29.10.2026)
+  const multi = included.length > 1;
+  const first = items[0] ?? bundle.items[0];
+  const fee = euro(included.reduce((sum, b) => sum + b.feeTotal, 0));
+  const n = items.length;
+  const days = Math.max(...included.map(b => b.days));
   // Frisch: ist das hier die 2. Erinnerung? Aus „Wartet“: wurde schon zweimal erinnert?
   const frist = sent ? `bis ${dateDe(addWorkdays(sent.at, WERKTAGE_BIS_NAECHSTE).toISOString())}` : 'in 3 Werktagen';
   const zweite = startSent ? bundle.items.some(i => (i.nudgeCount ?? 0) >= 2) : bundle.erinnerung === 2;
@@ -103,7 +111,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
       return;
     }
     const { data, error } = await supabase.functions.invoke('recruiter-notify', {
-      body: { action: 'client_nudge', submissionIds: ids, submissionId: ids[0], text: clientText, intent, hints },
+      body: { action: 'client_nudge', submissionIds: ids, submissionId: ids[0], text: clientText.trim(), intent: sendIntent, hints },
     });
     const failure = await functionError(error, data);
     const nudged: string[] = (data as any)?.nudged ?? [];
@@ -113,10 +121,10 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
       return;
     }
     const skipped = ids.length - nudged.length;
-    toast.success(`Kunde erinnert${items.length > 1 ? ` (${nudged.length} Kandidaten in einer Mail)` : ''}.${skipped > 0 ? ` ${skipped} war${skipped === 1 ? '' : 'en'} in den letzten 3 Tagen schon erinnert.` : ''}`);
+    toast.success(`${feedback ? 'Kunde gefragt' : 'Kunde erinnert'}${items.length > 1 ? ` (${nudged.length} Kandidaten in einer Mail)` : ''}.${skipped > 0 ? ` ${skipped} war${skipped === 1 ? '' : 'en'} in den letzten 3 Tagen schon erinnert.` : ''}`);
     const done = items.filter(i => i.submissionId && nudged.includes(i.submissionId));
     setChosen(done.filter(i => candidateUpdateChoice({
-      hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt,
+      hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung',
     }, now).preselect).map(i => i.itemId));
     setSent({ at: new Date(), nudged });
     onDone();
@@ -125,17 +133,17 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
 
   const wann = sent && sent.at.toDateString() !== new Date().toDateString() ? `am ${dateDe(sent.at.toISOString())}` : 'heute';
   const updateItems = sent ? items.filter(i => i.submissionId && sent.nudged.includes(i.submissionId)) : [];
-  const preview = (() => {
-    const it = updateItems.find(i => chosen.includes(i.itemId));
-    return it ? `Hallo ${firstName(it.candidateName)}, ${candidateUpdateText(intent, it.jobTitle, until, wann)}` : null;
-  })();
+  const chosenItems = updateItems.filter(i => chosen.includes(i.itemId));
+  // Ein Kandidat: Text änderbar; mehrere: je Kandidat der passende Zwischenstand
+  const singleText = chosenItems.length === 1 ? candEdit ?? candidateUpdateText(sendIntent, chosenItems[0].jobTitle, until, wann) : null;
+  const preview = chosenItems.length > 1 ? `Hallo ${firstName(chosenItems[0].candidateName)}, ${candidateUpdateText(sendIntent, chosenItems[0].jobTitle, until, wann)}` : null;
 
   const sendCandidates = async () => {
     setSending(true);
     let ok = 0;
     for (const it of updateItems.filter(i => chosen.includes(i.itemId))) {
       const { data, error } = await supabase.functions.invoke('recruiter-notify', {
-        body: { action: 'candidate_message', submissionId: it.submissionId, text: candidateUpdateText(intent, it.jobTitle, until, wann), subject: `Stand zu ${it.jobTitle ?? 'deiner Bewerbung'}`, kind: 'zwischenstand' },
+        body: { action: 'candidate_message', submissionId: it.submissionId, text: (singleText ?? candidateUpdateText(sendIntent, it.jobTitle, until, wann)).trim(), subject: `Kurzer Stand zu ${it.jobTitle ?? 'deiner Bewerbung'}`, kind: 'zwischenstand' },
       });
       const f = await functionError(error, data);
       if (f) toast.error(`${it.candidateName}: ${f}`); else ok++;
@@ -154,17 +162,19 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
       <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-3xl">
         <DialogHeader className="space-y-2 border-b p-5 pb-4 text-left">
           <DialogTitle className="flex flex-wrap items-center gap-x-2 text-base">
-            <span>{bundle.jobTitle ?? 'Stelle'}</span>
-            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{sent ? 'Wartet auf Kunde' : 'Prüfung'}</Badge>
+            <span>{multi ? `${bundle.companyName ?? 'Kunde'} · ${included.length} Stellen` : bundle.jobTitle ?? 'Stelle'}</span>
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{sent ? 'Wartet auf Kunde' : feedback ? 'Feedback' : 'Prüfung'}</Badge>
             {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1 text-xs">
-            {bundle.companyName ?? 'Firma anonym'}{!bundle.companyName && <Lock className="h-3 w-3" />} · {n} {n === 1 ? 'Kandidat' : 'Kandidaten'}
+            {multi ? included.map(b => b.jobTitle ?? 'Stelle').join(' · ') : bundle.companyName ?? 'Firma anonym'}{!multi && !bundle.companyName && <Lock className="h-3 w-3" />} · {n} {n === 1 ? 'Kandidat' : 'Kandidaten'}
           </DialogDescription>
           <p className="text-sm">
             {sent
-              ? `Kunde erinnert. Kommt bis ${dateDe(addWorkdays(sent.at, WERKTAGE_BIS_NAECHSTE).toISOString())} nichts, ${zweite ? 'übernimmt Matchunt' : 'ist einmal die 2. Erinnerung dran'}.`
-              : `Der Kunde hat sich zu ${n === 1 ? first.candidateName ?? 'dem Kandidaten' : `${n} Kandidaten`} seit ${bundle.days} Tagen nicht gemeldet.${zweite ? ' Die 1. Erinnerung blieb ohne Antwort.' : ''}`}
+              ? `${feedback ? 'Kunde gefragt' : 'Kunde erinnert'}. Kommt bis ${dateDe(addWorkdays(sent.at, WERKTAGE_BIS_NAECHSTE).toISOString())} nichts, ${zweite ? 'übernimmt Matchunt' : `ist einmal die ${feedback ? '2. Nachfrage' : '2. Erinnerung'} dran`}.`
+              : feedback
+                ? `Der Kunde hat seit ${days} Tagen keinen Eindruck zum Interview mit ${n === 1 ? first.candidateName ?? 'dem Kandidaten' : `${n} Kandidaten`} gegeben.${zweite ? ' Die 1. Nachfrage blieb ohne Antwort.' : ''}`
+                : `Der Kunde hat sich zu ${n === 1 ? first.candidateName ?? 'dem Kandidaten' : `${n} Kandidaten`} seit ${days} Tagen nicht gemeldet.${zweite ? ' Die 1. Erinnerung blieb ohne Antwort.' : ''}`}
           </p>
         </DialogHeader>
 
@@ -173,23 +183,23 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
               <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Grund</p>
               <ul className="space-y-1.5 text-sm">
-                {bundle.items.map(i => (
-                  <li key={i.itemId} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{i.candidateName}, eingereicht {dateDe(i.createdAt)}</span></li>
+                {items.map(i => (
+                  <li key={i.itemId} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{i.candidateName}{multi && i.jobTitle ? ` (${i.jobTitle})` : ''}, {feedback ? `Interview ${dateDe(i.interviewAt ?? i.createdAt)}` : `eingereicht ${dateDe(i.createdAt)}`}{!feedback && <span className={i.clientViewCount ? 'text-emerald-600' : 'text-amber-600'}> · {viewText(i.clientViewCount, i.clientLastViewedAt)}</span>}</span></li>
                 ))}
-                <li className="flex gap-2"><span className="text-muted-foreground">•</span><span>Seitdem keine Reaktion des Kunden.</span></li>
-                <li className="flex gap-2 text-muted-foreground"><span>→</span><span>Ohne Nachfassen kühlt der Deal ab.</span></li>
+                <li className="flex gap-2"><span className="text-muted-foreground">•</span><span>{feedback ? 'Seitdem kein Feedback des Kunden.' : 'Seitdem keine Reaktion des Kunden.'}</span></li>
+                <li className="flex gap-2 text-muted-foreground"><span>→</span><span>{feedback ? 'Ohne Eindruck kein nächster Schritt, der Kandidat kühlt ab.' : 'Ohne Nachfassen kühlt der Deal ab.'}</span></li>
               </ul>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
               <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Bisher</p>
               {(() => {
                 const rows = bundle.items.flatMap(i => [
-                  i.lastNudgeAt ? { at: i.lastNudgeAt, text: `Kunde erinnert · ${i.candidateName}` } : null,
+                  i.lastNudgeAt ? { at: i.lastNudgeAt, text: `${feedback ? 'Kunde nach Eindruck gefragt' : 'Kunde erinnert'} · ${i.candidateName}` } : null,
                   i.lastCandidateUpdateAt ? { at: i.lastCandidateUpdateAt, text: `Zwischenstand an ${firstName(i.candidateName)}` } : null,
                 ]).filter(Boolean) as { at: string; text: string }[];
-                if (sent && !startSent) rows.unshift({ at: sent.at.toISOString(), text: 'Kunde erinnert (eben)' });
+                if (sent && !startSent) rows.unshift({ at: sent.at.toISOString(), text: `${feedback ? 'Kunde gefragt' : 'Kunde erinnert'} (eben)` });
                 return rows.length === 0
-                  ? <p className="text-xs text-muted-foreground">Kunde noch nicht erinnert.</p>
+                  ? <p className="text-xs text-muted-foreground">{feedback ? 'Kunde noch nicht gefragt.' : 'Kunde noch nicht erinnert.'}</p>
                   : <ul className="space-y-1 text-xs">{rows.sort((a, b) => b.at.localeCompare(a.at)).map((r, k) => <li key={k} className="flex gap-2"><span className="w-12 shrink-0 text-muted-foreground tabular-nums">{dateDe(r.at)}</span><span>{r.text}</span></li>)}</ul>;
               })()}
             </div>
@@ -202,21 +212,21 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
             <div className="flex gap-2.5">
               <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', sent ? 'bg-emerald-500 text-white' : 'bg-primary text-primary-foreground')}>{sent ? <Check className="h-3 w-3" /> : 1}</span>
               <div className="min-w-0 flex-1 space-y-2">
-                <p className="text-sm font-medium">{sent ? `Kunde erinnert · ${sent.at.toDateString() === new Date().toDateString() ? `heute ${sent.at.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : `am ${dateDe(sent.at.toISOString())}`}` : `${zweite ? '2. Erinnerung' : 'Kunden erinnern'}${items.length > 1 ? `, für ${items.length} Kandidaten` : ''}`}</p>
+                <p className="text-sm font-medium">{sent ? `${feedback ? 'Kunde gefragt' : 'Kunde erinnert'} · ${sent.at.toDateString() === new Date().toDateString() ? `heute ${sent.at.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : `am ${dateDe(sent.at.toISOString())}`}` : `${zweite ? '2. Erinnerung' : feedback ? 'Kunden nach seinem Eindruck fragen' : 'Kunden erinnern'}${items.length > 1 ? `, für ${items.length} Kandidaten` : ''}`}</p>
                 {!sent && (
                   <>
                     <div className="flex flex-wrap gap-1.5">
                       {set.clientIntents.map(c => (
-                        <Button key={c.key} size="sm" variant={intent === c.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setIntent(c.key)}>{c.label}</Button>
+                        <Button key={c.key} size="sm" variant={intent === c.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setIntent(c.key); setClientEdit(null); }}>{c.label}</Button>
                       ))}
                     </div>
                     <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Hinweis mitgeben</p>
                     <div className="flex flex-wrap gap-1.5">
                       {set.clientHints.map(c => (
-                        <Button key={c.key} size="sm" variant={hints.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => setHints(h => toggle(h, c.key))}>{c.label}</Button>
+                        <Button key={c.key} size="sm" variant={hints.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setHints(h => toggle(h, c.key)); setClientEdit(null); }}>{c.label}</Button>
                       ))}
                     </div>
-                    <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">{clientText}</p>
+                    <Textarea value={clientText} onChange={e => setClientEdit(e.target.value)} rows={4} className="text-sm" />
                     {sameClient.length > 0 && (
                       <div className="space-y-1.5 rounded-md border border-border/60 bg-background/60 p-2">
                         <p className="text-xs text-muted-foreground">Bei {bundle.companyName} warten auch, gleich in derselben Mail:</p>
@@ -243,10 +253,10 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
                   <>
                     <div className="divide-y divide-border/60 rounded-md border border-border/60 bg-background/60">
                       {updateItems.map(i => {
-                        const c = candidateUpdateChoice({ hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt }, now);
+                        const c = candidateUpdateChoice({ hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung' }, now);
                         return (
                           <label key={i.itemId} className={cn('flex items-start gap-2 p-2 text-xs', c.disabled ? 'opacity-60' : 'cursor-pointer')}>
-                            <Checkbox className="mt-0.5" disabled={c.disabled} checked={chosen.includes(i.itemId)} onCheckedChange={() => setChosen(x => toggle(x, i.itemId))} />
+                            <Checkbox className="mt-0.5" disabled={c.disabled} checked={chosen.includes(i.itemId)} onCheckedChange={() => { setChosen(x => toggle(x, i.itemId)); setCandEdit(null); }} />
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm text-foreground">{i.candidateName}{included.length > 1 ? <span className="text-muted-foreground"> · {i.jobTitle}</span> : null}</span>
                               <span className="block text-muted-foreground">{c.reason}</span>
@@ -256,7 +266,13 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
                         );
                       })}
                     </div>
-                    {preview && <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">{preview}</p>}
+                    {singleText !== null && (
+                      <div className="rounded-md border border-border/60 bg-background/60 p-2 text-sm">
+                        <p className="mb-1">Hallo {firstName(chosenItems[0].candidateName)},</p>
+                        <Textarea value={singleText} onChange={e => setCandEdit(e.target.value)} rows={4} className="text-sm" />
+                      </div>
+                    )}
+                    {preview && <p className="whitespace-pre-line rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">{preview}</p>}
                     <p className="text-xs text-muted-foreground">Kommt von dir, Antworten landen bei dir. Ohne Firmennamen. Die Aufgabe ist schon erledigt, egal wie du hier entscheidest.</p>
                   </>
                 )}
@@ -269,14 +285,14 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
               <p className="text-xs leading-5 text-muted-foreground">
                 {zweite
                   ? `Kommt ${frist} nichts, übernimmt Matchunt. Für dich ist die Aufgabe dann zu Ende.`
-                  : `Danach wartest du. Kommt ${frist} nichts, steht hier einmal die 2. Erinnerung. Danach übernimmt Matchunt.`}
+                  : `Danach wartest du. Kommt ${frist} nichts, steht hier einmal die ${feedback ? '2. Nachfrage' : '2. Erinnerung'}. Danach übernimmt Matchunt.`}
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-xs">
-          <span className="text-muted-foreground">Ziel: <span className="font-medium text-emerald-500">Der Kunde lädt ein, sagt ab oder fragt nach</span></span>
+          <span className="text-muted-foreground">Ziel: <span className="font-medium text-emerald-500">{feedback ? 'Der Kunde gibt sein Feedback' : 'Der Kunde lädt ein, sagt ab oder fragt nach'}</span></span>
           <div className="flex flex-wrap items-center gap-1.5">
             {!sent ? (
               <>
@@ -284,7 +300,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
                   <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/submissions/${first.submissionId}`)}>Einreichung</Button>
                 )}
                 <Button size="sm" className="h-8 gap-1 text-xs" disabled={sending || !clientText} onClick={sendClient}>
-                  <Mail className="h-3 w-3" />{zweite ? '2. Erinnerung senden' : 'Kunden erinnern'}
+                  <Mail className="h-3 w-3" />{zweite ? '2. Erinnerung senden' : feedback ? 'Kunden fragen' : 'Kunden erinnern'}
                 </Button>
               </>
             ) : (
@@ -296,7 +312,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
                   </Button>
                 )}
                 <Button size="sm" className="h-8 gap-1 text-xs" disabled={sending || chosen.length === 0} onClick={sendCandidates}>
-                  <Mail className="h-3 w-3" />{chosen.length === 1 ? `An ${firstName(updateItems.find(i => chosen.includes(i.itemId))?.candidateName ?? null)} senden` : `An ${chosen.length} senden`}
+                  <Mail className="h-3 w-3" />{chosen.length === 0 ? 'Niemand ausgewählt' : chosen.length === 1 ? `An ${firstName(updateItems.find(i => chosen.includes(i.itemId))?.candidateName ?? null)} senden` : `An ${chosen.length} Kandidaten senden`}
                 </Button>
               </>
             )}

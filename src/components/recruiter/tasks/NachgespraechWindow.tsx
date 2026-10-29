@@ -291,7 +291,10 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
           <p className="text-sm">
             {saved
               ? 'Nachgespräch festgehalten. Die Aufgabe ist erledigt.'
-              : ivAt ? `${satz(`Interview war ${wann(new Date(ivAt))}`)} Ruf ${vorname} an, solange es frisch ist.` : `Ruf ${vorname} an, solange es frisch ist.`}
+              : ivAt && Date.now() - new Date(ivAt).getTime() >= 48 * 3_600_000
+                // Nach zwei Tagen ist nichts mehr frisch (Durchklick 27.10.2026)
+                ? `${satz(`Interview war ${wann(new Date(ivAt))}`)} ${vorname} wartet auf deine Rückmeldung.`
+                : ivAt ? `${satz(`Interview war ${wann(new Date(ivAt))}`)} Ruf ${vorname} an, solange es frisch ist.` : `Ruf ${vorname} an, solange es frisch ist.`}
           </p>
         </DialogHeader>
 

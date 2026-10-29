@@ -625,6 +625,7 @@ const en: typeof de = {
       "offer_accepted": "Offer accepted",
       "offer_with_hh": "Offer with headhunter",
       "offer_considering": "Candidate is considering",
+      "offer_accept_reported": "Acceptance reported, confirmation pending",
       "offer_overdue": "Response deadline passed",
       "offer_withdrawn": "Offer withdrawn",
       "vertrag_unterwegs": "Contract sent",

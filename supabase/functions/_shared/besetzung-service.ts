@@ -33,7 +33,7 @@ export const DEPARTURE_CATEGORIES: Record<string, string> = {
   other: 'Anderer Grund',
 };
 
-const OPEN_OFFER = ['with_recruiter', 'considering', 'countered', 'pending', 'sent'];
+const OPEN_OFFER = ['with_recruiter', 'considering', 'countered', 'accept_reported', 'pending', 'sent'];
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const t = (iso: string | null | undefined) => (iso ? Date.parse(iso) : 0);
 const plusMonths = (iso: string, n: number) => { const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };

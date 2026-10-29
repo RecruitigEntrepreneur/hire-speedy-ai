@@ -18,6 +18,10 @@ export const WERKTAGE_BIS_NAECHSTE = 3;
 export const MAX_ERINNERUNGEN = 2;
 export const KANDIDAT_UPDATE_AB_WERKTAGEN = 5;
 export const ZWISCHENSTAND_SPERRE_TAGE = 7;
+/** Interview-Feedback beim Kunden anstoßen: ab 2 Werktagen nach dem Interview (28.10.2026). */
+export const FEEDBACK_AB_WERKTAGEN = 2;
+/** Stellen-Zeilen statt Personen-Zeilen: „Kunde prüft“ und „Kunde gibt kein Feedback“. */
+export const BUNDLED_CATEGORIES = ['client_review_stalled', 'client_feedback_due'];
 
 const DAY_MS = 86_400_000;
 const isWorkday = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6;
@@ -89,6 +93,8 @@ export function candidateUpdateChoice(o: {
   /** Letzter Zwischenstand (candidate_message). */
   lastUpdateAt: string | null;
   submittedAt: string | null;
+  /** Wofür `submittedAt` steht: Einreichung (Kunde prüft) oder Interview (Kunde ohne Feedback). */
+  anchor?: 'Einreichung' | 'Interview';
 }, now: Date): CandidateUpdateChoice {
   if (!o.hasEmail) return { preselect: false, disabled: true, reason: 'Keine E-Mail hinterlegt, lieber anrufen' };
   if (o.lastUpdateAt && now.getTime() - new Date(o.lastUpdateAt).getTime() < ZWISCHENSTAND_SPERRE_TAGE * DAY_MS) {
@@ -98,7 +104,7 @@ export function candidateUpdateChoice(o: {
   if (!candidates.length) return { preselect: true, disabled: false, reason: 'Noch kein Kontakt festgehalten' };
   const last = candidates.sort((a, b) => b.localeCompare(a))[0];
   const viaSubmission = last === o.submittedAt && last !== o.lastContactAt;
-  const label = `Letzter Kontakt ${tageText(new Date(last), now)}${viaSubmission ? ' (Einreichung)' : ''}`;
+  const label = `Letzter Kontakt ${tageText(new Date(last), now)}${viaSubmission ? ` (${o.anchor ?? 'Einreichung'})` : ''}`;
   const lange = workdaysBetween(new Date(last), now) >= KANDIDAT_UPDATE_AB_WERKTAGEN;
   return { preselect: lange, disabled: false, reason: lange ? label : `${label}, darum nicht ausgewählt` };
 }
@@ -107,13 +113,17 @@ export function candidateUpdateChoice(o: {
 /** `wann`: „heute“ oder „am 15.10.“ – je nachdem, wann der Kunde erinnert wurde. */
 export function candidateUpdateText(intent: string | null, jobTitle: string | null, until: string, wann = 'heute'): string {
   const job = jobTitle || 'der Stelle';
-  if (intent === 'decision') return `ich habe ${wann} beim Unternehmen zu ${job} nachgefragt. Ich rechne bis ${until} mit einer Rückmeldung und melde mich, sobald ich etwas höre.`;
-  if (intent === 'question') return `ich habe ${wann} beim Unternehmen zu ${job} nachgefragt, ob noch Informationen fehlen. Ich melde mich, sobald ich etwas höre.`;
-  return `ich habe ${wann} beim Unternehmen zu ${job} nachgefasst und melde mich, sobald ich etwas höre.`;
+  const tail = 'Sobald ich etwas höre, melde ich mich bei dir. Falls sich bei dir in der Zwischenzeit etwas tut, sag mir gern kurz Bescheid.';
+  if (intent === 'interview_feedback') return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen nach dem Eindruck aus deinem Interview zu ${job} gefragt.\n\n${tail}`;
+  if (intent === 'decision') return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen zu ${job} nachgefragt und um eine Entscheidung bis ${until} gebeten.\n\n${tail}`;
+  if (intent === 'question') return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen zu ${job} nachgefragt, ob für die Entscheidung noch etwas fehlt.\n\n${tail}`;
+  return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen zu ${job} nachgehakt.\n\n${tail}`;
 }
 
 export interface StalledBundle {
   key: string;
+  /** review = Kunde prüft die Einreichung · feedback = Kunde gibt nach dem Interview keinen Eindruck */
+  kind: 'review' | 'feedback';
   jobId: string | null;
   jobTitle: string | null;
   companyName: string | null;
@@ -125,11 +135,12 @@ export interface StalledBundle {
   erinnerung: 1 | 2;
 }
 
-/** „Kunde prüft“-Aufgaben je Stelle bündeln: eine Zeile, eine Bitte für alle Kandidaten. */
+/** „Kunde prüft“- bzw. Feedback-Aufgaben je Stelle bündeln: eine Zeile, eine Bitte für alle Kandidaten. */
 export function bundleByJob(items: UnifiedTaskItem[], now: Date): StalledBundle[] {
   const map = new Map<string, UnifiedTaskItem[]>();
   for (const it of items) {
-    const key = it.jobId || it.itemId;
+    const base = it.jobId || it.itemId;
+    const key = it.taskCategory === 'client_feedback_due' ? `feedback:${base}` : base;
     map.set(key, [...(map.get(key) ?? []), it]);
   }
   return [...map.entries()].map(([key, list]) => {
@@ -137,6 +148,7 @@ export function bundleByJob(items: UnifiedTaskItem[], now: Date): StalledBundle[
     const days = Math.max(...sorted.map(i => Math.floor((now.getTime() - new Date(i.createdAt).getTime()) / DAY_MS)));
     return {
       key,
+      kind: sorted[0].taskCategory === 'client_feedback_due' ? 'feedback' : 'review',
       jobId: sorted[0].jobId,
       jobTitle: sorted[0].jobTitle,
       companyName: sorted[0].companyName,
@@ -146,4 +158,11 @@ export function bundleByJob(items: UnifiedTaskItem[], now: Date): StalledBundle[
       erinnerung: sorted.some(i => (i.nudgeCount ?? 0) >= 1) ? 2 : 1,
     } satisfies StalledBundle;
   }).sort((a, b) => b.days - a.days || b.feeTotal - a.feeTotal);
+}
+
+/** „In Prüfung“ (29.10.2026): Hat das Kundenteam das Profil geöffnet? Für Zeilen und Fenster. */
+export function viewText(count: number | null | undefined, lastAt: string | null | undefined): string {
+  if (!count || !lastAt) return 'noch nicht geöffnet';
+  const d = new Date(lastAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
+  return count === 1 ? `angesehen am ${d}` : `${count}× angesehen, zuletzt ${d}`;
 }

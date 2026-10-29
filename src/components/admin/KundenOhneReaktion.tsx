@@ -41,7 +41,8 @@ async function load(): Promise<Row[]> {
     .from('submissions')
     .select('id, job_id, status')
     .in('id', due.map(([id]) => id))
-    .in('status', ['submitted', 'pending', 'in_review']);
+    // Auch „Kunde ohne Feedback“ nach dem Interview: das Fenster verspricht, dass Matchunt übernimmt (29.10.2026)
+    .in('status', ['submitted', 'pending', 'in_review', 'interview']);
   const open = (subs ?? []) as { id: string; job_id: string; status: string }[];
   if (!open.length) return [];
   const { data: jobs } = await supabase.from('jobs').select('id, company_name').in('id', [...new Set(open.map(s => s.job_id))]);

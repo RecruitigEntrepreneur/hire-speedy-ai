@@ -70,6 +70,8 @@ export function clientOfferAnswer(o: {
   name: string | null; candidateName: string; recruiterName: string; jobTitle: string; way: AnswerWay;
   until?: string | null; note?: string | null; wish?: { salary?: number | null; variable?: number | null; startDate?: string | null; other?: string | null } | null;
   reason?: string | null; profileUrl: string;
+  /** Hat der Kandidat selbst geantwortet (Antwortseite, 25.10.2026)? */
+  byCandidate?: boolean;
 }): MailContent {
   const first = o.candidateName.split(' ')[0];
   const heading = o.way === 'accepted' ? `${o.candidateName} hat zugesagt`
@@ -89,7 +91,9 @@ export function clientOfferAnswer(o: {
       : o.way === 'considering' ? `${esc(o.recruiterName)} meldet sich, sobald ${esc(first)} entschieden hat.` : 'Ihre anderen Bewerber finden Sie in der Bewerberliste.';
   const body = [
     p(`Hallo${o.name ? ` ${esc(o.name.split(' ')[0])}` : ''},`),
-    p(`${esc(o.recruiterName)} hat die Antwort von <strong>${esc(o.candidateName)}</strong> (${esc(o.jobTitle)}) eingetragen.`),
+    p(o.byCandidate
+      ? `<strong>${esc(o.candidateName)}</strong> hat selbst auf Ihr Angebot geantwortet (${esc(o.jobTitle)}).`
+      : `${esc(o.recruiterName)} hat die Antwort von <strong>${esc(o.candidateName)}</strong> (${esc(o.jobTitle)}) eingetragen.`),
     wishLines.length ? linesHtml(wishLines) : '',
     o.reason ? p(`${muted('Grund:')} ${esc(o.reason)}`) : '',
     o.note ? quote(o.note) : '',
@@ -107,4 +111,59 @@ export function clientRecommendation(o: { name: string | null; candidateName: st
     p('Im Bewerberprofil steht die Empfehlung neben Ihrem Angebot.'),
   ].join('');
   return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Angebot machen', url: o.profileUrl } }), text: plain(heading, o.intro, ...o.items.map((i) => `${i.label}: ${i.value}`), o.profileUrl) };
+}
+
+
+// --- An den Kandidaten (G + H, 25.10.2026) -----------------------------------------
+
+export type CandidateMailKind = 'offer' | 'reminder' | 'confirm' | 'confirm_reminder';
+
+/**
+ * Eckdaten des Angebots an den Kandidaten, Absender „<Headhunter> über Matchunt“.
+ * offer = erste Mail, reminder = einmalige Erinnerung nach 24 Std.,
+ * confirm = „Haben Sie zugesagt?“ nach einer Meldung des Headhunters.
+ */
+export function candidateOffer(o: {
+  kind: CandidateMailKind; candidateName: string; recruiterName: string; companyName: string; jobTitle: string;
+  offer: OfferFacts; version: number; message: string | null; url: string; reportedAt?: string | null;
+}): MailContent {
+  const confirm = o.kind === 'confirm' || o.kind === 'confirm_reminder';
+  const reminder = o.kind === 'reminder' || o.kind === 'confirm_reminder';
+  const recruiterFirst = o.recruiterName.split(' ')[0];
+  const subject = confirm
+    ? `${reminder ? 'Erinnerung: ' : ''}Haben Sie zugesagt? Ihr Angebot von ${o.companyName}`
+    : `${reminder ? 'Erinnerung: ' : ''}Ihr Angebot von ${o.companyName}: ${o.jobTitle}`;
+  const intro = confirm
+    ? `${esc(o.recruiterName)} hat ${esc(o.companyName)} Ihre Zusage gemeldet. Bitte bestätigen Sie sie kurz, erst dann gilt sie und der Arbeitsvertrag folgt.`
+    : reminder
+      ? `Sie haben noch nicht auf Ihr Angebot von ${esc(o.companyName)} geantwortet. Hier noch einmal die Eckdaten.`
+      : `wie mit ${esc(o.recruiterName)} besprochen, hier die Eckdaten Ihres Angebots von ${esc(o.companyName)}${o.version > 1 ? ` (Version ${o.version})` : ''}:`;
+  const lines = offerLines(o.offer);
+  const due = o.offer.responseDue ? `Antwort bis ${day(o.offer.responseDue)}` : null;
+  const body = [
+    p(`Guten Tag ${esc(o.candidateName)},`),
+    p(intro),
+    linesHtml([...lines, ...(due ? [due] : [])]),
+    o.message && !confirm ? quote(o.message) : '',
+    p(muted(`Das sind die Eckdaten, noch kein Arbeitsvertrag. Verbindlich ist erst der Arbeitsvertrag, den Sie mit ${esc(o.companyName)} unterschreiben.`)),
+    p(`Fragen klären Sie mit ${esc(recruiterFirst)}: Antworten Sie einfach auf diese Mail.`),
+  ].join('');
+  const cta = { label: confirm ? 'Zusage bestätigen' : 'Angebot ansehen und antworten', url: o.url };
+  return {
+    subject,
+    html: layout({ preheader: `${o.companyName} · ${o.jobTitle}`, heading: confirm ? 'Haben Sie zugesagt?' : `Ihr Angebot von ${o.companyName}`, body, cta }),
+    text: plain(subject, ...lines, due, 'Das sind die Eckdaten, noch kein Arbeitsvertrag.', o.url),
+  };
+}
+
+/** Headhunter: der Kandidat möchte sprechen (Rückruf binnen 2 Std.) */
+export function recruiterCallback(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; topic: string | null; until: string; akteUrl: string }): MailContent {
+  const heading = `${o.candidateName} möchte mit Ihnen sprechen`;
+  const body = [
+    p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
+    p(`${esc(o.candidateName)} möchte das Angebot von ${esc(o.companyName)} mit Ihnen besprechen. Bitte rufen Sie bis <strong>${esc(o.until)}</strong> zurück.`),
+    o.topic ? quote(o.topic) : '',
+    p('Einen Gegenwunsch schicken Sie danach in der Akte an den Kunden, mit dem Haken „sagt bei diesen Werten zu“.'),
+  ].join('');
+  return { subject: heading, html: layout({ preheader: o.companyName, heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }), text: plain(heading, o.topic && `„${o.topic}“`, `Rückruf bis ${o.until}`, o.akteUrl) };
 }

@@ -556,7 +556,7 @@ export default function CandidateDetail() {
   const showAgendaLink = ['geplant', 'feedback', 'feedback_nodate', 'interview_phase', 'opted_in'].includes(state.key);
   const nextRoundNo = Number((state.params as { round?: number } | undefined)?.round ?? 2);
   // Angebot über den Headhunter: Schritte stehen in der Angebots-Box, nicht im Hauptknopf
-  const offerFlow = ['with_recruiter', 'considering', 'countered', 'accepted', 'declined', 'withdrawn'].includes(subState?.offers?.[0]?.status ?? '');
+  const offerFlow = ['with_recruiter', 'considering', 'accept_reported', 'countered', 'accepted', 'declined', 'withdrawn'].includes(subState?.offers?.[0]?.status ?? '');
   // Nach der Unterschrift gibt es keine Absage mehr (Paket 3)
   const signedContract = state.key === 'vertrag_unterschrieben';
 
@@ -583,7 +583,8 @@ export default function CandidateDetail() {
       return `${wer} am ${tagMonat(lastRejection.createdAt)} abgelehnt.${grund ? ` Grund: ${grund}.` : ''} ${hhName} ist informiert.`;
     }
     // Angebot über den Headhunter (Einzelheiten in der Angebots-Box)
-    if (k === 'offer_with_hh') return `Ihr Angebot liegt bei ${hhName}. ${hhName.split(' ')[0]} bespricht es mit dem Kandidaten und trägt die Antwort hier ein.`;
+    if (k === 'offer_with_hh') return `Ihr Angebot liegt bei ${hhName}. ${hhName.split(' ')[0]} bespricht es mit dem Kandidaten, danach kommt es schriftlich per Mail, und der Kandidat antwortet selbst.`;
+    if (k === 'offer_accept_reported') return `${hhName} hat die Zusage gemeldet. Der Kandidat bestätigt sie gerade per Mail, danach schicken Sie den Arbeitsvertrag.`;
     if (k === 'offer_considering') return `Der Kandidat überlegt noch. ${hhName} hält Kontakt.`;
     if (k === 'offer_overdue') return `Die Antwortfrist ist abgelaufen. Verlängern Sie die Frist oder fragen Sie ${hhName}.`;
     if (k === 'offer_negotiating') return `Der Kandidat hat einen Gegenwunsch. Sie entscheiden: anpassen, beim Angebot bleiben oder absagen.`;

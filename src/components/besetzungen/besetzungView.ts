@@ -44,6 +44,7 @@ export function statusOf(i: BesetzungItem): { text: string; tone: Tone } {
     if (o.status === 'countered') return { text: 'Gegenwunsch', tone: 'bad' };
     if (o.overdue) return { text: 'Antwortfrist abgelaufen', tone: 'bad' };
     if (o.status === 'considering') return { text: `${who} überlegt`, tone: 'warn' };
+    if (o.status === 'accept_reported') return { text: `${who} bestätigt die Zusage`, tone: 'warn' };
     return { text: `V${o.version} beim Headhunter`, tone: 'warn' };
   }
   if (i.group === 'start') {

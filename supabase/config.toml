@@ -457,3 +457,7 @@ verify_jwt = true
 # Unterschrift über Matchunt (23.10.2026): Seite ohne Konto, der persönliche Link ist der Zugang.
 [functions.contract-sign]
 verify_jwt = false
+
+# Angebot an den Kandidaten (25.10.2026): Seite ohne Konto, der persönliche Link ist der Zugang.
+[functions.offer-answer]
+verify_jwt = false

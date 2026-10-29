@@ -234,7 +234,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   // Abgeleitete Aufgaben (Nachfassen/Debrief) aus derselben Quelle wie
   // /recruiter/influence und das Dashboard — sonst behauptet die Sektion
   // "Alles erledigt", während die Inbox offene Aufgaben zum Kandidaten zeigt.
-  const { allItems: inboxItems, waitingItems: inboxWaiting, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
+  const { allItems: inboxItems, waitingItems: inboxWaiting, parkedItems: inboxParked, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
   const [searchParams, setSearchParams] = useSearchParams();
   /** Steht die Aufgabe in der Inbox, öffnet das neue Fenster (?aufgabe=); sonst das alte Detail. */
   const openInTaskWindow = (itemId: string) => {
@@ -399,10 +399,12 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const candidateManualTasks = manualTasks.filter(t => t.candidate_id === candidateId);
   const derivedTasks = inboxItems.filter(i => i.itemType === 'derived' && i.candidateId === candidateId);
   // „Kunde prüft“, bei denen der Kunde dran ist: grau, ohne Knopf (20.10.2026)
-  const waitingTasks = inboxWaiting.filter(i => i.candidateId === candidateId);
+  // Dazu Vertrag bis Tag 10 und pausierte Stelle (28.10.2026), ebenfalls grau
+  const waitingTasks = [...inboxWaiting, ...inboxParked].filter(i => i.candidateId === candidateId);
 
   const derivedLabel = (category: string) =>
     category === 'interview_debrief_due' ? 'Nachgespräch' : category === 'client_review_stalled' ? 'Prüfung'
+      : category === 'client_feedback_due' ? 'Feedback' : category === 'job_closed_inform' ? 'Besetzt'
       : category === 'offer_deliver' ? 'Angebot' : category === 'recommendation_due' ? 'Empfehlung'
         : category === 'offer_counter_stalled' ? 'Gegenwunsch' : category === 'contract_check' ? 'Gegenprobe'
           : category.startsWith('contract_') ? 'Vertrag' : 'Nachfassen';
@@ -676,7 +678,22 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
             })}
 
             {/* Wartet: Kunde erinnert oder Matchunt kümmert sich – grau, nichts zu tun */}
-            {waitingTasks.map(item => (
+            {waitingTasks.map(item => item.parkKind ? (
+              // Vertrag bis Tag 10 bzw. pausierte Stelle: nichts zu tun, mit Datum (28.10.2026)
+              <div
+                key={`p-${item.itemId}`}
+                onClick={() => { if (item.parkKind === 'contract') { const next = new URLSearchParams(searchParams); next.set('aufgabe', item.itemId); setSearchParams(next, { replace: true }); } }}
+                className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-muted-foreground/30 p-2.5 opacity-80', item.parkKind === 'contract' && 'cursor-pointer hover:opacity-100')}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">Wartet</Badge>
+                </div>
+                <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem] text-muted-foreground">
+                  {item.parkKind === 'contract' ? 'Vertrag' : item.parkKind === 'counter' ? 'Gegenwunsch' : 'Pausiert'} · {item.jobTitle ?? 'Stelle'}
+                </p>
+                <p className="mt-auto text-[10px] text-muted-foreground line-clamp-2">{item.parkNote}</p>
+              </div>
+            ) : (
               <div
                 key={`w-${item.itemId}`}
                 onClick={() => { if (item.waitState !== 'matchunt') { const next = new URLSearchParams(searchParams); next.set('aufgabe', item.itemId); setSearchParams(next, { replace: true }); } }}

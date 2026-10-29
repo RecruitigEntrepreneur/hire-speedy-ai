@@ -624,6 +624,7 @@ const de = {
       "offer_accepted": "Angebot angenommen",
       "offer_with_hh": "Angebot beim Headhunter",
       "offer_considering": "Kandidat überlegt noch",
+      "offer_accept_reported": "Zusage gemeldet, Bestätigung läuft",
       "offer_overdue": "Antwortfrist abgelaufen",
       "offer_withdrawn": "Angebot zurückgezogen",
       "vertrag_unterwegs": "Vertrag unterwegs",

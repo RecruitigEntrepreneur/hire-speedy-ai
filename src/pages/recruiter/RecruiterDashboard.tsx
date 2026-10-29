@@ -634,19 +634,22 @@ export default function RecruiterDashboard() {
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  {topRows.map((row) => {
+                  {topRows.map((row, idx) => {
                     // Dieselben Zeilen wie die Seite „Aufgaben“ (20.10.2026): je Person eine
                     // Zeile, „Kunde prüft“ je Stelle. Kein Haken bei Aufgaben, die sich durch
                     // die Handlung erledigen; nur eigene Aufgaben hakt man ab.
                     const item = rowItem(row);
                     const person = row.kind === 'person' ? row.group : null;
                     const pill = buildGuide(item).pill;
-                    const n = row.kind === 'bundle' ? row.bundle.items.length : 0;
-                    const title = person ? person.name : row.kind === 'bundle' ? row.bundle.jobTitle || 'Stelle' : item.title;
+                    // Stellen desselben Kunden sind eine Zeile (28.10.2026)
+                    const n = row.kind === 'bundle' ? [row.bundle, ...row.more].reduce((x, b) => x + b.items.length, 0) : 0;
+                    const title = person ? person.name : row.kind === 'bundle'
+                      ? (row.more.length && row.bundle.companyName ? `${row.bundle.companyName} · ${row.more.length + 1} Stellen` : row.bundle.jobTitle || 'Stelle')
+                      : item.title;
                     const sub = person
                       ? `${item.jobTitle ?? ''}${item.companyName ? ` · ${item.companyName}` : ''}`
                       : row.kind === 'bundle'
-                        ? `${n} ${n === 1 ? 'Kandidat' : 'Kandidaten'} · ${row.bundle.erinnerung === 2 ? '2. Erinnerung' : `Kunde prüft seit ${row.bundle.days} Tagen`}`
+                        ? `${n} ${n === 1 ? 'Kandidat' : 'Kandidaten'} · ${row.bundle.erinnerung === 2 ? (row.bundle.kind === 'feedback' ? '2. Nachfrage' : '2. Erinnerung') : row.bundle.kind === 'feedback' ? `Kunde ohne Feedback seit ${row.bundle.days} Tagen` : `Kunde prüft seit ${row.bundle.days} Tagen`}`
                         : '';
 
                     return (
@@ -669,6 +672,7 @@ export default function RecruiterDashboard() {
                         )} />
 
                         <div className="flex-1 min-w-0">
+                          {idx === 0 && <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">Als Nächstes</p>}
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-medium truncate">{title}</span>
                             <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px] font-medium">{pill}</Badge>

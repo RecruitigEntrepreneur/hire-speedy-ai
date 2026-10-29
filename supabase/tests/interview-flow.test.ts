@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, checkTime, clientLink, confirmAlternative, feedbackWay, interviewDetails, interviewGuide, inviteColleague, leadTimeMessage, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, declineForCandidate, feedbackWay, interviewDetails, interviewGuide, inviteColleague, leadTimeMessage, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -122,6 +122,25 @@ Deno.test({ name: 'Ablauf ohne Outlook: Anfrage → Kandidat bestätigt → Frei
   failed = false;
   try { await candidateRespond(ctx, { action: 'decline', token }); } catch { failed = true; }
   assert(failed, 'zweite Antwort wird abgewiesen');
+}});
+
+Deno.test({ name: 'Opt-In: Headhunter sagt für den Kandidaten ab', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  await send(ctx, user(CLIENT, 'marko@example.test'), { submissionId: SUB, durationMinutes: 45, slots: [at(6, 10)], attendees: [], allowAlternative: false, alternativeRules: {}, round: 1 });
+  let failed = false;
+  try { await declineForCandidate(ctx, user(JULIA, 'julia@example.test'), { submissionId: SUB, reason: 'Bleibt beim jetzigen Arbeitgeber' }); } catch { failed = true; }
+  assert(failed, 'nur der eigene Headhunter');
+  sent.length = 0;
+  await declineForCandidate(ctx, user(RECRUITER, 'tim@example.test'), { submissionId: SUB, reason: 'Bleibt beim jetzigen Arbeitgeber' });
+  eq(tables.interviews[0].status, 'declined');
+  eq(tables.submissions[0].stage, 'interview_declined');
+  assert(sent.some((m) => m.template === 'interview_declined_client' && m.html.includes('Bleibt beim jetzigen Arbeitgeber')), 'Kunde bekommt die Absage');
+  assert(!sent.some((m) => m.template === 'interview_declined_recruiter'), 'keine Mail an den Headhunter über die eigene Absage');
+  failed = false;
+  try { await declineForCandidate(ctx, user(RECRUITER, 'tim@example.test'), { submissionId: SUB }); } catch { failed = true; }
+  assert(failed, 'keine offene Einladung mehr');
 }});
 
 Deno.test({ name: 'Andere Zeit ohne Outlook: Anfrage beim Kunden, Bestätigung per Mail-Link', permissions: { env: true }, fn: async () => {
