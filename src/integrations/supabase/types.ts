@@ -4932,6 +4932,7 @@ export type Database = {
           company_signed_at: string | null
           company_signer_email: string | null
           company_signer_name: string | null
+          company_signer_user_id: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
@@ -4961,6 +4962,7 @@ export type Database = {
           sent_at: string | null
           signed_document_path: string | null
           signed_on: string | null
+          signing_mode: string
           start_date: string | null
           status: string
           submission_id: string
@@ -4985,6 +4987,7 @@ export type Database = {
           company_signed_at?: string | null
           company_signer_email?: string | null
           company_signer_name?: string | null
+          company_signer_user_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -5014,6 +5017,7 @@ export type Database = {
           sent_at?: string | null
           signed_document_path?: string | null
           signed_on?: string | null
+          signing_mode?: string
           start_date?: string | null
           status?: string
           submission_id: string
@@ -5038,6 +5042,7 @@ export type Database = {
           company_signed_at?: string | null
           company_signer_email?: string | null
           company_signer_name?: string | null
+          company_signer_user_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -5067,6 +5072,7 @@ export type Database = {
           sent_at?: string | null
           signed_document_path?: string | null
           signed_on?: string | null
+          signing_mode?: string
           start_date?: string | null
           status?: string
           submission_id?: string
@@ -5151,6 +5157,74 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employment_sign_links: {
+        Row: {
+          contract_id: string
+          created_at: string
+          created_by: string | null
+          email: string
+          envelope_id: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          last_reminded_at: string | null
+          name: string
+          opened_at: string | null
+          reminders_sent: number
+          revoked_at: string | null
+          sent_at: string | null
+          signed_at: string | null
+          signer_role: string
+          token_hash: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          created_by?: string | null
+          email: string
+          envelope_id: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          last_reminded_at?: string | null
+          name: string
+          opened_at?: string | null
+          reminders_sent?: number
+          revoked_at?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signer_role: string
+          token_hash: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          envelope_id?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          last_reminded_at?: string | null
+          name?: string
+          opened_at?: string | null
+          reminders_sent?: number
+          revoked_at?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signer_role?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_sign_links_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
             referencedColumns: ["id"]
           },
         ]
