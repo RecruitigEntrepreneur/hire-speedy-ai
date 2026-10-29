@@ -1,6 +1,6 @@
 import type { UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { BUNDLED_CATEGORIES, bundleByJob, type StalledBundle } from '@/lib/kundePrueft';
-import { groupByPerson, hoursSince, type PersonGroup } from './taskWindow';
+import { groupByPerson, type PersonGroup } from './taskWindow';
 
 export type JetztRow =
   | { kind: 'person'; key: string; prio: number; fee: number; critical: boolean; group: PersonGroup }
@@ -48,10 +48,11 @@ function rankKey(r: JetztRow, now: number) {
 /**
  * Was die Seite „Aufgaben“ unter „Jetzt“ zeigt (20.10.2026 auch fürs Dashboard, damit
  * beide dieselben Zeilen und dieselbe Zahl haben): Personen-Zeilen, „Kunde prüft“ und
- * „Kunde gibt kein Feedback“ je Kunde gebündelt. Opt-Ins unter 24 Stunden warten noch, alte Deals ruhen.
+ * „Kunde gibt kein Feedback“ je Kunde gebündelt. Alte Deals ruhen. Opt-In steht sofort hier, nicht erst
+ * nach 24 Stunden (29.10.2026, Live-Befund Luca: sonst nur im Kandidatenprofil sichtbar).
  */
 export function splitJetzt(allItems: UnifiedTaskItem[], now = new Date()) {
-  const jetzt = allItems.filter(i => !i.isStale && !(i.taskCategory === 'opt_in_pending' && hoursSince(i.createdAt) < 24));
+  const jetzt = allItems.filter(i => !i.isStale);
   const groups = groupByPerson(jetzt.filter(i => !BUNDLED_CATEGORIES.includes(i.taskCategory)));
   const bundles = bundleByJob(jetzt.filter(i => BUNDLED_CATEGORIES.includes(i.taskCategory)), now);
   // Stellen desselben (aufgedeckten) Kunden: eine Zeile, eine Mail
