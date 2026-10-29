@@ -5,7 +5,7 @@
 - [x] Migrationen einzeln erfolgreich als 0046_angebot_an_kandidat und 0047_stand_meiner_einreichungen ausgeführt; beide bytegleich mit den Quelldateien.
 - [x] offer-answer und alle 14 angeforderten Functions erfolgreich deployt; verify_jwt laut config.toml.
 - [x] Keine Secrets verändert; RESEND_API_URL nicht online gesetzt. Keine Anwendungscodeänderungen.
-- [ ] Publish für matchunt.ai — wartet auf Entscheidung zu den fünf unveränderten kritischen Sicherheitsbefunden; aktuelle Prüfung abgeschlossen.
+- [x] Publish für matchunt.ai nach ausdrücklicher Freigabe trotz fünf unveränderter kritischer Sicherheitsbefunde angefordert; Abschluss der Veröffentlichung noch nicht bestätigt.
 
 ## Auftrag 34 (23.10.2026) — Live-Test Interview: Fixes aus dem ersten Durchlauf
 - [x] Stand 751bd75; keine Migration, keine Secrets.
