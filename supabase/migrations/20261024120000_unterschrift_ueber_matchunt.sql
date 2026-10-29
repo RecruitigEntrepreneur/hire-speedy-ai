@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.employment_sign_links (
 CREATE INDEX IF NOT EXISTS employment_sign_links_contract_idx
   ON public.employment_sign_links (contract_id, signer_role, created_at DESC);
 
+-- Lovable: GRANT vor dem Einschalten von RLS
+GRANT ALL ON public.employment_sign_links TO service_role;
 ALTER TABLE public.employment_sign_links ENABLE ROW LEVEL SECURITY;
 -- Keine Leseregel für angemeldete Nutzer: Stand und Zeitpunkte liefert die Function.
-GRANT ALL ON public.employment_sign_links TO service_role;
