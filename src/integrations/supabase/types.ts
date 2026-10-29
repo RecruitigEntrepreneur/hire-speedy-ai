@@ -4378,6 +4378,50 @@ export type Database = {
           },
         ]
       }
+      contract_candidate_links: {
+        Row: {
+          answered_at: string | null
+          contract_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          opened_at: string | null
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          answered_at?: string | null
+          contract_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          opened_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          answered_at?: string | null
+          contract_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          opened_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_candidate_links_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_templates: {
         Row: {
           agb_sha256: string | null
@@ -4874,8 +4918,15 @@ export type Database = {
       employment_contracts: {
         Row: {
           admin_case_at: string | null
+          candidate_asked_at: string | null
+          candidate_check: string | null
+          candidate_check_note: string | null
+          candidate_checked_at: string | null
           candidate_email: string | null
+          candidate_informed_at: string | null
           candidate_signed_at: string | null
+          candidate_status: string | null
+          candidate_status_at: string | null
           client_reminded_at: string | null
           close_job: boolean
           company_signed_at: string | null
@@ -4920,8 +4971,15 @@ export type Database = {
         }
         Insert: {
           admin_case_at?: string | null
+          candidate_asked_at?: string | null
+          candidate_check?: string | null
+          candidate_check_note?: string | null
+          candidate_checked_at?: string | null
           candidate_email?: string | null
+          candidate_informed_at?: string | null
           candidate_signed_at?: string | null
+          candidate_status?: string | null
+          candidate_status_at?: string | null
           client_reminded_at?: string | null
           close_job?: boolean
           company_signed_at?: string | null
@@ -4966,8 +5024,15 @@ export type Database = {
         }
         Update: {
           admin_case_at?: string | null
+          candidate_asked_at?: string | null
+          candidate_check?: string | null
+          candidate_check_note?: string | null
+          candidate_checked_at?: string | null
           candidate_email?: string | null
+          candidate_informed_at?: string | null
           candidate_signed_at?: string | null
+          candidate_status?: string | null
+          candidate_status_at?: string | null
           client_reminded_at?: string | null
           close_job?: boolean
           company_signed_at?: string | null
@@ -15955,7 +16020,10 @@ export type Database = {
       my_contract_tasks: {
         Args: never
         Returns: {
+          candidate_check: string
           candidate_signed_at: string
+          candidate_status: string
+          candidate_status_at: string
           company_signed_at: string
           contract_id: string
           final_at: string
