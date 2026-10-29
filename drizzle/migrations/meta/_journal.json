@@ -337,6 +337,13 @@
       "when": 1793284288238,
       "tag": "0047_stand_meiner_einreichungen",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1793290310586,
+      "tag": "0048_kandidat_vertrag_stand",
+      "breakpoints": true
     }
   ]
 }
