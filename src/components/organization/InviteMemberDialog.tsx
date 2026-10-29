@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useOrganizationInvites } from '@/hooks/useOrganizationInvites';
@@ -15,7 +16,7 @@ import { UserPlus, Loader2, Copy, Check, MailCheck, Lock, Search, X } from 'luci
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Role = 'admin' | 'hr' | 'hiring_manager' | 'viewer';
+type Role = 'admin' | 'hr' | 'hiring_manager' | 'viewer' | 'finance';
 
 interface InviteMemberDialogProps {
   organizationId: string;
@@ -38,6 +39,8 @@ const ROLE_CARDS: { key: Role; label: string; text: string }[] = [
   { key: 'hr', label: 'HR / Recruiting', text: 'Alle Stellen und Kandidaten' },
   { key: 'hiring_manager', label: 'Fachbereich', text: 'Nur ausgewählte Stellen, entscheidet mit' },
   { key: 'viewer', label: 'Betrachter', text: 'Nur ausgewählte Stellen, nur lesen' },
+  // Etappe 4 (25.10.2026): Buchhaltung sieht nur Rechnungen und Rechnungsdaten
+  { key: 'finance', label: 'Buchhaltung', text: 'Nur Rechnungen und Rechnungsdaten, keine Kandidaten' },
 ];
 
 const JOB_CHOICES: { key: Role; label: string; text: string }[] = [
@@ -76,6 +79,7 @@ export function InviteMemberDialog({
   const [showMoreJobs, setShowMoreJobs] = useState(!jobContext);
   const [jobQuery, setJobQuery] = useState('');
   const [message, setMessage] = useState('');
+  const [billingCc, setBillingCc] = useState(true);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -122,6 +126,7 @@ export function InviteMemberDialog({
     setShowMoreJobs(!jobContext);
     setJobQuery('');
     setMessage('');
+    setBillingCc(true);
     setInviteUrl(null);
     setEmailSent(false);
     setCopied(false);
@@ -140,6 +145,7 @@ export function InviteMemberDialog({
       job_ids: needsJobScope ? jobIds : [],
       full_name: name.trim() || undefined,
       message: message.trim() || undefined,
+      billing_cc: role === 'finance' ? billingCc : undefined,
     });
     setInviteUrl(result.invite_url);
     setEmailSent(result.email_sent);
@@ -234,7 +240,7 @@ export function InviteMemberDialog({
             {existing && (
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
                 <p className="font-medium">{existing.full_name || existing.email} ist schon im Team.</p>
-                <p className="text-muted-foreground">Statt einer Einladung gibst du nur Zugriff auf die gewählten Stellen.</p>
+                <p className="text-muted-foreground">{role === 'finance' ? 'Die Rolle änderst du in der Teamliste.' : 'Statt einer Einladung gibst du nur Zugriff auf die gewählten Stellen.'}</p>
               </div>
             )}
 
@@ -264,7 +270,7 @@ export function InviteMemberDialog({
                       key={c.key}
                       type="button"
                       onClick={() => setRole(c.key)}
-                      className={cn('rounded-lg border p-2.5 text-left transition-colors', role === c.key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
+                      className={cn('rounded-lg border p-2.5 text-left transition-colors', c.key === 'finance' && 'col-span-2', role === c.key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
                     >
                       <span className="block font-medium">{c.label}</span>
                       <span className="block text-xs text-muted-foreground">{c.text}</span>
@@ -272,6 +278,13 @@ export function InviteMemberDialog({
                   ))}
                 </div>
               </div>
+            )}
+
+            {role === 'finance' && !existing && (
+              <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
+                <Checkbox checked={billingCc} onCheckedChange={(c) => setBillingCc(c === true)} className="mt-0.5" />
+                <span>Rechnungen auch an diese Adresse schicken<span className="block text-xs text-muted-foreground">Kommt zu „Weitere Empfänger“ in den Rechnungsdaten.</span></span>
+              </label>
             )}
 
             {needsJobScope && (

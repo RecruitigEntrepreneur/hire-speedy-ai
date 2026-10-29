@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import {
@@ -156,16 +156,24 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Outreach', href: '/admin/outreach', icon: <Mail className="h-4 w-4" /> },
   ];
 
+  // Rolle Buchhaltung (Etappe 4, 25.10.2026): nur Rechnungen und Einstellungen
+  const financeOnly = role === 'client' && !!clientInvoices.data?.financeOnly;
+
   // Solange die Rolle lädt, kein Menü raten: sonst blitzt beim Headhunter das Kunden-Menü auf (Live-Test 23.10.2026)
   const navItems = role === 'admin'
     ? adminNavItems
     : role === 'recruiter'
     ? recruiterNavItems
     : role === 'client'
-    ? clientNavItems
+    ? (financeOnly ? clientNavItems.filter((i) => i.href === '/dashboard/rechnungen') : clientNavItems)
     : [];
 
   const settingsHref = role === 'admin' ? '/admin/settings' : role === 'client' ? '/dashboard/settings' : '/recruiter/settings';
+
+  // Buchhaltung landet auf jeder anderen Kundenseite bei „Rechnungen“ (Daten gibt ihr der Server ohnehin nicht)
+  if (financeOnly && location.pathname.startsWith('/dashboard') && !['/dashboard/rechnungen', '/dashboard/settings'].some((p) => location.pathname.startsWith(p))) {
+    return <Navigate to="/dashboard/rechnungen" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-background">

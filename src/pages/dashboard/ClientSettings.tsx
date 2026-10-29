@@ -28,12 +28,14 @@ export default function ClientSettings() {
   const { organization, myRole, isLoading: orgLoading } = useMyOrganization();
   // Ohne Organisation ist der Kunde selbst der Inhaber.
   const isOwner = myRole ? myRole === 'owner' : true;
+  // Rolle Buchhaltung (Etappe 4, 25.10.2026): nur „Mein Konto“; Rechnungsdaten stehen unter Rechnungen
+  const financeOnly = myRole === 'finance';
   const company = useCompanyProfile();
   const calendar = useCalendarStatus();
   const vertrag = useVertragStand();
 
   const roh = params.get('bereich') as Bereich | null;
-  const bereich = roh && BEREICHE.includes(roh) && (isOwner || !FIRMA.includes(roh)) ? roh : null;
+  const bereich = roh && BEREICHE.includes(roh) && (isOwner || !FIRMA.includes(roh)) && (!financeOnly || roh === 'konto') ? roh : null;
 
   const open = (b: Bereich | null) => {
     if (b === 'team') { navigate('/dashboard/team'); return; }
@@ -72,6 +74,7 @@ export default function ClientSettings() {
             company={company}
             companyName={company.profile.company_name || organization?.name || ''}
             isOwner={isOwner}
+            financeOnly={financeOnly}
             calendarConnected={calendar.isLoading ? null : calendar.state === 'connected'}
             contractStatus={contractStatus}
             onOpen={open}

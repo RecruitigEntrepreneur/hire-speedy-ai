@@ -16,10 +16,12 @@ type Tile = { key: Bereich; icon: ComponentType<{ className?: string }>; title: 
  * die Bereiche als Kacheln mit Stand. Firmenbereiche nur für den Inhaber des Kontos,
  * weil Firmenprofil, Rechnungen und Vertrag in der Datenbank an ihm hängen.
  */
-export function SettingsHub({ company, companyName, isOwner, calendarConnected, contractStatus, onOpen }: {
+export function SettingsHub({ company, companyName, isOwner, financeOnly = false, calendarConnected, contractStatus, onOpen }: {
   company: ReturnType<typeof useCompanyProfile>;
   companyName: string;
   isOwner: boolean;
+  /** Rolle Buchhaltung: nur „Mein Konto“ */
+  financeOnly?: boolean;
   calendarConnected: boolean | null;
   contractStatus: string | null;
   onOpen: (b: Bereich) => void;
@@ -38,7 +40,7 @@ export function SettingsHub({ company, companyName, isOwner, calendarConnected, 
     setAntwort('');
   };
 
-  const tiles: Tile[] = [
+  const allTiles: Tile[] = [
     { key: 'konto', icon: User, title: 'Mein Konto', text: 'Name, Passwort, Benachrichtigungen', status: 'Nur für Sie', tone: 'neutral' },
     {
       key: 'kalender', icon: Calendar, title: 'Kalender', text: 'Outlook, Interview-Zeiten',
@@ -60,6 +62,7 @@ export function SettingsHub({ company, companyName, isOwner, calendarConnected, 
       },
     ] : []),
   ];
+  const tiles = financeOnly ? allTiles.filter((x) => x.key === 'konto') : allTiles;
   const offenGesamt = offen.length + (firmaFehlt.length ? 1 : 0);
 
   return (
@@ -116,7 +119,9 @@ export function SettingsHub({ company, companyName, isOwner, calendarConnected, 
           ))}
         </div>
         {!isOwner && (
-          <p className="flex items-center gap-1.5 px-1 pt-1 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5" />Firmendaten, Auftritt bei Headhuntern und Vertrag verwaltet der Inhaber des Kontos.</p>
+          <p className="flex items-center gap-1.5 px-1 pt-1 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5" />{financeOnly
+            ? 'Rechnungsanschrift, Rechnungs-Mail und Bestellnummer ändern Sie unter Rechnungen › Rechnungsdaten.'
+            : 'Firmendaten, Auftritt bei Headhuntern und Vertrag verwaltet der Inhaber des Kontos.'}</p>
         )}
       </section>
     </div>

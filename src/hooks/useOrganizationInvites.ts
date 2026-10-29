@@ -63,6 +63,8 @@ export function useOrganizationInvites(organizationId: string | undefined) {
       job_ids?: string[];
       full_name?: string;
       message?: string;
+      /** Rolle Buchhaltung: Rechnungen auch an diese Adresse */
+      billing_cc?: boolean;
     }): Promise<SendInviteResult> => {
       const { data: result, error } = await supabase.functions.invoke('organization-invite', {
         body: data,

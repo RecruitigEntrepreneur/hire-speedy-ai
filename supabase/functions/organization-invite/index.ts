@@ -8,13 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ALLOWED_ROLES = ['admin', 'hr', 'hiring_manager', 'viewer'];
+// Rolle Buchhaltung ('finance', Etappe 4, 25.10.2026): sieht nur Rechnungen und Rechnungsdaten
+const ALLOWED_ROLES = ['admin', 'hr', 'hiring_manager', 'viewer', 'finance'];
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrator',
   hr: 'HR / Recruiting',
   hiring_manager: 'Fachbereich',
   viewer: 'Betrachter',
+  finance: 'Buchhaltung',
 };
 
 // Token: 32 Zufallsbytes, base64url. In der DB liegt NUR der SHA-256-Hash.
@@ -64,7 +66,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const { organization_id, email, role, job_ids, full_name, message } = await req.json();
+    const { organization_id, email, role, job_ids, full_name, message, billing_cc } = await req.json();
     // Optional: Name für die Anrede, persönliche Nachricht des Einladenden.
     const inviteeName = typeof full_name === 'string' ? full_name.trim().slice(0, 120) : '';
     const personalMessage = typeof message === 'string' ? message.trim().slice(0, 500) : '';
@@ -77,7 +79,8 @@ serve(async (req) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const jobIds: string[] = Array.isArray(job_ids) ? job_ids : [];
+    // Buchhaltung hat keine Stellen; sie sieht die Rechnungen der ganzen Firma
+    const jobIds: string[] = role === 'finance' ? [] : Array.isArray(job_ids) ? job_ids : [];
 
     // Nur Org-Admins (owner/admin) dürfen einladen
     const { data: org, error: orgError } = await supabase
@@ -200,7 +203,25 @@ serve(async (req) => {
       jobTitles.length
         ? `<tr><td style="padding:6px 0;color:#6b7280;vertical-align:top;">Stellen</td><td style="padding:6px 0;text-align:right;">${jobTitles.map(esc).join('<br>')}</td></tr>`
         : '',
+      role === 'finance'
+        ? `<tr><td colspan="2" style="padding:6px 0;color:#6b7280;">Sie sehen die Rechnungen von Matchunt an ${esc(org.name ?? 'Ihre Firma')}, keine Bewerber.</td></tr>`
+        : '',
     ].join('');
+
+    // Buchhaltung: Rechnungen auf Wunsch auch an diese Adresse (weitere Empfänger in den Rechnungsdaten)
+    if (role === 'finance' && billing_cc === true && org.owner_id) {
+      const { data: cp } = await supabase.from('company_profiles').select('id, billing_email, billing_cc_emails').eq('user_id', org.owner_id).maybeSingle();
+      if (cp) {
+        const list = [...new Set([...((cp.billing_cc_emails ?? []) as string[]), normalizedEmail].map((e) => String(e).toLowerCase()))]
+          .filter((e) => e !== String(cp.billing_email ?? '').toLowerCase());
+        if (list.length <= 5) {
+          const { error: ccError } = await supabase.from('company_profiles').update({ billing_cc_emails: list }).eq('id', cp.id);
+          if (ccError) console.warn('[organization-invite] Rechnungs-Empfänger nicht ergänzt:', ccError.message);
+        } else {
+          console.warn('[organization-invite] Schon fünf weitere Rechnungs-Empfänger, nicht ergänzt');
+        }
+      }
+    }
 
     // Gleicher Versandweg wie Aufnahme und Onboarding: bestätigter Absender,
     // Protokoll in email_events, Fehlertext statt stillem Scheitern.

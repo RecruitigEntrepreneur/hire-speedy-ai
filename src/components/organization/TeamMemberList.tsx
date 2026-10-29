@@ -86,7 +86,16 @@ export function TeamMemberList({
     },
   });
 
-  const handleRoleChange = (member: TeamMember, newRole: string) => {
+  const handleRoleChange = async (member: TeamMember, newRole: string) => {
+    // Buchhaltung (Etappe 4, 25.10.2026) sieht keine Stellen: Zuweisungen in dieser Firma fallen weg
+    if (newRole === 'finance') {
+      const { data: jobs } = await supabase.from('jobs').select('id').eq('organization_id', organizationId);
+      const ids = (jobs ?? []).map((j) => j.id);
+      if (ids.length) {
+        const { error } = await supabase.from('job_collaborators').delete().eq('user_id', member.user_id).in('job_id', ids);
+        if (error) { toast.error(t('team.members.update_error')); return; }
+      }
+    }
     updateMember.mutate({ id: member.id, role: newRole });
   };
 
@@ -206,10 +215,10 @@ export function TeamMemberList({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>{t('team.members.change_role')}</DropdownMenuLabel>
-                        {(['admin', 'hr', 'hiring_manager', 'viewer'] as const)
+                        {(['admin', 'hr', 'hiring_manager', 'viewer', 'finance'] as const)
                           .filter((r) => r !== member.role)
                           .map((r) => (
-                            <DropdownMenuItem key={r} onClick={() => handleRoleChange(member, r)}>
+                            <DropdownMenuItem key={r} onClick={() => void handleRoleChange(member, r)}>
                               {roleIcons[r]}
                               <span className="ml-2">{roleLabel(r)}</span>
                             </DropdownMenuItem>
