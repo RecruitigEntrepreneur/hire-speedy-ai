@@ -16030,6 +16030,23 @@ export type Database = {
           title: string
         }[]
       }
+      my_submission_jobs: {
+        Args: { p_submission_ids: string[] }
+        Returns: {
+          client_first_viewed_at: string
+          client_last_viewed_at: string
+          client_view_count: number
+          closed_at: string
+          company_name: string
+          job_id: string
+          job_industry: string
+          job_status: string
+          job_title: string
+          pause_until: string
+          paused_at: string
+          submission_id: string
+        }[]
+      }
       next_document_number: {
         Args: { _kind: string; _start?: number; _year: number }
         Returns: number
