@@ -4020,6 +4020,7 @@ export type Database = {
           address: string | null
           annual_revenue: string | null
           benefits: Json | null
+          billing_cc_emails: string[]
           billing_email: string | null
           brand_color_primary: string | null
           brand_color_secondary: string | null
@@ -4028,6 +4029,7 @@ export type Database = {
           company_name: string
           created_at: string
           culture_values: Json | null
+          default_cost_center: string | null
           description: string | null
           employer_selling_points: Json | null
           excluded_companies: string[] | null
@@ -4043,6 +4045,7 @@ export type Database = {
           opt_in_message: string | null
           perks: Json | null
           postal_code: string | null
+          purchase_order_required: boolean
           registration_number: string | null
           remote_policy: string | null
           show_benefits_in_opt_in: boolean | null
@@ -4063,6 +4066,7 @@ export type Database = {
           address?: string | null
           annual_revenue?: string | null
           benefits?: Json | null
+          billing_cc_emails?: string[]
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
@@ -4071,6 +4075,7 @@ export type Database = {
           company_name: string
           created_at?: string
           culture_values?: Json | null
+          default_cost_center?: string | null
           description?: string | null
           employer_selling_points?: Json | null
           excluded_companies?: string[] | null
@@ -4086,6 +4091,7 @@ export type Database = {
           opt_in_message?: string | null
           perks?: Json | null
           postal_code?: string | null
+          purchase_order_required?: boolean
           registration_number?: string | null
           remote_policy?: string | null
           show_benefits_in_opt_in?: boolean | null
@@ -4106,6 +4112,7 @@ export type Database = {
           address?: string | null
           annual_revenue?: string | null
           benefits?: Json | null
+          billing_cc_emails?: string[]
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
@@ -4114,6 +4121,7 @@ export type Database = {
           company_name?: string
           created_at?: string
           culture_values?: Json | null
+          default_cost_center?: string | null
           description?: string | null
           employer_selling_points?: Json | null
           excluded_companies?: string[] | null
@@ -4129,6 +4137,7 @@ export type Database = {
           opt_in_message?: string | null
           perks?: Json | null
           postal_code?: string | null
+          purchase_order_required?: boolean
           registration_number?: string | null
           remote_policy?: string | null
           show_benefits_in_opt_in?: boolean | null
@@ -4932,6 +4941,7 @@ export type Database = {
           company_signed_at: string | null
           company_signer_email: string | null
           company_signer_name: string | null
+          company_signer_user_id: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
@@ -4961,6 +4971,7 @@ export type Database = {
           sent_at: string | null
           signed_document_path: string | null
           signed_on: string | null
+          signing_mode: string
           start_date: string | null
           status: string
           submission_id: string
@@ -4985,6 +4996,7 @@ export type Database = {
           company_signed_at?: string | null
           company_signer_email?: string | null
           company_signer_name?: string | null
+          company_signer_user_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -5014,6 +5026,7 @@ export type Database = {
           sent_at?: string | null
           signed_document_path?: string | null
           signed_on?: string | null
+          signing_mode?: string
           start_date?: string | null
           status?: string
           submission_id: string
@@ -5038,6 +5051,7 @@ export type Database = {
           company_signed_at?: string | null
           company_signer_email?: string | null
           company_signer_name?: string | null
+          company_signer_user_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -5067,6 +5081,7 @@ export type Database = {
           sent_at?: string | null
           signed_document_path?: string | null
           signed_on?: string | null
+          signing_mode?: string
           start_date?: string | null
           status?: string
           submission_id?: string
@@ -5151,6 +5166,74 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employment_sign_links: {
+        Row: {
+          contract_id: string
+          created_at: string
+          created_by: string | null
+          email: string
+          envelope_id: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          last_reminded_at: string | null
+          name: string
+          opened_at: string | null
+          reminders_sent: number
+          revoked_at: string | null
+          sent_at: string | null
+          signed_at: string | null
+          signer_role: string
+          token_hash: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          created_by?: string | null
+          email: string
+          envelope_id: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          last_reminded_at?: string | null
+          name: string
+          opened_at?: string | null
+          reminders_sent?: number
+          revoked_at?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signer_role: string
+          token_hash: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          envelope_id?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          last_reminded_at?: string | null
+          name?: string
+          opened_at?: string | null
+          reminders_sent?: number
+          revoked_at?: string | null
+          sent_at?: string | null
+          signed_at?: string | null
+          signer_role?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_sign_links_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
             referencedColumns: ["id"]
           },
         ]
@@ -7304,6 +7387,7 @@ export type Database = {
           client_paid_reported_by: string | null
           client_paid_reported_on: string | null
           corrects_invoice_id: string | null
+          cost_center: string | null
           created_at: string
           currency: string | null
           due_date: string | null
@@ -7322,6 +7406,7 @@ export type Database = {
           pdf_url: string | null
           placement_id: string
           pricing_snapshot: Json | null
+          purchase_order: string | null
           recipient: Json | null
           released_at: string | null
           released_by: string | null
@@ -7347,6 +7432,7 @@ export type Database = {
           client_paid_reported_by?: string | null
           client_paid_reported_on?: string | null
           corrects_invoice_id?: string | null
+          cost_center?: string | null
           created_at?: string
           currency?: string | null
           due_date?: string | null
@@ -7365,6 +7451,7 @@ export type Database = {
           pdf_url?: string | null
           placement_id: string
           pricing_snapshot?: Json | null
+          purchase_order?: string | null
           recipient?: Json | null
           released_at?: string | null
           released_by?: string | null
@@ -7390,6 +7477,7 @@ export type Database = {
           client_paid_reported_by?: string | null
           client_paid_reported_on?: string | null
           corrects_invoice_id?: string | null
+          cost_center?: string | null
           created_at?: string
           currency?: string | null
           due_date?: string | null
@@ -7408,6 +7496,7 @@ export type Database = {
           pdf_url?: string | null
           placement_id?: string
           pricing_snapshot?: Json | null
+          purchase_order?: string | null
           recipient?: Json | null
           released_at?: string | null
           released_by?: string | null
@@ -11402,7 +11491,15 @@ export type Database = {
           compensation_verified_by: string | null
           continuity_end_date: string | null
           continuity_state: string
+          cost_center: string | null
           created_at: string
+          departure_category: string | null
+          departure_event_on: string | null
+          departure_known_on: string | null
+          departure_last_day: string | null
+          departure_note: string | null
+          departure_reported_at: string | null
+          departure_reported_by: string | null
           end_reason: string | null
           ended_at: string | null
           escrow_release_date: string | null
@@ -11413,6 +11510,8 @@ export type Database = {
           invoice_state: string
           mandate_id: string | null
           matchunt_cents: number | null
+          non_start_document_at: string | null
+          non_start_document_path: string | null
           non_start_note: string | null
           non_start_reason: string | null
           non_start_reported_at: string | null
@@ -11424,6 +11523,7 @@ export type Database = {
           placement_state: string
           platform_fee: number | null
           pricing_snapshot: Json | null
+          purchase_order: string | null
           recruiter_initial_cents: number | null
           recruiter_payout: number | null
           recruiter_retention_cents: number | null
@@ -11433,6 +11533,9 @@ export type Database = {
           start_confirmed_at: string | null
           start_confirmed_by: string | null
           start_date: string | null
+          start_moved_at: string | null
+          start_moved_by: string | null
+          start_moved_note: string | null
           submission_id: string
           total_fee: number | null
         }
@@ -11443,7 +11546,15 @@ export type Database = {
           compensation_verified_by?: string | null
           continuity_end_date?: string | null
           continuity_state?: string
+          cost_center?: string | null
           created_at?: string
+          departure_category?: string | null
+          departure_event_on?: string | null
+          departure_known_on?: string | null
+          departure_last_day?: string | null
+          departure_note?: string | null
+          departure_reported_at?: string | null
+          departure_reported_by?: string | null
           end_reason?: string | null
           ended_at?: string | null
           escrow_release_date?: string | null
@@ -11454,6 +11565,8 @@ export type Database = {
           invoice_state?: string
           mandate_id?: string | null
           matchunt_cents?: number | null
+          non_start_document_at?: string | null
+          non_start_document_path?: string | null
           non_start_note?: string | null
           non_start_reason?: string | null
           non_start_reported_at?: string | null
@@ -11465,6 +11578,7 @@ export type Database = {
           placement_state?: string
           platform_fee?: number | null
           pricing_snapshot?: Json | null
+          purchase_order?: string | null
           recruiter_initial_cents?: number | null
           recruiter_payout?: number | null
           recruiter_retention_cents?: number | null
@@ -11474,6 +11588,9 @@ export type Database = {
           start_confirmed_at?: string | null
           start_confirmed_by?: string | null
           start_date?: string | null
+          start_moved_at?: string | null
+          start_moved_by?: string | null
+          start_moved_note?: string | null
           submission_id: string
           total_fee?: number | null
         }
@@ -11484,7 +11601,15 @@ export type Database = {
           compensation_verified_by?: string | null
           continuity_end_date?: string | null
           continuity_state?: string
+          cost_center?: string | null
           created_at?: string
+          departure_category?: string | null
+          departure_event_on?: string | null
+          departure_known_on?: string | null
+          departure_last_day?: string | null
+          departure_note?: string | null
+          departure_reported_at?: string | null
+          departure_reported_by?: string | null
           end_reason?: string | null
           ended_at?: string | null
           escrow_release_date?: string | null
@@ -11495,6 +11620,8 @@ export type Database = {
           invoice_state?: string
           mandate_id?: string | null
           matchunt_cents?: number | null
+          non_start_document_at?: string | null
+          non_start_document_path?: string | null
           non_start_note?: string | null
           non_start_reason?: string | null
           non_start_reported_at?: string | null
@@ -11506,6 +11633,7 @@ export type Database = {
           placement_state?: string
           platform_fee?: number | null
           pricing_snapshot?: Json | null
+          purchase_order?: string | null
           recruiter_initial_cents?: number | null
           recruiter_payout?: number | null
           recruiter_retention_cents?: number | null
@@ -11515,6 +11643,9 @@ export type Database = {
           start_confirmed_at?: string | null
           start_confirmed_by?: string | null
           start_date?: string | null
+          start_moved_at?: string | null
+          start_moved_by?: string | null
+          start_moved_note?: string | null
           submission_id?: string
           total_fee?: number | null
         }
