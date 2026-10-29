@@ -1,5 +1,12 @@
 # Roadmap
 
+## Auftrag 38 (29.10.2026)
+- [x] Stand 2a42f78 geprüft; Journal endet bei 0045, beide angeforderten Migrationen fehlen dort; alle 15 Functions vorhanden und verify_jwt geprüft.
+- [ ] Migrationen angebot_an_kandidat und stand_meiner_einreichungen einzeln ausführen — blockiert: erste Migration setzt RLS vor GRANT (Zeilen 40–41); Korrektur in Codex.
+- [ ] offer-answer und die 14 angeforderten Functions deployen — nach korrigierter Vorprüfung.
+- [x] Keine Secrets verändert; RESEND_API_URL nicht online setzen. Kein Publish beauftragt.
+- [ ] Vorschaufehler src/lib/zipStore.ts:56 (TS2322, Uint8Array/BlobPart) — Korrektur in Codex außerhalb des Deployment-Auftrags.
+
 ## Auftrag 34 (23.10.2026) — Live-Test Interview: Fixes aus dem ersten Durchlauf
 - [x] Stand 751bd75; keine Migration, keine Secrets.
 - [x] interview-request neu deployt (verify_jwt = true laut config.toml, Source-SHA ed55d19d…).
