@@ -9399,6 +9399,60 @@ export type Database = {
         }
         Relationships: []
       }
+      offer_candidate_links: {
+        Row: {
+          answered_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          offer_id: string
+          opened_at: string | null
+          purpose: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          answered_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          offer_id: string
+          opened_at?: string | null
+          purpose: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          answered_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          offer_id?: string
+          opened_at?: string | null
+          purpose?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_candidate_links_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_candidate_links_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offer_events: {
         Row: {
           actor_id: string | null
@@ -9523,16 +9577,30 @@ export type Database = {
       }
       offers: {
         Row: {
+          accept_reported_at: string | null
+          accept_reported_by: string | null
           access_token: string | null
           benefits: Json | null
           bonus_amount: number | null
+          callback_done_at: string | null
+          callback_requested_at: string | null
+          callback_topic: string | null
+          candidate_answered_at: string | null
+          candidate_confirmed_at: string | null
           candidate_id: string
+          candidate_mail_due_at: string | null
+          candidate_mail_id: string | null
+          candidate_mail_sent_at: string | null
+          candidate_message: string | null
+          candidate_reminder_due_at: string | null
+          candidate_reminder_mail_id: string | null
           candidate_response: Json | null
           candidate_signature: string | null
           candidate_signed_at: string | null
           client_id: string
           client_signature: string | null
           client_signed_at: string | null
+          contract_document_path: string | null
           contract_type: string | null
           counter_offer_at: string | null
           counter_offer_notes: string | null
@@ -9555,6 +9623,7 @@ export type Database = {
           previous_offer_id: string | null
           probation_months: number | null
           recruiter_id: string
+          recruiter_talked_at: string | null
           rejection_reason: string | null
           remote_policy: string | null
           responded_at: string | null
@@ -9573,16 +9642,30 @@ export type Database = {
           work_model: string | null
         }
         Insert: {
+          accept_reported_at?: string | null
+          accept_reported_by?: string | null
           access_token?: string | null
           benefits?: Json | null
           bonus_amount?: number | null
+          callback_done_at?: string | null
+          callback_requested_at?: string | null
+          callback_topic?: string | null
+          candidate_answered_at?: string | null
+          candidate_confirmed_at?: string | null
           candidate_id: string
+          candidate_mail_due_at?: string | null
+          candidate_mail_id?: string | null
+          candidate_mail_sent_at?: string | null
+          candidate_message?: string | null
+          candidate_reminder_due_at?: string | null
+          candidate_reminder_mail_id?: string | null
           candidate_response?: Json | null
           candidate_signature?: string | null
           candidate_signed_at?: string | null
           client_id: string
           client_signature?: string | null
           client_signed_at?: string | null
+          contract_document_path?: string | null
           contract_type?: string | null
           counter_offer_at?: string | null
           counter_offer_notes?: string | null
@@ -9605,6 +9688,7 @@ export type Database = {
           previous_offer_id?: string | null
           probation_months?: number | null
           recruiter_id: string
+          recruiter_talked_at?: string | null
           rejection_reason?: string | null
           remote_policy?: string | null
           responded_at?: string | null
@@ -9623,16 +9707,30 @@ export type Database = {
           work_model?: string | null
         }
         Update: {
+          accept_reported_at?: string | null
+          accept_reported_by?: string | null
           access_token?: string | null
           benefits?: Json | null
           bonus_amount?: number | null
+          callback_done_at?: string | null
+          callback_requested_at?: string | null
+          callback_topic?: string | null
+          candidate_answered_at?: string | null
+          candidate_confirmed_at?: string | null
           candidate_id?: string
+          candidate_mail_due_at?: string | null
+          candidate_mail_id?: string | null
+          candidate_mail_sent_at?: string | null
+          candidate_message?: string | null
+          candidate_reminder_due_at?: string | null
+          candidate_reminder_mail_id?: string | null
           candidate_response?: Json | null
           candidate_signature?: string | null
           candidate_signed_at?: string | null
           client_id?: string
           client_signature?: string | null
           client_signed_at?: string | null
+          contract_document_path?: string | null
           contract_type?: string | null
           counter_offer_at?: string | null
           counter_offer_notes?: string | null
@@ -9655,6 +9753,7 @@ export type Database = {
           previous_offer_id?: string | null
           probation_months?: number | null
           recruiter_id?: string
+          recruiter_talked_at?: string | null
           rejection_reason?: string | null
           remote_policy?: string | null
           responded_at?: string | null
