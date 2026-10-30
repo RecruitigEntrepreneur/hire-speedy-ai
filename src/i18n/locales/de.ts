@@ -792,7 +792,9 @@ const de = {
         "abgelehnt_dated_grund": "Abgelehnt {{date}} · {{grund}}",
         "eingestellt": "Eingestellt",
         "zurueckgezogen": "Zurückgezogen",
-        "abgelaufen": "Abgelaufen"
+        "abgelaufen": "Abgelaufen",
+        "stelle_besetzt": "Stelle besetzt",
+        "stelle_geschlossen": "Stelle geschlossen"
       },
       "closed_info": "Diese Bewerbung ist abgeschlossen.",
       "hired_info": "Dieser Kandidat wurde über Matchunt eingestellt.",

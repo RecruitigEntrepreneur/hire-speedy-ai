@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { callFunction } from '@/lib/interviewScheduling';
@@ -107,6 +108,27 @@ export function useClientTasks(submissionId?: string) {
     refetchOnWindowFocus: true,
   });
 }
+
+/**
+ * Aufgaben einer Bewerbung aus der Gesamtliste, die die Seitenleiste ohnehin lädt: kein zweiter
+ * Abruf (live 2–3 s), das Profil steht auf jedem Weg gleich da (29.10.2026).
+ */
+export function useClientTasksFor(submissionId?: string) {
+  const all = useClientTasks();
+  const data = useMemo<ClientTaskList | undefined>(() => {
+    if (!all.data) return undefined;
+    const mine = <T extends { submissionId: string | null }>(xs: T[]) => xs.filter((x) => x.submissionId === submissionId);
+    return { ...all.data, tasks: mine(all.data.tasks), waiting: mine(all.data.waiting), done: mine(all.data.done), news: mine(all.data.news ?? []) };
+  }, [all.data, submissionId]);
+  return { data, isLoading: all.isLoading, refetch: all.refetch };
+}
+
+/** Hauptknopf im Bewerberprofil: der nächste Schritt selbst statt „Prüfen“/„Entscheiden“. */
+export const taskMainLabel = (kind: ClientTaskKind): string =>
+  kind === 'review' ? 'Interview anfragen'
+  : kind === 'expired_request' ? 'Neue Termine vorschlagen'
+  : kind === 'send_contract' ? 'Arbeitsvertrag schicken'
+  : TASK_ACTION[kind];
 
 /** Knopftext je Aufgabe – derselbe in Liste, Kachel, Profil. */
 export const TASK_ACTION: Record<ClientTaskKind, string> = {

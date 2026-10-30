@@ -21,7 +21,7 @@ const waitLabel = (iso: string) => {
 
 /** Aktiver Status für "Interview angefragt": zeigt Wartezeit, erlaubt Erinnern
  *  und verlinkt zur Interview-Agenda — statt eines toten Text-Chips. */
-export function PendingRequestStatus({ submissionId, jobTitle }: Props) {
+export function PendingRequestStatus({ submissionId, jobTitle, compact = false }: Props & { /** Nur die Knöpfe: Den Stand sagt schon die Karte „Läuft bei anderen“. */ compact?: boolean }) {
   const [reminding, setReminding] = useState(false);
 
   const { data: request } = useQuery({
@@ -70,6 +70,7 @@ export function PendingRequestStatus({ submissionId, jobTitle }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {!compact && (
       <div
         className={cn(
           'flex items-center gap-1.5 rounded-md px-3 py-2 text-xs',
@@ -88,6 +89,7 @@ export function PendingRequestStatus({ submissionId, jobTitle }: Props) {
           )
           : 'Interview angefragt — Opt-In ausstehend'}
       </div>
+      )}
       {request && !isCounter && (
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={remind} disabled={reminding}>
           {reminding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}

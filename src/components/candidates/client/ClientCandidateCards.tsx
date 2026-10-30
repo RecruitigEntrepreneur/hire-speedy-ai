@@ -52,7 +52,7 @@ export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName
           Aus dem Gespräch mit {recruiterName || 'dem Headhunter'}
         </Kopf>
         {rows.length === 0 && !recruiterNotes ? (
-          <p className="text-sm text-muted-foreground">Zu diesem Kandidaten liegen noch keine Angaben aus dem Gespräch vor. Fragen Sie gern über „Frage an {recruiterName || 'den Headhunter'}“ nach.</p>
+          <p className="text-sm text-muted-foreground">Zu diesem Kandidaten liegen noch keine Angaben aus dem Gespräch vor. Fragen Sie gern über „Frage stellen“ nach.</p>
         ) : (
           <dl className="divide-y divide-border/60">
             {rows.map((r) => <Zeile key={r.label} label={r.label}>{r.value}</Zeile>)}

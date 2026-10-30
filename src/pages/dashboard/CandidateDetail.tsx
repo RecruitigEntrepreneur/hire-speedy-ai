@@ -74,9 +74,9 @@ import { useMyOrganization } from '@/hooks/useOrganization';
 import { useTeamData } from '@/hooks/useTeamData';
 import { cn } from '@/lib/utils';
 import { candidateAnonCode } from '@/lib/anonymization';
-import { clientTasksApi, useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
+import { clientTasksApi, taskMainLabel, useClientTasksFor, type ClientTask } from '@/lib/clientTasksApi';
 import { ClientTaskWindow, type TaskHandlers } from '@/components/client/tasks/ClientTaskWindow';
-import { ProfileTaskCards } from '@/components/client/tasks/ClientTaskParts';
+import { ProfileTaskCards, ProfileTaskCardsLoading, TASK_ICON } from '@/components/client/tasks/ClientTaskParts';
 
 // ============================================================================
 // Helpers
@@ -131,7 +131,9 @@ export default function CandidateDetail() {
 
   const { data: candidateView, loading, error, refetch } = useClientCandidateView(id);
   // Aufgaben dieser Bewerbung (23.10.2026): Karten im Kopf wie im Headhunter-Profil
-  const clientTasks = useClientTasks(id);
+  const clientTasks = useClientTasksFor(id);
+  // Immer oben anfangen: Aus der Bewerberliste blieb sonst deren Scrollstand stehen
+  useEffect(() => { window.scrollTo(0, 0); }, [id]);
   const queryClient = useQueryClient();
   // Offene Aufgabe im Fenster; als Objekt gehalten, damit „Erledigt“ stehen bleibt, wenn sie aus der Liste fällt
   const [activeTask, setActiveTask] = useState<ClientTask | null>(null);
@@ -140,7 +142,7 @@ export default function CandidateDetail() {
   const [requestReplaces, setRequestReplaces] = useState<string | null>(null);
 
   // Ein Zustand für die ganze Seite — gleiche Pillen-/Zuständigkeits-Logik wie die Inbox
-  const { data: subState } = useSubmissionState(
+  const { data: subState, isLoading: subStateLoading } = useSubmissionState(
     id,
     candidateView?.stage ?? null,
     candidateView?.status ?? null,
@@ -152,7 +154,7 @@ export default function CandidateDetail() {
   const fit = useCandidateFitAssessment(id);
   const { data: insights } = useCandidateInsights(id);
   // Wer den Kandidaten eingereicht hat, und die Fragen des Kunden an ihn.
-  const { data: submitter } = useSubmitter(id, candidateView?.jobId);
+  const { data: submitter, isLoading: submitterLoading } = useSubmitter(id, candidateView?.jobId);
   const hhName = submitterName(submitter);
   const questions = useClientQuestions(candidateView?.jobId, candidateView?.candidateId);
   const [showFrage, setShowFrage] = useState(false);
@@ -374,6 +376,10 @@ export default function CandidateDetail() {
 
   // ---------------------------------------------------------------- Kunden-Aufgaben (23.10.2026)
   const taskCardsShown = !isViewer && !!clientTasks.data && (clientTasks.data.tasks.length > 0 || clientTasks.data.waiting.length > 0);
+  // Aufgaben oder Stand laden noch: Kopf und Box gleich in der fertigen Form zeigen, statt kurz die
+  // alte Entscheidungsbox und danach umzuspringen (29.10.2026). Scheitert der Abruf, bleibt die Box.
+  const tasksLoading = !isViewer && clientTasks.isLoading;
+  const calmBox = taskCardsShown || tasksLoading || subStateLoading;
   const openTask = (task: ClientTask) => {
     // Feedback hat sein eigenes Fenster mit den vier Wegen
     if (task.kind === 'feedback' && task.ref.interviewId) { setDelegatedTask(task); setFeedbackFor(task.ref.interviewId); return; }
@@ -496,6 +502,9 @@ export default function CandidateDetail() {
   const TERMINAL_STATES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn'];
   const isTerminal =
     TERMINAL_STATES.includes(status) || TERMINAL_STATES.includes(stage) || state.key === 'archiv';
+  // Stelle besetzt oder geschlossen: keine Entscheidung mehr, Fragen an den Headhunter bleiben möglich
+  const jobClosed = subState?.archiveKind === 'stelle_besetzt' || subState?.archiveKind === 'stelle_geschlossen';
+  const canAsk = !isViewer && (!isTerminal || jobClosed);
   const primary = primaryActionFor(state.key);
   const PrimaryIcon = primary.icon;
   // Nur „wartet auf Kandidat" nutzt den Pending-Baustein; beim Gegenvorschlag
@@ -604,6 +613,10 @@ export default function CandidateDetail() {
     if (k === 'unsicher') return `Sie sind noch unsicher. ${hhName} meldet sich mit den offenen Punkten; danach entscheiden Sie über Interview ${nextRoundNo}.`;
     if (k === 'wait_today' || k === 'wait_yesterday' || k === 'wait_days') return t('bewerber.detail.ctx.wait_new');
     if (k === 'wait_warn' || k === 'wait_crit') return t('bewerber.detail.ctx.wait_old', { days: (state.params as any)?.days ?? '' });
+    if (k === 'archiv' && jobClosed) {
+      const seit = subState?.jobClosedAt ? ` seit ${tagMonat(subState.jobClosedAt)}` : '';
+      return `Die Stelle ist${seit} ${subState?.archiveKind === 'stelle_besetzt' ? 'besetzt' : 'geschlossen'}. ${hhName} sagt dem Kandidaten Bescheid, Sie müssen nichts tun.`;
+    }
     if (k === 'archiv') return t('bewerber.detail.ctx.archiv');
     return t(`bewerber.detail.ctx.${k}`, state.params);
   };
@@ -620,6 +633,27 @@ export default function CandidateDetail() {
     if (primary.run === 'frage') { setShowFrage(true); return; }
     navigate(primary.run);
   };
+
+  // Hauptknopf (29.10.2026): Gibt es eine Aufgabe, ist er ihr nächster Schritt, damit Karte und Box
+  // dasselbe sagen. Der direkte Klick zählt danach als erledigt (delegatedTask).
+  const leadTask = clientTasks.data?.tasks[0] ?? null;
+  const runLeadTask = (task: ClientTask) => {
+    if (task.kind === 'review' || task.kind === 'expired_request') {
+      setDelegatedTask(task);
+      setRequestReplaces(task.kind === 'expired_request' ? task.ref.interviewId ?? null : null);
+      setShowInterviewDialog(true);
+      return;
+    }
+    if (task.kind === 'make_offer') { setDelegatedTask(task); setShowOffer(true); return; }
+    openTask(task);
+  };
+  const mainAction = leadTask
+    ? { label: taskMainLabel(leadTask.kind), Icon: leadTask.kind === 'review' || leadTask.kind === 'expired_request' ? Calendar : TASK_ICON[leadTask.kind], run: () => runLeadTask(leadTask) }
+    : !isTerminal && !isPendingCandidate && !offerFlow
+      ? { label: t(primary.labelKey, state.params), Icon: PrimaryIcon, run: runPrimary }
+      : null;
+  // Bis Aufgaben und Stand da sind: Platzhalter statt eines Knopfs, der gleich wechselt
+  const mainLoading = !leadTask && (tasksLoading || subStateLoading);
 
   // Verlauf: Einreichung, Interviews und Angebote chronologisch — das Gedächtnis der Bewerbung
   const verlauf: { when: string; label: string }[] = [];
@@ -684,26 +718,24 @@ export default function CandidateDetail() {
         >
           <div className="flex h-full items-center gap-3 rounded-xl border bg-card/95 px-4 shadow-md backdrop-blur">
             <span className="font-semibold shrink-0">{identityUnlocked ? displayName : anonCode}</span>
-            <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0" />
+            {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full shrink-0" /> : <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0" />}
             <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">für: {jobTitle}</span>
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
-              {!isViewer && !isTerminal && !isPendingCandidate && !offerFlow && (
-                <Button size="sm" onClick={runPrimary} className="gap-1.5 h-8">
-                  <PrimaryIcon className="h-3.5 w-3.5" />
-                  {t(primary.labelKey, state.params)}
+              {!isViewer && !mainLoading && mainAction && (
+                <Button size="sm" onClick={mainAction.run} className="gap-1.5 h-8">
+                  <mainAction.Icon className="h-3.5 w-3.5" />
+                  {mainAction.label}
                 </Button>
               )}
-              {!isViewer && !isTerminal && (
-                <>
-                  {!signedContract && (
-                    <Button variant="outline" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowRejectDialog(true)}>
-                      {t('bewerber.actions.reject')}
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowFrage(true)}>
-                    Frage an {hhName}
-                  </Button>
-                </>
+              {!isViewer && !isTerminal && !signedContract && !subStateLoading && (
+                <Button variant="outline" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowRejectDialog(true)}>
+                  {t('bewerber.actions.reject')}
+                </Button>
+              )}
+              {canAsk && (
+                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowFrage(true)}>
+                  Frage an {hhName}
+                </Button>
               )}
             </div>
           </div>
@@ -738,7 +770,7 @@ export default function CandidateDetail() {
                     {identityUnlocked ? displayName : anonCode}
                   </h1>
                   {!identityUnlocked && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
-                  <StatePill state={state} archiveKind={subState?.archiveKind} />
+                  {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full" /> : <StatePill state={state} archiveKind={subState?.archiveKind} />}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">{currentRole}</span>
@@ -831,7 +863,13 @@ export default function CandidateDetail() {
               )}
             </div>
 
-            {/* Wer den Kandidaten eingereicht hat */}
+            {/* Wer den Kandidaten eingereicht hat; beim Laden ein Platzhalter in Zeilenhöhe, damit nichts nachrutscht */}
+            {submitterLoading && (
+              <div className="mt-3 pt-3 border-t flex items-center gap-2.5" aria-busy="true">
+                <Skeleton className="h-7 w-7 rounded-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            )}
             {submitter && (
               <div className="mt-3 pt-3 border-t flex items-center gap-2.5">
                 <Avatar className="h-7 w-7">
@@ -839,13 +877,14 @@ export default function CandidateDetail() {
                   <AvatarFallback className="bg-primary/10 text-[11px] text-primary">{initialsOf(hhName)}</AvatarFallback>
                 </Avatar>
                 <p className="text-sm text-muted-foreground flex-1 min-w-0">
-                  Eingereicht von <span className="font-medium text-foreground">{hhName}</span>
+                  Eingereicht von {submitter.partnerNumber ? (
+                    <a href={`/partner/${submitter.partnerNumber}`} target="_blank" rel="noreferrer" title="Partner-Prüfseite öffnen" className="font-medium text-foreground hover:underline">{hhName}</a>
+                  ) : <span className="font-medium text-foreground">{hhName}</span>}
                   {submitter.company ? ` · ${submitter.company}` : ' · Headhunter'}
                   {submitter.tierLabel ? ` · ${submitter.tierLabel}` : ''}
                   {subState?.submittedAt ? ` · am ${format(new Date(subState.submittedAt), 'dd.MM.yyyy', { locale: de })}` : ''}
-                  {submitter.candidates && submitter.candidates > 1 ? ` · hat ${submitter.candidates} Kandidaten für diese Stelle` : ''}
                 </p>
-                {!isViewer && !isTerminal && (
+                {canAsk && (
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowFrage(true)}>
                     Frage stellen
                   </Button>
@@ -854,9 +893,12 @@ export default function CandidateDetail() {
             )}
 
             {/* Ihre Aufgaben · läuft bei anderen (wie „AUFGABEN“ im Headhunter-Profil) */}
-            {!isViewer && clientTasks.data && (clientTasks.data.tasks.length > 0 || clientTasks.data.waiting.length > 0) && (
+            {/* Steht auch ohne Aufgabe („Gerade nichts für Sie zu tun“), damit der Kopf nach dem Laden nicht schrumpft */}
+            {!isViewer && (tasksLoading || clientTasks.data) && (
               <div className="mt-3 border-t pt-3">
-                <ProfileTaskCards tasks={clientTasks.data.tasks} waiting={clientTasks.data.waiting} onOpen={openTask} onOpenWaiting={(w) => openWaiting(w.key)} />
+                {clientTasks.data
+                  ? <ProfileTaskCards tasks={clientTasks.data.tasks} waiting={clientTasks.data.waiting} onOpen={openTask} onOpenWaiting={(w) => openWaiting(w.key)} />
+                  : <ProfileTaskCardsLoading />}
               </div>
             )}
           </div>
@@ -865,66 +907,58 @@ export default function CandidateDetail() {
         {/* ================================================================ */}
         {/* ZONE 2 — WAS JETZT                                               */}
         {/* ================================================================ */}
-        {/* Mit Aufgaben-Karten im Kopf (23.10.2026) wird die Box zur schlichten Werkzeugzeile:
-            Satz und Entscheidungs-Knöpfe stehen dann in der Karte bzw. im Aufgaben-Fenster. */}
+        {/* Mit Aufgaben-Karten im Kopf (23.10.2026) wird die Box zur schlichten Werkzeugzeile: der Satz steht
+            dann in der Karte. Ab 29.10.2026 alle Knöpfe in einer Zeile: links entscheiden (Hauptknopf =
+            nächster Schritt der Karte, Ablehnen), rechts Werkzeuge. Fragen gehen über „Frage stellen“ im Kopf. */}
         <div className={cn(
           'rounded-xl border p-4',
-          taskCardsShown ? 'bg-transparent' :
+          calmBox ? 'bg-transparent' :
           state.tone === 'warn' ? 'bg-warning/10 border-warning/20' :
           state.tone === 'crit' ? 'bg-destructive/10 border-destructive/20' :
           'bg-muted/30'
         )}>
-          <div className="flex flex-wrap items-center gap-3">
-            {!taskCardsShown && <p className="text-sm flex-1 min-w-[240px]">{ctxFor()}</p>}
-            <div className="flex flex-wrap items-center gap-2">
-              {isViewer && (
-                <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
-                  <Lock className="h-3 w-3" /> {t('bewerber.detail.readonly')}
-                </Badge>
-              )}
-              {!isViewer && !isTerminal && (
-                <>
-                  {taskCardsShown ? null : isPendingCandidate ? (
-                    <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} />
-                  ) : !offerFlow && (
-                    <Button size="sm" onClick={runPrimary} className="gap-1.5">
-                      <PrimaryIcon className="h-3.5 w-3.5" />
-                      {t(primary.labelKey, state.params)}
-                    </Button>
-                  )}
-                  {!taskCardsShown && state.key === 'naechste_runde' && (
-                    <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>Direkt Angebot machen</Button>
-                  )}
-                  {!taskCardsShown && (state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
-                    <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
-                  )}
-                  {!signedContract && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 text-muted-foreground"
-                      onClick={() => setShowRejectDialog(true)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      {t('bewerber.actions.reject')}
-                    </Button>
-                  )}
-                  {showAgendaLink && !taskCardsShown && (
-                    <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-                      <Link to="/dashboard/interviews">{t('bewerber.detail.agenda')}</Link>
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground gap-1.5"
-                    onClick={() => setShowFrage(true)}
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    Frage an {hhName}
-                  </Button>
-                </>
-              )}
+          {!calmBox && <p className="text-sm mb-3">{ctxFor()}</p>}
+          <div className={cn('flex flex-wrap items-center gap-2', calmBox && 'lg:flex-nowrap')}>
+            {isViewer && (
+              <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+                <Lock className="h-3 w-3" /> {t('bewerber.detail.readonly')}
+              </Badge>
+            )}
+            {!isViewer && (mainLoading ? (
+              <Skeleton className="h-9 w-40 rounded-md" />
+            ) : mainAction ? (
+              <Button size="sm" onClick={mainAction.run} className="gap-1.5">
+                <mainAction.Icon className="h-3.5 w-3.5" />
+                {mainAction.label}
+              </Button>
+            ) : !isTerminal && isPendingCandidate && (
+              <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} compact={taskCardsShown} />
+            ))}
+            {!isViewer && !isTerminal && !calmBox && state.key === 'naechste_runde' && (
+              <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>Direkt Angebot machen</Button>
+            )}
+            {!isViewer && !isTerminal && !calmBox && (state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
+              <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
+            )}
+            {!isViewer && !isTerminal && !signedContract && (subStateLoading ? (
+              <Skeleton className="h-9 w-24 rounded-md" />
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-muted-foreground"
+                onClick={() => setShowRejectDialog(true)}
+              >
+                <X className="h-3.5 w-3.5" />
+                {t('bewerber.actions.reject')}
+              </Button>
+            ))}
+            {!isViewer && !isTerminal && !calmBox && showAgendaLink && (
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                <Link to="/dashboard/interviews">{t('bewerber.detail.agenda')}</Link>
+              </Button>
+            )}
+            <div className="flex items-center gap-2 lg:ml-auto">
               <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => void downloadCv()} disabled={pdfBusy}>
                 {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
                 Lebenslauf (PDF)

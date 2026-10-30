@@ -8,7 +8,7 @@ export type BewerberSortOption = 'match_score' | 'waiting_time' | 'newest';
 
 export type BewerberTab = 'neu' | 'pruefung' | 'interview' | 'angebot' | 'archiv';
 
-export type ArchiveKind = 'abgelehnt' | 'eingestellt' | 'zurueckgezogen' | 'abgelaufen';
+export type ArchiveKind = 'abgelehnt' | 'eingestellt' | 'zurueckgezogen' | 'abgelaufen' | 'stelle_besetzt' | 'stelle_geschlossen';
 
 /**
  * Reiter der Bewerberliste. Feiner als BewerberTab: „Angefragt“ (wartet auf den
@@ -125,15 +125,20 @@ const INTERVIEW_STAGES = new Set([
   'interview_completed',
 ]);
 
-export function tabOf(stage: string | null, status: string | null): { tab: BewerberTab; archiveKind: ArchiveKind | null } {
+// Stelle besetzt oder geschlossen: Der Kunde entscheidet über offene Vorschläge nicht mehr, der
+// Headhunter informiert den Kandidaten (wie client-tasks). Ein laufendes Angebot bleibt sichtbar.
+const JOB_CLOSED: Record<string, ArchiveKind> = { filled: 'stelle_besetzt', closed: 'stelle_geschlossen' };
+
+export function tabOf(stage: string | null, status: string | null, jobStatus?: string | null): { tab: BewerberTab; archiveKind: ArchiveKind | null } {
   if (status && ARCHIVE_STATUS[status]) {
     return { tab: 'archiv', archiveKind: ARCHIVE_STATUS[status] };
   }
   const s = stage || 'new';
   if (s === 'hired' || s === 'placed') return { tab: 'archiv', archiveKind: 'eingestellt' };
+  if (s === 'offer') return { tab: 'angebot', archiveKind: null };
+  if (jobStatus && JOB_CLOSED[jobStatus]) return { tab: 'archiv', archiveKind: JOB_CLOSED[jobStatus] };
   if (PRUEFUNG_STAGES.has(s)) return { tab: 'pruefung', archiveKind: null };
   if (INTERVIEW_STAGES.has(s)) return { tab: 'interview', archiveKind: null };
-  if (s === 'offer') return { tab: 'angebot', archiveKind: null };
   return { tab: 'neu', archiveKind: null }; // new, submitted, unbekannte Werte
 }
 
@@ -339,6 +344,14 @@ export function useBewerber(filters: BewerberFilters) {
 
       const submissionIds = rows.map((r) => r.submission_id);
 
+      // Stand der Stellen: besetzt oder geschlossen heißt keine Entscheidung mehr (Etikett „Stelle besetzt“)
+      const jobStatusById = new Map<string, string>();
+      const jobIds = [...new Set(rows.map((r) => r.job_id).filter(Boolean))] as string[];
+      if (jobIds.length > 0) {
+        const { data: jobRows } = await supabase.from('jobs').select('id, status').in('id', jobIds);
+        for (const j of (jobRows || []) as any[]) jobStatusById.set(j.id, j.status);
+      }
+
       // Letzter Interview- und Angebots-Stand pro Submission für die Zustands-Pillen
       const ivBySubmission = new Map<string, InterviewInfo>();
       const offerBySubmission = new Map<string, OfferInfo>();
@@ -432,7 +445,7 @@ export function useBewerber(filters: BewerberFilters) {
 
       const items: BewerberItem[] = rows.map((row) => {
         const hours = computeHoursWaiting(row.submitted_at);
-        const { tab, archiveKind } = tabOf(row.stage, row.status);
+        const { tab, archiveKind } = tabOf(row.stage, row.status, jobStatusById.get(row.job_id));
         const iv = ivBySubmission.get(row.submission_id) || null;
         const rej = rejBySubmission.get(row.submission_id) || null;
         const rawState = computeState(

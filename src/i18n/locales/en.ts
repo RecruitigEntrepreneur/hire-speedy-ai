@@ -793,7 +793,9 @@ const en: typeof de = {
         "abgelehnt_dated_grund": "Rejected {{date}} · {{grund}}",
         "eingestellt": "Hired",
         "zurueckgezogen": "Withdrawn",
-        "abgelaufen": "Expired"
+        "abgelaufen": "Expired",
+        "stelle_besetzt": "Position filled",
+        "stelle_geschlossen": "Position closed"
       },
       "closed_info": "This application is closed.",
       "hired_info": "This candidate was hired via Matchunt.",

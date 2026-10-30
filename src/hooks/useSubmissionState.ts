@@ -45,6 +45,8 @@ export interface SubmissionStateResult {
   latestInterview: VerlaufInterview | null;
   submittedAt: string | null;
   rejections: VerlaufRejection[];
+  /** Seit wann die Stelle besetzt oder geschlossen ist (nur dann gesetzt) */
+  jobClosedAt: string | null;
 }
 
 // Ein Zustand für die Detailseite — dieselbe Pillen-/Zuständigkeits-Logik wie
@@ -61,15 +63,16 @@ export function useSubmissionState(
     enabled: !!submissionId,
     staleTime: 30_000,
     queryFn: async () => {
-      let effectiveSubmittedAt = submittedAt;
-      if (!effectiveSubmittedAt) {
-        const { data: v } = await supabase
-          .from('client_candidate_view')
-          .select('submitted_at')
-          .eq('submission_id', submissionId!)
-          .maybeSingle();
-        effectiveSubmittedAt = (v as any)?.submitted_at ?? null;
-      }
+      const { data: v } = await supabase
+        .from('client_candidate_view')
+        .select('submitted_at, job_id')
+        .eq('submission_id', submissionId!)
+        .maybeSingle();
+      const effectiveSubmittedAt = submittedAt ?? (v as any)?.submitted_at ?? null;
+      // Stand der Stelle: besetzt oder geschlossen heißt keine Entscheidung mehr (wie client-tasks)
+      const { data: job } = (v as any)?.job_id
+        ? await supabase.from('jobs').select('status, closed_at').eq('id', (v as any).job_id).maybeSingle()
+        : { data: null };
 
       const [ivRes, offerRes, rejRes, contractRes] = await Promise.all([
         supabase
@@ -123,7 +126,7 @@ export function useSubmissionState(
         responseDue: r.response_due ?? null,
       }));
 
-      const { tab, archiveKind } = tabOf(stage, status);
+      const { tab, archiveKind } = tabOf(stage, status, (job as any)?.status ?? null);
       const hours = effectiveSubmittedAt
         ? Math.floor((Date.now() - new Date(effectiveSubmittedAt).getTime()) / (1000 * 60 * 60))
         : 0;
@@ -140,7 +143,8 @@ export function useSubmissionState(
       );
       const state = datedState(rawState, latestInterview, rejections[0] ?? null, archiveKind);
 
-      return { state, tab, archiveKind, interviews, offers, latestInterview, submittedAt: effectiveSubmittedAt, rejections };
+      const jobClosed = archiveKind === 'stelle_besetzt' || archiveKind === 'stelle_geschlossen';
+      return { state, tab, archiveKind, interviews, offers, latestInterview, submittedAt: effectiveSubmittedAt, rejections, jobClosedAt: jobClosed ? (job as any)?.closed_at ?? null : null };
     },
   });
 }

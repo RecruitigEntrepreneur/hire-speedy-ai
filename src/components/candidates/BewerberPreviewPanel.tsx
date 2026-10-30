@@ -237,7 +237,9 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               <AvatarFallback className="bg-primary/10 text-[9px] text-primary">{initialsOf(hhName)}</AvatarFallback>
             </Avatar>
             <span>
-              Eingereicht von <span className="font-medium text-foreground">{hhName}</span>
+              Eingereicht von {submitter.partnerNumber ? (
+                <a href={`/partner/${submitter.partnerNumber}`} target="_blank" rel="noreferrer" title="Partner-Prüfseite öffnen" className="font-medium text-foreground hover:underline">{hhName}</a>
+              ) : <span className="font-medium text-foreground">{hhName}</span>}
               {` · ${new Date(item.submittedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
             </span>
           </div>

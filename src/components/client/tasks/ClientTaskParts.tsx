@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { CalendarClock, CheckCircle2, Clock, FileSignature, FileText, Gift, HelpCircle, MessageSquare, Receipt, UserCheck, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   TASK_ACTION, TASK_CHIP, sinceLabel, waitingLabel,
@@ -12,7 +13,7 @@ import {
  * den Kopf des Bewerberprofils (wie „AUFGABEN“ im Headhunter-Profil).
  */
 
-const ICON: Record<ClientTaskKind, LucideIcon> = {
+export const TASK_ICON: Record<ClientTaskKind, LucideIcon> = {
   review: Users, alternative: CalendarClock, expired_request: CalendarClock, feedback: MessageSquare, decide_unsure: HelpCircle,
   make_offer: Gift, counter: Gift, offer_overdue: Clock, send_contract: FileText, contract_signed_check: FileText,
   docusign_sign: FileSignature, confirm_signature: FileSignature, recruiter_question: HelpCircle, confirm_start: UserCheck, invoice: Receipt, purchase_order: Receipt,
@@ -30,7 +31,7 @@ export function Chip({ chip, className }: { chip: TaskChip; className?: string }
 }
 
 export function TaskRow({ task, onOpen, compact = false, active = false }: { task: ClientTask; onOpen: (t: ClientTask) => void; compact?: boolean; active?: boolean }) {
-  const Icon = ICON[task.kind] ?? CheckCircle2;
+  const Icon = TASK_ICON[task.kind] ?? CheckCircle2;
   const c = task.context;
   // Zeile auf der Seite: Fakten statt Kurztext, darunter warum es eilt (Kachel bleibt kompakt)
   const facts = !compact && c?.line.length ? c.line : null;
@@ -206,6 +207,22 @@ export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { ta
             })}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Platzhalter in Kartengröße, solange die Aufgaben laden: der Kopf hat gleich seine Höhe (29.10.2026). */
+export function ProfileTaskCardsLoading() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2" aria-busy="true">
+      <div>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Ihre Aufgaben</p>
+        <Skeleton className="h-[78px] w-full rounded-lg" />
+      </div>
+      <div>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Läuft bei anderen</p>
+        <Skeleton className="h-4 w-8" />
       </div>
     </div>
   );

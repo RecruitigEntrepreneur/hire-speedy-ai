@@ -11,6 +11,8 @@ export interface Submitter {
   /** Wie viele Kandidaten er für diese Stelle eingereicht hat. */
   candidates: number | null;
   photo: string | null;
+  /** Für den Link zur Partner-Prüfseite (/partner/…) wie auf der Stellenseite. */
+  partnerNumber: string | null;
 }
 
 /** Name, der überall angezeigt wird: der Headhunter oder neutral „Ihr Headhunter“. */
@@ -39,6 +41,7 @@ export function useSubmitter(submissionId: string | undefined, jobId: string | u
         tierLabel: s?.tier ? TIER_LABEL[s.tier] : null,
         candidates: s?.candidates ?? null,
         photo: s?.avatar_path ? await avatarUrl(s.avatar_path).catch(() => null) : null,
+        partnerNumber: s?.partner_number ?? null,
       };
     },
   });
