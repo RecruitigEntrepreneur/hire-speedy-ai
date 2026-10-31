@@ -1370,6 +1370,21 @@ Zeit. **Eine Migration, eine neue Edge Function, zwei neu zu deployen.**
 
 ---
 
+## 41 — Matchunt Liga: Wochenlauf stürzte ab (31.10.2026)
+
+Der echte Montagslauf von `liga-weekly` scheitert an `column reference "recruiter_id" is ambiguous`, die
+Wochenmail ginge also nie raus. Vorschau und Testmail enden vor der betroffenen Zeile. Geändert ist nur diese
+eine Zeile in `liga_weekly_rows`. **Eine Migration, keine Edge Function, kein Publish.**
+
+> 1. Migration `supabase/migrations/20261031120000_liga_wochenlauf_fix.sql` ausführen (`CREATE OR REPLACE` von
+>    `public.liga_weekly_rows(boolean)`, gleiche Signatur, Rechte bleiben. Keine neue Tabelle, keine
+>    Daten-Einfügungen, kein Bezug auf neue Objekte, kein Cron).
+> 2. Prüfen: `SELECT position('liga_snapshots_pkey' IN pg_get_functiondef('public.liga_weekly_rows(boolean)'::regprocedure)) > 0;`
+>    muss `true` ergeben. Die Datei bitte nicht überspringen; falls sie nicht läuft, den Grund melden.
+> 3. Keine Edge Functions, keine Secrets, kein Publish.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
