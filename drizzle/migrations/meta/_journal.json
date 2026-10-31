@@ -358,6 +358,13 @@
       "when": 1793307801481,
       "tag": "0050_besetzungen_rechnungen",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1793460200998,
+      "tag": "0051_liga_wochenlauf_fix",
+      "breakpoints": true
     }
   ]
 }
