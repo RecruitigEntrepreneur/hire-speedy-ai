@@ -1523,6 +1523,16 @@ export async function interviewDetails(ctx: ServiceCtx, user: User, body: any) {
     prevId = p.reschedules_interview_id;
   }
   const previous = chain[chain.length - 1] ?? null;
+  // „Noch unsicher“: Die Antwort des Headhunters steht beim Entscheiden mit im Fenster (02.11.2026)
+  let questionAnswer: string | null = null;
+  const savedFeedback = (() => { try { return JSON.parse(iv.feedback ?? ''); } catch { return null; } })();
+  if (savedFeedback?.question && savedFeedback.recommendation === 'unsure') {
+    const { data: answers } = await ctx.db.from('messages').select('content, created_at')
+      .eq('job_id', b.job.id).eq('candidate_id', b.candidate.id).eq('sender_id', b.submission.recruiter_id)
+      .order('created_at', { ascending: false }).limit(1);
+    const last = (answers ?? [])[0] as any;
+    if (last && Date.parse(last.created_at) >= Date.parse(savedFeedback.submitted_at ?? '')) questionAnswer = last.content;
+  }
   const slots = (raw: unknown) => ((Array.isArray(raw) ? raw : []) as any[]).map((x) => (typeof x === 'string' ? x : x?.datetime)).filter(Boolean) as string[];
   const when = (iso: string) => `${formatBerlinDateShort(iso)} ${formatBerlinTime(iso)}`;
   const asked = (raw: unknown, first: boolean) => {
@@ -1558,6 +1568,7 @@ export async function interviewDetails(ctx: ServiceCtx, user: User, body: any) {
     onsite: meeting.address ? { address: meeting.address, note: meeting.note ?? null, mapsUrl: mails.mapsUrl(meeting.address), contactName: meeting.contactName ?? null, contactPhone: meeting.contactPhone ?? null } : null,
     callPhone: iv.call_phone ?? null,
     feedback: iv.feedback ?? null,
+    questionAnswer,
     inOutlook: iv.meeting_provider === 'client_calendar',
     proposedSlots: slots(iv.proposed_slots),
     counterSlot: slots(iv.counter_slots)[0] ?? null,
@@ -1673,11 +1684,14 @@ export async function saveFeedback(ctx: ServiceCtx, user: User, body: any) {
     return Number.isInteger(n) && n >= 1 && n <= 5 ? n * 20 : null;
   };
   const impression = text(body.impression);
+  // Noch unsicher: Was der Headhunter klären soll, läuft auch als Nachricht im Gespräch zur Einreichung
+  const question = way === 'unsure' ? text(body.question, 1000) : '';
   const round = iv.round ?? 1;
   const feedback = {
     recommendation: way,
     impression,
     notes: impression,
+    question: question || null,
     technical_score: score(body.scores?.technical),
     communication: score(body.scores?.communication),
     culture_fit: score(body.scores?.culture),
@@ -1697,6 +1711,24 @@ export async function saveFeedback(ctx: ServiceCtx, user: User, body: any) {
     await ctx.db.from('submissions').update({ stage: 'interview_completed' }).eq('id', b.submission.id);
   }
 
+  if (question) {
+    const { data: thread } = await ctx.db.from('messages').select('conversation_id, sender_id, recipient_id')
+      .eq('job_id', b.submission.job_id).eq('candidate_id', b.submission.candidate_id)
+      .or(`sender_id.eq.${b.submission.recruiter_id},recipient_id.eq.${b.submission.recruiter_id}`).limit(1);
+    const conversationId = ((thread ?? []) as any[])[0]?.conversation_id ?? crypto.randomUUID();
+    const { error: mErr } = await ctx.db.from('messages').insert({
+      conversation_id: conversationId, sender_id: user.id, recipient_id: b.submission.recruiter_id,
+      job_id: b.submission.job_id, candidate_id: b.submission.candidate_id, content: question,
+    });
+    if (mErr) console.warn('[interview] Frage nicht gespeichert', mErr.code, mErr.message);
+  }
+
+  await tellRecruiterFeedback(ctx, b, way, round, impression, question || null);
+  return { ok: true, way, round, nextRound: round + 1 };
+}
+
+/** Glocke und Mail an den Headhunter: das Feedback und was jetzt dran ist. */
+async function tellRecruiterFeedback(ctx: ServiceCtx, b: InterviewBundle, way: mails.FeedbackWay, round: number, impression: string, question: string | null) {
   const company = recruiterCompanyLabel(b);
   const label = mails.FEEDBACK_LABEL[way];
   const title = `${company} nach ${round > 1 ? `dem ${round}. Gespräch` : 'dem Interview'}: ${label}`;
@@ -1709,12 +1741,61 @@ export async function saveFeedback(ctx: ServiceCtx, user: User, body: any) {
   if (b.recruiter?.email) {
     const content = mails.recruiterFeedback({
       recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: company,
-      jobTitle: b.job.title, round, way, impression: impression || null,
+      jobTitle: b.job.title, round, way, impression: impression || null, question, submissionId: b.submission.id,
       akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
     });
-    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_feedback_recruiter', meta: { interview_id: iv.id, way } });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_feedback_recruiter', meta: { interview_id: b.interview.id, way } });
   }
+}
+
+/**
+ * „Noch unsicher“ entschieden (02.11.2026): wirkt wie das Feedback selbst. Bei „Angebot“ bekommt der
+ * Headhunter die Aufgabe Empfehlung. Absagen läuft über das Absage-Fenster.
+ */
+export async function decideAfterUnsure(ctx: ServiceCtx, user: User, body: any) {
+  const b = await clientInterview(ctx, user, body?.interviewId);
+  const iv = b.interview;
+  must(feedbackWay(iv.feedback) === 'unsure', 'Zu diesem Gespräch ist schon entschieden.', 'conflict');
+  const way = body?.way as mails.FeedbackWay;
+  must(way === 'offer' || way === 'next_round', 'Bitte wählen, wie es weitergeht.');
+  const fb = JSON.parse(String(iv.feedback));
+  const updated = { ...fb, recommendation: way, unsure_decided_at: new Date(ctx.now()).toISOString(), unsure_decided_by: user.id };
+  const { error } = await ctx.db.from('interviews').update({ feedback: JSON.stringify(updated) }).eq('id', iv.id);
+  dbFail(error, 'Die Entscheidung');
+  const round = iv.round ?? 1;
+  await tellRecruiterFeedback(ctx, b, way, round, String(fb.impression ?? ''), null);
   return { ok: true, way, round, nextRound: round + 1 };
+}
+
+/** Einmal nach einem Tag: Der Kunde wartet auf die Empfehlung (täglicher Lauf, kein eigener Cron). */
+async function sendRecommendationReminders(ctx: ServiceCtx) {
+  const { data: rows, error } = await ctx.db.from('interviews').select('id, submission_id, feedback').like('feedback', '%"recommendation":"offer"%');
+  dbFail(error, 'Die Erinnerungen an die Empfehlung');
+  let sent = 0;
+  for (const row of (rows ?? []) as any[]) {
+    let fb: any;
+    try { fb = JSON.parse(row.feedback); } catch { continue; }
+    const at = Date.parse(fb.unsure_decided_at ?? fb.submitted_at ?? '');
+    if (fb.rec_reminded_at || Number.isNaN(at) || ctx.now() - at < 24 * 3600_000 || ctx.now() - at > 14 * 86400_000) continue;
+    const [{ data: recs }, { data: offers }, { data: nach }] = await Promise.all([
+      ctx.db.from('offer_recommendations').select('id').eq('submission_id', row.submission_id).limit(1),
+      ctx.db.from('offers').select('id').eq('submission_id', row.submission_id).limit(1),
+      ctx.db.from('interview_nachgespraeche').select('will_weiter').eq('submission_id', row.submission_id),
+    ]);
+    if ((recs ?? []).length || (offers ?? []).length || ((nach ?? []) as any[]).some((n) => n.will_weiter === 'nein')) continue;
+    const b = await loadInterview(ctx.db, { id: row.id });
+    if (!b || ['rejected', 'client_rejected', 'withdrawn', 'placed', 'hired'].includes(String(b.submission.stage ?? ''))) continue;
+    await ctx.db.from('interviews').update({ feedback: JSON.stringify({ ...fb, rec_reminded_at: new Date(ctx.now()).toISOString() }) }).eq('id', row.id);
+    if (b.recruiter?.email) {
+      const content = mails.recruiterRecommendationReminder({
+        recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b),
+        jobTitle: b.job.title, submissionId: b.submission.id, akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
+      });
+      await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'recommendation_reminder_recruiter', meta: { interview_id: row.id } });
+      sent++;
+    }
+  }
+  return sent;
 }
 
 // ---------------------------------------------------------------------------
@@ -1806,5 +1887,5 @@ export async function sendDayBeforeReminders(ctx: ServiceCtx) {
       `${b.job.title} · ${formatBerlinDateShort(startIso)}`, iv.id);
     reminded++;
   }
-  return { reminded };
+  return { reminded, recommendationReminders: await sendRecommendationReminders(ctx) };
 }

@@ -29,10 +29,11 @@ const QUESTIONS_COOLDOWN_MS = 7 * 86_400_000;
 // Anlass der Nachricht an den Kunden (29.10.2026): Betreff, Schluss und Link passen zur Aufgabe.
 // review, interview_feedback und counter sind Erinnerungen (Sperre 3 Tage, zählen als client_nudge),
 // opt_in und rejected nur ein Stand an den Kunden (client_message, ohne Sperre).
-type Anlass = 'review' | 'interview_feedback' | 'counter' | 'contract' | 'opt_in' | 'rejected';
+type Anlass = 'review' | 'interview_feedback' | 'decision' | 'counter' | 'contract' | 'opt_in' | 'rejected';
 const ANLAESSE: Record<Anlass, { ask: string; closing: string; link: string; reminder: boolean; logTitle: string }> = {
   review: { ask: 'bittet um Rückmeldung zu', closing: 'Im Dashboard können Sie mit einem Klick ein Interview anfragen, absagen oder „Noch in Prüfung“ melden.', link: 'Einreichung öffnen', reminder: true, logTitle: 'Kunden erinnert' },
   interview_feedback: { ask: 'bittet um Ihren Eindruck aus dem Interview mit', closing: 'Im Dashboard geben Sie Ihr Feedback mit einem Klick: nächstes Gespräch, Angebot oder Absage.', link: 'Einreichung öffnen', reminder: true, logTitle: 'Kunden nach Interview-Eindruck gefragt' },
+  decision: { ask: 'bittet um Ihre Entscheidung zu', closing: 'Im Dashboard entscheiden Sie mit einem Klick: Angebot, weitere Runde oder Absage.', link: 'Entscheiden', reminder: true, logTitle: 'Kunden um Entscheidung gebeten' },
   counter: { ask: 'bittet um Ihre Antwort auf den Gegenwunsch von', closing: 'Ihre Antwort geben Sie im Dashboard direkt beim Angebot.', link: 'Gegenwunsch beantworten', reminder: true, logTitle: 'Kunden an Gegenwunsch erinnert' },
   contract: { ask: 'bittet um Rückmeldung zum Vertrag von', closing: 'Den Stand des Vertrags melden Sie im Dashboard mit einem Klick.', link: 'Vertrag öffnen', reminder: true, logTitle: 'Kunden zum Vertrag gefragt' },
   opt_in: { ask: 'meldet sich zu Ihrer Interview-Anfrage für', closing: 'Sie müssen nichts weiter tun. Sobald ein Termin feststeht, sehen Sie ihn im Dashboard.', link: 'Einreichung öffnen', reminder: false, logTitle: 'Kunden zur Interview-Anfrage informiert' },
@@ -89,6 +90,7 @@ function clientWording(anlass: Anlass, o: { n: number; who: string; job: string;
     case 'interview_feedback': return o.n === 1
       ? { subject: `Wie war Ihr Eindruck von ${o.who}?`, intro: `danke für das Interview mit ${o.who} zur Stelle ${o.job}.` }
       : { subject: `Ihr Eindruck aus den Interviews mit ${o.n} Kandidaten?`, intro: `danke für die Interviews mit ${zahl(o.n)} Kandidaten:` };
+    case 'decision': return { subject: `${o.who}: Wie möchten Sie weitermachen?`, intro: `${o.who} wartet seit einigen Tagen auf eine Rückmeldung zur Stelle ${o.job}.` };
     case 'counter': return { subject: `Gegenwunsch von ${o.who}: Ihre Rückmeldung`, intro: `ich melde mich wegen des Gegenwunsches von ${o.who} zur Stelle ${o.job}${o.wish ? `: ${o.wish}` : ''}.` };
     case 'contract': return { subject: `Arbeitsvertrag von ${o.who}: kurzer Stand?`, intro: `ich melde mich wegen des Arbeitsvertrags von ${o.who} zur Stelle ${o.job}.` };
     case 'opt_in': return { subject: `Ihre Interview-Anfrage für ${o.who}: kurzer Stand`, intro: `kurzer Stand von mir zu Ihrer Interview-Anfrage für ${o.who} (${o.job}):` };

@@ -65,10 +65,10 @@ export default function OfferAnswerPage() {
       <dt className="text-muted-foreground">Firma</dt><dd>{v.companyName}</dd>
       <dt className="text-muted-foreground">Stelle</dt><dd>{v.jobTitle}</dd>
       <dt className="text-muted-foreground">Fixgehalt</dt><dd>{euro(o.salary)} pro Jahr</dd>
-      {o.variable ? <><dt className="text-muted-foreground">Variabel</dt><dd>{euro(o.variable)} pro Jahr</dd></> : null}
+      {o.variable ? <><dt className="text-muted-foreground">Variabel</dt><dd>{euro(o.variable)} bei 100 %</dd></> : null}
       {o.startDate && <><dt className="text-muted-foreground">Erster Arbeitstag</dt><dd>{dayDe(o.startDate)}</dd></>}
       <dt className="text-muted-foreground">Vertrag</dt><dd>{o.contractType === 'fixed_term' ? 'befristet' : 'unbefristet'}{o.probationMonths ? ` · ${o.probationMonths} Monate Probezeit` : ''}</dd>
-      {o.workModel && <><dt className="text-muted-foreground">Arbeitsmodell</dt><dd>{o.workModel}</dd></>}
+      {o.workModel && <><dt className="text-muted-foreground">Ort und Modell</dt><dd>{o.workModel}</dd></>}
       {o.extras.length > 0 && <><dt className="text-muted-foreground">Extras</dt><dd>{o.extras.join(', ')}</dd></>}
     </dl>
   );
@@ -111,6 +111,8 @@ export default function OfferAnswerPage() {
           {facts}{contact}
         </Shell>
       );
+    case 'wish_pending':
+      return <Shell><Status icon={Clock} tone="muted" title={`Ihr Wunsch liegt bei ${v.companyName}`}>{`${hhFirst} meldet sich, sobald die Antwort da ist. Bis dahin müssen Sie nichts tun.`}</Status>{contact}</Shell>;
     case 'expired':
       return <Shell><Status icon={Clock} tone="warning" title="Die Antwortfrist ist abgelaufen">{`Bitte sprechen Sie mit ${hhFirst}. Die Firma kann die Frist verlängern.`}</Status>{contact}</Shell>;
     case 'closed':
@@ -130,6 +132,7 @@ export default function OfferAnswerPage() {
             <p className="text-sm text-muted-foreground">{hh?.name ?? 'Ihr Headhunter'} hat {v.companyName}{v.reportedAt ? ` am ${dateTimeDe(v.reportedAt)} Uhr` : ''} Ihre Zusage gemeldet. Bitte bestätigen Sie kurz, dann kommt der Arbeitsvertrag.</p>
           </div>
           {facts}
+          {v.message && <p className="text-sm text-muted-foreground">Nachricht von {v.companyName}: „{v.message}“</p>}
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy} onClick={() => send({ way: 'confirmed' }, 'confirmed')}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Ja, ich sage zu</Button>
             <Button variant="outline" disabled={busy} onClick={() => send({ way: 'not_confirmed' }, 'not_confirmed')}>Stimmt so nicht</Button>
@@ -162,9 +165,9 @@ export default function OfferAnswerPage() {
           )}
           {step === 'accept' && (
             <Panel>
-              <p className="text-sm">Mit „Verbindlich zusagen“ sagen Sie {v.companyName} zu den Eckdaten oben zu. Den Arbeitsvertrag unterschreiben Sie danach gesondert.</p>
+              <p className="text-sm">Mit „Jetzt zusagen“ sagen Sie {v.companyName} zu den Eckdaten oben zu. Den Arbeitsvertrag unterschreiben Sie danach gesondert.</p>
               <div className="flex flex-wrap gap-2">
-                <Button disabled={busy} onClick={() => send({ way: 'accepted' }, 'accepted')}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Verbindlich zusagen</Button>
+                <Button disabled={busy} onClick={() => send({ way: 'accepted' }, 'accepted')}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Jetzt zusagen</Button>
                 <Button variant="ghost" onClick={() => setStep(null)}>Zurück</Button>
               </div>
             </Panel>

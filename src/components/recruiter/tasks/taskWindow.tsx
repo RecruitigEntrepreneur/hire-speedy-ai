@@ -21,7 +21,9 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Check, Lock, Mail, NotebookPen, Phone } from 'lucide-react';
-import { NachgespraechWindow, nachTargetFromItem, type NachTarget } from './NachgespraechWindow';
+import { KundenFrageWindow } from './KundenFrageWindow';
+import type { RecruiterOfferContext } from '@/lib/offerApi';
+import { NachgespraechWindow, nachTargetFromContext, nachTargetFromItem, type NachTarget } from './NachgespraechWindow';
 import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
 import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
 import { ContractWindow } from '@/components/contracts/ContractWindow';
@@ -29,7 +31,7 @@ import { Honorar } from '@/components/recruiter/Honorar';
 
 export const DAY_MS = 86_400_000;
 
-export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract';
+export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'frage';
 
 export interface Guide {
   pill: string;
@@ -151,7 +153,7 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
     const left = item.dueAt ? Math.round((Date.parse(`${berlinDay(new Date(item.dueAt).getTime())}T12:00:00Z`) - Date.parse(`${berlinDay(Date.now())}T12:00:00Z`)) / DAY_MS) : null;
     const frist = left === null ? '' : left < 0 ? 'Frist abgelaufen.' : left === 0 ? 'Antwort heute fällig.' : `Noch ${left} ${left === 1 ? 'Tag' : 'Tage'}.`;
     const advice = t.startsWith('Rückruf') ? `${first} möchte über das Angebot sprechen. ${item.description ? satz(item.description) : ''}`
-      : t === 'Angebot überbringen' ? `Der Kunde macht ${first} ein Angebot. Ruf an, bevor die Mail rausgeht${item.description ? ` (${item.description.replace(/^Mail an Kandidat /, '')})` : ''}.`
+      : t === 'Angebot überbringen' ? `Der Kunde macht ${first} ein Angebot. Ruf an, bevor die Mail rausgeht${item.description ? ` (${item.description.replace(/^Mail an \S+ /, '')})` : ''}.`
         : t.startsWith('Keine Antwort') ? `${first} hat seit 24 Std. nicht auf das Angebot geantwortet. ${frist} Ruf an.`
           : t.startsWith('Zusage noch nicht') ? `${first} hat die Zusage noch nicht per Klick bestätigt. Ruf an.`
             : considering ? `${first} überlegt noch. ${frist} Nachfassen und Antwort eintragen.`
@@ -171,6 +173,31 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       ],
       goal: 'Angebot liegt schriftlich vor',
       primary: { label: 'Angebot öffnen', kind: 'offer' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'client_unsure') {
+    return {
+      pill: 'Kundenfrage',
+      advice: `Der Kunde ist bei ${first} noch unsicher. Kläre seine Frage und antworte ihm über Matchunt.`,
+      facts: [item.description ? satz(`Frage: ${item.description}`) : '', fee ? `Honorar bei Abschluss: ${fee}.` : ''].filter(Boolean),
+      consequence: 'Ohne Antwort entscheidet der Kunde spät oder gar nicht, und der Kandidat wartet.',
+      steps: [{ text: 'Frage klären, wenn nötig mit dem Kandidaten.' }, { text: 'Dem Kunden antworten: Danach entscheidet er.' }],
+      goal: 'Antwort beim Kunden',
+      primary: { label: 'Frage beantworten', kind: 'frage' },
+      reachedOptions: [],
+    };
+  }
+  if (cat === 'client_undecided') {
+    const d = daysSince(item.createdAt);
+    return {
+      pill: 'Kundenfrage',
+      advice: `Der Kunde entscheidet seit ${d} Tagen nicht über ${first}. Benachrichtige ihn.`,
+      facts: [fee ? `Honorar bei Abschluss: ${fee}.` : ''].filter(Boolean),
+      consequence: 'Wartet der Kandidat zu lange, springt er ab.',
+      steps: [{ text: 'Kunden benachrichtigen.', hint: 'Angebot, weitere Runde oder Absage.' }, { text: `${first} kurz Bescheid geben.` }],
+      goal: 'Entscheidung des Kunden',
+      primary: { label: 'Kunden benachrichtigen', kind: 'client' },
       reachedOptions: [],
     };
   }
@@ -361,16 +388,20 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const [reached, setReached] = useState<{ item: UnifiedTaskItem; guide: Guide } | null>(null);
   const [detail, setDetail] = useState<TaskDetailItem | null>(null);
   // Nachgespräch: eigenes Fenster, festgehalten, damit Schritt 3 nach dem Neuladen bleibt
-  const [nach, setNach] = useState<{ target: NachTarget; item: UnifiedTaskItem } | null>(null);
+  const [nach, setNach] = useState<{ target: NachTarget; item?: UnifiedTaskItem } | null>(null);
+  /** Aus Empfehlung und Kundenfrage ins Nachgespräch; es führt danach dorthin zurück. */
+  const openNachFor = (c: RecruiterOfferContext) => { const target = nachTargetFromContext(c); if (target) setNach({ target }); };
   // Angebot überbringen bzw. Empfehlung schreiben: eigene Fenster je Einreichung
   const [offerFor, setOfferFor] = useState<string | null>(null);
   const [recFor, setRecFor] = useState<string | null>(null);
+  const [frageFor, setFrageFor] = useState<string | null>(null);
   const [contractFor, setContractFor] = useState<string | null>(null);
   /** Aufgaben mit eigenem Fenster direkt öffnen; true = erledigt. */
   const openOwnWindow = (it: UnifiedTaskItem) => {
     if (it.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
     if (it.taskCategory === 'offer_deliver' && it.submissionId) { setOfferFor(it.submissionId); return true; }
     if (it.taskCategory === 'recommendation_due' && it.submissionId) { setRecFor(it.submissionId); return true; }
+    if (it.taskCategory === 'client_unsure' && it.submissionId) { setFrageFor(it.submissionId); return true; }
     if (it.taskCategory.startsWith('contract_') && it.submissionId) { setContractFor(it.submissionId); return true; }
     return false;
   };
@@ -398,6 +429,9 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         return;
       case 'recommend':
         if (item.submissionId) setRecFor(item.submissionId);
+        return;
+      case 'frage':
+        if (item.submissionId) setFrageFor(item.submissionId);
         return;
       case 'contract':
         if (item.submissionId) setContractFor(item.submissionId);
@@ -547,10 +581,13 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         target={nach?.target ?? null}
         onClose={() => setNach(null)}
         onDone={refetch}
-        laterSlot={nach ? <LaterMenu onPick={until => { const it = nach.item; setNach(null); later(it, until); }} /> : null}
+        laterSlot={nach?.item ? <LaterMenu onPick={until => { const it = nach.item!; setNach(null); later(it, until); }} /> : null}
+        onEmpfehlung={setRecFor}
+        onFrage={setFrageFor}
       />
       <OfferAnswerDialog submissionId={offerFor} onClose={() => setOfferFor(null)} onDone={refetch} />
-      <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} onDone={refetch} />
+      <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} onDone={refetch} onNachgespraech={openNachFor} />
+      <KundenFrageWindow submissionId={frageFor} onClose={() => setFrageFor(null)} onDone={refetch} onNachgespraech={openNachFor} />
       <ContractWindow
         submissionId={contractFor}
         onClose={() => setContractFor(null)}
@@ -591,6 +628,7 @@ export function stepPlan(cat: string, first: string, opts: { itemType?: string; 
     const mail = opts.hasCandidate ? [{ side: 'candidate' as const, label: `${first} eine Mail schreiben?`, optional: true }] : [];
     return [{ side: cat === 'call' ? 'call' : 'done', label: opts.title || 'Erinnerung' }, ...mail];
   }
+  if (cat === 'client_undecided') return [{ side: 'client', label: 'Kunden benachrichtigen' }, { side: 'candidate', label: `${first} kurz Bescheid geben`, optional: true }];
   if (cat === 'offer_counter_stalled') return [{ side: 'client', label: 'Kunden um Entscheidung bitten' }, { side: 'candidate', label: `${first} Bescheid geben?`, optional: true }];
   if (cat === 'rejected_inform') return [{ side: 'candidate', label: `${first} informieren` }, { side: 'client', label: 'Kunden nach dem Grund fragen?', optional: true }];
   if (cat === 'job_closed_inform') return [{ side: 'candidate', label: `${first} informieren` }];
@@ -603,7 +641,7 @@ export function stepPlan(cat: string, first: string, opts: { itemType?: string; 
 
 /** Anlass der Nachricht an den Kunden: Betreff und Schluss der Mail (recruiter-notify). */
 export const anlassOf = (cat: string) =>
-  cat === 'offer_counter_stalled' ? 'counter' : cat.startsWith('opt_in_pending') ? 'opt_in' : cat === 'rejected_inform' ? 'rejected' : undefined;
+  cat === 'client_undecided' ? 'decision' : cat === 'offer_counter_stalled' ? 'counter' : cat.startsWith('opt_in_pending') ? 'opt_in' : cat === 'rejected_inform' ? 'rejected' : undefined;
 
 function afterText(cat: string, first: string): string | null {
   if (cat === 'offer_counter_stalled') return 'Danach wartest du. Die Zeile steht unter „Wartet auf andere“, bis der Kunde antwortet. Kommt nichts, ist nach 3 Werktagen die 2. Erinnerung dran.';
@@ -922,7 +960,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
           <div className="flex flex-wrap items-center gap-1.5">
             <LaterMenu onPick={until => onLater(item, until)} />
             {item.candidatePhone && guide.primary.kind !== 'call' && guide.primary.kind !== 'followup' && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" asChild><a href={`tel:${item.candidatePhone}`}><Phone className="mr-1 h-3 w-3" />Anrufen</a></Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" asChild><a href={`tel:${item.candidatePhone}`}><Phone className="mr-1 h-3 w-3" />{item.candidateName ? `${item.candidateName.split(' ')[0]} anrufen` : 'Anrufen'}</a></Button>
             )}
             {item.submissionId && (
               <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/submissions/${item.submissionId}`)}>Einreichung</Button>

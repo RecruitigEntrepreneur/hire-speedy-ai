@@ -69,6 +69,8 @@ const NON_START = [
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const plusDays = (d: number) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
+/** Neue Antwortfrist: 3 Tage ab heute, oder ab der Frist, wenn sie noch läuft */
+const nextDue = (due?: string) => (due && due > plusDays(0) ? new Date(Date.parse(`${due}T12:00:00Z`) + 3 * 86400000).toISOString().slice(0, 10) : plusDays(3));
 
 function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: string }): Option[] {
   const hh = extra.recruiter;
@@ -98,8 +100,10 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
       ];
     case 'decide_unsure':
       return [
-        { key: 'angebot', label: 'Angebot machen', cta: 'Angebot erstellen', run: needH((x) => x.offer()) },
-        { key: 'runde', label: 'Noch eine Runde', cta: 'Interview anfragen', run: needH((x) => x.requestInterview(null)) },
+        { key: 'angebot', label: 'Angebot machen', cta: 'Entscheidung speichern', hint: `${hh} schreibt die Empfehlung. Sie können danach trotzdem sofort anbieten.`,
+          doneText: `${hh} schreibt Ihnen jetzt, was es für die Zusage braucht. Sie bekommen dazu eine Mail.`,
+          run: async () => { await interviewApi.decideUnsure(t.ref.interviewId!, 'offer'); return 'done'; } },
+        { key: 'runde', label: 'Noch eine Runde', cta: 'Interview anfragen', run: async () => { await interviewApi.decideUnsure(t.ref.interviewId!, 'next_round'); h?.requestInterview(null); return 'handoff'; } },
         { key: 'absage', label: 'Absage', cta: 'Weiter zur Absage', run: needH((x) => x.reject()) },
       ];
     case 'make_offer':
@@ -121,7 +125,7 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
         { key: 'verlaengern', label: 'Frist verlängern', cta: 'Verlängern', doneText: 'Die Frist ist verlängert, der Headhunter weiß Bescheid.', field: 'date', check: (v) => (v.date && v.date >= todayIso() ? null : 'Bitte ein Datum ab heute wählen.'),
           run: async (v) => { await offerApi.extend(t.ref.offerId!, v.date); return 'done'; } },
         { key: 'nachfassen', label: `${hh} soll nachfassen`, cta: 'Bitten', hint: 'Ihre Aufgabe bleibt sichtbar.',
-          run: async () => { await clientTasksApi.askFollowup(sid, 'Die Antwortfrist für das Angebot ist vorbei.'); return 'handoff'; } },
+          run: async () => { await clientTasksApi.askFollowup(sid, t.ref.responseDue && t.ref.responseDue >= plusDays(0) ? 'Die Antwort auf das Angebot steht noch aus.' : 'Die Antwortfrist für das Angebot ist vorbei.'); return 'handoff'; } },
         { key: 'zurueck', label: 'Angebot zurückziehen', cta: 'Zurückziehen', doneText: 'Das Angebot ist zurückgezogen.', field: 'reason', reasons: OFFER_WITHDRAW, check: (v) => (v.reason ? null : 'Bitte einen Grund wählen.'),
           run: async () => { await offerApi.withdraw(t.ref.offerId!); return 'done'; } },
       ];
@@ -232,7 +236,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
   useEffect(() => {
     if (!open || !task) return;
     setChoice(options[0]?.key ?? '');
-    setValues({ reason: '', date: task.kind === 'offer_overdue' ? plusDays(3) : task.kind === 'invoice' ? todayIso() : '', text: '', colleague: '', cost: '' });
+    setValues({ reason: '', date: task.kind === 'offer_overdue' ? nextDue(task.ref.responseDue) : task.kind === 'invoice' ? todayIso() : '', text: '', colleague: '', cost: '' });
     setError(null);
     setDone(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps

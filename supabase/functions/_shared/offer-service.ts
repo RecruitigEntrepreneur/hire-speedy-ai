@@ -1,17 +1,17 @@
 // deno-lint-ignore-file no-explicit-any
 // Angebot über den Headhunter (22.10.2026). Die Function offer dispatcht nur hierher.
 //
-// Ablauf: Der Headhunter kann vorher eine Empfehlung schicken (was der Kandidat
-// für eine Zusage braucht). Der Kunde macht das Angebot im Bewerberprofil; es geht
-// an den Headhunter, der es mit dem Kandidaten bespricht und die Antwort einträgt:
-// Zusage, überlegt noch, Gegenwunsch, Absage. Beim Gegenwunsch passt der Kunde an
-// (neues Angebot, das alte gilt als ersetzt), bleibt bei seinem Angebot oder zieht
-// zurück. Der Kandidat bekommt von Matchunt keine Mail.
+// Ablauf: Wählt der Kunde im Feedback „Angebot machen“, schickt der Headhunter eine
+// Empfehlung (was der Kandidat für eine Zusage braucht). Der Kunde macht das Angebot
+// im Bewerberprofil; es geht an den Headhunter, der den Kandidaten anruft. Spätestens
+// nach 2 Stunden bekommt der Kandidat es schriftlich und antwortet selbst (offer-candidate.ts).
+// Einen Gegenwunsch schickt nur der Headhunter: Der Kunde nimmt ihn an (Version 2, sofort
+// beim Kandidaten), macht einen eigenen Vorschlag, bleibt bei seinem Angebot oder zieht zurück.
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { canUserActOnJob } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './offer-mails.ts';
-import { DECLINE_REASONS, cancelCandidateMails, candidateState, reportAccept, revokeCandidateLinks, scheduleCandidateMail } from './offer-candidate.ts';
+import { DECLINE_REASONS, cancelCandidateMails, candidateState, reportAccept, revokeCandidateLinks, scheduleCandidateMail, tellCandidateExtended, whenLabel } from './offer-candidate.ts';
 
 // accept_reported: Headhunter hat eine Zusage gemeldet, der Kandidat bestätigt noch (G + H, 25.10.2026)
 export const OPEN_STATUSES = ['with_recruiter', 'considering', 'countered', 'accept_reported'];
@@ -43,6 +43,9 @@ async function loadBundle(db: SupabaseClient, submissionId: string): Promise<Bun
   const { data: candidate } = await db.from('candidates').select('id, full_name, email').eq('id', (submission as any).candidate_id).maybeSingle();
   return { submission, job, candidate: candidate ?? { id: (submission as any).candidate_id, full_name: 'Kandidat', email: null }, recruiter: await profile(db, (submission as any).recruiter_id) };
 }
+
+/** Direkt ins Angebots-Fenster des Headhunters (Akte). */
+const offerUrl = (ctx: ServiceCtx, b: Bundle) => `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}?angebot=${b.submission.id}`;
 
 /** Firma für den Headhunter: erst nach der Freigabe mit Namen. */
 const companyFor = (b: Bundle) => (b.submission.company_revealed ? b.job.company_name : (b.job.industry ? `${b.job.industry}-Unternehmen` : 'Unternehmen'));
@@ -110,6 +113,12 @@ export function offerView(o: any, now: number = Date.now()) {
   };
 }
 
+/** Sicht des Kunden: Er sieht, dass gesprochen wird, nicht worüber. */
+function clientOfferView(o: any, now: number = Date.now()) {
+  const view = offerView(o, now);
+  return view ? { ...view, candidate: { ...view.candidate, callbackTopic: null } } : null;
+}
+
 const factsOf = (o: any): mails.OfferFacts => ({
   salary: o.salary_offered, variable: o.variable_salary ?? null, startDate: o.start_date ?? null, responseDue: o.response_due ?? null,
   contractType: o.contract_type ?? null, probationMonths: o.probation_months ?? null, workModel: o.work_model ?? null, extras: o.extras ?? [],
@@ -140,7 +149,7 @@ export async function offerContext(ctx: ServiceCtx, user: User, body: any) {
     feePercent: pct,
     defaults: { workModel: workModelOf(b.job), extras: (b.job.benefits ?? []) as string[], probationMonths: 6, contractType: 'permanent' },
     recommendation: rec ? { intro: rec.intro ?? null, items: rec.items ?? [], createdAt: rec.created_at } : null,
-    currentOffer: offerView((offers ?? [])[0], ctx.now()),
+    currentOffer: clientOfferView((offers ?? [])[0], ctx.now()),
     otherOpenOffers: ((others ?? []) as any[]).filter((o) => o.submission_id !== b.submission.id).length,
   };
 }
@@ -169,13 +178,19 @@ async function mergeNachgespraeche(db: SupabaseClient, rows: any[]) {
 export async function recruiterContext(ctx: ServiceCtx, user: User, body: any) {
   const b = await loadBundle(ctx.db, body?.submissionId);
   must(b.submission.recruiter_id === user.id || await isAdmin(ctx.db, user.id), 'Nur der Headhunter dieses Kandidaten sieht das Angebot.', 'not_allowed');
-  const [{ data: offers }, { data: recs }, { data: nach }, { data: akte }] = await Promise.all([
+  const [{ data: offers }, { data: recs }, { data: nach }, { data: akte }, { data: ivs }] = await Promise.all([
     ctx.db.from('offers').select('*').eq('submission_id', b.submission.id).order('created_at', { ascending: false }).limit(1),
     ctx.db.from('offer_recommendations').select('intro, items, created_at').eq('submission_id', b.submission.id).order('created_at', { ascending: false }).limit(1),
     ctx.db.from('interview_nachgespraeche').select('*').eq('submission_id', b.submission.id),
     ctx.db.from('candidates').select('phone, expected_salary, notice_period, availability_date').eq('id', b.submission.candidate_id).maybeSingle(),
+    ctx.db.from('interviews').select('id, scheduled_at, feedback').eq('submission_id', b.submission.id).order('scheduled_at', { ascending: false }),
   ]);
   const rec = (recs ?? [])[0] as any;
+  // Jüngstes gelaufenes Interview (Nachgespräch dazu) und das letzte Feedback des Kunden
+  const past = ((ivs ?? []) as any[]).filter((i) => i.scheduled_at && Date.parse(i.scheduled_at) <= ctx.now());
+  const parseFb = (raw: unknown) => { try { return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return null; } };
+  const withFb = past.find((i) => parseFb(i.feedback));
+  const fb = withFb ? parseFb(withFb.feedback) : null;
   return {
     submissionId: b.submission.id,
     candidateId: b.candidate.id,
@@ -189,6 +204,8 @@ export async function recruiterContext(ctx: ServiceCtx, user: User, body: any) {
     nachgespraech: await mergeNachgespraeche(ctx.db, (nach ?? []) as any[]),
     recommendation: rec ? { intro: rec.intro ?? null, items: rec.items ?? [], createdAt: rec.created_at } : null,
     currentOffer: offerView((offers ?? [])[0], ctx.now()),
+    lastInterview: past[0] ? { id: past[0].id, scheduledAt: past[0].scheduled_at } : null,
+    clientFeedback: fb ? { way: fb.recommendation ?? null, impression: fb.impression ?? null, question: fb.question ?? null, at: fb.submitted_at ?? null } : null,
   };
 }
 
@@ -251,22 +268,25 @@ export async function createOffer(ctx: ServiceCtx, user: User, body: any, opts: 
   await event(ctx, (offer as any).id, previous ? 'adjusted' : 'sent', 'client', user.id, { salary, variable, startDate, responseDue });
   await ctx.db.from('submissions').update({ stage: 'offer' }).eq('id', b.submission.id);
 
+  // Der Kandidat bekommt das Angebot schriftlich: nach „Gespräch geführt“, spätestens nach 2 Std.
+  const planned = await scheduleCandidateMail(ctx, (offer as any).id, { immediate: !!opts.immediate });
   const company = companyFor(b);
+  const mailAt = opts.immediate ? null : whenLabel(Date.parse(planned.dueAt), ctx.now());
   await notify(ctx, b.submission.recruiter_id, 'offer_received',
-    `${previous ? 'Angepasstes Angebot' : 'Angebot'} für ${b.candidate.full_name}`,
-    `${euro(salary)}${variable ? ` + ${euro(variable)}` : ''} · Start ${new Date(`${startDate}T12:00:00Z`).toLocaleDateString('de-DE')} · Antwort bis ${new Date(`${responseDue}T12:00:00Z`).toLocaleDateString('de-DE')}`,
+    opts.immediate ? `${company} nimmt den Wunsch von ${firstName(b.candidate.full_name)} an` : `${previous ? 'Angepasstes Angebot' : 'Angebot'} für ${b.candidate.full_name}`,
+    opts.immediate
+      ? `${firstName(b.candidate.full_name)} hat die neue Version per Mail. Sag kurz Bescheid.`
+      : `${euro(salary)}${variable ? ` + ${euro(variable)}` : ''} · Bitte anrufen, Mail an ${firstName(b.candidate.full_name)} ${mailAt}`,
     'candidate', b.candidate.id);
   if (b.recruiter?.email) {
     const content = mails.recruiterOfferReceived({
       recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: company, jobTitle: b.job.title,
-      offer: factsOf(offer), message, adjusted: !!previous, akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
+      offer: factsOf(offer), message, adjusted: !!previous, mailAt, wishAccepted: !!opts.immediate, offerUrl: offerUrl(ctx, b),
     });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'offer_received_recruiter', meta: { offer_id: (offer as any).id } });
   }
-  // Der Kandidat bekommt das Angebot schriftlich: nach „Gespräch geführt“, spätestens nach 2 Std.
-  const planned = await scheduleCandidateMail(ctx, (offer as any).id, { immediate: !!opts.immediate });
   const { data: fresh } = await ctx.db.from('offers').select('*').eq('id', (offer as any).id).maybeSingle();
-  return { offerId: (offer as any).id, offer: offerView(fresh ?? offer, ctx.now()), candidateMailAt: planned.dueAt };
+  return { offerId: (offer as any).id, offer: clientOfferView(fresh ?? offer, ctx.now()), candidateMailAt: planned.dueAt };
 }
 
 // ---------------------------------------------------------------------------
@@ -282,8 +302,10 @@ export async function respondOffer(ctx: ServiceCtx, user: User, body: any) {
   must(['with_recruiter', 'considering'].includes(offer.status), 'Für dieses Angebot ist keine Antwort mehr offen.', 'conflict');
   const way = body?.way as mails.AnswerWay;
   // „Überlegt noch“ gibt es seit G + H nicht mehr: es gilt die Antwortfrist des Kunden
-  must(way !== 'considering', '„Überlegt noch“ gibt es nicht mehr. Bitten Sie den Kunden bei Bedarf um eine längere Antwortfrist.');
+  must(way !== 'considering', '„Überlegt noch“ gibt es nicht mehr. Bitte den Kunden bei Bedarf um eine längere Antwortfrist.');
   must(['accepted', 'countered', 'declined'].includes(way), 'Bitte die Antwort wählen.');
+  // Nach der Frist kann der Kandidat nicht mehr antworten: erst muss der Kunde verlängern (02.11.2026)
+  must(!offer.response_due || String(offer.response_due).slice(0, 10) >= todayKey(ctx.now()), 'Die Antwortfrist ist abgelaufen. Bitte den Kunden um Verlängerung.', 'conflict');
   const text = (v: unknown, max = 1000) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const note = text(body.note) || null;
   const nowIso = new Date(ctx.now()).toISOString();
@@ -370,11 +392,12 @@ export async function keepOffer(ctx: ServiceCtx, user: User, body: any) {
   must(offer.status === 'countered', 'Es liegt kein Gegenwunsch vor.', 'conflict');
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, 1000) || null : null;
   const response = { ...(offer.candidate_response ?? {}), client_keep: { at: new Date(ctx.now()).toISOString(), by: user.id, note } };
-  await ctx.db.from('offers').update({ status: 'with_recruiter', candidate_response: response, updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);
+  await ctx.db.from('offers').update({ status: 'with_recruiter', candidate_response: response, recruiter_talked_at: null, updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);
   await event(ctx, offer.id, 'client_keeps', 'client', user.id, { note });
-  // Hatte der Kandidat das Angebot noch nicht schriftlich: jetzt (der Headhunter hat schon gesprochen)
-  if (!offer.candidate_mail_due_at) await scheduleCandidateMail(ctx, offer.id, { immediate: true });
-  await tellRecruiter(ctx, b, offer.id, `bleibt bei ${euro(offer.salary_offered)}${note ? ` („${note}“)` : ''}. Bitte noch einmal mit ${firstName(b.candidate.full_name)} sprechen.`);
+  // Wie ein neues Angebot: Der Kandidat hört es zuerst vom Headhunter, spätestens nach 2 Std. per Mail (02.11.2026)
+  const planned = await scheduleCandidateMail(ctx, offer.id);
+  const first = firstName(b.candidate.full_name);
+  await tellRecruiter(ctx, b, offer.id, `bleibt bei ${euro(offer.salary_offered)}${note ? ` („${note}“)` : ''}. Bitte ruf ${first} an, spätestens ${whenLabel(Date.parse(planned.dueAt), ctx.now())} bekommt ${first} das Angebot wieder per Mail.`);
   return { ok: true };
 }
 
@@ -431,8 +454,47 @@ export async function extendOffer(ctx: ServiceCtx, user: User, body: any) {
   must(due >= todayKey(ctx.now()), 'Die neue Frist liegt in der Vergangenheit.');
   await ctx.db.from('offers').update({ response_due: due, expires_at: `${due}T23:59:59+01:00`, updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);
   await event(ctx, offer.id, 'extended', 'client', user.id, { responseDue: due });
+  await tellCandidateExtended(ctx, offer.id);
   await tellRecruiter(ctx, b, offer.id, `hat die Antwortfrist bis ${new Date(`${due}T12:00:00Z`).toLocaleDateString('de-DE')} verlängert`);
+  // Bitte des Headhunters um mehr Zeit ist damit beantwortet
+  if (offer.candidate_response?.extension_asked) {
+    const { extension_asked: _done, ...rest } = offer.candidate_response;
+    await ctx.db.from('offers').update({ candidate_response: Object.keys(rest).length ? rest : null }).eq('id', offer.id);
+  }
   return { ok: true };
+}
+
+/** Headhunter bittet um mehr Zeit: Der Kunde bekommt Glocke und Mail und verlängert im Angebots-Fenster. */
+export async function askExtension(ctx: ServiceCtx, user: User, body: any) {
+  const offer = await loadOffer(ctx.db, body?.offerId);
+  const b = await loadBundle(ctx.db, offer.submission_id);
+  must(b.submission.recruiter_id === user.id, 'Nur der Headhunter dieses Kandidaten.', 'not_allowed');
+  must(['with_recruiter', 'considering'].includes(offer.status), 'Dieses Angebot ist nicht mehr offen.', 'conflict');
+  must(!offer.candidate_response?.extension_asked, 'Du hast schon um mehr Zeit gebeten.', 'conflict');
+  const at = new Date(ctx.now()).toISOString();
+  await ctx.db.from('offers').update({ candidate_response: { ...(offer.candidate_response ?? {}), extension_asked: { at, by: user.id } }, updated_at: at }).eq('id', offer.id);
+  await event(ctx, offer.id, 'extension_asked', 'recruiter', user.id);
+  const recruiterName = b.recruiter?.name || 'Ihr Headhunter';
+  for (const uid of [...new Set([offer.created_by, b.job.client_id].filter(Boolean))] as string[]) {
+    await notify(ctx, uid, 'offer_answer', `${recruiterName} bittet um mehr Zeit für ${b.candidate.full_name}`, 'Die Frist verlängern Sie im Angebot mit einem Klick.', 'submission', b.submission.id);
+    const prof = await profile(ctx.db, uid);
+    if (!prof?.email) continue;
+    const content = mails.clientExtensionAsked({ name: prof.name, candidateName: b.candidate.full_name, recruiterName, jobTitle: b.job.title, responseDue: offer.response_due ?? null, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}` });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'offer_extension_asked', meta: { offer_id: offer.id } });
+  }
+  return { ok: true };
+}
+
+/** Der Kunde sagt dem Kandidaten ab: Ein offenes Angebot gilt damit nicht mehr (process-rejection, 02.11.2026). */
+export async function withdrawOpenOffers(ctx: ServiceCtx, submissionId: string, actorId: string | null) {
+  const { data } = await ctx.db.from('offers').select('*').eq('submission_id', submissionId).in('status', OPEN_STATUSES);
+  for (const offer of (data ?? []) as any[]) {
+    const at = new Date(ctx.now()).toISOString();
+    await ctx.db.from('offers').update({ status: 'withdrawn', decision_at: at, updated_at: at }).eq('id', offer.id);
+    await cancelCandidateMails(ctx, offer);
+    await revokeCandidateLinks(ctx, offer.id);
+    await event(ctx, offer.id, 'withdrawn', 'client', actorId, { byRejection: true });
+  }
 }
 
 // ---------------------------------------------------------------------------

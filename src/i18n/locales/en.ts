@@ -670,6 +670,7 @@ const en: typeof de = {
       "view_interviews": "View interviews",
       "view_offer": "View offer",
       "review_counter": "Review counter offer",
+      "decide_now": "Decide now",
       "plan_next_round": "Plan interview {{round}}",
       "make_offer": "Make an offer",
       "send_contract": "Send contract",

@@ -16,11 +16,11 @@ const CALLS = new Set([
   'contract_nudge', 'contract_followup', 'contract_follow', 'contract_missing', 'interview_reminder', 'interview_prep_missing',
   'ghosting_risk', 'engagement_drop', 'salary_mismatch', 'call',
 ]);
-const CLIENT_MAILS = new Set(['client_review_stalled', 'client_feedback_due', 'offer_counter_stalled']);
+const CLIENT_MAILS = new Set(['client_review_stalled', 'client_feedback_due', 'offer_counter_stalled', 'client_unsure', 'client_undecided', 'recommendation_due']);
 /** Nähe zum Geld: Angebot und Vertrag vor Interview vor Prüfung */
 const stageWeight = (cat: string) =>
   cat.startsWith('offer_') || cat.startsWith('contract_') ? 3
-    : ['interview_debrief_due', 'client_feedback_due', 'recommendation_due', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h', 'interview_reminder', 'interview_prep_missing'].includes(cat) ? 2
+    : ['interview_debrief_due', 'client_feedback_due', 'recommendation_due', 'client_unsure', 'client_undecided', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h', 'interview_reminder', 'interview_prep_missing'].includes(cat) ? 2
       : 1;
 
 export const rowItems = (r: JetztRow): UnifiedTaskItem[] =>
@@ -102,7 +102,7 @@ function whoOf(it: UnifiedTaskItem): WaitInfo['who'] {
   const c = it.taskCategory;
   if (it.itemType === 'task') return 'du';
   if (c === 'offer_deliver') return it.title.startsWith('Rückruf') ? 'kandidat' : 'kunde';
-  if (c.startsWith('contract_') || c === 'recommendation_due') return 'kunde';
+  if (c.startsWith('contract_') || c === 'recommendation_due' || c === 'client_unsure' || c === 'client_undecided') return 'kunde';
   return 'kandidat';
 }
 

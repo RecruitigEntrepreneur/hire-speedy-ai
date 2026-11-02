@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
-import { DECLINE_REASONS, dayDe, euro, offerApi, type AnswerWay, type RecruiterOfferContext } from '@/lib/offerApi';
+import { DECLINE_REASONS, dayDe, euro, offerApi, overdue, shortDe, whenDe, type AnswerWay, type RecruiterOfferContext } from '@/lib/offerApi';
 
 interface Props {
   /** Einreichung, zu der das Angebot gehört; null = Fenster zu */
@@ -28,23 +28,6 @@ const digits = (v: string) => {
 };
 const fmt = (n: number | null) => (n ? new Intl.NumberFormat('de-DE').format(n) : '');
 const first = (name: string | null) => (name ?? '').trim().split(/\s+/)[0] || 'der Kandidat';
-const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-const timeDe = (iso: string) => new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
-/** „um 17:05“, „morgen um 08:00“, „am 27.10. um 08:00“ */
-const whenDe = (iso: string, now: number) => {
-  const d = Date.parse(iso);
-  if (berlinDay(d) === berlinDay(now)) return `um ${timeDe(iso)}`;
-  if (berlinDay(d) === berlinDay(now + 86_400_000)) return `morgen um ${timeDe(iso)}`;
-  return `am ${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} um ${timeDe(iso)}`;
-};
-/** Kurz für „seit …“ und „bis …“: „15:05“, „morgen 08:00“, „gestern 17:30“, „22.10., 17:30“ */
-const shortDe = (iso: string, now: number) => {
-  const d = Date.parse(iso);
-  if (berlinDay(d) === berlinDay(now)) return timeDe(iso);
-  if (berlinDay(d) === berlinDay(now + 86_400_000)) return `morgen ${timeDe(iso)}`;
-  if (berlinDay(d) === berlinDay(now - 86_400_000)) return `gestern ${timeDe(iso)}`;
-  return `${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })}, ${timeDe(iso)}`;
-};
 /** Restzeit: „1:52 Std.“ bzw. „12 Min.“ */
 const leftDe = (ms: number) => {
   const min = Math.max(1, Math.ceil(ms / 60_000));
@@ -123,7 +106,12 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
   const mailDue = cand?.mailDueAt ? Date.parse(cand.mailDueAt) : null;
   const mailSent = !!cand?.mailSent || (mailDue !== null && mailDue <= now);
   const mailSentAt = cand?.mailSentAt ?? (mailSent ? cand?.mailDueAt ?? null : null);
-  const callbackOpen = open && !!cand?.callbackAt;
+  const late = overdue(o);
+  const callbackOpen = open && !late && !!cand?.callbackAt;
+  const clockRunning = open && !late && !mailSent && mailDue !== null;
+  const notConfirmed = open && !late && !!cand?.notConfirmedAt;
+  const keep = o.response?.client_keep ?? null;
+  const askedMore = !!o.response?.extension_asked;
   const reportedLong = o.status === 'accept_reported' && !!cand?.acceptReportedAt && now - Date.parse(cand.acceptReportedAt) >= 24 * 3_600_000;
 
   const nach = c.nachgespraech;
@@ -165,7 +153,8 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
     }
   };
 
-  const talked = () => run('talked', () => offerApi.talked(o.id), `Mail ist raus. ${name} hat das Angebot jetzt schriftlich.`);
+  const talked = () => run('talked', () => offerApi.talked(o.id), mailSent ? 'Notiert.' : `Mail ist raus. ${name} hat das Angebot jetzt schriftlich.`);
+  const askMore = () => run('more', () => offerApi.askExtension(o.id), `${firma} hat deine Bitte um mehr Zeit bekommen.`);
   const callback = (outcome: 'stays' | 'unreachable') => run(outcome, () => offerApi.callbackDone(o.id, outcome),
     outcome === 'stays' ? `Notiert. ${name} antwortet selbst auf der Angebotsseite.` : 'Notiert. Die Rückruf-Aufgabe bleibt, versuch es noch einmal.', outcome === 'stays');
 
@@ -191,54 +180,50 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
   return (
     <>
       <DialogHeader className="text-left">
-        <div className="flex flex-wrap items-start justify-between gap-2 pr-6">
-          <DialogTitle>Angebot für {c.candidateName} überbringen</DialogTitle>
-          {open && !mailSent && mailDue !== null && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600">
-              <Clock className="h-3 w-3" />Mail an {name} in {leftDe(mailDue - now)}
-            </span>
-          )}
-        </div>
+        <DialogTitle>Angebot für {c.candidateName} überbringen</DialogTitle>
         <DialogDescription>
           {firma} · {c.jobTitle}{o.version > 1 ? ` · Version ${o.version}` : ''}{o.responseDue ? ` · Antwort bis ${dayDe(o.responseDue)}` : ''}
         </DialogDescription>
       </DialogHeader>
 
-      <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-        <dl className="grid grid-cols-[7.5rem_1fr] gap-x-3 gap-y-1">
-          {facts.map(([k, v]) => (
-            <div key={k} className="contents"><dt className="text-muted-foreground">{k}</dt><dd>{v}</dd></div>
-          ))}
-        </dl>
-        {o.message && <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">{firma} an dich: „{o.message}“</p>}
-        {o.candidateMessage && <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">{firma} an {name} (steht auf der Angebotsseite): „{o.candidateMessage}“</p>}
-        {o.response?.client_keep && <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">{firma} bleibt bei diesem Angebot{o.response.client_keep.note ? `: „${o.response.client_keep.note}“` : '.'}</p>}
-      </div>
-
-      {/* Mail an den Kandidaten: erst anrufen, dann „Gespräch geführt“; sonst geht sie von selbst raus */}
-      {open && !mailSent && mailDue !== null && (
+      {/* Zuerst, was jetzt zu tun ist */}
+      {open && late && (
         <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-          <p>Erst anrufen, dann klicken. Ohne Klick geht die Mail an {name} {whenDe(cand!.mailDueAt!, now)} automatisch raus.</p>
+          <p className="font-medium">Antwortfrist abgelaufen ({dayDe(o.responseDue)})</p>
+          <p>{name} kann erst wieder antworten, wenn {firma} verlängert.</p>
           <div className="flex flex-wrap gap-2">
+            {callButton}
+            <Button size="sm" className="h-8" disabled={!!busy || askedMore} onClick={askMore}>
+              {busy === 'more' && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}{askedMore ? 'Um Verlängerung gebeten' : 'Kunden um Verlängerung bitten'}
+            </Button>
+          </div>
+        </div>
+      )}
+      {clockRunning && (
+        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+          <p className="flex items-center gap-1.5 font-medium"><Clock className="h-3.5 w-3.5" />Mail an {name} in {leftDe(mailDue! - now)}</p>
+          {keep && <p>{firma} bleibt bei diesem Angebot{keep.note ? `: „${keep.note}“` : '.'}</p>}
+          <p>Erst anrufen, dann klicken. Ohne Klick geht sie {whenDe(cand!.mailDueAt!, now)} von selbst raus.</p>
+          <div className="flex flex-wrap gap-2">
+            {callButton}
             <Button size="sm" className="h-8" disabled={!!busy} onClick={talked}>
               {busy === 'talked' && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}Gespräch geführt, Mail jetzt senden
             </Button>
-            {callButton}
           </div>
-          <p className="text-xs text-muted-foreground">Stand: Mail noch nicht gesendet</p>
         </div>
       )}
-      {open && mailSent && !callbackOpen && (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <p className="text-muted-foreground">
-            {name} hat das Angebot schriftlich{mailSentAt ? ` seit ${shortDe(mailSentAt, now)}` : ''} (Mail und Angebotsseite).
-            {cand?.talkedAt ? ` Gespräch geführt ${whenDe(cand.talkedAt, now)}.` : ''}
-          </p>
-          {callButton}
+      {notConfirmed && (
+        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+          <p className="font-medium">{name} hat die Zusage nicht bestätigt</p>
+          <p>Ruf {name} an und klär, was nicht stimmt. Das Angebot ist wieder offen, {name} kann weiter selbst antworten.</p>
+          <div className="flex flex-wrap gap-2">
+            {callButton}
+            <Button size="sm" className="h-8" disabled={!!busy} onClick={talked}>
+              {busy === 'talked' && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}Gespräch geführt
+            </Button>
+          </div>
         </div>
       )}
-
-      {/* Rückrufwunsch von der Angebotsseite */}
       {callbackOpen && (
         <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -262,6 +247,27 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         </div>
       )}
 
+      <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
+        <dl className="grid grid-cols-[7.5rem_1fr] gap-x-3 gap-y-1">
+          {facts.map(([k, v]) => (
+            <div key={k} className="contents"><dt className="text-muted-foreground">{k}</dt><dd>{v}</dd></div>
+          ))}
+        </dl>
+        {o.message && <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">{firma} an dich: „{o.message}“</p>}
+        {o.candidateMessage && <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">{firma} an {name} (steht in der Mail und auf der Angebotsseite): „{o.candidateMessage}“</p>}
+        {keep && !clockRunning && <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">{firma} bleibt bei diesem Angebot{keep.note ? `: „${keep.note}“` : '.'}</p>}
+      </div>
+
+      {open && !late && mailSent && !callbackOpen && !notConfirmed && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="text-muted-foreground">
+            {name} hat das Angebot schriftlich{mailSentAt ? ` seit ${shortDe(mailSentAt, now)}` : ''} (Mail und Angebotsseite).
+            {cand?.talkedAt ? ` Gespräch geführt ${whenDe(cand.talkedAt, now)}.` : ''}
+          </p>
+          {callButton}
+        </div>
+      )}
+
       {!open ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="text-muted-foreground">
@@ -273,11 +279,10 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
           </p>
           {o.status === 'accept_reported' && callButton}
         </div>
-      ) : (
+      ) : !late && (
         <>
           <div>
-            <p className="text-sm font-medium">Antwort von {name}</p>
-            <p className="mb-1.5 text-xs text-muted-foreground">{name} antwortet selbst auf der Angebotsseite. Hier nur, wenn {name} es dir am Telefon sagt:</p>
+            <p className="mb-1.5 text-sm font-medium">Hat {name} dir am Telefon schon geantwortet?</p>
             <div className="grid grid-cols-3 gap-1 rounded-md border border-border/60 bg-muted/30 p-1">
               {WAYS.map((w) => (
                 <button key={w.key} type="button" onClick={() => setWay(way === w.key ? null : w.key)}
@@ -334,7 +339,12 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         </>
       )}
 
-      <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
+        {open && !late && !way && (
+          <button type="button" disabled={!!busy || askedMore} onClick={askMore} className="mr-auto text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:no-underline">
+            {askedMore ? `Du hast ${firma} um mehr Zeit gebeten` : `${name} braucht mehr Zeit? Frist bei ${firma} anfragen`}
+          </button>
+        )}
         <Button variant="ghost" onClick={onClose}>{open && way ? 'Abbrechen' : 'Schließen'}</Button>
         {open && way && (
           <Button disabled={!!busy || !ready} onClick={save}>

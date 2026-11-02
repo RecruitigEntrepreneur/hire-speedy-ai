@@ -1385,6 +1385,26 @@ eine Zeile in `liga_weekly_rows`. **Eine Migration, keine Edge Function, kein Pu
 
 ---
 
+## 43 — Angebotsprozess neu: Empfehlung, „Noch unsicher“, Angebot an den Kandidaten (02.11.2026)
+
+Neu geordnet ist der Weg vom Feedback des Kunden bis zur bestätigten Zusage. Alle Daten liegen in vorhandenen
+Feldern (`offers.candidate_response`, `interviews.feedback`, `messages`). **Keine Migration, 19 Edge Functions, Publish.**
+
+> 1. Aktuellen Stand von `main` übernehmen. Keine Migration ausführen, auch keine Datei, die noch nicht im Journal
+>    steht (die Akademie-Dateien `20261022…` sind bewusst noch nicht dran). Keine neuen Tabellen, keine
+>    Daten-Einfügungen, kein Cron, keine neuen Secrets.
+> 2. Diese 19 Edge Functions deployen: `calendar-connect`, `calendar-oauth-callback`, `client-tasks`,
+>    `contract-followups`, `contract-sign`, `contract-status`, `employment-contract`, `employment-docusign-webhook`,
+>    `get-interview-by-token`, `interview-client-link`, `interview-reminders`, `interview-request`, `offer-answer`,
+>    `offer`, `placement`, `process-interview-response`, `process-rejection`, `recruiter-notify`, `termin-seite`.
+>    Sie nutzen die geänderten Module `offer-service`, `offer-candidate`, `offer-mails`, `interview-service`,
+>    `interview-mails` und `client-tasks`.
+> 3. Danach Publish, damit die Oberfläche zu den Functions passt.
+> 4. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit
+>    Grund melden. Am Ende melden: welche Functions deployt sind und dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

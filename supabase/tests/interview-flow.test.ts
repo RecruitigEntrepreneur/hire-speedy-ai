@@ -3,7 +3,7 @@
 import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import {
-  availability, candidateRespond, checkTime, clientLink, confirmAlternative, declineForCandidate, feedbackWay, interviewDetails, interviewGuide, inviteColleague, leadTimeMessage, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
+  availability, candidateRespond, checkTime, clientLink, confirmAlternative, declineForCandidate, feedbackWay, interviewDetails, interviewGuide, inviteColleague, leadTimeMessage, loadCandidateView, looksLikeCompany, preview, requestContext, reschedule, saveFeedback, decideAfterUnsure, saveInterviewGuide, send, sendDayBeforeReminders, setMeetingLink, setMyName, withdraw, type ServiceCtx,
 } from '../functions/_shared/interview-service.ts';
 import { withStatus, safeReturnPath } from '../functions/_shared/calendar-connect-service.ts';
 import { encryptToken } from '../functions/_shared/encryption.ts';
@@ -731,3 +731,67 @@ Deno.test({ name: 'Erinnerung am Vortag: einmal an Kandidat und Kundenteam, Gloc
   eq((await sendDayBeforeReminders(dayBefore)).reminded, 0, 'keine zweite Erinnerung');
   eq(sent.length, 0);
 }});
+
+Deno.test({ name: 'Noch unsicher: Frage läuft als Nachricht, Mail ohne Anruf beim Kunden; Entscheidung wirkt wie Feedback', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  (tables as any).messages = (tables as any).messages ?? [];
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await bookedRound1(ctx, me, sent);
+  const later: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 6, 12, 0) };
+  sent.length = 0;
+  await saveFeedback(later, me, { interviewId: tables.interviews[0].id, way: 'unsure', impression: 'Fachlich stark.', question: 'Hat die Person ein Team geführt?' });
+  eq(JSON.parse(tables.interviews[0].feedback).question, 'Hat die Person ein Team geführt?');
+  eq((tables as any).messages.map((m: any) => [m.sender_id, m.recipient_id, m.content]), [[CLIENT, RECRUITER, 'Hat die Person ein Team geführt?']]);
+  const mail = sent.find((m) => m.template === 'interview_feedback_recruiter');
+  assert(mail.html.includes('und fragt:') && mail.html.includes('Team geführt') && !mail.html.includes('Anruf beim Kunden'), 'Frage statt Anruf');
+  assert(mail.html.includes('Frage beantworten') && mail.html.includes('?frage='), 'Knopf führt zur Frage');
+
+  sent.length = 0;
+  let message = '';
+  try { await decideAfterUnsure(later, me, { interviewId: tables.interviews[0].id, way: 'reject' }); } catch (e: any) { message = e.message; }
+  assert(message.includes('wie es weitergeht'), 'Absage läuft über das Absage-Fenster');
+  await decideAfterUnsure(later, me, { interviewId: tables.interviews[0].id, way: 'offer' });
+  eq(JSON.parse(tables.interviews[0].feedback).recommendation, 'offer');
+  const offerMail = sent.find((m) => m.template === 'interview_feedback_recruiter');
+  assert(offerMail.html.includes('wartet auf deine Empfehlung') && offerMail.html.includes('?empfehlung='), 'Julia bekommt die Empfehlung als nächsten Schritt');
+  message = '';
+  try { await decideAfterUnsure(later, me, { interviewId: tables.interviews[0].id, way: 'offer' }); } catch (e: any) { message = e.message; }
+  assert(message.includes('schon entschieden'), 'nur einmal');
+}});
+
+Deno.test({ name: 'Empfehlung fehlt nach einem Tag: einmal Erinnerung an den Headhunter, nicht ohne Grund', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  for (const t of ['offer_recommendations', 'offers', 'interview_nachgespraeche']) (tables as any)[t] = (tables as any)[t] ?? [];
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await bookedRound1(ctx, me, sent);
+  const later: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 6, 12, 0) };
+  await saveFeedback(later, me, { interviewId: tables.interviews[0].id, way: 'offer', impression: 'Wollen wir.' });
+  sent.length = 0;
+  eq((await sendDayBeforeReminders(later)).recommendationReminders, 0, 'nicht am selben Tag');
+  const nextDay: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 7, 17, 0) };
+  eq((await sendDayBeforeReminders(nextDay)).recommendationReminders, 1);
+  const mail = sent.find((m) => m.template === 'recommendation_reminder_recruiter');
+  assert(mail?.to === 'tim@example.test' && mail.html.includes('?empfehlung='), 'führt in die Empfehlung');
+  eq((await sendDayBeforeReminders(nextDay)).recommendationReminders, 0, 'nur einmal');
+}});
+
+Deno.test({ name: 'Noch unsicher: Die Antwort des Headhunters steht beim Entscheiden im Fenster', permissions: { env: true }, fn: async () => {
+  const { db, tables } = seed(); fixCandidate(tables);
+  (tables as any).messages = (tables as any).messages ?? [];
+  const sent: any[] = [];
+  const ctx = ctxFor(db, sent);
+  const me = user(CLIENT, 'marko@example.test');
+  await bookedRound1(ctx, me, sent);
+  const later: ServiceCtx = { ...ctx, now: () => berlinLocalToUtc(2026, 10, 6, 12, 0) };
+  const iv = tables.interviews[0];
+  await saveFeedback(later, me, { interviewId: iv.id, way: 'unsure', impression: 'Fachlich stark.', question: 'Hat die Person ein Team geführt?' });
+  eq((await interviewDetails(later, me, { interviewId: iv.id })).questionAnswer, null, 'noch keine Antwort');
+  const q = (tables as any).messages[0];
+  (tables as any).messages.push({ ...q, id: 'antwort-1', sender_id: RECRUITER, recipient_id: CLIENT, content: 'Ja, vier Personen.', created_at: new Date(berlinLocalToUtc(2026, 10, 6, 13, 0)).toISOString() });
+  eq((await interviewDetails(later, me, { interviewId: iv.id })).questionAnswer, 'Ja, vier Personen.');
+}});
+

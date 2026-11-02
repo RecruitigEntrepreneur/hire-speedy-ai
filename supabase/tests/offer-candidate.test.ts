@@ -4,7 +4,7 @@ import type { User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fakeDb } from './fixtures/fake-db.ts';
 import { tokenFrom } from './fixtures/offer-accept.ts';
 import type { ServiceCtx } from '../functions/_shared/interview-service.ts';
-import { acceptCounter, createOffer, offerContext, respondOffer, withdrawOffer } from '../functions/_shared/offer-service.ts';
+import { acceptCounter, askExtension, createOffer, extendOffer, keepOffer, offerContext, recruiterContext, respondOffer, withdrawOffer, withdrawOpenOffers } from '../functions/_shared/offer-service.ts';
 import { candidateAnswer, candidatePeek, deliveryTime, outsideQuietHours, recruiterCallbackDone, recruiterTalked } from '../functions/_shared/offer-candidate.ts';
 
 const assert = (v: unknown, m = 'Assertion failed') => { if (!v) throw Error(m); };
@@ -71,7 +71,7 @@ Deno.test({ name: 'Angebot: Mail an den Kandidaten in 2 Std., „Gespräch gefü
     ['offer_candidate_reminder', '2026-10-23T14:00:00.000Z', 'Julia Hartmann über Matchunt'],
   ]);
   assert(toTessa(w)[0].html.includes('Wir freuen uns sehr auf Sie.') && !toTessa(w)[0].html.includes('Start flexibel'), 'Tessa sieht nur ihre Nachricht');
-  eq([o.candidate_mail_id, o.candidate_reminder_mail_id, o.candidate_mail_sent_at], ['m2', 'm3', null]);
+  eq([o.candidate_mail_id, o.candidate_reminder_mail_id, o.candidate_mail_sent_at], ['m1', 'm2', null]);
   const ctx = await offerContext(w.ctx, user(CLIENT), { submissionId: SUB });
   eq([ctx.currentOffer?.candidate.mailSent, ctx.currentOffer?.candidate.mailDueAt], [false, '2026-10-22T14:00:00.000Z']);
 
@@ -79,7 +79,7 @@ Deno.test({ name: 'Angebot: Mail an den Kandidaten in 2 Std., „Gespräch gefü
   w.clock.now = NOW + 20 * 60_000; // 14:20 Uhr
   const r = await recruiterTalked(w.ctx, user(RECRUITER), { offerId: o.id });
   eq(r.alreadySent, false);
-  eq(w.cancelled, ['m2', 'm3'], 'geplante Mail und Erinnerung abgebrochen');
+  eq(w.cancelled, ['m1', 'm2'], 'geplante Mail und Erinnerung abgebrochen');
   const now = toTessa(w).slice(-2);
   eq(now.map((m) => [m.template, m.scheduledAt ?? null]), [['offer_candidate_offer', null], ['offer_candidate_reminder', '2026-10-23T12:20:00.000Z']], 'sofort, Erinnerung 24 Std. später');
   assert(w.tables.offers[0].candidate_mail_sent_at && w.tables.offers[0].recruiter_talked_at, 'Mail gilt als verschickt');
@@ -103,7 +103,7 @@ Deno.test({ name: 'Antwortseite: Zusage gilt sofort, Vertrag beginnt, Kunde erf�
   const mail = w.sent.find((m) => m.template === 'offer_answer_accepted');
   assert(mail?.to === 'klara@example.test' && mail.html.includes('selbst auf Ihr Angebot geantwortet'), 'Kunde erfährt: selbst geantwortet');
   assert(notes(w, RECRUITER, 'offer_answer').some((x: any) => x.title.includes('zugesagt')), 'Julia erfährt es');
-  eq(w.cancelled, ['m3'], 'Erinnerung abgebrochen');
+  eq(w.cancelled, ['m2'], 'Erinnerung abgebrochen');
   await fails(candidateAnswer(w.ctx, { token, way: 'declined', reasonCategory: 'salary' }), 'schon geantwortet');
   eq((await candidatePeek(w.ctx, { token })).state, 'answered');
 }});
@@ -122,7 +122,9 @@ Deno.test({ name: 'Antwortseite: Absage nur mit Grund; Rückruf geht an den Head
   w.clock.now = NOW;
   assert(w.sent.some((m) => m.template === 'offer_callback_recruiter' && m.to === 'julia@example.test'), 'Mail an Julia');
   const view = await offerContext(w.ctx, user(CLIENT), { submissionId: SUB });
-  eq(view.currentOffer?.candidate.callbackTopic, 'noch eine Frage', 'Kunde sieht „spricht mit Julia“, das neueste Thema');
+  assert(view.currentOffer?.candidate.callbackAt, 'Kunde sieht „spricht mit Julia“');
+  eq(view.currentOffer?.candidate.callbackTopic, null, 'aber nicht, worüber');
+  eq((await recruiterContext(w.ctx, user(RECRUITER), { submissionId: SUB })).currentOffer?.candidate.callbackTopic, 'noch eine Frage', 'Julia sieht das neueste Thema');
   eq((await candidatePeek(w.ctx, { token })).state, 'open', 'Seite bleibt offen');
 
   await fails(candidateAnswer(w.ctx, { token, way: 'declined' }), 'Grund');
@@ -139,7 +141,7 @@ Deno.test({ name: 'Rückruf: Frist im Stand, „nicht erreicht“ nur notiert, �
   await fails(recruiterCallbackDone(w.ctx, user(RECRUITER), { offerId: id, outcome: 'stays' }), 'kein offener Rückrufwunsch');
   const token = tokenFrom(w.sent, 'offer_candidate_offer');
   await candidateAnswer(w.ctx, { token, way: 'callback', topic: 'Startdatum' });
-  const ctxOf = async () => (await offerContext(w.ctx, user(CLIENT), { submissionId: SUB })).currentOffer!.candidate;
+  const ctxOf = async () => (await recruiterContext(w.ctx, user(RECRUITER), { submissionId: SUB })).currentOffer!.candidate;
   eq((await ctxOf()).callbackDueAt, '2026-10-22T14:00:00.000Z', 'Rückruf bis 16:00 Uhr Berlin');
   await fails(recruiterCallbackDone(w.ctx, user(CLIENT), { offerId: id, outcome: 'stays' }), '');
   await recruiterCallbackDone(w.ctx, user(RECRUITER), { offerId: id, outcome: 'unreachable' });
@@ -170,7 +172,7 @@ Deno.test({ name: 'Gemeldete Zusage zählt erst nach Bestätigung; „stimmt so 
   await fails(respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'considering', until: '2026-10-29' }), 'gibt es nicht mehr');
   const r = await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'accepted', note: 'am Telefon' });
   eq([r.awaitingConfirmation, w.tables.offers[0].status, w.tables.employment_contracts.length], [true, 'accept_reported', 0]);
-  eq(w.cancelled, ['m2', 'm3'], 'geplante Angebotsmail nicht mehr nötig');
+  eq(w.cancelled, ['m1', 'm2'], 'geplante Angebotsmail nicht mehr nötig');
   assert(notes(w, CLIENT, 'offer_accept_reported').length === 1, 'Kunde sieht „bestätigt noch“');
   const confirm = tokenFrom(w.sent, 'offer_candidate_confirm');
   assert(toTessa(w).some((m) => m.template === 'offer_candidate_confirm_reminder' && m.scheduledAt === '2026-10-23T12:00:00.000Z'), 'Erinnerung nach 24 Std.');
@@ -194,7 +196,7 @@ Deno.test({ name: 'Gegenwunsch nur mit Haken; angenommener Wunsch geht als Versi
   await fails(respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'countered', wishSalary: 150000 }), 'sagt bei diesen Werten zu');
   await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'countered', wishSalary: 150000, wishStart: '2027-03-01', reason: 'Kündigungsfrist', candidateAgrees: true });
   eq([w.tables.offers[0].status, w.tables.offers[0].candidate_mail_due_at], ['countered', null], 'noch nicht verschickte Mail zurückgehalten');
-  eq(w.cancelled, ['m2', 'm3']);
+  eq(w.cancelled, ['m1', 'm2']);
   w.sent.length = 0;
   await acceptCounter(w.ctx, user(CLIENT), { offerId: w.tables.offers[0].id });
   const v2 = w.tables.offers[1];
@@ -211,7 +213,7 @@ Deno.test({ name: 'Zurückgezogen oder Frist abgelaufen: Seite geschlossen, gepl
   await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
   const token = tokenFrom(w.sent, 'offer_candidate_offer');
   await withdrawOffer(w.ctx, user(CLIENT), { offerId: w.tables.offers[0].id });
-  eq(w.cancelled, ['m2', 'm3']);
+  eq(w.cancelled, ['m1', 'm2']);
   const page = await candidatePeek(w.ctx, { token });
   eq([page.state, page.withdrawn], ['closed', true]);
   await fails(candidateAnswer(w.ctx, { token, way: 'accepted' }), 'nicht mehr antworten');
@@ -223,3 +225,132 @@ Deno.test({ name: 'Zurückgezogen oder Frist abgelaufen: Seite geschlossen, gepl
   eq((await candidatePeek(w2.ctx, { token: t2 })).state, 'expired');
   await fails(candidateAnswer(w2.ctx, { token: t2, way: 'accepted' }), 'nicht mehr antworten');
 }});
+
+// ---------------------------------------------------------------- Logik-Lücken, geschlossen am 02.11.2026
+
+Deno.test({ name: 'Gegenwunsch beim Kunden: Tessa sieht „Ihr Wunsch liegt bei der Firma“, nicht „gilt nicht mehr“', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const token = tokenFrom(w.sent, 'offer_candidate_offer');
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'countered', wishSalary: 150000, candidateAgrees: true });
+  eq((await candidatePeek(w.ctx, { token })).state, 'wish_pending');
+  await fails(candidateAnswer(w.ctx, { token, way: 'accepted' }), 'nicht mehr antworten');
+}});
+
+Deno.test({ name: 'Jeder Link zeigt den Stand: alter Link führt zu „Haben Sie zugesagt?“, Klaras Zeile steht in der Bestätigungsmail', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const first = tokenFrom(w.sent, 'offer_candidate_offer');
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'accepted' });
+  eq((await candidatePeek(w.ctx, { token: first })).state, 'confirm');
+  const mail = toTessa(w).find((m) => m.template === 'offer_candidate_confirm');
+  assert(mail.html.includes('Wir freuen uns sehr auf Sie.') && mail.html.includes('Nachricht von MedTec Süd GmbH'), 'Zeile mit Absender');
+  await candidateAnswer(w.ctx, { token: first, way: 'confirmed' });
+  eq(w.tables.offers[0].status, 'accepted');
+}});
+
+Deno.test({ name: '„Stimmt so nicht“ ohne erste Mail: Link gilt weiter, Stand stimmt, Julia hat etwas zu tun', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const id = w.tables.offers[0].id;
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: id, way: 'accepted' });
+  const confirm = tokenFrom(w.sent, 'offer_candidate_confirm');
+  await candidateAnswer(w.ctx, { token: confirm, way: 'not_confirmed' });
+  eq((await candidatePeek(w.ctx, { token: confirm })).state, 'open', 'Tessa kann weiter antworten');
+  const c = (await recruiterContext(w.ctx, user(RECRUITER), { submissionId: SUB })).currentOffer!.candidate;
+  assert(c.mailSent && c.notConfirmedAt, 'schriftlich da, Julia muss anrufen');
+  await recruiterTalked(w.ctx, user(RECRUITER), { offerId: id });
+  eq((await recruiterContext(w.ctx, user(RECRUITER), { submissionId: SUB })).currentOffer!.candidate.notConfirmedAt, null, 'nach dem Gespräch erledigt');
+  await candidateAnswer(w.ctx, { token: confirm, way: 'accepted' });
+  eq(w.tables.offers[0].status, 'accepted');
+}});
+
+Deno.test({ name: '„Erst sprechen“ auf der Bestätigungsseite: Zusage zurückgenommen, normaler Rückruf, Klara bekommt Bescheid', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const id = w.tables.offers[0].id;
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: id, way: 'accepted' });
+  await candidateAnswer(w.ctx, { token: tokenFrom(w.sent, 'offer_candidate_confirm'), way: 'callback', topic: 'Startdatum' });
+  const o = w.tables.offers[0];
+  eq([o.status, o.accept_reported_at, o.callback_topic], ['with_recruiter', null, 'Startdatum']);
+  assert(notes(w, CLIENT, 'offer_answer').some((x: any) => x.message.includes('gilt damit noch nicht')), 'Klara erfährt es');
+  await recruiterCallbackDone(w.ctx, user(RECRUITER), { offerId: id, outcome: 'stays' });
+  eq(w.tables.offers[0].callback_done_at !== null, true);
+}});
+
+Deno.test({ name: 'Frist: Julia meldet danach nichts mehr, gemeldete Zusage bleibt bestätigbar, Bitte um Verlängerung, neue Frist per Mail', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const id = w.tables.offers[0].id;
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: id, way: 'accepted' });
+  const confirm = tokenFrom(w.sent, 'offer_candidate_confirm');
+  w.clock.now = Date.parse('2026-10-31T10:00:00Z');
+  eq((await candidatePeek(w.ctx, { token: confirm })).state, 'confirm', 'vor der Frist gemeldet, nach der Frist bestätigbar');
+
+  const w2 = world();
+  await createOffer(w2.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const id2 = w2.tables.offers[0].id;
+  const token = tokenFrom(w2.sent, 'offer_candidate_offer');
+  w2.clock.now = Date.parse('2026-10-31T10:00:00Z');
+  await fails(respondOffer(w2.ctx, user(RECRUITER), { offerId: id2, way: 'accepted' }), 'Antwortfrist ist abgelaufen');
+  await fails(askExtension(w2.ctx, user(CLIENT), { offerId: id2 }), 'Nur der Headhunter');
+  await askExtension(w2.ctx, user(RECRUITER), { offerId: id2 });
+  assert(w2.sent.some((m) => m.template === 'offer_extension_asked' && m.to === 'klara@example.test'), 'Klara bekommt die Bitte');
+  await fails(askExtension(w2.ctx, user(RECRUITER), { offerId: id2 }), 'schon um mehr Zeit');
+  await extendOffer(w2.ctx, user(CLIENT), { offerId: id2, responseDue: '2026-11-05' });
+  const told = toTessa(w2).find((m) => m.template === 'offer_candidate_extended');
+  assert(told && told.subject.startsWith('Neue Antwortfrist') && told.html.includes('05.11.'), 'Tessa erfährt die neue Frist');
+  eq(w2.tables.offers[0].candidate_response?.extension_asked ?? null, null, 'Bitte beantwortet');
+  eq((await candidatePeek(w2.ctx, { token })).state, 'open', 'alte Mail zeigt wieder das Angebot');
+}});
+
+Deno.test({ name: 'Frist verlängert, bevor die Mail raus ist: geplante Mail geht mit neuer Frist zur alten Zeit', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  await extendOffer(w.ctx, user(CLIENT), { offerId: w.tables.offers[0].id, responseDue: '2026-11-05' });
+  const planned = toTessa(w).filter((m) => m.template === 'offer_candidate_offer');
+  eq(planned.length, 2);
+  eq(planned[1].scheduledAt, '2026-10-22T14:00:00.000Z', 'Uhr läuft weiter');
+  assert(planned[1].html.includes('05.11.'), 'mit der neuen Frist');
+  eq(toTessa(w).some((m) => m.template === 'offer_candidate_extended'), false, 'keine zweite Mail');
+}});
+
+Deno.test({ name: 'Beim Angebot bleiben: wieder 2-Stunden-Uhr, Julia ruft an, Erinnerung läuft neu', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const id = w.tables.offers[0].id;
+  await recruiterTalked(w.ctx, user(RECRUITER), { offerId: id });
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: id, way: 'countered', wishSalary: 150000, candidateAgrees: true });
+  w.sent.length = 0;
+  await keepOffer(w.ctx, user(CLIENT), { offerId: id, note: 'mehr ist nicht drin' });
+  const o = w.tables.offers[0];
+  eq([o.status, o.recruiter_talked_at, o.candidate_mail_sent_at, o.candidate_mail_due_at], ['with_recruiter', null, null, '2026-10-22T14:00:00.000Z']);
+  eq(toTessa(w).map((m) => m.template), ['offer_candidate_offer', 'offer_candidate_reminder']);
+  assert(w.sent.some((m) => m.to === 'julia@example.test' && m.html.includes('Bitte ruf Tessa an') && m.html.includes('mehr ist nicht drin')), 'Julia weiß, was zu tun ist');
+}});
+
+Deno.test({ name: 'Angebot-Mail an Julia: nennt die Uhr, bei angenommenem Wunsch nur Bescheid sagen', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const m = w.sent.find((x) => x.template === 'offer_received_recruiter');
+  assert(m.subject.includes('bitte bis 16:00 anrufen'), m.subject);
+  assert(m.html.includes('Bitte ruf Tessa jetzt an') && m.html.includes('Spätestens um 16:00') && !m.html.includes('in der Akte ein'), 'neuer Text');
+  assert(m.html.includes(`?angebot=${SUB}`), 'Knopf führt ins Angebot');
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'countered', wishSalary: 150000, candidateAgrees: true });
+  w.sent.length = 0;
+  await acceptCounter(w.ctx, user(CLIENT), { offerId: w.tables.offers[0].id });
+  const v2 = w.sent.find((x) => x.template === 'offer_received_recruiter');
+  assert(v2.subject.includes('nimmt den Wunsch von Tessa an') && v2.html.includes('Sag Tessa kurz Bescheid') && !v2.html.includes('anrufen'), 'Variante angenommen');
+}});
+
+Deno.test({ name: 'Absage durch den Kunden: offenes Angebot wird zurückgezogen, Mails und Links enden', permissions: { env: true }, fn: async () => {
+  const w = world();
+  await createOffer(w.ctx, user(CLIENT), { submissionId: SUB, ...OFFER });
+  const token = tokenFrom(w.sent, 'offer_candidate_offer');
+  await respondOffer(w.ctx, user(RECRUITER), { offerId: w.tables.offers[0].id, way: 'countered', wishSalary: 150000, candidateAgrees: true });
+  await withdrawOpenOffers(w.ctx, SUB, CLIENT);
+  eq(w.tables.offers[0].status, 'withdrawn');
+  const page = await candidatePeek(w.ctx, { token });
+  eq([page.state, page.withdrawn], ['closed', true]);
+}});
+

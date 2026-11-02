@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { ContextView } from '@/components/client/tasks/ClientTaskParts';
 import { taskHref, useClientTasks, waitingLabel } from '@/lib/clientTasksApi';
 import { dayDe, euro, offerApi } from '@/lib/offerApi';
-import { OfferBox, offerSummary } from './OfferBox';
+import { OfferBox } from './OfferBox';
 
 /**
  * Aufgaben-Fenster „Angebot“ (24.10.2026, „eine Aufgabe, ein Fenster“): öffnet sich aus der
@@ -98,7 +98,7 @@ export function OfferTaskWindow({ submissionId, open, onOpenChange, onAdjust, on
           <>
             <DialogHeader className="text-left">
               <DialogTitle>{first} hat einen Gegenwunsch</DialogTitle>
-              <DialogDescription>{ctx.jobTitle} · Ihr Angebot {offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}</DialogDescription>
+              <DialogDescription>{ctx.jobTitle} · Version {o.version}{o.responseDue ? ` · Antwort bis ${dayDe(o.responseDue)}` : ''}</DialogDescription>
             </DialogHeader>
             {counterTask?.context
               ? <ContextView context={counterTask.context} />
@@ -108,13 +108,13 @@ export function OfferTaskWindow({ submissionId, open, onOpenChange, onAdjust, on
                 <Input value={keepNote} onChange={(e) => setKeepNote(e.target.value)} placeholder={`Kurze Begründung für ${hhFirst} (optional), z. B. mehr ist im Budget nicht drin`} aria-label="Begründung" />
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" onClick={() => setKeepNote(null)}>Zurück</Button>
-                  <Button disabled={busy} onClick={() => run(() => offerApi.keep(o.id, keepNote.trim()), `${hhFirst} ist informiert und spricht noch einmal mit ${first}.`)}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Bei {euro(o.salary)} bleiben</Button>
+                  <Button disabled={busy} onClick={() => run(() => offerApi.keep(o.id, keepNote.trim()), `${hhFirst} ist informiert und ruft ${first} an.`)}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Bei {euro(o.salary)} bleiben</Button>
                 </div>
               </div>
             ) : (
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <button type="button" disabled={busy} onClick={() => run(() => offerApi.acceptCounter(o.id), `Angenommen. ${hhFirst} bekommt Version ${o.version + 1} mit ${wishText || 'den gewünschten Werten'} und sagt es ${first}.`)}
+                  <button type="button" disabled={busy} onClick={() => run(() => offerApi.acceptCounter(o.id), `Angenommen. ${first} hat Version ${o.version + 1} mit ${wishText || 'den gewünschten Werten'} per Mail, ${hhFirst} sagt kurz Bescheid.`)}
                     className="rounded-lg border border-primary bg-primary/[0.04] p-3 text-left text-sm transition-colors hover:bg-primary/[0.08]">
                     <p className="font-medium">Annehmen</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Version {o.version + 1} mit genau diesen Werten, ein Klick.</p>
@@ -138,7 +138,7 @@ export function OfferTaskWindow({ submissionId, open, onOpenChange, onAdjust, on
           <>
             <DialogHeader className="text-left">
               <DialogTitle>Angebot für {first}</DialogTitle>
-              <DialogDescription>{ctx.jobTitle}{o ? ` · ${offerSummary(o)}` : ''}</DialogDescription>
+              <DialogDescription>{ctx.jobTitle}</DialogDescription>
             </DialogHeader>
             {o ? (
               <OfferBox submissionId={ctx.submissionId} onAdjust={() => handoff(onAdjust)} onReject={() => handoff(onReject)} onContract={onContract ? () => handoff(onContract) : undefined} />

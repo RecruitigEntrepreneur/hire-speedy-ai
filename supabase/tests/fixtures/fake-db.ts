@@ -108,6 +108,7 @@ export function fakeDb(seed: Record<string, Row[]>, rpcs: Record<string, (args: 
         }));
         return q;
       },
+      like(c: string, v: string) { const needle = String(v).replace(/^%|%$/g, ''); filters.push((r) => String(r[c] ?? '').includes(needle)); return q; },
       ilike(c: string, v: string) { filters.push((r) => String(r[c] ?? '').toLowerCase() === String(v).toLowerCase()); return q; },
       order(c: string, o?: { ascending?: boolean }) { orderBy.push({ col: c, asc: o?.ascending !== false }); return q; },
       limit(n: number) { limitN = n; return q; },

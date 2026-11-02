@@ -16,6 +16,8 @@ interface Props {
   submissionId: string | null;
   onClose: () => void;
   onDone?: () => void;
+  /** Fehlt das Nachgespräch: erst dorthin, danach ist hier alles vorbefüllt */
+  onNachgespraech?: (c: RecruiterOfferContext) => void;
 }
 
 interface Row { key: string; label: string; value: string; on: boolean; placeholder: string; privateHint?: string }
@@ -55,7 +57,7 @@ function rowsFrom(c: RecruiterOfferContext): Row[] {
  * Empfehlung an den Kunden (Headhunter, 22.10.2026): was der Kandidat für eine Zusage
  * braucht, aus dem Nachgespräch vorbefüllt. Der Headhunter hakt an, was der Kunde sieht.
  */
-export function RecommendationDialog({ submissionId, onClose, onDone }: Props) {
+export function RecommendationDialog({ submissionId, onClose, onDone, onNachgespraech }: Props) {
   const ctx = useQuery({
     queryKey: ['offer-recruiter-context', submissionId],
     queryFn: () => offerApi.recruiterContext(submissionId!),
@@ -73,14 +75,14 @@ export function RecommendationDialog({ submissionId, onClose, onDone }: Props) {
               : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </>
         ) : (
-          <RecommendationForm c={ctx.data} onClose={onClose} onDone={onDone} />
+          <RecommendationForm c={ctx.data} onClose={onClose} onDone={onDone} onNachgespraech={onNachgespraech} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function RecommendationForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose: () => void; onDone?: () => void }) {
+function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: RecruiterOfferContext; onClose: () => void; onDone?: () => void; onNachgespraech?: (c: RecruiterOfferContext) => void }) {
   const queryClient = useQueryClient();
   const firma = c.companyName;
   const name = (c.candidateName ?? '').split(' ')[0] || 'der Kandidat';
@@ -88,6 +90,7 @@ function RecommendationForm({ c, onClose, onDone }: { c: RecruiterOfferContext; 
   const [rows, setRows] = useState<Row[]>(initial);
   const [intro, setIntro] = useState(c.recommendation?.intro ?? '');
   const [busy, setBusy] = useState(false);
+  const [withoutTalk, setWithoutTalk] = useState(false);
   useEffect(() => { setRows(initial); }, [initial]);
 
   const set = (key: string, patch: Partial<Row>) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -115,7 +118,7 @@ function RecommendationForm({ c, onClose, onDone }: { c: RecruiterOfferContext; 
       <DialogHeader className="text-left">
         <DialogTitle>Empfehlung an {firma}</DialogTitle>
         <DialogDescription>
-          {c.candidateName} · {c.jobTitle}. {nachDatum ? `Aus deinem Nachgespräch vom ${nachDatum} ` : ''}Du entscheidest, was {firma} sieht.
+          {c.candidateName} · {c.jobTitle}.{nachDatum ? ` Aus deinem Nachgespräch vom ${nachDatum}` : ''}
         </DialogDescription>
       </DialogHeader>
       {c.recommendation && (
@@ -123,6 +126,23 @@ function RecommendationForm({ c, onClose, onDone }: { c: RecruiterOfferContext; 
           Zuletzt gesendet am {dayDe(c.recommendation.createdAt)}. Eine neue Empfehlung ersetzt sie im Profil des Kunden.
         </p>
       )}
+
+      {!c.nachgespraech && onNachgespraech && c.lastInterview && !withoutTalk && (
+        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+          <p>Du hast noch kein Nachgespräch mit {name}. Erst sprechen, dann ist hier alles vorbefüllt.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button size="sm" onClick={() => { onClose(); onNachgespraech(c); }}>Nachgespräch führen</Button>
+            <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setWithoutTalk(true)}>Ohne Nachgespräch ausfüllen</button>
+          </div>
+        </div>
+      )}
+
+      <label className="block text-sm">
+        <span className="text-muted-foreground">Persönliche Einleitung (optional)</span>
+        <Textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={2} className="mt-1" placeholder={`z. B. ${name} war nach dem Termin vor Ort begeistert vom Team. So kommt die Zusage:`} />
+      </label>
+
+      <p className="text-xs text-muted-foreground">Nur Angehaktes sieht {firma}, als Karte im Bewerberprofil und im Angebotsfenster. Deine Schmerzgrenze sieht {firma} nie.</p>
 
       <div className="space-y-2">
         {rows.map((r) => (
@@ -138,25 +158,9 @@ function RecommendationForm({ c, onClose, onDone }: { c: RecruiterOfferContext; 
         ))}
       </div>
 
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Persönliche Einleitung (optional)</span>
-        <Textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={2} className="mt-1" placeholder={`z. B. ${name} war nach dem Termin vor Ort begeistert vom Team. So kommt die Zusage:`} />
-      </label>
-
-      <div className="rounded-lg border border-dashed p-3 text-sm">
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">So sieht {firma} es</p>
-        {intro.trim() && <p className="mb-1 italic">„{intro.trim()}“</p>}
-        {chosen.length === 0 ? <p className="text-muted-foreground">Hake mindestens einen Punkt an.</p> : (
-          <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-0.5">
-            {chosen.map((i) => <div key={i.key} className="contents"><dt className="text-muted-foreground">{i.label}</dt><dd>{i.value}</dd></div>)}
-          </dl>
-        )}
-        <p className="mt-2 text-xs text-muted-foreground">Erscheint als Karte im Bewerberprofil und im Angebotsfenster. Nicht angehakte Punkte und deine Schmerzgrenze sieht {firma} nie.</p>
-      </div>
-
       <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
         <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-        <Button disabled={busy || chosen.length === 0} onClick={send}>
+        <Button disabled={busy || chosen.length === 0} title={chosen.length === 0 ? 'Hake mindestens einen Punkt an.' : undefined} onClick={send}>
           {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Empfehlung senden
         </Button>
       </div>

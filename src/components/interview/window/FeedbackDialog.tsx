@@ -56,6 +56,7 @@ export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName,
             candidateName={candidateName}
             recruiterName={d.recruiterName}
             feedback={d.feedback ?? null}
+            questionAnswer={d.questionAnswer ?? null}
             started={!!d.scheduledAt && Date.parse(d.scheduledAt) <= Date.now()}
             notes={notes.notes}
             onSaved={() => {
@@ -69,6 +70,7 @@ export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName,
               onOpenChange(false);
               if (way !== 'unsure') onNext(way);
             }}
+            onClose={() => onOpenChange(false)}
           />
         )}
       </DialogContent>

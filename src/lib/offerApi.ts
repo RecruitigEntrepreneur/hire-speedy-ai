@@ -8,7 +8,8 @@ export type AnswerWay = 'accepted' | 'countered' | 'declined';
 
 export interface OfferResponse {
   /** 'considering' nur bei älteren Angeboten von vor G + H */
-  way: AnswerWay | 'considering';
+  way: AnswerWay | 'considering' | 'not_confirmed' | 'callback';
+  at?: string;
   note?: string | null;
   until?: string;
   wish?: { salary: number | null; variable: number | null; startDate: string | null; other: string | null };
@@ -16,6 +17,8 @@ export interface OfferResponse {
   reason_category?: string;
   start_confirmed?: string;
   client_keep?: { at: string; note: string | null };
+  /** Der Headhunter hat um eine längere Frist gebeten */
+  extension_asked?: { at: string };
   candidate_agrees?: boolean;
   /** 'candidate' = selbst auf der Antwortseite, sonst vom Headhunter gemeldet */
   by?: 'candidate' | 'recruiter';
@@ -34,6 +37,8 @@ export interface OfferCandidateState {
   acceptReportedAt: string | null;
   confirmedAt: string | null;
   answeredByCandidate: boolean;
+  /** „Stimmt so nicht“, bis der Headhunter gesprochen hat */
+  notConfirmedAt: string | null;
 }
 
 export interface OfferView {
@@ -90,6 +95,10 @@ export interface RecruiterOfferContext {
   nachgespraech: Record<string, any> | null;
   recommendation: Recommendation | null;
   currentOffer: OfferView | null;
+  /** Jüngstes gelaufenes Interview: dazu gehört das Nachgespräch */
+  lastInterview: { id: string; scheduledAt: string } | null;
+  /** Letztes Feedback des Kunden; question nur bei „Noch unsicher“ */
+  clientFeedback: { way: string | null; impression: string | null; question: string | null; at: string | null } | null;
 }
 
 export interface OfferInput {
@@ -127,7 +136,7 @@ export interface AnswerInput {
 export const offerApi = {
   context: (submissionId: string) => callFunction<OfferContext>('offer', { action: 'context', submissionId }),
   recruiterContext: (submissionId: string) => callFunction<RecruiterOfferContext>('offer', { action: 'recruiter_context', submissionId }),
-  create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'create', ...input }, 'Das Angebot konnte nicht gesendet werden.'),
+  create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView; candidateMailAt: string | null }>('offer', { action: 'create', ...input }, 'Das Angebot konnte nicht gesendet werden.'),
   respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView; awaitingConfirmation?: boolean }>('offer', { action: 'respond', ...input }, 'Die Antwort konnte nicht gespeichert werden.'),
   /** Gespräch geführt: Mail mit dem Angebot geht sofort an den Kandidaten */
   talked: (offerId: string) => callFunction<{ ok: true; alreadySent?: boolean }>('offer', { action: 'talked', offerId }, 'Die Mail konnte nicht gesendet werden.'),
@@ -139,6 +148,8 @@ export const offerApi = {
   acceptCounter: (offerId: string) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'accept_counter', offerId }, 'Der Wunsch konnte nicht angenommen werden.'),
   withdraw: (offerId: string) => callFunction<{ ok: true }>('offer', { action: 'withdraw', offerId }),
   extend: (offerId: string, responseDue: string) => callFunction<{ ok: true }>('offer', { action: 'extend', offerId, responseDue }),
+  /** Headhunter bittet den Kunden um mehr Zeit für den Kandidaten */
+  askExtension: (offerId: string) => callFunction<{ ok: true }>('offer', { action: 'ask_extension', offerId }, 'Die Bitte konnte nicht gesendet werden.'),
   recommend: (submissionId: string, intro: string, items: RecommendationItem[]) =>
     callFunction<{ ok: true }>('offer', { action: 'recommend', submissionId, intro, items }, 'Die Empfehlung konnte nicht gesendet werden.'),
 };
@@ -160,6 +171,23 @@ export const dayDe = (iso: string | null | undefined) => {
   return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', ...(other ? { year: 'numeric' } : {}) });
 };
 export const isoDay = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+export const timeDe = (iso: string) => new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+/** „um 17:05“, „morgen um 08:00“, „am 27.10. um 08:00“ */
+export const whenDe = (iso: string, now: number) => {
+  const d = Date.parse(iso);
+  if (berlinDay(d) === berlinDay(now)) return `um ${timeDe(iso)}`;
+  if (berlinDay(d) === berlinDay(now + 86_400_000)) return `morgen um ${timeDe(iso)}`;
+  return `am ${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} um ${timeDe(iso)}`;
+};
+/** Kurz für „seit …“ und „bis …“: „15:05“, „morgen 08:00“, „gestern 17:30“, „22.10., 17:30“ */
+export const shortDe = (iso: string, now: number) => {
+  const d = Date.parse(iso);
+  if (berlinDay(d) === berlinDay(now)) return timeDe(iso);
+  if (berlinDay(d) === berlinDay(now + 86_400_000)) return `morgen ${timeDe(iso)}`;
+  if (berlinDay(d) === berlinDay(now - 86_400_000)) return `gestern ${timeDe(iso)}`;
+  return `${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })}, ${timeDe(iso)}`;
+};
 
 /** Fünf Werktage ab heute (Bindefrist im Rahmenvertrag). */
 export function plusWorkdays(days: number, from = new Date()): string {

@@ -5,7 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import {
-  authUser, availability, checkTime, confirmAlternative, declineForCandidate, defaultCtx, interviewDetails, interviewFailure, interviewGuide, inviteColleague, must, preview, requestContext, reschedule, saveFeedback, saveInterviewGuide, send, setMeetingLink, setMyName, withdraw,
+  authUser, availability, checkTime, confirmAlternative, declineForCandidate, defaultCtx, interviewDetails, interviewFailure, interviewGuide, inviteColleague, must, preview, requestContext, reschedule, saveFeedback, decideAfterUnsure, saveInterviewGuide, send, setMeetingLink, setMyName, withdraw,
 } from '../_shared/interview-service.ts';
 
 serve(async (req) => {
@@ -33,6 +33,7 @@ serve(async (req) => {
       case 'guide': return json(await interviewGuide(ctx, user, body));
       case 'guide_save': return json(await saveInterviewGuide(ctx, user, body));
       case 'feedback': return json(await saveFeedback(ctx, user, body));
+      case 'decide_unsure': return json(await decideAfterUnsure(ctx, user, body));
       case 'set_link': return json(await setMeetingLink(ctx, user, body));
       default: must(false, 'Unbekannte Aktion.');
     }

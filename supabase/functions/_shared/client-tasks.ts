@@ -37,7 +37,7 @@ export interface ClientTask {
   urgent: boolean;
   /** wer wartet, für „Tessa wartet · 2 Tage“ */
   waitingWho: string | null;
-  ref: { interviewId?: string; offerId?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
+  ref: { interviewId?: string; offerId?: string; responseDue?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
   /** Zusatz, z. B. „Frage an Marko gestellt“ – die Aufgabe bleibt trotzdem offen */
   note: string | null;
   /** Entscheidungshilfe: was der Kunde zum Entscheiden braucht (Fenster oben, Zeile auf der Seite) */
@@ -152,14 +152,15 @@ const euroCents = (c: number | null | undefined) => (c == null ? '' : `${new Int
 const first = (name: string) => name.split(/\s+/)[0];
 
 function parseFeedback(raw: unknown): { way: string | null; at: number; text: string | null; missing: string | null } {
-  if (!raw) return { way: null, at: NaN, text: null, missing: null };
+  if (!raw) return { way: null, at: NaN, text: null, missing: null, question: null };
   let v: any = raw;
   if (typeof raw === 'string') {
-    try { v = JSON.parse(raw); } catch { return { way: null, at: NaN, text: null, missing: null }; }
+    try { v = JSON.parse(raw); } catch { return { way: null, at: NaN, text: null, missing: null, question: null }; }
   }
   const r = v?.recommendation;
   const way = r === 'proceed' ? 'next_round' : r === 'maybe' ? 'unsure' : typeof r === 'string' ? r : null;
-  return { way, at: t(v?.submitted_at), text: typeof v?.impression === 'string' ? v.impression : (typeof v?.summary === 'string' ? v.summary : null), missing: typeof v?.concerns === 'string' && v.concerns ? v.concerns : null };
+  const question = typeof v?.question === 'string' && v.question ? v.question : null;
+  return { way, at: t(v?.submitted_at), text: typeof v?.impression === 'string' ? v.impression : (typeof v?.summary === 'string' ? v.summary : null), missing: question ?? (typeof v?.concerns === 'string' && v.concerns ? v.concerns : null), question };
 }
 
 const slotStarts = (raw: unknown) =>
@@ -582,7 +583,7 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     const offers = (offersBySub.get(s.id) ?? []).slice().sort((a: any, b: any) => t(b.created_at) - t(a.created_at));
     const offer = offers.find((o: any) => OPEN_OFFER.includes(o.status)) ?? null;
     if (offer && offer.status === 'accept_reported') {
-      wait({ key: `offer-confirm:${offer.id}`, by: 'candidate', title: `${name} bestätigt die Zusage`, detail: `${hhFirst} hat die Zusage gemeldet, die Bestätigung per Mail läuft` });
+      wait({ key: `offer-confirm:${offer.id}`, by: 'candidate', title: `${hhFirst} meldet eine Zusage`, detail: `${name} bestätigt gerade per Mail` });
       continue;
     }
     if (offer) {
@@ -611,13 +612,15 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
             chip: wish.salary ? budgetChip({ lo: wish.salary, hi: wish.salary }, job) : null,
             quote: reason ? { by: hh, text: clip(reason) } : null,
             why: feeNow && feeWish && feeWish !== feeNow ? `Honorar beim Wunsch: ${euro(feeWish)} statt ${euro(feeNow)} zzgl. USt. (${pct} % vom Zielgehalt)` : null,
-            foot: [offer.response_due ? `Antwortfrist ${dateDe(offer.response_due)}` : null, `Version ${offer.version ?? 1}`].filter(Boolean).join(' · '),
           }) });
-      } else if (!Number.isNaN(dueMs) && dueMs < now) {
-        push({ key: `overdue:${offer.id}:${String(due).slice(0, 10)}`, kind: 'offer_overdue', since: iso(dueMs), urgent: false, waitingWho: null,
-          title: `${name} hat noch nicht geantwortet`, detail: `Antwortfrist ${dateDe(due)} ist vorbei`, ref: { offerId: offer.id },
+      } else if ((!Number.isNaN(dueMs) && dueMs < now) || offer.candidate_response?.extension_asked) {
+        // Der Headhunter kann schon vor Fristende um mehr Zeit bitten (02.11.2026)
+        const moreTime = offer.candidate_response?.extension_asked;
+        const askTitle = moreTime ? `${hhFirst} bittet um mehr Zeit für ${name}` : `${name} hat noch nicht geantwortet`;
+        push({ key: `overdue:${offer.id}:${String(due).slice(0, 10)}`, kind: 'offer_overdue', since: moreTime?.at ?? iso(dueMs), urgent: false, waitingWho: moreTime ? hh : null,
+          title: askTitle, detail: dueMs < now ? `Antwortfrist ${dateDe(due)} ist vorbei` : `Antwort bis ${dateDe(due)}`, ref: { offerId: offer.id, responseDue: String(due).slice(0, 10) },
           context: ctxOf({
-            ask: `${name} hat auf Ihr Angebot nicht geantwortet`,
+            ask: moreTime ? askTitle : `${name} hat auf Ihr Angebot nicht geantwortet`,
             facts: [
               ...fact('Angebot', offerTerms(offer)),
               ...fact('Verschickt', offer.sent_at ? `${formatBerlinDateShort(offer.sent_at)} · Version ${offer.version ?? 1}` : null),
@@ -628,7 +631,16 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
             why: others(job.id, s.id).text,
           }) });
       } else {
-        wait({ key: `offer-wait:${offer.id}`, by: 'recruiter', title: `${hhFirst} bespricht Ihr Angebot mit ${name}`, detail: due ? `Antwort bis ${dateDe(due)}` : 'Antwort folgt' });
+        // Je Stand ein Satz, wie im Angebots-Fenster (OfferBox.offerStandLine)
+        const mailDue = offer.candidate_mail_due_at ? Date.parse(offer.candidate_mail_due_at) : null;
+        const mailDone = !!offer.candidate_mail_sent_at || (mailDue !== null && mailDue <= now);
+        const talking = !!offer.callback_requested_at && !offer.callback_done_at;
+        const mailAt = (ms: number) => (berlinDateKey(ms) === berlinDateKey(now) ? '' : `${formatBerlinDateShort(iso(ms))}, `) + formatBerlinTime(iso(ms));
+        const title = talking ? `${name} spricht gerade mit ${hhFirst}`
+          : mailDue !== null && !mailDone ? `${hhFirst} ruft ${name} an, Mail an ${name} spätestens um ${mailAt(mailDue)}`
+            : mailDone ? `${name} hat das Angebot seit ${mailAt(Date.parse(offer.candidate_mail_sent_at ?? offer.candidate_mail_due_at))}`
+              : `${hhFirst} bespricht Ihr Angebot mit ${name}`;
+        wait({ key: `offer-wait:${offer.id}`, by: talking || (mailDue !== null && !mailDone) ? 'recruiter' : 'candidate', title, detail: due ? `Antwort bis ${dateDe(due)}` : 'Antwort folgt' });
       }
       continue;
     }
@@ -727,21 +739,33 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
       }
       const fbAt = Number.isNaN(fb.at) ? end : fb.at;
       if (fb.way === 'unsure') {
-        if (now - fbAt >= 3 * DAY) {
-          push({ key: `unsure:${latest.id}`, kind: 'decide_unsure', since: iso(fbAt + 3 * DAY), urgent: false, waitingWho: hh,
-            title: `Wie geht es mit ${nameDat} weiter?`, detail: `Sie waren am ${formatBerlinDateShort(iso(fbAt))} unsicher${fb.missing ? `: „${fb.missing}“` : ''}`, ref: { interviewId: latest.id }, note: askNote,
+        // Die Frage steht als eigene Zeile da, nicht zusätzlich als „beantwortet Ihre Frage“
+        const openQuestion = waiting.findIndex((w) => w.key === `question-open:${s.id}`);
+        if (openQuestion >= 0) waiting.splice(openQuestion, 1);
+        // Julia hat geantwortet: sofort entscheiden. Sonst nach 3 Tagen, ab Tag 7 dringend (02.11.2026)
+        const answers = thread.filter((m: any) => m.sender_id === s.recruiter_id && t(m.created_at) > fbAt);
+        const answer = answers[answers.length - 1] ?? null;
+        const days = Math.floor((now - fbAt) / DAY);
+        if (answer || now - fbAt >= 3 * DAY) {
+          push({ key: `unsure:${latest.id}`, kind: 'decide_unsure', since: answer ? answer.created_at : iso(fbAt + 3 * DAY), urgent: days >= 7, waitingWho: hh,
+            title: `Wie geht es mit ${nameDat} weiter?`,
+            detail: days >= 7 ? `${name} wartet seit ${days} Tagen auf eine Rückmeldung`
+              : answer ? `${hhFirst} hat Ihre Frage beantwortet`
+                : `Sie waren am ${formatBerlinDateShort(iso(fbAt))} unsicher${fb.missing ? `: „${fb.missing}“` : ''}`,
+            ref: { interviewId: latest.id }, note: answer ? null : `${hhFirst} hat noch nicht geantwortet. Sie können auch ohne Antwort entscheiden.`,
             context: ctxOf({
               ask: `Wie geht es mit ${nameDat} weiter?`,
               facts: [
                 ...fact('Ihr Eindruck', fb.text ? `„${clip(fb.text, 160)}“` : null),
-                ...fact('Offen war', fb.missing ? clip(fb.missing, 160) : null),
+                ...fact(fb.question ? 'Ihre Frage' : 'Offen war', fb.missing ? clip(fb.missing, 160) : null),
+                ...fact(`Antwort von ${hhFirst}`, answer?.content ? `„${clip(String(answer.content), 400)}“` : null),
                 ...fact('Gespräch', `Runde ${latest.round ?? 1} · ${formatBerlinDateShort(latest.scheduled_at)}`),
               ],
               line: [fb.missing ? `offen: ${clip(fb.missing, 60)}` : null, `unsicher seit ${formatBerlinDateShort(iso(fbAt))}`].filter(Boolean) as string[],
               why: others(job.id, s.id).text,
             }) });
         } else {
-          wait({ key: `unsure-wait:${latest.id}`, by: 'recruiter', title: `${hhFirst} klärt Ihre offenen Punkte mit ${name}`, detail: 'danach entscheiden Sie' });
+          wait({ key: `unsure-wait:${latest.id}`, by: 'recruiter', title: `${hhFirst} klärt Ihre Frage zu ${name}`, detail: fb.question ? `„${clip(fb.question, 120)}“` : 'danach entscheiden Sie' });
         }
         continue;
       }
@@ -760,7 +784,7 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
             line: items.length ? items.filter((i: any) => ['fix', 'start'].includes(i.key)).map((i: any) => `${i.label} ${clip(String(i.value), 40)}`) : ['Empfehlung fehlt noch'],
             quote: rec?.intro ? { by: hh, text: clip(rec.intro) } : null,
             why: pct ? `Honorar: ${pct} % vom Zielgehalt (fix + variabel), fällig erst mit dem unterschriebenen Vertrag` : null,
-            foot: rec ? null : `${hhFirst} ist erinnert. Sie können das Angebot auch ohne Empfehlung machen.`,
+            foot: rec ? null : `Sie können das Angebot auch ohne Empfehlung machen.`,
           });
         };
         const rec = (recBySub.get(s.id) ?? []).slice().sort((a: any, b: any) => t(b.created_at) - t(a.created_at))[0];
@@ -770,7 +794,7 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
             context: offerCtx(rec) });
         } else if (now - fbAt >= 2 * DAY) {
           push({ key: `offer:${s.id}:ohne`, kind: 'make_offer', since: iso(fbAt + 2 * DAY), urgent: false, waitingWho: name,
-            title: 'Angebot machen', detail: `Empfehlung von ${hhFirst} fehlt noch – er ist erinnert`, ref: { interviewId: latest.id }, note: askNote,
+            title: 'Angebot machen', detail: `Empfehlung von ${hhFirst} fehlt noch. Sie können das Angebot auch ohne sie machen.`, ref: { interviewId: latest.id }, note: askNote,
             context: offerCtx(null) });
         } else {
           wait({ key: `rec-wait:${s.id}`, by: 'recruiter', title: `${hhFirst} schreibt die Empfehlung`, detail: `was es für ${name}s Zusage braucht` });
@@ -888,7 +912,7 @@ function deriveNews(input: ClientTaskInput, tasks: ClientTask[]): NewsItem[] {
       const wish = countered.candidate_response?.wish ?? {};
       out.push({ key: `news-counter:${countered.id}`, kind: 'counter', submissionId: s.id, title: `${who} hat einen Gegenwunsch`,
         detail: [wish.salary ? `${euro(wish.salary)} statt ${euro(countered.salary_offered)}` : null, wish.startDate ? `Start ${dateDe(wish.startDate)}` : null, wish.other ?? null].filter(Boolean).join(' · ') || job.title,
-        hint: `${hhFirst} hat den Wunsch aufgenommen. Antworten Sie, damit ${name} nicht abspringt.`, cta: 'Beantworten', taskKey: `counter:${countered.id}`, at: countered.counter_offer_at ?? countered.updated_at });
+        hint: `${hhFirst} hat den Wunsch aufgenommen. Antworten Sie, damit ${name} nicht abspringt.`, cta: 'Gegenwunsch beantworten', taskKey: `counter:${countered.id}`, at: countered.counter_offer_at ?? countered.updated_at });
     }
     const latest = offers[0];
     if (latest?.status === 'declined' && recent(latest.decision_at ?? latest.updated_at)) {
@@ -937,7 +961,7 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
   const [candidates, interviews, offers, recommendations, contracts, placements, invoices, activations, mandates] = await Promise.all([
     rowsIn(db, 'candidates', candCols, 'id', submissions.map((s) => s.candidate_id)),
     rowsIn(db, 'interviews', 'id, submission_id, status, round, scheduled_at, duration_minutes, feedback, created_at, updated_at, proposed_slots, counter_slots, response_token_expires_at, reschedules_interview_id, meeting_format, onsite_address, candidate_message', 'submission_id', subIds),
-    rowsIn(db, 'offers', 'id, submission_id, status, created_at, updated_at, response_due, candidate_response, counter_offer_at, salary_offered, variable_salary, start_date, contract_type, probation_months, work_model, extras, decision_at, sent_at, version, rejection_reason', 'submission_id', subIds),
+    rowsIn(db, 'offers', 'id, submission_id, status, created_at, updated_at, response_due, candidate_response, counter_offer_at, candidate_mail_due_at, candidate_mail_sent_at, callback_requested_at, callback_done_at, salary_offered, variable_salary, start_date, contract_type, probation_months, work_model, extras, decision_at, sent_at, version, rejection_reason', 'submission_id', subIds),
     rowsIn(db, 'offer_recommendations', 'id, submission_id, created_at, intro, items', 'submission_id', subIds),
     rowsIn(db, 'employment_contracts', 'id, submission_id, status, way, sent_at, created_at, updated_at, company_signed_at, company_signer_name, company_signer_email, candidate_email, reported_at, reported_role, report_note, signed_on, salary, variable_salary, start_date, undo_until, fixed_term, non_compete, decline_reason, signing_mode, company_signer_user_id, final_at, candidate_status, candidate_status_at', 'submission_id', subIds),
     rowsIn(db, 'placements', '*', 'submission_id', subIds),
@@ -977,7 +1001,7 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
     }
   }
   const candIds = submissions.map((s) => s.candidate_id);
-  const messages = await rowsIn(db, 'messages', 'id, job_id, candidate_id, sender_id, created_at', 'candidate_id', candIds);
+  const messages = await rowsIn(db, 'messages', 'id, job_id, candidate_id, sender_id, created_at, content', 'candidate_id', candIds);
   const log = await rowsIn(db, 'client_task_log', 'task_key, kind, submission_id, job_id, label, answer, done_by, done_at', 'job_id', jobIds).catch(() => []);
   const { data: ownLog } = await db.from('client_task_log').select('task_key, kind, submission_id, job_id, label, answer, done_by, done_at').eq('done_by', userId).gte('done_at', new Date(now - 60 * DAY).toISOString());
   const allLog = [...log, ...(ownLog ?? [])];

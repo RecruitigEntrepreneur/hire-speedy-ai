@@ -5,7 +5,7 @@ import { callFunction } from '@/lib/interviewScheduling';
  * Aufrufe der öffentlichen Function offer-answer; Regeln in _shared/offer-candidate.ts.
  */
 
-export type OfferPageState = 'open' | 'confirm' | 'answered' | 'expired' | 'closed';
+export type OfferPageState = 'open' | 'confirm' | 'answered' | 'expired' | 'closed' | 'wish_pending';
 
 export interface OfferPageView {
   state: OfferPageState;

@@ -27,9 +27,11 @@ interface RejectionDialogProps {
   onOpenChange: (open: boolean) => void;
   submission: Submission | null;
   onSuccess: () => void;
+  /** Zusatz, z. B. wenn dabei ein laufendes Angebot endet */
+  notice?: string;
 }
 
-export function RejectionDialog({ open, onOpenChange, submission, onSuccess }: RejectionDialogProps) {
+export function RejectionDialog({ open, onOpenChange, submission, onSuccess, notice }: RejectionDialogProps) {
   const [step, setStep] = useState(1);
   const [reasonCategory, setReasonCategory] = useState('');
   const [customFeedback, setCustomFeedback] = useState('');
@@ -83,6 +85,8 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess }: R
             {step === 3 && 'Ablehnung bestätigen'}
           </DialogTitle>
         </DialogHeader>
+
+        {notice && <p className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-sm">{notice}</p>}
 
         <div className="py-4">
           {/* Step 1: Select Reason */}

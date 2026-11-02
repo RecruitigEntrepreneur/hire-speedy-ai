@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import type { RecruiterOfferContext } from '@/lib/offerApi';
 import { useAuth } from '@/lib/auth';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { notifyTasksChanged, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
@@ -36,6 +37,20 @@ export interface NachTarget {
   feeValue: number | null;
   scheduledAt: string | null;
 }
+
+/** Aus der Sicht des Headhunters (Angebots-Kontext): für Empfehlung und Kundenfrage ohne Nachgespräch. */
+export const nachTargetFromContext = (c: RecruiterOfferContext): NachTarget | null => (c.lastInterview ? {
+  interviewId: c.lastInterview.id,
+  submissionId: c.submissionId,
+  candidateId: c.candidateId,
+  candidateName: c.candidateName,
+  candidatePhone: c.candidatePhone,
+  jobId: null,
+  jobTitle: c.jobTitle,
+  companyName: c.companyName,
+  feeValue: null,
+  scheduledAt: c.lastInterview.scheduledAt,
+} : null);
 
 export const nachTargetFromItem = (item: UnifiedTaskItem): NachTarget => ({
   interviewId: item.itemId.replace('derived-debrief-', ''),
@@ -109,23 +124,27 @@ function Frage({ label, fehlt, children }: { label: string; fehlt?: boolean; chi
  */
 /** Feedback des Kunden aus interviews.feedback, kurz für den Headhunter. */
 const WEG: Record<string, string> = { next_round: 'nächste Runde', proceed: 'nächste Runde', offer: 'Angebot', unsure: 'noch unsicher', maybe: 'noch unsicher', reject: 'Absage' };
-function kundenFeedbackAus(raw: string | null): { weg: string; eindruck: string | null } | null {
+function kundenFeedbackAus(raw: string | null): { key: string; weg: string; eindruck: string | null } | null {
   if (!raw) return null;
   try {
     const f = JSON.parse(raw);
     const weg = WEG[f?.recommendation] ?? null;
     if (!weg) return null;
     const text = String(f.impression || f.notes || '').trim();
-    return { weg, eindruck: text ? (text.length > 200 ? `${text.slice(0, 200)}…` : text) : null };
+    return { key: String(f.recommendation), weg, eindruck: text ? (text.length > 200 ? `${text.slice(0, 200)}…` : text) : null };
   } catch {
     return null;
   }
 }
 
-export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
+export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpfehlung, onFrage }: {
   target: NachTarget | null;
   onClose: () => void;
   onDone?: () => void;
+  /** Kunde will ein Angebot und die Empfehlung fehlt noch: „Weiter: Empfehlung schreiben“ */
+  onEmpfehlung?: (submissionId: string) => void;
+  /** Kunde ist unsicher: „Weiter: Frage beantworten“ */
+  onFrage?: (submissionId: string) => void;
   /** „Später“-Menü der Aufgabenseite, wenn die Aufgabe vertagt werden kann */
   laterSlot?: ReactNode;
 }) {
@@ -142,7 +161,9 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
   const [saving, setSaving] = useState(false);
   const [applied, setApplied] = useState<string[]>([]);
   const [askedAt, setAskedAt] = useState<Date | null>(null);
-  const [kundenFeedback, setKundenFeedback] = useState<{ weg: string; eindruck: string | null } | null>(null);
+  const [kundenFeedback, setKundenFeedback] = useState<{ key: string; weg: string; eindruck: string | null } | null>(null);
+  // Liegt schon eine Empfehlung oder ein Angebot vor? Dann gibt es nichts mehr zu schreiben.
+  const [empfehlungOffen, setEmpfehlungOffen] = useState(false);
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
@@ -172,6 +193,13 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
       if (gefragt) setAskedAt(new Date(gefragt));
       // Hat der Kunde schon Feedback gegeben? Dann nicht mehr nachfragen, sondern zeigen.
       setKundenFeedback(kundenFeedbackAus((iv as any).data?.feedback ?? null));
+      if (target.submissionId) {
+        const [{ data: recs }, { data: offers }] = await Promise.all([
+          (supabase as any).from('offer_recommendations').select('id').eq('submission_id', target.submissionId).limit(1),
+          (supabase as any).from('offers').select('id').eq('submission_id', target.submissionId).limit(1),
+        ]);
+        if (alive) setEmpfehlungOffen(!(recs ?? []).length && !(offers ?? []).length);
+      }
       const c = (cand as any).data;
       setUmfeld({
         interview: (iv as any).data ?? null,
@@ -421,8 +449,8 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
                 <div className="flex gap-2.5">
                   <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]', (askedAt || kundenFeedback) && 'border-0 bg-emerald-500 text-white')}>{askedAt || kundenFeedback ? <Check className="h-3 w-3" /> : '3'}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{kundenFeedback ? 'Der Kunde hat sein Feedback schon gegeben (unten)' : askedAt ? `Kunde gefragt · ${wann(askedAt)}` : 'Kunden nach seinem Eindruck fragen?'}</p>
-                    {!askedAt && !kundenFeedback && (
+                    <p className="text-sm font-medium">{askedAt ? `Kunde gefragt · ${wann(askedAt)}` : form.will_weiter === 'nein' ? 'Dem Kunden Bescheid geben' : kundenFeedback ? 'Der Kunde hat sein Feedback schon gegeben (unten)' : 'Kunden nach seinem Eindruck fragen?'}</p>
+                    {!askedAt && (!kundenFeedback || form.will_weiter === 'nein') && (
                       <>
                         <p className="mt-1.5 rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm italic text-foreground/90">{kundenText(form)}</p>
                         <p className="mt-1.5 text-xs text-muted-foreground">Geht als Benachrichtigung ins Kunden-Dashboard und als Mail. Gehalt, Angebot, Start und Bedenken gehen nie automatisch an den Kunden.</p>
@@ -453,7 +481,13 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot }: {
           ) : (
             <div className="flex flex-wrap items-center gap-1.5">
               <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(true)}>Ändern</Button>
-              {askedAt || kundenFeedback || !target.submissionId ? (
+              {form.will_weiter === 'nein' && target.submissionId && !askedAt ? (
+                <Button size="sm" className="h-8 gap-1 text-xs" disabled={asking} onClick={askClient}><Mail className="h-3 w-3" />{target.companyName ?? 'Dem Kunden'} Bescheid geben</Button>
+              ) : kundenFeedback?.key === 'offer' && empfehlungOffen && onEmpfehlung && target.submissionId ? (
+                <Button size="sm" className="h-8 text-xs" onClick={() => { const id = target.submissionId!; onClose(); onEmpfehlung(id); }}>Weiter: Empfehlung schreiben</Button>
+              ) : ['unsure', 'maybe'].includes(kundenFeedback?.key ?? '') && onFrage && target.submissionId ? (
+                <Button size="sm" className="h-8 text-xs" onClick={() => { const id = target.submissionId!; onClose(); onFrage(id); }}>Weiter: Frage beantworten</Button>
+              ) : askedAt || kundenFeedback || !target.submissionId ? (
                 <Button size="sm" className="h-8 text-xs" onClick={onClose}>Schließen</Button>
               ) : (
                 <>

@@ -423,7 +423,7 @@ function FoldCard({ label, count, open, onToggle, children }: { label: string; c
 const DIRECT_KINDS = new Set(['call', 'followup', 'done']);
 
 const BLOCKS: { key: Handgriff; label: string; hint: string }[] = [
-  { key: 'anruf', label: 'Anrufe', hint: 'Kandidat oder Kunde anrufen' },
+  { key: 'anruf', label: 'Anrufe', hint: 'Kandidaten anrufen' },
   { key: 'kunde', label: 'Mails an Kunden', hint: 'eine Bitte für alle Kandidaten' },
   { key: 'kurz', label: 'Kurz erledigen', hint: '' },
 ];
@@ -439,7 +439,7 @@ const phaseIndex = (stage: PipelineStageKey | null) =>
 /** Mindest-Phase aus der Aufgabe selbst (die Pipeline-Stufe hinkt manchmal hinterher) */
 const impliedPhase = (cat: string) =>
   cat.startsWith('contract_') ? 3 : cat.startsWith('offer_') ? 2
-    : ['interview_debrief_due', 'client_feedback_due', 'recommendation_due', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h'].includes(cat) ? 1 : 0;
+    : ['interview_debrief_due', 'client_feedback_due', 'recommendation_due', 'client_unsure', 'client_undecided', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h'].includes(cat) ? 1 : 0;
 /** „In Prüfung“ (29.10.2026): hat das Kundenteam die Profile geöffnet? */
 function ViewState({ bundle }: { bundle: StalledBundle }) {
   const items = bundle.items;

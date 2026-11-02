@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { defaultCtx } from "../_shared/interview-service.ts";
+import { withdrawOpenOffers } from "../_shared/offer-service.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,6 +99,14 @@ serve(async (req) => {
     if (rejectionError) {
       console.error('Error creating rejection:', rejectionError);
       throw rejectionError;
+    }
+
+    // Läuft noch ein Angebot: geplante Mails an den Kandidaten abbrechen, Links sperren (02.11.2026).
+    // Vor dem Stufenwechsel, denn danach setzt der Trigger cancel_orphaned_interviews_offers es auf „cancelled“
+    try {
+      await withdrawOpenOffers(defaultCtx(supabase), submission_id, null);
+    } catch (offerError) {
+      console.error('Error withdrawing offer:', offerError);
     }
 
     // Update submission status

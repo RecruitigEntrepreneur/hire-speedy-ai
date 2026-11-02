@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { dayDe, euro, offerApi, overdue, plusWorkdays, type OfferView } from '@/lib/offerApi';
+import { dayDe, euro, offerApi, overdue, plusWorkdays, shortDe, whenDe, type OfferView } from '@/lib/offerApi';
 
 interface Props {
   submissionId: string;
@@ -21,6 +21,21 @@ interface Props {
 /** Kurzfassung eines Angebots: „150.000 € + 20.000 € · Start Fr 01.01.“ */
 export function offerSummary(o: OfferView): string {
   return [`${euro(o.salary)}${o.variable ? ` + ${euro(o.variable)}` : ''}`, o.startDate ? `Start ${dayDe(o.startDate)}` : null].filter(Boolean).join(' · ');
+}
+
+/**
+ * Je Stand genau ein Satz, überall gleich (Profil, Fenster; für die Aufgaben baut client-tasks denselben).
+ * Der Kunde sieht, dass gesprochen wird, nicht worüber.
+ */
+export function offerStandLine(o: OfferView, first: string, hhFirst: string, now = Date.now()): string {
+  const due = o.responseDue ? ` · Antwort bis ${dayDe(o.responseDue)}` : '';
+  if (o.status === 'accept_reported') return `${hhFirst} meldet eine Zusage · ${first} bestätigt gerade per Mail`;
+  if (overdue(o)) return `Antwortfrist abgelaufen (${dayDe(o.responseDue)})`;
+  const c = o.candidate;
+  if (c?.callbackAt) return `${first} spricht gerade mit ${hhFirst}${due}`;
+  if (c?.mailDueAt && !c.mailSent) return `${hhFirst} ruft ${first} an, Mail an ${first} spätestens ${whenDe(c.mailDueAt, now)}${due}`;
+  if (c?.mailSent && c.mailSentAt) return `${first} hat das Angebot seit ${shortDe(c.mailSentAt, now)}${due}`;
+  return `Angebot liegt bei ${hhFirst}${due}`;
 }
 
 /**
@@ -69,23 +84,24 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
       tone === 'info' && 'border-primary/20 bg-primary/[0.04]')}>
       {o.status === 'accept_reported' && (
         <>
-          <p className="font-medium">{first} hat zugesagt · Bestätigung per Mail läuft</p>
+          <p className="font-medium">{offerStandLine(o, first, hhFirst)}</p>
           <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}</p>
-          <p className="mt-1 text-muted-foreground">{hhFirst} hat die Zusage gemeldet. Sobald {first} sie per Klick bestätigt, schicken Sie den Arbeitsvertrag.</p>
+          <p className="mt-1 text-muted-foreground">Sobald {first} bestätigt, schicken Sie den Arbeitsvertrag.</p>
         </>
       )}
       {(o.status === 'with_recruiter' || o.status === 'considering') && (
         <>
           <p className="font-medium">
-            {late ? `Antwortfrist abgelaufen (${dayDe(o.responseDue)})` : o.status === 'considering' ? `${first} überlegt noch${r?.until ? ` bis ${dayDe(r.until)}` : ''}` : `Angebot liegt bei ${hh} · Antwort bis ${dayDe(o.responseDue)}`}
+            {!late && o.status === 'considering' ? `${first} überlegt noch${r?.until ? ` bis ${dayDe(r.until)}` : ''}` : offerStandLine(o, first, hhFirst)}
           </p>
           <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}</p>
           {o.status === 'considering' && r?.note && <p className="mt-1 text-muted-foreground">{hhFirst}: „{r.note}“</p>}
-          {r?.client_keep && o.status === 'with_recruiter' && <p className="mt-1 text-muted-foreground">Sie bleiben bei Ihrem Angebot; {hhFirst} spricht noch einmal mit {first}.</p>}
+          {r?.client_keep && o.status === 'with_recruiter' && <p className="mt-1 text-muted-foreground">Sie bleiben bei Ihrem Angebot.</p>}
+          {r?.extension_asked && <p className="mt-1 text-muted-foreground">{hhFirst} bittet um mehr Zeit für {first}.</p>}
           {newDue !== null ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="h-8 w-44" aria-label="Neue Antwortfrist" />
-              <Button size="sm" disabled={busy || !newDue} onClick={() => run(() => offerApi.extend(o.id, newDue), `Frist bis ${dayDe(newDue)} verlängert. ${hhFirst} ist informiert.`)}>Speichern</Button>
+              <Button size="sm" disabled={busy || !newDue} onClick={() => run(() => offerApi.extend(o.id, newDue), `Frist bis ${dayDe(newDue)} verlängert. ${first} bekommt sie per Mail, ${hhFirst} ist informiert.`)}>Speichern</Button>
               <Button size="sm" variant="ghost" onClick={() => setNewDue(null)}>Abbrechen</Button>
             </div>
           ) : confirmWithdraw ? (
@@ -96,9 +112,9 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
             </div>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
-              {late && <Button size="sm" onClick={() => setNewDue(plusWorkdays(3))}>Frist verlängern</Button>}
+              {(late || r?.extension_asked) && <Button size="sm" onClick={() => setNewDue(plusWorkdays(3, late ? undefined : new Date(`${o.responseDue}T12:00:00`)))}>Frist verlängern</Button>}
               <Button size="sm" variant="outline" onClick={onAdjust}>Ändern</Button>
-              {!late && <Button size="sm" variant="ghost" onClick={() => setNewDue(plusWorkdays(3, new Date(`${o.responseDue}T12:00:00`)))}>Frist verlängern</Button>}
+              {!late && !r?.extension_asked && <Button size="sm" variant="ghost" onClick={() => setNewDue(plusWorkdays(3, new Date(`${o.responseDue}T12:00:00`)))}>Frist verlängern</Button>}
               <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setConfirmWithdraw(true)}>Zurückziehen</Button>
             </div>
           )}

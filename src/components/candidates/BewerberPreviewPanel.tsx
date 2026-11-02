@@ -46,11 +46,11 @@ export interface PrimaryAction {
   labelKey: string;
   icon: LucideIcon;
   /** 'wizard' öffnet die Interview-Anfrage; 'feedback', 'offer', 'frage' öffnen das Fenster im Profil; sonst Navigationsziel */
-  run: 'wizard' | 'feedback' | 'offer' | 'frage' | string;
+  run: 'wizard' | 'feedback' | 'offer' | 'frage' | 'entscheiden' | string;
 }
 
 /** Diese Aktionen laufen als Fenster im Bewerberprofil. */
-export const PROFILE_ACTIONS = ['feedback', 'offer', 'contract', 'frage', 'profil'];
+export const PROFILE_ACTIONS = ['feedback', 'offer', 'contract', 'frage', 'entscheiden', 'profil'];
 
 const TERMINAL_STAGES = ['hired', 'placed', 'rejected', 'client_rejected', 'withdrawn'];
 
@@ -67,7 +67,7 @@ export function primaryActionFor(stateKey: string): PrimaryAction {
   // Nach dem Feedback: der gewählte Weg ist die Hauptaktion
   if (stateKey === 'naechste_runde') return { labelKey: 'bewerber.actions.plan_next_round', icon: Calendar, run: 'wizard' };
   if (stateKey === 'angebot_vorbereiten') return { labelKey: 'bewerber.actions.make_offer', icon: FileText, run: 'offer' };
-  if (stateKey === 'unsicher') return { labelKey: 'bewerber.actions.ask_hh', icon: MessageSquare, run: 'frage' };
+  if (stateKey === 'unsicher') return { labelKey: 'bewerber.actions.decide_now', icon: MessageSquare, run: 'entscheiden' };
   if (stateKey === 'interview_phase') return { labelKey: 'bewerber.actions.view_interviews', icon: Eye, run: '/dashboard/interviews' };
   // Angebot über den Headhunter: die Schritte stehen in der Angebots-Box im Profil
   if (stateKey === 'offer_negotiating') return { labelKey: 'bewerber.actions.review_counter', icon: FileText, run: 'profil' };

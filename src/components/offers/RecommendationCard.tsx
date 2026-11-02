@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
 import { offerApi } from '@/lib/offerApi';
 
 /**
  * Empfehlung des Headhunters im Bewerberprofil: was der Kandidat für eine Zusage braucht.
- * Steht nur da, solange noch kein Angebot angenommen ist.
+ * Steht nur da, solange noch kein Angebot angenommen ist. „Angebot machen“ ist der Hauptknopf darüber.
  */
-export function RecommendationCard({ submissionId, onOffer }: { submissionId: string; onOffer: () => void }) {
+export function RecommendationCard({ submissionId }: { submissionId: string }) {
   const ctx = useQuery({ queryKey: ['offer-context', submissionId], queryFn: () => offerApi.context(submissionId), staleTime: 15_000 });
   const rec = ctx.data?.recommendation;
   const cur = ctx.data?.currentOffer;
@@ -24,7 +23,6 @@ export function RecommendationCard({ submissionId, onOffer }: { submissionId: st
           </div>
         ))}
       </dl>
-      <Button size="sm" className="mt-3" onClick={onOffer}>Angebot machen</Button>
     </div>
   );
 }

@@ -1,19 +1,44 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Loader2, Plus, TriangleAlert } from 'lucide-react';
+import { Check, Loader2, Lock, Plus, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { dayDe, euro, offerApi, plusWorkdays, type OfferContext, type OfferInput } from '@/lib/offerApi';
+import { dayDe, euro, offerApi, plusWorkdays, whenDe, type OfferContext, type OfferInput } from '@/lib/offerApi';
 
 interface Props {
   submissionId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSent?: () => void;
+  /** Statt des Angebots: erst eine Frage an den Headhunter */
+  onAsk?: () => void;
+  /** Statt des Angebots: doch absagen */
+  onReject?: () => void;
+}
+
+/** Vorbelegt, bis der Kunde etwas anderes schreibt: Die Zeile steht direkt über dem Senden-Knopf. */
+const DEFAULT_LINE = 'Wir würden uns sehr freuen, Sie bald in unserem Team zu begrüßen.';
+/** Stichworte für die Zeile an den Kandidaten; nur was die Mail nicht ohnehin sagt. */
+const LINE_CHIPS = [
+  { key: 'ueberzeugt', label: 'Was uns überzeugt hat', text: 'Besonders überzeugt hat uns, ' },
+  { key: 'team', label: 'Team vorab kennenlernen', text: 'Gern zeigen wir Ihnen vor dem Start Ihr künftiges Team.' },
+];
+const SPIELRAUM = [
+  { key: 'gehalt', label: 'Gehalt', text: 'beim Gehalt' },
+  { key: 'start', label: 'Startdatum', text: 'beim Startdatum' },
+  { key: 'modell', label: 'Arbeitsmodell', text: 'beim Arbeitsmodell' },
+];
+const NO_ROOM = 'kein';
+/** Was beim Headhunter ankommt: Spielraum als Satz, dahinter sein freier Text. */
+function noteForRecruiter(room: string[], note: string): string {
+  const parts = SPIELRAUM.filter((x) => room.includes(x.key)).map((x) => x.text);
+  const line = room.includes(NO_ROOM) ? 'Das ist unser bestes Angebot.'
+    : parts.length ? `Spielraum ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1]}` : parts[0]}.` : '';
+  return [line, note.trim()].filter(Boolean).join(' ');
 }
 
 const digits = (v: string) => {
@@ -33,7 +58,7 @@ const firstDate = (s: string | undefined) => {
 };
 
 /** Angebot machen bzw. anpassen: Fenster in der Mitte, geht an den Headhunter. */
-export function OfferDialog({ submissionId, open, onOpenChange, onSent }: Props) {
+export function OfferDialog({ submissionId, open, onOpenChange, onSent, onAsk, onReject }: Props) {
   const ctx = useQuery({ queryKey: ['offer-context', submissionId], queryFn: () => offerApi.context(submissionId), enabled: open, staleTime: 10_000 });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,16 +71,17 @@ export function OfferDialog({ submissionId, open, onOpenChange, onSent }: Props)
               : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </>
         ) : (
-          <OfferForm c={ctx.data} onClose={() => onOpenChange(false)} onSent={onSent} />
+          <OfferForm c={ctx.data} onClose={() => onOpenChange(false)} onSent={onSent} onAsk={onAsk} onReject={onReject} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => void; onSent?: () => void }) {
+function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; onClose: () => void; onSent?: () => void; onAsk?: () => void; onReject?: () => void }) {
   const queryClient = useQueryClient();
   const hh = c.recruiterName?.trim() || 'Ihr Headhunter';
+  const hhFirst = hh.split(' ')[0];
   const name = c.candidateName || 'den Kandidaten';
   const first = (c.candidateName ?? '').split(' ')[0] || 'dem Kandidaten';
   const cur = c.currentOffer && ['with_recruiter', 'considering', 'countered'].includes(c.currentOffer.status) ? c.currentOffer : null;
@@ -74,8 +100,27 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
   const [extras, setExtras] = useState<string[]>(cur?.extras ?? []);
   const [extraOptions] = useState<string[]>(() => [...new Set([...c.defaults.extras, ...(cur?.extras ?? [])])]);
   const [newExtra, setNewExtra] = useState('');
-  const [message, setMessage] = useState('');
-  const [candidateMessage, setCandidateMessage] = useState(cur?.candidateMessage ?? '');
+  const [note, setNote] = useState('');
+  const [room, setRoom] = useState<string[]>([]);
+  const [candidateMessage, setCandidateMessage] = useState(cur ? cur.candidateMessage ?? '' : DEFAULT_LINE);
+  const [usedChips, setUsedChips] = useState<string[]>([]);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [sentMailAt, setSentMailAt] = useState<string | null | undefined>(undefined);
+  const lineRef = useRef<HTMLTextAreaElement>(null);
+  // Das Profil lädt beim Aktualisieren neu und baut dieses Fenster dabei neu auf: erst beim Schließen
+  // aktualisieren, sonst wäre die Bestätigung weg
+  const sentRef = useRef(false);
+  const afterClose = useRef(onSent);
+  afterClose.current = onSent;
+  useEffect(() => () => {
+    if (!sentRef.current) return;
+    queryClient.invalidateQueries({ queryKey: ['offer-context', c.submissionId] });
+    queryClient.invalidateQueries({ queryKey: ['submission-state'] });
+    queryClient.invalidateQueries({ queryKey: ['bewerber'] });
+    afterClose.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const message = noteForRecruiter(room, note);
   const [busy, setBusy] = useState(false);
   const [custom, setCustom] = useState<string[]>([]);
 
@@ -87,6 +132,8 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
   const recStartDate = firstDate(recStart?.value);
   const inRange = fix && c.salaryMin && c.salaryMax ? fix >= c.salaryMin && fix <= c.salaryMax : null;
   const ready = !!fix && !!startDate && !!responseDue;
+  // „Besonders überzeugt hat uns, “ darf nicht halb fertig zum Kandidaten gehen
+  const lineUnfinished = /,\s*$/.test(candidateMessage);
 
   const input: OfferInput | null = useMemo(() => (ready ? {
     submissionId: c.submissionId, salary: fix!, variable: varNum, startDate, responseDue, contractType, probationMonths: probation,
@@ -106,13 +153,9 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
     if (!input) return;
     setBusy(true);
     try {
-      await offerApi.create(input);
-      toast.success(`${cur ? 'Angepasstes Angebot' : 'Angebot'} an ${hh} gesendet. ${hh} bespricht es mit ${first}.`);
-      queryClient.invalidateQueries({ queryKey: ['offer-context', c.submissionId] });
-      queryClient.invalidateQueries({ queryKey: ['submission-state'] });
-      queryClient.invalidateQueries({ queryKey: ['bewerber'] });
-      onSent?.();
-      onClose();
+      const res = await offerApi.create(input);
+      setSentMailAt(res.candidateMailAt ?? null);
+      sentRef.current = true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Das Angebot konnte nicht gesendet werden.');
     } finally {
@@ -126,6 +169,127 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
     </p>
   );
 
+  if (sentMailAt !== undefined) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>{cur ? 'Angebot anpassen' : 'Angebot'} für {name}</DialogTitle>
+          <DialogDescription>{c.jobTitle}</DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+          <div>
+            <p className="font-medium">Angebot liegt bei {hh}</p>
+            <p className="text-muted-foreground">{hhFirst} ruft {first} an.{sentMailAt ? ` Spätestens ${whenDe(sentMailAt, Date.now())} bekommt ${first} es per Mail.` : ''}</p>
+          </div>
+        </div>
+        <div className="flex justify-end"><Button onClick={onClose}>Fertig</Button></div>
+      </>
+    );
+  }
+
+  if (step === 2) {
+    const toggleRoom = (key: string) => setRoom((list) => (key === NO_ROOM
+      ? (list.includes(NO_ROOM) ? [] : [NO_ROOM])
+      : list.includes(key) ? list.filter((x) => x !== key) : [...list.filter((x) => x !== NO_ROOM), key]));
+    const addChip = (chip: { key: string; text: string }) => {
+      setCandidateMessage((cur_) => `${cur_.trim() ? `${cur_.trim()} ` : ''}${chip.text}`);
+      setUsedChips((list) => [...list, chip.key]);
+      window.setTimeout(() => {
+        const el = lineRef.current;
+        if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      }, 0);
+    };
+    const lines = [
+      `Fixgehalt: ${euro(fix)} pro Jahr`,
+      varNum ? `Variabel bei 100 %: ${euro(varNum)}` : null,
+      `Erster Arbeitstag: ${dayDe(startDate)}`,
+      [contractType === 'fixed_term' ? 'befristet' : 'unbefristet', probation ? `${probation} Monate Probezeit` : null].filter(Boolean).join(' · '),
+      workModel.trim() ? `Ort und Modell: ${workModel.trim()}` : null,
+      extras.length ? `Extras: ${extras.join(', ')}` : null,
+      `Antwort bis ${dayDe(responseDue)}`,
+    ].filter(Boolean) as string[];
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>{cur ? 'Angebot anpassen' : 'Angebot'} für {name}</DialogTitle>
+          <DialogDescription>{c.jobTitle}</DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-3 border-b pb-2 text-xs text-muted-foreground">
+          <span className="text-emerald-600">✓ Konditionen</span>
+          <span className="font-medium text-foreground">2 Prüfen und senden</span>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>Diese Mail bekommt {first} nach dem Anruf von {hhFirst}</span>
+          <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setStep(1)}>Konditionen ändern</button>
+        </div>
+
+        <div className="space-y-2.5 rounded-lg bg-white p-4 text-sm text-neutral-900">
+          <p className="text-xs text-neutral-500">Von {hh} über Matchunt</p>
+          <p className="text-base font-medium">Ihr Angebot von {c.companyName}</p>
+          <p>Guten Tag {c.candidateName},</p>
+          <p>wie mit {hh} besprochen, hier die Eckdaten Ihres Angebots von {c.companyName}{cur ? ` (Version ${cur.version + 1})` : ''}:</p>
+          <p>{lines.map((l, i) => <span key={l}>{i > 0 && <br />}{l}</span>)}</p>
+          <div>
+            <label htmlFor="offer-cand-msg" className="text-xs font-medium">Nachricht von {c.companyName}:</label>
+            <div className="mt-1 rounded-md border border-blue-600 bg-white">
+              <Textarea id="offer-cand-msg" ref={lineRef} value={candidateMessage} onChange={(e) => setCandidateMessage(e.target.value)} rows={2} maxLength={2000}
+                placeholder="Keine persönliche Zeile. Zum Beispiel: Wir freuen uns sehr, Sie im Team zu begrüßen."
+                className="border-0 bg-transparent text-neutral-900 shadow-none placeholder:text-neutral-400 focus-visible:ring-0 focus-visible:ring-offset-0" />
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200 px-2 py-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {LINE_CHIPS.filter((x) => !usedChips.includes(x.key)).map((x) => (
+                    <button key={x.key} type="button" onClick={() => addChip(x)} className="rounded-full border border-neutral-300 px-2.5 py-0.5 text-xs text-neutral-700 hover:bg-neutral-100">+ {x.label}</button>
+                  ))}
+                </div>
+                {candidateMessage.trim() && (
+                  <button type="button" className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-900" onClick={() => { setCandidateMessage(''); setUsedChips([]); }}>Zeile entfernen</button>
+                )}
+              </div>
+            </div>
+            {lineUnfinished && <p className="mt-1 text-xs text-amber-700">Bitte den Satz zu Ende schreiben oder entfernen.</p>}
+          </div>
+          <p className="text-xs text-neutral-500">Das sind die Eckdaten, noch kein Arbeitsvertrag. Verbindlich ist erst der Arbeitsvertrag, den Sie mit {c.companyName} unterschreiben.</p>
+          <p>Fragen klären Sie mit {hhFirst}: Antworten Sie einfach auf diese Mail.</p>
+          <span className="inline-block rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white">Angebot ansehen und antworten</span>
+        </div>
+
+        <div className="space-y-2 rounded-lg border p-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 font-medium"><Lock className="h-3.5 w-3.5" />Nur für {hh}</p>
+            <p className="text-xs text-muted-foreground">{first} sieht das nie</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Wo hat {hhFirst} im Gespräch mit {first} Spielraum?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {[...SPIELRAUM, { key: NO_ROOM, label: 'Kein Spielraum', text: '' }].map((x) => (
+              <button key={x.key} type="button" aria-pressed={room.includes(x.key)} onClick={() => toggleRoom(x.key)}
+                className={cn('rounded-full border px-3 py-1 text-xs transition-colors', room.includes(x.key) ? 'border-foreground bg-foreground text-background' : 'hover:bg-accent')}>
+                {x.label}
+              </button>
+            ))}
+          </div>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={1500} placeholder={`Noch etwas für ${hhFirst}? Zum Beispiel: Februar ginge auch.`} aria-label={`Noch etwas für ${hhFirst}`} />
+        </div>
+
+        <div className="space-y-1 text-xs text-muted-foreground">
+          <p>Das Angebot geht zuerst an {hhFirst}. {first} bekommt es spätestens nach 2 Stunden (nachts ab 8 Uhr) und antwortet selbst. Den Arbeitsvertrag schicken Sie nach der bestätigten Zusage.</p>
+          {fee && <p>Honorar laut Rahmenvertrag: {c.feePercent} % vom Zielgehalt ({euro(target)}) = {euro(fee)} zzgl. USt. Fällig erst, wenn der Vertrag unterschrieben ist.</p>}
+          {c.otherOpenOffers > 0 && <p>Für diese Stelle {c.otherOpenOffers === 1 ? 'läuft schon ein weiteres Angebot' : `laufen schon ${c.otherOpenOffers} weitere Angebote`}. Mehrere Angebote gleichzeitig sind möglich.</p>}
+          {cur && <p>Das bisherige Angebot gilt danach als ersetzt.</p>}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button variant="ghost" onClick={() => setStep(1)}>‹ Zurück</Button>
+          <Button disabled={!ready || busy || lineUnfinished} onClick={send} className="gap-1.5">
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {cur ? 'Angepasstes Angebot senden' : `Angebot an ${hhFirst} senden`}
+          </Button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <DialogHeader>
@@ -133,6 +297,16 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
         <DialogDescription>{c.jobTitle} · geht an {hh}, {hh.split(' ')[0]} bespricht es mit {first}</DialogDescription>
       </DialogHeader>
 
+      <div className="flex gap-3 border-b pb-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">1 Konditionen</span>
+        <span>2 Prüfen und senden</span>
+      </div>
+
+      {!rec && !cur && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+          {hhFirst} hat noch keine Empfehlung geschickt. Sie können trotzdem anbieten, sie sagt Ihnen aber, was es für die Zusage braucht.
+        </p>
+      )}
       {rec && (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
           <p className="font-medium">Empfehlung von {hh}</p>
@@ -204,30 +378,13 @@ function OfferForm({ c, onClose, onSent }: { c: OfferContext; onClose: () => voi
         </div>
       </div>
 
-      <div>
-        <label htmlFor="offer-cand-msg" className="text-sm font-medium">Nachricht an {first} <span className="font-normal text-muted-foreground">(optional)</span></label>
-        <Textarea id="offer-cand-msg" value={candidateMessage} onChange={(e) => setCandidateMessage(e.target.value)} rows={2} maxLength={2000} placeholder="Wir freuen uns sehr, Sie im Team zu begrüßen." className="mt-1" />
-        <p className="mt-1 text-xs text-muted-foreground">Steht in der Mail an {first}, zusammen mit den Eckdaten.</p>
-      </div>
-
-      <div>
-        <label htmlFor="offer-msg" className="text-sm font-medium">Nachricht an {hh} <span className="font-normal text-muted-foreground">(optional, nur für {hh.split(' ')[0]})</span></label>
-        <Textarea id="offer-msg" value={message} onChange={(e) => setMessage(e.target.value)} rows={2} maxLength={2000} placeholder="Beim Start sind wir flexibel, Februar ginge auch." className="mt-1" />
-      </div>
-
-      <div className="space-y-1 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-        <p>Das Angebot geht an {hh}. {hh.split(' ')[0]} ruft {first} an, danach bekommt {first} es schriftlich per Mail, spätestens nach 2 Stunden (nachts ab 8 Uhr), und antwortet selbst. Den Arbeitsvertrag schicken Sie nach der bestätigten Zusage.</p>
-        {fee && <p>Honorar laut Rahmenvertrag: {c.feePercent} % vom Zielgehalt ({euro(target)}) = {euro(fee)} zzgl. USt. Fällig erst, wenn der Vertrag unterschrieben ist.</p>}
-        {c.otherOpenOffers > 0 && <p>Für diese Stelle läuft schon {c.otherOpenOffers === 1 ? 'ein weiteres Angebot' : `${c.otherOpenOffers} weitere Angebote`}. Beides ist möglich.</p>}
-        {cur && <p>Das bisherige Angebot gilt danach als ersetzt.</p>}
-      </div>
-
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>Abbrechen</Button>
-        <Button disabled={!ready || busy} onClick={send} className="gap-1.5">
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {cur ? 'Angepasstes Angebot senden' : `Angebot an ${hh.split(' ')[0]} senden`}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+          {!cur && onAsk && <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onAsk(); }}>Erst Frage an {hhFirst}</button>}
+          {!cur && onReject && <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onReject(); }}>Doch absagen</button>}
+        </div>
+        <Button disabled={!ready} onClick={() => setStep(2)}>Weiter: Prüfen und senden</Button>
       </div>
     </>
   );

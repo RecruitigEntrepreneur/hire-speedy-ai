@@ -158,6 +158,8 @@ export interface InterviewDetails {
   callPhone: string | null;
   /** Gespeichertes Feedback (JSON) */
   feedback?: string | null;
+  /** „Noch unsicher“: Antwort des Headhunters auf die Frage */
+  questionAnswer?: string | null;
   inOutlook: boolean;
   proposedSlots: string[];
   counterSlot: string | null;
@@ -228,6 +230,8 @@ export interface FeedbackInput {
   scores?: { technical?: number; communication?: number; culture?: number };
   strengths?: string;
   concerns?: string;
+  /** Noch unsicher: was der Headhunter klären soll */
+  question?: string;
 }
 export interface FeedbackResult { ok: true; way: FeedbackWay; round: number; nextRound: number }
 
@@ -280,6 +284,8 @@ export const interviewApi = {
   withdraw: (interviewId: string, reason: string) => callFunction<{ ok: true }>('interview-request', { action: 'withdraw', interviewId, reason }),
   inviteColleague: (input: InviteColleagueInput) => callFunction<InviteColleagueResult>('interview-request', { action: 'invite_colleague', ...input }),
   feedback: (input: FeedbackInput) => callFunction<FeedbackResult>('interview-request', { action: 'feedback', ...input }, 'Das Feedback konnte nicht gespeichert werden.'),
+  /** „Noch unsicher“ entschieden: wirkt wie das Feedback selbst */
+  decideUnsure: (interviewId: string, way: 'offer' | 'next_round') => callFunction<FeedbackResult>('interview-request', { action: 'decide_unsure', interviewId, way }, 'Die Entscheidung konnte nicht gespeichert werden.'),
   setLink: (interviewId: string, url: string) => callFunction<{ ok: true }>('interview-request', { action: 'set_link', interviewId, url }, 'Der Link konnte nicht gespeichert werden.'),
 };
 

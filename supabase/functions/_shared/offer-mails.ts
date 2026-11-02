@@ -1,6 +1,6 @@
 // Mailtexte rund um Empfehlung und Angebot (22.10.2026). Reine Funktionen:
-// liefern Betreff, HTML und Text. Der Kandidat bekommt von Matchunt keine Mail;
-// das Angebot überbringt der Headhunter.
+// liefern Betreff, HTML und Text. Das Angebot überbringt der Headhunter, der
+// Kandidat bekommt es danach schriftlich und antwortet selbst.
 import { esc, layout } from './intake-mail.ts';
 
 export interface MailContent { subject: string; html: string; text: string }
@@ -10,7 +10,13 @@ const muted = (s: string) => `<span style="color:#6b7280;">${s}</span>`;
 const quote = (s: string) => `<div style="margin:12px 0;padding:10px 14px;background:#f6f7f9;border-radius:8px;color:#374151;">„${esc(s)}“</div>`;
 const plain = (...lines: (string | false | null | undefined)[]) => lines.filter(Boolean).join('\n');
 const euro = (n: number | null | undefined) => (n == null ? '' : `${new Intl.NumberFormat('de-DE').format(n)} €`);
-const day = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) : '');
+/** „Mo., 09.11.“; in einem anderen Jahr mit Jahr: „Mo., 01.02.2027“ */
+const day = (iso: string | null | undefined) => {
+  if (!iso) return '';
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  const other = d.getUTCFullYear() !== new Date().getUTCFullYear();
+  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', ...(other ? { year: 'numeric' as const } : {}), timeZone: 'Europe/Berlin' });
+};
 
 export interface OfferFacts {
   salary: number;
@@ -26,7 +32,7 @@ export interface OfferFacts {
 /** Zeilen für Mail und Text: „Fixgehalt 140.000 €“ usw. */
 export function offerLines(o: OfferFacts): string[] {
   return [
-    `Fixgehalt: ${euro(o.salary)}`,
+    `Fixgehalt: ${euro(o.salary)} pro Jahr`,
     o.variable ? `Variabel bei 100 %: ${euro(o.variable)}` : null,
     o.startDate ? `Erster Arbeitstag: ${day(o.startDate)}` : null,
     [o.contractType === 'fixed_term' ? 'befristet' : 'unbefristet', o.probationMonths ? `${o.probationMonths} Monate Probezeit` : null].filter(Boolean).join(' · '),
@@ -39,20 +45,33 @@ const linesHtml = (lines: string[]) => p(lines.map((l) => esc(l)).join('<br>'));
 
 // --- An den Headhunter ---------------------------------------------------------
 
-export function recruiterOfferReceived(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; offer: OfferFacts; message: string | null; adjusted: boolean; akteUrl: string }): MailContent {
+/**
+ * Angebot beim Headhunter. mailAt: wann der Kandidat es von selbst bekommt („um 17:05“, „morgen um 08:00“).
+ * wishAccepted: der Kunde hat den Gegenwunsch angenommen, der Kandidat hat Version 2 schon per Mail.
+ */
+export function recruiterOfferReceived(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; offer: OfferFacts; message: string | null; adjusted: boolean; mailAt: string | null; wishAccepted?: boolean; offerUrl: string }): MailContent {
   const first = o.candidateName.split(' ')[0];
+  if (o.wishAccepted) {
+    const heading = `${o.companyName} nimmt den Wunsch von ${first} an`;
+    const body = [
+      p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
+      p(`${esc(o.companyName)} nimmt den Wunsch von <strong>${esc(o.candidateName)}</strong> an. ${esc(first)} hat die neue Version gerade per Mail bekommen und kann direkt zusagen. Sag ${esc(first)} kurz Bescheid.`),
+      linesHtml(offerLines(o.offer)),
+    ].join('');
+    return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Angebot öffnen', url: o.offerUrl } }), text: plain(heading, ...offerLines(o.offer), o.offerUrl) };
+  }
   const heading = o.adjusted ? `Angepasstes Angebot für ${o.candidateName}` : `Angebot für ${o.candidateName}`;
   const due = o.offer.responseDue ? ` bis ${day(o.offer.responseDue)}` : '';
   const body = [
     p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
-    p(`${esc(o.companyName)} macht <strong>${esc(o.candidateName)}</strong> ${o.adjusted ? 'ein angepasstes Angebot' : 'ein Angebot'} für <strong>${esc(o.jobTitle)}</strong>. Bitte besprich es mit ${esc(first)} und trag die Antwort${esc(due)} in der Akte ein.`),
+    p(`${esc(o.companyName)} macht <strong>${esc(o.candidateName)}</strong> ${o.adjusted ? 'ein angepasstes Angebot' : 'ein Angebot'} für <strong>${esc(o.jobTitle)}</strong>. Bitte ruf ${esc(first)} jetzt an.${o.mailAt ? ` Spätestens ${esc(o.mailAt)} bekommt ${esc(first)} das Angebot von selbst per Mail und antwortet dann selbst${esc(due) || '.'}` : ''}`),
     linesHtml(offerLines(o.offer)),
     o.message ? p(`${muted(`Nachricht von ${esc(o.companyName)}:`)}`) + quote(o.message) : '',
   ].join('');
   return {
-    subject: `${heading} – bitte${due} besprechen`,
-    html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }),
-    text: plain(heading, ...offerLines(o.offer), o.message && `Nachricht: „${o.message}“`, o.akteUrl),
+    subject: `${heading} – bitte ${o.mailAt ? `${o.mailAt.replace(/^um /, 'bis ').replace(/^morgen um /, 'bis morgen ')} ` : ''}anrufen`,
+    html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Angebot öffnen', url: o.offerUrl } }),
+    text: plain(heading, ...offerLines(o.offer), o.message && `Nachricht: „${o.message}“`, o.offerUrl),
   };
 }
 
@@ -87,7 +106,7 @@ export function clientOfferAnswer(o: {
   const next = o.way === 'accepted'
     ? 'Schicken Sie jetzt den Arbeitsvertrag. Im Bewerberprofil finden Sie alle Vertragsdaten.'
     : o.way === 'countered'
-      ? 'Im Bewerberprofil passen Sie das Angebot an, bleiben bei Ihrem Angebot oder sagen ab.'
+      ? 'Im Bewerberprofil nehmen Sie den Wunsch an, machen einen eigenen Vorschlag, bleiben bei Ihrem Angebot oder sagen ab.'
       : o.way === 'considering' ? `${esc(o.recruiterName)} meldet sich, sobald ${esc(first)} entschieden hat.` : 'Ihre anderen Bewerber finden Sie in der Bewerberliste.';
   const body = [
     p(`Hallo${o.name ? ` ${esc(o.name.split(' ')[0])}` : ''},`),
@@ -118,6 +137,10 @@ export function clientRecommendation(o: { name: string | null; candidateName: st
 
 export type CandidateMailKind = 'offer' | 'reminder' | 'confirm' | 'confirm_reminder';
 
+/** Klaras persönliche Zeile mit Absender: die Mail selbst kommt vom Headhunter. */
+const messageBlock = (companyName: string, message: string | null) =>
+  (message ? p(muted(`Nachricht von ${esc(companyName)}:`)) + quote(message) : '');
+
 /**
  * Eckdaten des Angebots an den Kandidaten, Absender „<Headhunter> über Matchunt“.
  * offer = erste Mail, reminder = einmalige Erinnerung nach 24 Std.,
@@ -144,7 +167,7 @@ export function candidateOffer(o: {
     p(`Guten Tag ${esc(o.candidateName)},`),
     p(intro),
     linesHtml([...lines, ...(due ? [due] : [])]),
-    o.message && !confirm ? quote(o.message) : '',
+    messageBlock(o.companyName, o.message),
     p(muted(`Das sind die Eckdaten, noch kein Arbeitsvertrag. Verbindlich ist erst der Arbeitsvertrag, den Sie mit ${esc(o.companyName)} unterschreiben.`)),
     p(`Fragen klären Sie mit ${esc(recruiterFirst)}: Antworten Sie einfach auf diese Mail.`),
   ].join('');
@@ -156,14 +179,35 @@ export function candidateOffer(o: {
   };
 }
 
+/** Kandidat: die Antwortfrist wurde verlängert, das Angebot gilt unverändert. */
+export function candidateDueExtended(o: { candidateName: string; companyName: string; jobTitle: string; responseDue: string; url: string }): MailContent {
+  const subject = `Neue Antwortfrist: Ihr Angebot von ${o.companyName}`;
+  const body = [
+    p(`Guten Tag ${esc(o.candidateName)},`),
+    p(`${esc(o.companyName)} hat die Antwortfrist bis <strong>${esc(day(o.responseDue))}</strong> verlängert. Das Angebot gilt unverändert.`),
+  ].join('');
+  return { subject, html: layout({ preheader: `${o.companyName} · ${o.jobTitle}`, heading: 'Neue Antwortfrist', body, cta: { label: 'Angebot ansehen und antworten', url: o.url } }), text: plain(subject, `Antwort bis ${day(o.responseDue)}`, o.url) };
+}
+
+/** Kunde: der Headhunter bittet um mehr Zeit für den Kandidaten. */
+export function clientExtensionAsked(o: { name: string | null; candidateName: string; recruiterName: string; jobTitle: string; responseDue: string | null; profileUrl: string }): MailContent {
+  const heading = `${o.recruiterName} bittet um mehr Zeit für ${o.candidateName}`;
+  const body = [
+    p(`Hallo${o.name ? ` ${esc(o.name.split(' ')[0])}` : ''},`),
+    p(`${esc(o.recruiterName)} bittet um eine längere Antwortfrist für Ihr Angebot an <strong>${esc(o.candidateName)}</strong> (${esc(o.jobTitle)}).${o.responseDue ? ` Bisher gilt: Antwort bis ${esc(day(o.responseDue))}.` : ''}`),
+    p('Die Frist verlängern Sie im Bewerberprofil mit einem Klick.'),
+  ].join('');
+  return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Bewerberprofil öffnen', url: o.profileUrl } }), text: plain(heading, o.profileUrl) };
+}
+
 /** Headhunter: der Kandidat möchte sprechen (Rückruf binnen 2 Std.) */
 export function recruiterCallback(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; topic: string | null; until: string; akteUrl: string }): MailContent {
-  const heading = `${o.candidateName} möchte mit Ihnen sprechen`;
+  const heading = `${o.candidateName} möchte mit dir sprechen`;
   const body = [
     p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
-    p(`${esc(o.candidateName)} möchte das Angebot von ${esc(o.companyName)} mit Ihnen besprechen. Bitte rufen Sie bis <strong>${esc(o.until)}</strong> zurück.`),
+    p(`${esc(o.candidateName)} möchte das Angebot von ${esc(o.companyName)} mit dir besprechen. Bitte ruf bis <strong>${esc(o.until)}</strong> zurück.`),
     o.topic ? quote(o.topic) : '',
-    p('Einen Gegenwunsch schicken Sie danach in der Akte an den Kunden, mit dem Haken „sagt bei diesen Werten zu“.'),
+    p('Einen Gegenwunsch schickst du danach im Angebot an den Kunden, mit dem Haken „sagt bei diesen Werten zu“.'),
   ].join('');
-  return { subject: heading, html: layout({ preheader: o.companyName, heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }), text: plain(heading, o.topic && `„${o.topic}“`, `Rückruf bis ${o.until}`, o.akteUrl) };
+  return { subject: heading, html: layout({ preheader: o.companyName, heading, body, cta: { label: 'Angebot öffnen', url: o.akteUrl } }), text: plain(heading, o.topic && `„${o.topic}“`, `Rückruf bis ${o.until}`, o.akteUrl) };
 }

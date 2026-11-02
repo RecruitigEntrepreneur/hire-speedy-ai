@@ -20,12 +20,14 @@ import {
 import { formatSimpleAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ScrollMoreHint } from './ScrollMoreHint';
 import { useRef, useState, useEffect } from 'react';
 import { SubmissionDetailDialog } from '@/components/influence/SubmissionDetailDialog';
 import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
+import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
+import { KundenFrageWindow } from '@/components/recruiter/tasks/KundenFrageWindow';
 import { dayDe } from '@/lib/offerApi';
 
 // Angebot läuft: bei der Kandidatin, Zusage gemeldet oder Gegenwunsch beim Kunden (G + H, 26.10.2026)
@@ -159,6 +161,19 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
   const queryClient = useQueryClient();
   // Angebots-Fenster je Einreichung: der Weg zurück ins Angebot, solange es läuft
   const [offerFor, setOfferFor] = useState<string | null>(null);
+  const [recFor, setRecFor] = useState<string | null>(null);
+  const [frageFor, setFrageFor] = useState<string | null>(null);
+  // Knöpfe aus den Mails: ?angebot=, ?empfehlung=, ?frage= öffnen das passende Fenster
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const links = [['angebot', setOfferFor], ['empfehlung', setRecFor], ['frage', setFrageFor]] as const;
+    const hit = links.find(([key]) => searchParams.get(key));
+    if (!hit) return;
+    hit[1](searchParams.get(hit[0]));
+    const next = new URLSearchParams(searchParams);
+    next.delete(hit[0]);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -449,6 +464,8 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         onClose={() => setOfferFor(null)}
         onDone={() => queryClient.invalidateQueries({ queryKey: ['candidate-active-processes', candidateId] })}
       />
+      <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} />
+      <KundenFrageWindow submissionId={frageFor} onClose={() => setFrageFor(null)} />
     </div>
   );
 }

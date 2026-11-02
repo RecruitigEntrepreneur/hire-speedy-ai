@@ -323,3 +323,70 @@ Deno.test('Meilensteine fürs Dashboard: Zusage mit Aufgabe zuerst, Gegenwunsch,
   const after = deriveClientTasks(input({ subs: [a], offers: [{ id: id('o'), submission_id: a.sub.id, status: 'accepted', created_at: ago(1), decision_at: ago(0, 2), salary_offered: 78000 }], contracts: [{ id: k, submission_id: a.sub.id, status: 'sent_self', sent_at: ago(0, 1), created_at: ago(0, 2) }] }));
   eq(after.news.length, 0);
 });
+
+Deno.test('Noch unsicher: nur eine Zeile beim Warten, nach Antwort sofort entscheiden, ab Tag 7 dringend', () => {
+  const a = sub(), b = sub(), c = sub();
+  const fb = (at: string) => JSON.stringify({ recommendation: 'unsure', submitted_at: at, impression: 'Fachlich stark.', question: 'Hat die Person ein Team geführt?' });
+  const iv = (s: ReturnType<typeof sub>, at: string) => ({ id: id('i'), submission_id: s.sub.id, status: 'completed', scheduled_at: ago(9), duration_minutes: 60, created_at: ago(10), feedback: fb(at) });
+  const msg = (s: ReturnType<typeof sub>, sender: string, at: string, content: string) => ({ id: id('m'), job_id: s.sub.job_id, candidate_id: s.sub.candidate_id, sender_id: sender, created_at: at, content });
+  const r = deriveClientTasks(input({
+    subs: [a, b, c],
+    interviews: [iv(a, ago(1)), iv(b, ago(1)), iv(c, ago(8))],
+    messages: [
+      msg(a, 'u-client', ago(1), 'Hat die Person ein Team geführt?'),
+      msg(b, 'u-client', ago(1), 'Hat die Person ein Team geführt?'),
+      msg(b, b.sub.recruiter_id as string, ago(0, 2), 'Ja, vier Personen seit 2023.'),
+      msg(c, 'u-client', ago(8), 'Hat die Person ein Team geführt?'),
+    ],
+  }));
+  const waits = r.waiting.filter((w) => w.submissionId === a.sub.id);
+  eq(waits.map((w) => w.key.split(':')[0]), ['unsure-wait'], 'keine zweite Zeile „beantwortet Ihre Frage“');
+  assert(waits[0].title.includes('klärt Ihre Frage') && waits[0].detail.includes('Team geführt'), 'Zeile nennt die Frage');
+  const answered = r.tasks.find((x) => x.submissionId === b.sub.id)!;
+  eq(answered.kind, 'decide_unsure', 'nach der Antwort sofort, nicht erst an Tag 3');
+  assert(answered.detail.includes('beantwortet') && !answered.urgent, 'Satz und nicht dringend');
+  assert(answered.context!.facts.some((f) => f.value.includes('vier Personen')), 'Antwort steht im Fenster');
+  const late = r.tasks.find((x) => x.submissionId === c.sub.id)!;
+  assert(late.urgent && late.detail.includes('wartet seit 8 Tagen'), 'ab Tag 7 dringend');
+  assert(late.note?.includes('noch nicht geantwortet'), 'sagt, dass die Antwort fehlt');
+});
+
+Deno.test('Empfehlung fehlt nach 2 Tagen: ohne „ist erinnert“, Stand im Angebot je ein Satz', () => {
+  const a = sub(), b = sub(), c = sub(), d = sub();
+  const r = deriveClientTasks(input({
+    subs: [a, b, c, d],
+    interviews: [{ id: id('i'), submission_id: a.sub.id, status: 'completed', scheduled_at: ago(5), duration_minutes: 60, created_at: ago(6), feedback: JSON.stringify({ recommendation: 'offer', submitted_at: ago(3) }) }],
+    offers: [
+      { id: id('o'), submission_id: b.sub.id, status: 'with_recruiter', created_at: ago(0, 1), response_due: ahead(5), candidate_mail_due_at: ahead(0.05), candidate_mail_sent_at: null },
+      { id: id('o'), submission_id: c.sub.id, status: 'with_recruiter', created_at: ago(1), response_due: ahead(5), candidate_mail_due_at: ago(0, 20), candidate_mail_sent_at: ago(0, 20) },
+      { id: id('o'), submission_id: d.sub.id, status: 'with_recruiter', created_at: ago(1), response_due: ahead(5), candidate_mail_sent_at: ago(0, 20), callback_requested_at: ago(0, 1), callback_done_at: null },
+    ],
+  }));
+  const task = r.tasks.find((x) => x.submissionId === a.sub.id)!;
+  assert(task.detail.includes('fehlt noch') && !task.detail.includes('erinnert'), task.detail);
+  const line = (x: ReturnType<typeof sub>) => r.waiting.find((w) => w.submissionId === x.sub.id)!;
+  assert(line(b).title.includes('Mail an') && line(b).title.includes('spätestens um'), line(b).title);
+  assert(line(c).title.includes('hat das Angebot seit'), line(c).title);
+  assert(line(d).title.includes('spricht gerade mit'), line(d).title);
+});
+
+Deno.test('Bitte um mehr Zeit: Aufgabe beim Kunden, auch vor Fristende', () => {
+  const a = sub(), b = sub();
+  const asked = { extension_asked: { at: ago(0, 1) } };
+  const r = deriveClientTasks(input({
+    subs: [a, b],
+    offers: [
+      { id: id('o'), submission_id: a.sub.id, status: 'with_recruiter', created_at: ago(9), response_due: ago(1), candidate_response: asked },
+      { id: id('o'), submission_id: b.sub.id, status: 'with_recruiter', created_at: ago(1), response_due: ahead(5), candidate_response: asked },
+    ],
+  }));
+  const late = r.tasks.find((x) => x.submissionId === a.sub.id)!;
+  eq(late.kind, 'offer_overdue');
+  assert(late.title.includes('bittet um mehr Zeit') && late.detail.includes('ist vorbei'), late.title);
+  const early = r.tasks.find((x) => x.submissionId === b.sub.id)!;
+  eq(early.kind, 'offer_overdue');
+  assert(early.title.includes('bittet um mehr Zeit') && early.detail.startsWith('Antwort bis'), early.detail);
+  eq(early.ref.responseDue, ahead(5).slice(0, 10), 'neue Frist startet ab der laufenden');
+  eq(r.waiting.filter((w) => w.submissionId === b.sub.id), [], 'keine zweite Zeile beim Warten');
+});
+

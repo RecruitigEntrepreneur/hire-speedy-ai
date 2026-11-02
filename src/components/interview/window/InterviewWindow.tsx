@@ -326,6 +326,7 @@ function WindowBody({
                   candidateName={name}
                   recruiterName={d?.recruiterName}
                   feedback={iv.feedback}
+                  questionAnswer={d?.questionAnswer ?? null}
                   started={started}
                   notes={notes.notes}
                   onSaved={refresh}

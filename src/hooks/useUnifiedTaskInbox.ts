@@ -427,6 +427,7 @@ function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
     dueAt: dueAt ? new Date(dueAt).toISOString() : null,
   });
   const frist = o.response_due ? `Antwort bis ${new Date(`${o.response_due}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : null;
+  const first = (sub.candidates?.full_name ?? '').trim().split(/\s+/)[0] || 'Kandidat';
 
   // Ältere Angebote von vor G + H: „überlegt noch“
   if (o.status === 'considering') {
@@ -442,13 +443,22 @@ function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
   // Rückrufwunsch von der Angebotsseite: binnen 2 Std. (nachts bis 8 Uhr)
   if (o.callback_requested_at && !o.callback_done_at) {
     const until = outsideQuietHoursBerlin(Date.parse(o.callback_requested_at) + 2 * HOUR_MS);
-    return base('Rückruf: Kandidat möchte sprechen', [`Rückruf bis ${clock(until)}`, o.callback_topic ? `„${o.callback_topic}“` : null].filter(Boolean).join(' · '), 'critical', until, o.callback_requested_at);
+    return base(`Rückruf: ${first} möchte sprechen`, [`Rückruf bis ${clock(until)}`, o.callback_topic ? `„${o.callback_topic}“` : null].filter(Boolean).join(' · '), 'critical', until, o.callback_requested_at);
+  }
+  // Frist vorbei: Der Kandidat kann nicht mehr antworten, erst muss der Kunde verlängern (02.11.2026)
+  if (due !== null && now > due) {
+    if (o.candidate_response?.extension_asked) return null;
+    return base('Antwortfrist abgelaufen: Kunden um Verlängerung bitten', frist, 'high', due, o.response_due);
+  }
+  // „Stimmt so nicht“: anrufen und klären; das Angebot ist wieder offen
+  if (o.candidate_response?.way === 'not_confirmed' && !o.recruiter_talked_at) {
+    return base(`${first} hat die Zusage nicht bestätigt — anrufen`, frist, 'critical', due, o.candidate_response.at ?? o.created_at);
   }
   const mailDue = o.candidate_mail_due_at ? Date.parse(o.candidate_mail_due_at) : null;
   const mailSent = !!o.candidate_mail_sent_at || (mailDue !== null && mailDue <= now);
   // Uhr läuft: anrufen, bevor die Mail von selbst rausgeht
   if (!mailSent && mailDue !== null) {
-    return base('Angebot überbringen', `Mail an Kandidat um ${clock(mailDue)}`, 'critical', mailDue, o.sent_at ?? o.created_at);
+    return base(o.candidate_response?.client_keep ? `Kunde bleibt beim Angebot — ${first} anrufen` : 'Angebot überbringen', `Mail an ${first} um ${clock(mailDue)}`, 'critical', mailDue, o.sent_at ?? o.created_at);
   }
   // 24 Std. nach der Mail keine Antwort: anrufen
   const reminder = o.candidate_reminder_due_at ? Date.parse(o.candidate_reminder_due_at) : null;
@@ -457,7 +467,8 @@ function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
   }
   // Mail ging ohne Gespräch raus: noch besprechen; nach „Gespräch geführt“ antwortet der Kandidat selbst
   if (!o.recruiter_talked_at) {
-    return base('Angebot mit Kandidat besprechen', frist, byDeadline, due, o.candidate_mail_sent_at ?? o.candidate_mail_due_at ?? o.created_at);
+    const wunsch = String(o.message_to_recruiter ?? '').startsWith('Wunsch angenommen');
+    return base(wunsch ? `${first} Bescheid sagen: Wunsch angenommen` : `Angebot mit ${first} besprechen`, frist, byDeadline, due, o.candidate_mail_sent_at ?? o.candidate_mail_due_at ?? o.created_at);
   }
   return null;
 }
@@ -521,6 +532,37 @@ function mapRecommendationDue(iv: any): UnifiedTaskItem | null {
     taskCategory: 'recommendation_due',
     priority: 'high',
     createdAt: iv.updated_at ?? iv.scheduled_at,
+  });
+}
+
+// Abgeleitete Aufgaben „Noch unsicher“ (02.11.2026): Frage klären, ab Tag 7 den Kunden benachrichtigen
+const feedbackOf = (raw: unknown): { question?: string | null; impression?: string | null; submitted_at?: string } => {
+  try { return JSON.parse(String(raw)) ?? {}; } catch { return {}; }
+};
+function mapClientUnsure(iv: any): UnifiedTaskItem | null {
+  const sub = iv.submissions;
+  if (!sub) return null;
+  const fb = feedbackOf(iv.feedback);
+  return derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-unsure-${iv.id}`,
+    title: 'Kunde ist unsicher: Frage klären',
+    description: fb.question || 'Der Kunde ist noch unsicher.',
+    taskCategory: 'client_unsure',
+    priority: 'high',
+    createdAt: fb.submitted_at ?? iv.updated_at ?? iv.scheduled_at,
+  });
+}
+function mapClientUndecided(iv: any, now: number): UnifiedTaskItem | null {
+  const sub = iv.submissions;
+  if (!sub) return null;
+  const at = feedbackOf(iv.feedback).submitted_at ?? iv.updated_at;
+  return derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-undecided-${iv.id}`,
+    title: 'Kunde entscheidet nicht: benachrichtigen',
+    description: `Seit ${Math.floor((now - Date.parse(at)) / DAY_MS)} Tagen unsicher, der Kandidat wartet.`,
+    taskCategory: 'client_undecided',
+    priority: 'high',
+    createdAt: at,
   });
 }
 
@@ -694,7 +736,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       // Nachgespräch (20.10.2026). Fehlt die Tabelle noch (Lovable Nr. 25), zählt nur das alte Debrief.
       const nachQuery = (supabase as any)
         .from('interview_nachgespraeche')
-        .select('interview_id')
+        .select('interview_id, submission_id, will_weiter')
         .eq('recruiter_id', user.id);
 
       // Opt-In einholen: Kunde hat ein Interview angefragt, Kandidat hat noch
@@ -714,7 +756,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       const offerQuery = (supabase as any)
         .from('offers')
         .select(`id, submission_id, status, sent_at, created_at, response_due, candidate_response, counter_offer_at, responded_at, decision_at, salary_offered,
-          candidate_mail_due_at, candidate_mail_sent_at, candidate_reminder_due_at, recruiter_talked_at, callback_requested_at, callback_topic, callback_done_at, accept_reported_at,
+          message_to_recruiter, candidate_mail_due_at, candidate_mail_sent_at, candidate_reminder_due_at, recruiter_talked_at, callback_requested_at, callback_topic, callback_done_at, accept_reported_at,
           submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed,
             candidates(full_name, phone, email))`)
         .eq('recruiter_id', user.id)
@@ -723,10 +765,19 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       const offerWishQuery = supabase
         .from('interviews')
         .select(`id, submission_id, scheduled_at, updated_at, feedback,
-          submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed,
+          submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed, stage,
             candidates(full_name, phone, email))`)
         .eq('submissions.recruiter_id', user.id)
         .like('feedback', '%"recommendation":"offer"%');
+      // Kunde noch unsicher: Frage klären, seine Nachrichten zeigen, ob schon geantwortet ist (02.11.2026)
+      const unsureQuery = supabase
+        .from('interviews')
+        .select(`id, submission_id, scheduled_at, updated_at, feedback,
+          submissions!inner(id, recruiter_id, candidate_id, job_id, company_revealed, stage,
+            candidates(full_name, phone, email))`)
+        .eq('submissions.recruiter_id', user.id)
+        .like('feedback', '%"recommendation":"unsure"%');
+      const myAnswersQuery = (supabase as any).from('messages').select('candidate_id, job_id, created_at').eq('sender_id', user.id);
       const myRecsQuery = (supabase as any).from('offer_recommendations').select('submission_id').eq('recruiter_id', user.id);
       const myOffersQuery = (supabase as any).from('offers').select('submission_id').eq('recruiter_id', user.id);
       // Arbeitsvertrag: Stand ohne Dateien (Paket 3); fehlt die Funktion noch, gibt es keine Vertragsaufgaben
@@ -782,6 +833,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       const [alertsResult, tasksResult, stalledResult, debriefResult, completedAlertsResult, completedTasksResult, myFeedbackResult, optInResult, rejectedNotifResult, logResult, nachResult, offerResult, offerWishResult, myRecsResult, myOffersResult, contractTaskResult] =
         await Promise.all([alertsQuery, tasksQuery, stalledQuery, debriefQuery, completedAlertsQuery, completedTasksQuery, myFeedbackQuery, optInQuery, rejectedNotifQuery, logQuery, nachQuery, offerQuery, offerWishQuery, myRecsQuery, myOffersQuery, contractTaskQuery]);
       // Fehlen die Tabellen noch (Migration nicht live), bleiben die Listen leer
+      const [unsureResult, myAnswersResult] = await Promise.all([unsureQuery, myAnswersQuery]);
       const recommended = new Set(((myRecsResult as any).data || []).map((r: any) => r.submission_id as string));
       const offered = new Set(((myOffersResult as any).data || []).map((r: any) => r.submission_id as string));
       // Verträge: Einreichung mit Kandidat dazuladen; die Stelle hängt unten über recruiter_jobs_view an
@@ -1103,6 +1155,9 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       setParkedItems(parked);
       setWaitingItems([...stalledAll, ...feedbackAll].filter(i => i.waitState !== 'jetzt'));
 
+      const closedStage = (iv: any) => ['client_rejected', 'rejected', 'withdrawn', 'placed', 'hired'].includes(String(iv.submissions?.stage ?? ''));
+      // Max will laut Nachgespräch nicht weiter: keine Empfehlung, keine Klärung, der Kunde bekommt Bescheid
+      const notContinuing = new Set((((nachResult as any).data || []) as any[]).filter((n) => n.will_weiter === 'nein').map((n) => n.submission_id as string));
       const derivedItems: UnifiedTaskItem[] = [
         ...stalledAll.filter(i => i.waitState === 'jetzt'),
         ...feedbackAll.filter(i => i.waitState === 'jetzt'),
@@ -1116,7 +1171,17 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         ...(((offerResult as any).data || []) as any[]).filter((o) => o.status !== 'accepted' && o.status !== 'countered').map((o) => mapOfferDeliver(o, nowMs)),
         ...counterJetzt,
         ...contractItems,
-        ...[...wishBySub.values()].filter((iv) => !recommended.has(iv.submission_id) && !offered.has(iv.submission_id)).map((iv) => mapRecommendationDue(iv)),
+        ...[...wishBySub.values()]
+          .filter((iv) => !recommended.has(iv.submission_id) && !offered.has(iv.submission_id) && !closedStage(iv) && !notContinuing.has(iv.submission_id))
+          .map((iv) => mapRecommendationDue(iv)),
+        ...(((unsureResult as any).data || []) as any[])
+          .filter((iv) => !offered.has(iv.submission_id) && !closedStage(iv) && !notContinuing.has(iv.submission_id))
+          .map((iv) => {
+            const at = Date.parse(feedbackOf(iv.feedback).submitted_at ?? iv.updated_at);
+            const answered = (((myAnswersResult as any).data || []) as any[]).some((m) => m.candidate_id === iv.submissions?.candidate_id && m.job_id === iv.submissions?.job_id && Date.parse(m.created_at) > at);
+            if (!answered) return mapClientUnsure(iv);
+            return nowMs - at >= 7 * DAY_MS ? mapClientUndecided(iv, nowMs) : null;
+          }),
       ]
         .filter((i): i is UnifiedTaskItem => i !== null)
         .filter(i => !alertKeys.has(`${i.taskCategory}:${i.submissionId}`))

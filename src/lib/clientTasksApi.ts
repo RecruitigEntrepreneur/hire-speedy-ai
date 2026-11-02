@@ -26,7 +26,7 @@ export interface ClientTask {
   since: string;
   urgent: boolean;
   waitingWho: string | null;
-  ref: { interviewId?: string; offerId?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
+  ref: { interviewId?: string; offerId?: string; responseDue?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
   note: string | null;
   /** Entscheidungshilfe (Fenster oben, Zeile auf der Seite „Aufgaben“) */
   context: TaskContext | null;
@@ -138,7 +138,7 @@ export const TASK_ACTION: Record<ClientTaskKind, string> = {
   feedback: 'Feedback geben',
   decide_unsure: 'Entscheiden',
   make_offer: 'Angebot machen',
-  counter: 'Beantworten',
+  counter: 'Gegenwunsch beantworten',
   offer_overdue: 'Entscheiden',
   send_contract: 'Vertrag schicken',
   contract_signed_check: 'Melden',

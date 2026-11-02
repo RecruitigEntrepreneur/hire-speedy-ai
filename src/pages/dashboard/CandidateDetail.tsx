@@ -56,6 +56,7 @@ import { CandidateExperienceTimeline } from '@/components/candidates/CandidateEx
 import { RejectionDialog } from '@/components/rejection/RejectionDialog';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
 import { FeedbackDialog } from '@/components/interview/window/FeedbackDialog';
+import { feedbackWayOf } from '@/lib/interviewScheduling';
 import { OfferDialog } from '@/components/offers/OfferDialog';
 import { RecommendationCard } from '@/components/offers/RecommendationCard';
 import type { ContractOpen } from '@/components/contracts/ContractBox';
@@ -386,6 +387,8 @@ export default function CandidateDetail() {
     // Vertrag: eine Aufgabe, ein Fenster (kein Zwischenfenster)
     if (['send_contract', 'docusign_sign', 'contract_signed_check'].includes(task.kind)) { setDelegatedTask(task); setContractWin({ intent: null, returnEvent: null, task }); return; }
     if (['counter', 'offer_overdue'].includes(task.kind)) { setDelegatedTask(task); setOfferWin(true); return; }
+    // Angebot machen: gleich das Angebotsfenster, „Erst Frage“ und „Doch absagen“ stehen in seinem Fuß
+    if (task.kind === 'make_offer') { setDelegatedTask(task); setShowOffer(true); return; }
     setActiveTask(task);
   };
   // „Läuft bei anderen“: Karten rund um den Vertrag öffnen dasselbe Fenster im Modus „läuft“
@@ -427,6 +430,9 @@ export default function CandidateDetail() {
   const feedbackInterviewId = (subState?.interviews ?? []).find((x) =>
     !x.feedback && x.scheduledAt && Date.parse(x.scheduledAt) <= Date.now() && ['scheduled', 'completed', 'no_show'].includes(x.status ?? ''))?.id ?? null;
 
+  // „Noch unsicher“: im Fenster dieses Gesprächs jederzeit entscheiden (02.11.2026)
+  const decideInterviewId = (subState?.interviews ?? []).find((x) => feedbackWayOf(x.feedback) === 'unsure')?.id ?? null;
+
   // Aus Liste, Agenda oder Feedback: Fenster direkt im Profil öffnen (state.open)
   const openRequest = (location.state as { open?: string } | null)?.open ?? null;
   useEffect(() => {
@@ -435,6 +441,7 @@ export default function CandidateDetail() {
     if (openRequest === 'offer') setShowOffer(true);
     if (openRequest === 'reject') setShowRejectDialog(true);
     if (openRequest === 'frage') setShowFrage(true);
+    if (openRequest === 'entscheiden') setFeedbackFor(decideInterviewId);
     if (openRequest === 'contract') setContractOpen('contract');
     navigate(location.pathname, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -603,14 +610,16 @@ export default function CandidateDetail() {
     if (k === 'vertrag_bestaetigen') return `${hhName} meldet die Unterschrift. Bitte bestätigen Sie unten.`;
     if (k === 'vertrag_unterschrieben') return 'Der Arbeitsvertrag ist unterschrieben.';
     if (k === 'vertrag_abgelehnt') return 'Der Vertrag wurde in DocuSign abgelehnt. Passen Sie ihn an oder schicken Sie ihn selbst.';
-    if (k === 'offer_rejected') return `Der Kandidat hat abgesagt. ${hhName} ist informiert.`;
+    if (k === 'offer_rejected') return `${identityUnlocked ? displayName.split(' ')[0] : 'Der Kandidat'} hat abgesagt. ${hhName} sucht weiter für Sie.`;
     if (k === 'offer_withdrawn') return 'Sie haben das Angebot zurückgezogen.';
     // Nach dem Feedback: der gewählte Weg, mit dem Namen des Headhunters
     if (k === 'naechste_runde') return `Ihr Feedback: weiter. Planen Sie Interview ${nextRoundNo}, gern vor Ort mit dem Team. ${hhName} weiß Bescheid.`;
     if (k === 'angebot_vorbereiten') return hasRecommendation
       ? `${hhName} hat Ihnen eine Empfehlung geschickt (unten). Damit trifft Ihr Angebot beim ersten Mal.`
       : `Sie möchten ein Angebot machen. ${hhName} spricht mit dem Kandidaten und schickt Ihnen eine Empfehlung, was es für eine Zusage braucht.`;
-    if (k === 'unsicher') return `Sie sind noch unsicher. ${hhName} meldet sich mit den offenen Punkten; danach entscheiden Sie über Interview ${nextRoundNo}.`;
+    if (k === 'unsicher') return questions.data?.messages.length && !questions.data.waiting
+      ? `${hhName} hat Ihre Frage beantwortet. Sie können jetzt entscheiden.`
+      : `Sie sind noch unsicher. ${hhName} klärt Ihre Frage; Sie können trotzdem jederzeit entscheiden.`;
     if (k === 'wait_today' || k === 'wait_yesterday' || k === 'wait_days') return t('bewerber.detail.ctx.wait_new');
     if (k === 'wait_warn' || k === 'wait_crit') return t('bewerber.detail.ctx.wait_old', { days: (state.params as any)?.days ?? '' });
     if (k === 'archiv' && jobClosed) {
@@ -631,6 +640,7 @@ export default function CandidateDetail() {
     if (primary.run === 'offer') { setShowOffer(true); return; }
     if (primary.run === 'contract') { setContractOpen('contract'); return; }
     if (primary.run === 'frage') { setShowFrage(true); return; }
+    if (primary.run === 'entscheiden') { setFeedbackFor(decideInterviewId); return; }
     navigate(primary.run);
   };
 
@@ -647,11 +657,16 @@ export default function CandidateDetail() {
     if (task.kind === 'make_offer') { setDelegatedTask(task); setShowOffer(true); return; }
     openTask(task);
   };
+  // Julia schreibt die Empfehlung: Das Angebot bleibt möglich, ist aber noch nicht der Hauptknopf (02.11.2026)
+  const waitingForRec = !leadTask && state.key === 'angebot_vorbereiten' && !hasRecommendation;
   const mainAction = leadTask
     ? { label: taskMainLabel(leadTask.kind), Icon: leadTask.kind === 'review' || leadTask.kind === 'expired_request' ? Calendar : TASK_ICON[leadTask.kind], run: () => runLeadTask(leadTask) }
     : !isTerminal && !isPendingCandidate && !offerFlow
-      ? { label: t(primary.labelKey, state.params), Icon: PrimaryIcon, run: runPrimary }
-      : null;
+      ? { label: waitingForRec ? 'Trotzdem jetzt Angebot machen' : t(primary.labelKey, state.params), Icon: PrimaryIcon, run: runPrimary }
+      // Abgesagt oder zurückgezogen: Es kann ein neues Angebot geben (E8, 02.11.2026)
+      : !isTerminal && ['declined', 'withdrawn'].includes(subState?.offers?.[0]?.status ?? '')
+        ? { label: 'Neues Angebot', Icon: PrimaryIcon, run: () => setShowOffer(true) }
+        : null;
   // Bis Aufgaben und Stand da sind: Platzhalter statt eines Knopfs, der gleich wechselt
   const mainLoading = !leadTask && (tasksLoading || subStateLoading);
 
@@ -918,7 +933,7 @@ export default function CandidateDetail() {
           'bg-muted/30'
         )}>
           {!calmBox && <p className="text-sm mb-3">{ctxFor()}</p>}
-          <div className={cn('flex flex-wrap items-center gap-2', calmBox && 'lg:flex-nowrap')}>
+          <div className={cn('flex flex-wrap items-center gap-2', calmBox && !waitingForRec && 'lg:flex-nowrap')}>
             {isViewer && (
               <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3" /> {t('bewerber.detail.readonly')}
@@ -927,7 +942,7 @@ export default function CandidateDetail() {
             {!isViewer && (mainLoading ? (
               <Skeleton className="h-9 w-40 rounded-md" />
             ) : mainAction ? (
-              <Button size="sm" onClick={mainAction.run} className="gap-1.5">
+              <Button size="sm" variant={waitingForRec ? 'outline' : 'default'} onClick={mainAction.run} className="gap-1.5">
                 <mainAction.Icon className="h-3.5 w-3.5" />
                 {mainAction.label}
               </Button>
@@ -937,8 +952,11 @@ export default function CandidateDetail() {
             {!isViewer && !isTerminal && !calmBox && state.key === 'naechste_runde' && (
               <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>Direkt Angebot machen</Button>
             )}
-            {!isViewer && !isTerminal && !calmBox && (state.key === 'unsicher' || state.key === 'angebot_vorbereiten') && (
+            {!isViewer && !isTerminal && (!calmBox || waitingForRec) && state.key === 'angebot_vorbereiten' && (
               <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
+            )}
+            {!isViewer && !isTerminal && subState?.offers?.[0]?.status === 'declined' && (
+              <Button asChild variant="outline" size="sm"><Link to="/dashboard/candidates">Andere Bewerber ansehen</Link></Button>
             )}
             {!isViewer && !isTerminal && !signedContract && (subStateLoading ? (
               <Skeleton className="h-9 w-24 rounded-md" />
@@ -973,11 +991,12 @@ export default function CandidateDetail() {
           </div>
           {offerFlow && !isViewer && (subState?.offers?.[0]?.status === 'accepted'
             ? <ContractTimeline submissionId={submissionId} onOpen={() => setContractOpen(null)} />
-            : <OfferStand submissionId={submissionId} onOpen={() => setOfferWin(true)} />
+            : <OfferStand submissionId={submissionId} onOpen={() => setOfferWin(true)}
+                standShownElsewhere={(clientTasks.data?.waiting ?? []).some((w) => /^offer-(wait|confirm):/.test(w.key))} />
           )}
         </div>
 
-        {!isViewer && !isTerminal && <RecommendationCard submissionId={submissionId} onOffer={() => setShowOffer(true)} />}
+        {!isViewer && !isTerminal && <RecommendationCard submissionId={submissionId} />}
 
         {/* ================================================================ */}
         {/* ZONE 3+4 — PASSUNG (links) · WERDEGANG & PROFIL (rechts)         */}
@@ -1265,6 +1284,7 @@ export default function CandidateDetail() {
       <RejectionDialog
         open={showRejectDialog}
         onOpenChange={setShowRejectDialog}
+        notice={offerFlow && ['with_recruiter', 'considering', 'accept_reported', 'countered'].includes(subState?.offers?.[0]?.status ?? '') ? 'Das Angebot wird damit zurückgezogen.' : undefined}
         submission={{
           id: submissionId,
           candidate: { id: candidateId, full_name: displayName, email: email || '' },
@@ -1292,7 +1312,8 @@ export default function CandidateDetail() {
       {/* Aufgaben-Fenster (23.10.2026) */}
       <ClientTaskWindow task={activeTask} open={!!activeTask} onOpenChange={(o) => { if (!o) setActiveTask(null); }} handlers={taskHandlers} recruiterName={hhName} />
 
-      <OfferDialog submissionId={submissionId} open={showOffer} onOpenChange={setShowOffer} onSent={() => refetch()} />
+      <OfferDialog submissionId={submissionId} open={showOffer} onOpenChange={setShowOffer} onSent={() => refetch()}
+        onAsk={() => setShowFrage(true)} onReject={() => setShowRejectDialog(true)} />
 
       <FeedbackDialog
         interviewId={feedbackFor}

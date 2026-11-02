@@ -16,12 +16,16 @@ interface Props {
   recruiterName?: string | null;
   /** gespeichertes Feedback (JSON) */
   feedback: string | null;
+  /** „Noch unsicher“: Antwort des Headhunters auf die Frage */
+  questionAnswer?: string | null;
   /** Gespräch schon vorbei? Sonst nur Hinweis über dem Formular */
   started: boolean;
   notes: InterviewNote[];
   onSaved: (way: FeedbackWay) => void;
   /** Nächster Schritt nach dem Feedback (Runde planen, Angebot, Absage) */
   onNext: (way: FeedbackWay) => void;
+  /** Fenster schließen, wenn der Headhunter als Nächstes dran ist */
+  onClose?: () => void;
 }
 
 const SCORES = [
@@ -68,8 +72,8 @@ function Stars({ value, onChange, label }: { value: number; onChange?: (v: numbe
 function waysFor(nextRound: number, hh: string) {
   return {
     next_round: { label: 'Nächste Runde', hint: `Interview ${nextRound} planen`, button: `Speichern und Interview ${nextRound} planen`, savedLabel: 'nächste Runde' },
-    offer: { label: 'Angebot machen', hint: 'ohne weitere Runde', button: 'Speichern und Angebot vorbereiten', savedLabel: 'Angebot machen' },
-    unsure: { label: 'Noch unsicher', hint: `${hh} meldet sich`, button: 'Feedback speichern', savedLabel: 'noch unsicher' },
+    offer: { label: 'Angebot machen', hint: 'ohne weitere Runde', button: 'Feedback speichern', savedLabel: 'Angebot machen' },
+    unsure: { label: 'Noch unsicher', hint: `${hh} klärt das`, button: 'Feedback speichern', savedLabel: 'noch unsicher' },
     reject: { label: 'Absage', hint: `mit Grund an ${hh}`, button: 'Speichern und Absage formulieren', savedLabel: 'Absage' },
   } satisfies Record<FeedbackWay, { label: string; hint: string; button: string; savedLabel: string }>;
 }
@@ -79,8 +83,10 @@ const ORDER: FeedbackWay[] = ['next_round', 'offer', 'unsure', 'reject'];
 /**
  * Feedback nach dem Gespräch: Eindruck in eigenen Worten und einer von vier Wegen.
  * Der Headhunter bekommt es sofort (Glocke und Mail). Bewertung und Notizen sind optional.
+ * Bei „Angebot“ schreibt zuerst der Headhunter die Empfehlung, bei „Noch unsicher“ klärt er die
+ * Frage; das Angebot bleibt trotzdem jederzeit möglich (02.11.2026).
  */
-export function FeedbackPanel({ interviewId, round, candidateName, recruiterName, feedback, started, notes, onSaved, onNext }: Props) {
+export function FeedbackPanel({ interviewId, round, candidateName, recruiterName, feedback, questionAnswer, started, notes, onSaved, onNext, onClose }: Props) {
   const saved = parse(feedback);
   const hh = recruiterName?.trim() || 'Ihr Headhunter';
   const nextRound = (round || 1) + 1;
@@ -93,7 +99,11 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
   const [scores, setScores] = useState({ technical: 0, communication: 0, culture: 0 });
   const [strengths, setStrengths] = useState('');
   const [concerns, setConcerns] = useState('');
+  const [question, setQuestion] = useState('');
   const [busy, setBusy] = useState(false);
+  /** Gerade gespeichert und der Headhunter ist dran: Hinweis statt nächstem Fenster */
+  const [hhTurn, setHhTurn] = useState<null | { way: 'offer' | 'unsure'; decided: boolean }>(null);
+  const [skipHint, setSkipHint] = useState(false);
 
   // Stärken und Bedenken aus den Live-Notizen vorbelegen (nur solange leer)
   useEffect(() => {
@@ -101,6 +111,49 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
     setStrengths((cur) => cur || pick('strength'));
     setConcerns((cur) => cur || pick('concern'));
   }, [notes]);
+
+  // Das Profil lädt beim Speichern neu und baut dieses Fenster dabei neu auf: Der Hinweis hängt
+  // deshalb auch am gespeicherten Zeitpunkt, nicht nur am Zustand hier
+  const savedWayNow = feedbackWayOf(feedback);
+  const savedAtMs = Date.parse(String(saved?.unsure_decided_at ?? saved?.submitted_at ?? ''));
+  const justSaved = !skipHint && (savedWayNow === 'offer' || savedWayNow === 'unsure') && Date.now() - savedAtMs < 60_000
+    ? { way: savedWayNow, decided: !!saved?.unsure_decided_at } : null;
+  const turn = skipHint ? null : hhTurn ?? justSaved;
+
+  if (turn) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+          <p className="font-medium">{turn.decided ? 'Gespeichert' : 'Feedback gespeichert'}</p>
+          <p className="text-muted-foreground">
+            {turn.way === 'offer'
+              ? `${hh} schreibt Ihnen jetzt, was es für die Zusage von ${first} braucht. Sie bekommen dazu eine Mail.`
+              : `${hh} klärt Ihre Frage und meldet sich. Sie können trotzdem jederzeit entscheiden.`}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {turn.way === 'offer'
+            ? <button type="button" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => onNext('offer')}>Trotzdem jetzt Angebot machen</button>
+            : <button type="button" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setSkipHint(true)}>Jetzt entscheiden</button>}
+          {onClose && <Button onClick={onClose}>Schließen</Button>}
+        </div>
+      </div>
+    );
+  }
+
+  const decide = async (next: 'offer' | 'next_round') => {
+    setBusy(true);
+    try {
+      await interviewApi.decideUnsure(interviewId, next);
+      onSaved(next);
+      if (next === 'offer') { setSkipHint(false); setHhTurn({ way: 'offer', decided: true }); }
+      else onNext(next);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Die Entscheidung konnte nicht gespeichert werden.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (saved) {
     const savedWay = feedbackWayOf(feedback);
@@ -113,6 +166,8 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
           {savedWay && <> Weiter mit: <strong>{WAYS[savedWay].savedLabel}</strong></>}
         </p>
         {text && <p className="whitespace-pre-line rounded-md bg-muted/40 px-3 py-2 text-sm">„{text}“</p>}
+        {saved.question && <p className="whitespace-pre-line text-sm"><span className="text-muted-foreground">Ihre Frage an {hh}: </span>{String(saved.question)}</p>}
+        {questionAnswer && <p className="whitespace-pre-line text-sm"><span className="text-muted-foreground">Antwort von {hh}: </span>{questionAnswer}</p>}
         {Number(saved.technical_score) > 0 && (
           <div className="space-y-1.5">
             <Stars label="Fachlich" value={stars(saved.technical_score)} />
@@ -122,8 +177,12 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
         )}
         {saved.strengths && <p className="whitespace-pre-line text-sm"><span className="text-muted-foreground">Stärken: </span>{String(saved.strengths)}</p>}
         {saved.concerns && <p className="whitespace-pre-line text-sm"><span className="text-muted-foreground">Bedenken: </span>{String(saved.concerns)}</p>}
-        {(savedWay === 'next_round' || savedWay === 'unsure') && (
-          <Button size="sm" variant={savedWay === 'next_round' ? 'default' : 'outline'} onClick={() => onNext('next_round')}>Interview {nextRound} planen</Button>
+        {savedWay === 'next_round' && <Button size="sm" onClick={() => onNext('next_round')}>Interview {nextRound} planen</Button>}
+        {savedWay === 'unsure' && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={() => void decide('offer')}>Angebot machen</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void decide('next_round')}>Interview {nextRound} planen</Button>
+          </div>
         )}
         {savedWay === 'offer' && <Button size="sm" onClick={() => onNext('offer')}>Angebot machen</Button>}
       </div>
@@ -141,10 +200,15 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
         scores: { technical: scores.technical || undefined, communication: scores.communication || undefined, culture: scores.culture || undefined },
         strengths: strengths.trim(),
         concerns: concerns.trim(),
+        question: way === 'unsure' ? question.trim() : undefined,
       });
-      toast.success(`Feedback gespeichert. ${hh} ist informiert.`);
       onSaved(way);
-      onNext(way);
+      if (way === 'offer' || way === 'unsure') {
+        setHhTurn({ way, decided: false });
+      } else {
+        toast.success(`Feedback gespeichert. ${hh} ist informiert.`);
+        onNext(way);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Das Feedback konnte nicht gespeichert werden.');
     } finally {
@@ -191,6 +255,20 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
         </div>
       </div>
 
+      {way === 'unsure' && (
+        <div className="space-y-1.5">
+          <label htmlFor={`question-${interviewId}`} className="text-sm font-medium">Was müsste {hh} für Sie klären?</label>
+          <Textarea
+            id={`question-${interviewId}`}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            rows={2}
+            maxLength={1000}
+            placeholder={`Zum Beispiel: Hat ${first} schon ein Team geführt?`}
+          />
+        </div>
+      )}
+
       <div>
         <button type="button" onClick={() => setMore((v) => !v)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" aria-expanded={more}>
           <ChevronDown className={cn('h-4 w-4 transition-transform', more && 'rotate-180')} /> Bewertung und Notizen (optional)
@@ -218,7 +296,7 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
         <p className="text-xs text-muted-foreground">{hh} bekommt Ihr Feedback sofort und spricht mit {first}.</p>
-        <Button disabled={!way || busy || !started} onClick={submit} className="gap-1.5">
+        <Button disabled={!way || busy || !started || (way === 'unsure' && question.trim().length < 2)} onClick={submit} className="gap-1.5">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           {way ? WAYS[way].button : 'Weg wählen'}
         </Button>

@@ -343,22 +343,40 @@ export const FEEDBACK_LABEL: Record<FeedbackWay, string> = {
   reject: 'Absage',
 };
 
-export function recruiterFeedback(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; round: number; way: FeedbackWay; impression: string | null; akteUrl: string }): MailContent {
+export function recruiterFeedback(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; round: number; way: FeedbackWay; impression: string | null; question?: string | null; akteUrl: string; submissionId: string }): MailContent {
+  const first = esc(o.candidateName.split(' ')[0]);
+  const company = esc(o.companyName);
   const next = o.way === 'next_round'
-    ? `${esc(o.companyName)} plant ein weiteres Gespräch. Sprich heute noch mit ${esc(o.candidateName.split(' ')[0])}, wie es für ihn war.`
+    ? `${company} plant ein weiteres Gespräch. Sprich heute noch mit ${first}, wie es war.`
     : o.way === 'offer'
-      ? `${esc(o.companyName)} möchte ${esc(o.candidateName.split(' ')[0])} ein Angebot machen. Sprich mit ihm und schick deine Empfehlung, bevor ${esc(o.companyName)} Zahlen schreibt.`
+      ? `${company} möchte ${first} ein Angebot machen und wartet auf deine Empfehlung. Sprich mit ${first} und schick sie, bevor ${company} Zahlen schreibt.`
       : o.way === 'unsure'
-        ? `${esc(o.companyName)} ist noch unsicher. Ein kurzer Anruf beim Kunden hilft, die offenen Punkte zu klären.`
-        : `${esc(o.companyName)} sagt ab. Die Absage mit Grund folgt; informiere ${esc(o.candidateName.split(' ')[0])} persönlich.`;
+        ? `${company} ist noch unsicher${o.question ? ' und fragt:' : '. Bitte kläre die offenen Punkte und antworte über Matchunt.'}`
+        : `${company} sagt ab. Die Absage mit Grund folgt; informiere ${first} persönlich.`;
   const heading = `${o.companyName} nach ${o.round > 1 ? `dem ${o.round}. Gespräch` : 'dem Interview'}: ${FEEDBACK_LABEL[o.way]}`;
+  const cta = o.way === 'offer' ? { label: 'Empfehlung schreiben', url: `${o.akteUrl}?empfehlung=${o.submissionId}` }
+    : o.way === 'unsure' ? { label: 'Frage beantworten', url: `${o.akteUrl}?frage=${o.submissionId}` }
+      : { label: 'Akte öffnen', url: o.akteUrl };
   const body = [
     p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
     p(`Feedback zu <strong>${esc(o.candidateName)}</strong> für <strong>${esc(o.jobTitle)}</strong>:`),
     o.impression ? quote(o.impression) : '',
     p(next),
+    o.way === 'unsure' && o.question ? quote(o.question) : '',
   ].join('');
-  return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }), text: plain(heading, o.impression && `„${o.impression}“`, o.akteUrl) };
+  return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta }), text: plain(heading, o.impression && `„${o.impression}“`, o.way === 'unsure' && o.question && `Frage: „${o.question}“`, cta.url) };
+}
+
+/** Einmal nach einem Tag ohne Empfehlung (täglicher Lauf). */
+export function recruiterRecommendationReminder(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; akteUrl: string; submissionId: string }): MailContent {
+  const first = esc(o.candidateName.split(' ')[0]);
+  const heading = `${o.companyName} wartet auf deine Empfehlung zu ${o.candidateName}`;
+  const url = `${o.akteUrl}?empfehlung=${o.submissionId}`;
+  const body = [
+    p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
+    p(`${esc(o.companyName)} möchte ${first} ein Angebot machen und wartet noch auf deine Empfehlung, was es für die Zusage braucht.`),
+  ].join('');
+  return { subject: heading, html: layout({ preheader: o.jobTitle, heading, body, cta: { label: 'Empfehlung schreiben', url } }), text: plain(heading, url) };
 }
 
 // --- Erinnerung am Vortag --------------------------------------------------------

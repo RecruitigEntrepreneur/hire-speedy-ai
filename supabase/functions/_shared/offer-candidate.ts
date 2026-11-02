@@ -7,8 +7,10 @@
 //             8 Uhr erst um 8 Uhr. Zeitversetzt verschickt Resend (scheduled_at); die
 //             Kennungen stehen am Angebot und lassen sich abbrechen.
 //   Seite     Zusage · Mit dem Headhunter sprechen · Absage (Grund Pflicht). Meldet der
-//             Headhunter eine Zusage, bestätigt der Kandidat sie auf derselben Seite
-//             (Zweck „confirm“): erst dann gilt sie und der Arbeitsvertrag beginnt.
+//             Headhunter eine Zusage, bestätigt der Kandidat sie auf derselben Seite:
+//             erst dann gilt sie und der Arbeitsvertrag beginnt. Die Seite richtet sich
+//             nach dem Stand des Angebots, nicht nach dem Link: Jeder Link des Kandidaten
+//             zeigt, was gerade gilt (02.11.2026).
 //   Erinnern  einmal nach 24 Stunden (gleich mit eingeplant), danach gilt nur noch die
 //             Antwortfrist; die Aufgabe „anrufen“ für den Headhunter entsteht beim Laden.
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -43,6 +45,15 @@ export function outsideQuietHours(ms: number): number {
 }
 /** Spätester Versand der Mail an den Kandidaten */
 export const deliveryTime = (nowMs: number) => outsideQuietHours(nowMs + DELIVERY_DELAY_MS);
+
+/** „um 17:05“, „morgen um 08:00“, „am 27.10. um 08:00“ (deutsche Zeit) */
+export function whenLabel(ms: number, nowMs: number): string {
+  const key = (x: number) => new Date(x).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+  const time = formatBerlinTime(new Date(ms).toISOString());
+  if (key(ms) === key(nowMs)) return `um ${time}`;
+  if (key(ms) === key(nowMs + 86_400_000)) return `morgen um ${time}`;
+  return `am ${new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} um ${time}`;
+}
 
 // ---------------------------------------------------------------------------
 // Laden
@@ -160,10 +171,10 @@ export async function cancelCandidateMails(ctx: ServiceCtx, offer: any, opts: { 
  * Mail mit dem Angebot an den Kandidaten: sofort (Version 2 nach angenommenem Wunsch,
  * „Gespräch geführt“) oder nach 2 Stunden, dazu die Erinnerung nach 24 Stunden.
  */
-export async function scheduleCandidateMail(ctx: ServiceCtx, offerId: string, opts: { immediate?: boolean } = {}) {
+export async function scheduleCandidateMail(ctx: ServiceCtx, offerId: string, opts: { immediate?: boolean; atMs?: number } = {}) {
   const b = await loadCandidateBundle(ctx.db, offerId);
   const now = ctx.now();
-  const dueMs = opts.immediate ? now : deliveryTime(now);
+  const dueMs = opts.immediate ? now : opts.atMs ?? deliveryTime(now);
   const reminderMs = outsideQuietHours(dueMs + REMINDER_DELAY_MS);
   const token = await createLink(ctx, offerId, 'answer');
   const main = await sendCandidateMail(ctx, b, 'offer', token, opts.immediate ? null : dueMs);
@@ -209,9 +220,12 @@ export async function recruiterTalked(ctx: ServiceCtx, user: User, body: any) {
 export async function reportAccept(ctx: ServiceCtx, user: User, offer: any, note: string | null, startConfirmed: string | null) {
   const nowIso = new Date(ctx.now()).toISOString();
   const response = { way: 'accepted', by: 'recruiter', note, at: nowIso, ...(startConfirmed ? { start_confirmed: startConfirmed } : {}) };
+  // Ging die erste Mail noch nicht raus, ersetzt sie die Bestätigungsmail: Sie enthält dieselben Eckdaten
+  const mailStillPlanned = !offer.candidate_mail_sent_at && (!offer.candidate_mail_due_at || Date.parse(offer.candidate_mail_due_at) > ctx.now());
   const { data: updated, error } = await ctx.db.from('offers').update({
     status: 'accept_reported', accept_reported_at: nowIso, accept_reported_by: user.id, candidate_response: response,
     responded_at: nowIso, responded_by: user.id, updated_at: nowIso, ...(startConfirmed ? { start_date: startConfirmed } : {}),
+    ...(mailStillPlanned ? { candidate_mail_sent_at: nowIso, candidate_mail_due_at: nowIso } : {}),
   }).eq('id', offer.id).in('status', [...ANSWERABLE, 'considering']).select('*').maybeSingle();
   dbFail(error, 'Die Meldung');
   must(updated, 'Für dieses Angebot ist keine Antwort mehr offen.', 'conflict');
@@ -284,7 +298,8 @@ async function linkByToken(ctx: ServiceCtx, token: unknown) {
   return data as any;
 }
 
-export type PageState = 'open' | 'confirm' | 'answered' | 'expired' | 'closed';
+// wish_pending: ein Gegenwunsch liegt beim Kunden, der Kandidat muss gerade nichts tun (02.11.2026)
+export type PageState = 'open' | 'confirm' | 'answered' | 'expired' | 'closed' | 'wish_pending';
 
 export async function candidatePeek(ctx: ServiceCtx, body: any) {
   const link = await linkByToken(ctx, body?.token);
@@ -294,12 +309,17 @@ export async function candidatePeek(ctx: ServiceCtx, body: any) {
   const nowIso = new Date(now).toISOString();
   const today = new Date(now).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
   if (!link.revoked_at) await ctx.db.from('offer_candidate_links').update({ opened_at: link.opened_at ?? nowIso, last_opened_at: nowIso }).eq('id', link.id);
+  // Die Seite richtet sich nach dem Stand des Angebots, nicht nach dem Link (02.11.2026).
+  // Eine gemeldete Zusage lässt sich auch nach der Frist bestätigen: Gemeldet wurde sie vorher.
   let state: PageState;
   if (o.candidate_confirmed_at || ['accepted', 'declined'].includes(o.status)) state = 'answered';
-  else if (['superseded', 'withdrawn'].includes(o.status) || link.revoked_at) state = 'closed';
-  else if (Date.parse(link.expires_at) < now || (o.response_due && String(o.response_due).slice(0, 10) < today)) state = 'expired';
-  else if (link.purpose === 'confirm' && o.status === 'accept_reported') state = 'confirm';
-  else if (link.purpose === 'answer' && ANSWERABLE.includes(o.status)) state = 'open';
+  // cancelled: Der Trigger cancel_orphaned_interviews_offers setzt das bei einer Absage des Kunden
+  else if (['superseded', 'withdrawn', 'cancelled'].includes(o.status)) state = 'closed';
+  else if (Date.parse(link.expires_at) < now) state = 'expired';
+  else if (o.status === 'accept_reported') state = 'confirm';
+  else if (o.status === 'countered') state = 'wish_pending';
+  else if (o.response_due && String(o.response_due).slice(0, 10) < today) state = 'expired';
+  else if (ANSWERABLE.includes(o.status)) state = 'open';
   else state = 'closed';
   return {
     state, purpose: link.purpose,
@@ -311,7 +331,7 @@ export async function candidatePeek(ctx: ServiceCtx, body: any) {
     reportedAt: o.accept_reported_at ?? null,
     callbackRequestedAt: o.callback_requested_at && !o.callback_done_at ? o.callback_requested_at : null,
     answer: o.status === 'accepted' ? 'accepted' : o.status === 'declined' ? 'declined' : null,
-    withdrawn: o.status === 'withdrawn', superseded: o.status === 'superseded',
+    withdrawn: o.status === 'withdrawn' || o.status === 'cancelled', superseded: o.status === 'superseded',
   };
 }
 
@@ -328,16 +348,26 @@ export async function candidateAnswer(ctx: ServiceCtx, body: any) {
   const now = ctx.now();
   const nowIso = new Date(now).toISOString();
   const first = firstName(b.candidate.full_name) ?? 'Der Kandidat';
-  const akteUrl = `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`;
+  const akteUrl = `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}?angebot=${b.submission.id}`;
 
   if (way === 'callback') {
     must(view.state === 'open' || view.state === 'confirm', 'Auf dieses Angebot lässt sich nicht mehr antworten.', 'conflict');
     const topic = text(body?.topic, 500) || null;
     // Rückruf binnen 2 Std., nachts erst ab 8 Uhr (wie die Mail an den Kandidaten)
     const until = new Date(outsideQuietHours(now + CALLBACK_DELAY_MS)).toISOString();
-    await ctx.db.from('offers').update({ callback_requested_at: nowIso, callback_topic: topic, callback_done_at: null, updated_at: nowIso }).eq('id', o.id);
+    // Von „Haben Sie zugesagt?“ aus: Die gemeldete Zusage gilt nicht mehr, das Angebot ist wieder offen (02.11.2026)
+    const fromConfirm = view.state === 'confirm';
+    await ctx.db.from('offers').update({
+      callback_requested_at: nowIso, callback_topic: topic, callback_done_at: null, updated_at: nowIso,
+      ...(fromConfirm ? { status: 'with_recruiter', accept_reported_at: null, accept_reported_by: null, candidate_response: { way: 'callback', by: 'candidate', at: nowIso, reported: o.candidate_response ?? null } } : {}),
+    }).eq('id', o.id);
     await cancelCandidateMails(ctx, o, { keepMain: true });
-    await event(ctx, o.id, 'callback_requested', 'candidate', null, { topic });
+    await event(ctx, o.id, 'callback_requested', 'candidate', null, { topic, fromConfirm });
+    if (fromConfirm) {
+      for (const uid of [...new Set([o.created_by, b.job.client_id].filter(Boolean))] as string[]) {
+        await notify(ctx, uid, 'offer_answer', `${first} möchte erst mit ${firstName(b.recruiter?.name) ?? 'dem Headhunter'} sprechen`, 'Die gemeldete Zusage gilt damit noch nicht.', 'submission', b.submission.id);
+      }
+    }
     await notify(ctx, b.submission.recruiter_id, 'offer_callback', `${b.candidate.full_name} möchte sprechen`, `Bitte bis ${formatBerlinTime(until)} Uhr zurückrufen${topic ? ` · „${topic}“` : ''}`, 'candidate', b.candidate.id);
     if (b.recruiter?.email) {
       const content = mails.recruiterCallback({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: b.job.company_name, topic, until: `${formatBerlinTime(until)} Uhr`, akteUrl });
@@ -346,8 +376,7 @@ export async function candidateAnswer(ctx: ServiceCtx, body: any) {
     return { ok: true, state: 'callback', recruiterName: b.recruiter?.name ?? null };
   }
 
-  if (link.purpose === 'confirm') {
-    must(view.state === 'confirm', view.state === 'answered' ? 'Sie haben schon geantwortet.' : 'Diese Zusage lässt sich nicht mehr bestätigen.', 'conflict');
+  if (view.state === 'confirm') {
     must(['confirmed', 'not_confirmed'].includes(way), 'Bitte wählen: bestätigen oder „stimmt so nicht“.');
     if (way === 'confirmed') {
       const { data: updated, error } = await ctx.db.from('offers').update({
@@ -364,17 +393,17 @@ export async function candidateAnswer(ctx: ServiceCtx, body: any) {
       await notify(ctx, b.submission.recruiter_id, 'offer_confirmed', `${b.candidate.full_name} hat die Zusage bestätigt`, `${b.job.company_name} schickt jetzt den Arbeitsvertrag.`, 'candidate', b.candidate.id);
       return { ok: true, state: 'answered', answer: 'accepted' };
     }
-    // Stimmt so nicht: Angebot wieder offen, Headhunter und Matchunt erfahren es
+    // Stimmt so nicht: Angebot wieder offen, der Link gilt weiter; Headhunter (Aufgabe) und Matchunt erfahren es
     const { error } = await ctx.db.from('offers').update({
-      status: 'with_recruiter', accept_reported_at: null, accept_reported_by: null, updated_at: nowIso,
+      status: 'with_recruiter', accept_reported_at: null, accept_reported_by: null, recruiter_talked_at: null, updated_at: nowIso,
       candidate_response: { way: 'not_confirmed', by: 'candidate', at: nowIso, reported: o.candidate_response ?? null },
     }).eq('id', o.id).eq('status', 'accept_reported');
     dbFail(error, 'Die Antwort');
-    await ctx.db.from('offer_candidate_links').update({ answered_at: nowIso, revoked_at: nowIso }).eq('id', link.id);
+    await ctx.db.from('offer_candidate_links').update({ answered_at: nowIso }).eq('id', link.id);
     await cancelCandidateMails(ctx, o);
     await event(ctx, o.id, 'candidate_not_confirmed', 'candidate', null);
     const msg = `${b.candidate.full_name} hat die gemeldete Zusage nicht bestätigt (${b.job.company_name} · ${b.job.title}).`;
-    await notify(ctx, b.submission.recruiter_id, 'offer_not_confirmed', `${first} hat die Zusage nicht bestätigt`, 'Bitte sprechen Sie noch einmal mit ihr bzw. ihm. Das Angebot ist wieder offen.', 'candidate', b.candidate.id);
+    await notify(ctx, b.submission.recruiter_id, 'offer_not_confirmed', `${first} hat die Zusage nicht bestätigt`, `Bitte sprich noch einmal mit ${first}. Das Angebot ist wieder offen.`, 'candidate', b.candidate.id);
     for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'offer_not_confirmed', 'Zusage nicht bestätigt', `${msg} Gemeldet hatte ${b.recruiter?.name ?? 'der Headhunter'}.`, 'submission', b.submission.id);
     for (const uid of [...new Set([o.created_by, b.job.client_id].filter(Boolean))] as string[]) {
       await notify(ctx, uid, 'offer_not_confirmed', `Zusage von ${first} nicht bestätigt`, `${b.recruiter?.name ?? 'Ihr Headhunter'} klärt das. Das Angebot ist wieder offen.`, 'submission', b.submission.id);
@@ -432,5 +461,33 @@ export function candidateState(o: any, now: number) {
     acceptReportedAt: o.accept_reported_at ?? null,
     confirmedAt: o.candidate_confirmed_at ?? null,
     answeredByCandidate: o.candidate_response?.by === 'candidate',
+    // „Stimmt so nicht“, bis der Headhunter gesprochen hat
+    notConfirmedAt: o.status === 'with_recruiter' && o.candidate_response?.way === 'not_confirmed' && !o.recruiter_talked_at ? o.candidate_response.at ?? null : null,
   };
+}
+
+/** Kandidat: neue Antwortfrist per Mail; eine noch geplante Mail geht mit der neuen Frist zur alten Zeit. */
+export async function tellCandidateExtended(ctx: ServiceCtx, offerId: string) {
+  const b = await loadCandidateBundle(ctx.db, offerId);
+  const o = b.offer;
+  if (!ANSWERABLE.includes(o.status)) return;
+  const now = ctx.now();
+  const due = o.candidate_mail_due_at ? Date.parse(o.candidate_mail_due_at) : null;
+  await cancelCandidateMails(ctx, o);
+  if (!o.candidate_mail_sent_at && due !== null && due > now) {
+    await scheduleCandidateMail(ctx, o.id, { atMs: due });
+    return;
+  }
+  const token = await createLink(ctx, o.id, 'answer');
+  if (b.candidate.email) {
+    const content = mails.candidateDueExtended({ candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title, responseDue: o.response_due, url: pageUrl(ctx, token) });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: `${b.recruiter?.name || 'Ihr Headhunter'} über Matchunt`, to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined, ...content },
+      { template: 'offer_candidate_extended', meta: { offer_id: o.id, submission_id: b.submission.id } });
+  }
+  // Die Erinnerung nach 24 Std. nennt sonst die alte Frist
+  const reminderDue = o.candidate_reminder_due_at ? Date.parse(o.candidate_reminder_due_at) : null;
+  if (reminderDue !== null && reminderDue > now) {
+    const reminder = await sendCandidateMail(ctx, b, 'reminder', token, reminderDue);
+    await ctx.db.from('offers').update({ candidate_reminder_mail_id: reminder.id }).eq('id', o.id);
+  }
 }

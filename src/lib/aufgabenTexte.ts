@@ -107,12 +107,28 @@ export function messageSetFor(category: string, ctx: { jobTitle: string | null; 
         ],
         candidateSubject: `Deine Bewerbung als ${job}`,
       };
+    case 'client_undecided':
+      // Kunde war unsicher und entscheidet seit 7 Tagen nicht (02.11.2026): benachrichtigen, nicht anrufen
+      return {
+        clientIntents: [
+          { key: 'decision', label: `Entscheidung bis ${inDays(2)}`, text: `Wie möchten Sie weitermachen: Angebot, weitere Runde oder Absage? Eine kurze Rückmeldung bis ${inDays(2)} würde sehr helfen.` },
+          { key: 'remind', label: 'Nur erinnern', text: 'Ich wollte Ihre Entscheidung noch einmal in Erinnerung bringen.' },
+        ],
+        clientHints: [
+          { key: 'waiting', label: 'Kandidat wartet auf Antwort', text: 'Der Kandidat wartet gespannt auf Ihre Rückmeldung.' },
+          { key: 'parallel', label: 'Kandidat hat weiteren Prozess', text: 'Der Kandidat hat noch einen weiteren Prozess laufen.' },
+        ],
+        candidate: [
+          { key: 'nudged', label: 'Ich habe nachgefasst', text: `kurzer Zwischenstand von mir: Ich habe heute beim Unternehmen zu ${job} nachgehakt.` },
+          { key: 'change', label: 'Sag Bescheid, wenn sich was tut', text: 'Falls sich bei dir in der Zwischenzeit etwas tut, sag mir gern kurz Bescheid.' },
+        ],
+        candidateSubject: `Kurzer Stand zu ${job}`,
+      };
     case 'offer_counter_stalled':
       // Gegenwunsch liegt beim Kunden (22.10.2026)
       return {
         clientIntents: [
           { key: 'decision', label: `Entscheidung bis ${inDays(2)}`, text: `Wie stehen Sie dazu? Ob Sie das Angebot anpassen, dabei bleiben oder absagen möchten: Eine kurze Rückmeldung bis ${inDays(2)} würde allen helfen.` },
-          { key: 'call', label: 'Kurz telefonieren?', text: 'Wenn Sie mögen, besprechen wir den Gegenwunsch kurz am Telefon. Ich kann Ihnen gut einordnen, wie fest er ist.' },
           { key: 'remind', label: 'Nur erinnern', text: 'Ich wollte den Gegenwunsch noch einmal in Erinnerung bringen.' },
         ],
         clientHints: [

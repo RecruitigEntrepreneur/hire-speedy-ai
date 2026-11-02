@@ -5,7 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { authUser, defaultCtx, interviewFailure, must } from '../_shared/interview-service.ts';
-import { acceptCounter, createOffer, extendOffer, keepOffer, offerContext, recommend, recruiterContext, respondOffer, withdrawOffer } from '../_shared/offer-service.ts';
+import { acceptCounter, askExtension, createOffer, extendOffer, keepOffer, offerContext, recommend, recruiterContext, respondOffer, withdrawOffer } from '../_shared/offer-service.ts';
 import { recruiterCallbackDone, recruiterTalked } from '../_shared/offer-candidate.ts';
 
 serve(async (req) => {
@@ -28,6 +28,7 @@ serve(async (req) => {
       case 'accept_counter': return json(await acceptCounter(ctx, user, body));
       case 'withdraw': return json(await withdrawOffer(ctx, user, body));
       case 'extend': return json(await extendOffer(ctx, user, body));
+      case 'ask_extension': return json(await askExtension(ctx, user, body));
       case 'recommend': return json(await recommend(ctx, user, body));
       default: must(false, 'Unbekannte Aktion.');
     }
