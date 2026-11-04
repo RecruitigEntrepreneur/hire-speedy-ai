@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Option, parseDigits } from '@/lib/candidateDossier';
 import type { OriginMap } from '@/lib/cvImport';
-import { hasPhrase, togglePhrase } from '@/lib/interviewSuggestions';
+import { hasPhrase, phrasesOf, togglePhrase } from '@/lib/interviewSuggestions';
 
 /**
  * Herkunft je Feld (nur auf der Prüfseite des Lebenslauf-Imports gesetzt): Jedes Feld
@@ -215,6 +215,7 @@ export function PhraseChips({
   suggested = [],
   field,
   placeholder,
+  collapsible = false,
 }: {
   options: string[];
   value: string;
@@ -222,9 +223,13 @@ export function PhraseChips({
   suggested?: string[];
   field?: string;
   placeholder?: string;
+  /** Das Textfeld erst auf „+ eigene Worte“ zeigen; steht schon eigener Text darin, bleibt es offen. */
+  collapsible?: boolean;
 }) {
   const extras = suggested.filter((s) => !options.some((o) => o.toLowerCase() === s.toLowerCase()));
   const all = [...extras, ...options];
+  const [opened, setOpened] = useState(false);
+  const hasOwnText = phrasesOf(value).some((p) => !all.some((o) => o.toLowerCase() === p.toLowerCase()));
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap gap-1.5">
@@ -244,14 +249,18 @@ export function PhraseChips({
           );
         })}
       </div>
-      <Textarea
-        id={field ? fieldId(field) : undefined}
-        value={value}
-        rows={1}
-        placeholder={placeholder ?? 'Eigene Notiz (optional)'}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-h-[36px] text-sm"
-      />
+      {!collapsible || opened || hasOwnText ? (
+        <Textarea
+          id={field ? fieldId(field) : undefined}
+          value={value}
+          rows={1}
+          placeholder={placeholder ?? 'Eigene Notiz (optional)'}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-[36px] text-sm"
+        />
+      ) : (
+        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOpened(true)}>+ eigene Worte</button>
+      )}
     </div>
   );
 }

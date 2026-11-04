@@ -292,8 +292,11 @@ export interface MotiveEvaluation {
   hinweise: MotiveHint[];
   mehrHinweise: number;
   zuViele: boolean;
-  weiter: { top3: string[]; ausloeser: string[]; themen: string[]; phase3: MotiveFlow[] };
+  /** wichtig: „Wichtig ist“ beim Kunden, wie top3, aber ohne Gehalt und Bonus (stehen als Gehaltswunsch daneben). */
+  weiter: { top3: string[]; wichtig: string[]; ausloeser: string[]; themen: string[]; phase3: MotiveFlow[] };
 }
+
+const GELD_ANGEBOT = new Set(['Gehaltssprung', 'Bonus']);
 
 type Item = MotiveEntry & { label: string };
 
@@ -404,7 +407,7 @@ export function evaluateMotives(family: RoleFamily, pos: string[], neg: string[]
     blau('bindung', `Starke Bindung an ${team && chef ? 'Team und Führungskraft' : team ? 'das Team' : 'die Führungskraft'}. Daran scheitern viele Wechsel am Ende. Frag früh: „Was könnte Sie am Ende doch halten?“`);
   }
   if (has(P, 'Beteiligung') && !exitMitBeteiligung) blau('beteiligung', 'Beteiligung: Beim Ausstieg können Rückkaufregeln Geld kosten. Früh klären, ab wann ein Wechsel ohne Verlust geht.');
-  if (has(P, 'Kundenbeziehungen')) blau('kundenschutz', 'Kundenbeziehungen: In Phase 3 nach einer Kundenschutzklausel im heutigen Vertrag fragen.');
+  if (has(P, 'Kundenbeziehungen')) blau('kundenschutz', 'Kundenbeziehungen: Bei „Gehalt und Rahmen“ nach einer Kundenschutzklausel im heutigen Vertrag fragen.');
 
   H.sort((a, b) => (a.level === b.level ? 0 : a.level === 'gelb' ? -1 : 1));
 
@@ -422,6 +425,7 @@ export function evaluateMotives(family: RoleFamily, pos: string[], neg: string[]
     zuViele: P.length > 3 || N.length > 3,
     weiter: {
       top3: uniq<string>([...topN, ...topP].map((x) => x.offer)).slice(0, 3),
+      wichtig: uniq<string>([...topN, ...topP].map((x) => x.offer)).filter((o) => !GELD_ANGEBOT.has(o)).slice(0, 3),
       ausloeser: uniq<string>(N.map((x) => x.trigger)),
       themen: uniq<string>(N.map((x) => x.tag)),
       phase3: uniq<MotiveFlow>([...N, ...P].map((x) => x.flow)),

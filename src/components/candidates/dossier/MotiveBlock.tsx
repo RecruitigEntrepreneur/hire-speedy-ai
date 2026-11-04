@@ -80,11 +80,15 @@ function MotiveChips({ options, selected, onToggle }: { options: string[]; selec
 }
 
 /** Eigene Worte neben den Knöpfen. Lokal gehalten, damit beim Tippen nichts springt. */
-function OwnWords({ side, text, onChange, placeholder }: { side: MotiveSide; text: string; onChange: (text: string) => void; placeholder: string }) {
+function OwnWords({ side, text, onChange, placeholder, collapsible = false }: { side: MotiveSide; text: string; onChange: (text: string) => void; placeholder: string; collapsible?: boolean }) {
   const external = motiveOwnWords(text, side);
   const [value, setValue] = useState(external);
+  const [opened, setOpened] = useState(false);
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setValue(external); }, [external]);
+  if (collapsible && !opened && !value) {
+    return <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOpened(true)}>+ eigene Worte</button>;
+  }
   return (
     <Input
       id={fieldId(FIELD[side])}
@@ -272,9 +276,10 @@ function kiLabels(side: MotiveSide, family: RoleFamily): string[] {
  * „Was gefällt, was stört“: Knöpfe je Rollenfamilie, darunter je Seite der Satz
  * aus den Klicks (situationMotives.ts). Eigene Worte werden beim Tippen verstanden
  * (Wörterbuch, gelernte Wendungen, KI als Rückfall) und als Knopf vorgeschlagen.
- * Der Rest der Auswertung läuft im Hintergrund.
+ * Der Rest der Auswertung läuft im Hintergrund. stacked: beide Fragen untereinander,
+ * eigene Worte erst auf Klick (Schritt-für-Schritt-Ansicht des Interviews).
  */
-export function MotiveBlock({ form, set, family, candidateId }: { form: DossierForm; set: SetFn; family: RoleFamily; candidateId?: string }) {
+export function MotiveBlock({ form, set, family, candidateId, stacked = false }: { form: DossierForm; set: SetFn; family: RoleFamily; candidateId?: string; stacked?: boolean }) {
   const [lastNeg, setLastNeg] = useState<string | null>(null);
   const pos = motiveLabels(form.current_positive, 'pos');
   const neg = motiveLabels(form.current_negative, 'neg');
@@ -308,12 +313,12 @@ export function MotiveBlock({ form, set, family, candidateId }: { form: DossierF
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={stacked ? 'space-y-5' : 'grid gap-3 sm:grid-cols-2'}>
         <Field label="Was gefällt Ihnen heute besonders gut?" field="current_positive">
           <p className="-mt-1 text-xs text-muted-foreground">Das muss der neue Job auch bieten, sonst bleibt die Person lieber.</p>
           <MotiveChips options={motiveChipsFor(family, 'pos', form.current_positive)} selected={pos} onToggle={togglePos} />
           <Sentence lines={ev.satzPos} own={ownWordsSentence(motiveOwnWords(form.current_positive, 'pos'))} empty="Der Satz entsteht aus deinen Klicks." />
-          <OwnWords side="pos" text={form.current_positive} onChange={(t) => set({ current_positive: t })} placeholder={OWN_EXAMPLES.pos} />
+          <OwnWords side="pos" text={form.current_positive} onChange={(t) => set({ current_positive: t })} placeholder={OWN_EXAMPLES.pos} collapsible={stacked} />
           <Understanding side="pos" hits={[...posHits, ...posKi.hits]} loading={posKi.loading} onPick={(l, h) => pick('pos', l, h)} />
         </Field>
         <Field label="Was gefällt Ihnen weniger? Was stört Sie?" field="current_negative">
@@ -322,7 +327,7 @@ export function MotiveBlock({ form, set, family, candidateId }: { form: DossierF
           <DetailChoices choices={motiveDetailChoices(form.current_negative, 'neg')} onPick={(from, to) => { set({ current_negative: replaceMotive(form.current_negative, from, to, 'neg') }); setLastNeg(to); }} />
           <AmbiguousPrompt choices={ambiguousMotives(form.current_negative, 'neg')} onResolve={(legacy, chosen) => set({ current_negative: resolveAmbiguous(form.current_negative, 'neg', legacy, chosen) })} />
           <Sentence lines={ev.satzNeg} own={ownWordsSentence(motiveOwnWords(form.current_negative, 'neg'))} empty="Der Satz entsteht aus deinen Klicks." />
-          <OwnWords side="neg" text={form.current_negative} onChange={(t) => set({ current_negative: t })} placeholder={OWN_EXAMPLES.neg} />
+          <OwnWords side="neg" text={form.current_negative} onChange={(t) => set({ current_negative: t })} placeholder={OWN_EXAMPLES.neg} collapsible={stacked} />
           <Understanding side="neg" hits={[...negHits, ...negKi.hits]} loading={negKi.loading} onPick={(l, h) => pick('neg', l, h)} />
         </Field>
       </div>
@@ -423,7 +428,7 @@ export function ClientMotivationField({ form, set, motivation, onRegenerate, chi
       <div className="space-y-0.5 text-xs text-muted-foreground">
         {weg.length > 0 && <p>Bewusst nicht drin: {weg.join(', ')}. Kritik an Personen und Gehalt gehen nie zum Kunden.</p>}
         {motivation.ungenau.length > 0 && <p className="text-warning">Noch ungenau, deshalb nicht drin: {motivation.ungenau.map((l) => `„${l}“`).join(', ')}. Oben bei „stört“ klären.</p>}
-        {text && !issues.length && <p className="text-success">✓ Geprüft{addition ? ', auch deine Ergänzung' : ''}: kein Name, kein Arbeitgeber, kein Gehalt</p>}
+        {text && !issues.length && <p>✓ Geprüft{addition ? ', auch deine Ergänzung' : ''}: kein Name, kein Arbeitgeber, kein Gehalt</p>}
         {issues.map((i) => <p key={i.message} className={i.level === 'danger' ? 'text-destructive' : 'text-warning'}>{i.message}</p>)}
         {!frei && gen && (
           <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setSelfWrite(true)}>Ganz selbst schreiben</button>
@@ -438,7 +443,7 @@ export function ClientMotivationField({ form, set, motivation, onRegenerate, chi
       )}
       {kunde && kunde !== text && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-          <p className="text-xs font-medium text-muted-foreground">Im Kundenprofil (Phase 5) steht ein anderer Text</p>
+          <p className="text-xs font-medium text-muted-foreground">Der Kunde sieht einen anderen Text (eigener Text, siehe Abschluss)</p>
           <p><span className="text-muted-foreground">Warum wechseln:</span> {kunde}</p>
         </div>
       )}

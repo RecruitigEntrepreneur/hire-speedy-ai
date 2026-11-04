@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { CandidateTaskWindow } from '@/components/recruiter/tasks/CandidateTaskWindow';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -28,6 +28,7 @@ import { SubmitToJobDialog } from '@/components/candidates/dossier/SubmitToJobDi
 import { CaptureDialog } from '@/components/candidates/dossier/CaptureDialog';
 import { InterviewEntryCard } from '@/components/candidates/dossier/InterviewEntryCard';
 import { interviewCompleted, type DossierForm } from '@/lib/candidateDossier';
+import { interviewWasOpen } from '@/lib/interviewViews';
 import { TerminHerkunft } from '@/components/recruiter/termin/TerminHerkunft';
 
 function getStatusLabel(status: string): string {
@@ -138,6 +139,14 @@ export default function RecruiterCandidateDetail() {
     };
     fetchCandidate();
   }, [id, user, navigate]);
+
+  // War das Interview vor dem Neuladen offen, geht es dort weiter.
+  const interviewWiederOeffnen = useRef(!!id && interviewWasOpen(id));
+  useEffect(() => {
+    if (!interviewWiederOeffnen.current || !candidate || dossier.loading) return;
+    interviewWiederOeffnen.current = false;
+    setInterviewSliderOpen(true);
+  }, [candidate?.id, dossier.loading]);
 
   const extCandidate = candidate as any;
 
@@ -366,6 +375,9 @@ export default function RecruiterCandidateDetail() {
           setSourcesRefresh((n) => n + 1);
           if (submitAfterInterview) { setSubmitAfterInterview(false); setSubmitOpen(true); }
         }}
+        directSubmit={submitAfterInterview}
+        onSubmitToJob={() => setSubmitOpen(true)}
+        onEditMissing={openEdit}
       />
       <CaptureDialog
         open={captureMode !== null}

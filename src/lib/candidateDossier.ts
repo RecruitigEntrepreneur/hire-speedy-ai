@@ -1000,6 +1000,8 @@ export function stripNewColumns(payload: Record<string, unknown>): Record<string
  * dem zuletzt erzeugten Text entspricht. Solche Felder bekommen den neuen Entwurf; was der
  * Headhunter selbst geändert hat, bleibt unangetastet.
  */
+const withoutDates = (text: string) => text.replace(/\d{1,2}\.\d{1,2}\.\d{4}/g, '').trim();
+
 export function autoClientSummary(
   current: DossierForm,
   lastGenerated: ClientSummary,
@@ -1011,7 +1013,9 @@ export function autoClientSummary(
   for (const key of CLIENT_SUMMARY_KEYS) {
     const value = current[key];
     // Der frühere Automatik-Satz („Stört vor allem: …“) zählt als Entwurf, nicht als eigener Text.
-    const isDraft = !value.trim() || value === lastGenerated[key] || value === next[key] || (key === 'summary_motivation' && isOldAutoMotivation(value));
+    // Das Startdatum hängt vom heutigen Tag ab: Ein älterer Automatik-Text gilt deshalb nicht als selbst geschrieben.
+    const nurDatumAnders = key === 'summary_notice' && withoutDates(value) === withoutDates(next[key]);
+    const isDraft = !value.trim() || value === lastGenerated[key] || value === next[key] || nurDatumAnders || (key === 'summary_motivation' && isOldAutoMotivation(value));
     if (!isDraft) { edited.add(key); continue; }
     if (value !== next[key]) patch[key] = next[key];
   }

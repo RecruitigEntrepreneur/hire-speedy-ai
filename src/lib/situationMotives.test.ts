@@ -171,6 +171,14 @@ describe('Testpersonen', () => {
     expect(o.braucht).toEqual([]);
     expect(o.wieHeute.length).toBe(2);
   });
+
+  it('„Wichtig ist“ für den Kunden ohne Gehalt und Bonus', () => {
+    const o = evaluateMotives('vertrieb', ['Kundenbeziehungen', 'Team'], ['Provision gekürzt', 'Keine Entwicklung']);
+    expect(o.weiter.top3).toContain('Bonus');
+    // Kundenbeziehungen hat kein Angebot, Provision gekürzt wäre „Bonus“.
+    expect(o.weiter.wichtig).toEqual(['Entwicklungsperspektive', 'Gutes Team']);
+    expect(evaluateMotives('spezialist', [], ['Gehalt', 'Fixum zu niedrig']).weiter.wichtig).toEqual([]);
+  });
 });
 
 describe('Feld lesen und schreiben', () => {
