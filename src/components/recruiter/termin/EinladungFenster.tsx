@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCalendarStatus } from '@/components/interview/calendar/useCalendarStatus';
 import { useRecruiterKontakt } from '@/hooks/useRecruiterKontakt';
 import { einladungApi, einladungsLink, type Gespraechsart } from '@/lib/terminApi';
-import { angebotArten, EINLADUNG_ANLAESSE, einladungsText, textMitLink, type Angebot, type EinladungAnlass } from '@/lib/einladungTexte';
+import { angebotArten, EINLADUNG_ANLAESSE, einladungsText, mitLebenslaufSatz, textMitLink, type Angebot, type EinladungAnlass } from '@/lib/einladungTexte';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useTerminseite } from './useTerminseite';
 
@@ -33,7 +34,7 @@ const letztesAngebot = (): Angebot => {
 export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  candidate: { id: string; vorname: string; email: string | null };
+  candidate: { id: string; vorname: string; email: string | null; hatLebenslauf?: boolean };
   onFertig: () => void;
 }) {
   const kontakt = useRecruiterKontakt();
@@ -47,13 +48,21 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
   const [bearbeitet, setBearbeitet] = useState(false);
   const [sendet, setSendet] = useState<'mail' | 'selbst' | null>(null);
   const [kopiert, setKopiert] = useState(false);
+  // Lebenslauf anfragen (05.11.2026): von selbst an, wenn in der Akte keiner liegt.
+  const [lebenslauf, setLebenslauf] = useState(!candidate.hatLebenslauf);
 
   // Der Vorschlag folgt Angebot und Anlass, bis der Headhunter selbst etwas geändert hat.
   useEffect(() => {
     if (!open || bearbeitet) return;
-    setText(einladungsText({ vorname: candidate.vorname, hhVorname, dauer, anlass, angebot }));
-  }, [open, bearbeitet, candidate.vorname, hhVorname, dauer, anlass, angebot]);
-  useEffect(() => { if (!open) { setBearbeitet(false); setKopiert(false); } }, [open]);
+    setText(mitLebenslaufSatz(einladungsText({ vorname: candidate.vorname, hhVorname, dauer, anlass, angebot }), lebenslauf));
+  }, [open, bearbeitet, candidate.vorname, hhVorname, dauer, anlass, angebot, lebenslauf]);
+  useEffect(() => { if (!open) { setBearbeitet(false); setKopiert(false); } else setLebenslauf(!candidate.hatLebenslauf); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Das Häkchen nimmt den Satz mit, auch wenn der Text schon selbst geändert ist.
+  const lebenslaufUmschalten = (an: boolean) => {
+    setLebenslauf(an);
+    if (bearbeitet) setText((t) => mitLebenslaufSatz(t, an));
+  };
 
   const arten: Gespraechsart[] = angebotArten(angebot);
   const merken = () => { try { localStorage.setItem(SPEICHER, angebot); } catch { /* nur Komfort */ } };
@@ -61,7 +70,7 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
   const perMail = async () => {
     setSendet('mail');
     try {
-      await einladungApi.senden({ candidate_id: candidate.id, arten, weg: 'mail', text });
+      await einladungApi.senden({ candidate_id: candidate.id, arten, weg: 'mail', text, lebenslauf });
       merken();
       toast.success(`Einladung an ${candidate.vorname} ist raus.`);
       onFertig();
@@ -74,7 +83,7 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
   const selbst = async () => {
     setSendet('selbst');
     try {
-      const r = await einladungApi.senden({ candidate_id: candidate.id, arten, weg: 'selbst' });
+      const r = await einladungApi.senden({ candidate_id: candidate.id, arten, weg: 'selbst', lebenslauf });
       const fertigerText = textMitLink(text, einladungsLink(r.token));
       merken();
       onFertig();
@@ -119,6 +128,14 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
             </button>)}
           </div>
         </div>
+
+        <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+          <Checkbox className="mt-0.5" checked={lebenslauf} onCheckedChange={(v) => lebenslaufUmschalten(v === true)}/>
+          <span>
+            <span className="font-medium">Lebenslauf anfragen</span>
+            <span className="block text-xs text-muted-foreground">{candidate.vorname} kann ihn beim Buchen hochladen oder das LinkedIn-Profil angeben. Freiwillig, eingereicht wird erst mit Lebenslauf.</span>
+          </span>
+        </label>
 
         <div>
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">

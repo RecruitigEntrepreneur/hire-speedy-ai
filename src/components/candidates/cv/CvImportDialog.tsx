@@ -40,9 +40,11 @@ import {
   newStations,
   reviewCounts,
 } from '@/lib/cvImport';
-import { CvFileInfo, extractCv, findDuplicate, saveCvIntoExisting, saveNewCandidateFromCv } from '@/hooks/useCvImport';
+import { CvFileInfo, extractCv, findDuplicate, manualCv, saveCvIntoExisting, saveNewCandidateFromCv } from '@/hooks/useCvImport';
 import { fetchDossier } from '@/hooks/useCandidateDossier';
-import { AreaField, ChipGroup, Field, FieldOriginContext, NumberField } from '../dossier/DossierFields';
+import { isCvFileName } from '@/lib/candidateCv';
+import { AreaField, Field, FieldOriginContext } from '../dossier/DossierFields';
+import { FuehrungFeld } from '../dossier/FuehrungFeld';
 import {
   ArbeitserlaubnisBlock,
   ArbeitsortBlock,
@@ -105,11 +107,14 @@ export function CvImportDialog({
   onOpenChange,
   onCandidateCreated,
   existingCandidateId,
+  startWithText = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCandidateCreated?: (candidateId: string) => void;
   existingCandidateId?: string;
+  /** Aus „Text oder LinkedIn-Profil einfügen“: das Textfeld ist gleich offen. */
+  startWithText?: boolean;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -151,7 +156,7 @@ export function CvImportDialog({
     if (fileRef.current) fileRef.current.value = '';
   }, []);
 
-  useEffect(() => { if (!open) reset(); }, [open, reset]);
+  useEffect(() => { if (!open) reset(); else if (startWithText) setPasteOpen(true); }, [open, reset, startWithText]);
 
   useEffect(() => {
     if (step !== 'reading') return;
@@ -212,7 +217,7 @@ export function CvImportDialog({
     try {
       const res = await saveNewCandidateFromCv({
         userId: user.id, form, fileInfo, stations,
-        cv: cv ?? { version: 'manuell', contact: { full_name: '', email: '', phone: '', city: '', linkedin_url: '', github_url: '', portfolio_url: '', website_url: '' }, removed_sensitive: [], fields: {}, stations: [], educations: [], skills: [], languages: [], suggestions: { summary: '', highlights: [], career_directions: [] }, rejected_quotes: 0, raw_text: '' },
+        cv: cv ?? manualCv(),
       });
       // Die Erfolgsmeldung zeigt der Aufrufer; hier nur, was schiefging – nie verschluckt.
       if (res.failed.length) toast.warning(`Kandidat angelegt, aber nicht gespeichert: ${res.failed.join(', ')}. Bitte in der Akte nachtragen.`);
@@ -293,6 +298,11 @@ export function CvImportDialog({
                 <Plus className="mr-1 inline h-3.5 w-3.5" /> Text oder LinkedIn-Profil einfügen
               </button>
               {pasteOpen && <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Lebenslauf oder LinkedIn-Profil hier einfügen" />}
+              {((pasteOpen && !file) || (file && !isCvFileName(file.name))) && (
+                <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Text zählt nicht als Lebenslauf. Zum Einreichen brauchst du die Datei (PDF oder Word).
+                </p>
+              )}
               <button type="button" className="block text-sm text-muted-foreground hover:text-foreground" onClick={() => setNotesOpen((v) => !v)}>
                 <Plus className="mr-1 inline h-3.5 w-3.5" /> Gesprächsnotizen gleich mit einwerfen (optional)
               </button>
@@ -338,7 +348,11 @@ export function CvImportDialog({
           <FieldOriginContext.Provider value={origins}>
             <DialogHeader>
               <DialogTitle>{form.full_name ? `${form.full_name} prüfen` : 'Kandidat prüfen'}</DialogTitle>
-              <DialogDescription>{fileInfo?.fileName ?? (cv ? 'Eingefügter Text' : 'Ohne Lebenslauf')}</DialogDescription>
+              <DialogDescription>
+                {fileInfo && isCvFileName(fileInfo.fileName)
+                  ? fileInfo.fileName
+                  : `${fileInfo?.fileName ?? (cv ? 'Eingefügter Text' : 'Ohne Lebenslauf')} · Lebenslauf fehlt, zum Einreichen bitte später die Datei hochladen.`}
+              </DialogDescription>
             </DialogHeader>
             <div className="flex flex-wrap gap-2 text-xs">
               {cv && <span className="rounded-md bg-success/15 px-2.5 py-1 text-success">{counts.taken} Angaben übernommen</span>}
@@ -367,16 +381,7 @@ export function CvImportDialog({
               <Section title="Kontakt"><KontaktBlock form={form} set={(p) => { setNameError(null); set(p); }} errors={nameError ? { full_name: nameError } : undefined} /></Section>
               <Section title="Rolle und Erfahrung">
                 <BerufBlock form={form} set={set} />
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                  <Field label="Führungsverantwortung" field="leadership_scope">
-                    <ChipGroup field="leadership_scope" options={LEADERSHIP_OPTIONS} value={form.leadership_scope} onChange={(v) => set({ leadership_scope: v })} />
-                  </Field>
-                  {form.leadership_scope && form.leadership_scope !== 'none' && (
-                    <Field label="Teamgröße" field="leadership_team_size">
-                      <NumberField field="leadership_team_size" value={form.leadership_team_size} onChange={(v) => set({ leadership_team_size: v })} suffix="Personen" />
-                    </Field>
-                  )}
-                </div>
+                <FuehrungFeld value={form} onChange={set} label="Führungsverantwortung" />
               </Section>
               {(stations.length > 0 || (cv?.educations.length ?? 0) > 0) && (
                 <Section title="Stationen und Ausbildung">

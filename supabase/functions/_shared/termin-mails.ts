@@ -13,6 +13,8 @@ const absatz = (t: string) => `<p style="margin:0 0 12px 0;">${t}</p>`;
 export function kandidatBestaetigt(o: {
   vorname: string; hhName: string; stelle: string | null; startIso: string; dauer: number; mode: Gespraechsart;
   joinUrl: string | null; verwaltenUrl: string; mitLebenslauf: boolean; verschoben?: boolean;
+  /** Lebenslauf angefragt und noch nicht da (05.11.2026): Link zum Nachreichen. */
+  lebenslaufUrl?: string | null;
 }): MailContent {
   const zeit = wann(o.startIso, o.dauer);
   const ueber = o.stelle ? ` über die Stelle ${esc(o.stelle)}` : '';
@@ -21,6 +23,7 @@ export function kandidatBestaetigt(o: {
     absatz(`Hallo ${esc(o.vorname)},`),
     absatz(`${o.verschoben ? 'dein Gespräch ist verschoben' : 'danke für deine Buchung'}. Wir sprechen am <b>${esc(zeit)}</b>${ueber}, ${esc(artText(o.mode, o.hhName))}.`),
     o.mitLebenslauf ? absatz('Dein Lebenslauf ist angekommen. Den Namen des Unternehmens erfährst du im Gespräch.') : absatz('Den Namen des Unternehmens erfährst du im Gespräch.'),
+    !o.mitLebenslauf && o.lebenslaufUrl ? absatz(`${esc(o.hhName)} freut sich über deinen Lebenslauf, dann kann ${esc(o.hhName.split(' ')[0])} sich gut vorbereiten. <a href="${esc(o.lebenslaufUrl)}">Lebenslauf hochladen</a>`) : '',
   ].join('');
   const html = layout({
     preheader: `${zeit} mit ${o.hhName}`,
@@ -35,6 +38,7 @@ export function kandidatBestaetigt(o: {
     `${o.verschoben ? 'dein Gespräch ist verschoben' : 'danke für deine Buchung'}. Wir sprechen am ${zeit}${o.stelle ? ` über die Stelle ${o.stelle}` : ''}, ${artText(o.mode, o.hhName)}.`,
     o.mode === 'teams' && o.joinUrl ? `Teams: ${o.joinUrl}` : '',
     'Den Namen des Unternehmens erfährst du im Gespräch.', '',
+    !o.mitLebenslauf && o.lebenslaufUrl ? `Lebenslauf hochladen: ${o.lebenslaufUrl}` : '',
     `Verschieben oder absagen: ${o.verwaltenUrl}`, '', `Bis dann`, o.hhName,
   ].filter((z, i, a) => z !== '' || a[i - 1] !== '').join('\n');
   return { subject, html, text };
@@ -55,6 +59,24 @@ export function kandidatEinladung(o: { hhName: string; text: string; url: string
   });
   return {
     subject: o.erinnerung ? `Erinnerung: Gespräch mit ${o.hhName}` : `${o.hhName}: kurzes Gespräch?`,
+    html,
+    text: `${o.text.includes('[Link]') ? o.text.replace('[Link]', o.url) : `${o.text}\n\n${o.url}`}\n`,
+  };
+}
+
+/** Lebenslauf anfragen (05.11.2026): Text vom Headhunter, [Link] wird zum Knopf. */
+export function lebenslaufAnfrage(o: { hhName: string; text: string; url: string; erinnerung?: boolean }): MailContent {
+  const [vor, nach = ''] = o.text.includes('[Link]') ? o.text.split('[Link]') : [o.text, ''];
+  const html = layout({
+    preheader: `${o.hhName} bittet um deinen Lebenslauf`,
+    heading: o.erinnerung ? 'Kurze Erinnerung' : 'Dein Lebenslauf',
+    body: absaetze(vor),
+    cta: { label: 'Lebenslauf hochladen', url: o.url },
+    after: absaetze(nach),
+    footnote: 'Dieser Link ist nur für dich und funktioniert auch auf dem Handy. Antworte einfach auf diese Mail, wenn du Fragen hast.',
+  });
+  return {
+    subject: o.erinnerung ? `Kurze Erinnerung: dein Lebenslauf für ${o.hhName}` : `${o.hhName}: dein Lebenslauf`,
     html,
     text: `${o.text.includes('[Link]') ? o.text.replace('[Link]', o.url) : `${o.text}\n\n${o.url}`}\n`,
   };

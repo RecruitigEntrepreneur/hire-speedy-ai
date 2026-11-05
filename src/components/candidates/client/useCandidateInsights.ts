@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { NOTICE_OPTIONS, optionLabel } from '@/lib/candidateDossier';
+import { fuehrungText } from '@/lib/fuehrung';
 
 export type InterviewInsights = {
   interview_date: string | null;
@@ -13,6 +14,9 @@ export type InterviewInsights = {
   earliest_start_date: string | null;
   leadership_scope: 'none' | 'functional' | 'disciplinary' | null;
   leadership_team_size: number | null;
+  /** Migration 20261105110000, fehlt vorher in der Ansicht */
+  leadership_also_functional?: boolean | null;
+  leadership_functional_size?: number | null;
   other_applications: 'none' | 'early' | 'advanced' | 'offer' | null;
   salary_wish: string | null;
 };
@@ -58,8 +62,5 @@ export function verfuegbarAus(i: InterviewInsights | null): string | null {
 
 export const GESPRAECH: Record<string, string> = { phone: 'Telefon', video: 'Video', onsite: 'Persönlich' };
 export const WEITERE: Record<string, string> = { none: 'keine', early: 'in frühen Gesprächen', advanced: 'in fortgeschrittenen Gesprächen', offer: 'hat ein Angebot' };
-export const fuehrung = (i: InterviewInsights) =>
-  !i.leadership_scope ? null
-    : i.leadership_scope === 'none' ? 'keine'
-    : `${i.leadership_scope === 'disciplinary' ? 'disziplinarisch' : 'fachlich'}${i.leadership_team_size ? `, ${i.leadership_team_size} Personen` : ''}`;
+export const fuehrung = (i: InterviewInsights) => fuehrungText(i);
 export { fmt as fmtDatum };

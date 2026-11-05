@@ -17,6 +17,11 @@
  *   verschieben { token, start }
  *   absagen     { token, grund? }
  *
+ * Lebenslauf anfragen (05.11.2026):
+ *   lebenslauf  { einladung | anfrage, datei, name, typ } → merkt die Datei vor, wie mit slug
+ *   anfrage     { token }                                  → Seite /t/lebenslauf/<token>: Anrede, Stand
+ *   lebenslauf_senden { einladung | anfrage, upload_id?, linkedin_url?, consent } → nachreichen ohne Buchung
+ *
  * Öffentlich (verify_jwt = false). Alles läuft mit Service-Role; geprüft wird
  * hier: aktive Terminseite, laufende Suche, Ratenbegrenzung, Bot-Falle, freie Zeit.
  */
@@ -199,12 +204,140 @@ async function einladungZeigen(db: SupabaseClient, body: any) {
     stand, offen: buchbar, pausiert: !seite.active, kalender: z.verbunden, tage: z.tage, dauer: seite.e.dauer, arten: inv.arten,
     headhunter: headhunterOeffentlich(seite), vorname: zerlegeName(kand.full_name ?? '').first_name,
     email_maskiert: maskiert(kand.email), telefon_bekannt: (String(kand.phone ?? '').match(/\d/g) ?? []).length >= 6,
+    lebenslauf: await lebenslaufStand(db, kand.id),
+    termin: stand === 'gebucht' && inv.booking_id ? await terminKurz(db, inv.booking_id) : null,
   });
 }
 
-async function lebenslaufLesen(db: SupabaseClient, body: any) {
+// ---------------------------------------------------------------------------
+// Lebenslauf anfragen (05.11.2026)
+// ---------------------------------------------------------------------------
+
+async function hatLebenslauf(db: SupabaseClient, candidateId: string): Promise<boolean> {
+  const { data } = await db.from('candidate_documents').select('id').eq('candidate_id', candidateId).eq('document_type', 'cv').eq('is_current', true).limit(1);
+  return !!data?.length;
+}
+
+async function offeneAnfrage(db: SupabaseClient, candidateId: string) {
+  const { data } = await db.from('cv_requests').select('*').eq('candidate_id', candidateId)
+    .is('fulfilled_at', null).is('revoked_at', null).order('created_at', { ascending: false }).limit(1);
+  return (data?.[0] ?? null) as any;
+}
+
+/** 'angefragt': Der Headhunter bittet darum, und es liegt noch keiner vor. Sonst null, die Seite bleibt kurz. */
+async function lebenslaufStand(db: SupabaseClient, candidateId: string): Promise<'angefragt' | null> {
+  if (!(await offeneAnfrage(db, candidateId))) return null;
+  return (await hatLebenslauf(db, candidateId)) ? null : 'angefragt';
+}
+
+async function terminKurz(db: SupabaseClient, bookingId: string) {
+  const { data } = await db.from('recruiter_bookings').select('starts_at, mode, status').eq('id', bookingId).maybeSingle();
+  return data && data.status === 'booked' ? { start: data.starts_at as string, mode: data.mode as Gespraechsart } : null;
+}
+
+async function ladeAnfrage(db: SupabaseClient, token: unknown) {
+  muss(typeof token === 'string' && token.length >= 20, 'not_found', 'Diese Anfrage gibt es nicht.');
+  const { data: req } = await db.from('cv_requests').select('*').eq('token_hash', await hashToken(token)).maybeSingle();
+  muss(req, 'not_found', 'Diese Anfrage gibt es nicht.');
+  const { data: kand } = await db.from('candidates').select('id, full_name, linkedin_url').eq('id', req.candidate_id).maybeSingle();
+  muss(kand, 'not_found', 'Diese Anfrage gibt es nicht.');
+  return { req, kand };
+}
+
+const anfrageStand = (req: any): 'offen' | 'erledigt' | 'abgelaufen' | 'zurueckgezogen' =>
+  req.fulfilled_at ? 'erledigt' : req.revoked_at ? 'zurueckgezogen' : req.expires_at && Date.parse(req.expires_at) <= Date.now() ? 'abgelaufen' : 'offen';
+
+/** Headhunter für die Anfrage-Seite: geht auch ohne eigene Terminseite. */
+async function headhunterVon(db: SupabaseClient, recruiterId: string) {
+  const { data: prof } = await db.from('profiles').select('full_name, role_title, linkedin_url').eq('user_id', recruiterId).maybeSingle();
+  const name = (prof?.full_name ?? '').trim() || 'Dein Headhunter';
+  return {
+    name, initialen: initialen(name), titel: prof?.role_title && prof.role_title !== 'Talent Acquisition Manager' ? prof.role_title : null,
+    linkedin: prof?.linkedin_url ? `https://www.${String(prof.linkedin_url).replace(/^https?:\/\//, '').replace(/^www\./, '')}` : null,
+  };
+}
+
+async function anfrageZeigen(db: SupabaseClient, body: any) {
+  const { req, kand } = await ladeAnfrage(db, body.token);
+  return json({ stand: anfrageStand(req), headhunter: await headhunterVon(db, req.recruiter_id), vorname: zerlegeName(kand.full_name ?? '').first_name });
+}
+
+/** Lebenslauf oder LinkedIn ist da: Anfrage erledigt, Meldung an den Headhunter, Akte füllt sich im Hintergrund. */
+async function lebenslaufEingegangen(db: SupabaseClient, o: { recruiterId: string; candidateId: string; name: string; upload: { id: string; raw_text: string | null; hints: any } | null; linkedin: string | null; vorbefuellen?: boolean }) {
+  const offen = await offeneAnfrage(db, o.candidateId);
+  const jetzt = new Date().toISOString();
+  if (offen) {
+    await db.from('cv_requests').update(o.upload ? { fulfilled_at: jetzt, upload_id: o.upload.id } : { linkedin_at: jetzt }).eq('id', offen.id);
+  }
+  if (!o.upload && !o.linkedin) return;
+  await db.from('notifications').insert({
+    user_id: o.recruiterId, type: 'cv_received',
+    title: o.upload ? `${o.name} hat den Lebenslauf hochgeladen` : `${o.name} hat das LinkedIn-Profil angegeben`,
+    message: !o.upload ? 'Für das Einreichen fehlt noch der Lebenslauf.'
+      : o.upload.raw_text ? 'Ausgelesen, Werdegang und leere Felder werden in der Akte ergänzt.'
+      : 'Die Datei liegt in der Akte. Auslesen hat nicht geklappt, die Angaben ergänzt du selbst.',
+    related_type: 'candidate', related_id: o.candidateId,
+  });
+  if (o.vorbefuellen !== false && o.upload?.raw_text) imHintergrund(akteVorbefuellen(db, o.candidateId, o.upload.raw_text, o.upload.hints));
+}
+
+const linkedinPruefen = (wert: unknown): string | null => {
+  let l = typeof wert === 'string' ? wert.trim().slice(0, 300) : '';
+  if (!l) return null;
+  l = l.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  muss(/^([a-z]{2}\.)?linkedin\.com\/in\/[^\s/]+/i.test(l), 'invalid_request', 'Bitte gib dein LinkedIn-Profil als linkedin.com/in/… an.');
+  return `https://www.${l.replace(/^[a-z]{2}\./i, '')}`;
+};
+
+/** Nachreichen ohne Buchung: über den Einladungslink (Termin steht schon) oder den Anfrage-Link. */
+async function lebenslaufSenden(db: SupabaseClient, body: any) {
+  muss(body.consent === true, 'invalid_request', 'Bitte bestätige das Einverständnis.');
+  let recruiterId: string; let candidateId: string; let name: string; let bookingId: string | null = null; let linkedinAlt: string | null = null;
+  if (body.einladung) {
+    const { inv, kand } = await ladeEinladung(db, body.einladung);
+    muss(['offen', 'gebucht'].includes(einladungStand(inv)), 'not_allowed', 'Diese Einladung gilt nicht mehr.');
+    recruiterId = inv.recruiter_id; candidateId = kand.id; name = kand.full_name ?? 'Der Kandidat'; bookingId = inv.booking_id ?? null;
+    const { data: c } = await db.from('candidates').select('linkedin_url').eq('id', kand.id).maybeSingle();
+    linkedinAlt = c?.linkedin_url ?? null;
+  } else {
+    const { req, kand } = await ladeAnfrage(db, body.anfrage);
+    muss(anfrageStand(req) === 'offen', 'not_allowed', 'Diese Anfrage gilt nicht mehr.');
+    recruiterId = req.recruiter_id; candidateId = kand.id; name = kand.full_name ?? 'Der Kandidat'; linkedinAlt = kand.linkedin_url ?? null;
+  }
+  const linkedin = linkedinPruefen(body.linkedin_url);
+  const uploadId = typeof body.upload_id === 'string' ? body.upload_id : null;
+  muss(uploadId || linkedin, 'invalid_request', 'Bitte lade deinen Lebenslauf hoch oder gib dein LinkedIn-Profil an.');
+  const up = uploadId ? await lebenslaufAnhaengen(db, recruiterId, candidateId, uploadId, bookingId) : null;
+  muss(!uploadId || up, 'invalid_request', 'Der Lebenslauf konnte nicht übernommen werden. Bitte lade ihn noch einmal hoch.');
+  if (linkedin && !linkedinAlt) await db.from('candidates').update({ linkedin_url: linkedin }).eq('id', candidateId);
+  await lebenslaufEingegangen(db, { recruiterId, candidateId, name, upload: up ? { id: uploadId!, raw_text: up.raw_text, hints: up.hints } : null, linkedin });
+  await db.from('consents').insert({
+    subject_id: candidateId, subject_type: 'candidate', consent_type: 'candidate_data_processing', granted: true,
+    granted_at: new Date().toISOString(), scope: candidateId, version: 'lebenslauf-2026-11',
+  }).then(() => undefined, () => undefined);
+  return json({ ok: true, lebenslauf: !!up, linkedin: !!linkedin });
+}
+
+/** Für wen wird hochgeladen: Terminseite (slug), persönliche Einladung oder Lebenslauf-Anfrage. */
+async function uploadRecruiter(db: SupabaseClient, body: any): Promise<string> {
+  if (body.einladung) {
+    const { inv } = await ladeEinladung(db, body.einladung);
+    const stand = einladungStand(inv);
+    muss(stand === 'offen' || stand === 'gebucht', 'not_allowed', 'Diese Einladung gilt nicht mehr.');
+    return inv.recruiter_id;
+  }
+  if (body.anfrage) {
+    const { req } = await ladeAnfrage(db, body.anfrage);
+    muss(anfrageStand(req) === 'offen', 'not_allowed', 'Diese Anfrage gilt nicht mehr.');
+    return req.recruiter_id;
+  }
   const seite = await ladeSeite(db, body.slug);
   muss(seite.active, 'not_allowed', 'Diese Terminseite nimmt gerade keine Buchungen an.');
+  return seite.recruiter_id;
+}
+
+async function lebenslaufLesen(db: SupabaseClient, body: any) {
+  const recruiterId = await uploadRecruiter(db, body);
   const name = typeof body.name === 'string' ? body.name.slice(0, 160) : 'lebenslauf';
   const typ = typeof body.typ === 'string' ? body.typ.slice(0, 120) : '';
   let bytes: Uint8Array | null = null;
@@ -218,22 +351,28 @@ async function lebenslaufLesen(db: SupabaseClient, body: any) {
   let roh = typeof body.text === 'string' ? body.text.slice(0, 40000) : '';
   let hinweise: Record<string, unknown> = {};
   if (!roh.trim() && istPdf && bytes) {
-    const r = await pdfToText(bytes, { contactHeader: true });
-    const kopf = splitContactHeader(r.text);
-    roh = kopf.text.slice(0, 40000);
-    hinweise = kopf.hints as Record<string, unknown>;
+    // Lesen ist Zusatz (05.11.2026): Klappt es nicht, kommt die Datei trotzdem an, nur ohne Vorbefüllen.
+    try {
+      const r = await pdfToText(bytes, { contactHeader: true });
+      const kopf = splitContactHeader(r.text);
+      roh = kopf.text.slice(0, 40000);
+      hinweise = kopf.hints as Record<string, unknown>;
+    } catch (e) {
+      if (!(e instanceof PdfTextError)) throw e;
+      console.error('termin-seite lebenslauf lesen', e.message);
+    }
   }
   muss(bytes || roh.trim(), 'invalid_request', 'Bitte lade einen Lebenslauf als PDF oder Word hoch.');
   muss(istPdf || /word|officedocument|msword/.test(typ) || /\.(docx?|pdf)$/i.test(name), 'invalid_request', 'Bitte lade den Lebenslauf als PDF oder Word hoch.');
   const kontakt = roh.trim().length >= 40 ? prepareCvText(roh, hinweise as any).contact : null;
   let pfad = '';
   if (bytes) {
-    pfad = `${seite.recruiter_id}/termin-${crypto.randomUUID()}-${name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80)}`;
+    pfad = `${recruiterId}/termin-${crypto.randomUUID()}-${name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80)}`;
     const { error } = await db.storage.from('cv-documents').upload(pfad, bytes, { contentType: istPdf ? 'application/pdf' : (typ || 'application/octet-stream') });
     muss(!error, 'internal_error', 'Der Lebenslauf konnte nicht gespeichert werden.');
   }
   const { data: up, error } = await db.from('booking_cv_uploads').insert({
-    recruiter_id: seite.recruiter_id, path: pfad, file_name: name, file_size: bytes?.length ?? null,
+    recruiter_id: recruiterId, path: pfad, file_name: name, file_size: bytes?.length ?? null,
     mime_type: istPdf ? 'application/pdf' : typ || null, raw_text: roh || null, hints: kontakt ?? {},
   }).select('id').single();
   muss(!error && up, 'internal_error', 'Der Lebenslauf konnte nicht gespeichert werden.');
@@ -263,17 +402,20 @@ async function kandidatAnlegen(db: SupabaseClient, recruiterId: string, b: { fir
   return { id: data.id, neu: true };
 }
 
-async function lebenslaufAnhaengen(db: SupabaseClient, recruiterId: string, candidateId: string, uploadId: string, bookingId: string) {
+async function lebenslaufAnhaengen(db: SupabaseClient, recruiterId: string, candidateId: string, uploadId: string, bookingId: string | null) {
   const { data: up } = await db.from('booking_cv_uploads').select('*').eq('id', uploadId).eq('recruiter_id', recruiterId).is('used_by', null).maybeSingle();
   if (!up) return null;
-  await db.from('booking_cv_uploads').update({ used_by: bookingId }).eq('id', uploadId);
+  // Ohne Buchung (nachgereicht) merkt sich die Anfrage die Datei; doppelt anhängen geht nicht.
+  const { data: schon } = await db.from('cv_requests').select('id').eq('upload_id', uploadId).limit(1);
+  if (schon?.length) return null;
+  if (bookingId) await db.from('booking_cv_uploads').update({ used_by: bookingId }).eq('id', uploadId);
   if (up.path) {
     const { data: { publicUrl } } = db.storage.from('cv-documents').getPublicUrl(up.path);
     await db.from('candidate_documents').update({ is_current: false }).eq('candidate_id', candidateId).eq('document_type', 'cv');
     const { data: alt } = await db.from('candidate_documents').select('version').eq('candidate_id', candidateId).eq('document_type', 'cv').order('version', { ascending: false }).limit(1);
     await db.from('candidate_documents').insert({
       candidate_id: candidateId, document_type: 'cv', version: (alt?.[0]?.version ?? 0) + 1, file_name: up.file_name, file_url: publicUrl,
-      file_size: up.file_size, mime_type: up.mime_type, is_current: true, uploaded_by: recruiterId, notes: 'Beim Buchen über die Terminseite hochgeladen',
+      file_size: up.file_size, mime_type: up.mime_type, is_current: true, uploaded_by: recruiterId, notes: bookingId ? 'Beim Buchen über die Terminseite hochgeladen' : 'Vom Kandidaten über den Link hochgeladen',
     });
     await db.from('candidates').update({ cv_url: publicUrl }).eq('id', candidateId);
   }
@@ -391,6 +533,10 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
     const ergaenzen: Record<string, unknown> = {};
     if (!einl.kand.email) ergaenzen.email = b.email;
     if (!aktePhone && b.phone) ergaenzen.phone = b.phone;
+    if (b.linkedin_url) {
+      const { data: c } = await db.from('candidates').select('linkedin_url').eq('id', einl.kand.id).maybeSingle();
+      if (!c?.linkedin_url) ergaenzen.linkedin_url = b.linkedin_url;
+    }
     if (Object.keys(ergaenzen).length) await db.from('candidates').update(ergaenzen).eq('id', einl.kand.id);
     await db.from('candidate_invites').update({ booking_id: row.id, booked_at: new Date().toISOString() })
       .eq('candidate_id', einl.kand.id).is('booked_at', null).is('revoked_at', null);
@@ -412,7 +558,10 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   }
   await db.from('recruiter_bookings').update({ candidate_id: kandidat.id, outlook_event_id: eventId, join_url: joinUrl }).eq('id', row.id);
 
-  const anKandidat = kandidatBestaetigt({ vorname: b.first_name, hhName: seite.name, stelle: stellenTitel, startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, verwaltenUrl, mitLebenslauf: !!upload });
+  // Mit der Einladung angefragt: Lebenslauf oder LinkedIn erledigen die Anfrage, sonst Link zum Nachreichen in der Mail.
+  if (einl && (upload || b.linkedin_url)) await lebenslaufEingegangen(db, { recruiterId: seite.recruiter_id, candidateId: kandidat.id, name, upload: upload && b.upload_id ? { id: b.upload_id, raw_text: upload.raw_text, hints: upload.hints } : null, linkedin: upload ? null : b.linkedin_url, vorbefuellen: false });
+  const nachreichen = einl && !upload && (await lebenslaufStand(db, kandidat.id)) === 'angefragt' ? `${app}/t/einladung/${body.einladung}` : null;
+  const anKandidat = kandidatBestaetigt({ vorname: b.first_name, hhName: seite.name, stelle: stellenTitel, startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, verwaltenUrl, mitLebenslauf: !!upload, lebenslaufUrl: nachreichen });
   await sendInterviewMail({
     fromEmail: FROM_EMAIL(), fromName: `${seite.name} über Matchunt`, to: b.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
     replyTo: seite.email ?? undefined,
@@ -554,6 +703,8 @@ Deno.serve(async (req) => {
       case 'seite': return await seiteZeigen(db, body);
       case 'einladung': return await einladungZeigen(db, body);
       case 'lebenslauf': return await lebenslaufLesen(db, body);
+      case 'anfrage': return await anfrageZeigen(db, body);
+      case 'lebenslauf_senden': return await lebenslaufSenden(db, body);
       case 'buchen': return await buchen(db, body, ip);
       case 'termin': return await terminZeigen(db, body);
       case 'verschieben': return await verschieben(db, body);

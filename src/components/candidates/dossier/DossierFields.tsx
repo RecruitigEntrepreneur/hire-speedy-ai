@@ -77,7 +77,7 @@ export function Field({
   );
 }
 
-const chipClass = (active: boolean) =>
+export const chipClass = (active: boolean) =>
   cn(
     'rounded-md border px-2.5 py-1 text-xs transition-colors',
     active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-foreground hover:bg-muted',

@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Bell, CalendarPlus, Check, CheckCircle2, Circle, CircleDot, Copy, FileUp, Loader2, NotebookPen, Phone, PhoneCall, Play, Video, X, Zap, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +11,9 @@ import { EinladungFenster } from '@/components/recruiter/termin/EinladungFenster
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
 import { useErstgespraeche, type Erstgespraech } from '@/components/recruiter/termin/Erstgespraeche';
 import { useKandidatEinladung } from '@/components/recruiter/termin/useKandidatEinladung';
+import { useLebenslaufAnfrage, vorTagenKurz } from '@/components/recruiter/termin/useLebenslaufAnfrage';
+import { cvViewUrl } from '@/hooks/useCandidateCv';
+import type { CurrentCv } from '@/lib/candidateCv';
 import { einladungApi, einladungsLink } from '@/lib/terminApi';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +66,9 @@ export function InterviewEntryCard({
   onImport,
   onLive,
   onQuick,
+  lebenslauf = null,
+  onLebenslaufAnfragen,
+  onUploadCv,
 }: {
   candidateId: string;
   vorname: string;
@@ -76,12 +83,44 @@ export function InterviewEntryCard({
   onImport: () => void;
   onLive: () => void;
   onQuick: () => void;
+  /** Aktueller Lebenslauf aus der Akte (05.11.2026): Zeile unten in der Karte. */
+  lebenslauf?: CurrentCv | null;
+  onLebenslaufAnfragen?: () => void;
+  onUploadCv?: () => void;
 }) {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [fensterOffen, setFensterOffen] = useState(false);
   const [arbeitet, setArbeitet] = useState<'erinnern' | 'link' | 'zurueck' | null>(null);
   const { einladung, neuLaden, isLoading: einladungLaedt } = useKandidatEinladung(candidateId);
+  const { anfrage, neuLaden: anfrageNeu } = useLebenslaufAnfrage(candidateId);
+  const [erinnert, setErinnert] = useState(false);
+
+  const lebenslaufErinnern = async () => {
+    try {
+      await einladungApi.lebenslaufErinnern(candidateId);
+      setErinnert(true);
+      toast.success(`Erinnerung an ${vorname} ist raus.`);
+      void anfrageNeu();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Die Erinnerung konnte nicht verschickt werden.');
+    }
+  };
+  const lebenslaufAnsehen = async () => {
+    const url = lebenslauf ? await cvViewUrl(lebenslauf) : null;
+    if (url) window.open(url, '_blank', 'noopener'); else toast.error('Der Lebenslauf konnte nicht geöffnet werden.');
+  };
   const { data: termine = [], isLoading: termineLaden } = useErstgespraeche({ candidateId });
+
+  // „Anlegen und einladen“ (Kandidaten anlegen, 04.11.2026): ?einladen=1 öffnet gleich die Einladung.
+  const [suche, setSuche] = useSearchParams();
+  useEffect(() => {
+    if (suche.get('einladen') !== '1') return;
+    setFensterOffen(true);
+    const next = new URLSearchParams(suche);
+    next.delete('einladen');
+    setSuche(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     supabase
@@ -217,6 +256,26 @@ export function InterviewEntryCard({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">{neben}</div>
         </>}
 
+        {/* Lebenslauf (05.11.2026): ruhig in Grau, gelb wird es erst beim Einreichen. */}
+        {!laedt && (
+          <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
+            {lebenslauf ? (
+              <><span className="text-success">✓ Lebenslauf da</span> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufAnsehen()}>ansehen</button></>
+            ) : anfrage ? (
+              <>
+                {anfrage.linkedin_at ? 'LinkedIn-Profil da · Lebenslauf fehlt fürs Einreichen' : anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at ? 'Lebenslauf: mit der Einladung angefragt' : `Lebenslauf: angefragt ${vorTagenKurz(anfrage.reminded_at ?? anfrage.sent_at ?? anfrage.created_at)}, noch nicht da`}
+                {email && !erinnert && !(anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at) && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufErinnern()}>Erinnern</button></>}
+              </>
+            ) : (
+              <>
+                Lebenslauf fehlt
+                {onLebenslaufAnfragen && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onLebenslaufAnfragen}>anfragen</button></>}
+                {onUploadCv && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onUploadCv}>selbst hochladen</button></>}
+              </>
+            )}
+          </p>
+        )}
+
         {sources.length > 0 && (
           <ul className="divide-y divide-border rounded-md border border-border text-xs">
             {sources.map((s) => (
@@ -233,7 +292,7 @@ export function InterviewEntryCard({
           </ul>
         )}
       </CardContent>
-      <EinladungFenster open={fensterOffen} onOpenChange={setFensterOffen} candidate={{ id: candidateId, vorname, email }} onFertig={() => { void neuLaden(); notifyTasksChanged(); }}/>
+      <EinladungFenster open={fensterOffen} onOpenChange={setFensterOffen} candidate={{ id: candidateId, vorname, email, hatLebenslauf: !!lebenslauf }} onFertig={() => { void neuLaden(); void anfrageNeu(); notifyTasksChanged(); }}/>
     </Card>
   );
 }

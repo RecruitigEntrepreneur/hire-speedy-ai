@@ -17,7 +17,7 @@ export interface InterviewView {
 
 export const INTERVIEW_VIEWS: InterviewView[] = [
   { key: 'ziel', label: 'Karriereziel', fields: ['career_ultimate_goal', 'career_actions_taken', 'career_what_worked', 'career_what_didnt_work'] },
-  { key: 'rolle', label: 'Rolle heute', fields: ['job_title', 'company', 'experience_years', 'leadership_scope', 'leadership_team_size', 'current_positive', 'current_negative'] },
+  { key: 'rolle', label: 'Rolle heute', fields: ['job_title', 'company', 'experience_years', 'leadership_scope', 'leadership_team_size', 'leadership_functional_size', 'current_positive', 'current_negative'] },
   { key: 'motivation', label: 'Wechselmotivation', fields: ['change_motivation', 'specific_incident', 'discussed_internally', 'would_stay'] },
   {
     key: 'rahmen', label: 'Gehalt und Rahmen', fields: [

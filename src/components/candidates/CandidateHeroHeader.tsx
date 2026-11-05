@@ -34,6 +34,8 @@ interface CandidateHeroHeaderProps {
   onEdit: () => void;
   onCvUpload: () => void;
   onStartInterview?: () => void;
+  /** „Lebenslauf anfragen“ (05.11.2026): nur solange kein Lebenslauf in der Akte liegt. */
+  onLebenslaufAnfragen?: () => void;
 }
 
 export function CandidateHeroHeader({
@@ -45,6 +47,7 @@ export function CandidateHeroHeader({
   onEdit,
   onCvUpload,
   onStartInterview,
+  onLebenslaufAnfragen,
 }: CandidateHeroHeaderProps) {
   const initials = candidate.full_name.split(' ').map((n) => n[0]).join('');
   const { getCurrentDocuments } = useCandidateDocuments(candidateId);
@@ -143,6 +146,12 @@ export function CandidateHeroHeader({
                     <Upload className="h-3.5 w-3.5 mr-1.5" />
                     CV hochladen
                   </Button>
+                  {onLebenslaufAnfragen && (
+                    <Button variant="outline" size="sm" className="h-8" onClick={onLebenslaufAnfragen}>
+                      <Mail className="h-3.5 w-3.5 mr-1.5" />
+                      Lebenslauf anfragen
+                    </Button>
+                  )}
                   {candidate.phone && (
                     <Button 
                       variant="outline" 

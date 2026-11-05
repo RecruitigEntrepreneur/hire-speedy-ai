@@ -12,6 +12,8 @@
 // (Name, Kontakt, Arbeitgeber, exakter Ort). Inferenz-Schutz gegen Drittnamen
 // (NER) und k-Anonymität ist Phase 2 (dokumentiertes Restrisiko).
 
+import { fuehrungKiText } from "./fuehrung.ts";
+
 export const REDACTION_VERSION = "r1";
 
 // ─── Diakritik / Schreibvarianten ───────────────────────────────────────────
@@ -313,9 +315,7 @@ export function redactCandidateForLLM(
           why_now: rf(interviewNotes.why_now),
           offer_requirements: (Array.isArray(interviewNotes.offer_requirements) ? interviewNotes.offer_requirements : []).map((x: unknown) => rf(String(x)) ?? '').filter(Boolean),
           notice_period: rf(interviewNotes.notice_period),
-          leadership: interviewNotes.leadership_scope && interviewNotes.leadership_scope !== 'none'
-            ? `${interviewNotes.leadership_scope === 'disciplinary' ? 'disziplinarisch' : 'fachlich'}${interviewNotes.leadership_team_size ? `, ${interviewNotes.leadership_team_size} Personen` : ''}`
-            : null,
+          leadership: fuehrungKiText(interviewNotes),
           career_ultimate_goal: rf(interviewNotes.career_ultimate_goal),
           would_recommend: interviewNotes.would_recommend ?? null,
         }

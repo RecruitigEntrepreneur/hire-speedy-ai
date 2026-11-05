@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { submissionErrorText } from '@/lib/candidateCv';
 
 interface CandidateJobMatchingV2Props {
   candidate: {
@@ -128,7 +129,7 @@ export function CandidateJobMatchingV2({ candidate, onSubmissionCreated }: Candi
       onSubmissionCreated?.();
     } catch (error) {
       console.error('Error creating submission:', error);
-      toast.error('Fehler beim Einreichen');
+      toast.error(submissionErrorText(error));
     } finally {
       setSubmitting(null);
     }

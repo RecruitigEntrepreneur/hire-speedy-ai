@@ -16,7 +16,6 @@ import {
   DISCUSSED_OPTIONS,
   DossierForm,
   INTERVIEW_TYPE_OPTIONS,
-  LEADERSHIP_OPTIONS,
   NON_COMPETE_OPTIONS,
   OTHER_APPLICATIONS_OPTIONS,
   RELOCATION_OPTIONS,
@@ -78,7 +77,8 @@ import { useErstgespraeche } from '@/components/recruiter/termin/Erstgespraeche'
 import { InterviewInsightsCard } from '../client/ClientCandidateCards';
 import type { InterviewInsights } from '../client/useCandidateInsights';
 import type { EditFocus } from './CandidateEditSheet';
-import { ChipGroup, Field, FieldMissingContext, FieldQuestionContext, NumberField, PhraseChips, TagInput, TextField, fieldId, focusDossierField } from './DossierFields';
+import { ChipGroup, Field, FieldMissingContext, FieldQuestionContext, PhraseChips, TagInput, TextField, fieldId, focusDossierField } from './DossierFields';
+import { FuehrungFeld } from './FuehrungFeld';
 import { CareerGoalBlock, ClientMotivationField, IncidentBlock, MotiveBlock } from './MotiveBlock';
 import {
   ArbeitsortBlock,
@@ -114,6 +114,7 @@ const NEXT_QUESTION: Record<string, string> = {
   wohnort: 'Wo wohnen Sie aktuell?',
   pendeln: 'Wie lange darf der Arbeitsweg höchstens dauern?',
   sprachen: 'Welche Sprachen sprechen Sie, und wie gut?',
+  lebenslauf: 'Bitte um den aktuellen Lebenslauf als PDF oder Word.',
 };
 
 /**
@@ -140,6 +141,8 @@ const WHERE: Record<string, { ort: 'frage' | 'kopf' | 'akte'; field: string }> =
   wohnort: { ort: 'frage', field: 'city' },
   pendeln: { ort: 'frage', field: 'max_commute_minutes' },
   sprachen: { ort: 'frage', field: 'languages' },
+  // Lebenslauf (12.10.2026): Datei in der Akte, nicht im Interview
+  lebenslauf: { ort: 'akte', field: 'cv' },
 };
 
 /** Name des Kundentexts in Hinweisen am Abschluss. */
@@ -227,6 +230,10 @@ interface Props {
   onSubmitToJob?: () => void;
   /** Knopf „Fehlendes eintragen“, wenn die Angabe nicht im Interview steht (Kontakt, Skills). */
   onEditMissing?: (focus: EditFocus) => void;
+  /** Hochgeladener Lebenslauf vorhanden (Punkt von „Bereit zum Einreichen“, 12.10.2026). */
+  hasCv?: boolean;
+  /** Lebenslauf hochladen (Abschluss-Karte, wenn nur er fehlt). */
+  onUploadCv?: () => void;
 }
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -236,7 +243,7 @@ const SAVE_RETRY_MS = 5000;
 
 const uhrzeit = (d: Date | number) => new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 
-export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form, pendingColumns, onSave, onComplete, directSubmit = false, onSubmitToJob, onEditMissing }: Props) {
+export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form, pendingColumns, onSave, onComplete, directSubmit = false, onSubmitToJob, onEditMissing, hasCv = false, onUploadCv }: Props) {
   const { user } = useAuth();
   const [draft, setDraft] = useState<DossierForm>(form);
   // Eine Stelle für beide Darstellungen: Schritt für Schritt die Frage, sonst deren Phase.
@@ -465,7 +472,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const readiness = useMemo(() => computeReadiness(draft), [draft]);
+  const readiness = useMemo(() => computeReadiness(draft, hasCv), [draft, hasCv]);
   const evidence = useMemo(() => changeEvidence(draft), [draft]);
   const firstName = draft.full_name.split(' ')[0] || 'die Person';
 
@@ -840,7 +847,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     }
     setCompleting(false);
     if (user) clearInterviewPosition(user.id, candidateId);
-    const nachher = computeReadiness({ ...draftRef.current, interview_status: 'completed' });
+    const nachher = computeReadiness({ ...draftRef.current, interview_status: 'completed' }, hasCv);
     if (directSubmit) {
       toast.success('Interview abgeschlossen', { description: nachher.isReady ? `${firstName} ist bereit zum Einreichen.` : `Noch offen: ${nachher.missing.map((m) => m.label).join(', ')}` });
       closeAfterFinish();
@@ -1010,28 +1017,19 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     </>
   );
 
-  const leadershipFields = (stacked: boolean) => (
-    <div className={stacked ? 'space-y-4' : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]'}>
-      <Field label="Führungsverantwortung: Wie viele Menschen führen Sie disziplinarisch?" field="leadership_scope">
-        <Why>Fachlich oder mit Personalverantwortung, und für wie viele. Entscheidet über passende Stellen.</Why>
-        <ChipGroup field="leadership_scope" options={LEADERSHIP_OPTIONS} value={draft.leadership_scope} onChange={(v) => set({ leadership_scope: v })}
-          suggested={leadSuggested} suggestedHint={`Vorschlag, weil Titel „${draft.job_title}“`} />
+  const leadershipFields = () => (
+    <FuehrungFeld
+      value={draft}
+      onChange={set}
+      label="Führen Sie Menschen? Disziplinarisch, also mit Personalverantwortung, oder fachlich, z. B. im Projekt?"
+      hinweis={<>
+        <Why>Beides geht. Entscheidet über passende Stellen.</Why>
         {leadSuggested && <p className="text-xs text-primary">Vorschlag „Disziplinarisch“, weil Titel {draft.job_title}</p>}
-      </Field>
-      {draft.leadership_scope && draft.leadership_scope !== 'none' && (
-        <Field label="Teamgröße" field="leadership_team_size">
-          <div className="flex flex-wrap gap-1">
-            {[5, 15, 50, 200, 250].map((n, i) => (
-              <button key={n} type="button" onClick={() => set({ leadership_team_size: n })}
-                className={cn('rounded-md border px-2 py-0.5 text-xs', draft.leadership_team_size === n ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>
-                {['1–5', '6–15', '16–50', '51–200', 'über 200'][i]}
-              </button>
-            ))}
-          </div>
-          <NumberField field="leadership_team_size" value={draft.leadership_team_size} onChange={(v) => set({ leadership_team_size: v })} suffix="Personen" />
-        </Field>
-      )}
-    </div>
+      </>}
+      vorschlag={leadSuggested}
+      vorschlagHinweis={`Vorschlag, weil Titel „${draft.job_title}“`}
+      groessen
+    />
   );
 
   /* Gegenangebot-Risiko nur bei einem echten Auslöser (sonst gibt es nichts „zu lösen“); schon Beantwortetes bleibt sichtbar. */
@@ -1152,6 +1150,8 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     earliest_start_date: draft.availability_date || null,
     leadership_scope: (draft.leadership_scope || null) as InterviewInsights['leadership_scope'],
     leadership_team_size: draft.leadership_team_size,
+    leadership_also_functional: draft.leadership_also_functional,
+    leadership_functional_size: draft.leadership_functional_size,
     other_applications: null,
     salary_wish: wunschBand(draft.expected_salary),
   };
@@ -1206,7 +1206,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const punkt = (key: InterviewViewKey, schritt: boolean) => {
     switch (key) {
       case 'ziel': return <>{rolleOben && rolleFact()}{careerGoalField()}{zielNachfragen(schritt)}</>;
-      case 'rolle': return <>{!rolleOben && rolleFact()}{leadershipFields(schritt)}<MotiveBlock form={draft} set={set} family={family} candidateId={candidateId} stacked={schritt} /></>;
+      case 'rolle': return <>{!rolleOben && rolleFact()}{leadershipFields()}<MotiveBlock form={draft} set={set} family={family} candidateId={candidateId} stacked={schritt} /></>;
       case 'motivation': return <>{motivationField()}{hookCards()}{incidentField()}{gegenangebotFields()}</>;
       case 'rahmen': return <>{flowHint('gehalt', 'leaver')}{salaryField()}{noticeField()}{nonCompeteField()}{arbeitFields()}</>;
       case 'markt': return marktFields(schritt);
@@ -1251,6 +1251,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       }
       else if (k === 'wohnort') blocks.push(<div key={k}>{wohnortField()}</div>);
       else if (k === 'sprachen') blocks.push(<Field key={k} label="Sprachen" field="languages"><SprachenBlock form={draft} set={set} /></Field>);
+      else if (k === 'lebenslauf') blocks.push(<p key={k} className="text-sm text-muted-foreground">Lebenslauf: im Profil hochladen. {NEXT_QUESTION.lebenslauf}</p>);
       else if (k === 'kundentexte') blocks.push(<p key={k} className="text-sm">Ein Kundentext nennt interne Angaben. Unter „Abschluss“ korrigieren.</p>);
       else blocks.push(<p key={k} className="text-sm text-muted-foreground">{readiness.items.find((i) => i.key === k)?.label ?? k}: in der Akte über „Bearbeiten“ ergänzen.</p>);
     }
@@ -1263,11 +1264,13 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
 
   /** Die Karte nach dem Abschluss: bleibt stehen, bis der Headhunter wählt. */
   const renderFinished = () => {
-    const nachher = computeReadiness(draft);
+    const nachher = computeReadiness(draft, hasCv);
     const fehlendesEintragen = () => {
       const m = nachher.missing[0];
       const w = m ? WHERE[m.key] : undefined;
       if (w && w.ort === 'frage') { jump(m.key); return; }
+      // Fehlt nur noch der Lebenslauf: direkt zum Hochladen.
+      if (m?.key === 'lebenslauf' && onUploadCv) { closeAfterFinish(); onUploadCv(); return; }
       closeAfterFinish();
       if (m) onEditMissing?.({ section: m.section, field: m.field });
     };
@@ -1284,7 +1287,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
             {nachher.isReady ? (
               <Button onClick={() => { closeAfterFinish(); onSubmitToJob?.(); }}>Auf Stelle einreichen</Button>
             ) : (
-              <Button onClick={fehlendesEintragen}>Fehlendes eintragen</Button>
+              <Button onClick={fehlendesEintragen}>{nachher.missing[0]?.key === 'lebenslauf' && onUploadCv ? 'Lebenslauf hochladen' : 'Fehlendes eintragen'}</Button>
             )}
           </div>
         </div>

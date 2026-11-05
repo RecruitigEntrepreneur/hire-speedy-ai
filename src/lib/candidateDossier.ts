@@ -294,6 +294,9 @@ export interface DossierForm {
   interview_type: string | null;
   leadership_scope: string | null;
   leadership_team_size: number | null;
+  // Migration 20261105110000: zusätzlich fachlich geführt, mit eigener Zahl (lib/fuehrung.ts)
+  leadership_also_functional: boolean | null;
+  leadership_functional_size: number | null;
   other_applications: string | null;
   other_applications_notes: string;
   blocked_companies: string[];
@@ -322,6 +325,7 @@ export const NEW_NOTE_COLUMNS = [
   'recommendation_level', 'would_stay_answer', 'change_readiness',
   'salary_basis', 'non_compete',
   'company_size_pref', 'industry_change', 'international_pref',
+  'leadership_also_functional', 'leadership_functional_size',
 ] as const;
 
 type Row = Record<string, unknown> | null | undefined;
@@ -533,6 +537,8 @@ export function fromRecords(candidate: Row, notes: Row, languages: Array<{ langu
     interview_type: str(n.interview_type) || null,
     leadership_scope: str(n.leadership_scope) || null,
     leadership_team_size: numOrNull(n.leadership_team_size),
+    leadership_also_functional: n.leadership_also_functional === true ? true : n.leadership_also_functional === false ? false : null,
+    leadership_functional_size: numOrNull(n.leadership_functional_size),
     other_applications: str(n.other_applications) || null,
     other_applications_notes: str(n.other_applications_notes),
     blocked_companies: strArray(n.blocked_companies),
@@ -655,6 +661,8 @@ export function toNotesPayload(f: DossierForm): { base: Record<string, unknown>;
     interview_type: f.interview_type,
     leadership_scope: f.leadership_scope,
     leadership_team_size: f.leadership_team_size,
+    leadership_also_functional: f.leadership_also_functional,
+    leadership_functional_size: f.leadership_functional_size,
     other_applications: f.other_applications,
     other_applications_notes: orNull(f.other_applications_notes),
     blocked_companies: f.blocked_companies,
@@ -685,6 +693,8 @@ export interface ReadinessItem {
   ok: boolean;
   section: DossierSection;
   field: string;
+  /** Statt Eintragen: Datei hochladen (Lebenslauf) */
+  action?: 'upload_cv';
 }
 
 export interface Readiness {
@@ -737,7 +747,11 @@ export function abschlussGaps(f: DossierForm): { key: string; label: string }[] 
   return [...interviewGaps(f), ...rahmenGaps(f)];
 }
 
-export function computeReadiness(f: DossierForm): Readiness {
+/**
+ * hasCv: ein hochgeladener Lebenslauf (PDF/Word) liegt vor. Ohne ihn kein
+ * Einreichen (Entscheidung 12.10.2026, prüft auch die Datenbank).
+ */
+export function computeReadiness(f: DossierForm, hasCv = false): Readiness {
   const rahmen = new Set(rahmenGaps(f).map((g) => g.key));
   const items: ReadinessItem[] = [
     { key: 'kontakt', label: 'Kontakt', ok: !!f.full_name.trim() && (isValidEmail(f.email) || !!f.phone.trim()), section: 'kontakt', field: 'email' },
@@ -756,6 +770,7 @@ export function computeReadiness(f: DossierForm): Readiness {
     { key: 'einschaetzung', label: 'Deine Einschätzung', ok: !!f.recommendation, section: 'einschaetzung', field: 'recommendation' },
     // Ohne geführtes Interview bleibt beim Kunden „Aus dem Gespräch mit dem Headhunter“ leer.
     { key: 'interview', label: 'Interview abgeschlossen', ok: interviewCompleted(f), section: 'einschaetzung', field: 'interview' },
+    { key: 'lebenslauf', label: 'Lebenslauf', ok: hasCv, section: 'kontakt', field: 'cv', action: 'upload_cv' },
   ];
   // Nennt ein Kundentext aktuelles Gehalt, Schmerzgrenze, andere Bewerbungen, Name
   // oder Arbeitgeber, wird nicht eingereicht (Punkt erscheint nur dann).

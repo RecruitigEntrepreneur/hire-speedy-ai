@@ -31,6 +31,8 @@ import { InterviewEntryCard } from '@/components/candidates/dossier/InterviewEnt
 import { abschlussGaps, interviewCompleted, type DossierForm } from '@/lib/candidateDossier';
 import { interviewWasOpen } from '@/lib/interviewViews';
 import { TerminHerkunft } from '@/components/recruiter/termin/TerminHerkunft';
+import { LebenslaufAnfragenFenster } from '@/components/recruiter/termin/LebenslaufAnfragenFenster';
+import { useLebenslaufAnfrage } from '@/components/recruiter/termin/useLebenslaufAnfrage';
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -56,6 +58,9 @@ export default function RecruiterCandidateDetail() {
   const [loading, setLoading] = useState(true);
   const [addActivityOpen, setAddActivityOpen] = useState(false);
   const [cvUploadOpen, setCvUploadOpen] = useState(false);
+  // Lebenslauf anfragen ohne Termin (05.11.2026)
+  const [lebenslaufAnfragenOpen, setLebenslaufAnfragenOpen] = useState(false);
+  const { anfrage: lebenslaufAnfrage } = useLebenslaufAnfrage(id ?? '');
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editFocus, setEditFocus] = useState<EditFocus | null>(null);
   const [showFullInterview, setShowFullInterview] = useState(false);
@@ -264,6 +269,7 @@ export default function RecruiterCandidateDetail() {
             onEdit={() => openEdit()}
             onCvUpload={() => setCvUploadOpen(true)}
             onStartInterview={handleStartInterview}
+            onLebenslaufAnfragen={!dossier.loading && !dossier.cv && !lebenslaufAnfrage ? () => setLebenslaufAnfragenOpen(true) : undefined}
           />
 
         {/* Aufgaben-Fenster: öffnet sich über ?aufgabe= (Dashboard, Aufgaben-Block im Profilkopf) */}
@@ -329,11 +335,16 @@ export default function RecruiterCandidateDetail() {
                   onImport={() => setCaptureMode('import')}
                   onLive={handleStartInterview}
                   onQuick={() => setCaptureMode('quick')}
+                  lebenslauf={dossier.cv}
+                  onLebenslaufAnfragen={() => setLebenslaufAnfragenOpen(true)}
+                  onUploadCv={() => setCvUploadOpen(true)}
                 />
                 <DossierReadinessCard
                   readiness={dossier.readiness}
                   firstName={candidate.full_name.split(' ')[0] || candidate.full_name}
+                  cv={dossier.cv}
                   onEdit={openEdit}
+                  onUploadCv={() => setCvUploadOpen(true)}
                   onStartInterview={handleStartInterview}
                   onCompleteAndSubmit={() => { setSubmitAfterInterview(true); handleStartInterview(); }}
                   onViewExpose={handleViewExpose}
@@ -355,6 +366,11 @@ export default function RecruiterCandidateDetail() {
       />
 
       <AddActivityDialog open={addActivityOpen} onOpenChange={setAddActivityOpen} onSubmit={handleAddActivity} />
+      <LebenslaufAnfragenFenster
+        open={lebenslaufAnfragenOpen}
+        onOpenChange={setLebenslaufAnfragenOpen}
+        candidate={{ id: candidate.id, vorname: candidate.full_name.split(' ')[0] || candidate.full_name, email: candidate.email ?? null }}
+      />
       <CvUploadDialog
         open={cvUploadOpen}
         onOpenChange={setCvUploadOpen}
@@ -372,10 +388,11 @@ export default function RecruiterCandidateDetail() {
         form={dossier.form}
         onSave={handleDossierSave}
         focus={editFocus}
+        hasCv={!!dossier.cv}
       />
       <SubmitToJobDialog
         open={submitOpen}
-        onOpenChange={(o) => { setSubmitOpen(o); if (!o) setSubmitJobId(null); }}
+        onOpenChange={(o) => { setSubmitOpen(o); if (!o) { setSubmitJobId(null); dossier.reload(); } }}
         initialJobId={submitJobId}
         candidateId={candidate.id}
         candidateName={candidate.full_name}
@@ -401,6 +418,8 @@ export default function RecruiterCandidateDetail() {
         directSubmit={submitAfterInterview}
         onSubmitToJob={() => setSubmitOpen(true)}
         onEditMissing={openEdit}
+        hasCv={!!dossier.cv}
+        onUploadCv={() => setCvUploadOpen(true)}
       />
       <CaptureDialog
         open={captureMode !== null}
@@ -412,6 +431,7 @@ export default function RecruiterCandidateDetail() {
         onEdit={openEdit}
         onSubmitToJob={() => setSubmitOpen(true)}
         onComplete={async () => { await dossier.markInterviewCompleted(); setSourcesRefresh((n) => n + 1); notifyTasksChanged(); }}
+        hasCv={!!dossier.cv}
       />
     </DashboardLayout>
   );

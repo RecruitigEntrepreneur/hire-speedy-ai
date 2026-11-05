@@ -4,6 +4,7 @@
 // Prompt verwenden (sonst wäre der Qualitätsvergleich wertlos).
 
 import type { LLMView } from "./pii-redaction.ts";
+import { fuehrungKiText } from "./fuehrung.ts";
 
 export const FIT_MODEL = "google/gemini-2.5-flash";
 
@@ -121,9 +122,7 @@ export function buildRawView(
           why_now: interviewNotes.why_now ?? null,
           offer_requirements: Array.isArray(interviewNotes.offer_requirements) ? interviewNotes.offer_requirements : [],
           notice_period: interviewNotes.notice_period ?? null,
-          leadership: interviewNotes.leadership_scope && interviewNotes.leadership_scope !== 'none'
-            ? `${interviewNotes.leadership_scope === 'disciplinary' ? 'disziplinarisch' : 'fachlich'}${interviewNotes.leadership_team_size ? `, ${interviewNotes.leadership_team_size} Personen` : ''}`
-            : null,
+          leadership: fuehrungKiText(interviewNotes),
           career_ultimate_goal: interviewNotes.career_ultimate_goal ?? null,
           would_recommend: interviewNotes.would_recommend ?? null,
         }

@@ -5,14 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, User, ChevronDown, Upload, Link as LinkIcon, FileText } from 'lucide-react';
+import { Loader2, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { CandidateStatsBar } from '@/components/candidates/CandidateStatsBar';
@@ -26,8 +19,11 @@ import { BulkActionsBar } from '@/components/candidates/BulkActionsBar';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
+import { fetchCandidateIdsWithCv } from '@/hooks/useCandidateCv';
 import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
-import { Link } from 'react-router-dom';
+import { KandidatAnlegenMenu } from '@/components/candidates/KandidatAnlegenMenu';
+import { KandidatKurzDialog } from '@/components/candidates/KandidatKurzDialog';
+import { PerMailWeiterleitenDialog } from '@/components/candidates/PerMailWeiterleitenDialog';
 
 const defaultFilters: FilterState = {
   search: '', experienceMin: 0, experienceMax: 30, salaryMin: 0, salaryMax: 500000,
@@ -56,6 +52,11 @@ export default function RecruiterCandidates() {
   const [tagManagerCandidateId, setTagManagerCandidateId] = useState<string | null>(null);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
+  const [cvStartText, setCvStartText] = useState(false);
+  const [kurzOpen, setKurzOpen] = useState(false);
+  const [perMailOpen, setPerMailOpen] = useState(false);
+  // Wer hat einen hochgeladenen Lebenslauf? Ohne ihn kein Einreichen.
+  const [withCvIds, setWithCvIds] = useState<Set<string> | null>(null);
 
   const { tags, getCandidateTags, createTag, deleteTag, assignTag, removeTag, assignments } = useCandidateTags();
 
@@ -77,6 +78,7 @@ export default function RecruiterCandidates() {
       
       // Fetch submissions for all candidates
       const candidateIds = data.map((c: any) => c.id);
+      fetchCandidateIdsWithCv(candidateIds).then(setWithCvIds, () => setWithCvIds(null));
       if (candidateIds.length > 0) {
         // Kein jobs(...)-Join mehr: Recruiter lesen Jobs nur ueber
         // recruiter_jobs_view (reveal-gated).
@@ -261,40 +263,15 @@ export default function RecruiterCandidates() {
             <Button variant="outline" onClick={() => { setTagManagerCandidateId(null); setTagManagerOpen(true); }}>
               Tags verwalten
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button data-tour="candidates.add">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Kandidat hinzufügen
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => handleOpenDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Manuell hinzufügen
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCvUploadDialogOpen(true)}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  CV hochladen
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Aus HubSpot importieren
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <Upload className="h-4 w-4 mr-2" />
-                  CSV importieren (bald)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/recruiter/integrations" className="flex items-center">
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    CRM verbinden
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <KandidatAnlegenMenu
+              size="default"
+              tour="candidates.add"
+              onLebenslauf={() => setCvUploadDialogOpen(true)}
+              onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
+              onOhneLebenslauf={() => setKurzOpen(true)}
+              onHubspot={() => setHubspotDialogOpen(true)}
+              onPerMail={() => setPerMailOpen(true)}
+            />
           </div>
         </div>
 
@@ -314,13 +291,19 @@ export default function RecruiterCandidates() {
                   <User className="h-12 w-12 text-muted-foreground mb-4" />
                   {stats.total === 0 && !filters.search ? <>
                     <p className="font-medium">Noch keine Kandidaten</p>
-                    <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">Leg deinen ersten an: von Hand, per Lebenslauf oder aus HubSpot. Beim Vorstellen wählst du ihn dann direkt aus dieser Liste.</p>
+                    <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">Leg deinen ersten am besten per Lebenslauf an. Ohne Lebenslauf kannst du ihn später nicht einreichen.</p>
                   </> : <p className="text-muted-foreground">Keine Kandidaten gefunden</p>}
                   {!filters.search && (
-                    <Button className="mt-4" onClick={() => handleOpenDialog()}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Kandidat hinzufügen
-                    </Button>
+                    <div className="mt-4">
+                      <KandidatAnlegenMenu
+                        size="default"
+                        onLebenslauf={() => setCvUploadDialogOpen(true)}
+                        onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
+                        onOhneLebenslauf={() => setKurzOpen(true)}
+                        onHubspot={() => setHubspotDialogOpen(true)}
+                        onPerMail={() => setPerMailOpen(true)}
+                      />
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -330,6 +313,7 @@ export default function RecruiterCandidates() {
                 candidate={c} 
                 tags={getCandidateTags(c.id)}
                 submissions={submissionsByCandidate[c.id] || []}
+                cvMissing={!!withCvIds && !withCvIds.has(c.id)}
                 isSelected={selectedIds.includes(c.id)}
                 onSelect={handleSelect} 
                 onEdit={handleOpenDialog} 
@@ -345,6 +329,7 @@ export default function RecruiterCandidates() {
         {viewMode === 'list' && (
           <CandidateListView 
             candidates={filteredCandidates} 
+            withCvIds={withCvIds}
             selectedIds={selectedIds} 
             onSelect={handleSelect} 
             onSelectAll={handleSelectAll} 
@@ -360,6 +345,7 @@ export default function RecruiterCandidates() {
         {viewMode === 'table' && (
           <CandidateTableView 
             candidates={filteredCandidates} 
+            withCvIds={withCvIds}
             selectedIds={selectedIds} 
             onSelect={handleSelect} 
             onSelectAll={handleSelectAll} 
@@ -417,12 +403,15 @@ export default function RecruiterCandidates() {
 
       <CvUploadDialog
         open={cvUploadDialogOpen}
-        onOpenChange={setCvUploadDialogOpen}
+        onOpenChange={(o) => { setCvUploadDialogOpen(o); if (!o) setCvStartText(false); }}
+        startWithText={cvStartText}
         onCandidateCreated={() => {
           fetchCandidates();
           toast.success('Kandidat aus CV erstellt');
         }}
       />
+      <KandidatKurzDialog open={kurzOpen} onOpenChange={setKurzOpen} />
+      <PerMailWeiterleitenDialog open={perMailOpen} onOpenChange={setPerMailOpen} />
     </DashboardLayout>
   );
 }

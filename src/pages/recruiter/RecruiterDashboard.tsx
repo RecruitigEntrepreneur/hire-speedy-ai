@@ -17,33 +17,19 @@ import {
   Lock,
   CheckCircle,
   MapPin,
-  Upload,
   Phone,
   Check,
   ChevronRight,
-  ChevronDown,
   Calendar,
-  UserPlus,
   Euro,
   Building2,
   Video,
-  Mail,
-  Copy,
-  MessageSquare,
-  Plug,
   Compass,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { formatHeadcount } from '@/lib/companyLogo';
 import { FirmenLogo } from '@/components/company/FirmenLogo';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
@@ -60,15 +46,10 @@ import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
-import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
+import { KandidatAnlegenMenu } from '@/components/candidates/KandidatAnlegenMenu';
+import { KandidatKurzDialog } from '@/components/candidates/KandidatKurzDialog';
+import { PerMailWeiterleitenDialog } from '@/components/candidates/PerMailWeiterleitenDialog';
 import { useRecruiterGuide } from '@/components/recruiter/guide/RecruiterGuide';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow } from 'date-fns';
@@ -176,9 +157,9 @@ export default function RecruiterDashboard() {
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
   const [cvUploadDialogOpen, setCvUploadDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [emailCopied, setEmailCopied] = useState(false);
-  const [candidateFormOpen, setCandidateFormOpen] = useState(false);
-  const [candidateFormProcessing, setCandidateFormProcessing] = useState(false);
+  // „Kandidaten anlegen“: Text-Einfügen öffnet den Import mit offenem Textfeld, „Ohne Lebenslauf“ die kurze Maske.
+  const [cvStartText, setCvStartText] = useState(false);
+  const [kurzOpen, setKurzOpen] = useState(false);
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
 
@@ -479,43 +460,6 @@ export default function RecruiterDashboard() {
     return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
   }, [urgentCount, prepCount, upcomingInterviews, totalPendingAlerts, topRows, isNewcomer]);
 
-  const inboundEmail = useMemo(() => {
-    if (!user?.id) return '';
-    const shortId = user.id.replace(/-/g, '').slice(0, 8);
-    return `r_${shortId}@inbound.matchunt.ai`;
-  }, [user?.id]);
-
-  const handleCopyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText(inboundEmail);
-      setEmailCopied(true);
-      toast.success('E-Mail-Adresse kopiert');
-      setTimeout(() => setEmailCopied(false), 2000);
-    } catch {
-      toast.error('Kopieren fehlgeschlagen');
-    }
-  };
-
-  const handleSaveNewCandidate = async (candidateData: Record<string, unknown>) => {
-    setCandidateFormProcessing(true);
-    try {
-      const insertData = { ...candidateData, recruiter_id: user?.id };
-      const { data, error } = await supabase
-        .from('candidates')
-        .insert(insertData as never)
-        .select('id')
-        .single();
-      if (error) throw error;
-      toast.success('Kandidat angelegt');
-      setCandidateFormOpen(false);
-      if (data?.id) navigate(`/recruiter/candidates/${data.id}`);
-    } catch {
-      toast.error('Fehler beim Speichern');
-    } finally {
-      setCandidateFormProcessing(false);
-    }
-  };
-
   // ─── Render ─────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -551,40 +495,13 @@ export default function RecruiterDashboard() {
                   <Compass className="mr-1.5 h-3.5 w-3.5" />
                   Rundgang
                 </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setCandidateFormOpen(true)}
-                >
-                  <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                  Kandidaten anlegen
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="px-2">
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setCvUploadDialogOpen(true)}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      CV hochladen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setHubspotDialogOpen(true)}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      HubSpot Import
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/recruiter/integrations')}>
-                      <Plug className="mr-2 h-4 w-4" />
-                      CRM verbinden
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setEmailDialogOpen(true)}>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Per E-Mail senden
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+<KandidatAnlegenMenu
+                  onLebenslauf={() => setCvUploadDialogOpen(true)}
+                  onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
+                  onOhneLebenslauf={() => setKurzOpen(true)}
+                  onHubspot={() => setHubspotDialogOpen(true)}
+                  onPerMail={() => setEmailDialogOpen(true)}
+                />
               </div>
             </div>
           </CardContent>
@@ -1009,16 +926,11 @@ export default function RecruiterDashboard() {
         </div>
 
         {/* ─── Dialogs ─── */}
-        <CandidateFormDialog
-          open={candidateFormOpen}
-          onOpenChange={setCandidateFormOpen}
-          candidate={null}
-          onSave={handleSaveNewCandidate}
-          processing={candidateFormProcessing}
-        />
+        <KandidatKurzDialog open={kurzOpen} onOpenChange={setKurzOpen} />
         <CvUploadDialog
           open={cvUploadDialogOpen}
-          onOpenChange={setCvUploadDialogOpen}
+          onOpenChange={(o) => { setCvUploadDialogOpen(o); if (!o) setCvStartText(false); }}
+          startWithText={cvStartText}
           onCandidateCreated={(id) => {
             toast.success('Kandidat erfolgreich angelegt');
             navigate(`/recruiter/candidates/${id}`);
@@ -1032,54 +944,7 @@ export default function RecruiterDashboard() {
           }}
         />
 
-        {/* Email Inbound Dialog */}
-        <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Kandidaten per E-Mail einreichen</DialogTitle>
-              <DialogDescription>
-                Leite CVs einfach als PDF-Anhang an deine persoenliche Matchunt-Adresse weiter.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-muted rounded-md px-3 py-2.5 text-sm font-mono select-all truncate border border-border/50">
-                  {inboundEmail}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 h-9 w-9 p-0"
-                  onClick={handleCopyEmail}
-                >
-                  {emailCopied ? (
-                    <Check className="h-4 w-4 text-emerald-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-2 bg-muted/30 rounded-lg p-3">
-                <div className="flex gap-2">
-                  <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>PDF-Lebenslaeufe werden automatisch analysiert und als Kandidaten angelegt – auch mehrere auf einmal.</span>
-                </div>
-                <div className="flex gap-2">
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>Schreibe Notizen einfach in den E-Mail-Text dazu – sie werden automatisch erkannt und dem Kandidaten zugeordnet.</span>
-                </div>
-                <div className="flex gap-2">
-                  <Users className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>Notizen ohne CV? Das System erkennt den Kandidatennamen und ordnet alles automatisch zu.</span>
-                </div>
-                <div className="flex gap-2">
-                  <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>Bereits vorhandene Kandidaten werden erkannt und aktualisiert statt doppelt angelegt.</span>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PerMailWeiterleitenDialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen} />
       </div>
     </DashboardLayout>
   );

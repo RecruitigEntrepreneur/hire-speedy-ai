@@ -103,6 +103,10 @@ verify_jwt = true
 [functions.client-question]
 verify_jwt = true
 
+# Original-Lebenslauf für den Kunden nach der Interview-Zusage
+[functions.client-candidate-cv]
+verify_jwt = true
+
 [functions.detect-candidate-conflicts]
 verify_jwt = true
 
