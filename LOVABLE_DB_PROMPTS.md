@@ -1405,6 +1405,37 @@ Feldern (`offers.candidate_response`, `interviews.feedback`, `messages`). **Kein
 
 ---
 
+## 44 — Live-Interview, Kandidat einladen, Lebenslauf anfragen und Pflicht, Führung, Zwischenstand (05.11.2026)
+
+Commits c66714d, af94a2a, fddd6e4, d092af3. **4 Migrationen, 9 Edge Functions, Publish.** Erst nach Nr. 43.
+Achtung: Ab Migration 2 geht keine neue Einreichung mehr ohne hochgeladenen Lebenslauf (Admins ausgenommen,
+bestehende Einreichungen unberührt). Lebensläufe im Speicher sieht nur noch der eigene Headhunter.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese 4 Migrationen in dieser Reihenfolge ausführen, keine andere (die Akademie-Dateien `20261022…`
+>    sind weiter bewusst nicht dran):
+>    1. `supabase/migrations/20261101090000_kandidaten_einladung.sql` (neue Tabelle `candidate_invites`, Spalten
+>       `prep_dismissed_at/reason` an `candidates`)
+>    2. `supabase/migrations/20261105090000_lebenslauf_pflicht.sql` (Trigger `require_candidate_cv` auf
+>       `submissions`, Spalten an `candidate_documents` und `submissions`, Speicherregeln `cv-documents`)
+>    3. `supabase/migrations/20261105100000_lebenslauf_anfragen.sql` (neue Tabelle `cv_requests`)
+>    4. `supabase/migrations/20261105110000_fuehrung_beides.sql` (2 Spalten an `candidate_interview_notes`,
+>       Ansicht `client_candidate_interview_view` neu)
+>    Keine Daten-Einfügungen, kein Cron, keine neuen Secrets. GRANT steht jeweils vor RLS.
+> 3. Diese 9 Edge Functions deployen: `termin-einladung` (neu), `client-candidate-cv` (neu, `verify_jwt = true`
+>    laut `supabase/config.toml`), `termin-seite`, `recruiter-notify`, `assess-candidate-fit`, `calculate-match-v4`,
+>    `extract-candidate-dossier`, `interview-understand`, `match-v41`. Sie nutzen die geänderten Module
+>    `termin-mails`, `termin-seite`, `intake-limits`, `pii-redaction`, `fit-assessment`, `match-v41/db-inputs`
+>    und das neue `fuehrung`.
+> 4. Danach Publish.
+> 5. Am Code nichts ändern. Keine Migration und keine Function überspringen. Falls etwas nicht durchläuft, alle
+>    Befunde gesammelt mit Grund melden. Am Ende melden: welche 4 Migrationen im Journal stehen, welche Functions
+>    deployt sind und dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (vier neue Einträge nach `0051_liga_wochenlauf_fix`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
