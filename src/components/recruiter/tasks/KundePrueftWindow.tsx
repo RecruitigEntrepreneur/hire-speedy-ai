@@ -47,18 +47,23 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
   const [chosen, setChosen] = useState<string[]>([]);
   const [clientEdit, setClientEdit] = useState<string | null>(null);
   const [candEdit, setCandEdit] = useState<string | null>(null);
+  // Schon gesendeter Zwischenstand, auf Klick nachlesbar (05.11.2026)
+  const [textOffen, setTextOffen] = useState(false);
+  const [gesendeterText, setGesendeterText] = useState<string | null>(null);
 
   useEffect(() => {
     setIntent(startSent ? bundle?.items[0]?.lastNudgeIntent ?? 'decision' : 'decision');
     setHints([]);
     setClientEdit(null);
     setCandEdit(null);
+    setTextOffen(false);
+    setGesendeterText(null);
     setExtra(startSent ? [] : sameClient.map(b => b.key));
     if (bundle && startSent) {
       const nudged = bundle.items.map(i => i.submissionId).filter((x): x is string => !!x);
       setSent({ at: new Date(startSent.at), nudged });
       setChosen(bundle.items.filter(i => candidateUpdateChoice({
-        hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung',
+        hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung', nudgeAt: startSent.at,
       }, new Date()).preselect).map(i => i.itemId));
     } else {
       setSent(null);
@@ -124,7 +129,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
     toast.success(`${feedback ? 'Kunde gefragt' : 'Kunde erinnert'}${items.length > 1 ? ` (${nudged.length} Kandidaten in einer Mail)` : ''}.${skipped > 0 ? ` ${skipped} war${skipped === 1 ? '' : 'en'} in den letzten 3 Tagen schon erinnert.` : ''}`);
     const done = items.filter(i => i.submissionId && nudged.includes(i.submissionId));
     setChosen(done.filter(i => candidateUpdateChoice({
-      hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung',
+      hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung', nudgeAt: now.toISOString(),
     }, now).preselect).map(i => i.itemId));
     setSent({ at: new Date(), nudged });
     onDone();
@@ -133,6 +138,25 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
 
   const wann = sent && sent.at.toDateString() !== new Date().toDateString() ? `am ${dateDe(sent.at.toISOString())}` : 'heute';
   const updateItems = sent ? items.filter(i => i.submissionId && sent.nudged.includes(i.submissionId)) : [];
+  // Zu dieser Erinnerung schon Bescheid gegeben: Zeile erledigt statt anhakbar (05.11.2026)
+  const choiceOf = (i: (typeof items)[number]) => candidateUpdateChoice({
+    hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung', nudgeAt: sent?.at.toISOString() ?? null,
+  }, now);
+  const offen = updateItems.filter(i => !choiceOf(i).erledigt);
+  const bescheidGegeben = updateItems.filter(i => choiceOf(i).erledigt);
+  const schritt2Erledigt = !!sent && updateItems.length > 0 && offen.length === 0;
+  const wannKurz = (iso: string) => {
+    const d = new Date(iso);
+    return d.toDateString() === new Date().toDateString() ? `heute ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : `am ${dateDe(iso)}`;
+  };
+  const textUmschalten = async (submissionId: string | null | undefined) => {
+    setTextOffen(o => !o);
+    if (gesendeterText !== null || !submissionId) return;
+    const { data } = await supabase.from('candidate_activity_log').select('description')
+      .eq('related_submission_id', submissionId).contains('metadata', { kind: 'candidate_message' })
+      .order('created_at', { ascending: false }).limit(1);
+    setGesendeterText((data?.[0] as { description?: string | null } | undefined)?.description ?? '');
+  };
   const chosenItems = updateItems.filter(i => chosen.includes(i.itemId));
   // Ein Kandidat: Text änderbar; mehrere: je Kandidat der passende Zwischenstand
   const singleText = chosenItems.length === 1 ? candEdit ?? candidateUpdateText(sendIntent, chosenItems[0].jobTitle, until, wann) : null;
@@ -246,14 +270,52 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
 
             {/* Schritt 2 */}
             <div className="flex gap-2.5">
-              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', sent ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground')}>2</span>
+              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', schritt2Erledigt ? 'bg-emerald-500 text-white' : sent ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground')}>{schritt2Erledigt ? <Check className="h-3 w-3" /> : 2}</span>
               <div className="min-w-0 flex-1 space-y-2">
+                {schritt2Erledigt ? (
+                  <>
+                    {bescheidGegeben.length === 1 ? (
+                      <p className="text-sm font-medium">{firstName(bescheidGegeben[0].candidateName)} Bescheid gegeben · {wannKurz(choiceOf(bescheidGegeben[0]).erledigt!.at)}</p>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium">Kandidaten Bescheid gegeben</p>
+                        <ul className="space-y-0.5 text-xs text-muted-foreground">
+                          {bescheidGegeben.map(i => <li key={i.itemId}>{i.candidateName} · {wannKurz(choiceOf(i).erledigt!.at)}</li>)}
+                        </ul>
+                      </>
+                    )}
+                    {bescheidGegeben.length === 1 && (
+                      <>
+                        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => void textUmschalten(bescheidGegeben[0].submissionId)}>
+                          {textOffen ? 'Text ausblenden' : 'Text ansehen'}
+                        </button>
+                        {textOffen && gesendeterText !== null && (
+                          <p className="whitespace-pre-line rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">
+                            {gesendeterText ? `Hallo ${firstName(bescheidGegeben[0].candidateName)},\n\n${gesendeterText}` : 'Der Text ist nicht mehr gespeichert.'}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </>
+                ) : (
                 <p className={cn('text-sm', sent ? 'font-medium' : 'text-muted-foreground')}>Kandidaten Bescheid geben?{!sent && ' · kommt nach dem Senden'}</p>
-                {sent && (
+                )}
+                {sent && !schritt2Erledigt && (
                   <>
                     <div className="divide-y divide-border/60 rounded-md border border-border/60 bg-background/60">
                       {updateItems.map(i => {
-                        const c = candidateUpdateChoice({ hasEmail: !!i.candidateEmail, lastContactAt: i.lastCandidateContactAt ?? null, lastUpdateAt: i.lastCandidateUpdateAt ?? null, submittedAt: i.createdAt, anchor: feedback ? 'Interview' : 'Einreichung' }, now);
+                        const c = choiceOf(i);
+                        if (c.erledigt) {
+                          return (
+                            <div key={i.itemId} className="flex items-start gap-2 p-2 text-xs text-muted-foreground">
+                              <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm">{i.candidateName}{included.length > 1 ? <span> · {i.jobTitle}</span> : null}</span>
+                                <span className="block">{c.reason}</span>
+                              </span>
+                            </div>
+                          );
+                        }
                         return (
                           <label key={i.itemId} className={cn('flex items-start gap-2 p-2 text-xs', c.disabled ? 'opacity-60' : 'cursor-pointer')}>
                             <Checkbox className="mt-0.5" disabled={c.disabled} checked={chosen.includes(i.itemId)} onCheckedChange={() => { setChosen(x => toggle(x, i.itemId)); setCandEdit(null); }} />
@@ -281,8 +343,8 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
 
             {/* Schritt 3 */}
             <div className="flex gap-2.5">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">3</span>
-              <p className="text-xs leading-5 text-muted-foreground">
+              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]', schritt2Erledigt ? 'bg-primary font-medium text-primary-foreground' : 'border border-border text-muted-foreground')}>3</span>
+              <p className={cn('leading-5', schritt2Erledigt ? 'text-sm' : 'text-xs text-muted-foreground')}>
                 {zweite
                   ? `Kommt ${frist} nichts, übernimmt Matchunt. Für dich ist die Aufgabe dann zu Ende.`
                   : `Danach wartest du. Kommt ${frist} nichts, steht hier einmal die ${feedback ? '2. Nachfrage' : '2. Erinnerung'}. Danach übernimmt Matchunt.`}
@@ -303,6 +365,8 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
                   <Mail className="h-3 w-3" />{zweite ? '2. Erinnerung senden' : feedback ? 'Kunden fragen' : 'Kunden erinnern'}
                 </Button>
               </>
+            ) : offen.length === 0 ? (
+              <Button size="sm" className="h-8 text-xs" onClick={onClose}>Schließen</Button>
             ) : (
               <>
                 <Button size="sm" variant="outline" className="h-8 text-xs" disabled={sending} onClick={onClose}>Nicht nötig</Button>

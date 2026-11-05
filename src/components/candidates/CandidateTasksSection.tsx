@@ -36,6 +36,7 @@ import { vorbereitenTexte, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 import { Honorar } from '@/components/recruiter/Honorar';
+import { candidateUpdateChoice } from '@/lib/kundePrueft';
 
 interface CandidateTask {
   id: string;
@@ -720,7 +721,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {item.waitState === 'matchunt'
                     ? 'Matchunt kümmert sich'
                     : `${(item.nudgeCount ?? 0) >= 2 ? 'Matchunt übernimmt' : '2. Erinnerung'} ab ${item.nextNudgeAt ? new Date(item.nextNudgeAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : ''}`}
-                  {item.waitState !== 'matchunt' && <span className="block text-primary">Kandidat Bescheid geben →</span>}
+                  {item.waitState !== 'matchunt' && (candidateUpdateChoice({
+                    hasEmail: !!item.candidateEmail, lastContactAt: item.lastCandidateContactAt ?? null, lastUpdateAt: item.lastCandidateUpdateAt ?? null, submittedAt: item.createdAt, nudgeAt: item.lastNudgeAt ?? null,
+                  }, new Date()).erledigt
+                    ? <span className="block">Bescheid gegeben</span>
+                    : <span className="block text-primary">Kandidat Bescheid geben →</span>)}
                 </p>
               </div>
             ))}

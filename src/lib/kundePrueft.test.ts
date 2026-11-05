@@ -42,10 +42,21 @@ describe('Kandidaten Bescheid geben?', () => {
     expect(c.preselect).toBe(true);
     expect(c.reason).toBe('Letzter Kontakt vor 7 Tagen (Einreichung)');
   });
-  it('wählt nicht aus, wenn er diese Woche schon einen Zwischenstand bekam', () => {
-    const c = candidateUpdateChoice({ hasEmail: true, lastContactAt: '2026-10-19T18:22:00', lastUpdateAt: '2026-10-19T18:22:00', submittedAt: '2026-10-14T13:00:00' }, now);
+  it('sperrt, wenn er zu dieser Erinnerung schon einen Zwischenstand bekam', () => {
+    const c = candidateUpdateChoice({ hasEmail: true, lastContactAt: '2026-10-19T18:22:00', lastUpdateAt: '2026-10-19T18:22:00', submittedAt: '2026-10-14T13:00:00', nudgeAt: '2026-10-19T18:20:00' }, now);
     expect(c.preselect).toBe(false);
-    expect(c.reason).toBe('Zwischenstand gestern schon bekommen');
+    expect(c.disabled).toBe(true);
+    expect(c.erledigt).toEqual({ at: '2026-10-19T18:22:00' });
+    expect(c.reason).toBe('Zwischenstand gestern bekommen');
+    const heute = candidateUpdateChoice({ hasEmail: true, lastContactAt: null, lastUpdateAt: '2026-10-20T09:05:00', submittedAt: null }, now);
+    expect(heute.reason).toBe('Zwischenstand heute um 09:05 bekommen');
+  });
+  it('nach einer neuen Erinnerung wieder wählbar, aber nicht vorausgewählt', () => {
+    const c = candidateUpdateChoice({ hasEmail: true, lastContactAt: '2026-10-16T18:22:00', lastUpdateAt: '2026-10-16T18:22:00', submittedAt: '2026-10-14T13:00:00', nudgeAt: '2026-10-20T10:00:00' }, now);
+    expect(c.preselect).toBe(false);
+    expect(c.disabled).toBe(false);
+    expect(c.erledigt).toBeUndefined();
+    expect(c.reason).toBe('Zwischenstand vor 4 Tagen schon bekommen');
   });
   it('wählt nicht aus, wenn du vor kurzem angerufen hast', () => {
     const c = candidateUpdateChoice({ hasEmail: true, lastContactAt: '2026-10-16T11:00:00', lastUpdateAt: null, submittedAt: '2026-10-05T09:00:00' }, now);
