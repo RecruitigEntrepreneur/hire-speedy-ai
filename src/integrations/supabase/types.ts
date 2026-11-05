@@ -1631,6 +1631,8 @@ export type Database = {
           international_pref: string | null
           interview_date: string | null
           interview_type: string | null
+          leadership_also_functional: boolean | null
+          leadership_functional_size: number | null
           leadership_scope: string | null
           leadership_team_size: number | null
           non_compete: string | null
@@ -1685,6 +1687,8 @@ export type Database = {
           international_pref?: string | null
           interview_date?: string | null
           interview_type?: string | null
+          leadership_also_functional?: boolean | null
+          leadership_functional_size?: number | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
           non_compete?: string | null
@@ -1739,6 +1743,8 @@ export type Database = {
           international_pref?: string | null
           interview_date?: string | null
           interview_type?: string | null
+          leadership_also_functional?: boolean | null
+          leadership_functional_size?: number | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
           non_compete?: string | null
@@ -14869,6 +14875,8 @@ export type Database = {
           interview_date: string | null
           interview_type: string | null
           job_id: string | null
+          leadership_also_functional: boolean | null
+          leadership_functional_size: number | null
           leadership_scope: string | null
           leadership_team_size: number | null
           notice_period: string | null
