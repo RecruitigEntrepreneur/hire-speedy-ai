@@ -1794,6 +1794,93 @@ export type Database = {
           },
         ]
       }
+      candidate_invites: {
+        Row: {
+          arten: string[]
+          booked_at: string | null
+          booking_id: string | null
+          candidate_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          opened_at: string | null
+          recruiter_id: string
+          revoked_at: string | null
+          sent_at: string | null
+          token_hash: string
+          weg: string
+        }
+        Insert: {
+          arten: string[]
+          booked_at?: string | null
+          booking_id?: string | null
+          candidate_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          opened_at?: string | null
+          recruiter_id: string
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash: string
+          weg: string
+        }
+        Update: {
+          arten?: string[]
+          booked_at?: string | null
+          booking_id?: string | null
+          candidate_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          opened_at?: string | null
+          recruiter_id?: string
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash?: string
+          weg?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_invites_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+        ]
+      }
       candidate_languages: {
         Row: {
           candidate_id: string
@@ -2387,6 +2474,8 @@ export type Database = {
           phone_verified: boolean | null
           portfolio_url: string | null
           preferred_channel: string | null
+          prep_dismissed_at: string | null
+          prep_dismissed_reason: string | null
           project_metrics: Json | null
           recruiter_id: string
           relocation_willing: boolean | null
@@ -2464,6 +2553,8 @@ export type Database = {
           phone_verified?: boolean | null
           portfolio_url?: string | null
           preferred_channel?: string | null
+          prep_dismissed_at?: string | null
+          prep_dismissed_reason?: string | null
           project_metrics?: Json | null
           recruiter_id: string
           relocation_willing?: boolean | null
@@ -2541,6 +2632,8 @@ export type Database = {
           phone_verified?: boolean | null
           portfolio_url?: string | null
           preferred_channel?: string | null
+          prep_dismissed_at?: string | null
+          prep_dismissed_reason?: string | null
           project_metrics?: Json | null
           recruiter_id?: string
           relocation_willing?: boolean | null
