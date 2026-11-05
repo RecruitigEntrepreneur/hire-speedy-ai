@@ -1220,8 +1220,10 @@ export type Database = {
       candidate_documents: {
         Row: {
           candidate_id: string
+          confirmed_current_at: string | null
           created_at: string | null
           document_type: string
+          extracted: Json | null
           file_name: string
           file_size: number | null
           file_url: string
@@ -1234,8 +1236,10 @@ export type Database = {
         }
         Insert: {
           candidate_id: string
+          confirmed_current_at?: string | null
           created_at?: string | null
           document_type: string
+          extracted?: Json | null
           file_name: string
           file_size?: number | null
           file_url: string
@@ -1248,8 +1252,10 @@ export type Database = {
         }
         Update: {
           candidate_id?: string
+          confirmed_current_at?: string | null
           created_at?: string | null
           document_type?: string
+          extracted?: Json | null
           file_name?: string
           file_size?: number | null
           file_url?: string
@@ -1625,6 +1631,8 @@ export type Database = {
           international_pref: string | null
           interview_date: string | null
           interview_type: string | null
+          leadership_also_functional: boolean | null
+          leadership_functional_size: number | null
           leadership_scope: string | null
           leadership_team_size: number | null
           non_compete: string | null
@@ -1679,6 +1687,8 @@ export type Database = {
           international_pref?: string | null
           interview_date?: string | null
           interview_type?: string | null
+          leadership_also_functional?: boolean | null
+          leadership_functional_size?: number | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
           non_compete?: string | null
@@ -1733,6 +1743,8 @@ export type Database = {
           international_pref?: string | null
           interview_date?: string | null
           interview_type?: string | null
+          leadership_also_functional?: boolean | null
+          leadership_functional_size?: number | null
           leadership_scope?: string | null
           leadership_team_size?: number | null
           non_compete?: string | null
@@ -1787,6 +1799,93 @@ export type Database = {
           },
           {
             foreignKeyName: "candidate_interview_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+        ]
+      }
+      candidate_invites: {
+        Row: {
+          arten: string[]
+          booked_at: string | null
+          booking_id: string | null
+          candidate_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          opened_at: string | null
+          recruiter_id: string
+          revoked_at: string | null
+          sent_at: string | null
+          token_hash: string
+          weg: string
+        }
+        Insert: {
+          arten: string[]
+          booked_at?: string | null
+          booking_id?: string | null
+          candidate_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          opened_at?: string | null
+          recruiter_id: string
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash: string
+          weg: string
+        }
+        Update: {
+          arten?: string[]
+          booked_at?: string | null
+          booking_id?: string | null
+          candidate_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          opened_at?: string | null
+          recruiter_id?: string
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash?: string
+          weg?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_invites_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "candidate_invites_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "client_offers_view"
@@ -2387,6 +2486,8 @@ export type Database = {
           phone_verified: boolean | null
           portfolio_url: string | null
           preferred_channel: string | null
+          prep_dismissed_at: string | null
+          prep_dismissed_reason: string | null
           project_metrics: Json | null
           recruiter_id: string
           relocation_willing: boolean | null
@@ -2464,6 +2565,8 @@ export type Database = {
           phone_verified?: boolean | null
           portfolio_url?: string | null
           preferred_channel?: string | null
+          prep_dismissed_at?: string | null
+          prep_dismissed_reason?: string | null
           project_metrics?: Json | null
           recruiter_id: string
           relocation_willing?: boolean | null
@@ -2541,6 +2644,8 @@ export type Database = {
           phone_verified?: boolean | null
           portfolio_url?: string | null
           preferred_channel?: string | null
+          prep_dismissed_at?: string | null
+          prep_dismissed_reason?: string | null
           project_metrics?: Json | null
           recruiter_id?: string
           relocation_willing?: boolean | null
@@ -4508,6 +4613,100 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      cv_requests: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          expires_at: string | null
+          fulfilled_at: string | null
+          id: string
+          invite_id: string | null
+          linkedin_at: string | null
+          recruiter_id: string
+          reminded_at: string | null
+          revoked_at: string | null
+          sent_at: string | null
+          token_hash: string | null
+          upload_id: string | null
+          weg: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          expires_at?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          invite_id?: string | null
+          linkedin_at?: string | null
+          recruiter_id: string
+          reminded_at?: string | null
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash?: string | null
+          upload_id?: string | null
+          weg: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          expires_at?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          invite_id?: string | null
+          linkedin_at?: string | null
+          recruiter_id?: string
+          reminded_at?: string | null
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash?: string | null
+          upload_id?: string | null
+          weg?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "cv_requests_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cv_requests_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "booking_cv_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       data_deletion_requests: {
         Row: {
@@ -14070,6 +14269,7 @@ export type Database = {
           consent_confirmed_at: string | null
           consent_document_url: string | null
           criteria_assessment: Json | null
+          cv_document_id: string | null
           fit_overrides: Json | null
           full_access_granted: boolean | null
           full_access_granted_at: string | null
@@ -14101,6 +14301,7 @@ export type Database = {
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
           criteria_assessment?: Json | null
+          cv_document_id?: string | null
           fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
@@ -14132,6 +14333,7 @@ export type Database = {
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
           criteria_assessment?: Json | null
+          cv_document_id?: string | null
           fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
@@ -14182,6 +14384,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "client_offers_view"
             referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_cv_document_id_fkey"
+            columns: ["cv_document_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_documents"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "submissions_job_id_fkey"
@@ -14666,6 +14875,8 @@ export type Database = {
           interview_date: string | null
           interview_type: string | null
           job_id: string | null
+          leadership_also_functional: boolean | null
+          leadership_functional_size: number | null
           leadership_scope: string | null
           leadership_team_size: number | null
           notice_period: string | null
@@ -15819,6 +16030,7 @@ export type Database = {
         Returns: undefined
       }
       booking_slug_free: { Args: { p_slug: string }; Returns: boolean }
+      can_access_cv_object: { Args: { p_name: string }; Returns: boolean }
       can_access_job: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
@@ -15905,6 +16117,10 @@ export type Database = {
       cron_token_valid: {
         Args: { _name: string; _token: string }
         Returns: boolean
+      }
+      current_candidate_cv_id: {
+        Args: { p_candidate_id: string }
+        Returns: string
       }
       employer_tokens: { Args: { p_candidate_id: string }; Returns: string[] }
       end_job_search: { Args: { p_job_id: string }; Returns: Json }
