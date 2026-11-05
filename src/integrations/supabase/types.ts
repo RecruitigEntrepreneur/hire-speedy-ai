@@ -4608,6 +4608,100 @@ export type Database = {
         }
         Relationships: []
       }
+      cv_requests: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          expires_at: string | null
+          fulfilled_at: string | null
+          id: string
+          invite_id: string | null
+          linkedin_at: string | null
+          recruiter_id: string
+          reminded_at: string | null
+          revoked_at: string | null
+          sent_at: string | null
+          token_hash: string | null
+          upload_id: string | null
+          weg: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          expires_at?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          invite_id?: string | null
+          linkedin_at?: string | null
+          recruiter_id: string
+          reminded_at?: string | null
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash?: string | null
+          upload_id?: string | null
+          weg: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          expires_at?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          invite_id?: string | null
+          linkedin_at?: string | null
+          recruiter_id?: string
+          reminded_at?: string | null
+          revoked_at?: string | null
+          sent_at?: string | null
+          token_hash?: string | null
+          upload_id?: string | null
+          weg?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_job_overview"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_interviews_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "cv_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "client_offers_view"
+            referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "cv_requests_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cv_requests_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "booking_cv_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_deletion_requests: {
         Row: {
           completed_at: string | null

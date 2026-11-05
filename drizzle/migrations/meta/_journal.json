@@ -379,6 +379,13 @@
       "when": 1793885778916,
       "tag": "0053_lebenslauf_pflicht",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1793885803164,
+      "tag": "0054_lebenslauf_anfragen",
+      "breakpoints": true
     }
   ]
 }
