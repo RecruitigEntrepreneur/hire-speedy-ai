@@ -1220,8 +1220,10 @@ export type Database = {
       candidate_documents: {
         Row: {
           candidate_id: string
+          confirmed_current_at: string | null
           created_at: string | null
           document_type: string
+          extracted: Json | null
           file_name: string
           file_size: number | null
           file_url: string
@@ -1234,8 +1236,10 @@ export type Database = {
         }
         Insert: {
           candidate_id: string
+          confirmed_current_at?: string | null
           created_at?: string | null
           document_type: string
+          extracted?: Json | null
           file_name: string
           file_size?: number | null
           file_url: string
@@ -1248,8 +1252,10 @@ export type Database = {
         }
         Update: {
           candidate_id?: string
+          confirmed_current_at?: string | null
           created_at?: string | null
           document_type?: string
+          extracted?: Json | null
           file_name?: string
           file_size?: number | null
           file_url?: string
@@ -14163,6 +14169,7 @@ export type Database = {
           consent_confirmed_at: string | null
           consent_document_url: string | null
           criteria_assessment: Json | null
+          cv_document_id: string | null
           fit_overrides: Json | null
           full_access_granted: boolean | null
           full_access_granted_at: string | null
@@ -14194,6 +14201,7 @@ export type Database = {
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
           criteria_assessment?: Json | null
+          cv_document_id?: string | null
           fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
@@ -14225,6 +14233,7 @@ export type Database = {
           consent_confirmed_at?: string | null
           consent_document_url?: string | null
           criteria_assessment?: Json | null
+          cv_document_id?: string | null
           fit_overrides?: Json | null
           full_access_granted?: boolean | null
           full_access_granted_at?: string | null
@@ -14275,6 +14284,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "client_offers_view"
             referencedColumns: ["candidate_id"]
+          },
+          {
+            foreignKeyName: "submissions_cv_document_id_fkey"
+            columns: ["cv_document_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_documents"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "submissions_job_id_fkey"
@@ -15912,6 +15928,7 @@ export type Database = {
         Returns: undefined
       }
       booking_slug_free: { Args: { p_slug: string }; Returns: boolean }
+      can_access_cv_object: { Args: { p_name: string }; Returns: boolean }
       can_access_job: {
         Args: { _job_id: string; _user_id?: string }
         Returns: boolean
@@ -15998,6 +16015,10 @@ export type Database = {
       cron_token_valid: {
         Args: { _name: string; _token: string }
         Returns: boolean
+      }
+      current_candidate_cv_id: {
+        Args: { p_candidate_id: string }
+        Returns: string
       }
       employer_tokens: { Args: { p_candidate_id: string }; Returns: string[] }
       end_job_search: { Args: { p_job_id: string }; Returns: Json }

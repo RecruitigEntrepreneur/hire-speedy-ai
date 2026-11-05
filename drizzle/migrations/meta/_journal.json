@@ -372,6 +372,13 @@
       "when": 1793885734081,
       "tag": "0052_kandidaten_einladung",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1793885778916,
+      "tag": "0053_lebenslauf_pflicht",
+      "breakpoints": true
     }
   ]
 }
