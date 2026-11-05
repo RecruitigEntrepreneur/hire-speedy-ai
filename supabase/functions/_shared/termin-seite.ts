@@ -93,7 +93,7 @@ const txt = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function pruefeBuchung(b: BuchungsEingabe, e: TerminEinstellungen): Pruefung {
+export function pruefeBuchung(b: BuchungsEingabe, e: TerminEinstellungen, opt: { nameAusAkte?: boolean } = {}): Pruefung {
   // Bot-Falle: ein für Menschen unsichtbares Feld bleibt leer.
   if (txt(b.website, 200)) return { ok: false, feld: 'website', meldung: 'Die Buchung konnte nicht abgeschickt werden.', bot: true };
   const start = txt(b.start, 40);
@@ -103,7 +103,7 @@ export function pruefeBuchung(b: BuchungsEingabe, e: TerminEinstellungen): Pruef
   const first_name = txt(b.first_name, 80);
   const last_name = txt(b.last_name, 80);
   if (!first_name) return { ok: false, feld: 'first_name', meldung: 'Bitte gib deinen Vornamen an.' };
-  if (!last_name) return { ok: false, feld: 'last_name', meldung: 'Bitte gib deinen Nachnamen an.' };
+  if (!last_name && !opt.nameAusAkte) return { ok: false, feld: 'last_name', meldung: 'Bitte gib deinen Nachnamen an.' };
   const email = txt(b.email, 200).toLowerCase();
   if (!EMAIL.test(email)) return { ok: false, feld: 'email', meldung: 'Bitte prüf deine E-Mail-Adresse.' };
   const phone = txt(b.phone, 40) || null;

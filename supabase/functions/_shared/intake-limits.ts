@@ -109,6 +109,10 @@ export const LIMITS = {
     { zweck: 'termin-buchen', scope: 'ip', key: ip, limit: 10 },
     { zweck: 'termin-buchen', scope: 'email', key: email.toLowerCase(), limit: 3, windowSeconds: 86400 },
   ],
+  // Einladungs-Mails je Headhunter: individuelle Mails, keine Massenversendung.
+  terminEinladen: (recruiterId: string): LimitRule[] => [
+    { zweck: 'termin-einladen', scope: 'mail', key: recruiterId, limit: 30, windowSeconds: 86400 },
+  ],
   terminVerwalten: (ip: string | null): LimitRule[] => [
     { zweck: 'termin-verwalten', scope: 'ip', key: ip, limit: 60 },
   ],

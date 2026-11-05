@@ -52,9 +52,10 @@ import {
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterStartChecklist } from '@/components/recruiter/RecruiterStartChecklist';
-import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { buildGuide } from '@/components/recruiter/tasks/taskWindow';
-import { rowItem, splitJetzt, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
+import { dashboardRows, rowItem, splitJetzt, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
+import { vorbereitenTexte, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
@@ -182,7 +183,8 @@ export default function RecruiterDashboard() {
   const [revealedJobIds, setRevealedJobIds] = useState<Set<string>>(new Set());
 
   // Gleiche Quelle wie /recruiter/influence: Alerts + manuelle + abgeleitete Aufgaben
-  const { allItems: taskItems, markDone: taskMarkDone } = useUnifiedTaskInbox();
+  const { allItems: taskItems, prepCount, markDone: taskMarkDone } = useUnifiedTaskInbox();
+  const takt = useMinutenTakt(taskItems.some(i => i.prep?.art === 'termin'));
   const { data: interviewAgenda } = useRecruiterInterviewAgenda();
   const { logActivity } = useActivityLogger();
 
@@ -418,8 +420,9 @@ export default function RecruiterDashboard() {
 
   // Dieselben Zeilen und dieselbe Zahl wie „Jetzt“ auf der Seite „Aufgaben“ (20.10.2026).
   // Deals ohne Bewegung und Opt-Ins unter 24 Stunden stehen dort unten bzw. unter „Wartet“.
-  const jetztRows = useMemo(() => splitJetzt(taskItems).rows, [taskItems]);
-  const topRows = useMemo(() => jetztRows.slice(0, 5), [jetztRows]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const jetztRows = useMemo(() => splitJetzt(taskItems).rows, [taskItems, takt]);
+  const topRows = useMemo(() => dashboardRows(jetztRows), [jetztRows]);
   const urgentCount = useMemo(() => jetztRows.filter(r => r.critical).length, [jetztRows]);
   const totalPendingAlerts = jetztRows.length;
 
@@ -447,7 +450,9 @@ export default function RecruiterDashboard() {
     }
     // Urgent tasks, no interview soon
     if (urgentCount > 0) {
-      return `${urgentCount} dringende Aufgaben warten auf dich.`;
+      return prepCount > 0
+        ? `${urgentCount} dringende Aufgaben, ${prepCount} ${prepCount === 1 ? 'Kandidat' : 'Kandidaten'} vor der Einreichung.`
+        : `${urgentCount} dringende Aufgaben warten auf dich.`;
     }
     // No urgent, but interview today
     if (interviewToday && nextInterview) {
@@ -472,7 +477,7 @@ export default function RecruiterDashboard() {
     if (isNewcomer) return 'Schön, dass du da bist. Such dir eine passende Position und stell deinen ersten Kandidaten vor.';
     // All clear
     return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
-  }, [urgentCount, upcomingInterviews, totalPendingAlerts, topRows, isNewcomer]);
+  }, [urgentCount, prepCount, upcomingInterviews, totalPendingAlerts, topRows, isNewcomer]);
 
   const inboundEmail = useMemo(() => {
     if (!user?.id) return '';
@@ -646,7 +651,9 @@ export default function RecruiterDashboard() {
                     const title = person ? person.name : row.kind === 'bundle'
                       ? (row.more.length && row.bundle.companyName ? `${row.bundle.companyName} · ${row.more.length + 1} Stellen` : row.bundle.jobTitle || 'Stelle')
                       : item.title;
-                    const sub = person
+                    const sub = item.prep
+                      ? [item.candidateRole, vorbereitenTexte(item.prep).kurz].filter(Boolean).join(' · ')
+                      : person
                       ? `${item.jobTitle ?? ''}${item.companyName ? ` · ${item.companyName}` : ''}`
                       : row.kind === 'bundle'
                         ? `${n} ${n === 1 ? 'Kandidat' : 'Kandidaten'} · ${row.bundle.erinnerung === 2 ? (row.bundle.kind === 'feedback' ? '2. Nachfrage' : '2. Erinnerung') : row.bundle.kind === 'feedback' ? `Kunde ohne Feedback seit ${row.bundle.days} Tagen` : `Kunde prüft seit ${row.bundle.days} Tagen`}`
@@ -675,7 +682,7 @@ export default function RecruiterDashboard() {
                           {idx === 0 && <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">Als Nächstes</p>}
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-medium truncate">{title}</span>
-                            <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px] font-medium">{pill}</Badge>
+                            <Badge variant="secondary" className={cn('h-4 shrink-0 px-1.5 text-[10px] font-medium', item.prep && VORBEREITEN_TON[item.prep.art])}>{pill}</Badge>
                             {person && person.others.length > 0 && (
                               <span className="text-[11px] text-muted-foreground shrink-0">+{person.others.length}</span>
                             )}
@@ -690,7 +697,16 @@ export default function RecruiterDashboard() {
                         )}
 
                         <div className="flex items-center gap-0.5 shrink-0">
-                          {person && item.candidatePhone && (
+                          {item.prep?.art === 'termin' && item.prep.termin?.joinUrl ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild>
+                                  <a href={item.prep.termin.joinUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label="Beitreten"><Video className="h-3 w-3" /></a>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Beitreten</TooltipContent>
+                            </Tooltip>
+                          ) : person && item.candidatePhone && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -769,6 +785,12 @@ export default function RecruiterDashboard() {
                     </span>
                   </div>
                 ))}
+                {prepCount > 0 && (
+                  <Link to="/recruiter/influence" className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5 text-xs text-muted-foreground hover:text-foreground">
+                    <span>Vor der Einreichung</span>
+                    <span className="w-6 text-right text-sm font-semibold tabular-nums text-foreground">{prepCount}</span>
+                  </Link>
+                )}
               </div>
 
               <div className="pt-3 border-t border-border/40 space-y-1.5">

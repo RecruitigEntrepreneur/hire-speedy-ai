@@ -44,8 +44,18 @@ export interface TerminAnsicht {
   headhunter: HeadhunterOeffentlich; stelle: string | null; dauer: number; tage: TerminTag[];
 }
 
+/** Persönliche Einladung /t/einladung/<token> aus Sicht des Kandidaten. */
+export interface EinladungsDaten {
+  stand: 'offen' | 'gebucht' | 'abgelaufen' | 'zurueckgezogen'; offen: boolean; pausiert: boolean; kalender: boolean; tage: TerminTag[];
+  dauer: number; arten: Gespraechsart[]; headhunter: HeadhunterOeffentlich; vorname: string; email_maskiert: string | null; telefon_bekannt: boolean;
+}
+
 export const terminSeiteApi = {
   seite: (slug: string, stelle?: string) => rufe<SeitenDaten>('termin-seite', { action: 'seite', slug, stelle }),
+  einladung: (token: string) => rufe<EinladungsDaten>('termin-seite', { action: 'einladung', token }),
+  buchenEinladung: (token: string, d: { start: string; mode: Gespraechsart; consent: boolean; email?: string; phone?: string; website?: string }) =>
+    rufe<{ ok: true; termin: { start: string; ende: string; mode: Gespraechsart; join_url: string | null; headhunter: string } | null }>(
+      'termin-seite', { action: 'buchen', einladung: token, ...d }),
   lebenslauf: (slug: string, datei: { name: string; typ: string; base64: string | null; text?: string }) =>
     rufe<{ upload_id: string; gelesen: boolean; felder: { first_name: string; last_name: string; email: string; phone: string; linkedin_url: string } }>(
       'termin-seite', { action: 'lebenslauf', slug, name: datei.name, typ: datei.typ, datei: datei.base64, text: datei.text }, 'Der Lebenslauf konnte nicht gelesen werden. Du kannst trotzdem buchen.'),
@@ -56,6 +66,20 @@ export const terminSeiteApi = {
   verschieben: (token: string, start: string) => rufe<{ ok: true; start: string; join_url: string | null }>('termin-seite', { action: 'verschieben', token, start }),
   absagen: (token: string, grund: string) => rufe<{ ok: true }>('termin-seite', { action: 'absagen', token, grund }),
 };
+
+// ---------------------------------------------------------------------------
+// Kandidat zum Gespräch einladen (Headhunter, angemeldet)
+// ---------------------------------------------------------------------------
+export const einladungApi = {
+  senden: (d: { candidate_id: string; arten: Gespraechsart[]; weg: 'mail' | 'selbst'; text?: string }) =>
+    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'senden', ...d }, 'Die Einladung konnte nicht verschickt werden.'),
+  link: (candidate_id: string) => rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'link', candidate_id }),
+  erinnern: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'erinnern', candidate_id }, 'Die Erinnerung konnte nicht verschickt werden.'),
+  zurueckziehen: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'zurueckziehen', candidate_id }),
+};
+
+/** Fertiger Link zur Einladung, auf der Adresse, auf der der Headhunter gerade arbeitet. */
+export const einladungsLink = (token: string) => `${window.location.origin}/t/einladung/${token}`;
 
 // ---------------------------------------------------------------------------
 // LinkedIn

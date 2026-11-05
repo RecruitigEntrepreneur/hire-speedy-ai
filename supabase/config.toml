@@ -426,6 +426,9 @@ verify_jwt = false
 [functions.linkedin]
 verify_jwt = true
 
+[functions.termin-einladung]
+verify_jwt = true
+
 # Erinnerung am Vortag: nur der tägliche Lauf mit eigenem Schlüssel (x-cron-token).
 [functions.interview-reminders]
 verify_jwt = false

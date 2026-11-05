@@ -1,5 +1,6 @@
 import type { UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { BUNDLED_CATEGORIES, bundleByJob, type StalledBundle } from '@/lib/kundePrueft';
+import { istGleichDran, VORBEREITEN_RANG, type VorbereitenArt } from '@/lib/kandidatVorbereiten';
 import { groupByPerson, type PersonGroup } from './taskWindow';
 
 export type JetztRow =
@@ -8,7 +9,7 @@ export type JetztRow =
   | { kind: 'bundle'; key: string; prio: number; fee: number; critical: boolean; bundle: StalledBundle; more: StalledBundle[] };
 
 /** Wie Julia die Aufgabe erledigt: Blöcke auf der Seite „Aufgaben“ (Variante A, 28.10.2026). */
-export type Handgriff = 'anruf' | 'kunde' | 'kurz';
+export type Handgriff = 'anruf' | 'kunde' | 'vorbereiten' | 'kurz';
 
 const DAY_MS = 86_400_000;
 const CALLS = new Set([
@@ -19,7 +20,8 @@ const CALLS = new Set([
 const CLIENT_MAILS = new Set(['client_review_stalled', 'client_feedback_due', 'offer_counter_stalled', 'client_unsure', 'client_undecided', 'recommendation_due']);
 /** Nähe zum Geld: Angebot und Vertrag vor Interview vor Prüfung */
 const stageWeight = (cat: string) =>
-  cat.startsWith('offer_') || cat.startsWith('contract_') ? 3
+  cat.startsWith('prep_') ? VORBEREITEN_RANG[cat.slice(5) as VorbereitenArt] ?? 0
+    : cat.startsWith('offer_') || cat.startsWith('contract_') ? 3
     : ['interview_debrief_due', 'client_feedback_due', 'recommendation_due', 'client_unsure', 'client_undecided', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h', 'interview_reminder', 'interview_prep_missing'].includes(cat) ? 2
       : 1;
 
@@ -39,7 +41,9 @@ function nextDeadline(r: JetztRow, now: number): UnifiedTaskItem | null {
 function rankKey(r: JetztRow, now: number) {
   const items = rowItems(r);
   const deadline = nextDeadline(r, now);
-  const clock = deadline && Date.parse(deadline.dueAt!) - now <= DAY_MS ? 1 : 0;
+  // Ein Termin vor der Einreichung ist erst 30 Minuten vorher dran, dann aber vor allem anderen
+  const gleich = items.some(i => i.prep && istGleichDran(i.prep, now));
+  const clock = gleich ? 2 : deadline && Date.parse(deadline.dueAt!) - now <= DAY_MS ? 1 : 0;
   const stage = Math.max(...items.map(i => stageWeight(i.taskCategory)));
   const oldest = Math.min(...items.map(i => Date.parse(i.createdAt) || now));
   return { clock, stage, fee: r.fee, oldest };
@@ -78,10 +82,31 @@ export function splitJetzt(allItems: UnifiedTaskItem[], now = new Date()) {
 
 export const rowItem = (r: JetztRow) => (r.kind === 'person' ? r.group.primary : r.bundle.items[0]);
 
-/** Block auf der Seite: Anrufe, Mails an Kunden, Kurz erledigen. */
+/**
+ * Dashboard (fünf Zeilen, 01.11.2026): Alles mit Honorar steht vorn, Kandidaten vor der Einreichung
+ * kämen dort nie an die Reihe. Darum bis zu zwei feste Plätze, abwechselnd einsortiert.
+ */
+export function dashboardRows(rows: JetztRow[], n = 5, now = Date.now()): JetztRow[] {
+  const vor = rows.filter(r => rowItem(r).prep);
+  const geld = rows.filter(r => !rowItem(r).prep);
+  const nGeld = Math.min(geld.length, n - Math.min(vor.length, 2));
+  const m = geld.slice(0, nGeld);
+  const v = vor.slice(0, n - nGeld);
+  const out: JetztRow[] = [];
+  const erste = v[0] && rowItem(v[0]).prep;
+  if (erste && istGleichDran(erste, now)) out.push(v.shift()!);
+  while (m.length || v.length) {
+    if (m.length) out.push(m.shift()!);
+    if (v.length) out.push(v.shift()!);
+  }
+  return out;
+}
+
+/** Block auf der Seite: Anrufe, Mails an Kunden, Kandidaten vorbereiten, Kurz erledigen. */
 export function handgriffOf(r: JetztRow): Handgriff {
   if (r.kind === 'bundle') return 'kunde';
   const it = r.group.primary;
+  if (it.prep) return 'vorbereiten';
   if (CLIENT_MAILS.has(it.taskCategory)) return 'kunde';
   if (CALLS.has(it.taskCategory)) return 'anruf';
   return 'kurz';

@@ -40,6 +40,26 @@ export function kandidatBestaetigt(o: {
   return { subject, html, text };
 }
 
+/** Der Text kommt vom Headhunter; [Link] markiert die Stelle des Knopfs. */
+const absaetze = (t: string) => t.trim().split(/\n{2,}/).filter(Boolean).map((x) => absatz(esc(x).replace(/\n/g, '<br>'))).join('');
+
+export function kandidatEinladung(o: { hhName: string; text: string; url: string; erinnerung?: boolean }): MailContent {
+  const [vor, nach = ''] = o.text.includes('[Link]') ? o.text.split('[Link]') : [o.text, ''];
+  const html = layout({
+    preheader: `${o.hhName} würde gern mit dir sprechen`,
+    heading: o.erinnerung ? 'Kurze Erinnerung' : 'Einladung zum Gespräch',
+    body: absaetze(vor),
+    cta: { label: 'Zeit aussuchen', url: o.url },
+    after: absaetze(nach),
+    footnote: 'Dieser Link ist nur für dich. Antworte einfach auf diese Mail, wenn du Fragen hast.',
+  });
+  return {
+    subject: o.erinnerung ? `Erinnerung: Gespräch mit ${o.hhName}` : `${o.hhName}: kurzes Gespräch?`,
+    html,
+    text: `${o.text.includes('[Link]') ? o.text.replace('[Link]', o.url) : `${o.text}\n\n${o.url}`}\n`,
+  };
+}
+
 export function kandidatAbgesagt(o: { vorname: string; hhName: string; startIso: string; dauer: number; neuBuchenUrl: string | null }): MailContent {
   const zeit = wann(o.startIso, o.dauer);
   const html = layout({

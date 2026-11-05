@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { useRecruiterTasks } from '@/hooks/useRecruiterTasks';
 import { useSearchParams } from 'react-router-dom';
 import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import { vorbereitenTexte, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 import { Honorar } from '@/components/recruiter/Honorar';
@@ -234,7 +235,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   // Abgeleitete Aufgaben (Nachfassen/Debrief) aus derselben Quelle wie
   // /recruiter/influence und das Dashboard — sonst behauptet die Sektion
   // "Alles erledigt", während die Inbox offene Aufgaben zum Kandidaten zeigt.
-  const { allItems: inboxItems, waitingItems: inboxWaiting, parkedItems: inboxParked, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
+  const { allItems: inboxAll, soonItems: inboxSoon, waitingItems: inboxWaiting, parkedItems: inboxParked, loading: inboxLoading, markDone: inboxMarkDone, snooze: inboxSnooze } = useUnifiedTaskInbox();
+  // Auch frisch angelegte Kandidaten: Auf der Seite „Aufgaben“ stehen sie unter „Diese Woche“
+  const inboxItems = useMemo(() => [...inboxAll, ...inboxSoon], [inboxAll, inboxSoon]);
   const [searchParams, setSearchParams] = useSearchParams();
   /** Steht die Aufgabe in der Inbox, öffnet das neue Fenster (?aufgabe=); sonst das alte Detail. */
   const openInTaskWindow = (itemId: string) => {
@@ -534,7 +537,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
     pendingTasks.filter(t => t.priority === 'critical').length +
     derivedTasks.filter(t => t.priority === 'critical').length;
 
-  if (loading) {
+  // Auch auf die abgeleiteten Aufgaben warten, sonst springt der Profilkopf, wenn die Karte nachkommt
+  if (loading || inboxLoading) {
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -621,8 +625,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                 >
                   {/* Row 1: Badge + Fee */}
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', config.color)}>
-                      {derivedLabel(item.taskCategory)}
+                    <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', item.prep ? cn('border-transparent', VORBEREITEN_TON[item.prep.art] ?? 'bg-muted text-muted-foreground') : config.color)}>
+                      {item.prep ? vorbereitenTexte(item.prep).pill : derivedLabel(item.taskCategory)}
                     </Badge>
                     {item.feeValue != null && item.feeValue > 0 && (
                       <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
@@ -633,7 +637,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
 
                   {/* Row 2: Title (2 lines) */}
                   <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">
-                    {item.taskCategory === 'client_review_stalled'
+                    {item.prep
+                      ? vorbereitenTexte(item.prep).kurz
+                      : item.taskCategory === 'client_review_stalled'
                       ? `${item.jobTitle ?? 'Stelle'} · Kunde prüft seit ${Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 86_400_000)} Tagen`
                       : item.title}
                   </p>

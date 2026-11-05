@@ -11,6 +11,8 @@
  *   seite       { slug, stelle? }                 → Headhunter, Steckbrief, freie Zeiten
  *   lebenslauf  { slug, datei?, text?, name, typ } → liest Kontakt aus, merkt die Datei vor
  *   buchen      { slug, stelle?, start, mode, first_name, last_name, email, phone?, linkedin_url?, note?, consent, upload_id?, website }
+ *   einladung   { token }                         → persönliche Einladung: Anrede, Gesprächsart, freie Zeiten
+ *   buchen      { einladung, start, mode, consent, email?, phone? } → Termin direkt beim Kandidaten aus der Akte
  *   termin      { token }                         → gebuchter Termin + andere freie Zeiten
  *   verschieben { token, start }
  *   absagen     { token, grund? }
@@ -160,6 +162,46 @@ function zerlegeName(voll: string): { first_name: string; last_name: string } {
   return { first_name: teile.slice(0, -1).join(' '), last_name: teile[teile.length - 1] };
 }
 
+// ---------------------------------------------------------------------------
+// Persönliche Einladung (01.11.2026): der Headhunter wählt, was er anbietet
+// ---------------------------------------------------------------------------
+
+async function ladeEinladung(db: SupabaseClient, token: unknown) {
+  muss(typeof token === 'string' && token.length >= 20, 'not_found', 'Diese Einladung gibt es nicht.');
+  const { data: inv } = await db.from('candidate_invites').select('*').eq('token_hash', await hashToken(token)).maybeSingle();
+  muss(inv, 'not_found', 'Diese Einladung gibt es nicht.');
+  const { data: page } = await db.from('recruiter_booking_pages').select('slug').eq('recruiter_id', inv.recruiter_id).maybeSingle();
+  muss(page, 'not_found', 'Diese Einladung gibt es nicht.');
+  const { data: kand } = await db.from('candidates').select('id, full_name, email, phone').eq('id', inv.candidate_id).maybeSingle();
+  muss(kand, 'not_found', 'Diese Einladung gibt es nicht.');
+  return { inv, kand, seite: await ladeSeite(db, page.slug) };
+}
+
+const einladungStand = (inv: any): 'offen' | 'gebucht' | 'abgelaufen' | 'zurueckgezogen' =>
+  inv.booked_at ? 'gebucht' : inv.revoked_at ? 'zurueckgezogen' : Date.parse(inv.expires_at) <= Date.now() ? 'abgelaufen' : 'offen';
+
+/** m•••@gmail.com: Wer den Link weitergibt, gibt nicht die Adresse mit weiter. */
+const maskiert = (email: string | null) => {
+  const [lokal, domain] = String(email ?? '').split('@');
+  return lokal && domain ? `${lokal[0]}•••@${domain}` : null;
+};
+
+async function einladungZeigen(db: SupabaseClient, body: any) {
+  const { inv, kand, seite } = await ladeEinladung(db, body.token);
+  const stand = einladungStand(inv);
+  if (stand === 'offen') {
+    const jetzt = new Date().toISOString();
+    await db.from('candidate_invites').update({ opened_at: inv.opened_at ?? jetzt, last_opened_at: jetzt }).eq('id', inv.id);
+  }
+  const buchbar = stand === 'offen' && seite.active;
+  const z = buchbar ? await zeitenFuer(db, seite) : { verbunden: true, tage: [] };
+  return json({
+    stand, offen: buchbar, pausiert: !seite.active, kalender: z.verbunden, tage: z.tage, dauer: seite.e.dauer, arten: inv.arten,
+    headhunter: headhunterOeffentlich(seite), vorname: zerlegeName(kand.full_name ?? '').first_name,
+    email_maskiert: maskiert(kand.email), telefon_bekannt: (String(kand.phone ?? '').match(/\d/g) ?? []).length >= 6,
+  });
+}
+
 async function lebenslaufLesen(db: SupabaseClient, body: any) {
   const seite = await ladeSeite(db, body.slug);
   muss(seite.active, 'not_allowed', 'Diese Terminseite nimmt gerade keine Buchungen an.');
@@ -296,9 +338,19 @@ async function ereignisAnlegen(token: string, o: { bookingId: string; startMs: n
 }
 
 async function buchen(db: SupabaseClient, body: any, ip: string | null) {
-  const seite = await ladeSeite(db, body.slug);
+  const einl = body.einladung ? await ladeEinladung(db, body.einladung) : null;
+  if (einl) {
+    const stand = einladungStand(einl.inv);
+    muss(stand !== 'gebucht', 'not_allowed', 'Du hast schon einen Termin. Verschieben oder absagen kannst du über den Link in der Bestätigungsmail.');
+    muss(stand === 'offen', 'not_allowed', 'Diese Einladung gilt nicht mehr. Frag bitte kurz nach einem neuen Link.');
+  }
+  const seite = einl ? einl.seite : await ladeSeite(db, body.slug);
   muss(seite.active, 'not_allowed', 'Diese Terminseite nimmt gerade keine Buchungen an.');
-  const p = pruefeBuchung(body, seite.e);
+  // Einladung: Name, E-Mail und Telefon kommen aus der Akte, angeboten wird nur, was der Headhunter gewählt hat.
+  const aktePhone = einl && (String(einl.kand.phone ?? '').match(/\d/g) ?? []).length >= 6 ? einl.kand.phone : '';
+  const p = einl
+    ? pruefeBuchung({ ...body, ...zerlegeName(einl.kand.full_name ?? ''), email: einl.kand.email || body.email, phone: body.phone || aktePhone }, { ...seite.e, arten: einl.inv.arten }, { nameAusAkte: true })
+    : pruefeBuchung(body, seite.e);
   if (!p.ok) {
     if (p.bot) return json({ ok: true, termin: null }); // Bots bekommen kein Signal
     throw new Fehler('invalid_request', p.meldung, { feld: p.feld });
@@ -306,8 +358,8 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   const b = p.buchung;
   const grenze = await checkLimits(db, LIMITS.terminBuchen(ip, b.email));
   muss(grenze.allowed, 'rate_limited', 'Du hast heute schon mehrere Termine gebucht. Versuch es morgen wieder.');
-  const stelle = await ladeStelle(db, seite, body.stelle);
-  if (body.stelle) muss(stelle?.offen, 'not_allowed', 'Diese Stelle ist gerade nicht offen.');
+  const stelle = einl ? null : await ladeStelle(db, seite, body.stelle);
+  if (!einl && body.stelle) muss(stelle?.offen, 'not_allowed', 'Diese Stelle ist gerade nicht offen.');
   const startMs = Date.parse(b.start);
   const endMs = startMs + seite.e.dauer * 60000;
   const k = await kalender(db, seite.recruiter_id, startMs - 86400000, endMs + 86400000);
@@ -334,11 +386,19 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   muss(!error && row, 'internal_error', 'Der Termin konnte nicht gebucht werden.');
 
   const app = getPublicAppUrl();
-  const kandidat = await kandidatAnlegen(db, seite.recruiter_id, b, herkunft);
+  const kandidat = einl ? { id: einl.kand.id as string, neu: false } : await kandidatAnlegen(db, seite.recruiter_id, b, herkunft);
+  if (einl) {
+    const ergaenzen: Record<string, unknown> = {};
+    if (!einl.kand.email) ergaenzen.email = b.email;
+    if (!aktePhone && b.phone) ergaenzen.phone = b.phone;
+    if (Object.keys(ergaenzen).length) await db.from('candidates').update(ergaenzen).eq('id', einl.kand.id);
+    await db.from('candidate_invites').update({ booking_id: row.id, booked_at: new Date().toISOString() })
+      .eq('candidate_id', einl.kand.id).is('booked_at', null).is('revoked_at', null);
+  }
   const akteUrl = `${app}/recruiter/candidates/${kandidat.id}`;
   const verwaltenUrl = `${app}/t/termin/${token}`;
   const upload = b.upload_id ? await lebenslaufAnhaengen(db, seite.recruiter_id, kandidat.id, b.upload_id, row.id) : null;
-  const name = `${b.first_name} ${b.last_name}`;
+  const name = `${b.first_name} ${b.last_name}`.trim();
   const stellenTitel = stelle?.job.title ?? null;
 
   let joinUrl: string | null = null;
@@ -492,6 +552,7 @@ Deno.serve(async (req) => {
     if (!grenze.allowed) return fail('rate_limited', 'Zu viele Anfragen. Versuch es in ein paar Minuten wieder.');
     switch (action) {
       case 'seite': return await seiteZeigen(db, body);
+      case 'einladung': return await einladungZeigen(db, body);
       case 'lebenslauf': return await lebenslaufLesen(db, body);
       case 'buchen': return await buchen(db, body, ip);
       case 'termin': return await terminZeigen(db, body);
