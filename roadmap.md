@@ -2,7 +2,7 @@
 
 ## Auftrag 43 (06.11.2026)
 - [x] GitHub main mit Arbeitskopie abgeglichen: 61f35dd, enthält d6f12b1.
-- [ ] Alle 19 beauftragten Functions prüfen und deployen; Einstellungen beibehalten.
+- [x] Alle 19 beauftragten Functions erfolgreich deployt; verify_jwt laut config.toml, Vorschau build OK.
 - [ ] Sicherheitsprüfung auswerten und Publish anfordern; Ergebnis melden.
 - [x] Keine Migrationen, Anwendungscode- oder Secret-Änderungen.
 
