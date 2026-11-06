@@ -1,5 +1,11 @@
 # Roadmap
 
+## Auftrag 43 (06.11.2026)
+- [x] GitHub main mit Arbeitskopie abgeglichen: 61f35dd, enthält d6f12b1.
+- [x] Alle 19 beauftragten Functions erfolgreich deployt; verify_jwt laut config.toml, Vorschau build OK.
+- [ ] Sicherheitsprüfung auswerten und Publish anfordern; Ergebnis melden.
+- [x] Keine Migrationen, Anwendungscode- oder Secret-Änderungen.
+
 ## Auftrag 38 (29.10.2026)
 - [x] Stand d1a6d87 geprüft; Journal endete bei 0045; beide früheren Befunde korrigiert, Vorschau build OK.
 - [x] Migrationen einzeln erfolgreich als 0046_angebot_an_kandidat und 0047_stand_meiner_einreichungen ausgeführt; beide bytegleich mit den Quelldateien.
