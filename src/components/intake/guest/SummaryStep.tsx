@@ -316,7 +316,7 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
 /** Die Konditionen für Contracting. Der Text lebt in _shared/contracting-konditionen.ts,
  *  damit Seite, Eingangsbestätigung und Nachweis dasselbe sagen. Die Aufteilung
  *  des Tagessatzes steht hier bewusst NICHT (Entscheidung 25.09.2026). */
-function ContractingKarte({ budget }: { budget: { dayRateMin: number | null; dayRateMax: number | null } }) {
+export function ContractingKarte({ budget }: { budget: { dayRateMin: number | null; dayRateMax: number | null } }) {
   const zeile = budgetZeile(budget.dayRateMin, budget.dayRateMax);
   return (
     <Card className="border-primary/25">

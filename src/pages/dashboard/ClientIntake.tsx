@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '@/components/ui/textarea';
 import { CaptureStep } from '@/components/intake/guest/CaptureStep';
 import { SubmitStep } from '@/components/dashboard/intake/SubmitStep';
-import { useClientIntake } from '@/hooks/useClientIntake';
+import { contractingUnterRahmen, useClientIntake } from '@/hooks/useClientIntake';
 import { useOrganization, useOrganizationMembers } from '@/hooks/useOrganization';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,17 +48,18 @@ export default function ClientIntake() {
 
   /**
    * Vorschau-Schalter, nur lokal (npm run dev): ?vorschau=rv zeigt den Weg mit
-   * Beispiel-Rahmenvertrag, ?vorschau=ohne den Weg ohne. In beiden Faellen
-   * schreibt "Einreichen" nichts -- Entwuerfe werden weiter normal gespeichert.
+   * Beispiel-Rahmenvertrag, ?vorschau=rv1 mit einem der Fassung 1 (regelt kein
+   * Contracting), ?vorschau=ohne den Weg ohne. In allen Faellen schreibt
+   * "Einreichen" nichts -- Entwuerfe werden weiter normal gespeichert.
    */
   const vorschau = import.meta.env.DEV ? new URLSearchParams(location.search).get('vorschau') : null;
   const corePkg = packages.find((p) => p.package_key === 'core');
   const framework =
-    vorschau === 'rv'
+    vorschau === 'rv' || vorschau === 'rv1'
       ? {
-          id: 'vorschau', agreement_number: 'RV-VORSCHAU', package_key: 'core',
+          id: 'vorschau', agreement_number: vorschau === 'rv1' ? 'RV-VORSCHAU-1' : 'RV-VORSCHAU', package_key: 'core',
           fee_percent: corePkg?.client_fee_pct ?? 20, name: corePkg?.public_name ?? 'Matchunt Core',
-          continuity_days: null, agreed_at: null,
+          continuity_days: null, agreed_at: null, template_version: vorschau === 'rv1' ? 1 : 2,
         }
       : vorschau === 'ohne' ? null : realFramework;
 
@@ -69,9 +70,16 @@ export default function ClientIntake() {
   const isOwner = vorschau ? true : target?.myRole === 'owner';
   const needsInternalApproval = target?.status === 'pending_client_approval';
   const hasFramework = !!framework || (!isOwner && !frameworkLoading);
-  const steps = hasFramework || needsInternalApproval
-    ? [{ key: 'capture', label: 'Position' }, { key: 'submit', label: needsInternalApproval ? 'Freigabe' : 'Einreichen' }]
-    : [{ key: 'capture', label: 'Position' }, { key: 'submit', label: 'Paket & Anfragen' }];
+  // Contracting hat keinen Paketschritt. Ohne Unterschrift laeuft es nur unter
+  // einem Rahmenvertrag ab Fassung 2, sonst wird angefragt.
+  const isContracting = capture?.type === 'freelance';
+  const contractingDirekt = contractingUnterRahmen(framework) || (!isOwner && !frameworkLoading);
+  const submitLabel = needsInternalApproval
+    ? 'Freigabe'
+    : isContracting
+      ? contractingDirekt ? 'Einreichen' : 'Anfragen'
+      : hasFramework ? 'Einreichen' : 'Paket & Anfragen';
+  const steps = [{ key: 'capture', label: 'Position' }, { key: 'submit', label: submitLabel }];
 
   const rows = useMemo(() => {
     const b = capture?.built;
@@ -99,9 +107,10 @@ export default function ClientIntake() {
       { label: 'Standort', value: [b.location, remoteLabel(b.remote_type)].filter(Boolean).join(' · ') || '—' },
       { label: 'Erfahrung', value: levelLabel(b.experience_level) },
       {
-        label: isFreelance ? 'Tagessatz' : 'Gehaltsband',
+        // Wie auf /start: das Budget des Kunden, alles inklusive -- kein Satz des Spezialisten.
+        label: isFreelance ? 'Budget je Tag' : 'Gehaltsband',
         value: isFreelance
-          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€ / Tag')
+          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€, alles inklusive')
           : money(b.salary_min, b.salary_max, '€ p. a.'),
       },
       { label: 'Muss', value: muss.length ? muss.join(' · ') : '—' },
@@ -153,9 +162,11 @@ export default function ClientIntake() {
   const abschluss = (status: string, choice: Parameters<typeof submit>[0], nurVorschau: boolean) => {
     const pkg = choice ? packages.find((p) => p.package_key === choice.package_key) : null;
     const internal = status === 'pending_client_approval';
+    // Contracting laeuft erst ab Fassung 2 ohne Unterschrift unter dem Rahmenvertrag.
+    const unterRv = framework && (!isContracting || contractingUnterRahmen(framework));
     const text = internal
       ? 'Ihre Personalabteilung wurde benachrichtigt und gibt die Position frei.'
-      : framework
+      : unterRv
         ? choice?.upgraded && pkg?.public_name
           ? `${pkg.public_name} für diese Position · sonst gilt Rahmenvertrag ${framework.agreement_number}.`
           : `Läuft unter Rahmenvertrag ${framework.agreement_number}, keine Unterschrift nötig.`
@@ -301,6 +312,7 @@ export default function ClientIntake() {
                 {[
                   { key: null, label: 'echte Daten' },
                   { key: 'rv', label: 'mit Rahmenvertrag' },
+                  { key: 'rv1', label: 'mit altem Rahmenvertrag (Fassung 1)' },
                   { key: 'ohne', label: 'ohne Rahmenvertrag' },
                 ].map((o) => (
                   <button
@@ -376,7 +388,7 @@ export default function ClientIntake() {
                 parsePdf={parsePdf}
                 onNext={goSubmit}
                 onResumeLater={later}
-                nextLabel={hasFramework || needsInternalApproval ? 'Weiter zum Einreichen' : 'Weiter zum Paket'}
+                nextLabel={hasFramework || needsInternalApproval || isContracting ? 'Weiter zum Einreichen' : 'Weiter zum Paket'}
                 entrySub="Meist in drei bis fünf Minuten. Ihre Angaben werden fortlaufend gespeichert."
                 entryExtras={entryExtras}
                 autoBuildText={seed.seedText ?? null}
@@ -397,6 +409,9 @@ export default function ClientIntake() {
                 frameworkReadable={isOwner}
                 packages={packages}
                 isFreelance={capture.type === 'freelance'}
+                contracting={capture.type === 'freelance'
+                  ? { dayRateMin: capture.freelance.dayRateMin ?? null, dayRateMax: capture.freelance.dayRateMax ?? null }
+                  : null}
                 needsInternalApproval={needsInternalApproval}
                 exampleSalary={exampleSalary}
                 openQuestions={openQuestions}
